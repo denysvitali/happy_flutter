@@ -11,6 +11,7 @@ jobs:
     name: Setup
     outputs:
       has_keystore: ${{ steps.check_keystore.outputs.has_keystore }}
+      version_code: ${{ steps.version.outputs.version_code }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,12 +29,33 @@ jobs:
             echo "has_keystore=true" >> $GITHUB_OUTPUT
           fi
 
+      - name: Generate version code from run number
+        id: version
+        run: |
+          # Version format: 1.0.0 + (run_number offset by 10000 to ensure positive)
+          # e.g., run #123 becomes version 1.0.0+1123 (10000 + 123 = 10123, but we use offset)
+          RUN_NUMBER=${{ github.run_number }}
+          BASE_VERSION_CODE=10000
+          VERSION_CODE=$((BASE_VERSION_CODE + RUN_NUMBER))
+          echo "Run number: $RUN_NUMBER"
+          echo "Generated version code: $VERSION_CODE"
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "run_number=$RUN_NUMBER" >> $GITHUB_OUTPUT
+
   debug:
     name: Build Debug APK
     needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Update version in pubspec.yaml
+        run: |
+          VERSION_CODE=${{ needs.setup.outputs.version_code }}
+          RUN_NUMBER=${{ needs.setup.outputs.run_number }}
+          echo "Updating version to 1.0.0+${VERSION_CODE} (run #${RUN_NUMBER})"
+          sed -i "s/^version:.*/version: 1.0.0+${VERSION_CODE}/" pubspec.yaml
+          cat pubspec.yaml | grep "^version:"
 
       - uses: subosito/flutter-action@v2
         with:
@@ -57,6 +79,14 @@ jobs:
     if: needs.setup.outputs.has_keystore == 'true'
     steps:
       - uses: actions/checkout@v4
+
+      - name: Update version in pubspec.yaml
+        run: |
+          VERSION_CODE=${{ needs.setup.outputs.version_code }}
+          RUN_NUMBER=${{ needs.setup.outputs.run_number }}
+          echo "Updating version to 1.0.0+${VERSION_CODE} (run #${RUN_NUMBER})"
+          sed -i "s/^version:.*/version: 1.0.0+${VERSION_CODE}/" pubspec.yaml
+          cat pubspec.yaml | grep "^version:"
 
       - name: Set up keystore for release build
         run: |

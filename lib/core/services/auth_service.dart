@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../api/api_client.dart';
 import '../models/auth.dart';
@@ -52,6 +53,31 @@ class AuthService {
           },
         );
 
+        // Check for 403 Forbidden - indicates server rejected the request
+        if (response.statusCode == 403) {
+          throw AuthForbiddenError(
+            'Authentication rejected by server (403). '
+            'Possible causes: Invalid public key, expired request, or server policy.',
+          );
+        }
+
+        // Check for other client errors (4xx)
+        if (response.statusCode != null &&
+            response.statusCode! >= 400 &&
+            response.statusCode! < 500) {
+          final errorMsg = _extractErrorMessage(response.data);
+          throw AuthRequestError(
+            'Client error (${response.statusCode}): $errorMsg',
+          );
+        }
+
+        // Check for server errors (5xx)
+        if (response.statusCode != null && response.statusCode! >= 500) {
+          throw ServerError(
+            'Server error (${response.statusCode}). Please try again later.',
+          );
+        }
+
         if (response.statusCode == 200) {
           final data = response.data as Map<String, dynamic>;
           final token = data['token'] as String;
@@ -77,13 +103,36 @@ class AuthService {
         } else {
           throw Exception('Unexpected response: ${response.statusCode}');
         }
+      } on DioException catch (e) {
+        // Handle Dio-specific errors
+        if (e.type == DioExceptionType.connectionError ||
+            e.type == DioExceptionType.connectionTimeout) {
+          debugPrint('Connection error during auth polling: ${e.message}');
+          await Future.delayed(const Duration(milliseconds: 2000));
+        } else if (e.response?.statusCode == 403) {
+          throw AuthForbiddenError(
+            'Authentication rejected by server (403). '
+            'The server refused this authentication request.',
+          );
+        } else {
+          debugPrint('Dio error during auth polling: $e');
+          await Future.delayed(const Duration(milliseconds: 1000));
+        }
       } catch (e) {
+        // Check if it's a network-related SSL error
+        if (e is HandshakeException || e is TlsException) {
+          throw SSLError(
+            'SSL/TLS error during authentication. '
+            'This may indicate a certificate trust issue. '
+            'Ensure the server certificate is trusted by your device.',
+          );
+        }
         debugPrint('Auth polling error: $e');
         await Future.delayed(const Duration(milliseconds: 1000));
       }
     }
 
-    throw ExpiredError('Authentication timed out');
+    throw ExpiredError('Authentication timed out after 2 minutes');
   }
 
   /// Complete authentication with token
@@ -116,6 +165,11 @@ class AuthService {
       await _verifyToken(credentials.token);
       return AuthState.authenticated;
     } catch (e) {
+      // Check if it's a 403 - token is invalid/revoked
+      if (e is AuthForbiddenError) {
+        await signOut(); // Clean up invalid credentials
+        return AuthState.unauthenticated;
+      }
       return AuthState.error;
     }
   }
@@ -123,14 +177,23 @@ class AuthService {
   /// Verify token with server
   Future<void> _verifyToken(String token) async {
     final serverUrl = await _getServerUrl();
-    await _apiClient.get(
+    final response = await _apiClient.get(
       '$serverUrl/v1/auth/verify',
       queryParameters: {'token': token},
     );
+
+    if (response.statusCode == 403) {
+      throw AuthForbiddenError('Token is invalid or has been revoked');
+    }
+
+    if (!_apiClient.isSuccess(response)) {
+      throw Exception('Token verification failed: ${response.statusCode}');
+    }
   }
 
   /// Sign out
   Future<void> signOut() async {
+    _apiClient.clearToken();
     await TokenStorage().removeCredentials();
   }
 
@@ -161,6 +224,19 @@ class AuthService {
     }
   }
 
+  /// Extract error message from response data
+  String _extractErrorMessage(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      if (data.containsKey('error')) {
+        return data['error'].toString();
+      }
+      if (data.containsKey('message')) {
+        return data['message'].toString();
+      }
+    }
+    return 'Unknown error';
+  }
+
   /// Get server URL from config
   Future<String> _getServerUrl() async {
     // In production, load from environment/config
@@ -173,4 +249,24 @@ class _KeyPair {
   final Uint8List publicKey;
 
   _KeyPair({required this.privateKey, required this.publicKey});
+}
+
+/// Custom exception for 403 Forbidden authentication errors
+class AuthForbiddenError extends AuthException {
+  AuthForbiddenError(super.message);
+}
+
+/// Custom exception for client request errors (4xx)
+class AuthRequestError extends AuthException {
+  AuthRequestError(super.message);
+}
+
+/// Custom exception for server errors (5xx)
+class ServerError extends AuthException {
+  ServerError(super.message);
+}
+
+/// Custom exception for SSL/TLS errors
+class SSLError extends AuthException {
+  SSLError(super.message);
 }
