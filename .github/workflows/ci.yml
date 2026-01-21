@@ -22,6 +22,12 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
 
+      - name: Debug environment
+        run: |
+          flutter --version
+          which flutter
+          echo "PUB_CACHE: $PUB_CACHE"
+
       - name: Install dependencies
         run: flutter pub get
 
