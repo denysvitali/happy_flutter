@@ -63,6 +63,11 @@ jobs:
 
       - run: flutter pub get
 
+      - name: Clean Android build cache
+        run: |
+          cd android
+          ./gradlew clean --no-daemon
+
       - name: Build debug APK
         run: flutter build apk --debug --no-pub
 
@@ -103,6 +108,11 @@ jobs:
           flutter-version: '3.24.0'
 
       - run: flutter pub get
+
+      - name: Clean Android build cache
+        run: |
+          cd android
+          ./gradlew clean --no-daemon
 
       - name: Build release APK
         run: flutter build apk --release --no-pub
