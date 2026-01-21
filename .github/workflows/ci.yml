@@ -6,167 +6,36 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  FLUTTER_VERSION: '3.24.0'
-
 jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-
-      - name: Debug environment
-        run: |
-          flutter --version
-          which flutter
-          echo "PUB_CACHE: $PUB_CACHE"
-
-      - name: Install dependencies
-        run: |
-          echo "Running: flutter pub get"
-          flutter pub get || { echo "ERROR: flutter pub get failed"; exit 1; }
-
-      - name: Analyze code
-        run: flutter analyze lib/
+          flutter-version: '3.24.0'
+      - run: flutter pub get
+      - run: flutter analyze lib/
 
   format:
     name: Format
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Format code
-        run: flutter format --set-exit-if-changed lib/
+          flutter-version: '3.24.0'
+      - run: flutter pub get
+      - run: flutter format --set-exit-if-changed lib/
 
   test:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Run tests
-        run: flutter test --no-pub
-
-  build-android:
-    name: Build Android
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build APK
-        run: flutter build apk --release
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: happy-flutter-android.apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-
-  build-ios:
-    name: Build iOS
-    runs-on: macos-latest
-    if: github.event_name == 'push'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build iOS
-        run: flutter build ios --release --no-codesign
-
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: happy-flutter-ios
-          path: build/ios/iphoneos/Payload
-
-  build-web:
-    name: Build Web
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build Web
-        run: flutter build web --release
-
-      - name: Upload Web Build
-        uses: actions/upload-artifact@v4
-        with:
-          name: happy-flutter-web
-          path: build/web
-
-  deploy:
-    name: Deploy
-    runs-on: ubuntu-latest
-    needs: [analyze, format, test]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Deploy to Firebase Hosting
-        run: |
-          echo "Deploy command would go here"
-          echo "firebase deploy --only hosting"
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          flutter-version: '3.24.0'
+      - run: flutter pub get
+      - run: flutter test --no-pub
