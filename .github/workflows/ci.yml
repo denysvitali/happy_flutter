@@ -29,7 +29,9 @@ jobs:
           echo "PUB_CACHE: $PUB_CACHE"
 
       - name: Install dependencies
-        run: flutter pub get
+        run: |
+          echo "Running: flutter pub get"
+          flutter pub get || { echo "ERROR: flutter pub get failed"; exit 1; }
 
       - name: Analyze code
         run: flutter analyze lib/
