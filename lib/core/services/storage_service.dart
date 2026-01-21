@@ -124,7 +124,8 @@ class SettingsStorage {
 
   void _ensureInitialized() {
     if (_prefs == null) {
-      throw StateError('SettingsStorage not initialized. Call initialize() first.');
+      throw StateError(
+          'SettingsStorage not initialized. Call initialize() first.');
     }
   }
 

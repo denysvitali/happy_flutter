@@ -6,14 +6,20 @@ class ApiMessage {
   final ApiMessageContent content;
   final int createdAt;
 
-  ApiMessage({required this.id, required this.seq, this.localId, required this.content, required this.createdAt});
+  ApiMessage(
+      {required this.id,
+      required this.seq,
+      this.localId,
+      required this.content,
+      required this.createdAt});
 
   factory ApiMessage.fromJson(Map<String, dynamic> json) {
     return ApiMessage(
       id: json['id'] as String,
       seq: json['seq'] as int,
       localId: json['localId'] as String?,
-      content: ApiMessageContent.fromJson(json['content'] as Map<String, dynamic>),
+      content:
+          ApiMessageContent.fromJson(json['content'] as Map<String, dynamic>),
       createdAt: json['createdAt'] as int,
     );
   }
@@ -94,7 +100,14 @@ class Permission {
   final String? decision;
   final int? date;
 
-  Permission({required this.id, required this.status, this.reason, this.mode, this.allowedTools, this.decision, this.date});
+  Permission(
+      {required this.id,
+      required this.status,
+      this.reason,
+      this.mode,
+      this.allowedTools,
+      this.decision,
+      this.date});
 
   factory Permission.fromJson(Map<String, dynamic> json) {
     return Permission(
@@ -102,7 +115,9 @@ class Permission {
       status: json['status'] as String,
       reason: json['reason'] as String?,
       mode: json['mode'] as String?,
-      allowedTools: (json['allowedTools'] as List<dynamic>?)?.map((e) => e as String).toList(),
+      allowedTools: (json['allowedTools'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList(),
       decision: json['decision'] as String?,
       date: json['date'] as int?,
     );
@@ -120,7 +135,15 @@ class MessageMeta {
   final String? requestId;
   final int? timestamp;
 
-  MessageMeta({this.role, this.cwd, this.sessionId, this.version, this.gitBranch, this.slug, this.requestId, this.timestamp});
+  MessageMeta(
+      {this.role,
+      this.cwd,
+      this.sessionId,
+      this.version,
+      this.gitBranch,
+      this.slug,
+      this.requestId,
+      this.timestamp});
 
   factory MessageMeta.fromJson(Map<String, dynamic> json) {
     return MessageMeta(

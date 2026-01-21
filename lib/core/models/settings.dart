@@ -39,11 +39,13 @@ class Settings {
       ..inferenceOpenAIKey = json['inferenceOpenAIKey'] as String?
       ..expandTodos = json['expandTodos'] as bool? ?? true
       ..showLineNumbers = json['showLineNumbers'] as bool? ?? true
-      ..showLineNumbersInToolViews = json['showLineNumbersInToolViews'] as bool? ?? false
+      ..showLineNumbersInToolViews =
+          json['showLineNumbersInToolViews'] as bool? ?? false
       ..wrapLinesInDiffs = json['wrapLinesInDiffs'] as bool? ?? false
       ..analyticsOptOut = json['analyticsOptOut'] as bool? ?? false
       ..experiments = json['experiments'] as bool? ?? false
-      ..useEnhancedSessionWizard = json['useEnhancedSessionWizard'] as bool? ?? false
+      ..useEnhancedSessionWizard =
+          json['useEnhancedSessionWizard'] as bool? ?? false
       ..alwaysShowContextSize = json['alwaysShowContextSize'] as bool? ?? false
       ..agentInputEnterToSend = json['agentInputEnterToSend'] as bool? ?? true
       ..avatarStyle = json['avatarStyle'] as String? ?? 'brutalist'
@@ -55,23 +57,29 @@ class Settings {
       ..voiceAssistantLanguage = json['voiceAssistantLanguage'] as String?
       ..preferredLanguage = json['preferredLanguage'] as String?
       ..recentMachinePaths = (json['recentMachinePaths'] as List<dynamic>?)
-          ?.map((e) => RecentMachinePath.fromJson(e as Map<String, dynamic>))
-          .toList() ?? []
+              ?.map(
+                  (e) => RecentMachinePath.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          []
       ..lastUsedAgent = json['lastUsedAgent'] as String?
       ..lastUsedPermissionMode = json['lastUsedPermissionMode'] as String?
       ..lastUsedModelMode = json['lastUsedModelMode'] as String?
       ..profiles = (json['profiles'] as List<dynamic>?)
-          ?.map((e) => AIBackendProfile.fromJson(e as Map<String, dynamic>))
-          .toList() ?? []
+              ?.map((e) => AIBackendProfile.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          []
       ..lastUsedProfile = json['lastUsedProfile'] as String?
       ..favoriteDirectories = (json['favoriteDirectories'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList() ?? ['~/src', '~/Desktop', '~/Documents']
+              ?.map((e) => e as String)
+              .toList() ??
+          ['~/src', '~/Desktop', '~/Documents']
       ..favoriteMachines = (json['favoriteMachines'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList() ?? []
+              ?.map((e) => e as String)
+              .toList() ??
+          []
       ..dismissedCLIWarnings = json['dismissedCLIWarnings'] != null
-          ? DismissedCLIWarnings.fromJson(json['dismissedCLIWarnings'] as Map<String, dynamic>)
+          ? DismissedCLIWarnings.fromJson(
+              json['dismissedCLIWarnings'] as Map<String, dynamic>)
           : DismissedCLIWarnings();
   }
 
@@ -137,7 +145,8 @@ class DismissedCLIWarnings {
   factory DismissedCLIWarnings.fromJson(Map<String, dynamic> json) {
     return DismissedCLIWarnings()
       ..perMachine = (json['perMachine'] as Map<String, dynamic>?)?.map(
-            (k, v) => MapEntry(k, PerMachineWarnings.fromJson(v as Map<String, dynamic>)),
+            (k, v) => MapEntry(
+                k, PerMachineWarnings.fromJson(v as Map<String, dynamic>)),
           ) ??
           {}
       ..global = json['global'] != null
@@ -228,7 +237,8 @@ class AIBackendProfile {
     this.defaultSessionType,
     this.defaultPermissionMode,
     this.defaultModelMode,
-    this.compatibility = const ProfileCompatibility(claude: true, codex: true, gemini: true),
+    this.compatibility =
+        const ProfileCompatibility(claude: true, codex: true, gemini: true),
     this.isBuiltIn = false,
     this.createdAt = 0,
     this.updatedAt = 0,
@@ -241,30 +251,35 @@ class AIBackendProfile {
       name: json['name'] as String,
       description: json['description'] as String?,
       anthropicConfig: json['anthropicConfig'] != null
-          ? AnthropicConfig.fromJson(json['anthropicConfig'] as Map<String, dynamic>)
+          ? AnthropicConfig.fromJson(
+              json['anthropicConfig'] as Map<String, dynamic>)
           : null,
       openaiConfig: json['openaiConfig'] != null
           ? OpenAIConfig.fromJson(json['openaiConfig'] as Map<String, dynamic>)
           : null,
       azureOpenAIConfig: json['azureOpenAIConfig'] != null
-          ? AzureOpenAIConfig.fromJson(json['azureOpenAIConfig'] as Map<String, dynamic>)
+          ? AzureOpenAIConfig.fromJson(
+              json['azureOpenAIConfig'] as Map<String, dynamic>)
           : null,
       togetherAIConfig: json['togetherAIConfig'] != null
-          ? TogetherAIConfig.fromJson(json['togetherAIConfig'] as Map<String, dynamic>)
+          ? TogetherAIConfig.fromJson(
+              json['togetherAIConfig'] as Map<String, dynamic>)
           : null,
       tmuxConfig: json['tmuxConfig'] != null
           ? TmuxConfig.fromJson(json['tmuxConfig'] as Map<String, dynamic>)
           : null,
       startupBashScript: json['startupBashScript'] as String?,
       environmentVariables: (json['environmentVariables'] as List<dynamic>?)
-              ?.map((e) => EnvironmentVariable.fromJson(e as Map<String, dynamic>))
+              ?.map((e) =>
+                  EnvironmentVariable.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
       defaultSessionType: json['defaultSessionType'] as String?,
       defaultPermissionMode: json['defaultPermissionMode'] as String?,
       defaultModelMode: json['defaultModelMode'] as String?,
       compatibility: json['compatibility'] != null
-          ? ProfileCompatibility.fromJson(json['compatibility'] as Map<String, dynamic>)
+          ? ProfileCompatibility.fromJson(
+              json['compatibility'] as Map<String, dynamic>)
           : ProfileCompatibility(),
       isBuiltIn: json['isBuiltIn'] as bool? ?? false,
       createdAt: json['createdAt'] as int? ?? 0,
@@ -284,7 +299,8 @@ class AIBackendProfile {
       'togetherAIConfig': togetherAIConfig?.toJson(),
       'tmuxConfig': tmuxConfig?.toJson(),
       'startupBashScript': startupBashScript,
-      'environmentVariables': environmentVariables.map((e) => e.toJson()).toList(),
+      'environmentVariables':
+          environmentVariables.map((e) => e.toJson()).toList(),
       'defaultSessionType': defaultSessionType,
       'defaultPermissionMode': defaultPermissionMode,
       'defaultModelMode': defaultModelMode,
@@ -343,7 +359,8 @@ class AzureOpenAIConfig {
   final String? apiVersion;
   final String? deploymentName;
 
-  AzureOpenAIConfig({this.apiKey, this.endpoint, this.apiVersion, this.deploymentName});
+  AzureOpenAIConfig(
+      {this.apiKey, this.endpoint, this.apiVersion, this.deploymentName});
 
   factory AzureOpenAIConfig.fromJson(Map<String, dynamic> json) {
     return AzureOpenAIConfig(
@@ -429,7 +446,8 @@ class ProfileCompatibility {
   final bool codex;
   final bool gemini;
 
-  const ProfileCompatibility({this.claude = true, this.codex = true, this.gemini = true});
+  const ProfileCompatibility(
+      {this.claude = true, this.codex = true, this.gemini = true});
 
   factory ProfileCompatibility.fromJson(Map<String, dynamic> json) {
     return ProfileCompatibility(

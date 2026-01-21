@@ -20,7 +20,8 @@ class MessageWidget extends StatelessWidget {
     final text = content is String ? content : content.toString();
 
     return Align(
-      alignment: isFromCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
+      alignment:
+          isFromCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.all(12),
@@ -47,7 +48,8 @@ class MessageWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildToolCallContent(BuildContext context, Map<String, dynamic> data) {
+  Widget _buildToolCallContent(
+      BuildContext context, Map<String, dynamic> data) {
     final toolName = data['tool']?['name'] ?? 'Unknown';
     final toolState = data['tool']?['state'] ?? 'pending';
     final toolInput = data['tool']?['input'];

@@ -39,11 +39,16 @@ class Metadata {
       version: json['version'] as String?,
       name: json['name'] as String?,
       os: json['os'] as String?,
-      summary: json['summary'] != null ? Summary.fromJson(json['summary'] as Map<String, dynamic>) : null,
+      summary: json['summary'] != null
+          ? Summary.fromJson(json['summary'] as Map<String, dynamic>)
+          : null,
       machineId: json['machineId'] as String?,
       claudeSessionId: json['claudeSessionId'] as String?,
-      tools: (json['tools'] as List<dynamic>?)?.map((e) => e as String).toList(),
-      slashCommands: (json['slashCommands'] as List<dynamic>?)?.map((e) => e as String).toList(),
+      tools:
+          (json['tools'] as List<dynamic>?)?.map((e) => e as String).toList(),
+      slashCommands: (json['slashCommands'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList(),
       homeDir: json['homeDir'] as String?,
       happyHomeDir: json['happyHomeDir'] as String?,
       hostPid: json['hostPid'] as int?,
@@ -103,8 +108,10 @@ class AgentState {
       requests: (json['requests'] as Map<String, dynamic>?)?.map(
         (k, v) => MapEntry(k, RequestInfo.fromJson(v as Map<String, dynamic>)),
       ),
-      completedRequests: (json['completedRequests'] as Map<String, dynamic>?)?.map(
-        (k, v) => MapEntry(k, CompletedRequestInfo.fromJson(v as Map<String, dynamic>)),
+      completedRequests:
+          (json['completedRequests'] as Map<String, dynamic>?)?.map(
+        (k, v) => MapEntry(
+            k, CompletedRequestInfo.fromJson(v as Map<String, dynamic>)),
       ),
     );
   }
@@ -112,7 +119,11 @@ class AgentState {
   Map<String, dynamic> toJson() {
     return {
       'controlledByUser': controlledByUser,
-      'requests': requests?.map((k, v) => MapEntry(k, {'tool': v.tool, 'arguments': v.arguments, 'createdAt': v.createdAt})),
+      'requests': requests?.map((k, v) => MapEntry(k, {
+            'tool': v.tool,
+            'arguments': v.arguments,
+            'createdAt': v.createdAt
+          })),
       'completedRequests': completedRequests?.map((k, v) => MapEntry(k, {
             'tool': v.tool,
             'arguments': v.arguments,
@@ -176,7 +187,9 @@ class CompletedRequestInfo {
       status: json['status'] as String,
       reason: json['reason'] as String?,
       mode: json['mode'] as String?,
-      allowedTools: (json['allowedTools'] as List<dynamic>?)?.map((e) => e as String).toList(),
+      allowedTools: (json['allowedTools'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList(),
       decision: json['decision'] as String?,
     );
   }
@@ -232,18 +245,26 @@ class Session {
       updatedAt: json['updatedAt'] as int,
       active: json['active'] as bool,
       activeAt: json['activeAt'] as int,
-      metadata: json['metadata'] != null ? Metadata.fromJson(json['metadata'] as Map<String, dynamic>) : null,
+      metadata: json['metadata'] != null
+          ? Metadata.fromJson(json['metadata'] as Map<String, dynamic>)
+          : null,
       metadataVersion: json['metadataVersion'] as int,
-      agentState: json['agentState'] != null ? AgentState.fromJson(json['agentState'] as Map<String, dynamic>) : null,
+      agentState: json['agentState'] != null
+          ? AgentState.fromJson(json['agentState'] as Map<String, dynamic>)
+          : null,
       agentStateVersion: json['agentStateVersion'] as int,
       thinking: json['thinking'] as bool,
       thinkingAt: json['thinkingAt'] as int?,
       presence: json['presence'] as String,
-      todos: (json['todos'] as List<dynamic>?)?.map((e) => TodoItem.fromJson(e as Map<String, dynamic>)).toList(),
+      todos: (json['todos'] as List<dynamic>?)
+          ?.map((e) => TodoItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
       draft: json['draft'] as String?,
       permissionMode: json['permissionMode'] as String?,
       modelMode: json['modelMode'] as String?,
-      latestUsage: json['latestUsage'] != null ? UsageData.fromJson(json['latestUsage'] as Map<String, dynamic>) : null,
+      latestUsage: json['latestUsage'] != null
+          ? UsageData.fromJson(json['latestUsage'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -319,7 +340,11 @@ class TodoItem {
   final String priority;
   final String id;
 
-  TodoItem({required this.content, required this.status, required this.priority, required this.id});
+  TodoItem(
+      {required this.content,
+      required this.status,
+      required this.priority,
+      required this.id});
 
   factory TodoItem.fromJson(Map<String, dynamic> json) {
     return TodoItem(
@@ -331,7 +356,12 @@ class TodoItem {
   }
 
   Map<String, dynamic> toJson() {
-    return {'content': content, 'status': status, 'priority': priority, 'id': id};
+    return {
+      'content': content,
+      'status': status,
+      'priority': priority,
+      'id': id
+    };
   }
 }
 

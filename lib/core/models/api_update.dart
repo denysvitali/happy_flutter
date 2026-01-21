@@ -4,7 +4,8 @@ class ApiUpdateNewMessage {
   final String sid;
   final Map<String, dynamic> message;
 
-  ApiUpdateNewMessage({required this.t, required this.sid, required this.message});
+  ApiUpdateNewMessage(
+      {required this.t, required this.sid, required this.message});
 
   factory ApiUpdateNewMessage.fromJson(Map<String, dynamic> json) {
     return ApiUpdateNewMessage(
@@ -21,7 +22,11 @@ class ApiUpdateNewSession {
   final int createdAt;
   final int updatedAt;
 
-  ApiUpdateNewSession({required this.t, required this.id, required this.createdAt, required this.updatedAt});
+  ApiUpdateNewSession(
+      {required this.t,
+      required this.id,
+      required this.createdAt,
+      required this.updatedAt});
 
   factory ApiUpdateNewSession.fromJson(Map<String, dynamic> json) {
     return ApiUpdateNewSession(
@@ -50,7 +55,8 @@ class ApiUpdateSessionState {
   final VersionedValue? agentState;
   final VersionedValue? metadata;
 
-  ApiUpdateSessionState({required this.t, required this.id, this.agentState, this.metadata});
+  ApiUpdateSessionState(
+      {required this.t, required this.id, this.agentState, this.metadata});
 
   factory ApiUpdateSessionState.fromJson(Map<String, dynamic> json) {
     return ApiUpdateSessionState(
@@ -73,7 +79,8 @@ class VersionedValue {
   VersionedValue({required this.version, required this.value});
 
   factory VersionedValue.fromJson(Map<String, dynamic> json) {
-    return VersionedValue(version: json['version'] as int, value: json['value'] as String);
+    return VersionedValue(
+        version: json['version'] as int, value: json['value'] as String);
   }
 }
 

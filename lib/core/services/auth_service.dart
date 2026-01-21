@@ -65,7 +65,8 @@ class AuthService {
             await _encryption.initialize(secret);
 
             // Store credentials
-            final credentials = AuthCredentials(token: token, secret: base64Encode(secret));
+            final credentials =
+                AuthCredentials(token: token, secret: base64Encode(secret));
             await TokenStorage().setCredentials(credentials);
 
             return credentials;
@@ -91,7 +92,8 @@ class AuthService {
     await _encryption.initialize(secret);
 
     // Store credentials
-    final credentials = AuthCredentials(token: token, secret: base64Encode(secret));
+    final credentials =
+        AuthCredentials(token: token, secret: base64Encode(secret));
     await TokenStorage().setCredentials(credentials);
 
     return credentials;

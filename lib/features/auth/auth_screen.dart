@@ -57,7 +57,8 @@ class QRCodePainter extends CustomPainter {
     // Draw the three position detection patterns (corners)
     _drawPositionPattern(canvas, paint, 0, 0, cellSize);
     _drawPositionPattern(canvas, paint, size.width - 7 * cellSize, 0, cellSize);
-    _drawPositionPattern(canvas, paint, 0, size.height - 7 * cellSize, cellSize);
+    _drawPositionPattern(
+        canvas, paint, 0, size.height - 7 * cellSize, cellSize);
 
     // Draw data modules based on hash
     final random = Random(hash);
@@ -87,7 +88,8 @@ class QRCodePainter extends CustomPainter {
     }
   }
 
-  void _drawPositionPattern(Canvas canvas, Paint paint, double x, double y, double cellSize) {
+  void _drawPositionPattern(
+      Canvas canvas, Paint paint, double x, double y, double cellSize) {
     // Outer 7x7 black square
     canvas.drawRect(Rect.fromLTWH(x, y, 7 * cellSize, 7 * cellSize), paint);
 
@@ -102,7 +104,8 @@ class QRCodePainter extends CustomPainter {
 
     // Center 3x3 black square
     canvas.drawRect(
-      Rect.fromLTWH(x + 2 * cellSize, y + 2 * cellSize, 3 * cellSize, 3 * cellSize),
+      Rect.fromLTWH(
+          x + 2 * cellSize, y + 2 * cellSize, 3 * cellSize, 3 * cellSize),
       paint,
     );
   }
@@ -242,9 +245,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: SimpleQRCode(
-                    data: _publicKey != null
-                        ? base64Encode(_publicKey!)
-                        : '',
+                    data: _publicKey != null ? base64Encode(_publicKey!) : '',
                     size: 200,
                   ),
                 ),

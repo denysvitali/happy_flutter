@@ -269,7 +269,8 @@ class _NewSessionDialogState extends State<NewSessionDialog> {
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: _selectedPath != null ? () => createSession(context) : null,
+          onPressed:
+              _selectedPath != null ? () => createSession(context) : null,
           child: const Text('Create'),
         ),
       ],

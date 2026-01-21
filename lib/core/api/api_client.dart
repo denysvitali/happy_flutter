@@ -45,7 +45,8 @@ class ApiClient {
   }
 
   /// GET request
-  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
+  Future<Response> get(String path,
+      {Map<String, dynamic>? queryParameters}) async {
     _ensureInitialized();
     return _dio!.get(path, queryParameters: queryParameters);
   }

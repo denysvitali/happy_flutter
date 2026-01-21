@@ -104,7 +104,8 @@ class WebSocketClient {
   }
 
   /// Send message and wait for response
-  Future<dynamic> sendWithAck(String event, dynamic data, {Duration? timeout}) async {
+  Future<dynamic> sendWithAck(String event, dynamic data,
+      {Duration? timeout}) async {
     if (_channel == null || _status != ConnectionStatus.connected) {
       throw StateError('WebSocket not connected');
     }
@@ -149,7 +150,8 @@ class WebSocketClient {
   String _buildWebSocketUrl(String serverUrl) {
     // Convert http/https to ws/wss
     final wsProtocol = serverUrl.startsWith('https') ? 'wss' : 'ws';
-    final baseUrl = serverUrl.replaceFirst(RegExp(r'^https?://'), '$wsProtocol://');
+    final baseUrl =
+        serverUrl.replaceFirst(RegExp(r'^https?://'), '$wsProtocol://');
     return '$baseUrl/v1/updates?token=$_authToken';
   }
 

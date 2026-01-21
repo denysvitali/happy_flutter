@@ -10,7 +10,8 @@ import '../services/storage_service.dart';
 /// App state providers
 
 /// Authentication state provider
-final authStateNotifierProvider = NotifierProvider<AuthStateNotifier, AuthState>(() {
+final authStateNotifierProvider =
+    NotifierProvider<AuthStateNotifier, AuthState>(() {
   return AuthStateNotifier();
 });
 
@@ -166,26 +167,31 @@ class CurrentSessionNotifier extends Notifier<Session?> {
 }
 
 /// Sessions provider
-final sessionsNotifierProvider = NotifierProvider<SessionsNotifier, Map<String, Session>>(() {
+final sessionsNotifierProvider =
+    NotifierProvider<SessionsNotifier, Map<String, Session>>(() {
   return SessionsNotifier();
 });
 
 /// Machines provider
-final machinesNotifierProvider = NotifierProvider<MachinesNotifier, Map<String, Machine>>(() {
+final machinesNotifierProvider =
+    NotifierProvider<MachinesNotifier, Map<String, Machine>>(() {
   return MachinesNotifier();
 });
 
 /// Settings provider
-final settingsNotifierProvider = NotifierProvider<SettingsNotifier, Settings>(() {
+final settingsNotifierProvider =
+    NotifierProvider<SettingsNotifier, Settings>(() {
   return SettingsNotifier();
 });
 
 /// WebSocket connection provider
-final connectionNotifierProvider = NotifierProvider<ConnectionNotifier, ConnectionStatus>(() {
+final connectionNotifierProvider =
+    NotifierProvider<ConnectionNotifier, ConnectionStatus>(() {
   return ConnectionNotifier();
 });
 
 /// Current session provider
-final currentSessionNotifierProvider = NotifierProvider<CurrentSessionNotifier, Session?>(() {
+final currentSessionNotifierProvider =
+    NotifierProvider<CurrentSessionNotifier, Session?>(() {
   return CurrentSessionNotifier();
 });
