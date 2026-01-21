@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'core/api/api_client.dart';
 import 'core/models/auth.dart';
 import 'core/providers/app_providers.dart';
+import 'core/services/server_config.dart';
 import 'core/services/storage_service.dart' as storage;
 import 'features/auth/auth_screen.dart';
 import 'features/sessions/sessions_screen.dart';
@@ -14,6 +16,10 @@ void main() async {
 
   // Initialize storage
   await storage.Storage().initialize();
+
+  // Get server URL and initialize API client
+  final serverUrl = await getServerUrl();
+  await ApiClient().initialize(serverUrl: serverUrl);
 
   runApp(
     const ProviderScope(

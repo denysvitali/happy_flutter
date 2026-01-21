@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/certificate_provider.dart';
+import '../../core/services/server_config.dart';
 
 /// Settings screen
 class SettingsScreen extends ConsumerWidget {
@@ -24,6 +25,8 @@ class SettingsScreen extends ConsumerWidget {
           buildBehaviorSection(context, settings, ref),
           const SizedBox(height: 24),
           buildCertificatesSection(context),
+          const SizedBox(height: 24),
+          buildServerSection(context),
           const SizedBox(height: 24),
           buildAboutSection(context),
           const SizedBox(height: 24),
@@ -142,6 +145,164 @@ class SettingsScreen extends ConsumerWidget {
           },
         ),
       ],
+    );
+  }
+
+  Widget buildServerSection(BuildContext context) {
+    return SettingsSection(
+      title: 'Server',
+      children: [
+        FutureBuilder<Map<String, dynamic>>(
+          future: _getServerInfo(),
+          builder: (context, snapshot) {
+            final url = snapshot.data?['url'] as String? ?? 'Loading...';
+            final isCustom = snapshot.data?['isCustom'] as bool? ?? false;
+
+            return ListTile(
+              title: const Text('Server URL'),
+              subtitle: Text(url),
+              trailing: isCustom
+                  ? Icon(Icons.edit, color: Theme.of(context).colorScheme.primary)
+                  : Icon(Icons.chevron_right),
+              onTap: () => showServerUrlDialog(context, url),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<Map<String, dynamic>> _getServerInfo() async {
+    final url = await getServerUrl();
+    final isCustom = await isUsingCustomServer();
+    return {'url': url, 'isCustom': isCustom};
+  }
+
+  void showServerUrlDialog(BuildContext context, String currentUrl) {
+    final controller = TextEditingController(text: currentUrl);
+    final formKey = GlobalKey<FormState>();
+    String? errorText;
+    bool isVerifying = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Server URL'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    labelText: 'Server URL',
+                    hintText: defaultServerUrl,
+                    errorText: errorText,
+                    suffixIcon: controller.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              controller.clear();
+                              setDialogState(() {});
+                            },
+                          )
+                        : null,
+                  ),
+                  keyboardType: TextInputType.url,
+                  autofillHints: const [AutofillHints.url],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Changes will take effect after restarting the app.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            if (currentUrl != defaultServerUrl)
+              TextButton(
+                onPressed: () async {
+                  await setServerUrl(null);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Server URL reset to default. Restart app to apply.'),
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Reset to Default'),
+              ),
+            FilledButton(
+              onPressed: isVerifying
+                  ? null
+                  : () async {
+                      final url = controller.text.trim();
+
+                      // Validate URL format
+                      final validation = validateServerUrl(url);
+                      if (!validation.valid) {
+                        setDialogState(() {
+                          errorText = validation.error;
+                        });
+                        return;
+                      }
+
+                      setDialogState(() {
+                        errorText = null;
+                        isVerifying = true;
+                      });
+
+                      // Verify server is reachable
+                      final isValid = await verifyServerUrl(url);
+
+                      setDialogState(() {
+                        isVerifying = false;
+                      });
+
+                      if (!isValid) {
+                        setDialogState(() {
+                          errorText = 'Server is not reachable. Check the URL and try again.';
+                        });
+                        return;
+                      }
+
+                      // Save the URL
+                      await setServerUrl(url);
+
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Server URL saved. Restart app to apply changes.'),
+                            duration: Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    },
+              child: isVerifying
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Save & Verify'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
