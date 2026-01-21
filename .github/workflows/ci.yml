@@ -18,7 +18,7 @@ jobs:
           flutter-version: '3.24.0'
 
       - name: Set up keystore for release build
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.KEYSTORE_BASE64 != ''
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > release-keystore.jks
           cat > key.properties <<EOF
@@ -38,9 +38,9 @@ jobs:
       - name: Build debug APK
         run: flutter build apk --debug --no-pub
 
-      - name: Build release APK (unsigned if no keystore)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: flutter build apk --release --no-pub || echo "Release build skipped (no keystore configured)"
+      - name: Build release APK (only if keystore is configured)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.KEYSTORE_BASE64 != ''
+        run: flutter build apk --release --no-pub
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -48,10 +48,9 @@ jobs:
           name: happy-flutter-debug.apk
           path: build/app/outputs/flutter-apk/app-debug.apk
 
-      - name: Upload release APK
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Upload release APK (only if built)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.KEYSTORE_BASE64 != ''
         uses: actions/upload-artifact@v4
         with:
           name: happy-flutter-release.apk
           path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
