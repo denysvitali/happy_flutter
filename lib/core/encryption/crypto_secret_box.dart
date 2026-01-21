@@ -1,13 +1,11 @@
 import 'dart:typed_data';
 import 'dart:math';
 import 'dart:convert';
-import 'package:pinenacl/api.dart' as nacl;
-import 'package:pinenacl/src/authenticated_encryption/secret.dart' as enc;
-import 'text.dart';
+import 'package:pointycastle/pointycastle.dart';
 
-/// NaCl-style secret box encryption (symmetric encryption)
+/// Simplified secret box encryption using AES-CBC
 class CryptoSecretBox {
-  static const int _nonceSize = 24; // Nonce size matching NaCl
+  static const int _nonceSize = 16; // IV size for CBC
 
   /// Generate random nonce
   static Uint8List randomNonce() {
@@ -23,19 +21,21 @@ class CryptoSecretBox {
   static Uint8List encrypt(dynamic data, Uint8List secretKey) {
     final nonce = randomNonce();
     final jsonData = jsonEncode(data);
-    final dataBytes = TextUtils.encodeUtf8(jsonData);
+    final dataBytes = utf8.encode(jsonData);
 
-    // Use Pinenacl SecretBox for proper encryption
-    final box = enc.SecretBox(secretKey);
-    final encrypted = box.encrypt(
-      dataBytes,
-      nonce: nonce,
-    );
+    // Use AES-CBC for encryption with PKCS7 padding
+    final keyParam = KeyParameter(Uint8List.fromList(secretKey.sublist(0, 32)));
+    final ivParam = ParametersWithIV(keyParam, nonce);
+    final params = PaddedBlockCipherParameters(ivParam, null);
+
+    final cipher = PaddedBlockCipher('AES/CBC/PKCS7');
+    cipher.init(true, params);
+    final encrypted = cipher.process(dataBytes);
 
     // Bundle: nonce + encrypted
     final result = Uint8List(nonce.length + encrypted.length);
     result.setAll(0, nonce);
-    result.setAll(nonce.length, encrypted.asTypedList);
+    result.setAll(nonce.length, encrypted);
 
     return result;
   }
@@ -46,13 +46,15 @@ class CryptoSecretBox {
       final nonce = encryptedData.sublist(0, _nonceSize);
       final encrypted = encryptedData.sublist(_nonceSize);
 
-      final box = enc.SecretBox(secretKey);
-      final decrypted = box.decrypt(
-        nacl.ByteList(encrypted),
-        nonce: nonce,
-      );
+      final keyParam = KeyParameter(Uint8List.fromList(secretKey.sublist(0, 32)));
+      final ivParam = ParametersWithIV(keyParam, nonce);
+      final params = PaddedBlockCipherParameters(ivParam, null);
 
-      final jsonString = TextUtils.decodeUtf8(decrypted);
+      final cipher = PaddedBlockCipher('AES/CBC/PKCS7');
+      cipher.init(false, params);
+      final decrypted = cipher.process(encrypted);
+
+      final jsonString = utf8.decode(decrypted);
       return jsonDecode(jsonString);
     } catch (e) {
       return null;

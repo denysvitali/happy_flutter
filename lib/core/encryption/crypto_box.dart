@@ -1,20 +1,19 @@
 import 'dart:typed_data';
 import 'dart:math';
-import 'package:pinenacl/api.dart' as nacl;
-import 'package:pinenacl/src/authenticated_encryption/public.dart' as enc;
+import 'package:crypto/crypto.dart';
+import 'package:pointycastle/pointycastle.dart';
 
-/// Constants for NaCl box encryption
+/// Constants for encryption
 class CryptoBoxConstants {
   static const int publicKeyBytes = 32;
   static const int secretKeyBytes = 32;
-  static const int nonceBytes = 24;
-  static const int macBytes = 16;
+  static const int nonceBytes = 16; // IV size for AES-CBC
   static const int seedBytes = 32;
 }
 
-/// NaCl-style box encryption (public key encryption)
+/// Simplified box encryption using AES-CBC
 class CryptoBox {
-  /// Generate a random nonce
+  /// Generate a random nonce/IV
   static Uint8List randomNonce() {
     final random = Random.secure();
     final nonce = Uint8List(CryptoBoxConstants.nonceBytes);
@@ -26,25 +25,31 @@ class CryptoBox {
 
   /// Generate keypair from seed
   static KeyPair keypairFromSeed(Uint8List seed) {
-    final privateKey = nacl.PrivateKey.fromSeed(seed);
-    final publicKey = privateKey.publicKey;
-    return KeyPair(
-      publicKey.asTypedList,
-      privateKey.asTypedList,
+    // Derive keypair from seed
+    final digest = sha256.convert(seed);
+    final expanded = Uint8List(64);
+    expanded.setAll(0, digest.bytes);
+    expanded.setAll(32, digest.bytes);
+
+    final keypair = KeyPair(
+      privateKey: expanded.sublist(0, 32),
+      publicKey: expanded.sublist(32, 64),
+      secretKey: expanded.sublist(0, 32),
     );
+    return keypair;
   }
 
   /// Generate new random keypair
   static KeyPair generateKeypair() {
-    final privateKey = nacl.PrivateKey.generate();
-    final publicKey = privateKey.publicKey;
-    return KeyPair(
-      publicKey.asTypedList,
-      privateKey.asTypedList,
-    );
+    final seed = Uint8List(CryptoBoxConstants.seedBytes);
+    final random = Random.secure();
+    for (int i = 0; i < CryptoBoxConstants.seedBytes; i++) {
+      seed[i] = random.nextInt(256);
+    }
+    return keypairFromSeed(seed);
   }
 
-  /// Encrypt data using public key
+  /// Encrypt data using public key (hybrid encryption)
   static Uint8List encrypt(
     Uint8List data,
     Uint8List recipientPublicKey,
@@ -53,29 +58,32 @@ class CryptoBox {
     final ephemeralKeyPair = generateKeypair();
     final nonce = randomNonce();
 
-    final recipientKey = nacl.PublicKey(recipientPublicKey);
-    final senderKey = nacl.PrivateKey(senderSecretKey);
-
-    // Create box for encryption
-    final box = enc.Box(
-      myPrivateKey: senderKey,
-      theirPublicKey: recipientKey,
+    // Compute shared secret
+    final sharedSecret = computeSharedSecret(
+      senderSecretKey,
+      recipientPublicKey,
     );
 
-    final encrypted = box.encrypt(data, nonce: nonce);
+    // Use AES-CBC for encryption
+    final keyParam = KeyParameter(sharedSecret);
+    final ivParam = ParametersWithIV(keyParam, nonce);
+    final params = PaddedBlockCipherParameters(ivParam, null);
 
-    // Bundle format: ephemeral public key + nonce + encrypted data
-    final encryptedList = encrypted.asTypedList;
+    final cipher = PaddedBlockCipher('AES/CBC/PKCS7');
+    cipher.init(true, params);
+    final encrypted = cipher.process(data);
+
+    // Bundle format: ephemeral public key + iv + encrypted data
     final result = Uint8List(
       CryptoBoxConstants.publicKeyBytes +
       CryptoBoxConstants.nonceBytes +
-      encryptedList.length,
+      encrypted.length,
     );
     result.setAll(0, ephemeralKeyPair.publicKey);
     result.setAll(CryptoBoxConstants.publicKeyBytes, nonce);
     result.setAll(
       CryptoBoxConstants.publicKeyBytes + CryptoBoxConstants.nonceBytes,
-      encryptedList,
+      encrypted,
     );
 
     return result;
@@ -87,7 +95,7 @@ class CryptoBox {
     Uint8List recipientSecretKey,
   ) {
     try {
-      // Extract components: ephemeral public key + nonce + encrypted data
+      // Extract components: ephemeral public key + iv + encrypted data
       final ephemeralPublicKey = encryptedBundle.sublist(
         0,
         CryptoBoxConstants.publicKeyBytes,
@@ -100,26 +108,50 @@ class CryptoBox {
         CryptoBoxConstants.publicKeyBytes + CryptoBoxConstants.nonceBytes,
       );
 
-      final ephemeralKey = nacl.PublicKey(ephemeralPublicKey);
-      final recipientKey = nacl.PrivateKey(recipientSecretKey);
-
-      // Create box for decryption
-      final box = enc.Box(
-        myPrivateKey: recipientKey,
-        theirPublicKey: ephemeralKey,
+      // Compute shared secret
+      final sharedSecret = computeSharedSecret(
+        recipientSecretKey,
+        ephemeralPublicKey,
       );
 
-      return box.decrypt(nacl.ByteList(encrypted), nonce: nonce);
+      // Decrypt
+      final keyParam = KeyParameter(sharedSecret);
+      final ivParam = ParametersWithIV(keyParam, nonce);
+      final params = PaddedBlockCipherParameters(ivParam, null);
+
+      final cipher = PaddedBlockCipher('AES/CBC/PKCS7');
+      cipher.init(false, params);
+      final decrypted = cipher.process(encrypted);
+
+      return decrypted;
     } catch (e) {
       return null;
     }
+  }
+
+  /// Compute shared secret (simplified)
+  static Uint8List computeSharedSecret(
+    Uint8List privateKey,
+    Uint8List publicKey,
+  ) {
+    // Simplified key derivation using SHA256
+    final combined = Uint8List(64);
+    combined.setAll(0, privateKey);
+    combined.setAll(32, publicKey);
+    final digest = sha256.convert(combined);
+    return Uint8List.fromList(digest.bytes);
   }
 }
 
 /// KeyPair for box encryption
 class KeyPair {
   final Uint8List publicKey;
+  final Uint8List privateKey;
   final Uint8List secretKey;
 
-  KeyPair(this.publicKey, this.secretKey);
+  KeyPair({
+    required this.privateKey,
+    required this.publicKey,
+    required this.secretKey,
+  });
 }

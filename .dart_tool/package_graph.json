@@ -7,6 +7,7 @@
       "name": "happy_flutter",
       "version": "1.0.0+1",
       "dependencies": [
+        "convert",
         "crypto",
         "dio",
         "flutter",
@@ -17,6 +18,7 @@
         "go_router",
         "google_fonts",
         "intl",
+        "pointycastle",
         "riverpod",
         "riverpod_annotation",
         "shared_preferences",
@@ -132,6 +134,22 @@
         "flutter_web_plugins",
         "logging",
         "meta"
+      ]
+    },
+    {
+      "name": "pointycastle",
+      "version": "3.9.1",
+      "dependencies": [
+        "collection",
+        "convert",
+        "js"
+      ]
+    },
+    {
+      "name": "convert",
+      "version": "3.1.2",
+      "dependencies": [
+        "typed_data"
       ]
     },
     {
@@ -853,13 +871,6 @@
       "dependencies": [
         "async",
         "path"
-      ]
-    },
-    {
-      "name": "convert",
-      "version": "3.1.2",
-      "dependencies": [
-        "typed_data"
       ]
     },
     {

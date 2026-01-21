@@ -428,6 +428,12 @@
       "languageVersion": "3.0"
     },
     {
+      "name": "pointycastle",
+      "rootUri": "file:///home/workspace/.pub-cache/hosted/pub.dev/pointycastle-3.9.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.2"
+    },
+    {
       "name": "pool",
       "rootUri": "file:///home/workspace/.pub-cache/hosted/pub.dev/pool-1.5.2",
       "packageUri": "lib/",
