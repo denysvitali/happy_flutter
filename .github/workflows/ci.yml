@@ -12,8 +12,46 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
+
+      - name: Set up keystore for release build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > release-keystore.jks
+          cat > key.properties <<EOF
+          storePassword=$KEYSTORE_STORE_PASSWORD
+          keyPassword=$KEYSTORE_KEY_PASSWORD
+          keyAlias=$KEYSTORE_KEY_ALIAS
+          storeFile=release-keystore.jks
+          EOF
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
+          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
+          KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
+
       - run: flutter pub get
-      - run: flutter build apk --no-pub
+
+      - name: Build debug APK
+        run: flutter build apk --debug --no-pub
+
+      - name: Build release APK (unsigned if no keystore)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: flutter build apk --release --no-pub || echo "Release build skipped (no keystore configured)"
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: happy-flutter-debug.apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+
+      - name: Upload release APK
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: happy-flutter-release.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
