@@ -10,15 +10,26 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    outputs:
+      has_keystore: ${{ steps.check_keystore.outputs.has_keystore }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check if keystore is configured
+        id: check_keystore
+        run: |
+          if [ "${{ secrets.KEYSTORE_BASE64 }}" != "" ]; then
+            echo "has_keystore=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_keystore=false" >> $GITHUB_OUTPUT
+          fi
 
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
 
       - name: Set up keystore for release build
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && ${{ secrets.KEYSTORE_BASE64 != '' }}
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.check_keystore.outputs.has_keystore == 'true'
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > release-keystore.jks
           cat > key.properties <<EOF
@@ -39,7 +50,7 @@ jobs:
         run: flutter build apk --debug --no-pub
 
       - name: Build release APK (only if keystore is configured)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && ${{ secrets.KEYSTORE_BASE64 != '' }}
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.check_keystore.outputs.has_keystore == 'true'
         run: flutter build apk --release --no-pub
 
       - name: Upload debug APK
@@ -49,7 +60,7 @@ jobs:
           path: build/app/outputs/flutter-apk/app-debug.apk
 
       - name: Upload release APK (only if built)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && ${{ secrets.KEYSTORE_BASE64 != '' }}
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.check_keystore.outputs.has_keystore == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: happy-flutter-release.apk
