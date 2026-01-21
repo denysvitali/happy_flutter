@@ -18,10 +18,13 @@ jobs:
       - name: Check if keystore is configured
         id: check_keystore
         run: |
-          if [ "${{ secrets.KEYSTORE_BASE64 }}" != "" ]; then
-            echo "has_keystore=true" >> $GITHUB_OUTPUT
-          else
+          echo "Checking KEYSTORE_BASE64..."
+          if [ "${{ secrets.KEYSTORE_BASE64 }}" == "" ]; then
+            echo "KEYSTORE_BASE64 is empty or not set"
             echo "has_keystore=false" >> $GITHUB_OUTPUT
+          else
+            echo "KEYSTORE_BASE64 is set (length: ${#KEYSTORE_BASE64})"
+            echo "has_keystore=true" >> $GITHUB_OUTPUT
           fi
 
       - uses: subosito/flutter-action@v2
@@ -32,12 +35,14 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.check_keystore.outputs.has_keystore == 'true'
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > release-keystore.jks
+          ls -la release-keystore.jks
           cat > key.properties <<EOF
           storePassword=$KEYSTORE_STORE_PASSWORD
           keyPassword=$KEYSTORE_KEY_PASSWORD
           keyAlias=$KEYSTORE_KEY_ALIAS
           storeFile=release-keystore.jks
           EOF
+          cat key.properties
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
