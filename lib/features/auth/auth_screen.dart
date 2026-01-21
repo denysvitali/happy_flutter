@@ -128,6 +128,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _isLoading = true;
   bool _isPolling = false;
   String? _error;
+  String? _errorDetails;
+  bool _showErrorDetails = false;
 
   @override
   void initState() {
@@ -139,6 +141,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     setState(() {
       _isLoading = true;
       _error = null;
+      _errorDetails = null;
+      _showErrorDetails = false;
     });
 
     try {
@@ -153,10 +157,41 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _pollForApproval(publicKey);
     } catch (e) {
       setState(() {
-        _error = 'Failed to start authentication: $e';
+        _error = _formatErrorMessage(e);
+        _errorDetails = _getErrorDetails(e);
         _isLoading = false;
       });
     }
+  }
+
+  String _formatErrorMessage(dynamic e) {
+    if (e is AuthForbiddenError) {
+      return 'Access Denied (403)\n${e.message}';
+    } else if (e is AuthRequestError) {
+      return 'Client Error (${e.statusCode ?? 400})\n${e.message}';
+    } else if (e is ServerError) {
+      return 'Server Error (${e.statusCode ?? 500})\n${e.message}';
+    } else if (e is SSLError) {
+      return 'Certificate Error\n${e.message}';
+    } else if (e is AuthException) {
+      return e.message;
+    }
+    return 'Authentication failed: $e';
+  }
+
+  String? _getErrorDetails(dynamic e) {
+    if (e is AuthForbiddenError) {
+      return e.toString();
+    } else if (e is AuthRequestError) {
+      return e.toString();
+    } else if (e is ServerError) {
+      return e.toString();
+    } else if (e is SSLError) {
+      return e.toString();
+    } else if (e is AuthException) {
+      return e.message;
+    }
+    return null;
   }
 
   Future<void> _pollForApproval(Uint8List publicKey) async {
@@ -172,19 +207,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       }
     } catch (e) {
       if (mounted) {
-        if (e is AuthError) {
-          setState(() {
-            _error = e.messageText;
-            _isPolling = false;
-          });
-        } else {
-          setState(() {
-            _error = 'Authentication failed: $e';
-            _isPolling = false;
-          });
-        }
+        setState(() {
+          _error = _formatErrorMessage(e);
+          _errorDetails = _getErrorDetails(e);
+          _isPolling = false;
+        });
       }
     }
+  }
+
+  void _toggleErrorDetails() {
+    setState(() {
+      _showErrorDetails = !_showErrorDetails;
+    });
   }
 
   void _showServerDialog(BuildContext context) {
@@ -377,6 +412,39 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       style: const TextStyle(color: Colors.red),
                       textAlign: TextAlign.center,
                     ),
+                    if (_errorDetails != null && _errorDetails != _error) ...[
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: _toggleErrorDetails,
+                        icon: Icon(
+                          _showErrorDetails
+                              ? Icons.expand_less
+                              : Icons.expand_more,
+                        ),
+                        label: Text(
+                          _showErrorDetails
+                              ? 'Hide details'
+                              : 'Show diagnostic details',
+                        ),
+                      ),
+                      if (_showErrorDetails)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(top: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: SelectableText(
+                            _errorDetails!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[800],
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ),
+                    ],
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: _startAuth,

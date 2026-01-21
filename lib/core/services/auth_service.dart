@@ -55,9 +55,11 @@ class AuthService {
 
         // Check for 403 Forbidden - indicates server rejected the request
         if (response.statusCode == 403) {
+          final serverResponse = _extractErrorMessage(response.data);
           throw AuthForbiddenError(
-            'Authentication rejected by server (403). '
-            'Possible causes: Invalid public key, expired request, or server policy.',
+            'Authentication rejected by server (403).',
+            serverResponse: serverResponse,
+            diagnosticInfo: _getDiagnosticInfo(response),
           );
         }
 
@@ -67,14 +69,17 @@ class AuthService {
             response.statusCode! < 500) {
           final errorMsg = _extractErrorMessage(response.data);
           throw AuthRequestError(
-            'Client error (${response.statusCode}): $errorMsg',
+            errorMsg,
+            statusCode: response.statusCode,
+            serverResponse: response.data?.toString(),
           );
         }
 
         // Check for server errors (5xx)
         if (response.statusCode != null && response.statusCode! >= 500) {
           throw ServerError(
-            'Server error (${response.statusCode}). Please try again later.',
+            'Please try again later.',
+            statusCode: response.statusCode,
           );
         }
 
@@ -110,9 +115,16 @@ class AuthService {
           debugPrint('Connection error during auth polling: ${e.message}');
           await Future.delayed(const Duration(milliseconds: 2000));
         } else if (e.response?.statusCode == 403) {
+          final serverResponse = _extractErrorMessage(e.response?.data);
           throw AuthForbiddenError(
-            'Authentication rejected by server (403). '
-            'The server refused this authentication request.',
+            'Authentication rejected by server (403).',
+            serverResponse: serverResponse,
+            diagnosticInfo: 'DioException: ${e.message}',
+          );
+        } else if (e.error is HandshakeException || e.error is TlsException) {
+          throw SSLError(
+            'SSL/TLS handshake failed.',
+            certificateInfo: e.message,
           );
         } else {
           debugPrint('Dio error during auth polling: $e');
@@ -122,9 +134,8 @@ class AuthService {
         // Check if it's a network-related SSL error
         if (e is HandshakeException || e is TlsException) {
           throw SSLError(
-            'SSL/TLS error during authentication. '
-            'This may indicate a certificate trust issue. '
-            'Ensure the server certificate is trusted by your device.',
+            'SSL/TLS error during authentication.',
+            certificateInfo: e.toString(),
           );
         }
         debugPrint('Auth polling error: $e');
@@ -234,7 +245,17 @@ class AuthService {
         return data['message'].toString();
       }
     }
+    if (data is String) {
+      return data;
+    }
     return 'Unknown error';
+  }
+
+  /// Get diagnostic information from response
+  String _getDiagnosticInfo(Response response) {
+    final uri = response.realUri.toString();
+    final statusCode = response.statusCode;
+    return 'URL: $uri\nStatus: $statusCode';
   }
 
   /// Get server URL from config
@@ -253,20 +274,76 @@ class _KeyPair {
 
 /// Custom exception for 403 Forbidden authentication errors
 class AuthForbiddenError extends AuthException {
-  AuthForbiddenError(super.message);
+  final String? serverResponse;
+  final String? diagnosticInfo;
+
+  AuthForbiddenError(
+    super.message, {
+    this.serverResponse,
+    this.diagnosticInfo,
+  });
+
+  @override
+  String toString() {
+    var result = message;
+    if (diagnosticInfo != null) {
+      result += '\n\nDiagnostic: $diagnosticInfo';
+    }
+    if (serverResponse != null) {
+      result += '\nServer response: $serverResponse';
+    }
+    return result;
+  }
 }
 
 /// Custom exception for client request errors (4xx)
 class AuthRequestError extends AuthException {
-  AuthRequestError(super.message);
+  final int? statusCode;
+  final String? serverResponse;
+
+  AuthRequestError(
+    super.message, {
+    this.statusCode,
+    this.serverResponse,
+  });
+
+  @override
+  String toString() {
+    var result = 'Error $statusCode: $message';
+    if (serverResponse != null) {
+      result += '\nServer response: $serverResponse';
+    }
+    return result;
+  }
 }
 
 /// Custom exception for server errors (5xx)
 class ServerError extends AuthException {
-  ServerError(super.message);
+  final int? statusCode;
+
+  ServerError(super.message, {this.statusCode});
+
+  @override
+  String toString() {
+    return 'Server error (${statusCode ?? 500}): $message';
+  }
 }
 
 /// Custom exception for SSL/TLS errors
 class SSLError extends AuthException {
-  SSLError(super.message);
+  final String? certificateInfo;
+
+  SSLError(
+    super.message, {
+    this.certificateInfo,
+  });
+
+  @override
+  String toString() {
+    var result = message;
+    if (certificateInfo != null) {
+      result += '\nCertificate info: $certificateInfo';
+    }
+    return result;
+  }
 }
