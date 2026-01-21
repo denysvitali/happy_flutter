@@ -58,17 +58,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.0'
-
-      - name: Debug secrets
-        run: |
-          echo "KEYSTORE_BASE64 length: ${#KEYSTORE_BASE64}"
-          echo "KEYSTORE_STORE_PASSWORD: $KEYSTORE_STORE_PASSWORD"
-          echo "KEYSTORE_KEY_PASSWORD: $KEYSTORE_KEY_PASSWORD"
-          echo "KEYSTORE_KEY_ALIAS: $KEYSTORE_KEY_ALIAS"
-
       - name: Set up keystore for release build
         run: |
           echo "Decoding keystore..."
@@ -91,6 +80,10 @@ jobs:
           KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
           KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
 
       - run: flutter pub get
 
