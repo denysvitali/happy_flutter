@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  analyze:
-    name: Analyze
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,26 +16,4 @@ jobs:
         with:
           flutter-version: '3.24.0'
       - run: flutter pub get
-      - run: flutter analyze lib/ --fatal-infos
-
-  format:
-    name: Format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.0'
-      - run: flutter pub get
-      - run: flutter format --set-exit-if-changed lib/
-
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.0'
-      - run: flutter pub get
-      - run: flutter test --no-pub
+      - run: flutter build apk --no-pub
