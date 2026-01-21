@@ -62,17 +62,32 @@ jobs:
         with:
           flutter-version: '3.24.0'
 
+      - name: Debug secrets
+        run: |
+          echo "KEYSTORE_BASE64 length: ${#KEYSTORE_BASE64}"
+          echo "KEYSTORE_STORE_PASSWORD: $KEYSTORE_STORE_PASSWORD"
+          echo "KEYSTORE_KEY_PASSWORD: $KEYSTORE_KEY_PASSWORD"
+          echo "KEYSTORE_KEY_ALIAS: $KEYSTORE_KEY_ALIAS"
+
       - name: Set up keystore for release build
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > release-keystore.jks
-          ls -la release-keystore.jks
+          echo "Decoding keystore..."
+          echo "$KEYSTORE_BASE64" | base64 -d > android/release-keystore.jks
+          ls -la android/release-keystore.jks
+
+          echo "Creating key.properties..."
           cat > key.properties <<EOF
           storePassword=$KEYSTORE_STORE_PASSWORD
           keyPassword=$KEYSTORE_KEY_PASSWORD
           keyAlias=$KEYSTORE_KEY_ALIAS
-          storeFile=release-keystore.jks
+          storeFile=android/release-keystore.jks
           EOF
+
+          echo "key.properties content:"
           cat key.properties
+
+          echo "Verifying key.properties exists at root..."
+          ls -la key.properties
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
