@@ -28,9 +28,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
-
       - name: Analyze code
         run: flutter analyze lib/
 
@@ -50,9 +47,6 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
 
       - name: Format code
         run: flutter format --set-exit-if-changed lib/
@@ -74,9 +68,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
-
       - name: Run tests
         run: flutter test --no-pub
 
@@ -97,9 +88,6 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
 
       - name: Build APK
         run: flutter build apk --release
@@ -128,9 +116,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
-
       - name: Build iOS
         run: flutter build ios --release --no-codesign
 
@@ -157,9 +142,6 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
 
       - name: Build Web
         run: flutter build web --release
@@ -188,9 +170,6 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
 
       - name: Deploy to Firebase Hosting
         run: |
