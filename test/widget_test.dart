@@ -1,7 +1,7 @@
-// Basic smoke test to verify the app compiles
+import 'package:flutter_test/flutter_test.dart';
+
 void main() {
   test('app compiles', () {
-    // Just verify the main file can be imported
     expect(true, isTrue);
   });
 }
