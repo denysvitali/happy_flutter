@@ -10,7 +10,7 @@ plugins {
 android {
     namespace = "com.example.happy_flutter"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -31,7 +31,7 @@ android {
 
     signingConfigs {
         create("release") {
-            val keyPropertiesFile = file("${project.rootDir}/key.properties")
+            val keyPropertiesFile = rootProject.file("android/key.properties")
             if (keyPropertiesFile.exists()) {
                 val properties = Properties()
                 properties.load(FileInputStream(keyPropertiesFile))
@@ -46,7 +46,6 @@ android {
     buildTypes {
         getByName("release") {
             signingConfig = signingConfigs.findByName("release")
-                ?: signingConfigs.getByName("debug")
         }
     }
 }
