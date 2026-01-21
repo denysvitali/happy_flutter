@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
 import '../../core/models/message.dart';
 
-/// Widget to render different message types
+/// Simple message widget for displaying chat messages
 class MessageWidget extends StatelessWidget {
-  final Message message;
+  final Map<String, dynamic> messageData;
   final bool isFromCurrentUser;
 
   const MessageWidget({
     super.key,
-    required this.message,
+    required this.messageData,
     this.isFromCurrentUser = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final kind = messageData['kind'] as String? ?? 'unknown';
+    final content = messageData['content'] ?? messageData['text'] ?? '';
+    final text = content is String ? content : content.toString();
 
     return Align(
       alignment: isFromCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -27,150 +30,45 @@ class MessageWidget extends StatelessWidget {
               : theme.colorScheme.surfaceVariant,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: switch (message) {
-          UserText(:final message) => _UserMessageContent(message: message),
-          AgentText(:final message) => _AgentMessageContent(message: message),
-          ToolCall(:final message) => _ToolCallContent(message: message),
-          AgentEvent(:final message) => _AgentEventContent(event: message.event),
-        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (kind == 'tool-call')
+              _buildToolCallContent(context, messageData)
+            else
+              SelectableText(
+                text,
+                style: const TextStyle(color: Colors.white),
+              ),
+          ],
+        ),
       ),
     );
   }
-}
 
-class _UserMessageContent extends StatelessWidget {
-  final UserTextMessage message;
-
-  const _UserMessageContent({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      message.text,
-      style: const TextStyle(color: Colors.white),
-    );
-  }
-}
-
-class _AgentMessageContent extends StatelessWidget {
-  final AgentTextMessage message;
-
-  const _AgentMessageContent({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (message.isThinking == true)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 8),
-                Text('Thinking...', style: TextStyle(fontStyle: FontStyle.italic)),
-              ],
-            ),
-          ),
-        SelectableText(message.text),
-      ],
-    );
-  }
-}
-
-class _ToolCallContent extends StatelessWidget {
-  final ToolCallMessage message;
-
-  const _ToolCallContent({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    final tool = message.tool;
+  Widget _buildToolCallContent(BuildContext context, Map<String, dynamic> data) {
+    final toolName = data['tool']?['name'] ?? 'Unknown';
+    final toolState = data['tool']?['state'] ?? 'pending';
+    final toolInput = data['tool']?['input'];
 
     return ExpansionTile(
-      title: Text('${tool.name} (${tool.state})'),
-      subtitle: tool.description != null ? Text(tool.description!) : null,
+      title: Text('$toolName ($toolState)'),
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.black12,
-            borderRadius: BorderRadius.circular(8),
+        if (toolInput != null)
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black12,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: SelectableText(
+              toolInput is String ? toolInput : toolInput.toString(),
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (tool.input != null)
-                _buildJsonView(tool.input),
-            ],
-          ),
-        ),
-        if (tool.result != null) ...[
-          const SizedBox(height: 8),
-          const Text('Result:', style: TextStyle(fontWeight: FontWeight.bold)),
-          _buildJsonView(tool.result),
-        ],
       ],
     );
-  }
-
-  Widget _buildJsonView(dynamic data) {
-    final text = data is String ? data : data.toString();
-    return SelectableText(
-      text,
-      style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-    );
-  }
-}
-
-class _AgentEventContent extends StatelessWidget {
-  final AgentEvent event;
-
-  const _AgentEventContent({required this.event});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Colors.blue[100];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            switch (event) {
-              SwitchEvent() => Icons.swap_horiz,
-              MessageEvent() => Icons.message,
-              LimitReached() => Icons.warning,
-              ReadyEvent() => Icons.check_circle,
-            },
-            size: 16,
-          ),
-          const SizedBox(width: 8),
-          Text(_eventDescription(event)),
-        ],
-      ),
-    );
-  }
-
-  String _eventDescription(AgentEvent event) {
-    return switch (event) {
-      SwitchEvent(:final mode) => 'Switched to $mode',
-      MessageEvent(:final message) => message,
-      LimitReached(:final endsAt) =>
-        'Limit reached. Resumes at ${DateTime.fromMillisecondsSinceEpoch(endsAt)}',
-      ReadyEvent() => 'Ready',
-    };
   }
 }
 
@@ -182,14 +80,9 @@ class MarkdownMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SelectableText.rich(
-      _parseMarkdown(content),
+    return SelectableText(
+      content,
       style: const TextStyle(height: 1.5),
     );
-  }
-
-  TextSpan _parseMarkdown(String content) {
-    // Simple markdown parsing - in production use flutter_markdown
-    return TextSpan(text: content);
   }
 }

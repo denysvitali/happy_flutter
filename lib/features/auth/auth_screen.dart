@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -155,7 +157,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   Future<void> _pollForApproval(Uint8List publicKey) async {
     try {
-      final credentials = await AuthService().waitForAuthApproval(publicKey);
+      await AuthService().waitForAuthApproval(publicKey);
 
       if (mounted) {
         // Update auth state
@@ -168,7 +170,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       if (mounted) {
         if (e is AuthError) {
           setState(() {
-            _error = e.message;
+            _error = e.messageText;
             _isPolling = false;
           });
         } else {
@@ -234,7 +236,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               else ...[
                 Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: Box(
+                  decoration: BoxDecoration(
                     color: Colors.white,
                     border: Border.all(color: Colors.grey[300]!),
                     borderRadius: BorderRadius.circular(12),

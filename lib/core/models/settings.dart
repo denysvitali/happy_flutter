@@ -425,11 +425,11 @@ class EnvironmentVariable {
 }
 
 class ProfileCompatibility {
-  bool claude = true;
-  bool codex = true;
-  bool gemini = true;
+  final bool claude;
+  final bool codex;
+  final bool gemini;
 
-  ProfileCompatibility({this.claude = true, this.codex = true, this.gemini = true});
+  const ProfileCompatibility({this.claude = true, this.codex = true, this.gemini = true});
 
   factory ProfileCompatibility.fromJson(Map<String, dynamic> json) {
     return ProfileCompatibility(

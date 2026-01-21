@@ -6,11 +6,14 @@ import '../models/auth.dart';
 import '../api/websocket_client.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
-import '../services/encryption_service.dart';
 
 /// App state providers
 
 /// Authentication state provider
+final authStateNotifierProvider = NotifierProvider<AuthStateNotifier, AuthState>(() {
+  return AuthStateNotifier();
+});
+
 class AuthStateNotifier extends Notifier<AuthState> {
   final _authService = AuthService();
 
@@ -161,3 +164,28 @@ class CurrentSessionNotifier extends Notifier<Session?> {
     }
   }
 }
+
+/// Sessions provider
+final sessionsNotifierProvider = NotifierProvider<SessionsNotifier, Map<String, Session>>(() {
+  return SessionsNotifier();
+});
+
+/// Machines provider
+final machinesNotifierProvider = NotifierProvider<MachinesNotifier, Map<String, Machine>>(() {
+  return MachinesNotifier();
+});
+
+/// Settings provider
+final settingsNotifierProvider = NotifierProvider<SettingsNotifier, Settings>(() {
+  return SettingsNotifier();
+});
+
+/// WebSocket connection provider
+final connectionNotifierProvider = NotifierProvider<ConnectionNotifier, ConnectionStatus>(() {
+  return ConnectionNotifier();
+});
+
+/// Current session provider
+final currentSessionNotifierProvider = NotifierProvider<CurrentSessionNotifier, Session?>(() {
+  return CurrentSessionNotifier();
+});

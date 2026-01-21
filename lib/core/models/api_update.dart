@@ -77,21 +77,17 @@ class VersionedValue {
   }
 }
 
-/// Discriminated union for all API updates
-sealed class ApiUpdate {
+/// API update type discriminator
+class ApiUpdate {
+  final String type;
+  final dynamic data;
+
+  ApiUpdate({required this.type, required this.data});
+
   factory ApiUpdate.fromJson(Map<String, dynamic> json) {
-    final t = json['t'] as String;
-    switch (t) {
-      case 'new-message':
-        return ApiUpdateNewMessage.fromJson(json);
-      case 'new-session':
-        return ApiUpdateNewSession.fromJson(json);
-      case 'delete-session':
-        return ApiDeleteSession.fromJson(json);
-      case 'update-session':
-        return ApiUpdateSessionState.fromJson(json);
-      default:
-        throw ArgumentError('Unknown update type: $t');
-    }
+    return ApiUpdate(
+      type: json['t'] as String,
+      data: json,
+    );
   }
 }

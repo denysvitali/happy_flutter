@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 /// Utility functions for encoding/decoding
@@ -15,7 +17,10 @@ Uint8List base64DecodeBytes(String input) {
 
 /// Hex encode
 String hexEncode(Uint8List data) {
-  return data.map((b) => b.toRadixString(16).padStart(2, '0')).join();
+  return data.map((b) {
+    final hex = b.toRadixString(16);
+    return hex.length == 1 ? '0$hex' : hex;
+  }).join();
 }
 
 /// Hex decode
@@ -28,9 +33,16 @@ Uint8List hexDecode(String input) {
   return Uint8List.fromList(bytes);
 }
 
-/// UUID generation
+/// UUID generation - simple version
 String generateUUID() {
-  return const Uuid().v4();
+  final random = Random();
+  return '${_generateHex(8)}-${_generateHex(4)}-${_generateHex(4)}-${_generateHex(4)}-${_generateHex(12)}';
+}
+
+String _generateHex(int length) {
+  final chars = '0123456789abcdef';
+  final random = Random();
+  return List.generate(length, (i) => chars[random.nextInt(16)]).join();
 }
 
 /// Timestamp utilities

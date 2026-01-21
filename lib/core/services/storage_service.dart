@@ -89,7 +89,7 @@ class SettingsStorage {
 
     final stored = _prefs!.getString(_settingsKey);
     if (stored == null) {
-      return const Settings();
+      return Settings();
     }
 
     try {
@@ -97,7 +97,7 @@ class SettingsStorage {
       return Settings.fromJson(json);
     } catch (e) {
       debugPrint('Error parsing settings: $e');
-      return const Settings();
+      return Settings();
     }
   }
 

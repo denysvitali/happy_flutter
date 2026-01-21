@@ -136,7 +136,7 @@ class MessageMeta {
   }
 }
 
-/// Agent event types
+/// Agent event types - using sealed class pattern with implementations
 sealed class AgentEvent {
   factory AgentEvent.fromJson(Map<String, dynamic> json) {
     final type = json['type'] as String;
@@ -150,26 +150,30 @@ sealed class AgentEvent {
       case 'ready':
         return ReadyEvent();
       default:
-        throw ArgumentError('Unknown event type: $type');
+        return UnknownEvent();
     }
   }
 }
 
-class SwitchEvent extends AgentEvent {
+class SwitchEvent implements AgentEvent {
   final String mode;
   SwitchEvent({required this.mode});
 }
 
-class MessageEvent extends AgentEvent {
+class MessageEvent implements AgentEvent {
   final String message;
   MessageEvent({required this.message});
 }
 
-class LimitReached extends AgentEvent {
+class LimitReached implements AgentEvent {
   final int endsAt;
   LimitReached({required this.endsAt});
 }
 
-class ReadyEvent extends AgentEvent {
+class ReadyEvent implements AgentEvent {
   ReadyEvent();
+}
+
+class UnknownEvent implements AgentEvent {
+  UnknownEvent();
 }

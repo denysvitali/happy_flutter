@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 /// Simple key storage placeholder
 class EncryptionKeys {
   static final EncryptionKeys _instance = EncryptionKeys._();

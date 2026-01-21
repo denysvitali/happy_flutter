@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'core/models/auth.dart';
 import 'core/providers/app_providers.dart';
 import 'core/services/storage_service.dart' as storage;
 import 'features/auth/auth_screen.dart';
@@ -30,63 +31,64 @@ class HappyApp extends ConsumerStatefulWidget {
 }
 
 class _HappyAppState extends ConsumerState<HappyApp> {
-  final _router = GoRouter(
-    routes: [
-      GoRoute(
-        path: '/',
-        name: 'auth',
-        builder: (context, state) => const AuthGate(
-          child: SessionsScreen(),
-        ),
-      ),
-      GoRoute(
-        path: '/sessions',
-        name: 'sessions',
-        builder: (context, state) => const AuthGate(
-          child: SessionsScreen(),
-        ),
-      ),
-      GoRoute(
-        path: '/chat/:sessionId',
-        name: 'chat',
-        builder: (context, state) {
-          final sessionId = state.pathParameters['sessionId']!;
-          return AuthGate(
-            child: ChatScreen(sessionId: sessionId),
-          );
-        },
-      ),
-      GoRoute(
-        path: '/settings',
-        name: 'settings',
-        builder: (context, state) => const AuthGate(
-          child: SettingsScreen(),
-        ),
-      ),
-    ],
-    redirect: (context, state) {
-      final authState = ref.read(authStateNotifierProvider);
-
-      // Allow access to auth screen when unauthenticated
-      if (state.matchedLocation == '/') {
-        if (authState == AuthState.authenticated) {
-          return '/sessions';
-        }
-        return null;
-      }
-
-      // Redirect to auth if not authenticated
-      if (authState != AuthState.authenticated) {
-        return '/';
-      }
-
-      return null;
-    },
-  );
+  late final GoRouter _router;
 
   @override
   void initState() {
     super.initState();
+    _router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          name: 'auth',
+          builder: (context, state) => const AuthGate(
+            child: SessionsScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/sessions',
+          name: 'sessions',
+          builder: (context, state) => const AuthGate(
+            child: SessionsScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/chat/:sessionId',
+          name: 'chat',
+          builder: (context, state) {
+            final sessionId = state.pathParameters['sessionId']!;
+            return AuthGate(
+              child: ChatScreen(sessionId: sessionId),
+            );
+          },
+        ),
+        GoRoute(
+          path: '/settings',
+          name: 'settings',
+          builder: (context, state) => const AuthGate(
+            child: SettingsScreen(),
+          ),
+        ),
+      ],
+      redirect: (context, state) {
+        final authState = ref.read(authStateNotifierProvider);
+
+        // Allow access to auth screen when unauthenticated
+        if (state.matchedLocation == '/') {
+          if (authState == AuthState.authenticated) {
+            return '/sessions';
+          }
+          return null;
+        }
+
+        // Redirect to auth if not authenticated
+        if (authState != AuthState.authenticated) {
+          return '/';
+        }
+
+        return null;
+      },
+    );
     // Check authentication on startup
     Future.delayed(Duration.zero, () {
       ref.read(authStateNotifierProvider.notifier).checkAuth();
