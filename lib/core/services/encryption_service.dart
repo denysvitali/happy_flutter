@@ -1,28 +1,41 @@
-import 'dart:math';
 import 'dart:typed_data';
-import 'package:crypto/crypto.dart';
+import 'dart:math';
+import 'dart:convert';
+import '../encryption/encryption_manager.dart';
 
-/// Simple encryption service placeholder
+/// Encryption service wrapper for backward compatibility
 class EncryptionService {
-  Uint8List? _masterSecret;
-  Uint8List? _contentDataKey;
-  Uint8List? _anonId;
+  Encryption? _encryption;
 
   Future<void> initialize(Uint8List masterSecret) async {
-    _masterSecret = masterSecret;
-    _anonId = masterSecret.sublist(0, 16);
+    _encryption = await Encryption.create(masterSecret);
   }
 
-  Future<Uint8List> encryptSecretBox(Uint8List data) async {
-    return data; // Placeholder
+  /// Get the underlying Encryption instance
+  Encryption get encryption {
+    if (_encryption == null) {
+      throw StateError('EncryptionService not initialized. Call initialize() first.');
+    }
+    return _encryption!;
   }
 
+  String get anonId => _encryption?.anonId ?? '';
+
+  Future<String> encryptRaw(dynamic data) async {
+    return _encryption?.encryptRaw(data) ?? '';
+  }
+
+  Future<dynamic> decryptRaw(String encrypted) async {
+    return _encryption?.decryptRaw(encrypted);
+  }
+
+  /// Legacy method for backward compatibility
   Future<Uint8List?> decryptSecretBox(Uint8List encryptedData) async {
-    return encryptedData; // Placeholder
-  }
-
-  String get anonId {
-    return String.fromCharCodes(_anonId ?? []).toLowerCase();
+    final result = _encryption?.decryptRaw(
+      base64Encode(encryptedData),
+    );
+    if (result == null) return null;
+    return base64Decode(result as String);
   }
 
   Uint8List randomBytes(int length) {

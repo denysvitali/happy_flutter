@@ -127,7 +127,7 @@ class SettingsScreen extends ConsumerWidget {
       title: 'Certificates',
       children: [
         FutureBuilder<bool>(
-          future: CertificateProvider().hasUserCertificates(),
+          future: Future.value(CertificateProvider().hasUserCertificates()),
           builder: (context, snapshot) {
             final hasCerts = snapshot.data ?? false;
 

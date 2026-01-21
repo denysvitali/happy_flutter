@@ -29,6 +29,9 @@ dependencies:
   crypto: ^3.0.5
   uuid: ^4.5.2
   intl: ^0.20.2
+  convert: ^3.1.1
+  crypton: ^2.0.0
+  pinenacl: ^0.3.0
 
   # UI and navigation
   go_router: ^14.6.2
