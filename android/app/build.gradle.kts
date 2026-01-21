@@ -31,11 +31,11 @@ android {
 
     signingConfigs {
         create("release") {
-            val keyPropertiesFile = rootProject.file("android/key.properties")
+            val keyPropertiesFile = File("${project.rootDir.absolutePath}/key.properties")
             if (keyPropertiesFile.exists()) {
                 val properties = Properties()
                 properties.load(FileInputStream(keyPropertiesFile))
-                storeFile = file(properties.getProperty("storeFile"))
+                storeFile = file("${project.rootDir.absolutePath}/${properties.getProperty("storeFile")}")
                 storePassword = properties.getProperty("storePassword")
                 keyPassword = properties.getProperty("keyPassword")
                 keyAlias = properties.getProperty("keyAlias")
