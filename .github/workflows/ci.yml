@@ -62,27 +62,11 @@ jobs:
         run: |
           echo "Working directory: $(pwd)"
 
-          echo "Decoding keystore..."
-          echo "$KEYSTORE_BASE64" | base64 -d > key.properties
-          ls -la key.properties
-
-          echo "Creating key.properties..."
-          echo "storePassword=$KEYSTORE_STORE_PASSWORD" > key.properties
-          echo "keyPassword=$KEYSTORE_KEY_PASSWORD" >> key.properties
-          echo "keyAlias=$KEYSTORE_KEY_ALIAS" >> key.properties
-          echo "storeFile=android/release-keystore.jks" >> key.properties
-
-          echo "Copying keystore to android/..."
-          echo "$KEYSTORE_BASE64" | base64 -d > android/release-keystore.jks
-          ls -la android/release-keystore.jks
-
-          echo "key.properties content:"
-          cat key.properties
+          echo "Creating keystore file..."
+          echo "$KEYSTORE_BASE64" | base64 -d > release-keystore.jks
+          ls -la release-keystore.jks
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
-          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
-          KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
 
       - uses: subosito/flutter-action@v2
         with:
@@ -92,6 +76,11 @@ jobs:
 
       - name: Build release APK
         run: flutter build apk --release --no-pub
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.jks
+          KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
+          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
+          KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
