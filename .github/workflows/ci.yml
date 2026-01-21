@@ -60,6 +60,9 @@ jobs:
 
       - name: Set up keystore for release build
         run: |
+          echo "Working directory: $(pwd)"
+          echo "Listing files: $(ls -la)"
+
           echo "Decoding keystore..."
           echo "$KEYSTORE_BASE64" | base64 -d > android/release-keystore.jks
           ls -la android/release-keystore.jks
@@ -75,6 +78,9 @@ jobs:
 
           echo "Verifying key.properties exists at root..."
           ls -la key.properties
+
+          echo "Checking if android directory exists..."
+          ls -la android/
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
