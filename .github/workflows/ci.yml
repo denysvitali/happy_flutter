@@ -19,11 +19,12 @@ jobs:
         id: check_keystore
         run: |
           echo "Checking KEYSTORE_BASE64..."
-          if [ "${{ secrets.KEYSTORE_BASE64 }}" == "" ]; then
+          KEYSTORE="${{ secrets.KEYSTORE_BASE64 }}"
+          if [ -z "$KEYSTORE" ] || [ "$KEYSTORE" == "" ]; then
             echo "KEYSTORE_BASE64 is empty or not set"
             echo "has_keystore=false" >> $GITHUB_OUTPUT
           else
-            echo "KEYSTORE_BASE64 is set (length: ${#KEYSTORE_BASE64})"
+            echo "KEYSTORE_BASE64 is set (length: ${#KEYSTORE})"
             echo "has_keystore=true" >> $GITHUB_OUTPUT
           fi
 
