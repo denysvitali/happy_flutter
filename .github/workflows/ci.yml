@@ -16,7 +16,7 @@ jobs:
         with:
           flutter-version: '3.24.0'
       - run: flutter pub get
-      - run: flutter analyze lib/
+      - run: flutter analyze lib/ --fatal-infos
 
   format:
     name: Format
