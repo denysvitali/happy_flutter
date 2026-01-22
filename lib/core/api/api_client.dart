@@ -111,8 +111,8 @@ class ApiClient {
     // Import dart:io for SecurityContext and HttpClient
     // The adapter uses the native HttpClient with custom SecurityContext
     return IOHttpClientAdapter(
-      onHttpClientCreate: () {
-        final client = HttpClient();
+      onHttpClientCreate: (HttpClient client) {
+        // client is now passed as parameter in Dio 5.x
         // SecurityContext.defaultContext includes system-trusted certificates
         // and user-installed certificates on Android
         final context = SecurityContext.defaultContext;
