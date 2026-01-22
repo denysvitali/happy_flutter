@@ -31,23 +31,38 @@ jobs:
   release:
     name: Build Release APK
     runs-on: ubuntu-latest
-    if: ${{ secrets.KEYSTORE_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check for keystore
+        id: check_keystore
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::Keystore not configured, skipping release build"
+            echo "skip_release=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "skip_release=false" >> $GITHUB_OUTPUT
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+
       - name: Create keystore
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > release-keystore.jks
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - uses: subosito/flutter-action@v2
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         with:
           flutter-version: '3.24.0'
 
       - run: flutter pub get
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
 
       - name: Build release APK
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: flutter build apk --release --no-pub
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.jks
@@ -56,6 +71,7 @@ jobs:
           KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
 
       - name: Upload release APK
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: happy-flutter-release.apk
