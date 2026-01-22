@@ -34,6 +34,11 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Install gh-actions-mcp
+        run: |
+          curl -fsSL https://github.com/denysvitali/gh-actions-mcp/releases/download/v0.1.0/gh-actions-mcp-linux-amd64 -o /usr/local/bin/gh-actions-mcp
+          chmod +x /usr/local/bin/gh-actions-mcp
+
       - name: Detect trigger and configure API
         id: detect-trigger
         env:
@@ -76,7 +81,7 @@ jobs:
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr:*)'
+          claude_args: '--mcp-config .github/mcp.json'
 
       - name: Run Claude Code (Z.AI)
         if: env.PROVIDER == 'zai'
@@ -96,4 +101,4 @@ jobs:
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr:*)'
+          claude_args: '--mcp-config .github/mcp.json'
