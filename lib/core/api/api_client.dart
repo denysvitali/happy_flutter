@@ -1,4 +1,4 @@
-import 'package:cronet_http/cronet_http.dart';
+import 'package:native_dio_adapter/native_dio_adapter.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../services/server_config.dart';
@@ -79,12 +79,12 @@ class ApiClient {
   /// Cronet respects Android's network_security_config.xml and user-installed CA certificates
   Future<void> _configureHttpClient() async {
     try {
-      // Use CronetHttpAdapter which uses Chrome's network stack
+      // Use NativeAdapter which uses Cronet on Android (cupertino_http on iOS/macOS)
       // This automatically respects Android's network_security_config.xml
       // and user-installed CA certificates in the Android trust store
-      final cronetAdapter = CronetHttpAdapter();
-      _dio!.httpClientAdapter = cronetAdapter;
-      debugPrint('Cronet HTTP adapter configured for Android CA support');
+      final nativeAdapter = NativeAdapter();
+      _dio!.httpClientAdapter = nativeAdapter;
+      debugPrint('Native HTTP adapter configured for platform-specific CA support');
     } catch (e) {
       debugPrint('Error configuring HTTP client: $e');
     }

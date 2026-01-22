@@ -249,13 +249,13 @@ class SettingsScreen extends ConsumerWidget {
                       });
 
                       // Verify server is reachable
-                      final isValid = await verifyServerUrl(url);
+                      final verificationResult = await verifyServerUrl(url);
 
                       setDialogState(() {
                         isVerifying = false;
                       });
 
-                      if (!isValid) {
+                      if (!verificationResult.isValid) {
                         setDialogState(() {
                           errorText =
                               'Server is not reachable. Check the URL and try again.';
