@@ -60,6 +60,32 @@ Future<String?> getLastServerUrlError() async {
   return error;
 }
 
+/// Server URL verification result with diagnostic details
+class ServerUrlVerificationResult {
+  final bool isValid;
+  final String? errorMessage;
+  final String? errorType;
+
+  const ServerUrlVerificationResult({
+    required this.isValid,
+    this.errorMessage,
+    this.errorType,
+  });
+
+  /// Create a successful result
+  const ServerUrlVerificationResult.success()
+      : this(isValid: true, errorMessage: null, errorType: null);
+
+  /// Create a failed result with details
+  factory ServerUrlVerificationResult.failed(String message, [String? type]) {
+    return ServerUrlVerificationResult(
+      isValid: false,
+      errorMessage: message,
+      errorType: type ?? 'Unknown',
+    );
+  }
+}
+
 /// Server URL validation result
 class ServerUrlValidation {
   final bool valid;
@@ -96,13 +122,14 @@ ServerUrlValidation validateServerUrl(String url) {
 }
 
 /// Verify server URL is reachable by making a simple request
-/// Returns true if the server responds
-Future<bool> verifyServerUrl(String url) async {
+/// Returns a ServerUrlVerificationResult with success status and diagnostic details
+Future<ServerUrlVerificationResult> verifyServerUrl(String url) async {
   final validation = validateServerUrl(url);
   if (!validation.valid) {
     debugPrint('Server URL validation failed: ${validation.error}');
-    await saveServerUrlError('Invalid server URL: ${validation.error}');
-    return false;
+    final errorMsg = 'Invalid server URL: ${validation.error}';
+    await saveServerUrlError(errorMsg);
+    return ServerUrlVerificationResult.failed(errorMsg, 'Validation');
   }
 
   try {
@@ -117,18 +144,48 @@ Future<bool> verifyServerUrl(String url) async {
       const Duration(seconds: 10),
       onTimeout: () {
         client.close();
-        throw SocketException('Connection timeout');
+        throw const SocketException('Connection timeout');
       },
     );
 
     client.close();
 
     // Accept any 2xx, 3xx, or 401 (which means server is up but auth required)
-    return response.statusCode >= 200 && response.statusCode < 500;
-  } catch (e) {
-    final errorMsg = 'Server unreachable: ${e.toString()}';
+    if (response.statusCode >= 200 && response.statusCode < 500) {
+      return const ServerUrlVerificationResult.success();
+    } else {
+      final errorMsg = 'Server returned error: HTTP ${response.statusCode}';
+      debugPrint('Server verification failed: $errorMsg');
+      await saveServerUrlError(errorMsg);
+      return ServerUrlVerificationResult.failed(errorMsg, 'HTTP ${response.statusCode}');
+    }
+  } on SocketException catch (e) {
+    final errorMsg = 'Connection failed: ${e.toString()}';
     debugPrint('Server verification failed: $e');
     await saveServerUrlError(errorMsg);
-    return false;
+    // Categorize common socket errors
+    final errorType = e.message.contains('timeout')
+        ? 'Timeout'
+        : e.message.contains('Connection refused')
+            ? 'Connection Refused'
+            : e.message.contains('CERTIFICATE')
+                ? 'Certificate'
+                : 'Network';
+    return ServerUrlVerificationResult.failed(errorMsg, errorType);
+  } on HandshakeException catch (e) {
+    final errorMsg = 'SSL/TLS handshake failed: ${e.toString()}';
+    debugPrint('Server verification failed: $e');
+    await saveServerUrlError(errorMsg);
+    return ServerUrlVerificationResult.failed(errorMsg, 'SSL/TLS');
+  } on HttpException catch (e) {
+    final errorMsg = 'HTTP error: ${e.toString()}';
+    debugPrint('Server verification failed: $e');
+    await saveServerUrlError(errorMsg);
+    return ServerUrlVerificationResult.failed(errorMsg, 'HTTP');
+  } catch (e) {
+    final errorMsg = 'Connection failed: ${e.toString()}';
+    debugPrint('Server verification failed: $e');
+    await saveServerUrlError(errorMsg);
+    return ServerUrlVerificationResult.failed(errorMsg, 'Unknown');
   }
 }

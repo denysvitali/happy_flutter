@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr/qr.dart';
 import '../../core/api/api_client.dart';
@@ -316,125 +318,318 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     final controller = TextEditingController();
     final formKey = GlobalKey<FormState>();
     String? errorText;
+    String? detailedError;
+    String? errorType;
     bool isVerifying = false;
 
     getServerUrl().then((currentUrl) {
       controller.text = currentUrl;
 
-      showDialog(
+      showGeneralDialog(
         context: context,
-        builder: (context) => StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            title: const Text('Server URL'),
-            content: Form(
-              key: formKey,
+        barrierDismissible: true,
+        barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+        barrierColor: Colors.black54,
+        transitionDuration: const Duration(milliseconds: 300),
+        transitionBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, -0.3),
+              end: Offset.zero,
+            ).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOut),
+            ),
+            child: FadeTransition(
+              opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+              child: child,
+            ),
+          );
+        },
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) => Dialog(
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextFormField(
-                    controller: controller,
-                    decoration: InputDecoration(
-                      labelText: 'Server URL',
-                      hintText: defaultServerUrl,
-                      errorText: errorText,
-                      suffixIcon: controller.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                controller.clear();
-                                setDialogState(() {});
-                              },
-                            )
-                          : null,
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.dns_outlined,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Server URL',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    keyboardType: TextInputType.url,
-                    autofillHints: const [AutofillHints.url],
+                  ),
+                  const SizedBox(height: 16),
+                  // URL Input
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Form(
+                        key: formKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextFormField(
+                              controller: controller,
+                              decoration: InputDecoration(
+                                labelText: 'Server URL',
+                                hintText: defaultServerUrl,
+                                prefixIcon: const Icon(Icons.link_outlined),
+                                errorText: errorText,
+                                suffixIcon: controller.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear),
+                                        onPressed: () {
+                                          controller.clear();
+                                          setDialogState(() {});
+                                        },
+                                      )
+                                    : null,
+                              ),
+                              keyboardType: TextInputType.url,
+                              autofillHints: const [AutofillHints.url],
+                              onChanged: (_) {
+                                if (errorText != null || detailedError != null) {
+                                  setDialogState(() {
+                                    errorText = null;
+                                    detailedError = null;
+                                    errorType = null;
+                                  });
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            // Error Details Section
+                            if (detailedError != null) ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[50],
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.red[200]!),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.error_outline,
+                                          color: Colors.red[700],
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Connection Failed',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.red[700],
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                        if (errorType != null)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.red[100],
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              errorType!,
+                                              style: TextStyle(
+                                                color: Colors.red[800],
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    SelectableText(
+                                      detailedError!,
+                                      style: TextStyle(
+                                        color: Colors.red[800],
+                                        fontSize: 12,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        TextButton.icon(
+                                          onPressed: () {
+                                            Clipboard.setData(
+                                              ClipboardData(text: detailedError!),
+                                            );
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Error details copied'),
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                          },
+                                          icon: const Icon(
+                                            Icons.content_copy,
+                                            size: 16,
+                                          ),
+                                          label: const Text(
+                                            'Copy',
+                                            style: TextStyle(fontSize: 12),
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: Colors.red[700],
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Actions
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                        if (currentUrl != defaultServerUrl) ...[
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () async {
+                              await setServerUrl(null);
+                              await ApiClient().refreshServerUrl();
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Server URL reset to default.'),
+                                    duration: Duration(seconds: 3),
+                                  ),
+                                );
+                              }
+                            },
+                            child: const Text('Reset to Default'),
+                          ),
+                        ],
+                        const SizedBox(width: 12),
+                        FilledButton(
+                          onPressed: isVerifying
+                              ? null
+                              : () async {
+                                  final url = controller.text.trim();
+
+                                  // Validate URL format
+                                  final validation = validateServerUrl(url);
+                                  if (!validation.valid) {
+                                    setDialogState(() {
+                                      errorText = validation.error;
+                                      detailedError = null;
+                                      errorType = null;
+                                    });
+                                    return;
+                                  }
+
+                                  setDialogState(() {
+                                    errorText = null;
+                                    detailedError = null;
+                                    errorType = null;
+                                    isVerifying = true;
+                                  });
+
+                                  // Verify server is reachable
+                                  final result = await verifyServerUrl(url);
+
+                                  setDialogState(() {
+                                    isVerifying = false;
+                                  });
+
+                                  if (!result.isValid) {
+                                    setDialogState(() {
+                                      detailedError = result.errorMessage;
+                                      errorType = result.errorType;
+                                    });
+                                    return;
+                                  }
+
+                                  // Save the URL
+                                  await setServerUrl(url);
+                                  await ApiClient().refreshServerUrl();
+
+                                  if (context.mounted) {
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Server URL saved and applied.'),
+                                        duration: Duration(seconds: 3),
+                                      ),
+                                    );
+                                  }
+                                },
+                          child: isVerifying
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Save & Verify'),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              if (currentUrl != defaultServerUrl)
-                TextButton(
-                  onPressed: () async {
-                    await setServerUrl(null);
-                    await ApiClient().refreshServerUrl();
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Server URL reset to default.'),
-                          duration: Duration(seconds: 3),
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text('Reset to Default'),
-                ),
-              FilledButton(
-                onPressed: isVerifying
-                    ? null
-                    : () async {
-                        final url = controller.text.trim();
-
-                        // Validate URL format
-                        final validation = validateServerUrl(url);
-                        if (!validation.valid) {
-                          setDialogState(() {
-                            errorText = validation.error;
-                          });
-                          return;
-                        }
-
-                        setDialogState(() {
-                          errorText = null;
-                          isVerifying = true;
-                        });
-
-                        // Verify server is reachable
-                        final isValid = await verifyServerUrl(url);
-
-                        setDialogState(() {
-                          isVerifying = false;
-                        });
-
-                        if (!isValid) {
-                          setDialogState(() {
-                            errorText =
-                                'Server is not reachable. Check the URL and try again.';
-                          });
-                          return;
-                        }
-
-                        // Save the URL
-                        await setServerUrl(url);
-                        await ApiClient().refreshServerUrl();
-
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Server URL saved and applied.'),
-                              duration: Duration(seconds: 3),
-                            ),
-                          );
-                        }
-                      },
-                child: isVerifying
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Save & Verify'),
-              ),
-            ],
-          ),
-        ),
+          );
+        },
       );
     });
   }
