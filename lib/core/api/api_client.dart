@@ -1,8 +1,6 @@
-import 'dart:io';
+import 'package:cronet_http/cronet_http.dart';
 import 'package:dio/dio.dart';
-import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
-import '../services/certificate_provider.dart';
 import '../services/server_config.dart';
 
 /// Custom Dio client with user CA certificate support and proper error handling
@@ -77,58 +75,19 @@ class ApiClient {
   /// Get the current server URL being used
   String? getCurrentServerUrl() => _cachedServerUrl;
 
-  /// Configure HTTP client with custom certificates
+  /// Configure HTTP client with Cronet engine
+  /// Cronet respects Android's network_security_config.xml and user-installed CA certificates
   Future<void> _configureHttpClient() async {
     try {
-      final certProvider = CertificateProvider();
-      final hasCerts = certProvider.hasUserCertificates();
-
-      if (hasCerts) {
-        final certBytes = await certProvider.getCertificatesBytes();
-        if (certBytes != null && certBytes.isNotEmpty) {
-          debugPrint(
-            'User CA certificates available: ${certBytes.length} bytes',
-          );
-          // Configure Dio to trust the custom CA certificate
-          _dio!.httpClientAdapter = _createHttpClientAdapter(certBytes);
-        } else {
-          // On Android, user-added CAs in the system trust store are automatically
-          // trusted by the default HttpClient. Configure Dio to trust bad certificates
-          // to allow user-installed CAs to work.
-          _dio!.httpClientAdapter = _createHttpClientAdapter(null);
-        }
-      }
-
-      // On Android, user-added CAs in the system trust store are automatically
-      // trusted by the default HttpClient.
+      // Use CronetHttpAdapter which uses Chrome's network stack
+      // This automatically respects Android's network_security_config.xml
+      // and user-installed CA certificates in the Android trust store
+      final cronetAdapter = CronetHttpAdapter();
+      _dio!.httpClientAdapter = cronetAdapter;
+      debugPrint('Cronet HTTP adapter configured for Android CA support');
     } catch (e) {
       debugPrint('Error configuring HTTP client: $e');
     }
-  }
-
-  /// Create a Dio HTTP client adapter that supports custom CA certificates
-  dynamic _createHttpClientAdapter(List<int>? certBytes) {
-    // Import dart:io for SecurityContext and HttpClient
-    // The adapter uses the native HttpClient with custom SecurityContext
-    return IOHttpClientAdapter(
-      onHttpClientCreate: (HttpClient client) {
-        // client is now passed as parameter in Dio 5.x
-        // SecurityContext.defaultContext includes system-trusted certificates
-        // and user-installed certificates on Android
-        final context = SecurityContext.defaultContext;
-        client.badCertificateCallback =
-            (X509Certificate cert, String host, int port) {
-          // Allow user-installed certificates by checking if validation failed
-          // due to a custom CA. On Android, user-installed CAs should work
-          // but we need to handle the case where the server uses a self-signed cert.
-          debugPrint('Bad certificate callback for $host:${cert.subject}');
-          // For development/testing with custom CAs, return true
-          // In production, this should be more restrictive
-          return true;
-        };
-        return client;
-      },
-    );
   }
 
   /// Update authentication token

@@ -16,6 +16,7 @@ dependencies:
 
   # Core dependencies
   dio: ^5.8.0+1
+  cronet_http: ^0.5.1
   web_socket_channel: ^3.0.3
   shared_preferences: ^2.5.3
   flutter_secure_storage: ^9.2.4
