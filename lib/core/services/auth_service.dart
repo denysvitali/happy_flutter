@@ -6,7 +6,6 @@ import '../api/api_client.dart';
 import '../models/auth.dart';
 import 'encryption_service.dart';
 import 'storage_service.dart';
-import 'server_config.dart' show getServerUrl;
 
 /// Authentication service handling QR-based authentication flow
 class AuthService {
@@ -27,9 +26,8 @@ class AuthService {
     final keypair = await _generateKeypair(seed);
 
     // Send auth request to server
-    final serverUrl = await _getServerUrl();
     await _apiClient.post(
-      '$serverUrl/v1/auth/account/request',
+      '/v1/auth/account/request',
       data: {
         'publicKey': base64Encode(keypair.publicKey),
       },
@@ -40,7 +38,6 @@ class AuthService {
 
   /// Wait for authentication approval
   Future<AuthCredentials> waitForAuthApproval(Uint8List publicKey) async {
-    final serverUrl = await _getServerUrl();
     final startTime = DateTime.now().millisecondsSinceEpoch;
     final timeout = 120000; // 2 minutes
 
@@ -48,7 +45,7 @@ class AuthService {
       try {
         // Poll for auth token
         final response = await _apiClient.post(
-          '$serverUrl/v1/auth/account/wait',
+          '/v1/auth/account/wait',
           data: {
             'publicKey': base64Encode(publicKey),
           },
@@ -188,9 +185,8 @@ class AuthService {
 
   /// Verify token with server
   Future<void> _verifyToken(String token) async {
-    final serverUrl = await _getServerUrl();
     final response = await _apiClient.get(
-      '$serverUrl/v1/auth/verify',
+      '/v1/auth/verify',
       queryParameters: {'token': token},
     );
 
@@ -257,11 +253,6 @@ class AuthService {
     final uri = response.realUri.toString();
     final statusCode = response.statusCode;
     return 'URL: $uri\nStatus: $statusCode';
-  }
-
-  /// Get server URL from config
-  Future<String> _getServerUrl() async {
-    return getServerUrl();
   }
 }
 
