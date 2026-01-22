@@ -6,6 +6,7 @@ import '../api/api_client.dart';
 import '../models/auth.dart';
 import 'encryption_service.dart';
 import 'storage_service.dart';
+import 'server_config.dart' show getServerUrl;
 
 /// Authentication service handling QR-based authentication flow
 class AuthService {
@@ -103,8 +104,8 @@ class AuthService {
             return credentials;
           }
         } else if (response.statusCode == 202) {
-          // Still waiting, continue polling
-          await Future.delayed(const Duration(milliseconds: 1000));
+          // Still waiting, continue polling with reduced frequency
+          await Future.delayed(const Duration(milliseconds: 2500));
         } else {
           throw Exception('Unexpected response: ${response.statusCode}');
         }
@@ -113,7 +114,7 @@ class AuthService {
         if (e.type == DioExceptionType.connectionError ||
             e.type == DioExceptionType.connectionTimeout) {
           debugPrint('Connection error during auth polling: ${e.message}');
-          await Future.delayed(const Duration(milliseconds: 2000));
+          await Future.delayed(const Duration(milliseconds: 2500));
         } else if (e.response?.statusCode == 403) {
           final serverResponse = _extractErrorMessage(e.response?.data);
           throw AuthForbiddenError(
@@ -128,7 +129,7 @@ class AuthService {
           );
         } else {
           debugPrint('Dio error during auth polling: $e');
-          await Future.delayed(const Duration(milliseconds: 1000));
+          await Future.delayed(const Duration(milliseconds: 2500));
         }
       } catch (e) {
         // Check if it's a network-related SSL error
@@ -139,7 +140,7 @@ class AuthService {
           );
         }
         debugPrint('Auth polling error: $e');
-        await Future.delayed(const Duration(milliseconds: 1000));
+        await Future.delayed(const Duration(milliseconds: 2500));
       }
     }
 
@@ -260,8 +261,7 @@ class AuthService {
 
   /// Get server URL from config
   Future<String> _getServerUrl() async {
-    // In production, load from environment/config
-    return 'https://api.happy.dev';
+    return getServerUrl();
   }
 }
 

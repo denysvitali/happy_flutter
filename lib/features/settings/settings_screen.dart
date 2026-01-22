@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/api/api_client.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/certificate_provider.dart';
@@ -14,9 +15,7 @@ class SettingsScreen extends ConsumerWidget {
     final settings = ref.watch(settingsNotifierProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -48,21 +47,17 @@ class SettingsScreen extends ConsumerWidget {
           title: const Text('Compact Session View'),
           subtitle: const Text('Use smaller cards for sessions'),
           value: settings.compactSessionView,
-          onChanged: (value) =>
-              ref.read(settingsNotifierProvider.notifier).updateSetting(
-                    'compactSessionView',
-                    value,
-                  ),
+          onChanged: (value) => ref
+              .read(settingsNotifierProvider.notifier)
+              .updateSetting('compactSessionView', value),
         ),
         SwitchListTile(
           title: const Text('Show Flavor Icons'),
           subtitle: const Text('Show AI provider icons in avatars'),
           value: settings.showFlavorIcons,
-          onChanged: (value) =>
-              ref.read(settingsNotifierProvider.notifier).updateSetting(
-                    'showFlavorIcons',
-                    value,
-                  ),
+          onChanged: (value) => ref
+              .read(settingsNotifierProvider.notifier)
+              .updateSetting('showFlavorIcons', value),
         ),
         ListTile(
           title: const Text('Avatar Style'),
@@ -85,38 +80,30 @@ class SettingsScreen extends ConsumerWidget {
           title: const Text('View Inline'),
           subtitle: const Text('Show tool calls inline in chat'),
           value: settings.viewInline,
-          onChanged: (value) =>
-              ref.read(settingsNotifierProvider.notifier).updateSetting(
-                    'viewInline',
-                    value,
-                  ),
+          onChanged: (value) => ref
+              .read(settingsNotifierProvider.notifier)
+              .updateSetting('viewInline', value),
         ),
         SwitchListTile(
           title: const Text('Expand Todos'),
           value: settings.expandTodos,
-          onChanged: (value) =>
-              ref.read(settingsNotifierProvider.notifier).updateSetting(
-                    'expandTodos',
-                    value,
-                  ),
+          onChanged: (value) => ref
+              .read(settingsNotifierProvider.notifier)
+              .updateSetting('expandTodos', value),
         ),
         SwitchListTile(
           title: const Text('Show Line Numbers'),
           value: settings.showLineNumbers,
-          onChanged: (value) =>
-              ref.read(settingsNotifierProvider.notifier).updateSetting(
-                    'showLineNumbers',
-                    value,
-                  ),
+          onChanged: (value) => ref
+              .read(settingsNotifierProvider.notifier)
+              .updateSetting('showLineNumbers', value),
         ),
         SwitchListTile(
           title: const Text('Wrap Lines in Diffs'),
           value: settings.wrapLinesInDiffs,
-          onChanged: (value) =>
-              ref.read(settingsNotifierProvider.notifier).updateSetting(
-                    'wrapLinesInDiffs',
-                    value,
-                  ),
+          onChanged: (value) => ref
+              .read(settingsNotifierProvider.notifier)
+              .updateSetting('wrapLinesInDiffs', value),
         ),
       ],
     );
@@ -162,7 +149,10 @@ class SettingsScreen extends ConsumerWidget {
               title: const Text('Server URL'),
               subtitle: Text(url),
               trailing: isCustom
-                  ? Icon(Icons.edit, color: Theme.of(context).colorScheme.primary)
+                  ? Icon(
+                      Icons.edit,
+                      color: Theme.of(context).colorScheme.primary,
+                    )
                   : Icon(Icons.chevron_right),
               onTap: () => showServerUrlDialog(context, url),
             );
@@ -213,14 +203,6 @@ class SettingsScreen extends ConsumerWidget {
                   keyboardType: TextInputType.url,
                   autofillHints: const [AutofillHints.url],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Changes will take effect after restarting the app.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
               ],
             ),
           ),
@@ -233,11 +215,12 @@ class SettingsScreen extends ConsumerWidget {
               TextButton(
                 onPressed: () async {
                   await setServerUrl(null);
+                  await ApiClient().refreshServerUrl();
                   if (context.mounted) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Server URL reset to default. Restart app to apply.'),
+                        content: Text('Server URL reset to default.'),
                         duration: Duration(seconds: 3),
                       ),
                     );
@@ -274,19 +257,21 @@ class SettingsScreen extends ConsumerWidget {
 
                       if (!isValid) {
                         setDialogState(() {
-                          errorText = 'Server is not reachable. Check the URL and try again.';
+                          errorText =
+                              'Server is not reachable. Check the URL and try again.';
                         });
                         return;
                       }
 
                       // Save the URL
                       await setServerUrl(url);
+                      await ApiClient().refreshServerUrl();
 
                       if (context.mounted) {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Server URL saved. Restart app to apply changes.'),
+                            content: Text('Server URL saved and applied.'),
                             duration: Duration(seconds: 3),
                           ),
                         );
@@ -310,10 +295,7 @@ class SettingsScreen extends ConsumerWidget {
     return SettingsSection(
       title: 'About',
       children: [
-        const ListTile(
-          title: Text('Version'),
-          subtitle: Text('1.0.0'),
-        ),
+        const ListTile(title: Text('Version'), subtitle: Text('1.0.0')),
         ListTile(
           title: const Text('Privacy Policy'),
           onTap: () => openUrl('https://happy.dev/privacy'),
@@ -330,10 +312,7 @@ class SettingsScreen extends ConsumerWidget {
     return SettingsSection(
       children: [
         ListTile(
-          title: const Text(
-            'Sign Out',
-            style: TextStyle(color: Colors.red),
-          ),
+          title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
           leading: const Icon(Icons.logout, color: Colors.red),
           onTap: () => confirmSignOut(ref),
         ),
@@ -359,10 +338,9 @@ class SettingsScreen extends ConsumerWidget {
                   value: style,
                   groupValue: settings.avatarStyle,
                   onChanged: (value) {
-                    ref.read(settingsNotifierProvider.notifier).updateSetting(
-                          'avatarStyle',
-                          value,
-                        );
+                    ref
+                        .read(settingsNotifierProvider.notifier)
+                        .updateSetting('avatarStyle', value);
                     Navigator.pop(context);
                   },
                 ),
@@ -427,9 +405,7 @@ class SettingsSection extends StatelessWidget {
               ),
             ),
           ),
-        Card(
-          child: Column(children: children),
-        ),
+        Card(child: Column(children: children)),
       ],
     );
   }

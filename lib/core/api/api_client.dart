@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../services/certificate_provider.dart';
+import '../services/server_config.dart';
 
 /// Custom Dio client with user CA certificate support and proper error handling
 class ApiClient {
@@ -10,38 +11,38 @@ class ApiClient {
 
   Dio? _dio;
   String? _authToken;
+  String? _cachedServerUrl;
 
   /// Initialize the Dio client with optional user CA certificates
   Future<void> initialize({required String serverUrl}) async {
+    _cachedServerUrl = serverUrl;
+    await _configureDio(serverUrl);
+  }
+
+  Future<void> _configureDio(String serverUrl) async {
     final baseOptions = BaseOptions(
       baseUrl: serverUrl,
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 60),
       contentType: 'application/json',
       responseType: ResponseType.json,
-      // Don't throw for any status code - we'll handle errors ourselves
       validateStatus: (status) => true,
     );
 
     _dio = Dio(baseOptions);
 
-    // Configure custom HTTP client adapter with user CA certificates
     await _configureHttpClient();
 
-    // Add interceptor for auth token and error handling
     _dio!.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          // Add auth token if available
           if (_authToken != null) {
             options.headers['Authorization'] = 'Bearer $_authToken';
           }
-          // Add user agent
           options.headers['User-Agent'] = 'HappyFlutter/1.0';
           return handler.next(options);
         },
         onResponse: (response, handler) {
-          // Handle 403 specifically for authentication errors
           if (response.statusCode == 403) {
             debugPrint('Received 403 - Forbidden: ${response.realUri}');
           }
@@ -58,6 +59,22 @@ class ApiClient {
     );
   }
 
+  /// Refresh the server URL without restarting the app
+  /// Call this after changing the server URL in settings
+  Future<void> refreshServerUrl() async {
+    final newUrl = await getServerUrl();
+    if (newUrl != _cachedServerUrl) {
+      _cachedServerUrl = newUrl;
+      _dio?.close(force: true);
+      _dio = null;
+      await _configureDio(newUrl);
+      debugPrint('Server URL refreshed to: $newUrl');
+    }
+  }
+
+  /// Get the current server URL being used
+  String? getCurrentServerUrl() => _cachedServerUrl;
+
   /// Configure HTTP client with custom certificates
   Future<void> _configureHttpClient() async {
     try {
@@ -67,7 +84,9 @@ class ApiClient {
       if (hasCerts) {
         final certBytes = await certProvider.getCertificatesBytes();
         if (certBytes != null && certBytes.isNotEmpty) {
-          debugPrint('User CA certificates available: ${certBytes.length} bytes');
+          debugPrint(
+            'User CA certificates available: ${certBytes.length} bytes',
+          );
         }
       }
 
@@ -95,8 +114,10 @@ class ApiClient {
   }
 
   /// GET request
-  Future<Response> get(String path,
-      {Map<String, dynamic>? queryParameters}) async {
+  Future<Response> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
     _ensureInitialized();
     return _dio!.get(path, queryParameters: queryParameters);
   }

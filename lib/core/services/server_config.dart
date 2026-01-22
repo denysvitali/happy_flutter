@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String _serverUrlKey = 'custom_server_url';
+const String _lastServerUrlErrorKey = 'last_server_url_error';
 const String defaultServerUrl = 'https://api.cluster-fluster.com';
 const String _defaultServerUrl = defaultServerUrl;
 
@@ -41,6 +42,22 @@ Future<void> setServerUrl(String? url) async {
 Future<bool> isUsingCustomServer() async {
   final url = await getServerUrl();
   return url != _defaultServerUrl;
+}
+
+/// Save server URL error for display on auth screen
+Future<void> saveServerUrlError(String error) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(_lastServerUrlErrorKey, error);
+}
+
+/// Get and clear the last server URL error
+/// Returns null if no error is stored
+Future<String?> getLastServerUrlError() async {
+  final prefs = await SharedPreferences.getInstance();
+  final error = prefs.getString(_lastServerUrlErrorKey);
+  // Clear the error after reading
+  await prefs.remove(_lastServerUrlErrorKey);
+  return error;
 }
 
 /// Server URL validation result
@@ -84,6 +101,7 @@ Future<bool> verifyServerUrl(String url) async {
   final validation = validateServerUrl(url);
   if (!validation.valid) {
     debugPrint('Server URL validation failed: ${validation.error}');
+    await saveServerUrlError('Invalid server URL: ${validation.error}');
     return false;
   }
 
@@ -108,7 +126,9 @@ Future<bool> verifyServerUrl(String url) async {
     // Accept any 2xx, 3xx, or 401 (which means server is up but auth required)
     return response.statusCode >= 200 && response.statusCode < 500;
   } catch (e) {
+    final errorMsg = 'Server unreachable: ${e.toString()}';
     debugPrint('Server verification failed: $e');
+    await saveServerUrlError(errorMsg);
     return false;
   }
 }

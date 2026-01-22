@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/api/api_client.dart';
 import '../../core/models/auth.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/providers/app_providers.dart';
@@ -25,11 +26,7 @@ class SimpleQRCode extends StatelessWidget {
   final String data;
   final double size;
 
-  const SimpleQRCode({
-    super.key,
-    required this.data,
-    this.size = 200,
-  });
+  const SimpleQRCode({super.key, required this.data, this.size = 200});
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +56,12 @@ class QRCodePainter extends CustomPainter {
     _drawPositionPattern(canvas, paint, 0, 0, cellSize);
     _drawPositionPattern(canvas, paint, size.width - 7 * cellSize, 0, cellSize);
     _drawPositionPattern(
-        canvas, paint, 0, size.height - 7 * cellSize, cellSize);
+      canvas,
+      paint,
+      0,
+      size.height - 7 * cellSize,
+      cellSize,
+    );
 
     // Draw data modules based on hash
     final random = Random(hash);
@@ -90,7 +92,12 @@ class QRCodePainter extends CustomPainter {
   }
 
   void _drawPositionPattern(
-      Canvas canvas, Paint paint, double x, double y, double cellSize) {
+    Canvas canvas,
+    Paint paint,
+    double x,
+    double y,
+    double cellSize,
+  ) {
     // Outer 7x7 black square
     canvas.drawRect(Rect.fromLTWH(x, y, 7 * cellSize, 7 * cellSize), paint);
 
@@ -106,7 +113,11 @@ class QRCodePainter extends CustomPainter {
     // Center 3x3 black square
     canvas.drawRect(
       Rect.fromLTWH(
-          x + 2 * cellSize, y + 2 * cellSize, 3 * cellSize, 3 * cellSize),
+        x + 2 * cellSize,
+        y + 2 * cellSize,
+        3 * cellSize,
+        3 * cellSize,
+      ),
       paint,
     );
   }
@@ -125,24 +136,39 @@ class AuthScreen extends ConsumerStatefulWidget {
 
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   Uint8List? _publicKey;
-  bool _isLoading = true;
+  bool _isLoading = false;
   bool _isPolling = false;
   String? _error;
   String? _errorDetails;
   bool _showErrorDetails = false;
+  bool _showSignInButton = true;
+  String? _serverError;
 
   @override
   void initState() {
     super.initState();
-    _startAuth();
+    // Check for stored server URL error
+    _checkServerError();
+    // Don't auto-start auth - wait for user to click "Sign In"
+  }
+
+  Future<void> _checkServerError() async {
+    final error = await getLastServerUrlError();
+    if (mounted && error != null) {
+      setState(() {
+        _serverError = error;
+      });
+    }
   }
 
   Future<void> _startAuth() async {
     setState(() {
+      _showSignInButton = false;
       _isLoading = true;
       _error = null;
       _errorDetails = null;
       _showErrorDetails = false;
+      _serverError = null; // Clear server error on retry
     });
 
     try {
@@ -260,14 +286,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     keyboardType: TextInputType.url,
                     autofillHints: const [AutofillHints.url],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Changes will take effect after restarting the app.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -280,13 +298,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 TextButton(
                   onPressed: () async {
                     await setServerUrl(null);
+                    await ApiClient().refreshServerUrl();
                     if (context.mounted) {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text(
-                            'Server URL reset to default. Restart app to apply.',
-                          ),
+                          content: Text('Server URL reset to default.'),
                           duration: Duration(seconds: 3),
                         ),
                       );
@@ -331,14 +348,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
                         // Save the URL
                         await setServerUrl(url);
+                        await ApiClient().refreshServerUrl();
 
                         if (context.mounted) {
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text(
-                                'Server URL saved. Restart app to apply changes.',
-                              ),
+                              content: Text('Server URL saved and applied.'),
                               duration: Duration(seconds: 3),
                             ),
                           );
@@ -378,29 +394,78 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.android,
-                size: 80,
-                color: Colors.blue,
-              ),
+              if (_serverError != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.red[50],
+                    border: Border.all(color: Colors.red[300]!),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.red[700]),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Server Connection Error',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red[700],
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _serverError!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.red[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () {
+                          setState(() {
+                            _serverError = null;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const Icon(Icons.android, size: 80, color: Colors.blue),
               const SizedBox(height: 24),
               const Text(
                 'Happy',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               const Text(
                 'Mobile client for Claude Code & Codex',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
               const SizedBox(height: 48),
-              if (_isLoading)
+              if (_showSignInButton)
+                ElevatedButton.icon(
+                  onPressed: _startAuth,
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('Sign In'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                  ),
+                )
+              else if (_isLoading)
                 const CircularProgressIndicator()
               else if (_error != null)
                 Column(
@@ -510,8 +575,8 @@ class AuthGate extends ConsumerWidget {
       AuthState.authenticated => child,
       AuthState.unauthenticated => const AuthScreen(),
       AuthState.authenticating => const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
+        body: Center(child: CircularProgressIndicator()),
+      ),
       AuthState.error => const AuthScreen(),
     };
   }
