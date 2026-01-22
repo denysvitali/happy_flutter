@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:pointycastle/pointycastle.dart';
 import '../api/api_client.dart';
 import '../models/auth.dart';
 import 'encryption_service.dart';
@@ -34,6 +36,48 @@ class AuthService {
     );
 
     return keypair.publicKey;
+  }
+
+  /// Create a new account
+  Future<void> createAccount() async {
+    // Generate a random secret
+    final secret = _encryption.randomBytes(32);
+
+    // Generate keypair from secret
+    final keypair = await _generateKeypair(secret);
+
+    // Generate a challenge
+    final challenge = _encryption.randomBytes(32);
+
+    // Sign the challenge with our private key
+    final signature = await _signChallenge(challenge, keypair.privateKey);
+
+    // Request a new token from the server
+    final response = await _apiClient.post(
+      '/v1/auth',
+      data: {
+        'challenge': base64Encode(challenge),
+        'signature': base64Encode(signature),
+        'publicKey': base64Encode(keypair.publicKey),
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = response.data as Map<String, dynamic>;
+      final token = data['token'] as String;
+
+      // Initialize encryption with the secret
+      await _encryption.initialize(secret);
+
+      // Store credentials
+      final credentials =
+          AuthCredentials(token: token, secret: base64Encode(secret));
+      await TokenStorage().setCredentials(credentials);
+    } else if (response.statusCode == 409) {
+      throw AuthException('Account already exists');
+    } else {
+      throw AuthException('Failed to create account: ${response.statusCode}');
+    }
   }
 
   /// Wait for authentication approval
@@ -253,6 +297,17 @@ class AuthService {
     final uri = response.realUri.toString();
     final statusCode = response.statusCode;
     return 'URL: $uri\nStatus: $statusCode';
+  }
+
+  /// Sign a challenge using HMAC-SHA256
+  Future<Uint8List> _signChallenge(
+    Uint8List challenge,
+    Uint8List privateKey,
+  ) async {
+    // Use HMAC-SHA256 for signing
+    final mac = HMac(SHA256Digest(), 64);
+    mac.init(KeyParameter(privateKey));
+    return mac.process(challenge);
   }
 }
 

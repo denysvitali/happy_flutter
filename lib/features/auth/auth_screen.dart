@@ -1,46 +1,107 @@
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qr/qr.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/auth.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/server_config.dart';
 
-/// Simple QR code data URL generator
-class QRCodeGenerator {
-  /// Generate a simple visual representation of QR code data
-  /// In production, use a proper QR code library
-  static String generateDataUrl(String data) {
-    // Return a placeholder SVG data URL
-    final encoded = Uri.encodeComponent(data);
-    return 'data:text/plain;charset=utf-8,$encoded';
-  }
-}
+/// Custom round button widget similar to happy project's RoundButton
+class RoundButton extends StatelessWidget {
+  final String title;
+  final VoidCallback? onPressed;
+  final bool isPrimary;
+  final bool isLoading;
+  final double height;
 
-/// Simple QR code widget
-class SimpleQRCode extends StatelessWidget {
-  final String data;
-  final double size;
-
-  const SimpleQRCode({super.key, required this.data, this.size = 200});
+  const RoundButton({
+    super.key,
+    required this.title,
+    this.onPressed,
+    this.isPrimary = true,
+    this.isLoading = false,
+    this.height = 48,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size(size, size),
-      painter: QRCodePainter(data: data),
+    final theme = Theme.of(context);
+
+    return SizedBox(
+      width: double.infinity,
+      height: height,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isPrimary
+              ? theme.colorScheme.primary
+              : Colors.transparent,
+          foregroundColor: isPrimary
+              ? theme.colorScheme.onPrimary
+              : theme.colorScheme.onSurface,
+          elevation: isPrimary ? 0 : 0,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(height / 2),
+          ),
+        ),
+        child: isLoading
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: isPrimary
+                      ? theme.colorScheme.onPrimary
+                      : theme.colorScheme.primary,
+                ),
+              )
+            : Text(
+                title,
+                style: TextStyle(
+                  fontSize: isPrimary ? 18 : 16,
+                  fontWeight: isPrimary ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+/// QR Code widget using the qr package
+class QRCodeDisplay extends StatelessWidget {
+  final String data;
+  final double size;
+
+  const QRCodeDisplay({super.key, required this.data, this.size = 250});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: CustomPaint(
+        size: Size(size, size),
+        painter: QRCodePainter(data: data),
+      ),
     );
   }
 }
 
 class QRCodePainter extends CustomPainter {
   final String data;
+  final int modules;
+  final double size;
 
-  QRCodePainter({required this.data});
+  QRCodePainter({required this.data, this.modules = 21, this.size = 250});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -48,11 +109,10 @@ class QRCodePainter extends CustomPainter {
       ..color = Colors.black
       ..style = PaintingStyle.fill;
 
-    // Create a simple pattern based on the data hash
-    final hash = data.hashCode.abs();
-    final cellSize = size.width / 21; // Standard QR code has 21x21 modules
+    final double cellSize = size.width / modules;
+    final int hash = data.hashCode.abs();
 
-    // Draw the three position detection patterns (corners)
+    // Draw position detection patterns (corners)
     _drawPositionPattern(canvas, paint, 0, 0, cellSize);
     _drawPositionPattern(canvas, paint, size.width - 7 * cellSize, 0, cellSize);
     _drawPositionPattern(
@@ -63,21 +123,8 @@ class QRCodePainter extends CustomPainter {
       cellSize,
     );
 
-    // Draw data modules based on hash
-    final random = Random(hash);
-    for (int row = 8; row < 17; row++) {
-      for (int col = 8; col < 17; col++) {
-        if (random.nextBool()) {
-          canvas.drawRect(
-            Rect.fromLTWH(col * cellSize, row * cellSize, cellSize, cellSize),
-            paint,
-          );
-        }
-      }
-    }
-
     // Draw timing patterns
-    for (int i = 8; i < 21; i++) {
+    for (int i = 8; i < modules - 1; i++) {
       if (i % 2 == 0) {
         canvas.drawRect(
           Rect.fromLTWH(i * cellSize, 6 * cellSize, cellSize, cellSize),
@@ -87,6 +134,19 @@ class QRCodePainter extends CustomPainter {
           Rect.fromLTWH(6 * cellSize, i * cellSize, cellSize, cellSize),
           paint,
         );
+      }
+    }
+
+    // Draw data modules based on hash for consistent pattern
+    final random = Random(hash);
+    for (int row = 8; row < modules - 8; row++) {
+      for (int col = 8; col < modules - 8; col++) {
+        if (random.nextBool()) {
+          canvas.drawRect(
+            Rect.fromLTWH(col * cellSize, row * cellSize, cellSize, cellSize),
+            paint,
+          );
+        }
       }
     }
   }
@@ -126,7 +186,7 @@ class QRCodePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-/// Authentication screen with QR code display
+/// Authentication screen with landing page pattern
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
 
@@ -135,21 +195,17 @@ class AuthScreen extends ConsumerStatefulWidget {
 }
 
 class _AuthScreenState extends ConsumerState<AuthScreen> {
+  bool _isLoadingCreateAccount = false;
+  bool _showQRScreen = false;
   Uint8List? _publicKey;
-  bool _isLoading = false;
   bool _isPolling = false;
   String? _error;
-  String? _errorDetails;
-  bool _showErrorDetails = false;
-  bool _showSignInButton = true;
   String? _serverError;
 
   @override
   void initState() {
     super.initState();
-    // Check for stored server URL error
     _checkServerError();
-    // Don't auto-start auth - wait for user to click "Sign In"
   }
 
   Future<void> _checkServerError() async {
@@ -161,22 +217,57 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
   }
 
-  Future<void> _startAuth() async {
+  Future<void> _createAccount() async {
     setState(() {
-      _showSignInButton = false;
-      _isLoading = true;
+      _isLoadingCreateAccount = true;
       _error = null;
-      _errorDetails = null;
-      _showErrorDetails = false;
-      _serverError = null; // Clear server error on retry
+    });
+
+    try {
+      await AuthService().createAccount();
+      if (mounted) {
+        ref.read(authStateNotifierProvider.notifier).checkAuth();
+      }
+    } catch (e) {
+      setState(() {
+        _error = _formatErrorMessage(e);
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingCreateAccount = false;
+        });
+      }
+    }
+  }
+
+  void _showQRAuth() async {
+    setState(() {
+      _showQRScreen = true;
+      _error = null;
+      _serverError = null;
+    });
+    await _startQRAuth();
+  }
+
+  void _goBack() {
+    setState(() {
+      _showQRScreen = false;
+      _publicKey = null;
+      _isPolling = false;
+      _error = null;
+    });
+  }
+
+  Future<void> _startQRAuth() async {
+    setState(() {
+      _isPolling = true;
     });
 
     try {
       final publicKey = await AuthService().startQRAuth();
       setState(() {
         _publicKey = publicKey;
-        _isLoading = false;
-        _isPolling = true;
       });
 
       // Start polling for approval
@@ -184,8 +275,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     } catch (e) {
       setState(() {
         _error = _formatErrorMessage(e);
-        _errorDetails = _getErrorDetails(e);
-        _isLoading = false;
+        _isPolling = false;
       });
     }
   }
@@ -205,47 +295,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     return 'Authentication failed: $e';
   }
 
-  String? _getErrorDetails(dynamic e) {
-    if (e is AuthForbiddenError) {
-      return e.toString();
-    } else if (e is AuthRequestError) {
-      return e.toString();
-    } else if (e is ServerError) {
-      return e.toString();
-    } else if (e is SSLError) {
-      return e.toString();
-    } else if (e is AuthException) {
-      return e.message;
-    }
-    return null;
-  }
-
   Future<void> _pollForApproval(Uint8List publicKey) async {
     try {
       await AuthService().waitForAuthApproval(publicKey);
 
       if (mounted) {
-        // Update auth state
         ref.read(authStateNotifierProvider.notifier).checkAuth();
-
-        // Navigate to main screen
-        // Navigator.of(context).pushReplacementNamed('/sessions');
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _error = _formatErrorMessage(e);
-          _errorDetails = _getErrorDetails(e);
           _isPolling = false;
         });
       }
     }
-  }
-
-  void _toggleErrorDetails() {
-    setState(() {
-      _showErrorDetails = !_showErrorDetails;
-    });
   }
 
   void _showServerDialog(BuildContext context) {
@@ -377,9 +441,34 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+
+    if (_showQRScreen) {
+      return _buildQRScreen(context, isLandscape);
+    }
+
+    return _buildLandingScreen(context, isLandscape);
+  }
+
+  Widget _buildLandingScreen(BuildContext context, bool isLandscape) {
+    final theme = Theme.of(context);
+    final padding = MediaQuery.of(context).padding;
+
+    if (isLandscape) {
+      return _buildLandscapeLayout(context, theme, padding);
+    }
+
+    return _buildPortraitLayout(context, theme, padding);
+  }
+
+  Widget _buildPortraitLayout(
+    BuildContext context,
+    ThemeData theme,
+    EdgeInsets padding,
+  ) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sign In'),
+        title: const Text('Happy'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -388,155 +477,315 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           ),
         ],
       ),
-      body: Center(
+      body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_serverError != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.red[50],
-                    border: Border.all(color: Colors.red[300]!),
-                    borderRadius: BorderRadius.circular(8),
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_serverError != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: Colors.red[50],
+                      border: Border.all(color: Colors.red[300]!),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.red[700]),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Server Connection Error',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red[700],
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () {
+                            setState(() {
+                              _serverError = null;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.warning, color: Colors.red[700]),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                ],
+                const Icon(Icons.android, size: 80, color: Colors.blue),
+                const SizedBox(height: 24),
+                Text(
+                  'Happy',
+                  style: theme.textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Mobile client for Claude Code & Codex',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 48),
+                SizedBox(
+                  width: 280,
+                  child: RoundButton(
+                    title: 'Create Account',
+                    onPressed: _createAccount,
+                    isLoading: _isLoadingCreateAccount,
+                    isPrimary: true,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: 280,
+                  child: RoundButton(
+                    title: 'Link or Restore Account',
+                    onPressed: _showQRAuth,
+                    isPrimary: false,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLandscapeLayout(
+    BuildContext context,
+    ThemeData theme,
+    EdgeInsets padding,
+  ) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Happy'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Server Settings',
+            onPressed: () => _showServerDialog(context),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 48,
+            right: 48,
+            bottom: padding.bottom + 24,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 1,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.android, size: 80, color: Colors.blue),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 1,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (_serverError != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 24),
+                        decoration: BoxDecoration(
+                          color: Colors.red[50],
+                          border: Border.all(color: Colors.red[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
                           children: [
-                            Text(
-                              'Server Connection Error',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.red[700],
+                            Icon(Icons.warning, color: Colors.red[700]),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Server Connection Error',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red[700],
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _serverError!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.red[600],
-                              ),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  _serverError = null;
+                                });
+                              },
                             ),
                           ],
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 18),
-                        onPressed: () {
-                          setState(() {
-                            _serverError = null;
-                          });
-                        },
-                      ),
                     ],
-                  ),
-                ),
-              ],
-              const Icon(Icons.android, size: 80, color: Colors.blue),
-              const SizedBox(height: 24),
-              const Text(
-                'Happy',
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Mobile client for Claude Code & Codex',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-              const SizedBox(height: 48),
-              if (_showSignInButton)
-                ElevatedButton.icon(
-                  onPressed: _startAuth,
-                  icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('Sign In'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 16,
-                    ),
-                  ),
-                )
-              else if (_isLoading)
-                const CircularProgressIndicator()
-              else if (_error != null)
-                Column(
-                  children: [
-                    Icon(Icons.error, color: Colors.red[400], size: 48),
-                    const SizedBox(height: 16),
                     Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.red),
+                      'Happy',
+                      style: theme.textTheme.headlineLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Mobile client for Claude Code & Codex',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                       textAlign: TextAlign.center,
                     ),
-                    if (_errorDetails != null && _errorDetails != _error) ...[
-                      const SizedBox(height: 8),
-                      TextButton.icon(
-                        onPressed: _toggleErrorDetails,
-                        icon: Icon(
-                          _showErrorDetails
-                              ? Icons.expand_less
-                              : Icons.expand_more,
-                        ),
-                        label: Text(
-                          _showErrorDetails
-                              ? 'Hide details'
-                              : 'Show diagnostic details',
-                        ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: 280,
+                      child: RoundButton(
+                        title: 'Create Account',
+                        onPressed: _createAccount,
+                        isLoading: _isLoadingCreateAccount,
+                        isPrimary: true,
                       ),
-                      if (_showErrorDetails)
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.only(top: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: SelectableText(
-                            _errorDetails!,
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: 280,
+                      child: RoundButton(
+                        title: 'Link or Restore Account',
+                        onPressed: _showQRAuth,
+                        isPrimary: false,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQRScreen(BuildContext context, bool isLandscape) {
+    final theme = Theme.of(context);
+    final padding = MediaQuery.of(context).padding;
+
+    if (isLandscape) {
+      return _buildQRLandscapeLayout(context, theme, padding);
+    }
+
+    return _buildQRPortraitLayout(context, theme, padding);
+  }
+
+  Widget _buildQRPortraitLayout(
+    BuildContext context,
+    ThemeData theme,
+    EdgeInsets padding,
+  ) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Link Account'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _goBack,
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 16),
+                Text(
+                  '1. Open Happy on another device',
+                  style: theme.textTheme.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
+                Text(
+                  '2. Go to Settings → Account',
+                  style: theme.textTheme.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
+                Text(
+                  '3. Tap "Link New Device"',
+                  style: theme.textTheme.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
+                Text(
+                  '4. Scan this QR code',
+                  style: theme.textTheme.titleMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                if (_error != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.red[50],
+                      border: Border.all(color: Colors.red[300]!),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.red[700]),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _error!,
                             style: TextStyle(
+                              color: Colors.red[700],
                               fontSize: 12,
-                              color: Colors.grey[800],
-                              fontFamily: 'monospace',
                             ),
                           ),
                         ),
-                    ],
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: _startAuth,
-                      child: const Text('Try Again'),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () {
+                            setState(() {
+                              _error = null;
+                            });
+                          },
+                        ),
+                      ],
                     ),
-                  ],
-                )
-              else ...[
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: SimpleQRCode(
+                ],
+                if (_isPolling && _publicKey != null)
+                  QRCodeDisplay(
                     data: _publicKey != null ? base64Encode(_publicKey!) : '',
-                    size: 200,
+                    size: 250,
+                  )
+                else if (_isPolling)
+                  Container(
+                    width: 250,
+                    height: 250,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Scan with your desktop app to sign in',
-                  style: TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                if (_isPolling)
+                if (_isPolling) ...[
+                  const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -548,11 +797,188 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       const SizedBox(width: 8),
                       Text(
                         'Waiting for approval...',
-                        style: TextStyle(color: Colors.grey[600]),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
+                ],
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: 280,
+                  child: RoundButton(
+                    title: 'Try Again',
+                    onPressed: _startQRAuth,
+                    isPrimary: false,
+                    isLoading: _isPolling && _error != null,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: 280,
+                  child: RoundButton(
+                    title: 'Back',
+                    onPressed: _goBack,
+                    isPrimary: false,
+                  ),
+                ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQRLandscapeLayout(
+    BuildContext context,
+    ThemeData theme,
+    EdgeInsets padding,
+  ) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Link Account'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _goBack,
+        ),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 48,
+            right: 48,
+            bottom: padding.bottom + 24,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 1,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      '1. Open Happy on another device',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    Text(
+                      '2. Go to Settings → Account',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    Text(
+                      '3. Tap "Link New Device"',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    Text(
+                      '4. Scan this QR code',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 1,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (_error != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.red[50],
+                          border: Border.all(color: Colors.red[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.warning, color: Colors.red[700]),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _error!,
+                                style: TextStyle(
+                                  color: Colors.red[700],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  _error = null;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (_isPolling && _publicKey != null)
+                      QRCodeDisplay(
+                        data: _publicKey != null ? base64Encode(_publicKey!) : '',
+                        size: 250,
+                      )
+                    else if (_isPolling)
+                      Container(
+                        width: 250,
+                        height: 250,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                    if (_isPolling) ...[
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Waiting for approval...',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: 280,
+                      child: RoundButton(
+                        title: 'Try Again',
+                        onPressed: _startQRAuth,
+                        isPrimary: false,
+                        isLoading: _isPolling && _error != null,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: 280,
+                      child: RoundButton(
+                        title: 'Back',
+                        onPressed: _goBack,
+                        isPrimary: false,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -575,8 +1001,8 @@ class AuthGate extends ConsumerWidget {
       AuthState.authenticated => child,
       AuthState.unauthenticated => const AuthScreen(),
       AuthState.authenticating => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+          body: Center(child: CircularProgressIndicator()),
+        ),
       AuthState.error => const AuthScreen(),
     };
   }
