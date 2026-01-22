@@ -10,3 +10,8 @@ devenv.local.yaml
 .pre-commit-config.yaml
 pubspec.lock
 *.jks
+
+.claude
+.dart_tool
+/build
+.flutter-plugins-dependencies
