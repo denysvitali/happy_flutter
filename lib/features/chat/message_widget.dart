@@ -1,15 +1,29 @@
 import 'package:flutter/material.dart';
-import '../../core/models/message.dart';
 
-/// Simple message widget for displaying chat messages
+import '../../core/models/message.dart';
+import 'markdown/markdown.dart';
+import 'tools/tools.dart';
+
+/// Message widget for displaying chat messages with full markdown support.
+///
+/// Supports rich text formatting including headers, lists, code blocks,
+/// tables, mermaid diagrams, and text selection via long-press.
 class MessageWidget extends StatelessWidget {
   final Map<String, dynamic> messageData;
   final bool isFromCurrentUser;
+  final Map<String, dynamic>? metadata;
+  final List<Map<String, dynamic>>? messages;
+  final String? sessionId;
+  final void Function(Map<String, dynamic>)? onOptionPress;
 
   const MessageWidget({
     super.key,
     required this.messageData,
     this.isFromCurrentUser = false,
+    this.metadata,
+    this.messages,
+    this.sessionId,
+    this.onOptionPress,
   });
 
   @override
@@ -20,8 +34,9 @@ class MessageWidget extends StatelessWidget {
     final text = content is String ? content : content.toString();
 
     return Align(
-      alignment:
-          isFromCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isFromCurrentUser
+          ? Alignment.centerRight
+          : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.all(12),
@@ -36,11 +51,18 @@ class MessageWidget extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (kind == 'tool-call')
-              _buildToolCallContent(context, messageData)
+              ToolView(
+                tool: messageData,
+                metadata: metadata,
+                messages: messages,
+                sessionId: sessionId,
+              )
             else
-              SelectableText(
-                text,
-                style: const TextStyle(color: Colors.white),
+              SelectionArea(
+                child: MarkdownView(
+                  markdown: text,
+                  onOptionPress: onOptionPress ?? _handleOptionPress,
+                ),
               ),
           ],
         ),
@@ -48,33 +70,15 @@ class MessageWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildToolCallContent(
-      BuildContext context, Map<String, dynamic> data) {
-    final toolName = data['tool']?['name'] ?? 'Unknown';
-    final toolState = data['tool']?['state'] ?? 'pending';
-    final toolInput = data['tool']?['input'];
-
-    return ExpansionTile(
-      title: Text('$toolName ($toolState)'),
-      children: [
-        if (toolInput != null)
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.black12,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: SelectableText(
-              toolInput is String ? toolInput : toolInput.toString(),
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-            ),
-          ),
-      ],
-    );
+  void _handleOptionPress(Map<String, dynamic> option) {
+    onOptionPress?.call(option);
   }
 }
 
-/// Markdown rendered message
+/// Markdown rendered message widget.
+///
+/// A simpler widget for rendering just markdown content without
+/// the chat message container styling.
 class MarkdownMessage extends StatelessWidget {
   final String content;
 
@@ -82,9 +86,6 @@ class MarkdownMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SelectableText(
-      content,
-      style: const TextStyle(height: 1.5),
-    );
+    return SimpleMarkdownView(markdown: content);
   }
 }

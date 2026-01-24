@@ -1,15 +1,14 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
-import 'package:pointycastle/api.dart';
-import 'package:pointycastle/digests/sha256.dart';
-import 'package:pointycastle/macs/hmac.dart';
+import 'package:ed25519_edwards/ed25519_edwards.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import '../api/api_client.dart';
 import '../models/auth.dart';
+import '../models/profile.dart';
 import 'encryption_service.dart';
 import 'storage_service.dart';
+import '../utils/backup_key_utils.dart';
 
 /// Authentication service handling QR-based authentication flow
 class AuthService {
@@ -55,14 +54,44 @@ class AuthService {
     final signature = await _signChallenge(challenge, keypair.privateKey);
 
     // Request a new token from the server
-    final response = await _apiClient.post(
-      '/v1/auth',
-      data: {
-        'challenge': base64Encode(challenge),
-        'signature': base64Encode(signature),
-        'publicKey': base64Encode(keypair.publicKey),
-      },
-    );
+    Response response;
+    try {
+      response = await _apiClient.post(
+        '/v1/auth',
+        data: {
+          'challenge': base64Encode(challenge),
+          'signature': base64Encode(signature),
+          'publicKey': base64Encode(keypair.publicKey),
+        },
+      );
+    } on DioException catch (e) {
+      // Handle Dio-specific errors
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout) {
+        throw AuthException('Connection failed: ${e.message}');
+      } else if (e.type == DioExceptionType.badResponse) {
+        final statusCode = e.response?.statusCode;
+        final errorMsg = _extractErrorMessage(e.response?.data);
+        if (statusCode != null && statusCode >= 500) {
+          throw ServerError(
+            errorMsg,
+            statusCode: statusCode,
+          );
+        } else if (statusCode == 403) {
+          throw AuthForbiddenError(
+            errorMsg,
+            serverResponse: e.response?.data?.toString(),
+          );
+        } else if (statusCode != null && statusCode >= 400) {
+          throw AuthRequestError(
+            errorMsg,
+            statusCode: statusCode,
+            serverResponse: e.response?.data?.toString(),
+          );
+        }
+      }
+      throw AuthException('Request failed: ${e.message}');
+    }
 
     if (response.statusCode == 200) {
       final data = response.data as Map<String, dynamic>;
@@ -76,7 +105,22 @@ class AuthService {
           AuthCredentials(token: token, secret: base64Encode(secret));
       await TokenStorage().setCredentials(credentials);
     } else if (response.statusCode == 409) {
-      throw AuthException('Account already exists');
+      throw AuthRequestError(
+        'Account already exists',
+        statusCode: 409,
+      );
+    } else if (response.statusCode != null && response.statusCode! >= 500) {
+      final errorMsg = _extractErrorMessage(response.data);
+      throw ServerError(
+        errorMsg,
+        statusCode: response.statusCode,
+      );
+    } else if (response.statusCode != null && response.statusCode! >= 400) {
+      final errorMsg = _extractErrorMessage(response.data);
+      throw AuthRequestError(
+        errorMsg,
+        statusCode: response.statusCode,
+      );
     } else {
       throw AuthException('Failed to create account: ${response.statusCode}');
     }
@@ -165,7 +209,11 @@ class AuthService {
             serverResponse: serverResponse,
             diagnosticInfo: 'DioException: ${e.message}',
           );
-        } else if (e.error is HandshakeException || e.error is TlsException) {
+        } else if (e.error != null &&
+            (e.error.toString().contains('Tls') ||
+                e.error.toString().contains('Handshake') ||
+                e.error.toString().contains('Certificate') ||
+                e.error.toString().contains('SSL'))) {
           throw SSLError(
             'SSL/TLS handshake failed.',
             certificateInfo: e.message,
@@ -175,8 +223,13 @@ class AuthService {
           await Future.delayed(const Duration(milliseconds: 2500));
         }
       } catch (e) {
-        // Check if it's a network-related SSL error
-        if (e is HandshakeException || e is TlsException) {
+        // Check if it's a network-related SSL error using string checks
+        // (dart:io exceptions not available on web)
+        final errorStr = e.toString();
+        if (errorStr.contains('Handshake') ||
+            errorStr.contains('Tls') ||
+            errorStr.contains('Certificate') ||
+            errorStr.contains('SSL')) {
           throw SSLError(
             'SSL/TLS error during authentication.',
             certificateInfo: e.toString(),
@@ -251,19 +304,279 @@ class AuthService {
     await TokenStorage().removeCredentials();
   }
 
-  /// Generate keypair for QR auth
-  Future<_KeyPair> _generateKeypair(Uint8List seed) async {
-    // Simplified Ed25519 keypair generation
-    // In production, use a proper cryptographic library
-    final privateKey = seed;
-    final publicKey = Uint8List(32);
+  /// Restore account from backup key
+  /// Takes a formatted backup key (XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)
+  Future<AuthCredentials> restoreAccount(String formattedKey) async {
+    // Decode the backup key
+    final secret = BackupKeyUtils.decodeKey(formattedKey);
 
-    // For demo, just use the seed hash as public key
-    for (int i = 0; i < 32; i++) {
-      publicKey[i] = privateKey[i] ^ 0x12;
+    // Generate keypair from secret
+    final keypair = await _generateKeypair(secret);
+
+    // Generate a challenge
+    final challenge = _encryption.randomBytes(32);
+
+    // Sign the challenge with our private key
+    final signature = await _signChallenge(challenge, keypair.privateKey);
+
+    // Request account restoration
+    Response response;
+    try {
+      response = await _apiClient.post(
+        '/v1/auth/restore',
+        data: {
+          'challenge': base64Encode(challenge),
+          'signature': base64Encode(signature),
+          'publicKey': base64Encode(keypair.publicKey),
+        },
+      );
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout) {
+        throw AuthException('Connection failed: ${e.message}');
+      } else if (e.type == DioExceptionType.badResponse) {
+        final statusCode = e.response?.statusCode;
+        final errorMsg = _extractErrorMessage(e.response?.data);
+        if (statusCode == 403) {
+          throw AuthForbiddenError(
+            errorMsg,
+            serverResponse: e.response?.data?.toString(),
+          );
+        } else if (statusCode == 404) {
+          throw AuthRequestError(
+            'Account not found. Please check your backup key.',
+            statusCode: 404,
+          );
+        } else if (statusCode != null && statusCode >= 400) {
+          throw AuthRequestError(
+            errorMsg,
+            statusCode: statusCode,
+            serverResponse: e.response?.data?.toString(),
+          );
+        }
+      }
+      throw AuthException('Request failed: ${e.message}');
     }
 
-    return _KeyPair(privateKey: privateKey, publicKey: publicKey);
+    if (response.statusCode == 200) {
+      final data = response.data as Map<String, dynamic>;
+      final token = data['token'] as String;
+
+      // Initialize encryption with the secret
+      await _encryption.initialize(secret);
+
+      // Store credentials
+      final credentials =
+          AuthCredentials(token: token, secret: base64Encode(secret));
+      await TokenStorage().setCredentials(credentials);
+
+      return credentials;
+    } else if (response.statusCode == 404) {
+      throw AuthRequestError(
+        'Account not found. Please check your backup key and try again.',
+        statusCode: 404,
+      );
+    } else {
+      throw AuthException('Failed to restore account: ${response.statusCode}');
+    }
+  }
+
+  /// Get current user's profile
+  Future<Profile?> getProfile() async {
+    try {
+      final response = await _apiClient.get('/v1/profile');
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        return Profile.fromJson(data);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching profile: $e');
+      return null;
+    }
+  }
+
+  /// Get connected services
+  Future<List<ConnectedServiceInfo>> getConnectedServices() async {
+    try {
+      final response = await _apiClient.get('/v1/services');
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        final services = data['services'] as List<dynamic>?;
+        if (services != null) {
+          return services
+              .map((s) => ConnectedServiceInfo.fromJson(s as Map<String, dynamic>))
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching connected services: $e');
+      return [];
+    }
+  }
+
+  /// Start device linking process
+  /// Returns a linking token to display in QR code
+  Future<DeviceLinkingResult> startDeviceLinking() async {
+    // Generate a random seed for the linking keypair
+    final seed = _encryption.randomBytes(32);
+
+    // Generate keypair from seed
+    final keypair = await _generateKeypair(seed);
+
+    // Request linking from server
+    final response = await _apiClient.post(
+      '/v1/devices/link/start',
+      data: {
+        'publicKey': base64Encode(keypair.publicKey),
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = response.data as Map<String, dynamic>;
+      final linkingId = data['linking_id'] as String;
+
+      return DeviceLinkingResult(
+        linkingId: linkingId,
+        publicKey: keypair.publicKey,
+        secret: seed,
+      );
+    } else {
+      throw AuthException('Failed to start device linking: ${response.statusCode}');
+    }
+  }
+
+  /// Wait for device linking approval
+  Future<AuthCredentials> waitForLinkingApproval(String linkingId) async {
+    final startTime = DateTime.now().millisecondsSinceEpoch;
+    final timeout = 120000; // 2 minutes
+
+    while (DateTime.now().millisecondsSinceEpoch - startTime < timeout) {
+      try {
+        final response = await _apiClient.post(
+          '/v1/devices/link/wait',
+          data: {'linking_id': linkingId},
+        );
+
+        if (response.statusCode == 200) {
+          final data = response.data as Map<String, dynamic>;
+          final token = data['token'] as String;
+          final encryptedSecret = data['secret'] as String;
+
+          // Decrypt the secret
+          final secret = await _decryptAuthSecret(encryptedSecret);
+
+          if (secret != null) {
+            await _encryption.initialize(secret);
+
+            final credentials =
+                AuthCredentials(token: token, secret: base64Encode(secret));
+            await TokenStorage().setCredentials(credentials);
+
+            return credentials;
+          }
+        } else if (response.statusCode == 202) {
+          // Still waiting
+          await Future.delayed(const Duration(milliseconds: 2500));
+        } else {
+          throw AuthException('Unexpected response: ${response.statusCode}');
+        }
+      } on DioException catch (e) {
+        if (e.type == DioExceptionType.connectionError ||
+            e.type == DioExceptionType.connectionTimeout) {
+          await Future.delayed(const Duration(milliseconds: 2500));
+        } else if (e.response?.statusCode == 403) {
+          throw AuthForbiddenError(
+            'Device linking rejected',
+            serverResponse: e.response?.data?.toString(),
+          );
+        } else {
+          debugPrint('Device linking error: $e');
+          await Future.delayed(const Duration(milliseconds: 2500));
+        }
+      } catch (e) {
+        debugPrint('Device linking error: $e');
+        await Future.delayed(const Duration(milliseconds: 2500));
+      }
+    }
+
+    throw ExpiredError('Device linking timed out after 2 minutes');
+  }
+
+  /// Get linked devices
+  Future<List<DeviceInfo>> getLinkedDevices() async {
+    try {
+      final response = await _apiClient.get('/v1/devices');
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        final devices = data['devices'] as List<dynamic>?;
+        if (devices != null) {
+          return devices
+              .map((d) => DeviceInfo.fromJson(d as Map<String, dynamic>))
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching devices: $e');
+      return [];
+    }
+  }
+
+  /// Unlink a device
+  Future<bool> unlinkDevice(String deviceId) async {
+    try {
+      final response = await _apiClient.delete('/v1/devices/$deviceId');
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Error unlinking device: $e');
+      return false;
+    }
+  }
+
+  /// Generate backup key from current credentials
+  Future<String> generateBackupKey() async {
+    final credentials = await TokenStorage().getCredentials();
+    if (credentials == null) {
+      throw AuthException('Not authenticated');
+    }
+
+    final secret = base64Decode(credentials.secret);
+    return BackupKeyUtils.encodeKey(secret);
+  }
+
+  /// Get account backup info
+  Future<AccountBackupInfo?> getAccountBackupInfo() async {
+    try {
+      final response = await _apiClient.get('/v1/backup');
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        return AccountBackupInfo.fromJson(data);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching backup info: $e');
+      return null;
+    }
+  }
+
+  /// Generate Ed25519 keypair from seed
+  Future<_KeyPair> _generateKeypair(Uint8List seed) async {
+    // Ed25519 requires a 32-byte seed
+    if (seed.length != 32) {
+      throw ArgumentError('Seed must be exactly 32 bytes');
+    }
+
+    // Generate Ed25519 keypair from seed
+    final privateKey = newKeyFromSeed(seed);
+    final publicKey = public(privateKey);
+
+    // Convert to Uint8List for storage and use
+    return _KeyPair(
+      privateKey: Uint8List.fromList(privateKey.bytes),
+      publicKey: Uint8List.fromList(publicKey.bytes),
+    );
   }
 
   /// Decrypt authentication secret
@@ -301,15 +614,42 @@ class AuthService {
     return 'URL: $uri\nStatus: $statusCode';
   }
 
-  /// Sign a challenge using HMAC-SHA256
+  /// Sign a challenge using Ed25519 detached signature
   Future<Uint8List> _signChallenge(
     Uint8List challenge,
     Uint8List privateKey,
   ) async {
-    // Use HMAC-SHA256 for signing
-    final mac = HMac(SHA256Digest(), 64);
-    mac.init(KeyParameter(privateKey));
-    return mac.process(challenge);
+    if (kIsWeb) {
+      throw UnimplementedError(
+        'Challenge signing not yet implemented on web platform. '
+        'Use Web Crypto API for full web functionality.',
+      );
+    }
+
+    // Wrap the private key bytes in a PrivateKey object
+    final privateKeyObj = PrivateKey(privateKey);
+
+    // Ed25519 detached signature
+    final signature = sign(privateKeyObj, challenge);
+    return signature;
+  }
+}
+
+/// Result of starting a device linking process
+class DeviceLinkingResult {
+  final String linkingId;
+  final Uint8List publicKey;
+  final Uint8List secret;
+
+  DeviceLinkingResult({
+    required this.linkingId,
+    required this.publicKey,
+    required this.secret,
+  });
+
+  /// Get the QR code data for this linking
+  String getQRData() {
+    return 'happy://link/$linkingId';
   }
 }
 

@@ -1,15 +1,17 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/auth.dart';
 import '../models/settings.dart';
+import 'mmkv_storage.dart';
 
 /// Secure storage for authentication credentials
 class TokenStorage {
   static final TokenStorage _instance = TokenStorage._();
-  factory TokenStorage() => _instance;
   TokenStorage._();
+
+  factory TokenStorage() => _instance;
 
   static const String _authKey = 'auth_credentials';
 
@@ -69,44 +71,23 @@ class TokenStorage {
   }
 }
 
-/// Settings storage with persistence
+/// Settings storage with persistence using MMKV
 class SettingsStorage {
   static final SettingsStorage _instance = SettingsStorage._();
-  factory SettingsStorage() => _instance;
   SettingsStorage._();
 
-  static const String _settingsKey = 'user_settings';
+  factory SettingsStorage() => _instance;
 
-  SharedPreferences? _prefs;
-
-  Future<void> initialize() async {
-    _prefs = await SharedPreferences.getInstance();
-  }
+  final _storage = MMKVStorage();
 
   /// Get settings from storage
   Future<Settings> getSettings() async {
-    _ensureInitialized();
-
-    final stored = _prefs!.getString(_settingsKey);
-    if (stored == null) {
-      return Settings();
-    }
-
-    try {
-      final json = jsonDecode(stored) as Map<String, dynamic>;
-      return Settings.fromJson(json);
-    } catch (e) {
-      debugPrint('Error parsing settings: $e');
-      return Settings();
-    }
+    return _storage.getSettings();
   }
 
   /// Save settings to storage
   Future<void> saveSettings(Settings settings) async {
-    _ensureInitialized();
-
-    final json = jsonEncode(settings.toJson());
-    await _prefs!.setString(_settingsKey, json);
+    await _storage.saveSettings(settings);
   }
 
   /// Update a single setting
@@ -122,37 +103,108 @@ class SettingsStorage {
     return Settings.fromJson(json);
   }
 
-  void _ensureInitialized() {
-    if (_prefs == null) {
-      throw StateError(
-          'SettingsStorage not initialized. Call initialize() first.');
-    }
-  }
-
   /// Clear all settings
   Future<void> clearSettings() async {
-    _ensureInitialized();
-    await _prefs!.remove(_settingsKey);
+    await _storage.clearSettings();
+  }
+}
+
+/// Session drafts storage with MMKV
+class SessionDraftsStorage {
+  static final SessionDraftsStorage _instance = SessionDraftsStorage._();
+  SessionDraftsStorage._();
+
+  factory SessionDraftsStorage() => _instance;
+
+  final _storage = MMKVStorage();
+
+  /// Get draft for a specific session
+  Future<String?> getDraft(String sessionId) async {
+    return _storage.getSessionDraft(sessionId);
+  }
+
+  /// Save draft for a specific session
+  Future<void> saveDraft(String sessionId, String draft) async {
+    await _storage.saveSessionDraft(sessionId, draft);
+  }
+
+  /// Remove draft for a specific session
+  Future<void> removeDraft(String sessionId) async {
+    await _storage.removeSessionDraft(sessionId);
+  }
+
+  /// Get all session drafts
+  Future<Map<String, String>> getAllDrafts() async {
+    return _storage.getSessionDrafts();
+  }
+
+  /// Clear all session drafts
+  Future<void> clearAllDrafts() async {
+    await _storage.clearSessionDrafts();
+  }
+}
+
+/// Session permission modes storage with MMKV
+class SessionPermissionModesStorage {
+  static final SessionPermissionModesStorage _instance =
+      SessionPermissionModesStorage._();
+  SessionPermissionModesStorage._();
+
+  factory SessionPermissionModesStorage() => _instance;
+
+  final _storage = MMKVStorage();
+
+  /// Get permission mode for a specific session
+  Future<String?> getPermissionMode(String sessionId) async {
+    return _storage.getSessionPermissionMode(sessionId);
+  }
+
+  /// Save permission mode for a specific session
+  Future<void> savePermissionMode(String sessionId, String mode) async {
+    await _storage.saveSessionPermissionMode(sessionId, mode);
+  }
+
+  /// Remove permission mode for a specific session
+  Future<void> removePermissionMode(String sessionId) async {
+    await _storage.removeSessionPermissionMode(sessionId);
+  }
+
+  /// Get all session permission modes
+  Future<Map<String, String>> getAllPermissionModes() async {
+    return _storage.getSessionPermissionModes();
+  }
+
+  /// Clear all session permission modes
+  Future<void> clearAllPermissionModes() async {
+    await _storage.clearSessionPermissionModes();
   }
 }
 
 /// Combined storage for app data
 class Storage {
   static final Storage _instance = Storage._();
-  factory Storage() => _instance;
   Storage._();
+
+  factory Storage() => _instance;
 
   final tokenStorage = TokenStorage();
   final settingsStorage = SettingsStorage();
+  final sessionDraftsStorage = SessionDraftsStorage();
+  final sessionPermissionModesStorage = SessionPermissionModesStorage();
 
   /// Initialize all storage
   Future<void> initialize() async {
-    await settingsStorage.initialize();
+    await MMKVStorage.initialize();
+    await ServerConfigStorage.initialize();
   }
 
   /// Clear all storage
   Future<void> clearAll() async {
     await tokenStorage.removeCredentials();
     await settingsStorage.clearSettings();
+    await sessionDraftsStorage.clearAllDrafts();
+    await sessionPermissionModesStorage.clearAllPermissionModes();
+    unawaited(MMKVStorage().clearAll());
+    ServerConfigStorage().clearAll();
   }
 }

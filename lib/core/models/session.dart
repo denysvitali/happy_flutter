@@ -1,4 +1,6 @@
 /// Session metadata from storage types
+import 'package:happy_flutter/core/models/todo.dart' show TodoItem;
+
 class Metadata {
   final String? path;
   final String host;
@@ -331,37 +333,6 @@ class Session {
       modelMode: modelMode ?? this.modelMode,
       latestUsage: latestUsage ?? this.latestUsage,
     );
-  }
-}
-
-class TodoItem {
-  final String content;
-  final String status;
-  final String priority;
-  final String id;
-
-  TodoItem(
-      {required this.content,
-      required this.status,
-      required this.priority,
-      required this.id});
-
-  factory TodoItem.fromJson(Map<String, dynamic> json) {
-    return TodoItem(
-      content: json['content'] as String,
-      status: json['status'] as String,
-      priority: json['priority'] as String,
-      id: json['id'] as String,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'content': content,
-      'status': status,
-      'priority': priority,
-      'id': id
-    };
   }
 }
 

@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/message.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/draft_storage.dart';
 import '../../core/utils/utils.dart';
+import 'chat_input.dart';
 import 'message_widget.dart';
+import 'widgets/permission_mode_selector.dart';
 
 /// Chat screen for a session
 class ChatScreen extends ConsumerStatefulWidget {
@@ -20,11 +23,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isSending = false;
+  PermissionMode _permissionMode = PermissionMode.browse;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _loadSavedPermissionMode();
+  }
+
+  Future<void> _loadSavedPermissionMode() async {
+    final savedMode = await DraftStorage().getPermissionMode(widget.sessionId);
+    if (savedMode != null) {
+      setState(() {
+        _permissionMode = PermissionMode.values.firstWhere(
+          (m) => m.name == savedMode,
+          orElse: () => PermissionMode.browse,
+        );
+      });
+    }
   }
 
   @override
@@ -46,13 +63,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     // final session = ref.watch(currentSessionNotifierProvider);
     // final messages = ref.watch(messagesProvider(widget.sessionId));
+    final l10n = context.l10n;
 
     return Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Chat'),
+            Text(l10n.chatChat),
             // if (session != null)
             //   Text(
             //     session.metadata?.path ?? 'Unknown',
@@ -80,21 +98,38 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 //     messages: messages,
                 //     scrollController: _scrollController,
                 //   ),
-                const Center(child: Text('Chat loading...')),
+                Center(child: Text(l10n.chatChatLoading)),
               ],
             ),
           ),
-          _InputBar(
+          ChatInput(
+            sessionId: widget.sessionId,
             controller: _controller,
             onSend: _sendMessage,
             isSending: _isSending,
+            permissionMode: _permissionMode,
+            onPermissionModeChanged: _onPermissionModeChanged,
+            showSettingsButton: true,
+            // machineName: session?.metadata?.name,
+            // currentPath: session?.metadata?.path,
+            onSettingsPressed: _showPermissionModeSettings,
           ),
         ],
       ),
     );
   }
 
+  void _onPermissionModeChanged(PermissionMode mode) {
+    setState(() => _permissionMode = mode);
+    DraftStorage().savePermissionMode(widget.sessionId, mode.name);
+  }
+
+  void _showPermissionModeSettings() {
+    // The settings overlay is built into ChatInput
+  }
+
   void _showSessionMenu(BuildContext context) {
+    final l10n = context.l10n;
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -103,7 +138,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.settings),
-              title: const Text('Session Settings'),
+              title: Text(l10n.chatSessionSettings),
               onTap: () {
                 Navigator.pop(context);
                 // Navigate to settings
@@ -111,7 +146,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.delete),
-              title: const Text('Delete Session'),
+              title: Text(l10n.chatDeleteSession),
               onTap: () {
                 Navigator.pop(context);
                 _confirmDelete(context);
@@ -132,14 +167,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _controller.clear();
     });
 
+    // Clear draft after sending
+    await DraftStorage().removeDraft(widget.sessionId);
+
     try {
       // Send message through WebSocket/RPC
       // await ref.read(messagesProvider(widget.sessionId).notifier).sendMessage(text);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.chatFailedToSend(error: e.toString()))));
         _controller.text = text;
       }
     }
@@ -150,15 +188,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _confirmDelete(BuildContext context) {
+    final l10n = context.l10n;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Session'),
-        content: const Text('Are you sure you want to delete this session?'),
+        title: Text(l10n.chatDeleteSession),
+        content: Text(l10n.chatDeleteSessionConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -167,102 +206,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               // Delete session
               // Navigator.pop(context);
             },
-            child: const Text('Delete'),
+            child: Text(l10n.commonDelete),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Input bar for sending messages
-class _InputBar extends StatelessWidget {
-  final TextEditingController controller;
-  final VoidCallback onSend;
-  final bool isSending;
-
-  const _InputBar({
-    required this.controller,
-    required this.onSend,
-    this.isSending = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        border: Border(
-          top: BorderSide(color: Colors.grey[300]!),
-        ),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _showAttachmentMenu(context),
-          ),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                hintText: 'Type a message...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(24)),
-                ),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-              ),
-              maxLines: 4,
-              minLines: 1,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => onSend(),
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: isSending
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.send),
-            onPressed: isSending ? null : onSend,
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAttachmentMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.attach_file),
-              title: const Text('File'),
-              onTap: () {
-                Navigator.pop(context);
-                // Pick file
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.image),
-              title: const Text('Image'),
-              onTap: () {
-                Navigator.pop(context);
-                // Pick image
-              },
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -274,23 +220,20 @@ class _EmptyChatView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.chat_bubble_outline,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
-            'Start a conversation',
+            l10n.chatStartConversation,
             style: TextStyle(fontSize: 18, color: Colors.grey[600]),
           ),
           const SizedBox(height: 8),
           Text(
-            'Send a message to begin',
+            l10n.chatSendMessageToBegin,
             style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],

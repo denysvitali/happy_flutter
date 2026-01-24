@@ -1,7 +1,10 @@
 import 'dart:typed_data';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:pointycastle/pointycastle.dart';
+
+import 'web_crypto.dart' if (dart.library.html) 'web_crypto.dart';
 
 /// Constants for encryption
 class CryptoBoxConstants {
@@ -50,11 +53,19 @@ class CryptoBox {
   }
 
   /// Encrypt data using public key (hybrid encryption)
-  static Uint8List encrypt(
+  static Future<Uint8List> encrypt(
     Uint8List data,
     Uint8List recipientPublicKey,
     Uint8List senderSecretKey,
-  ) {
+  ) async {
+    if (kIsWeb) {
+      return await WebCryptoBox.encrypt(
+        data,
+        recipientPublicKey,
+        senderSecretKey,
+      );
+    }
+
     final ephemeralKeyPair = generateKeypair();
     final nonce = randomNonce();
 
@@ -90,10 +101,17 @@ class CryptoBox {
   }
 
   /// Decrypt encrypted bundle
-  static Uint8List? decrypt(
+  static Future<Uint8List?> decrypt(
     Uint8List encryptedBundle,
     Uint8List recipientSecretKey,
-  ) {
+  ) async {
+    if (kIsWeb) {
+      return await WebCryptoBox.decrypt(
+        encryptedBundle,
+        recipientSecretKey,
+      );
+    }
+
     try {
       // Extract components: ephemeral public key + iv + encrypted data
       final ephemeralPublicKey = encryptedBundle.sublist(

@@ -226,13 +226,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     });
 
     try {
+      debugPrint('Creating account...');
       await AuthService().createAccount();
+      debugPrint('Account created successfully');
       if (mounted) {
         ref.read(authStateNotifierProvider.notifier).checkAuth();
       }
     } catch (e) {
+      debugPrint('Create account error: $e');
+      if (e is Error) {
+        debugPrint('Stack trace: ${e.stackTrace}');
+      }
       setState(() {
-        _error = _formatErrorMessage(e);
+        _error = _formatErrorMessage(e, context);
       });
     } finally {
       if (mounted) {
@@ -276,25 +282,26 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _pollForApproval(publicKey);
     } catch (e) {
       setState(() {
-        _error = _formatErrorMessage(e);
+        _error = _formatErrorMessage(e, context);
         _isPolling = false;
       });
     }
   }
 
-  String _formatErrorMessage(dynamic e) {
+  String _formatErrorMessage(dynamic e, BuildContext context) {
+    final l10n = context.l10n;
     if (e is AuthForbiddenError) {
-      return 'Access Denied (403)\n${e.message}';
+      return '${l10n.authAccessDenied}\n${e.message}';
     } else if (e is AuthRequestError) {
-      return 'Client Error (${e.statusCode ?? 400})\n${e.message}';
+      return '${l10n.authClientError(statusCode: e.statusCode ?? 400)}\n${e.message}';
     } else if (e is ServerError) {
-      return 'Server Error (${e.statusCode ?? 500})\n${e.message}';
+      return '${l10n.authServerError(statusCode: e.statusCode ?? 500)}\n${e.message}';
     } else if (e is SSLError) {
-      return 'Certificate Error\n${e.message}';
+      return '${l10n.authCertificateError}\n${e.message}';
     } else if (e is AuthException) {
       return e.message;
     }
-    return 'Authentication failed: $e';
+    return '${l10n.authAuthenticationFailed}: $e';
   }
 
   Future<void> _pollForApproval(Uint8List publicKey) async {
@@ -307,7 +314,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = _formatErrorMessage(e);
+          _error = _formatErrorMessage(e, context);
           _isPolling = false;
         });
       }
@@ -365,10 +372,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           size: 28,
                         ),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Server URL',
-                            style: TextStyle(
+                            context.l10n.settingsServerUrl,
+                            style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w600,
                             ),
@@ -391,7 +398,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             TextFormField(
                               controller: controller,
                               decoration: InputDecoration(
-                                labelText: 'Server URL',
+                                labelText: context.l10n.settingsServerUrlLabel,
                                 hintText: defaultServerUrl,
                                 prefixIcon: const Icon(Icons.link_outlined),
                                 errorText: errorText,
@@ -441,7 +448,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
-                                            'Connection Failed',
+                                            context.l10n.authConnectionFailed,
                                             style: TextStyle(
                                               fontWeight: FontWeight.w600,
                                               color: Colors.red[700],
@@ -500,9 +507,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                             Icons.content_copy,
                                             size: 16,
                                           ),
-                                          label: const Text(
-                                            'Copy',
-                                            style: TextStyle(fontSize: 12),
+                                          label: Text(
+                                            context.l10n.commonCopy,
+                                            style: const TextStyle(fontSize: 12),
                                           ),
                                           style: TextButton.styleFrom(
                                             foregroundColor: Colors.red[700],
@@ -536,7 +543,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       children: [
                         TextButton(
                           onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancel'),
+                          child: Text(context.l10n.commonCancel),
                         ),
                         if (currentUrl != defaultServerUrl) ...[
                           const SizedBox(width: 8),
@@ -547,14 +554,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               if (context.mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Server URL reset to default.'),
-                                    duration: Duration(seconds: 3),
+                                  SnackBar(
+                                    content: Text(context.l10n.settingsServerResetSuccess),
+                                    duration: const Duration(seconds: 3),
                                   ),
                                 );
                               }
                             },
-                            child: const Text('Reset to Default'),
+                            child: Text(context.l10n.settingsServerResetToDefault),
                           ),
                         ],
                         const SizedBox(width: 12),
@@ -620,7 +627,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : const Text('Save & Verify'),
+                              : Text(context.l10n.settingsServerSaveVerify),
                         ),
                       ],
                     ),
@@ -663,11 +670,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   ) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Happy'),
+        title: Text(context.l10n.appTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            tooltip: 'Server Settings',
+            tooltip: context.l10n.authServerSettings,
             onPressed: () => _showServerDialog(context),
           ),
         ],
@@ -694,7 +701,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Server Connection Error',
+                            context.l10n.authServerConnectionError,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.red[700],
@@ -713,17 +720,48 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     ),
                   ),
                 ],
+                if (_error != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: Colors.red[50],
+                      border: Border.all(color: Colors.red[300]!),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline, color: Colors.red[700]),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: TextStyle(color: Colors.red[700]),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () {
+                            setState(() {
+                              _error = null;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const Icon(Icons.android, size: 80, color: Colors.blue),
                 const SizedBox(height: 24),
                 Text(
-                  'Happy',
+                  context.l10n.appTitle,
                   style: theme.textTheme.headlineLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Mobile client for Claude Code & Codex',
+                  context.l10n.appSubtitle,
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -733,7 +771,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 SizedBox(
                   width: 280,
                   child: RoundButton(
-                    title: 'Create Account',
+                    title: context.l10n.welcomeCreateAccount,
                     onPressed: _createAccount,
                     isLoading: _isLoadingCreateAccount,
                     isPrimary: true,
@@ -743,7 +781,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 SizedBox(
                   width: 280,
                   child: RoundButton(
-                    title: 'Link or Restore Account',
+                    title: context.l10n.welcomeLinkOrRestoreAccount,
                     onPressed: _showQRAuth,
                     isPrimary: false,
                   ),
@@ -763,11 +801,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   ) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Happy'),
+        title: Text(context.l10n.appTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            tooltip: 'Server Settings',
+            tooltip: context.l10n.authServerSettings,
             onPressed: () => _showServerDialog(context),
           ),
         ],
@@ -823,6 +861,37 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               onPressed: () {
                                 setState(() {
                                   _serverError = null;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (_error != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 24),
+                        decoration: BoxDecoration(
+                          color: Colors.red[50],
+                          border: Border.all(color: Colors.red[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red[700]),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _error!,
+                                style: TextStyle(color: Colors.red[700]),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  _error = null;
                                 });
                               },
                             ),

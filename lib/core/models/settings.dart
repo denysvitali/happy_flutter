@@ -1,6 +1,7 @@
 /// Settings model matching the original Zod schema
 class Settings {
   int schemaVersion = 2;
+  String themeMode = 'system';
   bool viewInline = false;
   String? inferenceOpenAIKey;
   bool expandTodos = true;
@@ -9,9 +10,11 @@ class Settings {
   bool wrapLinesInDiffs = false;
   bool analyticsOptOut = false;
   bool experiments = false;
+  bool markdownCopyV2 = false;
   bool useEnhancedSessionWizard = false;
   bool alwaysShowContextSize = false;
   bool agentInputEnterToSend = true;
+  bool developerModeEnabled = false;
   String avatarStyle = 'brutalist';
   bool showFlavorIcons = false;
   bool compactSessionView = false;
@@ -35,6 +38,7 @@ class Settings {
   factory Settings.fromJson(Map<String, dynamic> json) {
     return Settings()
       ..schemaVersion = json['schemaVersion'] as int? ?? 2
+      ..themeMode = json['themeMode'] as String? ?? 'system'
       ..viewInline = json['viewInline'] as bool? ?? false
       ..inferenceOpenAIKey = json['inferenceOpenAIKey'] as String?
       ..expandTodos = json['expandTodos'] as bool? ?? true
@@ -44,10 +48,12 @@ class Settings {
       ..wrapLinesInDiffs = json['wrapLinesInDiffs'] as bool? ?? false
       ..analyticsOptOut = json['analyticsOptOut'] as bool? ?? false
       ..experiments = json['experiments'] as bool? ?? false
+      ..markdownCopyV2 = json['markdownCopyV2'] as bool? ?? false
       ..useEnhancedSessionWizard =
           json['useEnhancedSessionWizard'] as bool? ?? false
       ..alwaysShowContextSize = json['alwaysShowContextSize'] as bool? ?? false
       ..agentInputEnterToSend = json['agentInputEnterToSend'] as bool? ?? true
+      ..developerModeEnabled = json['developerModeEnabled'] as bool? ?? false
       ..avatarStyle = json['avatarStyle'] as String? ?? 'brutalist'
       ..showFlavorIcons = json['showFlavorIcons'] as bool? ?? false
       ..compactSessionView = json['compactSessionView'] as bool? ?? false
@@ -86,6 +92,7 @@ class Settings {
   Map<String, dynamic> toJson() {
     return {
       'schemaVersion': schemaVersion,
+      'themeMode': themeMode,
       'viewInline': viewInline,
       'inferenceOpenAIKey': inferenceOpenAIKey,
       'expandTodos': expandTodos,
@@ -94,9 +101,11 @@ class Settings {
       'wrapLinesInDiffs': wrapLinesInDiffs,
       'analyticsOptOut': analyticsOptOut,
       'experiments': experiments,
+      'markdownCopyV2': markdownCopyV2,
       'useEnhancedSessionWizard': useEnhancedSessionWizard,
       'alwaysShowContextSize': alwaysShowContextSize,
       'agentInputEnterToSend': agentInputEnterToSend,
+      'developerModeEnabled': developerModeEnabled,
       'avatarStyle': avatarStyle,
       'showFlavorIcons': showFlavorIcons,
       'compactSessionView': compactSessionView,
@@ -310,6 +319,48 @@ class AIBackendProfile {
       'updatedAt': updatedAt,
       'version': version,
     };
+  }
+
+  AIBackendProfile copyWith({
+    String? id,
+    String? name,
+    String? description,
+    AnthropicConfig? anthropicConfig,
+    OpenAIConfig? openaiConfig,
+    AzureOpenAIConfig? azureOpenAIConfig,
+    TogetherAIConfig? togetherAIConfig,
+    TmuxConfig? tmuxConfig,
+    String? startupBashScript,
+    List<EnvironmentVariable>? environmentVariables,
+    String? defaultSessionType,
+    String? defaultPermissionMode,
+    String? defaultModelMode,
+    ProfileCompatibility? compatibility,
+    bool? isBuiltIn,
+    int? createdAt,
+    int? updatedAt,
+    String? version,
+  }) {
+    return AIBackendProfile(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      anthropicConfig: anthropicConfig ?? this.anthropicConfig,
+      openaiConfig: openaiConfig ?? this.openaiConfig,
+      azureOpenAIConfig: azureOpenAIConfig ?? this.azureOpenAIConfig,
+      togetherAIConfig: togetherAIConfig ?? this.togetherAIConfig,
+      tmuxConfig: tmuxConfig ?? this.tmuxConfig,
+      startupBashScript: startupBashScript ?? this.startupBashScript,
+      environmentVariables: environmentVariables ?? this.environmentVariables,
+      defaultSessionType: defaultSessionType ?? this.defaultSessionType,
+      defaultPermissionMode: defaultPermissionMode ?? this.defaultPermissionMode,
+      defaultModelMode: defaultModelMode ?? this.defaultModelMode,
+      compatibility: compatibility ?? this.compatibility,
+      isBuiltIn: isBuiltIn ?? this.isBuiltIn,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      version: version ?? this.version,
+    );
   }
 }
 

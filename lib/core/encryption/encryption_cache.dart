@@ -194,7 +194,8 @@ class EncryptionCache {
     if (cache.length <= maxSize) return;
 
     String? oldestKey;
-    int oldestTime = 0x7FFFFFFFFFFFFFFF; // Max 64-bit int
+    // JavaScript-compatible MAX_SAFE_INTEGER (2^53 - 1)
+    int oldestTime = 9007199254740991;
 
     for (final entry in cache.entries) {
       if (entry.value.accessTime < oldestTime) {

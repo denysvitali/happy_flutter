@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'core/api/api_client.dart';
+import 'core/i18n/supported_locales.dart';
 import 'core/models/auth.dart';
 import 'core/providers/app_providers.dart';
 import 'core/services/server_config.dart';
@@ -10,6 +12,14 @@ import 'features/auth/auth_screen.dart';
 import 'features/sessions/sessions_screen.dart';
 import 'features/chat/chat_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/settings/account_screen.dart';
+import 'features/settings/theme_settings_screen.dart';
+import 'features/settings/language_settings_screen.dart';
+import 'features/settings/voice_settings_screen.dart';
+import 'features/settings/features_settings_screen.dart';
+import 'features/settings/profiles_screen.dart';
+import 'features/settings/usage_screen.dart';
+import 'features/settings/developer_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,7 +28,7 @@ void main() async {
   await storage.Storage().initialize();
 
   // Get server URL and initialize API client
-  final serverUrl = await getServerUrl();
+  final serverUrl = getServerUrl();
   await ApiClient().initialize(serverUrl: serverUrl);
 
   runApp(
@@ -75,6 +85,83 @@ class _HappyAppState extends ConsumerState<HappyApp> {
             child: SettingsScreen(),
           ),
         ),
+        GoRoute(
+          path: '/settings/account',
+          name: 'account',
+          builder: (context, state) => const AuthGate(
+            child: AccountScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/settings/account/restore',
+          name: 'restore',
+          builder: (context, state) => const AuthGate(
+            child: RestoreAccountScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/settings/account/link',
+          name: 'link',
+          builder: (context, state) => const AuthGate(
+            child: LinkDeviceScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/settings/account/devices',
+          name: 'devices',
+          builder: (context, state) => const AuthGate(
+            child: LinkedDevicesScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/settings/theme',
+          name: 'theme',
+          builder: (context, state) => const AuthGate(
+            child: ThemeSettingsScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/settings/language',
+          name: 'language',
+          builder: (context, state) => const AuthGate(
+            child: LanguageSettingsScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/settings/voice',
+          name: 'voice',
+          builder: (context, state) => const AuthGate(
+            child: VoiceSettingsScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/settings/features',
+          name: 'features',
+          builder: (context, state) => const AuthGate(
+            child: FeaturesSettingsScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/settings/profiles',
+          name: 'profiles',
+          builder: (context, state) => const AuthGate(
+            child: ProfilesScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/settings/usage',
+          name: 'usage',
+          builder: (context, state) => const AuthGate(
+            child: UsageScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/settings/developer',
+          name: 'developer',
+          builder: (context, state) => const AuthGate(
+            child: DeveloperScreen(),
+          ),
+        ),
       ],
       redirect: (context, state) {
         final authState = ref.read(authStateNotifierProvider);
@@ -113,6 +200,12 @@ class _HappyAppState extends ConsumerState<HappyApp> {
         ),
         useMaterial3: true,
       ),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: supportedLocales,
       routerConfig: _router,
     );
   }

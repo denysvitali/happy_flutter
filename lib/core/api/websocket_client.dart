@@ -5,6 +5,69 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status_codes;
 
 import '../../core/models/api_update.dart';
+import '../utils/backoff.dart';
+
+/// Socket.io packet types
+/// https://socket.io/docs/v4/engine-io-protocol/
+class _SocketPacket {
+  /// Ping packet - sent by client to check connection
+  static const int ping = 2;
+
+  /// Pong packet - sent in response to ping
+  static const int pong = 3;
+
+  /// Message packet - used for events
+  static const int message = 4;
+
+  /// Encode a Socket.io event packet
+  /// Format: `4["event",data]`
+  static String encodeEvent(String event, dynamic data) {
+    final payload = jsonEncode([event, data]);
+    return '$message$payload';
+  }
+
+  /// Decode a Socket.io message packet
+  /// Returns null if not a valid message packet
+  static _SocketMessage? decode(String raw) {
+    if (raw.isEmpty) {
+      return null;
+    }
+
+    final packetType = raw.codeUnitAt(0);
+    if (packetType != message) {
+      return null;
+    }
+
+    final payload = raw.substring(1);
+    if (payload.isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(payload) as List;
+      if (decoded.length >= 2) {
+        return _SocketMessage(
+          event: decoded[0] as String,
+          data: decoded[1],
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Failed to decode Socket.io message: $e');
+      }
+    }
+
+    return null;
+  }
+}
+
+/// Represents a decoded Socket.io message
+class _SocketMessage {
+  final String event;
+  final dynamic data;
+
+  _SocketMessage({required this.event, required this.data});
+}
 
 /// WebSocket connection state
 enum ConnectionStatus {
@@ -14,7 +77,8 @@ enum ConnectionStatus {
   error,
 }
 
-/// WebSocket client for real-time updates
+/// WebSocket client using Socket.io protocol
+/// Matches React Native's apiSocket.ts behavior
 class WebSocketClient {
   static final WebSocketClient _instance = WebSocketClient._();
   factory WebSocketClient() => _instance;
@@ -25,14 +89,29 @@ class WebSocketClient {
   String? _serverUrl;
   String? _authToken;
 
+  // Exponential backoff for reconnection
+  ExponentialBackoff? _backoff;
+
+  // Timer for reconnection attempts
+  Timer? _reconnectTimer;
+
+  // Timer for ping
+  Timer? _pingTimer;
+
   // Stream controllers for events
   final _statusController = StreamController<ConnectionStatus>.broadcast();
   final _updateController = StreamController<ApiUpdate>.broadcast();
-  final _messageController = StreamController<dynamic>.broadcast();
+  final _messageController = StreamController<Map<String, dynamic>>.broadcast();
 
-  // Connection handlers
+  // Event handlers - matches React Native's messageHandlers Map pattern
+  final Map<String, void Function(dynamic)> _messageHandlers = {};
+
+  // Connection listeners
   final _reconnectedListeners = <void Function()>[];
   final _statusListeners = <void Function(ConnectionStatus)>[];
+
+  // Pending acknowledgements
+  final Map<String, Completer<dynamic>> _pendingAcks = {};
 
   /// Get connection status stream
   Stream<ConnectionStatus> get statusStream => _statusController.stream;
@@ -41,9 +120,9 @@ class WebSocketClient {
   Stream<ApiUpdate> get updateStream => _updateController.stream;
 
   /// Get raw message stream
-  Stream<dynamic> get messageStream => _messageController.stream;
+  Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
 
-  /// Initialize and connect to WebSocket
+  /// Initialize and connect to WebSocket with Socket.io protocol
   void connect({required String serverUrl, required String token}) {
     if (_channel != null && _status == ConnectionStatus.connected) {
       return;
@@ -53,8 +132,25 @@ class WebSocketClient {
     _authToken = token;
     _updateStatus(ConnectionStatus.connecting);
 
-    final wsUrl = _buildWebSocketUrl(serverUrl);
-    debugPrint('Connecting to WebSocket: $wsUrl');
+    // Initialize exponential backoff for reconnection
+    // min: 1s, max: 5s, infinite attempts
+    _backoff = ExponentialBackoff.websocket(
+      minDelayMs: 1000,
+      maxDelayMs: 5000,
+    );
+
+    _connectWithBackoff();
+  }
+
+  void _connectWithBackoff() {
+    if (_serverUrl == null || _authToken == null) {
+      return;
+    }
+
+    final wsUrl = _buildWebSocketUrl(_serverUrl!);
+    if (kDebugMode) {
+      print('Connecting to WebSocket (Socket.io): $wsUrl');
+    }
 
     try {
       _channel = WebSocketChannel.connect(
@@ -63,68 +159,145 @@ class WebSocketClient {
 
       _channel!.ready.then((_) {
         _updateStatus(ConnectionStatus.connected);
+        _resetBackoff();
         _notifyReconnected();
+        _startPingTimer();
       }).catchError((error) {
-        debugPrint('WebSocket connection error: $error');
-        _updateStatus(ConnectionStatus.error);
+        if (kDebugMode) {
+          print('WebSocket connection error: $error');
+        }
+        _handleConnectionError(error);
       });
 
       _channel!.stream.listen(
         _handleMessage,
         onError: (error) {
-          debugPrint('WebSocket stream error: $error');
+          if (kDebugMode) {
+            print('WebSocket stream error: $error');
+          }
           _updateStatus(ConnectionStatus.error);
         },
         onDone: () {
-          debugPrint('WebSocket connection closed');
+          if (kDebugMode) {
+            print('WebSocket connection closed');
+          }
           if (_status == ConnectionStatus.connected) {
             _updateStatus(ConnectionStatus.disconnected);
+            _scheduleReconnect();
           }
         },
       );
     } catch (e) {
-      debugPrint('Failed to create WebSocket connection: $e');
-      _updateStatus(ConnectionStatus.error);
+      if (kDebugMode) {
+        print('Failed to create WebSocket connection: $e');
+      }
+      _handleConnectionError(e);
+    }
+  }
+
+  void _handleConnectionError(dynamic error) {
+    _updateStatus(ConnectionStatus.error);
+    _scheduleReconnect();
+  }
+
+  void _scheduleReconnect() {
+    if (_backoff == null || !_backoff!.canRetry) {
+      if (kDebugMode) {
+        print('Max reconnection attempts reached');
+      }
+      return;
+    }
+
+    final delay = _backoff!.next();
+    if (kDebugMode) {
+      print('Reconnection attempt ${_backoff!.attempts} in ${delay}ms');
+    }
+
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(Duration(milliseconds: delay), () {
+      _connectWithBackoff();
+    });
+  }
+
+  void _resetBackoff() {
+    _backoff?.reset();
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+  }
+
+  void _startPingTimer() {
+    _pingTimer?.cancel();
+    _pingTimer = Timer.periodic(const Duration(seconds: 25), (timer) {
+      if (_status == ConnectionStatus.connected) {
+        _sendPing();
+      }
+    });
+  }
+
+  void _sendPing() {
+    if (_channel != null && _status == ConnectionStatus.connected) {
+      _channel!.sink.add('${_SocketPacket.ping}');
     }
   }
 
   /// Disconnect from WebSocket
   void disconnect() {
+    _pingTimer?.cancel();
+    _pingTimer = null;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     _channel?.sink.close(status_codes.goingAway);
     _channel = null;
+    _resetBackoff();
     _updateStatus(ConnectionStatus.disconnected);
   }
 
-  /// Send message through WebSocket
+  /// Send event through Socket.io protocol
+  /// Format: `4["event",data]`
   void send(String event, dynamic data) {
     if (_channel == null || _status != ConnectionStatus.connected) {
       throw StateError('WebSocket not connected');
     }
-    _channel!.sink.add(jsonEncode({'event': event, 'data': data}));
+    final packet = _SocketPacket.encodeEvent(event, data);
+    _channel!.sink.add(packet);
   }
 
-  /// Send message and wait for response
-  Future<dynamic> sendWithAck(String event, dynamic data,
-      {Duration? timeout}) async {
+  /// Send message and wait for acknowledgement response
+  /// Matches React Native's emitWithAck pattern
+  Future<dynamic> sendWithAck(
+    String event,
+    dynamic data, {
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
     if (_channel == null || _status != ConnectionStatus.connected) {
       throw StateError('WebSocket not connected');
     }
 
+    final ackId = _generateAckId();
     final completer = Completer<dynamic>();
-    final subscription = _messageController.stream
-        .where((msg) => msg['event'] == '${event}_ack')
-        .timeout(timeout ?? const Duration(seconds: 30))
-        .listen((msg) {
-      completer.complete(msg['data']);
+
+    _pendingAcks[ackId] = completer;
+
+    // Set timeout
+    Timer(timeout, () {
+      if (!completer.isCompleted) {
+        _pendingAcks.remove(ackId);
+        completer.completeError(TimeoutException('Acknowledgement timeout'));
+      }
     });
 
-    _channel!.sink.add(jsonEncode({'event': event, 'data': data}));
+    // Send with ack ID in Socket.io format: 4[["event",data],{ackId}]
+    final payload = jsonEncode([
+      [event, data],
+      {'ackId': ackId}
+    ]);
+    _channel!.sink.add('${_SocketPacket.message}$payload');
 
-    try {
-      return await completer.future;
-    } finally {
-      await subscription.cancel();
-    }
+    return completer.future;
+  }
+
+  String _generateAckId() {
+    return '${DateTime.now().millisecondsSinceEpoch}_${_pendingAcks.length}';
   }
 
   /// Register reconnection listener
@@ -136,15 +309,21 @@ class WebSocketClient {
   /// Register status change listener
   void Function() onStatusChange(void Function(ConnectionStatus) listener) {
     _statusListeners.add(listener);
+    // Immediately notify with current status
+    listener(_status);
     return () => _statusListeners.remove(listener);
   }
 
   /// Register message handler for specific event
+  /// Matches React Native's `onMessage` pattern
   void Function() onMessage(String event, void Function(dynamic) handler) {
-    final subscription = _messageController.stream
-        .where((msg) => msg['event'] == event)
-        .listen(handler);
-    return subscription.cancel;
+    _messageHandlers[event] = handler;
+    return () => _messageHandlers.remove(event);
+  }
+
+  /// Unregister message handler
+  void offMessage(String event) {
+    _messageHandlers.remove(event);
   }
 
   String _buildWebSocketUrl(String serverUrl) {
@@ -152,31 +331,64 @@ class WebSocketClient {
     final wsProtocol = serverUrl.startsWith('https') ? 'wss' : 'ws';
     final baseUrl =
         serverUrl.replaceFirst(RegExp(r'^https?://'), '$wsProtocol://');
+    // Socket.io uses path /v1/updates with token in query
     return '$baseUrl/v1/updates?token=$_authToken';
   }
 
   void _handleMessage(dynamic message) {
-    try {
-      final decoded = jsonDecode(message as String);
-      final event = decoded['event'] as String?;
-      final data = decoded['data'];
+    final rawMessage = message as String;
 
-      if (event != null) {
-        // Emit to specific event handlers
-        _messageController.add({'event': event, 'data': data});
+    // Handle ping/pong
+    if (rawMessage == '${_SocketPacket.ping}') {
+      _channel?.sink.add('${_SocketPacket.pong}');
+      return;
+    }
 
-        // Handle update events
-        if (event == 'update' && data is Map<String, dynamic>) {
-          try {
-            final update = ApiUpdate.fromJson(data);
-            _updateController.add(update);
-          } catch (e) {
-            debugPrint('Failed to parse update: $e');
+    if (rawMessage == '${_SocketPacket.pong}') {
+      return;
+    }
+
+    // Decode Socket.io message packet
+    final socketMessage = _SocketPacket.decode(rawMessage);
+    if (socketMessage != null) {
+      // Emit to raw message stream in the same format as before
+      _messageController.add({
+        'event': socketMessage.event,
+        'data': socketMessage.data
+      });
+
+      // Call registered event handlers
+      final handler = _messageHandlers[socketMessage.event];
+      if (handler != null) {
+        handler(socketMessage.data);
+      }
+
+      // Handle acknowledgement responses
+      if (socketMessage.event == 'ack' && socketMessage.data is Map) {
+        final ackData = socketMessage.data as Map<String, dynamic>;
+        final ackId = ackData['ackId'] as String?;
+        if (ackId != null) {
+          final completer = _pendingAcks.remove(ackId);
+          if (completer != null && !completer.isCompleted) {
+            completer.complete(ackData['result']);
           }
         }
       }
-    } catch (e) {
-      debugPrint('Failed to parse WebSocket message: $e');
+
+      // Handle update events
+      if (socketMessage.event == 'update' &&
+          socketMessage.data is Map<String, dynamic>) {
+        try {
+          final update = ApiUpdate.fromJson(socketMessage.data);
+          _updateController.add(update);
+        } catch (e) {
+          if (kDebugMode) {
+            print('Failed to parse update: $e');
+          }
+        }
+      }
+    } else if (kDebugMode) {
+      print('Unknown Socket.io packet: $rawMessage');
     }
   }
 
@@ -196,11 +408,25 @@ class WebSocketClient {
     }
   }
 
+  /// Update auth token and reconnect if needed
+  void updateToken(String newToken) {
+    if (_authToken != newToken) {
+      _authToken = newToken;
+
+      if (_channel != null) {
+        disconnect();
+        connect(serverUrl: _serverUrl!, token: newToken);
+      }
+    }
+  }
+
   /// Dispose resources
   void dispose() {
     disconnect();
     _statusController.close();
     _updateController.close();
     _messageController.close();
+    _pendingAcks.clear();
+    _messageHandlers.clear();
   }
 }

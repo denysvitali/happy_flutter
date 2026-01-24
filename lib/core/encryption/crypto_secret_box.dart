@@ -1,7 +1,10 @@
 import 'dart:typed_data';
 import 'dart:math';
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:pointycastle/pointycastle.dart';
+
+import 'web_crypto.dart' if (dart.library.html) 'web_crypto.dart';
 
 /// Simplified secret box encryption using AES-CBC
 class CryptoSecretBox {
@@ -18,7 +21,11 @@ class CryptoSecretBox {
   }
 
   /// Encrypt data using secret key
-  static Uint8List encrypt(dynamic data, Uint8List secretKey) {
+  static Future<Uint8List> encrypt(dynamic data, Uint8List secretKey) async {
+    if (kIsWeb) {
+      return await WebCryptoSecretBox.encrypt(data, secretKey);
+    }
+
     final nonce = randomNonce();
     final jsonData = jsonEncode(data);
     final dataBytes = utf8.encode(jsonData);
@@ -41,7 +48,11 @@ class CryptoSecretBox {
   }
 
   /// Decrypt encrypted data
-  static dynamic decrypt(Uint8List encryptedData, Uint8List secretKey) {
+  static Future<dynamic> decrypt(Uint8List encryptedData, Uint8List secretKey) async {
+    if (kIsWeb) {
+      return await WebCryptoSecretBox.decrypt(encryptedData, secretKey);
+    }
+
     try {
       final nonce = encryptedData.sublist(0, _nonceSize);
       final encrypted = encryptedData.sublist(_nonceSize);

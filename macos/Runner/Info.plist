@@ -28,5 +28,14 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+
+	<!-- Camera permission for QR scanning -->
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is required to scan QR codes for authentication.</string>
+
+	<!-- Microphone permission for audio recording -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Microphone access is required to record audio messages.</string>
+
 </dict>
 </plist>

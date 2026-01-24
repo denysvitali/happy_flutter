@@ -15,3 +15,6 @@ pubspec.lock
 .dart_tool
 /build
 .flutter-plugins-dependencies
+
+# FVM Version Cache
+.fvm/

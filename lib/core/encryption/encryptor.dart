@@ -4,6 +4,7 @@ import 'crypto_secret_box.dart';
 import 'crypto_box.dart';
 import 'text.dart';
 import 'base64.dart';
+import 'aes_gcm.dart';
 
 /// Encryptor interface
 abstract class Encryptor {
@@ -25,7 +26,8 @@ class SecretBoxEncryption implements Encryptor, Decryptor {
   Future<List<Uint8List>> encrypt(List<dynamic> data) async {
     final results = <Uint8List>[];
     for (final item in data) {
-      results.add(CryptoSecretBox.encrypt(item, _secretKey));
+      final encrypted = await CryptoSecretBox.encrypt(item, _secretKey);
+      results.add(encrypted);
     }
     return results;
   }
@@ -34,7 +36,8 @@ class SecretBoxEncryption implements Encryptor, Decryptor {
   Future<List<dynamic?>> decrypt(List<Uint8List> data) async {
     final results = <dynamic?>[];
     for (final item in data) {
-      results.add(CryptoSecretBox.decrypt(item, _secretKey));
+      final decrypted = await CryptoSecretBox.decrypt(item, _secretKey);
+      results.add(decrypted);
     }
     return results;
   }
@@ -56,7 +59,7 @@ class BoxEncryption implements Encryptor, Decryptor {
     final results = <Uint8List>[];
     for (final item in data) {
       final jsonBytes = TextUtils.encodeUtf8(jsonEncode(item));
-      final encrypted = CryptoBox.encrypt(jsonBytes, _publicKey, _privateKey);
+      final encrypted = await CryptoBox.encrypt(jsonBytes, _publicKey, _privateKey);
       results.add(encrypted);
     }
     return results;
@@ -66,7 +69,7 @@ class BoxEncryption implements Encryptor, Decryptor {
   Future<List<dynamic?>> decrypt(List<Uint8List> data) async {
     final results = <dynamic?>[];
     for (final item in data) {
-      final decrypted = CryptoBox.decrypt(item, _privateKey);
+      final decrypted = await CryptoBox.decrypt(item, _privateKey);
       if (decrypted == null) {
         results.add(null);
         continue;
@@ -82,24 +85,24 @@ class BoxEncryption implements Encryptor, Decryptor {
   }
 }
 
-/// AES-256-GCM encryption
+/// AES-256-GCM encryption using PointyCastle.
+///
+/// Compatible with React Native's `rn-encryption` library.
+/// Format: [1-byte version (0)][12-byte IV][ciphertext][16-byte auth tag]
 class AES256Encryption implements Encryptor, Decryptor {
   final Uint8List _secretKey;
-  late final String _secretKeyB64;
 
-  AES256Encryption(this._secretKey) {
-    _secretKeyB64 = Base64Utils.encode(_secretKey);
-  }
+  AES256Encryption(this._secretKey);
 
   @override
   Future<List<Uint8List>> encrypt(List<dynamic> data) async {
     final results = <Uint8List>[];
     for (final item in data) {
-      // Use secret box as implementation (production should use proper AES-GCM)
-      final encrypted = CryptoSecretBox.encrypt(item, _secretKey);
-      // Add version byte prefix
+      // Encrypt with AES-GCM
+      final encrypted = AesGcm.encrypt(item, _secretKey);
+      // Add version byte prefix (matching React Native format)
       final output = Uint8List(encrypted.length + 1);
-      output[0] = 0;
+      output[0] = 0; // version byte
       output.setAll(1, encrypted);
       results.add(output);
     }
@@ -111,11 +114,12 @@ class AES256Encryption implements Encryptor, Decryptor {
     final results = <dynamic?>[];
     for (final item in data) {
       try {
-        if (item[0] != 0) {
+        if (item.isEmpty || item[0] != 0) {
           results.add(null);
           continue;
         }
-        final decrypted = CryptoSecretBox.decrypt(item.sublist(1), _secretKey);
+        // Strip version byte and decrypt
+        final decrypted = AesGcm.decrypt(item.sublist(1), _secretKey);
         results.add(decrypted);
       } catch (e) {
         results.add(null);

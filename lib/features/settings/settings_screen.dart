@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/certificate_provider.dart';
 import '../../core/services/server_config.dart';
+import 'language_selector.dart';
 
 /// Settings screen
 class SettingsScreen extends ConsumerWidget {
@@ -13,9 +15,10 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsNotifierProvider);
+    final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(l10n.settingsTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -23,9 +26,21 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 24),
           buildBehaviorSection(context, settings, ref),
           const SizedBox(height: 24),
+          buildVoiceSection(context),
+          const SizedBox(height: 24),
+          buildAIProfilesSection(context),
+          const SizedBox(height: 24),
+          buildUsageSection(context),
+          const SizedBox(height: 24),
+          buildFeaturesSection(context),
+          const SizedBox(height: 24),
+          buildAccountSection(context),
+          const SizedBox(height: 24),
           buildCertificatesSection(context),
           const SizedBox(height: 24),
           buildServerSection(context),
+          const SizedBox(height: 24),
+          buildDeveloperSection(context, settings),
           const SizedBox(height: 24),
           buildAboutSection(context),
           const SizedBox(height: 24),
@@ -40,27 +55,50 @@ class SettingsScreen extends ConsumerWidget {
     Settings settings,
     WidgetRef ref,
   ) {
+    final themeModeLabel = switch (settings.themeMode) {
+      'light' => context.l10n.appearanceThemeLight,
+      'dark' => context.l10n.appearanceThemeDark,
+      _ => context.l10n.appearanceThemeAdaptive,
+    };
+
     return SettingsSection(
-      title: 'Appearance',
+      title: context.l10n.settingsAppearance,
       children: [
+        ListTile(
+          title: Text(context.l10n.appearanceTheme),
+          subtitle: Text(themeModeLabel),
+          leading: const Icon(Icons.palette),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.push('/settings/theme'),
+        ),
+        ListTile(
+          title: Text(context.l10n.settingsLanguage),
+          subtitle: Text(settings.locale.isEmpty
+              ? context.l10n.settingsLanguageAutomatic
+              : _getLocaleDisplayName(settings.locale)),
+          leading: const Icon(Icons.language),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.push('/settings/language'),
+        ),
+        const Divider(height: 1),
         SwitchListTile(
-          title: const Text('Compact Session View'),
-          subtitle: const Text('Use smaller cards for sessions'),
+          title: Text(context.l10n.settingsCompactSessionView),
+          subtitle: Text(context.l10n.settingsCompactSessionViewSubtitle),
           value: settings.compactSessionView,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('compactSessionView', value),
         ),
         SwitchListTile(
-          title: const Text('Show Flavor Icons'),
-          subtitle: const Text('Show AI provider icons in avatars'),
+          title: Text(context.l10n.settingsShowFlavorIcons),
+          subtitle: Text(context.l10n.settingsShowFlavorIconsSubtitle),
           value: settings.showFlavorIcons,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('showFlavorIcons', value),
         ),
         ListTile(
-          title: const Text('Avatar Style'),
+          title: Text(context.l10n.settingsAvatarStyle),
           subtitle: Text(settings.avatarStyle),
           onTap: () => showAvatarStyleDialog(context, settings, ref),
         ),
@@ -68,38 +106,48 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  String _getLocaleDisplayName(String localeString) {
+    if (localeString.isEmpty) return '';
+    final parts = localeString.split('_');
+    if (parts.length == 2) {
+      return '${parts[0][0].toUpperCase()}${parts[0].substring(1)} (${parts[1]})';
+    }
+    return '${parts[0][0].toUpperCase()}${parts[0].substring(1)}';
+  }
+
   Widget buildBehaviorSection(
     BuildContext context,
     Settings settings,
     WidgetRef ref,
   ) {
+    final l10n = context.l10n;
     return SettingsSection(
-      title: 'Behavior',
+      title: l10n.settingsBehavior,
       children: [
         SwitchListTile(
-          title: const Text('View Inline'),
-          subtitle: const Text('Show tool calls inline in chat'),
+          title: Text(l10n.settingsViewInline),
+          subtitle: Text(l10n.settingsViewInlineSubtitle),
           value: settings.viewInline,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('viewInline', value),
         ),
         SwitchListTile(
-          title: const Text('Expand Todos'),
+          title: Text(l10n.settingsExpandTodos),
           value: settings.expandTodos,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('expandTodos', value),
         ),
         SwitchListTile(
-          title: const Text('Show Line Numbers'),
+          title: Text(l10n.settingsShowLineNumbers),
           value: settings.showLineNumbers,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('showLineNumbers', value),
         ),
         SwitchListTile(
-          title: const Text('Wrap Lines in Diffs'),
+          title: Text(l10n.settingsWrapLinesInDiffs),
           value: settings.wrapLinesInDiffs,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
@@ -109,9 +157,110 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget buildCertificatesSection(BuildContext context) {
+  Widget buildVoiceSection(BuildContext context) {
+    final l10n = context.l10n;
     return SettingsSection(
-      title: 'Certificates',
+      title: l10n.settingsTitle,
+      children: [
+        ListTile(
+          title: Text(l10n.settingsTitle),
+          subtitle: const Text('Configure ElevenLabs voice'),
+          leading: const Icon(Icons.record_voice_over),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.push('/settings/voice'),
+        ),
+      ],
+    );
+  }
+
+  Widget buildAIProfilesSection(BuildContext context) {
+    final l10n = context.l10n;
+    return SettingsSection(
+      title: l10n.settingsTitle,
+      children: [
+        ListTile(
+          title: Text(l10n.settingsProfiles),
+          subtitle: Text(l10n.settingsProfilesSubtitle),
+          leading: const Icon(Icons.account_tree),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.push('/settings/profiles'),
+        ),
+      ],
+    );
+  }
+
+  Widget buildUsageSection(BuildContext context) {
+    final l10n = context.l10n;
+    return SettingsSection(
+      title: l10n.settingsUsage,
+      children: [
+        ListTile(
+          title: Text(l10n.settingsUsage),
+          subtitle: Text(l10n.settingsUsageSubtitle),
+          leading: const Icon(Icons.analytics),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.push('/settings/usage'),
+        ),
+      ],
+    );
+  }
+
+  Widget buildFeaturesSection(BuildContext context) {
+    final l10n = context.l10n;
+    return SettingsSection(
+      title: l10n.settingsFeatures,
+      children: [
+        ListTile(
+          title: Text(l10n.featuresExperiments),
+          subtitle: Text(l10n.featuresExperimentsDesc),
+          leading: const Icon(Icons.science),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.push('/settings/features'),
+        ),
+      ],
+    );
+  }
+
+  Widget buildDeveloperSection(BuildContext context, Settings settings) {
+    final l10n = context.l10n;
+    return SettingsSection(
+      title: l10n.settingsDeveloper,
+      children: [
+        ListTile(
+          title: const Text('Developer Options'),
+          subtitle: Text(
+            settings.developerModeEnabled
+                ? 'Enabled'
+                : 'Tap 10 times to enable',
+          ),
+          leading: const Icon(Icons.build),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.push('/settings/developer'),
+        ),
+      ],
+    );
+  }
+
+  Widget buildAccountSection(BuildContext context) {
+    final l10n = context.l10n;
+    return SettingsSection(
+      title: l10n.settingsAccount,
+      children: [
+        ListTile(
+          leading: const Icon(Icons.person),
+          title: Text(l10n.accountAccountSettings),
+          subtitle: const Text('Backup key, devices, services'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.push('/settings/account'),
+        ),
+      ],
+    );
+  }
+
+  Widget buildCertificatesSection(BuildContext context) {
+    final l10n = context.l10n;
+    return SettingsSection(
+      title: l10n.settingsCertificates,
       children: [
         FutureBuilder<bool>(
           future: Future.value(CertificateProvider().hasUserCertificates()),
@@ -119,11 +268,11 @@ class SettingsScreen extends ConsumerWidget {
             final hasCerts = snapshot.data ?? false;
 
             return ListTile(
-              title: const Text('User CA Certificates'),
+              title: Text(l10n.settingsUserCaCertificates),
               subtitle: Text(
                 hasCerts
-                    ? 'User certificates are installed'
-                    : 'No user certificates installed',
+                    ? l10n.settingsUserCertificatesInstalled
+                    : l10n.settingsNoUserCertificates,
               ),
               trailing: hasCerts
                   ? Icon(Icons.check_circle, color: Colors.green[400])
@@ -136,8 +285,9 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildServerSection(BuildContext context) {
+    final l10n = context.l10n;
     return SettingsSection(
-      title: 'Server',
+      title: l10n.settingsServer,
       children: [
         FutureBuilder<Map<String, dynamic>>(
           future: _getServerInfo(),
@@ -146,7 +296,7 @@ class SettingsScreen extends ConsumerWidget {
             final isCustom = snapshot.data?['isCustom'] as bool? ?? false;
 
             return ListTile(
-              title: const Text('Server URL'),
+              title: Text(l10n.settingsServerUrl),
               subtitle: Text(url),
               trailing: isCustom
                   ? Icon(
@@ -178,7 +328,7 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Server URL'),
+          title: Text(context.l10n.settingsServerUrl),
           content: Form(
             key: formKey,
             child: Column(
@@ -187,7 +337,7 @@ class SettingsScreen extends ConsumerWidget {
                 TextFormField(
                   controller: controller,
                   decoration: InputDecoration(
-                    labelText: 'Server URL',
+                    labelText: context.l10n.settingsServerUrlLabel,
                     hintText: defaultServerUrl,
                     errorText: errorText,
                     suffixIcon: controller.text.isNotEmpty
@@ -209,7 +359,7 @@ class SettingsScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(context.l10n.commonCancel),
             ),
             if (currentUrl != defaultServerUrl)
               TextButton(
@@ -219,14 +369,14 @@ class SettingsScreen extends ConsumerWidget {
                   if (context.mounted) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Server URL reset to default.'),
-                        duration: Duration(seconds: 3),
+                      SnackBar(
+                        content: Text(context.l10n.settingsServerResetSuccess),
+                        duration: const Duration(seconds: 3),
                       ),
                     );
                   }
                 },
-                child: const Text('Reset to Default'),
+                child: Text(context.l10n.settingsServerResetToDefault),
               ),
             FilledButton(
               onPressed: isVerifying
@@ -257,8 +407,7 @@ class SettingsScreen extends ConsumerWidget {
 
                       if (!verificationResult.isValid) {
                         setDialogState(() {
-                          errorText =
-                              'Server is not reachable. Check the URL and try again.';
+                          errorText = context.l10n.settingsServerNotReachable;
                         });
                         return;
                       }
@@ -270,9 +419,9 @@ class SettingsScreen extends ConsumerWidget {
                       if (context.mounted) {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Server URL saved and applied.'),
-                            duration: Duration(seconds: 3),
+                          SnackBar(
+                            content: Text(context.l10n.settingsServerSaved),
+                            duration: const Duration(seconds: 3),
                           ),
                         );
                       }
@@ -283,7 +432,7 @@ class SettingsScreen extends ConsumerWidget {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Save & Verify'),
+                  : Text(context.l10n.settingsServerSaveVerify),
             ),
           ],
         ),
@@ -292,16 +441,20 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildAboutSection(BuildContext context) {
+    final l10n = context.l10n;
     return SettingsSection(
-      title: 'About',
+      title: l10n.settingsAbout,
       children: [
-        const ListTile(title: Text('Version'), subtitle: Text('1.0.0')),
         ListTile(
-          title: const Text('Privacy Policy'),
+          title: Text(l10n.commonVersion),
+          subtitle: Text(l10n.settingsVersion),
+        ),
+        ListTile(
+          title: Text(l10n.settingsPrivacyPolicy),
           onTap: () => openUrl('https://happy.dev/privacy'),
         ),
         ListTile(
-          title: const Text('Terms of Service'),
+          title: Text(l10n.settingsTermsOfService),
           onTap: () => openUrl('https://happy.dev/terms'),
         ),
       ],
@@ -309,10 +462,11 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildSignOutSection(WidgetRef ref) {
+    final l10n = context.l10n;
     return SettingsSection(
       children: [
         ListTile(
-          title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+          title: Text(l10n.settingsSignOut, style: const TextStyle(color: Colors.red)),
           leading: const Icon(Icons.logout, color: Colors.red),
           onTap: () => confirmSignOut(ref),
         ),
@@ -325,10 +479,11 @@ class SettingsScreen extends ConsumerWidget {
     Settings settings,
     WidgetRef ref,
   ) {
+    final l10n = context.l10n;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Avatar Style'),
+        title: Text(l10n.settingsAvatarStyle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: ['brutalist', 'minimal', 'rounded', 'circle']
@@ -352,15 +507,16 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void confirmSignOut(WidgetRef ref) {
+    final l10n = ref.context.l10n;
     showDialog(
       context: ref.context,
       builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
+        title: Text(l10n.settingsSignOut),
+        content: Text(l10n.settingsSignOutConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -368,7 +524,7 @@ class SettingsScreen extends ConsumerWidget {
               Navigator.pop(context);
               ref.read(authStateNotifierProvider.notifier).signOut();
             },
-            child: const Text('Sign Out'),
+            child: Text(l10n.settingsSignOut),
           ),
         ],
       ),

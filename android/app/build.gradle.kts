@@ -21,12 +21,37 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.example.happy_flutter"
         minSdk = 24
         targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    flavorDimensions += "environment"
+
+    productFlavors {
+        create("development") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            buildConfigField("String", "APP_ENV", "\"development\"")
+        }
+        create("preview") {
+            dimension = "environment"
+            applicationIdSuffix = ".preview"
+            versionNameSuffix = "-preview"
+            buildConfigField("String", "APP_ENV", "\"preview\"")
+        }
+        create("production") {
+            dimension = "environment"
+            buildConfigField("String", "APP_ENV", "\"production\"")
+        }
     }
 
     val keystorePath = System.getenv("KEYSTORE_PATH")
@@ -42,7 +67,16 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            isMinifyEnabled = false
+        }
         getByName("release") {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             if (keystorePath != null) {
                 signingConfig = signingConfigs.findByName("release")
             }

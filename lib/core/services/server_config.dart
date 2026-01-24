@@ -1,19 +1,16 @@
-import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'mmkv_storage.dart';
 
-const String _serverUrlKey = 'custom_server_url';
-const String _lastServerUrlErrorKey = 'last_server_url_error';
 const String defaultServerUrl = 'https://api.cluster-fluster.com';
 const String _defaultServerUrl = defaultServerUrl;
 
 /// Get the server URL from storage or use default
 /// Priority: custom storage > env var > default
-Future<String> getServerUrl() async {
-  final prefs = await SharedPreferences.getInstance();
+String getServerUrl() {
+  final storage = ServerConfigStorage();
+  final customUrl = storage.getServerUrl();
 
-  // Check custom storage first
-  final customUrl = prefs.getString(_serverUrlKey);
   if (customUrl != null && customUrl.isNotEmpty) {
     return customUrl;
   }
@@ -28,35 +25,27 @@ Future<String> getServerUrl() async {
 }
 
 /// Set a custom server URL
-Future<void> setServerUrl(String? url) async {
-  final prefs = await SharedPreferences.getInstance();
-
-  if (url != null && url.trim().isNotEmpty) {
-    await prefs.setString(_serverUrlKey, url.trim());
-  } else {
-    await prefs.remove(_serverUrlKey);
-  }
+void setServerUrl(String? url) {
+  ServerConfigStorage().setServerUrl(url);
 }
 
 /// Check if using a custom server URL
-Future<bool> isUsingCustomServer() async {
-  final url = await getServerUrl();
-  return url != _defaultServerUrl;
+bool isUsingCustomServer() {
+  return ServerConfigStorage().isUsingCustomServer();
 }
 
 /// Save server URL error for display on auth screen
-Future<void> saveServerUrlError(String error) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(_lastServerUrlErrorKey, error);
+void saveServerUrlError(String error) {
+  ServerConfigStorage().saveServerUrlError(error);
 }
 
 /// Get and clear the last server URL error
 /// Returns null if no error is stored
-Future<String?> getLastServerUrlError() async {
-  final prefs = await SharedPreferences.getInstance();
-  final error = prefs.getString(_lastServerUrlErrorKey);
+String? getLastServerUrlError() {
+  final storage = ServerConfigStorage();
+  final error = storage.getLastServerUrlError();
   // Clear the error after reading
-  await prefs.remove(_lastServerUrlErrorKey);
+  storage.clearLastServerUrlError();
   return error;
 }
 
@@ -122,70 +111,73 @@ ServerUrlValidation validateServerUrl(String url) {
 }
 
 /// Verify server URL is reachable by making a simple request
-/// Returns a ServerUrlVerificationResult with success status and diagnostic details
+/// Returns a ServerUrlVerificationResult with success status and diagnostic
+/// details
 Future<ServerUrlVerificationResult> verifyServerUrl(String url) async {
   final validation = validateServerUrl(url);
   if (!validation.valid) {
     debugPrint('Server URL validation failed: ${validation.error}');
     final errorMsg = 'Invalid server URL: ${validation.error}';
-    await saveServerUrlError(errorMsg);
+    saveServerUrlError(errorMsg);
     return ServerUrlVerificationResult.failed(errorMsg, 'Validation');
   }
 
   try {
-    // Try to connect to the server with a timeout
-    final client = HttpClient();
-    client.connectionTimeout = const Duration(seconds: 10);
+    // Use Dio instead of HttpClient (works on web and native)
+    final dio = Dio();
+    dio.options.connectTimeout = const Duration(seconds: 10);
+    dio.options.receiveTimeout = const Duration(seconds: 10);
 
     final uri = Uri.parse(url);
     final configUri = uri.resolve('/v1/config');
-    final request = await client.getUrl(configUri);
-    final response = await request.close().timeout(
-      const Duration(seconds: 10),
-      onTimeout: () {
-        client.close();
-        throw const SocketException('Connection timeout');
-      },
-    );
 
-    client.close();
+    final response = await dio.get(configUri.toString());
 
-    // Accept any 2xx, 3xx, or 401 (which means server is up but auth required)
-    if (response.statusCode >= 200 && response.statusCode < 500) {
+    // Accept any 2xx, 3xx, or 401 (server up, auth required)
+    if (response.statusCode != null &&
+        response.statusCode! >= 200 &&
+        response.statusCode! < 500) {
       return const ServerUrlVerificationResult.success();
     } else {
       final errorMsg = 'Server returned error: HTTP ${response.statusCode}';
       debugPrint('Server verification failed: $errorMsg');
-      await saveServerUrlError(errorMsg);
-      return ServerUrlVerificationResult.failed(errorMsg, 'HTTP ${response.statusCode}');
+      saveServerUrlError(errorMsg);
+      return ServerUrlVerificationResult.failed(
+        errorMsg,
+        'HTTP ${response.statusCode}',
+      );
     }
-  } on SocketException catch (e) {
-    final errorMsg = 'Connection failed: ${e.toString()}';
+  } on DioException catch (e) {
+    final errorMsg = 'Connection failed: ${e.message}';
     debugPrint('Server verification failed: $e');
-    await saveServerUrlError(errorMsg);
-    // Categorize common socket errors
-    final errorType = e.message.contains('timeout')
-        ? 'Timeout'
-        : e.message.contains('Connection refused')
-            ? 'Connection Refused'
-            : e.message.contains('CERTIFICATE')
-                ? 'Certificate'
-                : 'Network';
+    saveServerUrlError(errorMsg);
+
+    // Categorize common Dio errors
+    String errorType;
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout) {
+      errorType = 'Timeout';
+    } else if (e.type == DioExceptionType.connectionError) {
+      final errorStr = e.error.toString().toLowerCase();
+      if (errorStr.contains('tls') || errorStr.contains('ssl') ||
+          errorStr.contains('handshake') || errorStr.contains('certificate')) {
+        errorType = 'SSL/TLS';
+      } else if (errorStr.contains('connection refused')) {
+        errorType = 'Connection Refused';
+      } else {
+        errorType = 'Network';
+      }
+    } else if (e.type == DioExceptionType.badResponse) {
+      errorType = 'HTTP ${e.response?.statusCode}';
+    } else {
+      errorType = 'Unknown';
+    }
+
     return ServerUrlVerificationResult.failed(errorMsg, errorType);
-  } on HandshakeException catch (e) {
-    final errorMsg = 'SSL/TLS handshake failed: ${e.toString()}';
-    debugPrint('Server verification failed: $e');
-    await saveServerUrlError(errorMsg);
-    return ServerUrlVerificationResult.failed(errorMsg, 'SSL/TLS');
-  } on HttpException catch (e) {
-    final errorMsg = 'HTTP error: ${e.toString()}';
-    debugPrint('Server verification failed: $e');
-    await saveServerUrlError(errorMsg);
-    return ServerUrlVerificationResult.failed(errorMsg, 'HTTP');
   } catch (e) {
     final errorMsg = 'Connection failed: ${e.toString()}';
     debugPrint('Server verification failed: $e');
-    await saveServerUrlError(errorMsg);
+    saveServerUrlError(errorMsg);
     return ServerUrlVerificationResult.failed(errorMsg, 'Unknown');
   }
 }
