@@ -140,7 +140,7 @@ class _MarkdownViewState extends State<MarkdownView> {
         );
       case MermaidBlock(:final content):
         return MermaidBlockWidget(content: content);
-      case const HorizontalRuleBlock():
+      case HorizontalRuleBlock():
         return const HorizontalRuleBlockWidget();
       case OptionsBlock(:final items):
         return Padding(
@@ -159,6 +159,7 @@ class _MarkdownViewState extends State<MarkdownView> {
           isFirst: isFirst,
           isLast: isLast,
         );
+      // Sealed class ensures all cases are covered above
     }
   }
 
@@ -292,7 +293,7 @@ class SimpleMarkdownView extends StatelessWidget {
         );
       case MermaidBlock(:final content):
         return MermaidBlockWidget(content: content);
-      case const HorizontalRuleBlock():
+      case HorizontalRuleBlock():
         return Container(
           margin: const EdgeInsets.symmetric(vertical: 12),
           height: 1,
@@ -318,6 +319,7 @@ class SimpleMarkdownView extends StatelessWidget {
         );
       case TableBlock(:final headers, :final rows):
         return _buildTable(headers, rows, theme);
+      // Sealed class ensures all cases are covered above
     }
   }
 
@@ -337,18 +339,18 @@ class SimpleMarkdownView extends StatelessWidget {
         ),
         children: spans.map((span) {
           final style = TextStyle(
-            fontStyle: span.styles.contains(TextStyle.italic)
+            fontStyle: span.styles.contains(MarkdownTextStyle.italic)
                 ? FontStyle.italic
                 : null,
-            fontWeight: span.styles.contains(TextStyle.bold)
+            fontWeight: span.styles.contains(MarkdownTextStyle.bold)
                 ? FontWeight.bold
-                : span.styles.contains(TextStyle.semibold)
+                : span.styles.contains(MarkdownTextStyle.semibold)
                     ? FontWeight.w600
                     : fontWeight,
             fontSize: fontSize ?? 16,
             color: theme.colorScheme.onSurface,
-            fontFamily: span.styles.contains(TextStyle.code) ? 'monospace' : null,
-            backgroundColor: span.styles.contains(TextStyle.code)
+            fontFamily: span.styles.contains(MarkdownTextStyle.code) ? 'monospace' : null,
+            backgroundColor: span.styles.contains(MarkdownTextStyle.code)
                 ? Colors.black12
                 : null,
           );
@@ -373,8 +375,8 @@ class SimpleMarkdownView extends StatelessWidget {
 
   Widget _buildTable(List<String> headers, List<List<String>> rows, ThemeData theme) {
     final columnCount = headers.length;
-    final minWidth = columnCount > 0 ? (300 / columnCount).floor().toDouble() : 100;
-    final safeMinWidth = minWidth < 100 ? 100 : minWidth;
+    final minWidth = columnCount > 0 ? (300 / columnCount).floor().toDouble() : 100.0;
+    final safeMinWidth = minWidth < 100.0 ? 100.0 : minWidth;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

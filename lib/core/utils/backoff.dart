@@ -141,7 +141,7 @@ class BackoffOptions {
 }
 
 /// Type for a backoff-wrapped function
-typedef BackoffFunc<T> = Future<T> Function();
+typedef BackoffFunc<T> = Future<T> Function(Future<T> Function() callback);
 
 /// Creates a backoff function that retries with exponential delay.
 ///
@@ -166,7 +166,7 @@ typedef BackoffFunc<T> = Future<T> Function();
 BackoffFunc<T> createBackoff<T>(
   BackoffOptions options,
 ) {
-  return (callback) async {
+  return (Future<T> Function() callback) async {
     var currentFailureCount = 0;
     final minDelay = options.minDelay;
     final maxDelay = options.maxDelay;
@@ -209,7 +209,7 @@ BackoffFunc<T> createRetryingBackoff<T>(
   BackoffOptions options,
   int maxRetries,
 ) {
-  return (callback) async {
+  return (Future<T> Function() callback) async {
     var attempt = 0;
     final minDelay = options.minDelay;
     final maxDelay = options.maxDelay;

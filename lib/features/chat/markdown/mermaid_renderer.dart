@@ -77,7 +77,7 @@ class _MermaidBlockWidgetState extends State<MermaidBlockWidget> {
         }
         .error-message {
             padding: 12px;
-            background-color: ${_colorToHex(theme.colorScheme.errorContainer?.backgroundColor ?? Colors.red.shade100)};
+            background-color: ${_colorToHex(theme.colorScheme.errorContainer ?? Colors.red.shade100)};
             border-radius: 4px;
             color: ${_colorToHex(theme.colorScheme.onErrorContainer ?? Colors.red)};
         }
@@ -129,7 +129,7 @@ class _MermaidBlockWidgetState extends State<MermaidBlockWidget> {
             child: WebViewWidget(
               controller: WebViewController()
                 ..setJavaScriptMode(JavaScriptMode.unrestricted)
-                ..setBackgroundColor(theme.colorScheme.surfaceVariant.value)
+                ..setBackgroundColor(theme.colorScheme.surfaceVariant)
                 ..setNavigationDelegate(
                   NavigationDelegate(
                     onPageFinished: (_) {

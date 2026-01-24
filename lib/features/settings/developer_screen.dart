@@ -3,11 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/app_providers.dart';
 
 /// Developer screen - Debug tools (10x click to enable)
-class DeveloperScreen extends ConsumerWidget {
+class DeveloperScreen extends ConsumerStatefulWidget {
   const DeveloperScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DeveloperScreen> createState() => _DeveloperScreenState();
+}
+
+class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
+  int _tapCount = 0;
+
+  @override
+  Widget build(BuildContext context) {
     final settings = ref.watch(settingsNotifierProvider);
     final isDeveloperMode = settings.developerModeEnabled;
 
@@ -65,7 +72,7 @@ class DeveloperScreen extends ConsumerWidget {
               context: context,
               title: 'Session Debug',
               subtitle: 'View active sessions and connections',
-              icon: Icons.sessions,
+              icon: Icons.history,
               onTap: () {},
             ),
             const SizedBox(height: 24),
@@ -143,15 +150,17 @@ class DeveloperScreen extends ConsumerWidget {
     );
   }
 
-  int _tapCount = 0;
-
   void _handleDevModeTap(BuildContext context, WidgetRef ref) {
-    _tapCount++;
+    setState(() {
+      _tapCount++;
+    });
     if (_tapCount >= 10) {
       ref
           .read(settingsNotifierProvider.notifier)
           .updateSetting('developerModeEnabled', true);
-      _tapCount = 0;
+      setState(() {
+        _tapCount = 0;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Developer mode enabled!')),
       );

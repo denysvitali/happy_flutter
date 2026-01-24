@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'syntax_highlighter.dart';
 
 /// Widget for displaying a code block with syntax highlighting, copy button,

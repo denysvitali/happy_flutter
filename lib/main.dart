@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uni_links/uni_links.dart';
 import 'core/api/api_client.dart';
+import 'core/i18n/app_localizations.dart';
 import 'core/i18n/supported_locales.dart';
 import 'core/models/auth.dart';
 import 'core/providers/app_providers.dart';
+import 'core/services/auth_service.dart';
 import 'core/services/server_config.dart';
 import 'core/services/storage_service.dart' as storage;
 import 'features/auth/auth_screen.dart';
@@ -21,13 +25,13 @@ import 'features/settings/profiles_screen.dart';
 import 'features/settings/usage_screen.dart';
 import 'features/settings/developer_screen.dart';
 
+StreamSubscription<Uri?>? _uniLinksSubscription;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize storage
   await storage.Storage().initialize();
 
-  // Get server URL and initialize API client
   final serverUrl = getServerUrl();
   await ApiClient().initialize(serverUrl: serverUrl);
 
@@ -38,7 +42,6 @@ void main() async {
   );
 }
 
-/// Main app widget
 class HappyApp extends ConsumerStatefulWidget {
   const HappyApp({super.key});
 
@@ -46,25 +49,30 @@ class HappyApp extends ConsumerStatefulWidget {
   ConsumerState<HappyApp> createState() => _HappyAppState();
 }
 
-class _HappyAppState extends ConsumerState<HappyApp> {
+class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver {
   late final GoRouter _router;
+  Uri? _initialUri;
+  bool _initialUriHandled = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _initUniLinks();
     _router = GoRouter(
       routes: [
         GoRoute(
           path: '/',
           name: 'auth',
-          builder: (context, state) => const AuthGate(
+          builder: (context, state) => AuthGate(
             child: SessionsScreen(),
+            initialDeepLink: state.uri.queryParameters['link'],
           ),
         ),
         GoRoute(
           path: '/sessions',
           name: 'sessions',
-          builder: (context, state) => const AuthGate(
+          builder: (context, state) => AuthGate(
             child: SessionsScreen(),
           ),
         ),
@@ -158,7 +166,7 @@ class _HappyAppState extends ConsumerState<HappyApp> {
         GoRoute(
           path: '/settings/developer',
           name: 'developer',
-          builder: (context, state) => const AuthGate(
+          builder: (context, state) => AuthGate(
             child: DeveloperScreen(),
           ),
         ),
@@ -166,7 +174,6 @@ class _HappyAppState extends ConsumerState<HappyApp> {
       redirect: (context, state) {
         final authState = ref.read(authStateNotifierProvider);
 
-        // Allow access to auth screen when unauthenticated
         if (state.matchedLocation == '/') {
           if (authState == AuthState.authenticated) {
             return '/sessions';
@@ -174,7 +181,6 @@ class _HappyAppState extends ConsumerState<HappyApp> {
           return null;
         }
 
-        // Redirect to auth if not authenticated
         if (authState != AuthState.authenticated) {
           return '/';
         }
@@ -182,10 +188,73 @@ class _HappyAppState extends ConsumerState<HappyApp> {
         return null;
       },
     );
-    // Check authentication on startup
     Future.delayed(Duration.zero, () {
       ref.read(authStateNotifierProvider.notifier).checkAuth();
     });
+  }
+
+  Future<void> _initUniLinks() async {
+    if (!kIsWeb) {
+      try {
+        final uri = await getInitialUri();
+        if (uri != null && mounted) {
+          setState(() {
+            _initialUri = uri;
+          });
+          _handleDeepLink(uri);
+        }
+      } catch (e) {
+        print('Error getting initial uni_links URI: $e');
+      }
+
+      _uniLinksSubscription = uriLinkStream.listen(
+        (Uri? uri) {
+          if (uri != null && mounted) {
+            _handleDeepLink(uri);
+          }
+        },
+        onError: (err) {
+          print('Error listening to uni_links: $err');
+        },
+      );
+    }
+  }
+
+  void _handleDeepLink(Uri uri) {
+    if (uri.scheme == 'happy') {
+      final url = uri.toString();
+      final publicKey = AuthService.parseAuthUrl(url);
+      if (publicKey != null) {
+        ref.read(authStateNotifierProvider.notifier).handleDeepLink(url);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _uniLinksSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkForDeepLink();
+    }
+  }
+
+  Future<void> _checkForDeepLink() async {
+    if (!kIsWeb) {
+      try {
+        final uri = await getInitialUri();
+        if (uri != null && uri.scheme == 'happy') {
+          _handleDeepLink(uri);
+        }
+      } catch (e) {
+        print('Error checking for deep link on resume: $e');
+      }
+    }
   }
 
   @override
@@ -201,6 +270,7 @@ class _HappyAppState extends ConsumerState<HappyApp> {
         useMaterial3: true,
       ),
       localizationsDelegates: const [
+        AppLocalizationsDelegate(),
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -210,3 +280,5 @@ class _HappyAppState extends ConsumerState<HappyApp> {
     );
   }
 }
+
+bool get kIsWeb => identical(0, 0.0);

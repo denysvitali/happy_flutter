@@ -68,7 +68,7 @@ class LoggerService {
   static const int _maxLogs = 5000;
 
   final List<LogEntry> _logs = [];
-  final List<VoidCallback> _listeners = [];
+  final List<void Function()> _listeners = [];
 
   /// Current minimum log level (logs below this level are discarded)
   LogLevel _minLevel = LogLevel.debug;
@@ -190,7 +190,7 @@ class LoggerService {
   }
 
   /// Subscribe to log changes - returns unsubscribe function
-  VoidCallback onChange(VoidCallback listener) {
+  void Function() onChange(void Function() listener) {
     _listeners.add(listener);
     return () {
       _listeners.remove(listener);

@@ -185,7 +185,7 @@ class UsageScreen extends ConsumerWidget {
     );
   }
 
-  String _formatNumber(int value) {
+  String _formatNumber(num value) {
     if (value >= 1000000) {
       return '${(value / 1000000).toStringAsFixed(1)}M';
     } else if (value >= 1000) {

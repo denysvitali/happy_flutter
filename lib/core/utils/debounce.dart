@@ -37,7 +37,7 @@ class DebounceOptions<T> {
 ///   DebounceOptions(delay: Duration(milliseconds: 300)),
 /// );
 /// ```
-T Function(T args) createCustomDebounce<T>(
+void Function(T args) createCustomDebounce<T>(
   void Function(T args) fn,
   DebounceOptions<T> options,
 ) {
@@ -60,7 +60,7 @@ T Function(T args) createCustomDebounce<T>(
     // After immediate calls, apply debouncing
     if (pendingArgs != null && reducer != null) {
       // Combine the pending args with new args using the reducer
-      pendingArgs = reducer(pendingArgs, args);
+      pendingArgs = reducer(pendingArgs as T, args);
     } else {
       // Default behavior: use the latest args
       pendingArgs = args;
@@ -74,7 +74,7 @@ T Function(T args) createCustomDebounce<T>(
     // Set new timeout
     timeoutId = Timer(delay, () {
       if (pendingArgs != null) {
-        fn(pendingArgs);
+        fn(pendingArgs as T);
         pendingArgs = null;
       }
       timeoutId = null;
@@ -114,7 +114,7 @@ class AdvancedDebounce<T> {
 
     // After immediate calls, apply debouncing
     if (_pendingArgs != null && reducer != null) {
-      _pendingArgs = reducer(_pendingArgs!, args);
+      _pendingArgs = reducer!(_pendingArgs!, args);
     } else {
       _pendingArgs = args;
     }

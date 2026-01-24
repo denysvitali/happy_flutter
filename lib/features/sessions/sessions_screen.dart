@@ -1,58 +1,133 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/api/websocket_client.dart';
+import '../../core/ui/tab_bar/tab_bar.dart';
 import '../../core/utils/session_utils.dart';
 import '../../core/utils/session_status.dart';
 import '../../core/ui/avatars/avatar.dart';
 import '../../core/ui/avatars/avatar_gradient.dart';
 import '../../core/ui/avatars/avatar_pixelated.dart';
 import '../../core/ui/avatars/avatar_brutalist.dart';
+import '../inbox/inbox_screen.dart';
+import '../settings/settings_screen.dart';
 
 /// Sessions list screen with date grouping and enhanced status display.
-class SessionsScreen extends ConsumerWidget {
+class SessionsScreen extends ConsumerStatefulWidget {
   const SessionsScreen({super.key});
+
+  @override
+  ConsumerState<SessionsScreen> createState() => _SessionsScreenState();
+}
+
+class _SessionsScreenState extends ConsumerState<SessionsScreen> {
+  AppTab _activeTab = AppTab.sessions;
+  int _inboxBadgeCount = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Scaffold(
+      appBar: _buildAppBar(context, l10n),
+      body: _buildCurrentTabContent(),
+      bottomNavigationBar: TabBar(
+        activeTab: _activeTab,
+        onTabPress: (tab) => setState(() => _activeTab = tab),
+        inboxBadgeCount: _inboxBadgeCount,
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context, AppLocalizations l10n) {
+    if (_activeTab == AppTab.sessions) {
+      return _buildSessionsAppBar(context, l10n);
+    }
+    return AppBar(
+      title: Text(_getTabTitle(l10n)),
+    );
+  }
+
+  AppBar _buildSessionsAppBar(BuildContext context, AppLocalizations l10n) {
+    final connectionStatus = ref.watch(connectionNotifierProvider);
+
+    return AppBar(
+      title: Text(l10n.sessionHistoryTitle),
+      actions: [
+        ConnectionStatusBadge(status: connectionStatus),
+        IconButton(
+          icon: const Icon(Icons.add),
+          onPressed: () => _SessionsListContent.showNewSessionDialog(context),
+        ),
+      ],
+    );
+  }
+
+  String _getTabTitle(AppLocalizations l10n) {
+    switch (_activeTab) {
+      case AppTab.inbox:
+        return l10n.tabsInbox;
+      case AppTab.sessions:
+        return l10n.sessionHistoryTitle;
+      case AppTab.settings:
+        return l10n.tabsSettings;
+    }
+  }
+
+  Widget _buildCurrentTabContent() {
+    switch (_activeTab) {
+      case AppTab.inbox:
+        return const InboxScreen();
+      case AppTab.sessions:
+        return const _SessionsListContent();
+      case AppTab.settings:
+        return const SettingsScreen();
+    }
+  }
+}
+
+/// Sessions list content widget
+class _SessionsListContent extends ConsumerWidget {
+  const _SessionsListContent();
+
+  static void showNewSessionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => const NewSessionDialog(),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sessions = ref.watch(sessionsNotifierProvider);
-    final connectionStatus = ref.watch(connectionNotifierProvider);
     final sessionList = sessions.values.toList();
     final activeSessions = sessionList.where(isSessionActive).toList();
     final inactiveSessions =
         sessionList.where((s) => !isSessionActive(s)).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.sessionHistoryTitle),
-        actions: [
-          ConnectionStatusBadge(status: connectionStatus),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _showNewSessionDialog(context),
-          ),
-        ],
-      ),
-      body: sessionList.isEmpty
-          ? const EmptySessionsView()
-          : RefreshIndicator(
-              onRefresh: () => _refreshSessions(ref),
-              child: ListView.builder(
-                padding: const EdgeInsets.all(8),
-                itemCount: _calculateItemCount(activeSessions, inactiveSessions),
-                itemBuilder: (context, index) {
-                  return _buildListItem(
-                    context,
-                    ref,
-                    index,
-                    activeSessions,
-                    inactiveSessions,
-                  );
-                },
-              ),
+    return sessionList.isEmpty
+        ? const EmptySessionsView()
+        : RefreshIndicator(
+            onRefresh: () => _refreshSessions(ref),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(8),
+              itemCount: _calculateItemCount(activeSessions, inactiveSessions),
+              itemBuilder: (context, index) {
+                return _buildListItem(
+                  context,
+                  ref,
+                  index,
+                  activeSessions,
+                  inactiveSessions,
+                );
+              },
             ),
-    );
+          );
+  }
+
+  Future<void> _refreshSessions(WidgetRef ref) async {
   }
 
   int _calculateItemCount(
@@ -61,7 +136,7 @@ class SessionsScreen extends ConsumerWidget {
   ) {
     int count = 0;
     if (activeSessions.isNotEmpty) {
-      count += 1; // Active sessions header
+      count += 1;
       count += activeSessions.length;
     }
     if (inactiveSessions.isNotEmpty) {
@@ -80,7 +155,6 @@ class SessionsScreen extends ConsumerWidget {
   ) {
     int currentIndex = 0;
 
-    // Active sessions section
     if (activeSessions.isNotEmpty) {
       if (index == 0) {
         return _SectionHeader(title: context.l10n.sessionActiveSessions);
@@ -96,7 +170,6 @@ class SessionsScreen extends ConsumerWidget {
       currentIndex += activeSessions.length;
     }
 
-    // Inactive sessions with date grouping
     final groupedItems = groupSessionsByDate(inactiveSessions);
     if (index >= currentIndex && index < currentIndex + groupedItems.length) {
       final itemIndex = index - currentIndex;
@@ -130,17 +203,6 @@ class SessionsScreen extends ConsumerWidget {
           isSingle: isSingle,
         );
     }
-  }
-
-  Future<void> _refreshSessions(WidgetRef ref) async {
-    // Implement session refresh
-  }
-
-  void _showNewSessionDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const NewSessionDialog(),
-    );
   }
 }
 
@@ -218,15 +280,13 @@ class SessionCard extends StatelessWidget {
     final sessionSubtitle = getSessionSubtitle(session);
 
     // Determine card styling based on position
-    BorderRadiusGeometry? borderRadius;
+    BorderRadius? borderRadius;
     if (isSingle) {
       borderRadius = BorderRadius.circular(12);
     } else if (isFirst) {
-      borderRadius =
-          const BorderRadius.vertical(top: Radius.circular(12));
+      borderRadius = const BorderRadius.vertical(top: Radius.circular(12));
     } else if (isLast) {
-      borderRadius =
-          const BorderRadius.vertical(bottom: Radius.circular(12));
+      borderRadius = const BorderRadius.vertical(bottom: Radius.circular(12));
     }
 
     return Card(
@@ -453,7 +513,7 @@ class EmptySessionsView extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.chat_bubble_outline,
+            Icons.computer_outlined,
             size: 64,
             color: Colors.grey[400],
           ),
@@ -467,20 +527,34 @@ class EmptySessionsView extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            l10n.sessionStartNewToGetStarted,
+            l10n.emptyMainScreenInstallCli,
             style: TextStyle(
               fontSize: 14,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l10n.emptyMainScreenRunIt,
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l10n.emptyMainScreenScanQrCode,
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => const NewSessionDialog(),
-              );
-            },
+            onPressed: () => _SessionsListContent.showNewSessionDialog(context),
             icon: const Icon(Icons.add),
             label: Text(l10n.sessionNewSession),
           ),
@@ -513,40 +587,49 @@ class ConnectionStatusBadge extends StatelessWidget {
 }
 
 /// New session dialog.
-class NewSessionDialog extends StatefulWidget {
+class NewSessionDialog extends ConsumerStatefulWidget {
   const NewSessionDialog({super.key});
 
   @override
-  State<NewSessionDialog> createState() => _NewSessionDialogState();
+  ConsumerState<NewSessionDialog> createState() => _NewSessionDialogState();
 }
 
-class _NewSessionDialogState extends State<NewSessionDialog> {
+class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   String? _selectedPath;
   String? _selectedMachine;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final machines = ref.watch(machinesNotifierProvider).values.toList();
+    
     return AlertDialog(
       title: Text(l10n.newSessionTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          DropdownButtonFormField<String>(
-            decoration: InputDecoration(labelText: l10n.sessionMachine),
-            value: _selectedMachine,
-            items: [
-              DropdownMenuItem(
-                value: null,
-                child: Text(l10n.sessionSelectMachine),
-              ),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _selectedMachine = value;
-              });
-            },
-          ),
+          if (machines.isEmpty)
+            Text(l10n.newSessionNoMachinesFound)
+          else
+            DropdownButtonFormField<String>(
+              decoration: InputDecoration(labelText: l10n.sessionMachine),
+              value: _selectedMachine,
+              items: [
+                DropdownMenuItem(
+                  value: null,
+                  child: Text(l10n.sessionSelectMachine),
+                ),
+                ...machines.map((machine) => DropdownMenuItem(
+                      value: machine.id,
+                      child: Text(machine.metadata?.displayName ?? machine.id),
+                    )),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedMachine = value;
+                });
+              },
+            ),
           const SizedBox(height: 16),
           TextFormField(
             decoration: InputDecoration(
@@ -567,8 +650,9 @@ class _NewSessionDialogState extends State<NewSessionDialog> {
           child: Text(l10n.commonCancel),
         ),
         ElevatedButton(
-          onPressed:
-              _selectedPath != null ? () => _createSession(context) : null,
+          onPressed: _selectedPath != null && _selectedMachine != null 
+              ? () => _createSession(context) 
+              : null,
           child: Text(l10n.commonCreate),
         ),
       ],

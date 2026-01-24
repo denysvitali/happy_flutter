@@ -189,7 +189,7 @@ class _DiffViewState extends State<DiffView> {
       color: colors.lineNumberBg,
       constraints: const BoxConstraints(minWidth: 50),
       child: Text(
-        (number ?? '').toString().padStart(3),
+        (number ?? '').toString().padLeft(3, ' '),
         style: TextStyle(
           color: colors.lineNumberText,
           fontFamily: 'monospace',
@@ -298,7 +298,7 @@ class _DiffViewState extends State<DiffView> {
   }
 
   String _formatLineContent(String content) {
-    return content.trimEnd();
+    return content.trimRight();
   }
 }
 

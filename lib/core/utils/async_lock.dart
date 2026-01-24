@@ -1,3 +1,5 @@
+import 'dart:async';
+
 /// AsyncLock class for mutual exclusion pattern.
 ///
 /// Provides a mutex-like mechanism for serializing access to shared resources
@@ -62,10 +64,10 @@ class AsyncLock {
       // at the beginning of this function and let the waiting function resume.
       _permits -= 1;
 
-      final nextResolver = _promiseResolverQueue.shift();
+      final nextResolver = _promiseResolverQueue.removeAt(0);
       // Resolve on the next tick
       if (nextResolver != null) {
-        Future.value(nextResolver(true));
+        Future<void>.microtask(() => nextResolver.complete(true));
       }
     }
   }

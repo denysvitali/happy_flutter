@@ -171,10 +171,10 @@ class KvMutateError {
 }
 
 /// Success response from mutate operation
-class KvMutateSuccessResponse {
+class KvMutateSuccessResponse extends KvMutateResponse {
   final List<KvMutateResult> results;
 
-  KvMutateSuccessResponse(this.results);
+  const KvMutateSuccessResponse(this.results);
 
   factory KvMutateSuccessResponse.fromJson(Map<String, dynamic> json) {
     final results = (json['results'] as List<dynamic>)
@@ -192,10 +192,10 @@ class KvMutateSuccessResponse {
 }
 
 /// Error response from mutate operation
-class KvMutateErrorResponse {
+class KvMutateErrorResponse extends KvMutateResponse {
   final List<KvMutateError> errors;
 
-  KvMutateErrorResponse(this.errors);
+  const KvMutateErrorResponse(this.errors);
 
   factory KvMutateErrorResponse.fromJson(Map<String, dynamic> json) {
     final errors = (json['errors'] as List<dynamic>)
@@ -214,6 +214,8 @@ class KvMutateErrorResponse {
 
 /// Union type for mutate response
 sealed class KvMutateResponse {
+  const KvMutateResponse();
+
   bool get isSuccess => this is KvMutateSuccessResponse;
   bool get isError => this is KvMutateErrorResponse;
 

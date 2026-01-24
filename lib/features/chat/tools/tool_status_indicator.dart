@@ -75,7 +75,7 @@ class StatusIcon extends StatelessWidget {
       case ToolState.completed:
         return Icon(Icons.check_circle, size: size, color: effectiveColor);
       case ToolState.error:
-        return Icon(Icons.close_circle, size: size, color: effectiveColor);
+        return Icon(Icons.cancel, size: size, color: effectiveColor);
       case ToolState.pending:
         return const SizedBox.shrink();
     }

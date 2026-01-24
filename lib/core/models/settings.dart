@@ -23,6 +23,11 @@ class Settings {
   bool? reviewPromptLikedApp;
   String? voiceAssistantLanguage;
   String? preferredLanguage;
+  /// Alias for preferredLanguage to maintain compatibility with locale-based access
+  String get locale => preferredLanguage ?? '';
+  set locale(String value) {
+    preferredLanguage = value.isEmpty ? null : value;
+  }
   List<RecentMachinePath> recentMachinePaths = [];
   String? lastUsedAgent;
   String? lastUsedPermissionMode;

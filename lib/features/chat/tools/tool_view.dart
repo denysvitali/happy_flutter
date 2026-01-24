@@ -5,6 +5,7 @@ import 'elapsed_time.dart';
 import 'tool_error.dart';
 import 'known_tools.dart';
 import 'permission_footer.dart';
+import '../utils/tool_error_parser.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 
 /// Main ToolView component with header, status, and elapsed time.
@@ -239,7 +240,7 @@ class ToolView extends StatelessWidget {
               toolName != 'AskUserQuestion')
             PermissionFooter(
               permission: permission,
-              sessionId: sessionId,
+              sessionId: sessionId!,
               toolName: toolName,
               toolInput: toolInput,
             ),

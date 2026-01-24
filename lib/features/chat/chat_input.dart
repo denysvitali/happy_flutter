@@ -275,21 +275,17 @@ class _ChatInputState extends ConsumerState<ChatInput> {
       if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
         _autocompleteController.moveSelectionUp();
         setState(() {});
-        event.handled = true;
       } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
         _autocompleteController.moveSelectionDown();
         setState(() {});
-        event.handled = true;
       } else if (event.logicalKey == LogicalKeyboardKey.enter ||
           event.logicalKey == LogicalKeyboardKey.tab) {
         final selected = _autocompleteController.selectedSuggestion;
         if (selected != null) {
           _applySuggestion(selected);
-          event.handled = true;
         }
       } else if (event.logicalKey == LogicalKeyboardKey.escape) {
         _clearAutocomplete();
-        event.handled = true;
       }
     }
   }

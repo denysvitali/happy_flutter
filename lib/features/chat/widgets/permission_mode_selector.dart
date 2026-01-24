@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Permission mode options for chat input
 enum PermissionMode {
-  browse('Browse', 'Read-only access'),
-  read('Read', 'Read and write files'),
-  edit('Edit', 'Full edit access'),
+  browse,
+  read,
+  edit,
 }
 
 extension PermissionModeExtension on PermissionMode {

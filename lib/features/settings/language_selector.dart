@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/i18n/supported_locales.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
@@ -20,7 +21,7 @@ class LanguageSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsNotifierProvider);
-    final currentLocale = _parseLocale(settings.locale);
+    final currentLocale = _parseLocale(settings.preferredLanguage ?? '');
     final l10n = context.l10n;
 
     if (isFullScreen) {
@@ -36,7 +37,7 @@ class LanguageSelector extends ConsumerWidget {
               title: Text(l10n.settingsLanguageAutomatic),
               subtitle: Text(l10n.settingsLanguageAutomaticSubtitle),
               leading: const Icon(Icons.auto_awesome),
-              selected: settings.locale.isEmpty,
+                selected: (settings.preferredLanguage?.isEmpty ?? true),
               selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
               onTap: () {
                 ref.read(settingsNotifierProvider.notifier).updateSetting(
@@ -89,7 +90,7 @@ class LanguageSelector extends ConsumerWidget {
     return ListTile(
       title: Text(l10n.settingsLanguage),
       subtitle: Text(
-        settings.locale.isEmpty
+        (settings.preferredLanguage?.isEmpty ?? true)
             ? l10n.settingsLanguageAutomatic
             : getLocaleDisplayName(currentLocale),
       ),
@@ -136,7 +137,7 @@ class LanguageSelector extends ConsumerWidget {
                 return RadioListTile<String>(
                   title: Text(getLocaleDisplayName(locale)),
                   value: localeString,
-                  groupValue: ref.read(settingsNotifierProvider).locale,
+                  groupValue: ref.read(settingsNotifierProvider).preferredLanguage,
                   onChanged: (value) {
                     ref
                         .read(settingsNotifierProvider.notifier)
@@ -169,9 +170,4 @@ class LanguageSelector extends ConsumerWidget {
     return a.languageCode == b.languageCode &&
         (a.scriptCode ?? '') == (b.scriptCode ?? '');
   }
-}
-
-/// Extension to access l10n safely.
-extension on BuildContext {
-  AppLocalizations get l10n => AppLocalizations.of(this);
 }

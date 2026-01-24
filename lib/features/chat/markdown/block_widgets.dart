@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'markdown_models.dart';
 
 /// A widget that displays text with inline formatting.
@@ -44,21 +45,21 @@ class TextBlockWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSpan(MarkdownSpan span) {
+  InlineSpan _buildSpan(MarkdownSpan span) {
     final style = <InlineSpan>[];
     final textStyle = TextStyle(
       color: span.url != null ? Colors.blue : null,
       decoration: span.url != null ? TextDecoration.underline : null,
-      fontStyle: span.styles.contains(TextStyle.italic)
+      fontStyle: span.styles.contains(MarkdownTextStyle.italic)
           ? FontStyle.italic
           : null,
-      fontWeight: span.styles.contains(TextStyle.bold)
+      fontWeight: span.styles.contains(MarkdownTextStyle.bold)
           ? FontWeight.bold
-          : span.styles.contains(TextStyle.semibold)
+          : span.styles.contains(MarkdownTextStyle.semibold)
               ? FontWeight.w600
               : null,
-      fontFamily: span.styles.contains(TextStyle.code) ? 'monospace' : null,
-      backgroundColor: span.styles.contains(TextStyle.code)
+      fontFamily: span.styles.contains(MarkdownTextStyle.code) ? 'monospace' : null,
+      backgroundColor: span.styles.contains(MarkdownTextStyle.code)
           ? Colors.black12
           : null,
     );
@@ -130,7 +131,7 @@ class HeaderBlockWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSpan(MarkdownSpan span) {
+  InlineSpan _buildSpan(MarkdownSpan span) {
     final textStyle = TextStyle(
       color: span.url != null ? Colors.blue : null,
       decoration: span.url != null ? TextDecoration.underline : null,
@@ -208,18 +209,18 @@ class ListBlockWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSpan(MarkdownSpan span) {
+  InlineSpan _buildSpan(MarkdownSpan span) {
     return TextSpan(
       text: span.text,
       style: TextStyle(
-        fontStyle: span.styles.contains(TextStyle.italic)
+        fontStyle: span.styles.contains(MarkdownTextStyle.italic)
             ? FontStyle.italic
             : null,
-        fontWeight: span.styles.contains(TextStyle.bold)
+        fontWeight: span.styles.contains(MarkdownTextStyle.bold)
             ? FontWeight.bold
             : null,
-        fontFamily: span.styles.contains(TextStyle.code) ? 'monospace' : null,
-        backgroundColor: span.styles.contains(TextStyle.code)
+        fontFamily: span.styles.contains(MarkdownTextStyle.code) ? 'monospace' : null,
+        backgroundColor: span.styles.contains(MarkdownTextStyle.code)
             ? Colors.black12
             : null,
       ),
@@ -283,18 +284,18 @@ class NumberedListBlockWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSpan(MarkdownSpan span) {
+  InlineSpan _buildSpan(MarkdownSpan span) {
     return TextSpan(
       text: span.text,
       style: TextStyle(
-        fontStyle: span.styles.contains(TextStyle.italic)
+        fontStyle: span.styles.contains(MarkdownTextStyle.italic)
             ? FontStyle.italic
             : null,
-        fontWeight: span.styles.contains(TextStyle.bold)
+        fontWeight: span.styles.contains(MarkdownTextStyle.bold)
             ? FontWeight.bold
             : null,
-        fontFamily: span.styles.contains(TextStyle.code) ? 'monospace' : null,
-        backgroundColor: span.styles.contains(TextStyle.code)
+        fontFamily: span.styles.contains(MarkdownTextStyle.code) ? 'monospace' : null,
+        backgroundColor: span.styles.contains(MarkdownTextStyle.code)
             ? Colors.black12
             : null,
       ),
@@ -469,8 +470,8 @@ class TableBlockWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final columnCount = headers.length;
-    final minWidth = columnCount > 0 ? (300 / columnCount).floor().toDouble() : 100;
-    final safeMinWidth = minWidth < 100 ? 100 : minWidth;
+    final minWidth = columnCount > 0 ? (300 / columnCount).floor().toDouble() : 100.0;
+    final safeMinWidth = minWidth < 100.0 ? 100.0 : minWidth;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

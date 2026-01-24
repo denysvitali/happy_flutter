@@ -28,14 +28,14 @@ class ToolDefinition {
   final bool noStatus;
 
   /// Extract subtitle from tool data.
-  final String Function(
+  final String? Function(
     Map<String, dynamic> tool,
     Map<String, dynamic>? metadata,
   )?
   extractSubtitle;
 
   /// Extract description from tool data.
-  final String Function(
+  final String? Function(
     Map<String, dynamic> tool,
     Map<String, dynamic>? metadata,
   )?

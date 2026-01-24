@@ -9,7 +9,7 @@ import 'package:meta/meta.dart';
 @immutable
 class MarkdownSpan {
   /// Text styles applied to this span.
-  final List<TextStyle> styles;
+  final List<MarkdownTextStyle> styles;
 
   /// The actual text content.
   final String text;
@@ -37,7 +37,7 @@ class MarkdownSpan {
 }
 
 /// Text style types for inline formatting.
-enum TextStyle {
+enum MarkdownTextStyle {
   italic,
   bold,
   semibold,

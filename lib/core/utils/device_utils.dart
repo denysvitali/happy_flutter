@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 /// Device-related utility functions for calculating dimensions and detecting device types.
 ///
 /// These functions are platform-agnostic and can be used without dependencies
@@ -25,8 +27,9 @@
 
   final widthInches = widthPoints / pointsPerInch;
   final heightInches = heightPoints / pointsPerInch;
-  final diagonalInches =
-      (widthInches * widthInches + heightInches * heightInches).sqrt();
+  final diagonalInches = math.sqrt(
+    widthInches * widthInches + heightInches * heightInches,
+  );
 
   return (
     widthInches: widthInches,

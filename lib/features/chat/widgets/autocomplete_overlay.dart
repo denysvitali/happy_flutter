@@ -246,7 +246,7 @@ class _SuggestionItem extends StatelessWidget {
     }
   }
 
-  Color _getIconColor(Theme theme) {
+  Color _getIconColor(ThemeData theme) {
     switch (suggestion.type) {
       case SuggestionType.file:
         return theme.colorScheme.primary;

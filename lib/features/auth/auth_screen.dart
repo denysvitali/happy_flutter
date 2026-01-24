@@ -7,10 +7,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr/qr.dart';
 import '../../core/api/api_client.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/server_config.dart';
+import '../../core/services/storage_service.dart';
 
 /// Custom round button widget similar to happy project's RoundButton
 class RoundButton extends StatelessWidget {
@@ -190,7 +192,9 @@ class QRCodePainter extends CustomPainter {
 
 /// Authentication screen with landing page pattern
 class AuthScreen extends ConsumerStatefulWidget {
-  const AuthScreen({super.key});
+  final String? initialDeepLink;
+
+  const AuthScreen({super.key, this.initialDeepLink});
 
   @override
   ConsumerState<AuthScreen> createState() => _AuthScreenState();
@@ -203,11 +207,64 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _isPolling = false;
   String? _error;
   String? _serverError;
+  bool _isProcessingLink = false;
+  String? _linkSuccessMessage;
 
   @override
   void initState() {
     super.initState();
     _checkServerError();
+    if (widget.initialDeepLink != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleIncomingLink(widget.initialDeepLink!);
+      });
+    }
+  }
+
+  Future<void> _handleIncomingLink(String url) async {
+    setState(() {
+      _isProcessingLink = true;
+      _error = null;
+    });
+
+    try {
+      final publicKey = AuthService.parseAuthUrl(url);
+      if (publicKey == null) {
+        setState(() {
+          _error = 'Invalid QR code';
+          _isProcessingLink = false;
+        });
+        return;
+      }
+
+      final credentials = await TokenStorage().getCredentials();
+      if (credentials == null) {
+        setState(() {
+          _error = 'Please sign in first to approve device linking';
+          _isProcessingLink = false;
+        });
+        return;
+      }
+
+      final success = await AuthService().approveLinkingRequest(url);
+
+      if (success) {
+        setState(() {
+          _linkSuccessMessage = 'Device linked successfully!';
+          _isProcessingLink = false;
+        });
+      } else {
+        setState(() {
+          _error = 'Failed to link device';
+          _isProcessingLink = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Error linking device: $e';
+        _isProcessingLink = false;
+      });
+    }
   }
 
   Future<void> _checkServerError() async {
@@ -293,9 +350,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     if (e is AuthForbiddenError) {
       return '${l10n.authAccessDenied}\n${e.message}';
     } else if (e is AuthRequestError) {
-      return '${l10n.authClientError(statusCode: e.statusCode ?? 400)}\n${e.message}';
+      final statusCode = e.statusCode ?? 400;
+      return '${l10n.authClientError} ($statusCode)\n${e.message}';
     } else if (e is ServerError) {
-      return '${l10n.authServerError(statusCode: e.statusCode ?? 500)}\n${e.message}';
+      final statusCode = e.statusCode ?? 500;
+      return '${l10n.authServerError} ($statusCode)\n${e.message}';
     } else if (e is SSLError) {
       return '${l10n.authCertificateError}\n${e.message}';
     } else if (e is AuthException) {
@@ -329,8 +388,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     String? errorType;
     bool isVerifying = false;
 
-    getServerUrl().then((currentUrl) {
-      controller.text = currentUrl;
+    final currentUrl = getServerUrl();
+    controller.text = currentUrl;
 
       showGeneralDialog(
         context: context,
@@ -548,18 +607,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         if (currentUrl != defaultServerUrl) ...[
                           const SizedBox(width: 8),
                           TextButton(
-                            onPressed: () async {
-                              await setServerUrl(null);
-                              await ApiClient().refreshServerUrl();
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(context.l10n.settingsServerResetSuccess),
-                                    duration: const Duration(seconds: 3),
-                                  ),
-                                );
-                              }
+                            onPressed: () {
+                              setServerUrl(null);
+                              ApiClient().refreshServerUrl();
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(context.l10n.settingsServerResetSuccess),
+                                  duration: const Duration(seconds: 3),
+                                ),
+                              );
                             },
                             child: Text(context.l10n.settingsServerResetToDefault),
                           ),
@@ -605,8 +662,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                   }
 
                                   // Save the URL
-                                  await setServerUrl(url);
-                                  await ApiClient().refreshServerUrl();
+                                  setServerUrl(url);
+                                  ApiClient().refreshServerUrl();
 
                                   if (context.mounted) {
                                     Navigator.pop(context);
@@ -638,8 +695,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           );
         },
       );
-    });
-  }
+    }
 
   @override
   Widget build(BuildContext context) {
@@ -686,6 +742,70 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                if (_isProcessingLink) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      border: Border.all(color: Colors.blue[300]!),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Processing device link...',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: Colors.blue[700],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (_linkSuccessMessage != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      border: Border.all(color: Colors.green[300]!),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green[700]),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _linkSuccessMessage!,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: Colors.green[700],
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () {
+                            setState(() {
+                              _linkSuccessMessage = null;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 if (_serverError != null) ...[
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -1254,20 +1374,27 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 /// Authentication gate widget
 class AuthGate extends ConsumerWidget {
   final Widget child;
+  final String? initialDeepLink;
 
-  const AuthGate({super.key, required this.child});
+  const AuthGate({super.key, required this.child, this.initialDeepLink});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateNotifierProvider);
 
+    if (initialDeepLink != null && authState == AuthState.authenticated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(authStateNotifierProvider.notifier).handleDeepLink(initialDeepLink!);
+      });
+    }
+
     return switch (authState) {
       AuthState.authenticated => child,
-      AuthState.unauthenticated => const AuthScreen(),
+      AuthState.unauthenticated => AuthScreen(initialDeepLink: initialDeepLink),
       AuthState.authenticating => const Scaffold(
           body: Center(child: CircularProgressIndicator()),
         ),
-      AuthState.error => const AuthScreen(),
+      AuthState.error => AuthScreen(initialDeepLink: initialDeepLink),
     };
   }
 }

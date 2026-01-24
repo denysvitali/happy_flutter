@@ -51,8 +51,8 @@ enum SyntaxTokenType {
   punctuation,
   default_;
 
-  static SyntaxTokenType fromString(String type) {
-    return switch (type) {
+  static SyntaxTokenType fromString(String str) {
+    return switch (str) {
       'keyword' => keyword,
       'controlFlow' => controlFlow,
       'type' => type,
@@ -124,7 +124,7 @@ class SyntaxTokenizer {
         final matches = pattern.regex.allMatches(line);
         for (final match in matches) {
           final tokenText = pattern.captureGroup != null
-              ? match.group(pattern.captureGroup)!
+              ? match.group(pattern.captureGroup!)!
               : match.group(0)!;
           final tokenStart = pattern.captureGroup != null
               ? match.start + match.group(0)!.indexOf(tokenText)
@@ -237,7 +237,7 @@ class SyntaxTokenizer {
 
       // Strings and regex
       _TokenPattern(
-        RegExp(r'(r?["\'`])((?:(?!\1)[^\\]|\\.)*)(\1)'),
+        RegExp(r'''(r?["'`])((?:(?!\1)[^\\]|\\.)*)(\1)'''),
         SyntaxTokenType.string,
       ),
       _TokenPattern(
@@ -530,37 +530,61 @@ String? detectLanguage(String? languageHint) {
   final normalized = languageHint.toLowerCase().trim();
 
   // Map common language names
-  return switch (normalized) {
-    'js' | 'javascript' | 'jsx' => 'javascript',
-    'ts' | 'typescript' | 'tsx' => 'typescript',
-    'py' | 'python' => 'python',
-    'rb' | 'ruby' => 'ruby',
-    'java' => 'java',
-    'go' | 'golang' => 'go',
-    'rs' | 'rust' => 'rust',
-    'c' | 'cpp' | 'c++' => 'cpp',
-    'cs' | 'csharp' => 'csharp',
-    'php' => 'php',
-    'swift' => 'swift',
-    'kt' | 'kotlin' => 'kotlin',
-    'scala' => 'scala',
-    'r' => 'r',
-    'lua' => 'lua',
-    'perl' | 'pl' => 'perl',
-    'ex' | 'elixir' => 'elixir',
-    'hs' | 'haskell' => 'haskell',
-    'ml' | 'ocaml' => 'ocaml',
-    'fs' | 'fsharp' => 'fsharp',
-    'sh' | 'bash' | 'shell' => 'bash',
-    'yml' | 'yaml' => 'yaml',
-    'json' => 'json',
-    'xml' => 'xml',
-    'html' => 'html',
-    'css' => 'css',
-    'scss' | 'sass' => 'scss',
-    'sql' => 'sql',
-    'md' | 'markdown' => 'markdown',
-    'dockerfile' | 'docker' => 'dockerfile',
-    _ => normalized,
+  const languageMap = {
+    'js': 'javascript',
+    'javascript': 'javascript',
+    'jsx': 'javascript',
+    'ts': 'typescript',
+    'typescript': 'typescript',
+    'tsx': 'typescript',
+    'py': 'python',
+    'python': 'python',
+    'rb': 'ruby',
+    'ruby': 'ruby',
+    'java': 'java',
+    'go': 'go',
+    'golang': 'go',
+    'rs': 'rust',
+    'rust': 'rust',
+    'c': 'cpp',
+    'cpp': 'cpp',
+    'c++': 'cpp',
+    'cs': 'csharp',
+    'csharp': 'csharp',
+    'php': 'php',
+    'swift': 'swift',
+    'kt': 'kotlin',
+    'kotlin': 'kotlin',
+    'scala': 'scala',
+    'r': 'r',
+    'lua': 'lua',
+    'perl': 'perl',
+    'pl': 'perl',
+    'ex': 'elixir',
+    'elixir': 'elixir',
+    'hs': 'haskell',
+    'haskell': 'haskell',
+    'ml': 'ocaml',
+    'ocaml': 'ocaml',
+    'fs': 'fsharp',
+    'fsharp': 'fsharp',
+    'sh': 'bash',
+    'bash': 'bash',
+    'shell': 'bash',
+    'yml': 'yaml',
+    'yaml': 'yaml',
+    'json': 'json',
+    'xml': 'xml',
+    'html': 'html',
+    'css': 'css',
+    'scss': 'scss',
+    'sass': 'scss',
+    'sql': 'sql',
+    'md': 'markdown',
+    'markdown': 'markdown',
+    'dockerfile': 'dockerfile',
+    'docker': 'dockerfile',
   };
+
+  return languageMap[normalized] ?? normalized;
 }

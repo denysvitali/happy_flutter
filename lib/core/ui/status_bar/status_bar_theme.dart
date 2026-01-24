@@ -12,7 +12,7 @@ enum StatusBarStyle {
 class StatusBarConfig {
   final StatusBarStyle style;
   final bool animate;
-  final SystemUiOverlay? overlayStyle;
+  final SystemUiOverlayStyle? overlayStyle;
 
   const StatusBarConfig({
     this.style = StatusBarStyle.automatic,
@@ -23,7 +23,7 @@ class StatusBarConfig {
   StatusBarConfig copyWith({
     StatusBarStyle? style,
     bool? animate,
-    SystemUiOverlay? overlayStyle,
+    SystemUiOverlayStyle? overlayStyle,
   }) {
     return StatusBarConfig(
       style: style ?? this.style,
@@ -120,7 +120,7 @@ class NavigationBarTheme {
   final Color? selectedItemColor;
   final Color? indicatorColor;
   final SystemUiMode? systemNavigationBarMode;
-  final SystemUiOverlay? systemNavigationBarOverlay;
+  final SystemUiOverlayStyle? systemNavigationBarOverlay;
 
   const NavigationBarTheme({
     this.backgroundColor,
@@ -137,7 +137,7 @@ class NavigationBarTheme {
     Color? selectedItemColor,
     Color? indicatorColor,
     SystemUiMode? systemNavigationBarMode,
-    SystemUiOverlay? systemNavigationBarOverlay,
+    SystemUiOverlayStyle? systemNavigationBarOverlay,
   }) {
     return NavigationBarTheme(
       backgroundColor: backgroundColor ?? this.backgroundColor,

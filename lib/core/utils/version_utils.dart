@@ -1,7 +1,12 @@
+import 'dart:math' as math;
+
 /// Version comparison and validation utilities.
 ///
 /// Provides functions for comparing semantic versions, checking minimum
 /// version requirements, and parsing version strings.
+
+/// Minimum required CLI version for full compatibility
+const String minimumCliVersion = '0.10.0';
 
 /// Compare two semantic version strings.
 ///
@@ -17,7 +22,7 @@ int compareVersions(String version1, String version2) {
   final v2Parts = cleanVersion(version2).split('.').map(int.tryParse).toList();
 
   // Pad with zeros if needed
-  final maxLength = max(v1Parts.length, v2Parts.length);
+  final maxLength = math.max(v1Parts.length, v2Parts.length);
   while (v1Parts.length < maxLength) {
     v1Parts.add(null);
   }

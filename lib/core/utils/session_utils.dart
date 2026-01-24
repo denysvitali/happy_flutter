@@ -95,7 +95,8 @@ String getSessionName(Session session) {
   if (session.metadata?.summary != null) {
     return session.metadata!.summary!.text;
   } else if (session.metadata != null) {
-    final segments = session.metadata!.path.split('/').where((e) => e.isNotEmpty);
+    final path = session.metadata!.path ?? '';
+    final segments = path.split('/').where((e) => e.isNotEmpty);
     final lastSegment = segments.isNotEmpty ? segments.last : null;
     if (lastSegment == null) {
       return 'Unknown';
@@ -146,10 +147,13 @@ String formatPathRelativeToHome(String path, {String? homeDir}) {
 /// Returns the session path for the subtitle display.
 String getSessionSubtitle(Session session) {
   if (session.metadata != null) {
-    return formatPathRelativeToHome(
-      session.metadata!.path,
-      homeDir: session.metadata!.homeDir,
-    );
+    final path = session.metadata!.path;
+    if (path != null) {
+      return formatPathRelativeToHome(
+        path,
+        homeDir: session.metadata!.homeDir,
+      );
+    }
   }
   return 'Unknown';
 }
@@ -217,4 +221,34 @@ String formatLastSeen(int activeAt, {bool isActive = false}) {
     }
     return '${date.month}/${date.day}/${date.year}';
   }
+}
+
+/// Formats a timestamp into a human-readable relative time string.
+String formatTimestamp(int timestamp, {bool relative = false}) {
+  final now = DateTime.now().millisecondsSinceEpoch;
+  final diffMs = now - timestamp;
+  final diffSeconds = (diffMs / 1000).floor();
+  final diffMinutes = (diffSeconds / 60).floor();
+  final diffHours = (diffMinutes / 60).floor();
+  final diffDays = (diffHours / 24).floor();
+
+  if (relative) {
+    if (diffSeconds < 60) {
+      return 'Just now';
+    } else if (diffMinutes < 60) {
+      return '$diffMinutes min ago';
+    } else if (diffHours < 24) {
+      return '$diffHours hr ago';
+    } else if (diffDays < 7) {
+      return '$diffDays days ago';
+    }
+  }
+
+  // Format as date
+  final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
+  final nowYear = DateTime.now().year;
+  if (date.year == nowYear) {
+    return '${date.month}/${date.day}';
+  }
+  return '${date.month}/${date.day}/${date.year}';
 }

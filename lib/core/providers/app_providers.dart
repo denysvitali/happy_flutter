@@ -22,6 +22,7 @@ final authStateNotifierProvider =
 
 class AuthStateNotifier extends Notifier<AuthState> {
   final _authService = AuthService();
+  String? _pendingDeepLink;
 
   @override
   AuthState build() {
@@ -33,8 +34,28 @@ class AuthStateNotifier extends Notifier<AuthState> {
     try {
       final isAuth = await _authService.isAuthenticated();
       state = isAuth ? AuthState.authenticated : AuthState.unauthenticated;
+      if (isAuth && _pendingDeepLink != null) {
+        await _handleDeepLink(_pendingDeepLink!);
+        _pendingDeepLink = null;
+      }
     } catch (e) {
       state = AuthState.error;
+    }
+  }
+
+  void handleDeepLink(String url) {
+    if (state == AuthState.authenticated) {
+      _handleDeepLink(url);
+    } else {
+      _pendingDeepLink = url;
+    }
+  }
+
+  Future<void> _handleDeepLink(String url) async {
+    try {
+      await _authService.approveLinkingRequest(url);
+    } catch (e) {
+      print('Failed to handle deep link: $e');
     }
   }
 

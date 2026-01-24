@@ -20,20 +20,28 @@ class Metadata {
 /// If metadata is not provided, returns the original path.
 ///
 /// [path] - The path to resolve (always treated as relative to the metadata root)
-/// [metadata] - Optional metadata containing the root path
+/// [metadata] - Optional metadata containing the root path (can be Map or Metadata)
 ///
 /// Returns the resolved absolute path
-String resolvePath(String path, Metadata? metadata) {
+String resolvePath(String path, dynamic metadata) {
   if (metadata == null) {
     return path;
   }
-  final normalizedRoot = metadata.path.toLowerCase();
+  
+  String metadataPath;
+  if (metadata is Metadata) {
+    metadataPath = metadata.path;
+  } else if (metadata is Map<String, dynamic>) {
+    metadataPath = metadata['path'] as String? ?? '';
+  } else {
+    return path;
+  }
+  
+  final normalizedRoot = metadataPath.toLowerCase();
   final pathLower = path.toLowerCase();
 
   if (pathLower.startsWith(normalizedRoot)) {
-    // Check that the path is actually within the metadata path by ensuring
-    // there's either an exact match or a path separator after the metadata path
-    final remainder = path.substring(metadata.path.length);
+    final remainder = path.substring(metadataPath.length);
     if (remainder.isEmpty || remainder.startsWith('/') || remainder.startsWith('\\')) {
       var out = remainder;
       if (out.startsWith('/') || out.startsWith('\\')) {

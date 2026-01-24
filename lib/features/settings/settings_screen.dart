@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/certificate_provider.dart';
@@ -44,7 +45,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 24),
           buildAboutSection(context),
           const SizedBox(height: 24),
-          buildSignOutSection(ref),
+          buildSignOutSection(context, ref),
         ],
       ),
     );
@@ -160,10 +161,10 @@ class SettingsScreen extends ConsumerWidget {
   Widget buildVoiceSection(BuildContext context) {
     final l10n = context.l10n;
     return SettingsSection(
-      title: l10n.settingsTitle,
+      title: 'Voice',
       children: [
         ListTile(
-          title: Text(l10n.settingsTitle),
+          title: const Text('Voice Settings'),
           subtitle: const Text('Configure ElevenLabs voice'),
           leading: const Icon(Icons.record_voice_over),
           trailing: const Icon(Icons.chevron_right),
@@ -176,7 +177,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget buildAIProfilesSection(BuildContext context) {
     final l10n = context.l10n;
     return SettingsSection(
-      title: l10n.settingsTitle,
+      title: l10n.settingsProfiles,
       children: [
         ListTile(
           title: Text(l10n.settingsProfiles),
@@ -363,18 +364,16 @@ class SettingsScreen extends ConsumerWidget {
             ),
             if (currentUrl != defaultServerUrl)
               TextButton(
-                onPressed: () async {
-                  await setServerUrl(null);
-                  await ApiClient().refreshServerUrl();
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(context.l10n.settingsServerResetSuccess),
-                        duration: const Duration(seconds: 3),
-                      ),
-                    );
-                  }
+                onPressed: () {
+                  setServerUrl(null);
+                  ApiClient().refreshServerUrl();
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(context.l10n.settingsServerResetSuccess),
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
                 },
                 child: Text(context.l10n.settingsServerResetToDefault),
               ),
@@ -413,8 +412,8 @@ class SettingsScreen extends ConsumerWidget {
                       }
 
                       // Save the URL
-                      await setServerUrl(url);
-                      await ApiClient().refreshServerUrl();
+                      setServerUrl(url);
+                      ApiClient().refreshServerUrl();
 
                       if (context.mounted) {
                         Navigator.pop(context);
@@ -461,14 +460,14 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget buildSignOutSection(WidgetRef ref) {
+  Widget buildSignOutSection(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     return SettingsSection(
       children: [
         ListTile(
           title: Text(l10n.settingsSignOut, style: const TextStyle(color: Colors.red)),
           leading: const Icon(Icons.logout, color: Colors.red),
-          onTap: () => confirmSignOut(ref),
+          onTap: () => confirmSignOut(context, ref),
         ),
       ],
     );
@@ -506,10 +505,10 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void confirmSignOut(WidgetRef ref) {
-    final l10n = ref.context.l10n;
+  void confirmSignOut(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     showDialog(
-      context: ref.context,
+      context: context,
       builder: (context) => AlertDialog(
         title: Text(l10n.settingsSignOut),
         content: Text(l10n.settingsSignOutConfirm),

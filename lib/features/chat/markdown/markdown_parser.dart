@@ -261,7 +261,7 @@ class _MarkdownParser {
       if (match.group(1) != null) {
         final boldText = match.group(2)!;
         spans.add(MarkdownSpan(
-          styles: isHeader ? [] : [TextStyle.bold],
+          styles: isHeader ? [] : [MarkdownTextStyle.bold],
           text: boldText,
           url: null,
         ));
@@ -270,7 +270,7 @@ class _MarkdownParser {
       else if (match.group(3) != null) {
         final italicText = match.group(4)!;
         spans.add(MarkdownSpan(
-          styles: isHeader ? [] : [TextStyle.italic],
+          styles: isHeader ? [] : [MarkdownTextStyle.italic],
           text: italicText,
           url: null,
         ));
@@ -289,7 +289,7 @@ class _MarkdownParser {
       else if (match.group(8) != null) {
         final codeText = match.group(9)!;
         spans.add(MarkdownSpan(
-          styles: [TextStyle.code],
+          styles: [MarkdownTextStyle.code],
           text: codeText,
           url: null,
         ));

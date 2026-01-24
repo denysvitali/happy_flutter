@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:ed25519_edwards/ed25519_edwards.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import '../api/api_client.dart';
+import '../encryption/crypto_box.dart';
 import '../models/auth.dart';
 import '../models/profile.dart';
 import 'encryption_service.dart';
@@ -22,13 +23,9 @@ class AuthService {
   /// Start QR authentication
   /// Returns the public key to display in QR code
   Future<Uint8List> startQRAuth() async {
-    // Generate random seed for keypair
     final seed = _encryption.randomBytes(32);
-
-    // Generate keypair from seed
     final keypair = await _generateKeypair(seed);
 
-    // Send auth request to server
     await _apiClient.post(
       '/v1/auth/account/request',
       data: {
@@ -41,19 +38,11 @@ class AuthService {
 
   /// Create a new account
   Future<void> createAccount() async {
-    // Generate a random secret
     final secret = _encryption.randomBytes(32);
-
-    // Generate keypair from secret
     final keypair = await _generateKeypair(secret);
-
-    // Generate a challenge
     final challenge = _encryption.randomBytes(32);
-
-    // Sign the challenge with our private key
     final signature = await _signChallenge(challenge, keypair.privateKey);
 
-    // Request a new token from the server
     Response response;
     try {
       response = await _apiClient.post(
@@ -65,7 +54,6 @@ class AuthService {
         },
       );
     } on DioException catch (e) {
-      // Handle Dio-specific errors
       if (e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.connectionTimeout) {
         throw AuthException('Connection failed: ${e.message}');
@@ -97,10 +85,8 @@ class AuthService {
       final data = response.data as Map<String, dynamic>;
       final token = data['token'] as String;
 
-      // Initialize encryption with the secret
       await _encryption.initialize(secret);
 
-      // Store credentials
       final credentials =
           AuthCredentials(token: token, secret: base64Encode(secret));
       await TokenStorage().setCredentials(credentials);
@@ -129,11 +115,10 @@ class AuthService {
   /// Wait for authentication approval
   Future<AuthCredentials> waitForAuthApproval(Uint8List publicKey) async {
     final startTime = DateTime.now().millisecondsSinceEpoch;
-    final timeout = 120000; // 2 minutes
+    final timeout = 120000;
 
     while (DateTime.now().millisecondsSinceEpoch - startTime < timeout) {
       try {
-        // Poll for auth token
         final response = await _apiClient.post(
           '/v1/auth/account/wait',
           data: {
@@ -141,7 +126,6 @@ class AuthService {
           },
         );
 
-        // Check for 403 Forbidden - indicates server rejected the request
         if (response.statusCode == 403) {
           final serverResponse = _extractErrorMessage(response.data);
           throw AuthForbiddenError(
@@ -151,7 +135,6 @@ class AuthService {
           );
         }
 
-        // Check for other client errors (4xx)
         if (response.statusCode != null &&
             response.statusCode! >= 400 &&
             response.statusCode! < 500) {
@@ -163,7 +146,6 @@ class AuthService {
           );
         }
 
-        // Check for server errors (5xx)
         if (response.statusCode != null && response.statusCode! >= 500) {
           throw ServerError(
             'Please try again later.',
@@ -176,14 +158,11 @@ class AuthService {
           final token = data['token'] as String;
           final encryptedSecret = data['secret'] as String;
 
-          // Decrypt the secret using our keypair
           final secret = await _decryptAuthSecret(encryptedSecret);
 
           if (secret != null) {
-            // Initialize encryption with the secret
             await _encryption.initialize(secret);
 
-            // Store credentials
             final credentials =
                 AuthCredentials(token: token, secret: base64Encode(secret));
             await TokenStorage().setCredentials(credentials);
@@ -191,13 +170,11 @@ class AuthService {
             return credentials;
           }
         } else if (response.statusCode == 202) {
-          // Still waiting, continue polling with reduced frequency
           await Future.delayed(const Duration(milliseconds: 2500));
         } else {
           throw Exception('Unexpected response: ${response.statusCode}');
         }
       } on DioException catch (e) {
-        // Handle Dio-specific errors
         if (e.type == DioExceptionType.connectionError ||
             e.type == DioExceptionType.connectionTimeout) {
           debugPrint('Connection error during auth polling: ${e.message}');
@@ -223,8 +200,6 @@ class AuthService {
           await Future.delayed(const Duration(milliseconds: 2500));
         }
       } catch (e) {
-        // Check if it's a network-related SSL error using string checks
-        // (dart:io exceptions not available on web)
         final errorStr = e.toString();
         if (errorStr.contains('Handshake') ||
             errorStr.contains('Tls') ||
@@ -245,10 +220,8 @@ class AuthService {
 
   /// Complete authentication with token
   Future<AuthCredentials> completeAuth(String token, Uint8List secret) async {
-    // Initialize encryption with the secret
     await _encryption.initialize(secret);
 
-    // Store credentials
     final credentials =
         AuthCredentials(token: token, secret: base64Encode(secret));
     await TokenStorage().setCredentials(credentials);
@@ -269,13 +242,11 @@ class AuthService {
     }
 
     try {
-      // Verify token is still valid
       await _verifyToken(credentials.token);
       return AuthState.authenticated;
     } catch (e) {
-      // Check if it's a 403 - token is invalid/revoked
       if (e is AuthForbiddenError) {
-        await signOut(); // Clean up invalid credentials
+        await signOut();
         return AuthState.unauthenticated;
       }
       return AuthState.error;
@@ -305,21 +276,12 @@ class AuthService {
   }
 
   /// Restore account from backup key
-  /// Takes a formatted backup key (XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)
   Future<AuthCredentials> restoreAccount(String formattedKey) async {
-    // Decode the backup key
     final secret = BackupKeyUtils.decodeKey(formattedKey);
-
-    // Generate keypair from secret
     final keypair = await _generateKeypair(secret);
-
-    // Generate a challenge
     final challenge = _encryption.randomBytes(32);
-
-    // Sign the challenge with our private key
     final signature = await _signChallenge(challenge, keypair.privateKey);
 
-    // Request account restoration
     Response response;
     try {
       response = await _apiClient.post(
@@ -362,10 +324,8 @@ class AuthService {
       final data = response.data as Map<String, dynamic>;
       final token = data['token'] as String;
 
-      // Initialize encryption with the secret
       await _encryption.initialize(secret);
 
-      // Store credentials
       final credentials =
           AuthCredentials(token: token, secret: base64Encode(secret));
       await TokenStorage().setCredentials(credentials);
@@ -417,70 +377,80 @@ class AuthService {
   }
 
   /// Start device linking process
-  /// Returns a linking token to display in QR code
   Future<DeviceLinkingResult> startDeviceLinking() async {
-    // Generate a random seed for the linking keypair
     final seed = _encryption.randomBytes(32);
-
-    // Generate keypair from seed
     final keypair = await _generateKeypair(seed);
+    final serverUrl = _apiClient.getCurrentServerUrl();
+    final encodedPublicKey = base64Encode(keypair.publicKey);
 
-    // Request linking from server
-    final response = await _apiClient.post(
-      '/v1/devices/link/start',
-      data: {
-        'publicKey': base64Encode(keypair.publicKey),
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final data = response.data as Map<String, dynamic>;
-      final linkingId = data['linking_id'] as String;
+    try {
+      await _apiClient.post(
+        '/v1/auth/account/request',
+        data: {
+          'publicKey': encodedPublicKey,
+        },
+      );
 
       return DeviceLinkingResult(
-        linkingId: linkingId,
+        linkingId: encodedPublicKey,
         publicKey: keypair.publicKey,
         secret: seed,
       );
-    } else {
-      throw AuthException('Failed to start device linking: ${response.statusCode}');
+    } on DioException catch (e) {
+      final errorMessage = '''
+========================================
+Device Linking Error
+========================================
+Server URL: $serverUrl
+Endpoint: /v1/auth/account/request
+Public Key: ${encodedPublicKey.substring(0, 30)}...
+Status Code: ${e.response?.statusCode}
+Response: ${e.response?.data}
+Timestamp: ${DateTime.now().toIso8601String()}
+========================================
+''';
+      print(errorMessage);
+
+      throw AuthException('Failed to start device linking: ${e.response?.statusCode}');
     }
   }
 
   /// Wait for device linking approval
-  Future<AuthCredentials> waitForLinkingApproval(String linkingId) async {
+  Future<AuthCredentials> waitForLinkingApproval(String publicKey) async {
     final startTime = DateTime.now().millisecondsSinceEpoch;
-    final timeout = 120000; // 2 minutes
+    final timeout = 120000;
 
     while (DateTime.now().millisecondsSinceEpoch - startTime < timeout) {
       try {
         final response = await _apiClient.post(
-          '/v1/devices/link/wait',
-          data: {'linking_id': linkingId},
+          '/v1/auth/account/request',
+          data: {'publicKey': publicKey},
         );
 
-        if (response.statusCode == 200) {
+        if (response.statusCode == 200 && response.data != null) {
           final data = response.data as Map<String, dynamic>;
-          final token = data['token'] as String;
-          final encryptedSecret = data['secret'] as String;
+          final state = data['state'] as String?;
 
-          // Decrypt the secret
-          final secret = await _decryptAuthSecret(encryptedSecret);
+          if (state == 'authorized') {
+            final token = data['token'] as String;
+            final encryptedResponse = data['response'] as String;
 
-          if (secret != null) {
-            await _encryption.initialize(secret);
+            final secret = await _decryptAuthSecret(encryptedResponse);
 
-            final credentials =
-                AuthCredentials(token: token, secret: base64Encode(secret));
-            await TokenStorage().setCredentials(credentials);
+            if (secret != null) {
+              await _encryption.initialize(secret);
 
-            return credentials;
+              final credentials =
+                  AuthCredentials(token: token, secret: base64Encode(secret));
+              await TokenStorage().setCredentials(credentials);
+
+              return credentials;
+            }
+          } else {
+            await Future.delayed(const Duration(milliseconds: 2500));
           }
-        } else if (response.statusCode == 202) {
-          // Still waiting
-          await Future.delayed(const Duration(milliseconds: 2500));
         } else {
-          throw AuthException('Unexpected response: ${response.statusCode}');
+          await Future.delayed(const Duration(milliseconds: 2500));
         }
       } on DioException catch (e) {
         if (e.type == DioExceptionType.connectionError ||
@@ -563,16 +533,13 @@ class AuthService {
 
   /// Generate Ed25519 keypair from seed
   Future<_KeyPair> _generateKeypair(Uint8List seed) async {
-    // Ed25519 requires a 32-byte seed
     if (seed.length != 32) {
       throw ArgumentError('Seed must be exactly 32 bytes');
     }
 
-    // Generate Ed25519 keypair from seed
     final privateKey = newKeyFromSeed(seed);
     final publicKey = public(privateKey);
 
-    // Convert to Uint8List for storage and use
     return _KeyPair(
       privateKey: Uint8List.fromList(privateKey.bytes),
       publicKey: Uint8List.fromList(publicKey.bytes),
@@ -583,7 +550,6 @@ class AuthService {
   Future<Uint8List?> _decryptAuthSecret(String encryptedBase64) async {
     try {
       final encrypted = base64Decode(encryptedBase64);
-      // Simplified - in production use proper Box decryption
       return _encryption.decryptSecretBox(encrypted);
     } catch (e) {
       debugPrint('Failed to decrypt auth secret: $e');
@@ -626,16 +592,85 @@ class AuthService {
       );
     }
 
-    // Wrap the private key bytes in a PrivateKey object
     final privateKeyObj = PrivateKey(privateKey);
-
-    // Ed25519 detached signature
     final signature = sign(privateKeyObj, challenge);
     return signature;
   }
+
+  /// Parse a happy:// URL and extract the public key
+  /// Supports formats:
+  /// - happy://terminal?<base64_public_key>
+  /// - happy:///account?<base64_public_key>
+  static Uint8List? parseAuthUrl(String url) {
+    try {
+      if (!url.startsWith('happy://')) {
+        return null;
+      }
+
+      final terminalPrefix = 'happy://terminal?';
+      final accountPrefix = 'happy:///account?';
+
+      String base64Key;
+      if (url.startsWith(terminalPrefix)) {
+        base64Key = url.substring(terminalPrefix.length);
+      } else if (url.startsWith(accountPrefix)) {
+        base64Key = url.substring(accountPrefix.length);
+      } else {
+        return null;
+      }
+
+      base64Key = base64Key.replaceAll('-', '+').replaceAll('_', '/');
+
+      final padding = base64Key.length % 4;
+      if (padding != 0) {
+        base64Key += '=' * (4 - padding);
+      }
+
+      return base64Decode(base64Key);
+    } catch (e) {
+      debugPrint('Failed to parse auth URL: $e');
+      return null;
+    }
+  }
+
+  /// Approve a device linking request from a happy:// URL
+  Future<bool> approveLinkingRequest(String url) async {
+    final publicKey = parseAuthUrl(url);
+    if (publicKey == null) {
+      throw AuthException('Invalid auth URL format');
+    }
+
+    return approveLinkingWithPublicKey(publicKey);
+  }
+
+  /// Approve a device linking request with a public key
+  Future<bool> approveLinkingWithPublicKey(Uint8List requesterPublicKey) async {
+    final credentials = await TokenStorage().getCredentials();
+    if (credentials == null) {
+      throw AuthException('Not authenticated');
+    }
+
+    final secret = base64Decode(credentials.secret);
+    final keypair = await _generateKeypair(secret);
+
+    final encryptedResponse = await CryptoBox.encrypt(
+      secret,
+      requesterPublicKey,
+      keypair.privateKey,
+    );
+
+    final response = await _apiClient.post(
+      '/v1/auth/account/response',
+      data: {
+        'publicKey': base64Encode(requesterPublicKey),
+        'response': base64Encode(encryptedResponse),
+      },
+    );
+
+    return response.statusCode == 200;
+  }
 }
 
-/// Result of starting a device linking process
 class DeviceLinkingResult {
   final String linkingId;
   final Uint8List publicKey;
@@ -648,8 +683,14 @@ class DeviceLinkingResult {
   });
 
   /// Get the QR code data for this linking
+  /// Format: happy:///account?<base64url_public_key>
   String getQRData() {
-    return 'happy://link/$linkingId';
+    final base64Key = base64Encode(publicKey);
+    final base64UrlKey = base64Key
+        .replaceAll('+', '-')
+        .replaceAll('/', '_')
+        .replaceAll('=', '');
+    return 'happy:///account?$base64UrlKey';
   }
 }
 
@@ -660,7 +701,6 @@ class _KeyPair {
   _KeyPair({required this.privateKey, required this.publicKey});
 }
 
-/// Custom exception for 403 Forbidden authentication errors
 class AuthForbiddenError extends AuthException {
   final String? serverResponse;
   final String? diagnosticInfo;
@@ -684,7 +724,6 @@ class AuthForbiddenError extends AuthException {
   }
 }
 
-/// Custom exception for client request errors (4xx)
 class AuthRequestError extends AuthException {
   final int? statusCode;
   final String? serverResponse;
@@ -705,7 +744,6 @@ class AuthRequestError extends AuthException {
   }
 }
 
-/// Custom exception for server errors (5xx)
 class ServerError extends AuthException {
   final int? statusCode;
 
@@ -717,7 +755,6 @@ class ServerError extends AuthException {
   }
 }
 
-/// Custom exception for SSL/TLS errors
 class SSLError extends AuthException {
   final String? certificateInfo;
 

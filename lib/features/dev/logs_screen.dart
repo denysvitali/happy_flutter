@@ -3,9 +3,9 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:material_symbols_icons/material_symbols_icons.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/providers/logger_provider.dart';
+import '../../core/utils/datetime_extensions.dart';
 
 /// Debug logs screen - only available in debug builds
 class LogsScreen extends ConsumerWidget {
@@ -22,7 +22,7 @@ class LogsScreen extends ConsumerWidget {
         actions: [
           // Add test log button
           IconButton(
-            icon: const Icon(Symbols.add),
+            icon: const Icon(Icons.add),
             tooltip: 'Add Test Log',
             onPressed: () {
               final timestamp = DateTime.now().toIsoTimeString();
@@ -32,7 +32,7 @@ class LogsScreen extends ConsumerWidget {
           ),
           // Copy all logs
           IconButton(
-            icon: const Icon(Symbols.content_copy),
+            icon: const Icon(Icons.copy),
             tooltip: 'Copy All Logs',
             onPressed: filteredLogs.isEmpty
                 ? null
@@ -40,38 +40,38 @@ class LogsScreen extends ConsumerWidget {
           ),
           // Clear logs
           IconButton(
-            icon: const Icon(Symbols.delete_sweep),
+            icon: const Icon(Icons.delete_sweep),
             tooltip: 'Clear Logs',
             onPressed: filteredLogs.isEmpty
                 ? null
                 : () => _showClearConfirmDialog(context, ref),
           ),
           // Filter dropdown
-          PopupMenuButton<int?>(
-            icon: const Icon(Symbols.filter_list),
+          PopupMenuButton<LogLevel?>(
+            icon: const Icon(Icons.filter_list),
             tooltip: 'Filter by Level',
             onSelected: (value) {
-              ref.read(loggerNotifierProvider.notifier).setFilterLevel(value);
+              ref.read(loggerNotifierProvider.notifier).setFilterLevel(value?.index);
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              const PopupMenuItem<LogLevel?>(
                 value: null,
                 child: Text('All Levels'),
               ),
-              const PopupMenuItem(
-                value: LogLevel.debug.index,
+              const PopupMenuItem<LogLevel?>(
+                value: LogLevel.debug,
                 child: Text('Debug'),
               ),
-              const PopupMenuItem(
-                value: LogLevel.info.index,
+              const PopupMenuItem<LogLevel?>(
+                value: LogLevel.info,
                 child: Text('Info'),
               ),
-              const PopupMenuItem(
-                value: LogLevel.warning.index,
+              const PopupMenuItem<LogLevel?>(
+                value: LogLevel.warning,
                 child: Text('Warning'),
               ),
-              const PopupMenuItem(
-                value: LogLevel.error.index,
+              const PopupMenuItem<LogLevel?>(
+                value: LogLevel.error,
                 child: Text('Error'),
               ),
             ],
@@ -111,7 +111,7 @@ class LogsScreen extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Symbols.note,
+                          Icons.note,
                           size: 48,
                           color: Theme.of(context).colorScheme.outline,
                         ),
@@ -221,13 +221,13 @@ class LogEntryWidget extends StatelessWidget {
   IconData _getLevelIcon() {
     switch (entry.level) {
       case LogLevel.debug:
-        return Symbols.bug_report;
+        return Icons.bug_report;
       case LogLevel.info:
-        return Symbols.info;
+        return Icons.info;
       case LogLevel.warning:
-        return Symbols.warning;
+        return Icons.warning;
       case LogLevel.error:
-        return Symbols.error;
+        return Icons.error;
     }
   }
 

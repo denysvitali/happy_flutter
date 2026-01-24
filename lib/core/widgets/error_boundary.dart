@@ -70,7 +70,6 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
 
   @override
   void onError(FlutterErrorDetails errorDetails) {
-    super.onError(errorDetails);
     setState(() {
       _error = errorDetails.exception;
       _stackTrace = errorDetails.stack;
@@ -257,12 +256,12 @@ class _DefaultErrorWidget extends StatelessWidget {
 
 /// Global error snackbar manager for showing errors from anywhere in the app
 class ErrorSnackbarManager {
-  static final GlobalKey<ScaffoldMessengerState> _scaffoldKey =
+  static GlobalKey<ScaffoldMessengerState> _scaffoldKey =
       GlobalKey<ScaffoldMessengerState>();
 
   /// Initialize the snackbar manager with a scaffold messenger key
   static void init(GlobalKey<ScaffoldMessengerState> key) {
-    _scaffoldKey.key = key.currentState;
+    _scaffoldKey = key;
   }
 
   /// Show an error snackbar

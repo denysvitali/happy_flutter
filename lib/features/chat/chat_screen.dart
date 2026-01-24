@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/models/message.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
@@ -177,7 +178,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(context.l10n.chatFailedToSend(error: e.toString()))));
+        ).showSnackBar(SnackBar(content: Text('${context.l10n.chatFailedToSend}: ${e.toString()}')));
         _controller.text = text;
       }
     }

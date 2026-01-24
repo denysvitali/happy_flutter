@@ -1,4 +1,6 @@
 /// Diff token for inline highlighting
+import 'package:flutter/material.dart';
+
 class DiffToken {
   final String value;
   final bool added;
@@ -212,21 +214,21 @@ class DiffTheme {
   final Color leadingSpaceDot;
 
   const DiffTheme({
-    this.addedBg = Color(0xFFDaf8e5),
-    this.addedText = Color(0xFF1a7f37),
-    this.removedBg = Color(0xFFffebe9),
-    this.removedText = Color(0xFFcf222e),
+    this.addedBg = const Color(0xFFDAF8E5),
+    this.addedText = const Color(0xFF1A7F37),
+    this.removedBg = const Color(0xFFFFEBE9),
+    this.removedText = const Color(0xFFCF222E),
     this.contextBg = Colors.transparent,
-    this.contextText = Color(0xFF1f2328),
-    this.lineNumberBg = Color(0xFFF6F8FA),
-    this.lineNumberText = Color(0xFF656d76),
-    this.hunkHeaderBg = Color(0xFFf6f8fa),
-    this.hunkHeaderText = Color(0xFF656d76),
-    this.inlineAddedBg = Color(0xFFdaf8e5),
-    this.inlineAddedText = Color(0xFF1a7f37),
-    this.inlineRemovedBg = Color(0xFFffebe9),
-    this.inlineRemovedText = Color(0xFFcf222e),
-    this.leadingSpaceDot = Color(0xFFd0d7de),
+    this.contextText = const Color(0xFF1F2328),
+    this.lineNumberBg = const Color(0xFFF6F8FA),
+    this.lineNumberText = const Color(0xFF656D76),
+    this.hunkHeaderBg = const Color(0xFFF6F8FA),
+    this.hunkHeaderText = const Color(0xFF656D76),
+    this.inlineAddedBg = const Color(0xFFDAF8E5),
+    this.inlineAddedText = const Color(0xFF1A7F37),
+    this.inlineRemovedBg = const Color(0xFFFFEBE9),
+    this.inlineRemovedText = const Color(0xFFCF222E),
+    this.leadingSpaceDot = const Color(0xFFD0D7DE),
   });
 
   DiffTheme copyWith({

@@ -14,7 +14,7 @@ class MessageWidget extends StatelessWidget {
   final Map<String, dynamic>? metadata;
   final List<Map<String, dynamic>>? messages;
   final String? sessionId;
-  final void Function(Map<String, dynamic>)? onOptionPress;
+  final void Function(String)? onOptionPress;
 
   const MessageWidget({
     super.key,
@@ -61,17 +61,13 @@ class MessageWidget extends StatelessWidget {
               SelectionArea(
                 child: MarkdownView(
                   markdown: text,
-                  onOptionPress: onOptionPress ?? _handleOptionPress,
+                  onOptionPress: onOptionPress,
                 ),
               ),
           ],
         ),
       ),
     );
-  }
-
-  void _handleOptionPress(Map<String, dynamic> option) {
-    onOptionPress?.call(option);
   }
 }
 

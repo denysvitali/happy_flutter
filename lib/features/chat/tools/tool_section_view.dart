@@ -11,26 +11,21 @@ class ToolSectionView extends StatelessWidget {
   /// The content to display in the section.
   final List<Widget> children;
 
+  /// Optional single child (alternative to children).
+  final Widget? child;
+
   const ToolSectionView({
     super.key,
     this.title,
     this.fullWidth = false,
-    required this.children,
+    this.children = const [],
+    this.child,
   });
-
-  const ToolSectionView.single({
-    super.key,
-    this.title,
-    this.fullWidth = false,
-    required this.child,
-  });
-
-  /// The single child when using the factory constructor.
-  final Widget? child;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final effectiveChildren = child != null ? [child!] : children;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -56,14 +51,14 @@ class ToolSectionView extends StatelessWidget {
               ),
             ),
           if (fullWidth)
-            ...children
+            ...effectiveChildren
           else
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
-                children: children,
+                children: effectiveChildren,
               ),
             ),
         ],

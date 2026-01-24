@@ -84,7 +84,7 @@ class KvService {
   /// Uses optimistic concurrency control with version numbers
   Future<KvMutateResponse> mutate(List<KvMutation> mutations) async {
     if (mutations.isEmpty) {
-      return KvMutateResponse.success([]);
+      return KvMutateSuccessResponse([]);
     }
 
     if (mutations.length > 100) {
