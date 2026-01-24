@@ -94,7 +94,7 @@ class QRCodeDisplay extends StatelessWidget {
       ),
       child: CustomPaint(
         size: Size(size, size),
-        painter: QRCodePainter(data: data),
+        painter: QRCodePainter(data: data, size: size),
       ),
     );
   }
@@ -102,10 +102,9 @@ class QRCodeDisplay extends StatelessWidget {
 
 class QRCodePainter extends CustomPainter {
   final String data;
-  final int modules;
   final double size;
 
-  QRCodePainter({required this.data, this.modules = 21, this.size = 250});
+  QRCodePainter({required this.data, required this.size});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -113,39 +112,16 @@ class QRCodePainter extends CustomPainter {
       ..color = Colors.black
       ..style = PaintingStyle.fill;
 
-    final double cellSize = size.width / modules;
-    final int hash = data.hashCode.abs();
+    final qrCode = QrCode(8, QrErrorCorrectLevel.L);
+    qrCode.addData(data);
+    final qrImage = QrImage(qrCode);
 
-    // Draw position detection patterns (corners)
-    _drawPositionPattern(canvas, paint, 0, 0, cellSize);
-    _drawPositionPattern(canvas, paint, size.width - 7 * cellSize, 0, cellSize);
-    _drawPositionPattern(
-      canvas,
-      paint,
-      0,
-      size.height - 7 * cellSize,
-      cellSize,
-    );
+    final moduleCount = qrImage.moduleCount;
+    final cellSize = size.width / moduleCount;
 
-    // Draw timing patterns
-    for (int i = 8; i < modules - 1; i++) {
-      if (i % 2 == 0) {
-        canvas.drawRect(
-          Rect.fromLTWH(i * cellSize, 6 * cellSize, cellSize, cellSize),
-          paint,
-        );
-        canvas.drawRect(
-          Rect.fromLTWH(6 * cellSize, i * cellSize, cellSize, cellSize),
-          paint,
-        );
-      }
-    }
-
-    // Draw data modules based on hash for consistent pattern
-    final random = Random(hash);
-    for (int row = 8; row < modules - 8; row++) {
-      for (int col = 8; col < modules - 8; col++) {
-        if (random.nextBool()) {
+    for (int row = 0; row < moduleCount; row++) {
+      for (int col = 0; col < moduleCount; col++) {
+        if (qrImage.isDark(row, col)) {
           canvas.drawRect(
             Rect.fromLTWH(col * cellSize, row * cellSize, cellSize, cellSize),
             paint,
@@ -155,39 +131,10 @@ class QRCodePainter extends CustomPainter {
     }
   }
 
-  void _drawPositionPattern(
-    Canvas canvas,
-    Paint paint,
-    double x,
-    double y,
-    double cellSize,
-  ) {
-    // Outer 7x7 black square
-    canvas.drawRect(Rect.fromLTWH(x, y, 7 * cellSize, 7 * cellSize), paint);
-
-    // Inner 5x5 white square
-    final whitePaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    canvas.drawRect(
-      Rect.fromLTWH(x + cellSize, y + cellSize, 5 * cellSize, 5 * cellSize),
-      whitePaint,
-    );
-
-    // Center 3x3 black square
-    canvas.drawRect(
-      Rect.fromLTWH(
-        x + 2 * cellSize,
-        y + 2 * cellSize,
-        3 * cellSize,
-        3 * cellSize,
-      ),
-      paint,
-    );
-  }
-
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return oldDelegate is! QRCodePainter || oldDelegate.data != data;
+  }
 }
 
 /// Authentication screen with landing page pattern

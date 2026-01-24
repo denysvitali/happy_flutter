@@ -9,6 +9,7 @@ import '../models/artifact.dart';
 import '../models/feed.dart';
 import '../models/todo.dart';
 import '../api/websocket_client.dart' show ConnectionStatus, WebSocketClient;
+import '../api/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 
@@ -34,9 +35,16 @@ class AuthStateNotifier extends Notifier<AuthState> {
     try {
       final isAuth = await _authService.isAuthenticated();
       state = isAuth ? AuthState.authenticated : AuthState.unauthenticated;
-      if (isAuth && _pendingDeepLink != null) {
-        await _handleDeepLink(_pendingDeepLink!);
-        _pendingDeepLink = null;
+      if (isAuth) {
+        // Set the token on ApiClient when authenticated
+        final credentials = await TokenStorage().getCredentials();
+        if (credentials != null) {
+          ApiClient().updateToken(credentials.token);
+        }
+        if (_pendingDeepLink != null) {
+          await _handleDeepLink(_pendingDeepLink!);
+          _pendingDeepLink = null;
+        }
       }
     } catch (e) {
       state = AuthState.error;

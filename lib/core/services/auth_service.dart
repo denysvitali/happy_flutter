@@ -90,6 +90,7 @@ class AuthService {
       final credentials =
           AuthCredentials(token: token, secret: base64Encode(secret));
       await TokenStorage().setCredentials(credentials);
+      _apiClient.updateToken(token);
     } else if (response.statusCode == 409) {
       throw AuthRequestError(
         'Account already exists',
@@ -166,6 +167,7 @@ class AuthService {
             final credentials =
                 AuthCredentials(token: token, secret: base64Encode(secret));
             await TokenStorage().setCredentials(credentials);
+            _apiClient.updateToken(token);
 
             return credentials;
           }
@@ -329,6 +331,7 @@ class AuthService {
       final credentials =
           AuthCredentials(token: token, secret: base64Encode(secret));
       await TokenStorage().setCredentials(credentials);
+      _apiClient.updateToken(token);
 
       return credentials;
     } else if (response.statusCode == 404) {
@@ -423,34 +426,58 @@ Timestamp: ${DateTime.now().toIso8601String()}
     while (DateTime.now().millisecondsSinceEpoch - startTime < timeout) {
       try {
         final response = await _apiClient.post(
-          '/v1/auth/account/request',
+          '/v1/auth/account/wait',
           data: {'publicKey': publicKey},
         );
 
-        if (response.statusCode == 200 && response.data != null) {
+        if (response.statusCode == 403) {
+          final serverResponse = _extractErrorMessage(response.data);
+          throw AuthForbiddenError(
+            'Device linking rejected by server (403).',
+            serverResponse: serverResponse,
+            diagnosticInfo: _getDiagnosticInfo(response),
+          );
+        }
+
+        if (response.statusCode != null &&
+            response.statusCode! >= 400 &&
+            response.statusCode! < 500) {
+          final errorMsg = _extractErrorMessage(response.data);
+          throw AuthRequestError(
+            errorMsg,
+            statusCode: response.statusCode,
+            serverResponse: response.data?.toString(),
+          );
+        }
+
+        if (response.statusCode != null && response.statusCode! >= 500) {
+          throw ServerError(
+            'Please try again later.',
+            statusCode: response.statusCode,
+          );
+        }
+
+        if (response.statusCode == 200) {
           final data = response.data as Map<String, dynamic>;
-          final state = data['state'] as String?;
+          final token = data['token'] as String;
+          final encryptedSecret = data['secret'] as String;
 
-          if (state == 'authorized') {
-            final token = data['token'] as String;
-            final encryptedResponse = data['response'] as String;
+          final secret = await _decryptAuthSecret(encryptedSecret);
 
-            final secret = await _decryptAuthSecret(encryptedResponse);
+          if (secret != null) {
+            await _encryption.initialize(secret);
 
-            if (secret != null) {
-              await _encryption.initialize(secret);
+            final credentials =
+                AuthCredentials(token: token, secret: base64Encode(secret));
+            await TokenStorage().setCredentials(credentials);
+            _apiClient.updateToken(token);
 
-              final credentials =
-                  AuthCredentials(token: token, secret: base64Encode(secret));
-              await TokenStorage().setCredentials(credentials);
-
-              return credentials;
-            }
-          } else {
-            await Future.delayed(const Duration(milliseconds: 2500));
+            return credentials;
           }
-        } else {
+        } else if (response.statusCode == 202) {
           await Future.delayed(const Duration(milliseconds: 2500));
+        } else {
+          throw Exception('Unexpected response: ${response.statusCode}');
         }
       } on DioException catch (e) {
         if (e.type == DioExceptionType.connectionError ||
