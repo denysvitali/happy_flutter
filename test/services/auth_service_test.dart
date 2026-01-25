@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/auth.dart';
-import 'package:happy_flutter/core/services/auth_service.dart' hide AuthForbiddenError, AuthRequestError, ServerError, SSLError;
+import 'package:happy_flutter/core/services/auth_service.dart';
 import 'package:mockito/mockito.dart';
 
 void main() {
