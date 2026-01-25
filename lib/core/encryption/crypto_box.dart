@@ -2,7 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sodium/sodium.dart';
 
-import 'web_crypto.dart' if (dart.library.html) 'web_crypto.dart';
+import 'web_crypto.dart' if (dart.library.html) 'web_crypto_web.dart';
 
 /// Constants for encryption (libsodium compatible)
 class CryptoBoxConstants {
@@ -34,13 +34,14 @@ class CryptoBox {
   /// Generate keypair from seed (libsodium compatible)
   static Future<KeyPair> keypairFromSeed(Uint8List seed) async {
     final sodium = await _sodiumInstance;
+    // sodium v3.1.0 API: seedKeypair takes raw Uint8List, not wrapped
     final keypair = sodium.crypto.box.seedKeypair(
-      SeedKey(seed),
+      seed,
     );
     return KeyPair(
-      publicKey: keypair.publicKey.asTypedList,
-      privateKey: keypair.secretKey.asTypedList,
-      secretKey: keypair.secretKey.asTypedList,
+      publicKey: keypair.publicKey,
+      privateKey: keypair.secretKey,
+      secretKey: keypair.secretKey,
     );
   }
 
@@ -49,9 +50,9 @@ class CryptoBox {
     final sodium = await _sodiumInstance;
     final keypair = sodium.crypto.box.keypair();
     return KeyPair(
-      publicKey: keypair.publicKey.asTypedList,
-      privateKey: keypair.secretKey.asTypedList,
-      secretKey: keypair.secretKey.asTypedList,
+      publicKey: keypair.publicKey,
+      privateKey: keypair.secretKey,
+      secretKey: keypair.secretKey,
     );
   }
 
@@ -75,11 +76,12 @@ class CryptoBox {
     final nonce = await randomNonce();
 
     // Encrypt using libsodium crypto_box_easy
+    // sodium v3.1.0 API: takes raw Uint8List values, not wrapped types
     final encrypted = sodium.crypto.box.easy(
-      Message(data),
-      Nonce(nonce),
-      PublicKey(recipientPublicKey),
-      SecretKey(senderSecretKey),
+      data,
+      nonce,
+      recipientPublicKey,
+      senderSecretKey,
     );
 
     // Bundle format: ephemeral public key (32 bytes) + nonce (24 bytes) + encrypted data
@@ -92,7 +94,7 @@ class CryptoBox {
     result.setAll(CryptoBoxConstants.publicKeyBytes, nonce);
     result.setAll(
       CryptoBoxConstants.publicKeyBytes + CryptoBoxConstants.nonceBytes,
-      encrypted.asTypedList,
+      encrypted,
     );
 
     return result;
@@ -128,14 +130,15 @@ class CryptoBox {
       final sodium = await _sodiumInstance;
 
       // Decrypt using libsodium crypto_box.openEasy
+      // sodium v3.1.0 API: takes raw Uint8List values, not wrapped types
       final decrypted = sodium.crypto.box.openEasy(
-        CipherText(encrypted),
-        Nonce(nonce),
-        PublicKey(ephemeralPublicKey),
-        SecretKey(recipientSecretKey),
+        encrypted,
+        nonce,
+        ephemeralPublicKey,
+        recipientSecretKey,
       );
 
-      return decrypted.asTypedList;
+      return decrypted;
     } catch (e) {
       return null;
     }

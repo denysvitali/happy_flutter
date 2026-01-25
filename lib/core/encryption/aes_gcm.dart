@@ -5,7 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cryptography/cryptography.dart';
 import 'base64.dart';
-import 'web_crypto.dart' if (dart.library.html) 'web_crypto.dart';
+import 'web_crypto.dart' if (dart.library.html) 'web_crypto_web.dart';
 
 /// True AES-256-GCM encryption implementation.
 ///

@@ -2,7 +2,7 @@ import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sodium/sodium.dart';
-import 'web_crypto.dart' if (dart.library.html) 'web_crypto.dart';
+import 'web_crypto.dart' if (dart.library.html) 'web_crypto_web.dart';
 
 /// CryptoSecretBox encryption using libsodium (crypto_secretbox_easy)
 /// Compatible with React Native's @more-tech/react-native-libsodium
@@ -33,15 +33,15 @@ class CryptoSecretBox {
 
     // Encrypt using libsodium crypto_secretbox_easy
     final encrypted = sodium.crypto.secretbox.easy(
-      Message(dataBytes),
-      Nonce(nonce),
-      SecretKey(key),
+      dataBytes,
+      nonce,
+      key,
     );
 
     // Bundle format: nonce + encrypted data
     final result = Uint8List(nonce.length + encrypted.length);
     result.setAll(0, nonce);
-    result.setAll(nonce.length, encrypted.asTypedList);
+    result.setAll(nonce.length, encrypted);
 
     return result;
   }
@@ -67,12 +67,12 @@ class CryptoSecretBox {
 
       // Decrypt using libsodium crypto_secretbox.openEasy
       final decrypted = sodium.crypto.secretbox.openEasy(
-        CipherText(encrypted),
-        Nonce(nonce),
-        SecretKey(key),
+        encrypted,
+        nonce,
+        key,
       );
 
-      final jsonString = utf8.decode(decrypted.asTypedList);
+      final jsonString = utf8.decode(decrypted);
       return jsonDecode(jsonString);
     } catch (e) {
       return null;

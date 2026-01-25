@@ -57,3 +57,57 @@ class ExpiredError extends AuthError {
 class UnknownError extends AuthError {
   UnknownError([super.message]);
 }
+
+/// Server error (5xx)
+class ServerError implements Exception {
+  final String message;
+  final int? statusCode;
+
+  const ServerError(
+    this.message, {
+    this.statusCode,
+  });
+
+  @override
+  String toString() => 'ServerError: $message${statusCode != null ? ' (status: $statusCode)' : ''}';
+}
+
+/// Auth forbidden error (403)
+class AuthForbiddenError implements Exception {
+  final String message;
+  final String? serverResponse;
+
+  const AuthForbiddenError(
+    this.message, {
+    this.serverResponse,
+  });
+
+  @override
+  String toString() => 'AuthForbiddenError: $message';
+}
+
+/// Auth request error (4xx)
+class AuthRequestError implements Exception {
+  final String message;
+  final int? statusCode;
+  final String? serverResponse;
+
+  const AuthRequestError(
+    this.message, {
+    this.statusCode,
+    this.serverResponse,
+  });
+
+  @override
+  String toString() => 'AuthRequestError: $message${statusCode != null ? ' (status: $statusCode)' : ''}';
+}
+
+/// SSL/TLS error
+class SSLError implements Exception {
+  final String message;
+
+  const SSLError(this.message);
+
+  @override
+  String toString() => 'SSLError: $message';
+}
