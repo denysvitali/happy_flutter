@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.example.happy_flutter"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "28.2.13676358"
 
     compileOptions {
@@ -28,7 +28,7 @@ android {
     defaultConfig {
         applicationId = "com.example.happy_flutter"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
