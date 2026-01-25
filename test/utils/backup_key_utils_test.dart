@@ -63,11 +63,13 @@ void main() {
 
         final encoded = BackupKeyUtils.encodeKey(key);
 
+        // Crockford's base32 charset (excluding confusing characters)
+        const validChars = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
         final withoutDashes = encoded.replaceAll('-', '');
         for (final char in withoutDashes.runes) {
           final charStr = String.fromCharCode(char);
           expect(
-            BackupKeyUtils._base32Chars.contains(charStr),
+            validChars.contains(charStr),
             isTrue,
             reason: '$charStr should be in base32 charset',
           );

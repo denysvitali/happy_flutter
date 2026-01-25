@@ -2,14 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/auth.dart';
-import 'package:happy_flutter/core/services/auth_service.dart';
+import 'package:happy_flutter/core/services/auth_service.dart' hide AuthForbiddenError, AuthRequestError, ServerError, SSLError;
 import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
-import 'package:dio/dio.dart';
-
-// Generate mocks with: dart run build_runner build --delete-conflicting-outputs
-@GenerateMocks([Dio])
-import 'auth_service_test.mocks.dart';
 
 void main() {
   group('AuthService', () {
@@ -116,7 +110,7 @@ void main() {
 
     group('AuthCredentials Serialization', () {
       test('toJson creates correct JSON structure', () {
-        const credentials = AuthCredentials(
+        final credentials = AuthCredentials(
           token: 'test-token-123',
           secret: 'test-secret-456',
         );
@@ -160,7 +154,7 @@ void main() {
       });
 
       test('AuthForbiddenError includes server response', () {
-        const error = AuthForbiddenError(
+        final error = AuthForbiddenError(
           'Access denied',
           serverResponse: 'Invalid token',
           diagnosticInfo: 'User ID: 123',
@@ -175,7 +169,7 @@ void main() {
       });
 
       test('AuthRequestError includes status code', () {
-        const error = AuthRequestError(
+        final error = AuthRequestError(
           'Bad request',
           statusCode: 400,
           serverResponse: 'Missing field',
@@ -189,7 +183,7 @@ void main() {
       });
 
       test('ServerError includes status code', () {
-        const error = ServerError('Internal error', statusCode: 500);
+        final error = ServerError('Internal error', statusCode: 500);
 
         expect(error.message, 'Internal error');
         expect(error.statusCode, 500);
@@ -198,7 +192,7 @@ void main() {
       });
 
       test('SSLError includes certificate info', () {
-        const error = SSLError(
+        final error = SSLError(
           'Certificate validation failed',
           certificateInfo: 'CN:example.com',
         );
@@ -221,29 +215,29 @@ void main() {
 
     group('AuthError Subclasses', () {
       test('NetworkError can be created', () {
-        const error = NetworkError('Connection failed');
+        final error = NetworkError('Connection failed');
         expect(error.message, 'Connection failed');
         expect(error.messageText, 'Connection failed');
       });
 
       test('NetworkError without message', () {
-        const error = NetworkError();
+        final error = NetworkError();
         expect(error.message, isNull);
         expect(error.messageText, 'Unknown error');
       });
 
       test('InvalidQRError can be created', () {
-        const error = InvalidQRError('Invalid QR format');
+        final error = InvalidQRError('Invalid QR format');
         expect(error.message, 'Invalid QR format');
       });
 
       test('ExpiredError can be created', () {
-        const error = ExpiredError('Session expired');
+        final error = ExpiredError('Session expired');
         expect(error.message, 'Session expired');
       });
 
       test('UnknownError can be created', () {
-        const error = UnknownError('Unexpected error');
+        final error = UnknownError('Unexpected error');
         expect(error.message, 'Unexpected error');
       });
     });
@@ -301,22 +295,22 @@ void main() {
 
     group('Error Type Hierarchy', () {
       test('AuthForbiddenError extends AuthException', () {
-        const error = AuthForbiddenError('Test');
+        final error = AuthForbiddenError('Test');
         expect(error, isA<AuthException>());
       });
 
       test('AuthRequestError extends AuthException', () {
-        const error = AuthRequestError('Test');
+        final error = AuthRequestError('Test');
         expect(error, isA<AuthException>());
       });
 
       test('ServerError extends AuthException', () {
-        const error = ServerError('Test');
+        final error = ServerError('Test');
         expect(error, isA<AuthException>());
       });
 
       test('SSLError extends AuthException', () {
-        const error = SSLError('Test');
+        final error = SSLError('Test');
         expect(error, isA<AuthException>());
       });
     });
