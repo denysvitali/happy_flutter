@@ -24,3 +24,15 @@ plugins {
 }
 
 include(":app")
+
+// Fix for uni_links plugin missing namespace with AGP 8+
+// This handles the namespace requirement for older plugins
+gradle.beforeProject { project ->
+    if (project.name == "uni_links") {
+        project.afterEvaluate {
+            project.extensions.findByType(com.android.build.gradle.LibraryExtension::class.java)?.apply {
+                namespace = "com.yullg.uni_links"
+            }
+        }
+    }
+}
