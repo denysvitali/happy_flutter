@@ -60,7 +60,7 @@ jobs:
         run: flutter pub get
 
       - name: Analyze code
-        run: flutter analyze --fatal-warnings=false
+        run: flutter analyze --no-fatal-warnings
 
   build-debug:
     name: Build Debug APK
