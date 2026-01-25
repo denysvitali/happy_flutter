@@ -196,21 +196,16 @@ class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver
 
   Future<void> _initUniLinks() async {
     if (!kIsWeb) {
-      try {
-        final uri = await _appLinks.getInitialAppLink();
-        if (uri != null && mounted) {
-          setState(() {
-            _initialUri = uri;
-          });
-          _handleDeepLink(uri);
-        }
-      } catch (e) {
-        print('Error getting initial app link URI: $e');
-      }
-
+      // Subscribe to all events (initial link and further)
+      // The uriLinkStream emits the initial link when app starts in cold state
       _appLinksSubscription = _appLinks.uriLinkStream.listen(
         (Uri? uri) {
           if (uri != null && mounted) {
+            if (_initialUri == null) {
+              setState(() {
+                _initialUri = uri;
+              });
+            }
             _handleDeepLink(uri);
           }
         },
@@ -246,16 +241,9 @@ class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver
   }
 
   Future<void> _checkForDeepLink() async {
-    if (!kIsWeb) {
-      try {
-        final uri = await _appLinks.getInitialAppLink();
-        if (uri != null && uri.scheme == 'happy') {
-          _handleDeepLink(uri);
-        }
-      } catch (e) {
-        print('Error checking for deep link on resume: $e');
-      }
-    }
+    // Note: app_links uriLinkStream handles both initial and subsequent links
+    // The stream will emit when app is resumed if there's a new link
+    // No need to manually check for initial link
   }
 
   @override
