@@ -6,7 +6,10 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'markdown_models.dart';
+import '../syntax_highlighter.dart';
 
 /// A widget that displays text with inline formatting.
 ///
@@ -75,8 +78,11 @@ class TextBlockWidget extends StatelessWidget {
     return TextSpan(text: span.text, style: textStyle);
   }
 
-  void _launchUrl(String url) {
-    // URL launching is handled by the parent widget via callback
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 }
 
@@ -148,8 +154,11 @@ class HeaderBlockWidget extends StatelessWidget {
     return TextSpan(text: span.text, style: textStyle);
   }
 
-  void _launchUrl(String url) {
-    // URL launching is handled by the parent widget via callback
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 }
 
@@ -304,7 +313,14 @@ class NumberedListBlockWidget extends StatelessWidget {
 }
 
 /// A widget that displays a code block with optional syntax highlighting.
-class CodeBlockWidget extends StatelessWidget {
+///
+/// Features:
+/// - Syntax highlighting with language detection
+/// - 5-color bracket nesting for depth visualization
+/// - Hover-to-reveal copy button
+/// - Language badge display
+/// - Text selection support
+class CodeBlockWidget extends StatefulWidget {
   final String content;
   final String? language;
   final bool isFirst;
@@ -319,49 +335,165 @@ class CodeBlockWidget extends StatelessWidget {
   });
 
   @override
+  State<CodeBlockWidget> createState() => _CodeBlockWidgetState();
+}
+
+class _CodeBlockWidgetState extends State<CodeBlockWidget> {
+  bool _showCopyButton = false;
+  bool _copied = false;
+
+  bool get _isDarkMode => Theme.of(context).brightness == Brightness.dark;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final backgroundColor = _isDarkMode
+        ? const Color(0xFF1E1E1E)
+        : const Color(0xFFF8F8F8);
+    final borderColor = _isDarkMode
+        ? const Color(0xFF303030)
+        : const Color(0xFFE0E0E0);
+    final headerBackground = _isDarkMode
+        ? const Color(0xFF2C2C2E)
+        : const Color(0xFFF0F0F0);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (language != null)
+    final detectedLanguage = detectLanguage(widget.language);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _showCopyButton = true),
+      onExit: (_) => setState(() => _showCopyButton = false),
+      child: Container(
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          border: Border.all(color: borderColor),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header with language badge and copy button
+            if (widget.language != null || _showCopyButton)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: headerBackground,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(7),
+                  ),
+                  border: Border(
+                    bottom: BorderSide(color: borderColor),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Language badge
+                    if (widget.language != null)
+                      _buildLanguageBadge(theme, detectedLanguage),
+                    const Spacer(),
+                    // Copy button (hover-to-reveal)
+                    AnimatedOpacity(
+                      opacity: _showCopyButton ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 150),
+                      child: _buildCopyButton(theme),
+                    ),
+                  ],
+                ),
+              ),
+            // Code content with syntax highlighting
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-              child: Text(
-                language!,
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
-                ),
-              ),
-            ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.all(12),
-            child: SelectionArea(
-              child: Text(
-                content,
-                style: TextStyle(
-                  fontFamily: 'monospace',
+              padding: const EdgeInsets.all(12),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SyntaxHighlighter(
+                  code: widget.content,
+                  language: detectedLanguage,
+                  isDarkMode: _isDarkMode,
                   fontSize: 14,
-                  height: 1.4,
-                  color: theme.colorScheme.onSurfaceVariant,
+                  lineHeight: 20,
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _buildLanguageBadge(ThemeData theme, String? detectedLanguage) {
+    final badgeColor = _isDarkMode
+        ? const Color(0xFF38383A)
+        : const Color(0xFFE5E5EA);
+    final textColor = _isDarkMode
+        ? const Color(0xFF8E8E93)
+        : const Color(0xFF6B7280);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: badgeColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        (detectedLanguage ?? widget.language!).toUpperCase(),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: textColor,
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCopyButton(ThemeData theme) {
+    final iconColor = _isDarkMode
+        ? const Color(0xFFCAC4D0)
+        : const Color(0xFF49454F);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _copyToClipboard,
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _copied ? Icons.check : Icons.content_copy,
+                size: 14,
+                color: iconColor,
+              ),
+              if (_copied)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text(
+                    'Copied',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: iconColor,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _copyToClipboard() async {
+    await Clipboard.setData(ClipboardData(text: widget.content));
+    setState(() => _copied = true);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() => _copied = false);
+      }
+    });
   }
 }
 

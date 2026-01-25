@@ -25,10 +25,157 @@ class _MermaidBlockWidgetState extends State<MermaidBlockWidget> {
   bool _isLoading = true;
   bool _hasError = false;
   String? _errorMessage;
+  WebViewController? _controller;
 
   @override
   void initState() {
     super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (_) {
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+            }
+          },
+          onWebResourceError: (error) {
+            if (mounted && !_hasError) {
+              setState(() {
+                _hasError = true;
+                _errorMessage = error.description;
+                _isLoading = false;
+              });
+            }
+          },
+        ),
+      );
+  }
+
+  @override
+  void didUpdateWidget(MermaidBlockWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.content != widget.content) {
+      setState(() {
+        _isLoading = true;
+        _hasError = false;
+        _errorMessage = null;
+      });
+      _loadMermaid();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller = null;
+    super.dispose();
+  }
+
+  void _loadMermaid() {
+    if (_controller == null) return;
+
+    final theme = Theme.of(context);
+    final backgroundColor = _colorToHex(theme.colorScheme.surfaceVariant);
+    final textColor = _colorToHex(theme.colorScheme.onSurfaceVariant);
+    final errorColor = _colorToHex(theme.colorScheme.error);
+
+    final html = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            padding: 16px;
+            background-color: $backgroundColor;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: $textColor;
+            overflow-x: hidden;
+        }
+        #mermaid-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            min-height: 100px;
+        }
+        .mermaid {
+            text-align: center;
+            width: 100%;
+        }
+        .mermaid svg {
+            max-width: 100%;
+            height: auto;
+        }
+        .error-message {
+            padding: 12px;
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid $errorColor;
+            border-radius: 4px;
+            color: $errorColor;
+            text-align: center;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="mermaid-container" class="mermaid">
+        ${_escapeHtml(widget.content)}
+    </div>
+    <script>
+        (function() {
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: 'default',
+                securityLevel: 'loose',
+                logLevel: 'error'
+            });
+
+            mermaid.run({
+                nodes: ['.mermaid']
+            }).then(function(result) {
+                // Success - diagram rendered
+                if (window.FlutterChannel) {
+                    window.FlutterChannel.postMessage(JSON.stringify({type: 'success'}));
+                }
+            }).catch(function(error) {
+                // Error - show error message
+                console.error('Mermaid error:', error);
+                var container = document.getElementById('mermaid-container');
+                container.innerHTML = '<div class="error-message">Mermaid diagram syntax error</div>';
+                if (window.FlutterChannel) {
+                    window.FlutterChannel.postMessage(JSON.stringify({
+                        type: 'error',
+                        message: error.message || 'Syntax error'
+                    }));
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
+''';
+
+    _controller!.loadHtmlString(html);
+  }
+
+  String _escapeHtml(String text) {
+    return text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
   }
 
   @override
@@ -43,67 +190,16 @@ class _MermaidBlockWidgetState extends State<MermaidBlockWidget> {
   }
 
   Widget _buildWebView(ThemeData theme) {
-    final backgroundColor = _colorToHex(theme.colorScheme.surfaceVariant);
-    final textColor = _colorToHex(theme.colorScheme.onSurfaceVariant);
+    if (_controller == null) {
+      return const SizedBox.shrink();
+    }
 
-    final html = '''
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-    <style>
-        body {
-            margin: 0;
-            padding: 16px;
-            background-color: $backgroundColor;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            color: $textColor;
-        }
-        #mermaid-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-        }
-        .mermaid {
-            text-align: center;
-            width: 100%;
-        }
-        .mermaid svg {
-            max-width: 100%;
-            height: auto;
-        }
-        .error-message {
-            padding: 12px;
-            background-color: ${_colorToHex(theme.colorScheme.errorContainer ?? Colors.red.shade100)};
-            border-radius: 4px;
-            color: ${_colorToHex(theme.colorScheme.onErrorContainer ?? Colors.red)};
-        }
-    </style>
-</head>
-<body>
-    <div id="mermaid-container" class="mermaid">
-        ${widget.content}
-    </div>
-    <script>
-        mermaid.initialize({
-            startOnLoad: true,
-            theme: 'default',
-            securityLevel: 'loose'
-        });
-        mermaid.run({
-            nodes: ['.mermaid']
-        }).catch(function(error) {
-            var container = document.getElementById('mermaid-container');
-            container.innerHTML = '<div class="error-message">Syntax error in diagram</div>';
-            console.error('Mermaid error:', error);
-        });
-    </script>
-</body>
-</html>
-''';
+    // Trigger the load on first build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_isLoading) {
+        _loadMermaid();
+      }
+    });
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -126,22 +222,9 @@ class _MermaidBlockWidgetState extends State<MermaidBlockWidget> {
             ),
           SizedBox(
             height: _isLoading ? 0 : null,
-            child: WebViewWidget(
-              controller: WebViewController()
-                ..setJavaScriptMode(JavaScriptMode.unrestricted)
-                ..setBackgroundColor(theme.colorScheme.surfaceVariant)
-                ..setNavigationDelegate(
-                  NavigationDelegate(
-                    onPageFinished: (_) {
-                      if (mounted) {
-                        setState(() {
-                          _isLoading = false;
-                        });
-                      }
-                    },
-                  ),
-                )
-                ..loadHtmlString(html),
+            child: SizedBox(
+              height: _isLoading ? 0 : 200,
+              child: WebViewWidget(controller: _controller!),
             ),
           ),
         ],
@@ -161,13 +244,23 @@ class _MermaidBlockWidgetState extends State<MermaidBlockWidget> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'Mermaid diagram syntax error',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
-              color: theme.colorScheme.error,
-            ),
+          Row(
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: theme.colorScheme.error,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Mermaid diagram syntax error',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ],
           ),
           if (_errorMessage != null) ...[
             const SizedBox(height: 8),
@@ -181,6 +274,7 @@ class _MermaidBlockWidgetState extends State<MermaidBlockWidget> {
           ],
           const SizedBox(height: 12),
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,

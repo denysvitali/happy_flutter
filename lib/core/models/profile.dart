@@ -1,147 +1,222 @@
 /// User profile model
+/// Matches React Native schema from sources/sync/profile.ts
 class Profile {
   final String id;
-  final String email;
-  final String? name;
-  final String? avatarUrl;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
+  final int timestamp;
+  final String? firstName;
+  final String? lastName;
+  final ImageRef? avatar;
   final GitHubProfile? github;
-  final Map<String, dynamic>? rawData;
+  final List<String> connectedServices;
 
-  Profile({
+  const Profile({
     required this.id,
-    required this.email,
-    this.name,
-    this.avatarUrl,
-    this.createdAt,
-    this.updatedAt,
+    this.timestamp = 0,
+    this.firstName,
+    this.lastName,
+    this.avatar,
     this.github,
-    this.rawData,
+    this.connectedServices = const [],
   });
 
-  /// Display name - prefers name over email
-  String get displayName => name ?? email.split('@').first;
+  /// Display name - prefers name over github
+  String? get displayName {
+    if (firstName != null || lastName != null) {
+      return [firstName, lastName].where((s) => s != null).join(' ');
+    }
+    return github?.name ?? github?.login;
+  }
+
+  /// Get avatar URL from ImageRef or GitHub
+  String? get avatarUrl {
+    return avatar?.url ?? github?.avatarUrl;
+  }
+
+  /// Get bio from GitHub profile
+  String? get bio => github?.bio;
 
   Profile copyWith({
     String? id,
-    String? email,
-    String? name,
-    String? avatarUrl,
-    DateTime? createdAt,
-    DateTime? updatedAt,
+    int? timestamp,
+    String? firstName,
+    String? lastName,
+    ImageRef? avatar,
     GitHubProfile? github,
-    Map<String, dynamic>? rawData,
+    List<String>? connectedServices,
   }) {
     return Profile(
       id: id ?? this.id,
-      email: email ?? this.email,
-      name: name ?? this.name,
-      avatarUrl: avatarUrl ?? this.avatarUrl,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
+      timestamp: timestamp ?? this.timestamp,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      avatar: avatar ?? this.avatar,
       github: github ?? this.github,
-      rawData: rawData ?? this.rawData,
+      connectedServices: connectedServices ?? this.connectedServices,
     );
   }
 
   factory Profile.fromJson(Map<String, dynamic> json) {
     return Profile(
       id: json['id'] as String,
-      email: json['email'] as String,
-      name: json['name'] as String?,
-      avatarUrl: json['avatar_url'] as String?,
-      createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'] as String)
-          : null,
-      updatedAt: json['updated_at'] != null
-          ? DateTime.tryParse(json['updated_at'] as String)
+      timestamp: json['timestamp'] as int? ?? 0,
+      firstName: json['firstName'] as String?,
+      lastName: json['lastName'] as String?,
+      avatar: json['avatar'] != null
+          ? ImageRef.fromJson(json['avatar'] as Map<String, dynamic>)
           : null,
       github: json['github'] != null
           ? GitHubProfile.fromJson(json['github'] as Map<String, dynamic>)
           : null,
-      rawData: json,
+      connectedServices: (json['connectedServices'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'email': email,
-      'name': name,
-      'avatar_url': avatarUrl,
-      'created_at': createdAt?.toIso8601String(),
-      'updated_at': updatedAt?.toIso8601String(),
+      'timestamp': timestamp,
+      'firstName': firstName,
+      'lastName': lastName,
+      'avatar': avatar?.toJson(),
       'github': github?.toJson(),
+      'connectedServices': connectedServices,
     };
+  }
+
+  /// Default profile
+  static const defaults = Profile(id: '');
+
+  /// Parse profile with fallback to defaults
+  static Profile parse(dynamic profile) {
+    if (profile is Map<String, dynamic>) {
+      try {
+        return Profile.fromJson(profile);
+      } catch (_) {
+        return const Profile(id: '');
+      }
+    }
+    return const Profile(id: '');
+  }
+}
+
+/// Image reference for avatars
+/// Matches React Native schema from sources/sync/profile.ts
+class ImageRef {
+  final int width;
+  final int height;
+  final String thumbhash;
+  final String path;
+  final String url;
+
+  const ImageRef({
+    required this.width,
+    required this.height,
+    required this.thumbhash,
+    required this.path,
+    required this.url,
+  });
+
+  factory ImageRef.fromJson(Map<String, dynamic> json) {
+    return ImageRef(
+      width: json['width'] as int,
+      height: json['height'] as int,
+      thumbhash: json['thumbhash'] as String,
+      path: json['path'] as String,
+      url: json['url'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'width': width,
+      'height': height,
+      'thumbhash': thumbhash,
+      'path': path,
+      'url': url,
+    };
+  }
+
+  ImageRef copyWith({
+    int? width,
+    int? height,
+    String? thumbhash,
+    String? path,
+    String? url,
+  }) {
+    return ImageRef(
+      width: width ?? this.width,
+      height: height ?? this.height,
+      thumbhash: thumbhash ?? this.thumbhash,
+      path: path ?? this.path,
+      url: url ?? this.url,
+    );
   }
 }
 
 /// GitHub profile information
+/// Matches React Native schema from sources/sync/profile.ts
 class GitHubProfile {
-  final String login;
   final int id;
-  final String? avatarUrl;
-  final String? name;
+  final String login;
+  final String name;
+  final String avatarUrl;
   final String? email;
   final String? bio;
-  final String? htmlUrl;
-  final int? publicRepos;
-  final int? followers;
-  final int? following;
-  final bool? isVerified;
-  final Map<String, dynamic>? rawData;
 
-  GitHubProfile({
-    required this.login,
+  const GitHubProfile({
     required this.id,
-    this.avatarUrl,
-    this.name,
+    required this.login,
+    required this.name,
+    required this.avatarUrl,
     this.email,
     this.bio,
-    this.htmlUrl,
-    this.publicRepos,
-    this.followers,
-    this.following,
-    this.isVerified,
-    this.rawData,
   });
 
   factory GitHubProfile.fromJson(Map<String, dynamic> json) {
     return GitHubProfile(
-      login: json['login'] as String,
       id: json['id'] as int,
-      avatarUrl: json['avatar_url'] as String?,
-      name: json['name'] as String?,
+      login: json['login'] as String,
+      name: json['name'] as String,
+      avatarUrl: json['avatar_url'] as String,
       email: json['email'] as String?,
       bio: json['bio'] as String?,
-      htmlUrl: json['html_url'] as String?,
-      publicRepos: json['public_repos'] as int?,
-      followers: json['followers'] as int?,
-      following: json['following'] as int?,
-      isVerified: json['is_verified'] as bool?,
-      rawData: json,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'login': login,
       'id': id,
-      'avatar_url': avatarUrl,
+      'login': login,
       'name': name,
+      'avatar_url': avatarUrl,
       'email': email,
       'bio': bio,
-      'html_url': htmlUrl,
-      'public_repos': publicRepos,
-      'followers': followers,
-      'following': following,
-      'is_verified': isVerified,
     };
   }
 
+  GitHubProfile copyWith({
+    int? id,
+    String? login,
+    String? name,
+    String? avatarUrl,
+    String? email,
+    String? bio,
+  }) {
+    return GitHubProfile(
+      id: id ?? this.id,
+      login: login ?? this.login,
+      name: name ?? this.name,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      email: email ?? this.email,
+      bio: bio ?? this.bio,
+    );
+  }
+
   /// Display name - prefer name over login
-  String get displayName => name ?? login;
+  String get displayName => name;
 
   /// Whether the profile has linking info
   bool get hasLinking => login.isNotEmpty && id > 0;
@@ -300,39 +375,6 @@ class AccountBackupInfo {
       'has_backup': hasBackup,
       'last_backup_at': lastBackupAt?.toIso8601String(),
       'backup_device_id': backupDeviceId,
-    };
-  }
-}
-
-/// Image reference for avatars and attachments
-class ImageRef {
-  final String url;
-  final int? width;
-  final int? height;
-  final String? mimeType;
-
-  ImageRef({
-    required this.url,
-    this.width,
-    this.height,
-    this.mimeType,
-  });
-
-  factory ImageRef.fromJson(Map<String, dynamic> json) {
-    return ImageRef(
-      url: json['url'] as String,
-      width: json['width'] as int?,
-      height: json['height'] as int?,
-      mimeType: json['mimeType'] as String?,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'url': url,
-      'width': width,
-      'height': height,
-      'mimeType': mimeType,
     };
   }
 }

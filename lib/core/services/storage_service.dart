@@ -191,6 +191,7 @@ class Storage {
   final settingsStorage = SettingsStorage();
   final sessionDraftsStorage = SessionDraftsStorage();
   final sessionPermissionModesStorage = SessionPermissionModesStorage();
+  final profileStorage = ProfileStorage();
 
   /// Initialize all storage
   Future<void> initialize() async {
@@ -198,13 +199,19 @@ class Storage {
     await ServerConfigStorage.initialize();
   }
 
-  /// Clear all storage
+  /// Clear all storage (except server config which persists across logouts)
   Future<void> clearAll() async {
     await tokenStorage.removeCredentials();
     await settingsStorage.clearSettings();
     await sessionDraftsStorage.clearAllDrafts();
     await sessionPermissionModesStorage.clearAllPermissionModes();
+    await profileStorage.clearProfile();
     unawaited(MMKVStorage().clearAll());
+    // Note: ServerConfigStorage is NOT cleared here as it persists across logouts
+  }
+
+  /// Clear server config separately (typically not called during logout)
+  Future<void> clearServerConfig() async {
     ServerConfigStorage().clearAll();
   }
 }

@@ -65,7 +65,7 @@ class KvBulkGetRequest {
 class KvBulkGetResponse {
   final List<KvItem> values;
 
-  KvBulkGetResponse({required this.values});
+  const KvBulkGetResponse({required this.values});
 
   factory KvBulkGetResponse.fromJson(Map<String, dynamic> json) {
     final values = (json['values'] as List<dynamic>)

@@ -147,7 +147,8 @@ class _MarkdownParser {
     final allItems = <NumberedItem>[];
 
     final firstNumber = int.parse(firstMatch.group(1)!);
-    final firstContent = trimmed.substring(firstMatch.group(0)!.length);
+    final currentLine = lines[index].trim();
+    final firstContent = currentLine.substring(firstMatch.group(0)!.length);
     allItems.add(NumberedItem(
       number: firstNumber,
       spans: _parseSpans(firstContent, isHeader: false),

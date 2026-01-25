@@ -9,7 +9,7 @@ import 'package:qr/qr.dart';
 import '../../core/api/api_client.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
-import '../../core/services/auth_service.dart';
+import '../../core/services/auth_service.dart' hide AuthForbiddenError, AuthRequestError, ServerError, SSLError;
 import '../../core/providers/app_providers.dart';
 import '../../core/services/server_config.dart';
 import '../../core/services/storage_service.dart';

@@ -19,12 +19,12 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// Fix for uni_links plugin missing namespace with AGP 8+
+// Fix for uni_links plugins missing namespace with AGP 8+
 subprojects {
-    if (project.name == "uni_links") {
+    if (project.name == "uni_links" || project.name == "uni_links2") {
         project.afterEvaluate {
-            project.extensions.configure<com.android.build.gradle.LibraryExtension>("android") {
-                namespace = "com.yullg.uni_links"
+            project.extensions.findByType(com.android.build.gradle.LibraryExtension::class.java)?.apply {
+                namespace = "com.yullg.uni_links2"
             }
         }
     }

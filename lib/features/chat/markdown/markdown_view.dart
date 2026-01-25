@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'markdown_models.dart';
@@ -179,9 +180,18 @@ class _MarkdownViewState extends State<MarkdownView> {
     );
   }
 
-  void _copyText() {
-    // Use Clipboard.setData to copy the markdown content
-    // This is handled by the parent widget
+  void _copyText() async {
+    await Clipboard.setData(ClipboardData(text: widget.markdown));
+    if (mounted) {
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
+      scaffoldMessenger.hideCurrentSnackBar();
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('Text copied to clipboard'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 }
 
