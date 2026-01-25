@@ -37,7 +37,8 @@ dependencies:
   convert: ^3.1.1
   pointycastle: ^4.0.0
   ed25519_edwards: ^0.3.1
-  sodium: ^3.1.0
+  sodium: ^3.4.6
+  sodium_libs: ^3.4.6
   cryptography: ^2.7.0
 
   # UI and navigation

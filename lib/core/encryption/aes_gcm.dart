@@ -31,8 +31,8 @@ class AesGcm {
   /// AES key size (256 bits = 32 bytes)
   static const int keySize = 32;
 
-  /// The AES-256-GCM cipher instance for mobile platforms
-  static final _cipher = AesGcm.with256bits();
+  /// Get the AES-256-GCM cipher instance for mobile platforms
+  static AesGcm get _cipher => AesGcm.with256bits();
 
   /// Encrypt data using true AES-256-GCM.
   ///
@@ -74,19 +74,22 @@ class AesGcm {
     final jsonData = jsonEncode(data);
     final dataBytes = utf8.encode(jsonData);
 
+    // Create SecretKey from bytes
+    final secretKeyObj = await _cipher.newSecretKeyFromBytes(secretKey);
+
     // Encrypt using AES-256-GCM
     // The SecretBox contains: ciphertext + auth tag (automatically appended)
     final secretBox = await _cipher.encrypt(
       dataBytes,
-      secretKey: secretKey,
+      secretKey: secretKeyObj,
       nonce: nonce,
     );
 
     // Combine: nonce + ciphertext + auth tag
-    // Note: secretBox.ciphertext already contains the auth tag appended
-    final result = Uint8List(nonce.length + secretBox.ciphertext.length);
+    // Note: secretBox.cipherText already contains the auth tag appended
+    final result = Uint8List(nonce.length + secretBox.cipherText.length);
     result.setAll(0, nonce);
-    result.setAll(nonce.length, secretBox.ciphertext);
+    result.setAll(nonce.length, secretBox.cipherText);
 
     return result;
   }
@@ -134,6 +137,9 @@ class AesGcm {
       final nonce = encryptedData.sublist(0, nonceSize);
       final ciphertextWithTag = encryptedData.sublist(nonceSize);
 
+      // Create SecretKey from bytes
+      final secretKeyObj = await _cipher.newSecretKeyFromBytes(secretKey);
+
       // Decrypt using AES-256-GCM
       // The SecretBox expects ciphertext with auth tag already appended
       final secretBox = SecretBox(
@@ -144,7 +150,7 @@ class AesGcm {
 
       final decrypted = await _cipher.decrypt(
         secretBox,
-        secretKey: secretKey,
+        secretKey: secretKeyObj,
       );
 
       // Decode JSON

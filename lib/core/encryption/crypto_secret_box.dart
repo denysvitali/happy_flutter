@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sodium/sodium.dart';
+import 'package:sodium_libs/sodium_libs.dart';
 import 'web_crypto.dart' if (dart.library.html) 'web_crypto_web.dart';
 
 /// CryptoSecretBox encryption using libsodium (crypto_secretbox_easy)
@@ -13,7 +14,7 @@ class CryptoSecretBox {
 
   /// Initialize sodium (lazy initialization)
   static Future<Sodium> get _sodiumInstance async {
-    _sodium ??= await SodiumInit.init();
+    _sodium ??= await SodiumLibs.init();
     return _sodium!;
   }
 
@@ -32,10 +33,11 @@ class CryptoSecretBox {
         : Uint8List.fromList(secretKey);
 
     // Encrypt using libsodium crypto_secretbox_easy
+    // sodium v3.4+ API: use named parameters
     final encrypted = sodium.crypto.secretbox.easy(
-      dataBytes,
-      nonce,
-      key,
+      message: dataBytes,
+      nonce: nonce,
+      key: key,
     );
 
     // Bundle format: nonce + encrypted data
@@ -66,10 +68,11 @@ class CryptoSecretBox {
       final sodium = await _sodiumInstance;
 
       // Decrypt using libsodium crypto_secretbox.openEasy
+      // sodium v3.4+ API: use named parameters
       final decrypted = sodium.crypto.secretbox.openEasy(
-        encrypted,
-        nonce,
-        key,
+        cipherText: encrypted,
+        nonce: nonce,
+        key: key,
       );
 
       final jsonString = utf8.decode(decrypted);
