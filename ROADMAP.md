@@ -2,6 +2,26 @@
 
 This roadmap tracks the work needed to achieve full feature parity between **happy_flutter** (Flutter) and **happy** (React Native).
 
+## Changelog
+
+### 2025-01-25 - Authentication (P1 #4) ✅ COMPLETED
+- **Link Device Feature**: Full parity with React Native implementation
+  - QR code generation and scanning
+  - Device linking via QR code and URL input
+  - Deep link handling (`happy://` protocol)
+- **Account Management**:
+  - Secret key backup with Crockford's base32 encoding (`XXXXX-XXXXX-XXXXX...`)
+  - Account restoration from backup key
+  - Linked devices management (view/unlink)
+  - Connected services display (Claude, GitHub, Gemini, OpenAI)
+- **Tests**: 80+ comprehensive tests added
+  - `test/services/auth_service_test.dart` - Auth URL parsing, credentials, exceptions
+  - `test/encryption/crypto_box_test.dart` - Encryption/decryption roundtrip
+  - `test/utils/backup_key_utils_test.dart` - Backup key encoding/decoding
+- **Documentation**: `docs/LINK_DEVICE_FEATURE_PARITY.md` - Detailed analysis
+
+---
+
 ## Project Context
 
 - **Flutter Version**: 3.38.7 (Dart 3.10+)
@@ -66,19 +86,31 @@ This roadmap tracks the work needed to achieve full feature parity between **hap
 
 ## P1: Core Features
 
-### 4. Authentication - Account Management
-**Missing**: Secret key backup UI, account restoration, device linking
+### 4. Authentication - Account Management ✅ **COMPLETED**
+**Status**: Link Device feature has full parity with React Native
 
-| Task | Description |
-|------|-------------|
-| Secret key backup UI | Format key as "XXXXX-XXXXX-XXXXX..." (base32 with dashes) |
-| Account restoration screen | Input backup key, validate and restore account |
-| Device linking via QR | Scan QR on other device, approve via deep link |
-| Connected services UI | Display/disconnect Claude, GitHub, Gemini, OpenAI |
+| Task | Description | Status |
+|------|-------------|--------|
+| Secret key backup UI | Format key as "XXXXX-XXXXX-XXXXX..." (base32 with dashes) | ✅ Done |
+| Account restoration screen | Input backup key, validate and restore account | ✅ Done |
+| Device linking via QR | Scan QR on other device, approve via deep link | ✅ Done |
+| Connected services UI | Display/disconnect Claude, GitHub, Gemini, OpenAI | ✅ Done |
+
+**What's Implemented**:
+- QR code generation and scanning (`lib/features/auth/auth_screen.dart`)
+- Device linking with QR and URL input (`lib/features/settings/account_screen.dart`)
+- Account restore from backup key (`RestoreAccountScreen`)
+- Linked devices management (`LinkedDevicesScreen`)
+- Deep link handling (`happy://` protocol)
+- Comprehensive tests (80+ tests in `test/services/`, `test/encryption/`, `test/utils/`)
+
+**Documentation**:
+- Feature parity analysis: `docs/LINK_DEVICE_FEATURE_PARITY.md`
+- Protocol documentation: `docs/PROTOCOL.md`
 
 **References**:
 - React Native: `/../happy/sources/auth/secretKeyBackup.ts`, `/../happy/sources/app/(app)/settings/account.tsx`
-- Flutter current: `/lib/core/services/auth_service.dart`
+- Flutter: `/lib/core/services/auth_service.dart`, `/lib/features/settings/account_screen.dart`
 
 ### 5. Chat - Full Markdown Rendering
 **Missing**: Tables, mermaid diagrams, option buttons, text selection
@@ -377,11 +409,11 @@ This roadmap tracks the work needed to achieve full feature parity between **hap
 
 | Category | Status | Notes |
 |----------|--------|-------|
-| Authentication | In Progress | Core flow works, account management missing |
+| Authentication | ✅ **Done** | QR auth, device linking, account restore, backup key all implemented |
 | Encryption | Blocked | Needs true AES-GCM before data migration |
 | Chat | Basic | Scaffold exists, needs markdown/syntax highlighting |
 | Sessions | Basic | List exists, needs avatars/date grouping |
-| Settings | Stub | Minimal implementation |
+| Settings | Partial | Account screen implemented, other settings stub |
 | Storage | Partial | SharedPreferences, needs MMKV |
 | State | Partial | Core providers exist, missing artifacts/profile |
 | WebSocket | Custom | Needs Socket.io protocol alignment |
@@ -397,6 +429,11 @@ This roadmap tracks the work needed to achieve full feature parity between **hap
 ## Next Steps
 
 1. **Immediate**: Fix AES encryption compatibility (P0)
-2. **This sprint**: Account management UI (P1)
-3. **Next sprint**: Full markdown rendering (P1)
+2. **This sprint**: Full markdown rendering (P1 #5)
+3. **Next sprint**: Syntax highlighting for code blocks (P1 #6)
 4. **This quarter**: Complete settings screens (P2)
+
+**Recent Wins**:
+- ✅ **Authentication (P1 #4)**: Complete implementation with 80+ tests
+- ✅ **Link Device**: Full parity with React Native
+- ✅ **Account Management**: Backup, restore, device linking all working
