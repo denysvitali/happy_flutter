@@ -10,7 +10,6 @@ plugins {
 android {
     namespace = "com.example.happy_flutter"
     compileSdk = 35
-    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
