@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:uni_links/uni_links.dart';
+import 'package:app_links/app_links.dart';
 import 'core/api/api_client.dart';
 import 'core/i18n/app_localizations.dart';
 import 'core/i18n/supported_locales.dart';
@@ -24,8 +24,6 @@ import 'features/settings/features_settings_screen.dart';
 import 'features/settings/profiles_screen.dart';
 import 'features/settings/usage_screen.dart';
 import 'features/settings/developer_screen.dart';
-
-StreamSubscription<Uri?>? _uniLinksSubscription;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +49,8 @@ class HappyApp extends ConsumerStatefulWidget {
 
 class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver {
   late final GoRouter _router;
+  late final AppLinks _appLinks;
+  StreamSubscription<Uri?>? _appLinksSubscription;
   Uri? _initialUri;
   bool _initialUriHandled = false;
 
@@ -58,6 +58,7 @@ class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _appLinks = AppLinks();
     _initUniLinks();
     _router = GoRouter(
       routes: [
@@ -196,7 +197,7 @@ class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver
   Future<void> _initUniLinks() async {
     if (!kIsWeb) {
       try {
-        final uri = await getInitialUri();
+        final uri = await _appLinks.getInitialAppLink();
         if (uri != null && mounted) {
           setState(() {
             _initialUri = uri;
@@ -204,17 +205,17 @@ class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver
           _handleDeepLink(uri);
         }
       } catch (e) {
-        print('Error getting initial uni_links URI: $e');
+        print('Error getting initial app link URI: $e');
       }
 
-      _uniLinksSubscription = uriLinkStream.listen(
+      _appLinksSubscription = _appLinks.uriLinkStream.listen(
         (Uri? uri) {
           if (uri != null && mounted) {
             _handleDeepLink(uri);
           }
         },
         onError: (err) {
-          print('Error listening to uni_links: $err');
+          print('Error listening to app links: $err');
         },
       );
     }
@@ -233,7 +234,7 @@ class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _uniLinksSubscription?.cancel();
+    _appLinksSubscription?.cancel();
     super.dispose();
   }
 
@@ -247,7 +248,7 @@ class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver
   Future<void> _checkForDeepLink() async {
     if (!kIsWeb) {
       try {
-        final uri = await getInitialUri();
+        final uri = await _appLinks.getInitialAppLink();
         if (uri != null && uri.scheme == 'happy') {
           _handleDeepLink(uri);
         }

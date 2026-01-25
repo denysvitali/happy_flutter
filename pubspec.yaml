@@ -58,7 +58,7 @@ dependencies:
   firebase_messaging: ^15.2.0
   flutter_local_notifications: ^19.5.0
   js: ^0.7.2
-  uni_links: ^0.5.1
+  app_links: ^5.0.0
 
 dev_dependencies:
   flutter_test:
