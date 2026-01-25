@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:app_links/app_links.dart';
 import 'core/api/api_client.dart';
 import 'core/i18n/app_localizations.dart';
 import 'core/i18n/supported_locales.dart';
@@ -49,25 +48,18 @@ class HappyApp extends ConsumerStatefulWidget {
 
 class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver {
   late final GoRouter _router;
-  late final AppLinks _appLinks;
-  StreamSubscription<Uri?>? _appLinksSubscription;
-  Uri? _initialUri;
-  bool _initialUriHandled = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _appLinks = AppLinks();
-    _initUniLinks();
     _router = GoRouter(
       routes: [
         GoRoute(
           path: '/',
           name: 'auth',
-          builder: (context, state) => AuthGate(
+          builder: (context, state) => const AuthGate(
             child: SessionsScreen(),
-            initialDeepLink: state.uri.queryParameters['link'],
           ),
         ),
         GoRoute(
@@ -194,56 +186,10 @@ class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver
     });
   }
 
-  Future<void> _initUniLinks() async {
-    if (!kIsWeb) {
-      // Subscribe to all events (initial link and further)
-      // The uriLinkStream emits the initial link when app starts in cold state
-      _appLinksSubscription = _appLinks.uriLinkStream.listen(
-        (Uri? uri) {
-          if (uri != null && mounted) {
-            if (_initialUri == null) {
-              setState(() {
-                _initialUri = uri;
-              });
-            }
-            _handleDeepLink(uri);
-          }
-        },
-        onError: (err) {
-          print('Error listening to app links: $err');
-        },
-      );
-    }
-  }
-
-  void _handleDeepLink(Uri uri) {
-    if (uri.scheme == 'happy') {
-      final url = uri.toString();
-      final publicKey = AuthService.parseAuthUrl(url);
-      if (publicKey != null) {
-        ref.read(authStateNotifierProvider.notifier).handleDeepLink(url);
-      }
-    }
-  }
-
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _appLinksSubscription?.cancel();
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _checkForDeepLink();
-    }
-  }
-
-  Future<void> _checkForDeepLink() async {
-    // Note: app_links uriLinkStream handles both initial and subsequent links
-    // The stream will emit when app is resumed if there's a new link
-    // No need to manually check for initial link
   }
 
   @override

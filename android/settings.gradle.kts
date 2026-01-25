@@ -24,13 +24,3 @@ plugins {
 }
 
 include(":app")
-
-// Fix for uni_links plugin missing namespace with AGP 8+
-// This handles the namespace requirement for older plugins
-// Using a simpler approach that works with Kotlin DSL
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
