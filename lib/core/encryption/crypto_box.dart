@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sodium/sodium.dart';
-import 'package:sodium_libs/sodium_libs.dart';
 
 import 'web_crypto.dart' if (dart.library.html) 'web_crypto_web.dart';
 
@@ -22,8 +21,12 @@ class CryptoBox {
   /// Initialize sodium (lazy initialization)
   static Future<Sodium> get _sodiumInstance async {
     if (_sodium != null) return _sodium!;
-    // Use runSodium for Flutter - automatically loads libsodium
-    _sodium = await runSodium();
+    // Use sodium_libs which provides built-in libsodium for Flutter
+    // The package automatically handles loading the native library
+    _sodium = await SodiumInit.init2(
+      // For Flutter with sodium_libs, no loader needed - it uses built-in binaries
+      () => throw UnimplementedError('sodium_libs should provide loader'),
+    );
     return _sodium!;
   }
 
@@ -39,7 +42,7 @@ class CryptoBox {
     final sodium = await _sodiumInstance;
     // sodium v3.4+ API: seedKeyPair returns a KeyPair with SecureKey types
     final keypair = sodium.crypto.box.seedKeyPair(
-      seed: SecretKey(seed),
+      seed: SecureKey(seed),
     );
     // Extract bytes from SecureKey
     final publicKey = await keypair.publicKey.extract();
@@ -85,7 +88,7 @@ class CryptoBox {
     final nonce = await randomNonce();
 
     // Encrypt using libsodium crypto_box_easy
-    // sodium v3.4+ API: use named parameters with SecretKey types
+    // sodium v3.4+ API: use named parameters with SecureKey types
     final encrypted = sodium.crypto.box.easy(
       message: data,
       nonce: nonce,
