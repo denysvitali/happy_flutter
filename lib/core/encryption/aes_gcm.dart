@@ -21,7 +21,7 @@ import 'web_crypto.dart' if (dart.library.html) 'web_crypto_web.dart';
 /// - 12-byte nonce/IV (GCM standard)
 /// - 16-byte authentication tag (built into GCM, not 32-byte HMAC)
 /// - Returns Base64-encoded string (matching rn-encryption format)
-class AesGcm {
+class AesGcmEncryption {
   /// Auth tag size in bytes (GCM standard = 16 bytes)
   static const int authTagSize = 16;
 
@@ -85,9 +85,10 @@ class AesGcm {
 
     // Combine: nonce + ciphertext + auth tag
     // Note: secretBox.cipherText already contains the auth tag appended
-    final result = Uint8List(nonce.length + secretBox.cipherText.length);
+    final cipherText = secretBox.cipherText;
+    final result = Uint8List(nonce.length + cipherText.length);
     result.setAll(0, nonce);
-    result.setAll(nonce.length, secretBox.cipherText);
+    result.setAll(nonce.length, cipherText);
 
     return result;
   }

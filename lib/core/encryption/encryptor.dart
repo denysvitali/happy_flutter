@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:convert';
+import 'package:sodium/sodium.dart';
 import 'crypto_secret_box.dart';
 import 'crypto_box.dart';
 import 'text.dart';
@@ -56,9 +57,8 @@ class BoxEncryption implements Encryptor, Decryptor {
     return BoxEncryption._(keypair.secretKey, keypair.publicKey);
   }
 
-  /// Legacy synchronous constructor for backward compatibility
-  BoxEncryption(Uint8List seed) : this._(null as SecureKey, Uint8List(0)) {
-    // This should not be used - call create() instead
+  /// Legacy synchronous constructor - not supported, use create() instead
+  factory BoxEncryption(Uint8List seed) {
     throw UnimplementedError('Use BoxEncryption.create(seed) instead');
   }
 
@@ -107,7 +107,7 @@ class AES256Encryption implements Encryptor, Decryptor {
     final results = <Uint8List>[];
     for (final item in data) {
       // Encrypt with AES-GCM
-      final encrypted = AesGcm.encrypt(item, _secretKey);
+      final encrypted = await AesGcmEncryption.encrypt(item, _secretKey);
       // Add version byte prefix (matching React Native format)
       final output = Uint8List(encrypted.length + 1);
       output[0] = 0; // version byte
@@ -127,7 +127,7 @@ class AES256Encryption implements Encryptor, Decryptor {
           continue;
         }
         // Strip version byte and decrypt
-        final decrypted = AesGcm.decrypt(item.sublist(1), _secretKey);
+        final decrypted = await AesGcmEncryption.decrypt(item.sublist(1), _secretKey);
         results.add(decrypted);
       } catch (e) {
         results.add(null);

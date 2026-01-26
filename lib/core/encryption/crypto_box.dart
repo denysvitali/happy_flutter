@@ -80,7 +80,7 @@ class CryptoBox {
   ) async {
     if (kIsWeb) {
       // Extract bytes from SecureKey for web
-      final senderSecretKeyBytes = await senderSecretKey.extract();
+      final senderSecretKeyBytes = senderSecretKey.copy();
       return await WebCryptoBox.encrypt(
         data,
         recipientPublicKey,
@@ -124,7 +124,7 @@ class CryptoBox {
   ) async {
     if (kIsWeb) {
       // Extract bytes from SecureKey for web
-      final recipientSecretKeyBytes = await recipientSecretKey.extract();
+      final recipientSecretKeyBytes = recipientSecretKey.copy();
       return await WebCryptoBox.decrypt(
         encryptedBundle,
         recipientSecretKeyBytes,

@@ -678,12 +678,13 @@ Timestamp: ${DateTime.now().toIso8601String()}
     }
 
     final secret = base64Decode(credentials.secret);
-    final keypair = await _generateKeypair(secret);
+    // Use NaCl keypair for box encryption (not Ed25519)
+    final keypair = await CryptoBox.keypairFromSeed(secret);
 
     final encryptedResponse = await CryptoBox.encrypt(
       secret,
       requesterPublicKey,
-      keypair.privateKey,
+      keypair.secretKey,
     );
 
     final response = await _apiClient.post(
