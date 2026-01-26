@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:io';
 import 'dart:ffi';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sodium/sodium.dart';
@@ -22,11 +23,27 @@ class CryptoBox {
   /// Initialize sodium (lazy initialization)
   static Future<Sodium> get _sodiumInstance async {
     if (_sodium != null) return _sodium!;
-    // Use sodium_libs which provides built-in libsodium for Flutter
-    // The package exports a helper that loads the native library
+
+    if (kIsWeb) {
+      throw UnsupportedError('Sodium is not supported on web platform');
+    }
+
+    // Initialize sodium with sodium_libs for Flutter
     _sodium = await SodiumInit.init(
-      // sodium_libs automatically provides the DynamicLibrary for Flutter platforms
-      () => throw UnimplementedError('sodium_libs should provide DynamicLibrary'),
+      (type) async {
+        // Load the bundled sodium library from sodium_libs package
+        // The library name differs by platform
+        if (Platform.isAndroid) {
+          return DynamicLibrary.open('libsodium.so');
+        } else if (Platform.isIOS || Platform.isMacOS) {
+          return DynamicLibrary.open('libsodium.dylib');
+        } else if (Platform.isLinux) {
+          return DynamicLibrary.open('libsodium.so');
+        } else if (Platform.isWindows) {
+          return DynamicLibrary.open('libsodium.dll');
+        }
+        throw UnsupportedError('Unsupported platform for sodium: ${Platform.operatingSystem}');
+      },
     );
     return _sodium!;
   }
