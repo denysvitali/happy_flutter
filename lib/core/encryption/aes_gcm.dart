@@ -73,7 +73,7 @@ class AesGcmEncryption {
 
     // Create cipher and SecretKey from bytes
     final cipher = AesGcm.with256bits();
-    final secretKeyObj = await cipher.newSecretKey(secretKey);
+    final secretKeyObj = await cipher.newSecretKeyFromBytes(secretKey);
 
     // Encrypt using AES-256-GCM
     // The SecretBox contains: ciphertext + auth tag (automatically appended)
@@ -138,7 +138,7 @@ class AesGcmEncryption {
 
       // Create cipher and SecretKey from bytes
       final cipher = AesGcm.with256bits();
-      final secretKeyObj = await cipher.newSecretKey(secretKey);
+      final secretKeyObj = await cipher.newSecretKeyFromBytes(secretKey);
 
       // Decrypt using AES-256-GCM
       // The SecretBox expects ciphertext with auth tag already appended
