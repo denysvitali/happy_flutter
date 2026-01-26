@@ -254,7 +254,15 @@ class ProfileNotifier extends Notifier<Profile?> {
 
   Future<void> updateAvatar(String avatarUrl) async {
     if (state != null) {
-      state = state!.copyWith(avatarUrl: avatarUrl);
+      // Create a new ImageRef with minimal data from URL
+      final newAvatar = ImageRef(
+        width: state!.avatar?.width ?? 200,
+        height: state!.avatar?.height ?? 200,
+        thumbhash: state!.avatar?.thumbhash ?? '',
+        path: state!.avatar?.path ?? '',
+        url: avatarUrl,
+      );
+      state = state!.copyWith(avatar: newAvatar);
     }
   }
 
@@ -325,11 +333,14 @@ class ArtifactsNotifier extends Notifier<Map<String, Artifact>> {
     };
   }
 
-  List<Artifact> getBySession(String sessionId) {
-    return state.values
-        .where((a) => a.sessionId == sessionId)
-        .toList();
-  }
+  // NOTE: Cannot filter by sessionId without decrypting headers first
+  // The sessionId is stored in the encrypted header, not on the Artifact model
+  //
+  // List<Artifact> getBySession(String sessionId) {
+  //   return state.values
+  //       .where((a) => a.sessionId == sessionId)
+  //       .toList();
+  // }
 }
 
 /// Friends/social provider
