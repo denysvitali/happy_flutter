@@ -24,7 +24,7 @@ class Encryption {
     );
 
     // Derive content data key keypair
-    final contentKeyPair = CryptoBox.keypairFromSeed(contentDataKey);
+    final contentKeyPair = await CryptoBox.keypairFromSeed(contentDataKey);
 
     // Derive anonymous ID
     final anonIdBytes = await DeriveKey.derive(

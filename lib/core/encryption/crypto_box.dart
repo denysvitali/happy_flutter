@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ffi';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sodium/sodium.dart';
 
@@ -22,10 +23,10 @@ class CryptoBox {
   static Future<Sodium> get _sodiumInstance async {
     if (_sodium != null) return _sodium!;
     // Use sodium_libs which provides built-in libsodium for Flutter
-    // The package automatically handles loading the native library
-    _sodium = await SodiumInit.init2(
-      // For Flutter with sodium_libs, no loader needed - it uses built-in binaries
-      () => throw UnimplementedError('sodium_libs should provide loader'),
+    // The package exports a helper that loads the native library
+    _sodium = await SodiumInit.init(
+      // sodium_libs automatically provides the DynamicLibrary for Flutter platforms
+      () => throw UnimplementedError('sodium_libs should provide DynamicLibrary'),
     );
     return _sodium!;
   }
@@ -40,17 +41,21 @@ class CryptoBox {
   /// Generate keypair from seed (libsodium compatible)
   static Future<KeyPair> keypairFromSeed(Uint8List seed) async {
     final sodium = await _sodiumInstance;
-    // sodium v3.4+ API: seedKeyPair returns a KeyPair with SecureKey types
-    final keypair = sodium.crypto.box.seedKeyPair(
-      seed: SecureKey(seed),
-    );
-    // Extract bytes from SecureKey
-    final publicKey = await keypair.publicKey.extract();
-    final secretKey = await keypair.secretKey.extract();
+    // sodium v3.4+ API: seedKeyPair takes a SecureKey
+    final seedKey = SecureKey(sodium, CryptoBoxConstants.seedBytes);
+    // Copy seed data into the SecureKey
+    final seedKeyCopy = SecureKey.fromList(sodium, seed);
+    seedKeyCopy.dispose(); // Dispose the temporary key
+
+    final keypair = sodium.crypto.box.seedKeyPair(seedKey);
+
+    // Extract public key bytes (secretKey remains as SecureKey)
+    final publicKeyBytes = keypair.publicKey;
+
     return KeyPair(
-      publicKey: publicKey,
-      privateKey: secretKey,
-      secretKey: secretKey,
+      publicKey: publicKeyBytes,
+      privateKey: keypair.secretKey,
+      secretKey: keypair.secretKey,
     );
   }
 
@@ -58,13 +63,11 @@ class CryptoBox {
   static Future<KeyPair> generateKeypair() async {
     final sodium = await _sodiumInstance;
     final keypair = sodium.crypto.box.keyPair();
-    // Extract bytes from SecureKey
-    final publicKey = await keypair.publicKey.extract();
-    final secretKey = await keypair.secretKey.extract();
+
     return KeyPair(
-      publicKey: publicKey,
-      privateKey: secretKey,
-      secretKey: secretKey,
+      publicKey: keypair.publicKey,
+      privateKey: keypair.secretKey,
+      secretKey: keypair.secretKey,
     );
   }
 
@@ -73,13 +76,15 @@ class CryptoBox {
   static Future<Uint8List> encrypt(
     Uint8List data,
     Uint8List recipientPublicKey,
-    Uint8List senderSecretKey,
+    SecureKey senderSecretKey,
   ) async {
     if (kIsWeb) {
+      // Extract bytes from SecureKey for web
+      final senderSecretKeyBytes = await senderSecretKey.extract();
       return await WebCryptoBox.encrypt(
         data,
         recipientPublicKey,
-        senderSecretKey,
+        senderSecretKeyBytes,
       );
     }
 
@@ -88,12 +93,11 @@ class CryptoBox {
     final nonce = await randomNonce();
 
     // Encrypt using libsodium crypto_box_easy
-    // sodium v3.4+ API: use named parameters with SecureKey types
     final encrypted = sodium.crypto.box.easy(
       message: data,
       nonce: nonce,
-      publicKey: SimplePublicKey(recipientPublicKey),
-      secretKey: SecretKey(senderSecretKey),
+      publicKey: recipientPublicKey,
+      secretKey: senderSecretKey,
     );
 
     // Bundle format: ephemeral public key (32 bytes) + nonce (24 bytes) + encrypted data
@@ -116,12 +120,14 @@ class CryptoBox {
   /// Compatible with React Native's sodium.crypto_box_open_easy()
   static Future<Uint8List?> decrypt(
     Uint8List encryptedBundle,
-    Uint8List recipientSecretKey,
+    SecureKey recipientSecretKey,
   ) async {
     if (kIsWeb) {
+      // Extract bytes from SecureKey for web
+      final recipientSecretKeyBytes = await recipientSecretKey.extract();
       return await WebCryptoBox.decrypt(
         encryptedBundle,
-        recipientSecretKey,
+        recipientSecretKeyBytes,
       );
     }
 
@@ -142,12 +148,11 @@ class CryptoBox {
       final sodium = await _sodiumInstance;
 
       // Decrypt using libsodium crypto_box.openEasy
-      // sodium v3.4+ API: use named parameters with Key types
       final decrypted = sodium.crypto.box.openEasy(
         cipherText: encrypted,
         nonce: nonce,
-        publicKey: SimplePublicKey(ephemeralPublicKey),
-        secretKey: SecretKey(recipientSecretKey),
+        publicKey: ephemeralPublicKey,
+        secretKey: recipientSecretKey,
       );
 
       return decrypted;
@@ -160,8 +165,8 @@ class CryptoBox {
 /// KeyPair for box encryption
 class KeyPair {
   final Uint8List publicKey;
-  final Uint8List privateKey;
-  final Uint8List secretKey;
+  final SecureKey privateKey;
+  final SecureKey secretKey;
 
   KeyPair({
     required this.privateKey,

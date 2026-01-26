@@ -45,13 +45,21 @@ class SecretBoxEncryption implements Encryptor, Decryptor {
 
 /// NaCl Box encryption (public key)
 class BoxEncryption implements Encryptor, Decryptor {
-  late final Uint8List _privateKey;
+  late final SecureKey _privateKey;
   late final Uint8List _publicKey;
 
-  BoxEncryption(Uint8List seed) {
-    final keypair = CryptoBox.keypairFromSeed(seed);
-    _privateKey = keypair.secretKey;
-    _publicKey = keypair.publicKey;
+  BoxEncryption._(this._privateKey, this._publicKey);
+
+  /// Factory constructor that initializes async
+  static Future<BoxEncryption> create(Uint8List seed) async {
+    final keypair = await CryptoBox.keypairFromSeed(seed);
+    return BoxEncryption._(keypair.secretKey, keypair.publicKey);
+  }
+
+  /// Legacy synchronous constructor for backward compatibility
+  BoxEncryption(Uint8List seed) : this._(null as SecureKey, Uint8List(0)) {
+    // This should not be used - call create() instead
+    throw UnimplementedError('Use BoxEncryption.create(seed) instead');
   }
 
   @override

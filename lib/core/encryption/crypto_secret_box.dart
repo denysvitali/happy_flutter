@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:ffi';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sodium/sodium.dart';
 import 'web_crypto.dart' if (dart.library.html) 'web_crypto_web.dart';
@@ -15,10 +16,10 @@ class CryptoSecretBox {
   static Future<Sodium> get _sodiumInstance async {
     if (_sodium != null) return _sodium!;
     // Use sodium_libs which provides built-in libsodium for Flutter
-    // The package automatically handles loading the native library
-    _sodium = await SodiumInit.init2(
-      // For Flutter with sodium_libs, no loader needed - it uses built-in binaries
-      () => throw UnimplementedError('sodium_libs should provide loader'),
+    // The package exports a helper that loads the native library
+    _sodium = await SodiumInit.init(
+      // sodium_libs automatically provides the DynamicLibrary for Flutter platforms
+      () => throw UnimplementedError('sodium_libs should provide DynamicLibrary'),
     );
     return _sodium!;
   }
@@ -37,13 +38,18 @@ class CryptoSecretBox {
         ? secretKey.sublist(0, _keySize)
         : Uint8List.fromList(secretKey);
 
+    // Create SecureKey from the key bytes
+    final secureKey = SecureKey.fromList(sodium, key);
+
     // Encrypt using libsodium crypto_secretbox_easy
-    // sodium v3.4+ API: use named parameters with SecretKey type
     final encrypted = sodium.crypto.secretBox.easy(
       message: dataBytes,
       nonce: nonce,
-      key: SecretKey(key),
+      key: secureKey,
     );
+
+    // Dispose the secure key
+    secureKey.dispose();
 
     // Bundle format: nonce + encrypted data
     final result = Uint8List(nonce.length + encrypted.length);
@@ -72,13 +78,18 @@ class CryptoSecretBox {
 
       final sodium = await _sodiumInstance;
 
+      // Create SecureKey from the key bytes
+      final secureKey = SecureKey.fromList(sodium, key);
+
       // Decrypt using libsodium crypto_secretbox.openEasy
-      // sodium v3.4+ API: use named parameters with SecretKey type
       final decrypted = sodium.crypto.secretBox.openEasy(
         cipherText: encrypted,
         nonce: nonce,
-        key: SecretKey(key),
+        key: secureKey,
       );
+
+      // Dispose the secure key
+      secureKey.dispose();
 
       final jsonString = utf8.decode(decrypted);
       return jsonDecode(jsonString);
