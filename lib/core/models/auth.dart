@@ -76,14 +76,25 @@ class ServerError implements Exception {
 class AuthForbiddenError implements Exception {
   final String message;
   final String? serverResponse;
+  final String? diagnosticInfo;
 
   const AuthForbiddenError(
     this.message, {
     this.serverResponse,
+    this.diagnosticInfo,
   });
 
   @override
-  String toString() => 'AuthForbiddenError: $message';
+  String toString() {
+    var result = 'AuthForbiddenError: $message';
+    if (diagnosticInfo != null) {
+      result += '\n\nDiagnostic: $diagnosticInfo';
+    }
+    if (serverResponse != null) {
+      result += '\nServer response: $serverResponse';
+    }
+    return result;
+  }
 }
 
 /// Auth request error (4xx)
@@ -105,9 +116,19 @@ class AuthRequestError implements Exception {
 /// SSL/TLS error
 class SSLError implements Exception {
   final String message;
+  final String? certificateInfo;
 
-  const SSLError(this.message);
+  const SSLError(
+    this.message, {
+    this.certificateInfo,
+  });
 
   @override
-  String toString() => 'SSLError: $message';
+  String toString() {
+    var result = 'SSLError: $message';
+    if (certificateInfo != null) {
+      result += '\nCertificate info: $certificateInfo';
+    }
+    return result;
+  }
 }

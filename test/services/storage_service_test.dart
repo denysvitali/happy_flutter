@@ -430,8 +430,15 @@ void main() {
         final prefs = await SharedPreferences.getInstance();
 
         final profile = Profile(
-          name: 'John Doe',
-          githubUsername: 'johndoe',
+          id: 'user-123',
+          firstName: 'John',
+          lastName: 'Doe',
+          github: const GitHubProfile(
+            id: 1,
+            login: 'johndoe',
+            name: 'John Doe',
+            avatarUrl: 'https://github.com/images/johndoe.png',
+          ),
         );
         final profileJson = jsonEncode(profile.toJson());
         await prefs.setString('profile', profileJson);
@@ -440,8 +447,9 @@ void main() {
 
         final profileStorage = ProfileStorage();
         final migratedProfile = await profileStorage.loadProfile();
-        expect(migratedProfile.name, equals('John Doe'));
-        expect(migratedProfile.githubUsername, equals('johndoe'));
+        expect(migratedProfile.firstName, equals('John'));
+        expect(migratedProfile.lastName, equals('Doe'));
+        expect(migratedProfile.github?.login, equals('johndoe'));
 
         final oldProfile = prefs.getString('profile');
         expect(oldProfile, isNull);
@@ -491,7 +499,9 @@ void main() {
         await storage.saveSessionPermissionMode('session-1', 'edit');
 
         final profileStorage = ProfileStorage();
-        await profileStorage.saveProfile(Profile(name: 'John Doe'));
+        await profileStorage.saveProfile(
+          const Profile(id: 'user-123', firstName: 'John', lastName: 'Doe'),
+        );
 
         // Clear all
         await storage.clearAll();
@@ -507,7 +517,7 @@ void main() {
         expect(mode, isNull);
 
         final profile = await profileStorage.loadProfile();
-        expect(profile.name, isNull);
+        expect(profile.firstName, isNull);
       });
     });
 
