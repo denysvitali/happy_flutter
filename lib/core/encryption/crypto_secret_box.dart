@@ -14,7 +14,9 @@ class CryptoSecretBox {
 
   /// Initialize sodium (lazy initialization)
   static Future<Sodium> get _sodiumInstance async {
-    _sodium ??= await SodiumLibs.init();
+    if (_sodium != null) return _sodium!;
+    // Use runSodium for Flutter - automatically loads libsodium
+    _sodium = await runSodium();
     return _sodium!;
   }
 
@@ -33,11 +35,11 @@ class CryptoSecretBox {
         : Uint8List.fromList(secretKey);
 
     // Encrypt using libsodium crypto_secretbox_easy
-    // sodium v3.4+ API: use named parameters
-    final encrypted = sodium.crypto.secretbox.easy(
+    // sodium v3.4+ API: use named parameters with SecretKey type
+    final encrypted = sodium.crypto.secretBox.easy(
       message: dataBytes,
       nonce: nonce,
-      key: key,
+      key: SecretKey(key),
     );
 
     // Bundle format: nonce + encrypted data
@@ -68,11 +70,11 @@ class CryptoSecretBox {
       final sodium = await _sodiumInstance;
 
       // Decrypt using libsodium crypto_secretbox.openEasy
-      // sodium v3.4+ API: use named parameters
-      final decrypted = sodium.crypto.secretbox.openEasy(
+      // sodium v3.4+ API: use named parameters with SecretKey type
+      final decrypted = sodium.crypto.secretBox.openEasy(
         cipherText: encrypted,
         nonce: nonce,
-        key: key,
+        key: SecretKey(key),
       );
 
       final jsonString = utf8.decode(decrypted);

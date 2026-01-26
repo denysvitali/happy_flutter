@@ -21,7 +21,9 @@ class CryptoBox {
 
   /// Initialize sodium (lazy initialization)
   static Future<Sodium> get _sodiumInstance async {
-    _sodium ??= await SodiumLibs.init();
+    if (_sodium != null) return _sodium!;
+    // Use runSodium for Flutter - automatically loads libsodium
+    _sodium = await runSodium();
     return _sodium!;
   }
 
@@ -35,14 +37,17 @@ class CryptoBox {
   /// Generate keypair from seed (libsodium compatible)
   static Future<KeyPair> keypairFromSeed(Uint8List seed) async {
     final sodium = await _sodiumInstance;
-    // sodium v3.4+ API: use seedKeyPair with named parameter
+    // sodium v3.4+ API: seedKeyPair returns a KeyPair with SecureKey types
     final keypair = sodium.crypto.box.seedKeyPair(
-      seed: seed,
+      seed: SecretKey(seed),
     );
+    // Extract bytes from SecureKey
+    final publicKey = await keypair.publicKey.extract();
+    final secretKey = await keypair.secretKey.extract();
     return KeyPair(
-      publicKey: keypair.publicKey,
-      privateKey: keypair.secretKey,
-      secretKey: keypair.secretKey,
+      publicKey: publicKey,
+      privateKey: secretKey,
+      secretKey: secretKey,
     );
   }
 
@@ -50,10 +55,13 @@ class CryptoBox {
   static Future<KeyPair> generateKeypair() async {
     final sodium = await _sodiumInstance;
     final keypair = sodium.crypto.box.keyPair();
+    // Extract bytes from SecureKey
+    final publicKey = await keypair.publicKey.extract();
+    final secretKey = await keypair.secretKey.extract();
     return KeyPair(
-      publicKey: keypair.publicKey,
-      privateKey: keypair.secretKey,
-      secretKey: keypair.secretKey,
+      publicKey: publicKey,
+      privateKey: secretKey,
+      secretKey: secretKey,
     );
   }
 
@@ -77,12 +85,12 @@ class CryptoBox {
     final nonce = await randomNonce();
 
     // Encrypt using libsodium crypto_box_easy
-    // sodium v3.4+ API: use named parameters
+    // sodium v3.4+ API: use named parameters with SecretKey types
     final encrypted = sodium.crypto.box.easy(
       message: data,
       nonce: nonce,
-      publicKey: recipientPublicKey,
-      secretKey: senderSecretKey,
+      publicKey: SimplePublicKey(recipientPublicKey),
+      secretKey: SecretKey(senderSecretKey),
     );
 
     // Bundle format: ephemeral public key (32 bytes) + nonce (24 bytes) + encrypted data
@@ -131,12 +139,12 @@ class CryptoBox {
       final sodium = await _sodiumInstance;
 
       // Decrypt using libsodium crypto_box.openEasy
-      // sodium v3.4+ API: use named parameters
+      // sodium v3.4+ API: use named parameters with Key types
       final decrypted = sodium.crypto.box.openEasy(
         cipherText: encrypted,
         nonce: nonce,
-        publicKey: ephemeralPublicKey,
-        secretKey: recipientSecretKey,
+        publicKey: SimplePublicKey(ephemeralPublicKey),
+        secretKey: SecretKey(recipientSecretKey),
       );
 
       return decrypted;

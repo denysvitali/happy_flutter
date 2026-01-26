@@ -31,9 +31,6 @@ class AesGcm {
   /// AES key size (256 bits = 32 bytes)
   static const int keySize = 32;
 
-  /// Get the AES-256-GCM cipher instance for mobile platforms
-  static AesGcm get _cipher => AesGcm.with256bits();
-
   /// Encrypt data using true AES-256-GCM.
   ///
   /// Output format: [12-byte IV][ciphertext + 16-byte auth tag]
@@ -74,12 +71,13 @@ class AesGcm {
     final jsonData = jsonEncode(data);
     final dataBytes = utf8.encode(jsonData);
 
-    // Create SecretKey from bytes
-    final secretKeyObj = await _cipher.newSecretKeyFromBytes(secretKey);
+    // Create cipher and SecretKey from bytes
+    final cipher = AesGcm.with256bits();
+    final secretKeyObj = await cipher.newSecretKeyFromBytes(secretKey);
 
     // Encrypt using AES-256-GCM
     // The SecretBox contains: ciphertext + auth tag (automatically appended)
-    final secretBox = await _cipher.encrypt(
+    final secretBox = await cipher.encrypt(
       dataBytes,
       secretKey: secretKeyObj,
       nonce: nonce,
@@ -137,8 +135,9 @@ class AesGcm {
       final nonce = encryptedData.sublist(0, nonceSize);
       final ciphertextWithTag = encryptedData.sublist(nonceSize);
 
-      // Create SecretKey from bytes
-      final secretKeyObj = await _cipher.newSecretKeyFromBytes(secretKey);
+      // Create cipher and SecretKey from bytes
+      final cipher = AesGcm.with256bits();
+      final secretKeyObj = await cipher.newSecretKeyFromBytes(secretKey);
 
       // Decrypt using AES-256-GCM
       // The SecretBox expects ciphertext with auth tag already appended
@@ -148,7 +147,7 @@ class AesGcm {
         mac: Mac.empty, // MAC is embedded in the ciphertext for GCM
       );
 
-      final decrypted = await _cipher.decrypt(
+      final decrypted = await cipher.decrypt(
         secretBox,
         secretKey: secretKeyObj,
       );
