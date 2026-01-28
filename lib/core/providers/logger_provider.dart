@@ -6,26 +6,46 @@ class LoggerState {
   LoggerState({
     this.logs = const [],
     this.filterLevel,
+    this.searchQuery = '',
   });
 
   final List<LogEntry> logs;
   final int? filterLevel;
+  final String searchQuery;
 
   LoggerState copyWith({
     List<LogEntry>? logs,
     int? filterLevel,
+    String? searchQuery,
   }) {
     return LoggerState(
       logs: logs ?? this.logs,
       filterLevel: filterLevel ?? this.filterLevel,
+      searchQuery: searchQuery ?? this.searchQuery,
     );
   }
 
   List<LogEntry> get filteredLogs {
-    if (filterLevel == null) {
-      return logs;
+    var result = logs;
+
+    // Apply level filter
+    if (filterLevel != null) {
+      result = result.where((entry) => entry.level.index >= filterLevel!).toList();
     }
-    return logs.where((entry) => entry.level.index >= filterLevel!).toList();
+
+    // Apply search filter
+    if (searchQuery.isNotEmpty) {
+      final query = searchQuery.toLowerCase();
+      result = result
+          .where(
+            (entry) =>
+                entry.message.toLowerCase().contains(query) ||
+                (entry.error?.toString().toLowerCase().contains(query) ?? false),
+          )
+          .toList();
+    }
+
+    return result;
   }
 }
 
@@ -92,6 +112,11 @@ class LoggerNotifier extends Notifier<LoggerState> {
   /// Set minimum log level filter
   void setFilterLevel(int? levelIndex) {
     state = state.copyWith(filterLevel: levelIndex);
+  }
+
+  /// Set search query for filtering logs
+  void setSearchQuery(String query) {
+    state = state.copyWith(searchQuery: query);
   }
 
   /// Export logs as formatted string

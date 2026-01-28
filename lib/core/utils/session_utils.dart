@@ -1,4 +1,68 @@
+import 'package:intl/intl.dart';
+
 import '../models/session.dart';
+
+/// Date grouping categories for session history
+enum DateGroup {
+  today,
+  yesterday,
+  lastSevenDays,
+  older,
+}
+
+/// Groups sessions into date-based categories.
+/// Categories: "Today", "Yesterday", "Last 7 Days", "Older"
+Map<DateGroup, List<Session>> groupSessionsByDateCategory(
+  List<Session> sessions,
+) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final yesterday = today.subtract(const Duration(days: 1));
+  final sevenDaysAgo = today.subtract(const Duration(days: 7));
+
+  final groups = <DateGroup, List<Session>>{
+    DateGroup.today: [],
+    DateGroup.yesterday: [],
+    DateGroup.lastSevenDays: [],
+    DateGroup.older: [],
+  };
+
+  for (final session in sessions) {
+    final sessionDate = DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
+    final dateOnly = DateTime(
+      sessionDate.year,
+      sessionDate.month,
+      sessionDate.day,
+    );
+
+    if (dateOnly.isAtSameMomentAs(today)) {
+      groups[DateGroup.today]!.add(session);
+    } else if (dateOnly.isAtSameMomentAs(yesterday)) {
+      groups[DateGroup.yesterday]!.add(session);
+    } else if (dateOnly.isAfter(sevenDaysAgo)) {
+      groups[DateGroup.lastSevenDays]!.add(session);
+    } else {
+      groups[DateGroup.older]!.add(session);
+    }
+  }
+
+  // Remove empty groups and sort sessions within each group (newest first)
+  groups.removeWhere((_, sessions) => sessions.isEmpty);
+  groups.forEach((_, sessions) {
+    sessions.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+  });
+
+  return groups;
+}
+
+/// Returns the display name for a date group.
+/// Uses a callback for localization to avoid importing generated l10n.
+String getDateGroupHeader(
+  DateGroup group, {
+  required String Function(DateGroup) localize,
+}) {
+  return localize(group);
+}
 
 /// Session history item types for grouped list display
 sealed class SessionHistoryItem {
@@ -15,78 +79,72 @@ class SessionHistorySession extends SessionHistoryItem {
   const SessionHistorySession(this.session);
 }
 
-/// Formats a date into a localized date header string.
-/// Returns "Today", "Yesterday", or "X days ago" based on the date.
-String formatDateHeader(DateTime date) {
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  final yesterday = DateTime(today.millisecondsSinceEpoch - 24 * 60 * 60 * 1000);
-  final sessionDate =
-      DateTime(date.year, date.month, date.day);
+/// Creates a flat list of [SessionHistoryItem] from date-grouped sessions.
+/// Sessions are sorted by updatedAt in descending order (most recent first).
+///
+/// The [localize] callback is used to get localized date group headers.
+///
+/// Returns a list of [SessionHistoryItem] containing alternating date headers
+/// and session items.
+List<SessionHistoryItem> createSessionHistoryList(
+  Map<DateGroup, List<Session>> groupedSessions, {
+  required String Function(DateGroup) localize,
+}) {
+  final items = <SessionHistoryItem>[];
+  final order = <DateGroup>[
+    DateGroup.today,
+    DateGroup.yesterday,
+    DateGroup.lastSevenDays,
+    DateGroup.older,
+  ];
 
-  if (sessionDate.millisecondsSinceEpoch == today.millisecondsSinceEpoch) {
-    return 'Today';
-  } else if (sessionDate.millisecondsSinceEpoch ==
-      yesterday.millisecondsSinceEpoch) {
-    return 'Yesterday';
-  } else {
-    final diffTime = today.millisecondsSinceEpoch - sessionDate.millisecondsSinceEpoch;
-    final diffDays = (diffTime / (1000 * 60 * 60 * 24)).floor();
-    return '$diffDays days ago';
+  for (final group in order) {
+    final sessions = groupedSessions[group];
+    if (sessions == null || sessions.isEmpty) {
+      continue;
+    }
+
+    items.add(SessionHistoryDateHeader(localize(group)));
+
+    for (final session in sessions) {
+      items.add(SessionHistorySession(session));
+    }
   }
+
+  return items;
 }
 
 /// Groups sessions by date and creates a flat list with date headers.
 /// Sessions are sorted by updatedAt in descending order (most recent first).
 ///
+/// The [localize] callback is used to get localized date group headers.
+/// If not provided, uses default English strings.
+///
 /// Returns a list of [SessionHistoryItem] containing alternating date headers
 /// and session items.
-List<SessionHistoryItem> groupSessionsByDate(List<Session> sessions) {
+List<SessionHistoryItem> groupSessionsByDate(
+  List<Session> sessions, {
+  String Function(DateGroup)? localize,
+}) {
   if (sessions.isEmpty) {
     return [];
   }
 
-  final sortedSessions = [...sessions]
-    ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+  final grouped = groupSessionsByDateCategory(sessions);
 
-  final items = <SessionHistoryItem>[];
-  Session? currentDateSession;
-  String? currentDateString;
-  final currentGroup = <Session>[];
+  final defaultLocalize = (DateGroup group) {
+    return switch (group) {
+      DateGroup.today => 'Today',
+      DateGroup.yesterday => 'Yesterday',
+      DateGroup.lastSevenDays => 'Last 7 Days',
+      DateGroup.older => 'Older',
+    };
+  };
 
-  for (final session in sortedSessions) {
-    final sessionDate = DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
-    final dateString = sessionDate.toIso8601String().split('T').first;
-
-    if (currentDateString != dateString) {
-      // Process previous group
-      if (currentGroup.isNotEmpty) {
-        items.add(SessionHistoryDateHeader(
-            formatDateHeader(DateTime.parse(currentDateString!))));
-        for (final sess in currentGroup) {
-          items.add(SessionHistorySession(sess));
-        }
-      }
-
-      // Start new group
-      currentDateString = dateString;
-      currentGroup.clear();
-      currentGroup.add(session);
-    } else {
-      currentGroup.add(session);
-    }
-  }
-
-  // Process final group
-  if (currentGroup.isNotEmpty) {
-    items.add(SessionHistoryDateHeader(
-        formatDateHeader(DateTime.parse(currentDateString!))));
-    for (final sess in currentGroup) {
-      items.add(SessionHistorySession(sess));
-    }
-  }
-
-  return items;
+  return createSessionHistoryList(
+    grouped,
+    localize: localize ?? defaultLocalize,
+  );
 }
 
 /// Extracts a display name from a session's metadata path.
@@ -124,7 +182,9 @@ String formatPathRelativeToHome(String path, {String? homeDir}) {
   if (homeDir == null) return path;
 
   // Normalize paths to handle trailing slashes
-  final normalizedHome = homeDir.endsWith('/') ? homeDir.substring(0, homeDir.length - 1) : homeDir;
+  final normalizedHome = homeDir.endsWith('/')
+      ? homeDir.substring(0, homeDir.length - 1)
+      : homeDir;
   final normalizedPath = path;
 
   // Check if path starts with home directory
@@ -209,17 +269,10 @@ String formatLastSeen(int activeAt, {bool isActive = false}) {
   } else if (diffDays < 7) {
     return '$diffDays days ago';
   } else {
-    // Format as date
+    // Format as date using intl
     final date = DateTime.fromMillisecondsSinceEpoch(activeAt);
-    final nowYear = DateTime.now().year;
-    final options = <String, dynamic>{
-      'month': 'short',
-      'day': 'numeric',
-    };
-    if (date.year != nowYear) {
-      options['year'] = 'numeric';
-    }
-    return '${date.month}/${date.day}/${date.year}';
+    final formatter = DateFormat.yMMMd();
+    return formatter.format(date);
   }
 }
 
@@ -244,11 +297,9 @@ String formatTimestamp(int timestamp, {bool relative = false}) {
     }
   }
 
-  // Format as date
+  // Format as date using intl
   final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
   final nowYear = DateTime.now().year;
-  if (date.year == nowYear) {
-    return '${date.month}/${date.day}';
-  }
-  return '${date.month}/${date.day}/${date.year}';
+  final formatter = DateFormat(nowYear == date.year ? 'MMM d' : 'MMM d, yyyy');
+  return formatter.format(date);
 }

@@ -51,7 +51,7 @@ class DraftAutoSave {
   DraftAutoSave({
     required this.sessionId,
     required this.onSave,
-    this.debounceDuration = const Duration(seconds: 1),
+    this.debounceDuration = const Duration(milliseconds: 500),
   });
 
   /// Update the draft content

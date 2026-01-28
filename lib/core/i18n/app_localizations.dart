@@ -71,6 +71,7 @@ class AppLocalizations {
   // ==========================================================================
   String get sessionHistoryTitle => _translate('session.historyTitle', 'Sessions');
   String get sessionActiveSessions => _translate('session.activeSessions', 'Active');
+  String get sessionHistory => _translate('session.history', 'History');
   String get sessionNoSessionsYet => _translate('session.noSessionsYet', 'No sessions yet');
   String get sessionStartNewToGetStarted => _translate('session.startNewToGetStarted', 'Start a new session to get started');
   String get sessionNewSession => _translate('session.newSession', 'New Session');
@@ -117,6 +118,11 @@ class AppLocalizations {
   String get settingsLanguage => _translate('settings.language', 'Language');
   String get settingsLanguageAutomatic => _translate('settings.languageAutomatic', 'Automatic');
   String get settingsLanguageAutomaticSubtitle => _translate('settings.languageAutomaticSubtitle', 'Use system language');
+  String get settingsLanguageNeedsRestart => _translate('settings.languageNeedsRestart', 'Restart Required');
+  String get settingsLanguageNeedsRestartMessage => _translate('settings.languageNeedsRestartMessage', 'The app needs to restart to apply the new language. Continue?');
+  String get commonContinue => _translate('common.continue', 'Continue');
+  String get searchLanguages => _translate('search.languages', 'Search languages...');
+  String get noLanguagesFound => _translate('search.noLanguagesFound', 'No languages found');
   String get settingsServerUrl => _translate('settings.serverUrl', 'Server URL');
   String get settingsServerUrlLabel => _translate('settings.serverUrlLabel', 'Enter server URL');
   String get settingsServerResetToDefault => _translate('settings.serverResetToDefault', 'Reset to default');
@@ -151,6 +157,11 @@ class AppLocalizations {
   String get appearanceThemeLight => _translate('appearance.themeLight', 'Light');
   String get appearanceThemeDark => _translate('appearance.themeDark', 'Dark');
   String get appearanceThemeAdaptive => _translate('appearance.themeAdaptive', 'System');
+  String get appearanceThemeAdaptiveDesc => _translate('appearance.themeAdaptiveDesc', 'Use device theme settings');
+  String get appearanceThemeLightDesc => _translate('appearance.themeLightDesc', 'Always use light theme');
+  String get appearanceThemeDarkDesc => _translate('appearance.themeDarkDesc', 'Always use dark theme');
+  String appearanceThemeApplied(String theme) =>
+      _translate('appearance.themeApplied', '$theme theme applied');
 
   // ==========================================================================
   // Settings Options
@@ -177,6 +188,50 @@ class AppLocalizations {
   // ==========================================================================
   String get newSessionTitle => _translate('newSession.title', 'New Session');
   String get newSessionNoMachinesFound => _translate('newSession.noMachinesFound', 'No machines found');
+
+  // ==========================================================================
+  // Date Groups
+  // ==========================================================================
+  String get dateGroupToday => _translate('dateGroup.today', 'Today');
+  String get dateGroupYesterday => _translate('dateGroup.yesterday', 'Yesterday');
+  String get dateGroupLastSevenDays => _translate('dateGroup.lastSevenDays', 'Last 7 Days');
+  String get dateGroupOlder => _translate('dateGroup.older', 'Older');
+
+  // ==========================================================================
+  // Sidebar
+  // ==========================================================================
+  String get sidebarSessionsTitle => _translate('sidebar.sessionsTitle', 'Terminals');
+  String get sidebarStatusConnected => _translate('sidebar.statusConnected', 'Connected');
+  String get sidebarStatusConnecting => _translate('sidebar.statusConnecting', 'Connecting...');
+  String get sidebarStatusDisconnected => _translate('sidebar.statusDisconnected', 'Disconnected');
+  String get sidebarStatusError => _translate('sidebar.statusError', 'Error');
+
+  // ==========================================================================
+  // Voice Assistant
+  // ==========================================================================
+  String get voiceAssistantConnecting => _translate('voiceAssistant.connecting', 'Connecting...');
+  String get voiceAssistantActive => _translate('voiceAssistant.active', 'Voice Assistant Active');
+  String get voiceAssistantError => _translate('voiceAssistant.error', 'Connection Error');
+  String get voiceAssistantDefault => _translate('voiceAssistant.default', 'Voice Assistant');
+  String get voiceAssistantTapToEnd => _translate('voiceAssistant.tapToEnd', 'Tap to end');
+
+  // ==========================================================================
+  // Command Palette
+  // ==========================================================================
+  String get commandPalettePlaceholder =>
+      _translate('commandPalette.placeholder', 'Type a command or search...');
+  String get commandPaletteNoResults =>
+      _translate('commandPalette.noResults', 'No commands found');
+  String get commandPaletteCategorySessions =>
+      _translate('commandPalette.category.sessions', 'Sessions');
+  String get commandPaletteCategoryNavigation =>
+      _translate('commandPalette.category.navigation', 'Navigation');
+  String get commandPaletteCategoryRecentSessions =>
+      _translate('commandPalette.category.recentSessions', 'Recent Sessions');
+  String get commandPaletteCategorySystem =>
+      _translate('commandPalette.category.system', 'System');
+  String get commandPaletteCategoryDeveloper =>
+      _translate('commandPalette.category.developer', 'Developer');
 
   String _translate(String key, String defaultValue) {
     // Simple placeholder translation - in a real app, this would load from ARB files or JSON
