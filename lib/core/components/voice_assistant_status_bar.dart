@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/api/websocket_client.dart';
 import 'status_dot.dart';

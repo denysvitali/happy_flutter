@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr/qr.dart';
 import '../../core/api/api_client.dart';
-import '../../core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/providers/app_providers.dart';

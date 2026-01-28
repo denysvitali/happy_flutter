@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 
 /// Inbox screen placeholder
 class InboxScreen extends StatelessWidget {
