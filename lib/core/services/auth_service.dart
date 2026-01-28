@@ -121,7 +121,7 @@ class AuthService {
     while (DateTime.now().millisecondsSinceEpoch - startTime < timeout) {
       try {
         final response = await _apiClient.post(
-          '/v1/auth/account/wait',
+          '/v1/auth/account/request',
           data: {
             'publicKey': base64Encode(publicKey),
           },
@@ -156,31 +156,32 @@ class AuthService {
 
         if (response.statusCode == 200) {
           final data = response.data as Map<String, dynamic>;
-          final token = data['token'] as String;
-          final encryptedSecret = data['secret'] as String;
 
-          final secret = await _decryptAuthSecret(encryptedSecret);
+          if (data['state'] == 'authorized') {
+            final token = data['token'] as String;
+            final encryptedResponse = data['response'] as String;
 
-          if (secret != null) {
-            await _encryption.initialize(secret);
+            final secret = await _decryptAuthSecret(encryptedResponse);
 
-            final credentials =
-                AuthCredentials(token: token, secret: base64Encode(secret));
-            await TokenStorage().setCredentials(credentials);
-            _apiClient.updateToken(token);
+            if (secret != null) {
+              await _encryption.initialize(secret);
 
-            return credentials;
+              final credentials =
+                  AuthCredentials(token: token, secret: base64Encode(secret));
+              await TokenStorage().setCredentials(credentials);
+              _apiClient.updateToken(token);
+
+              return credentials;
+            }
           }
-        } else if (response.statusCode == 202) {
-          await Future.delayed(const Duration(milliseconds: 2500));
-        } else {
-          throw Exception('Unexpected response: ${response.statusCode}');
         }
+
+        await Future.delayed(const Duration(milliseconds: 1000));
       } on DioException catch (e) {
         if (e.type == DioExceptionType.connectionError ||
             e.type == DioExceptionType.connectionTimeout) {
           debugPrint('Connection error during auth polling: ${e.message}');
-          await Future.delayed(const Duration(milliseconds: 2500));
+          await Future.delayed(const Duration(milliseconds: 1000));
         } else if (e.response?.statusCode == 403) {
           final serverResponse = _extractErrorMessage(e.response?.data);
           throw AuthForbiddenError(
@@ -199,7 +200,7 @@ class AuthService {
           );
         } else {
           debugPrint('Dio error during auth polling: $e');
-          await Future.delayed(const Duration(milliseconds: 2500));
+          await Future.delayed(const Duration(milliseconds: 1000));
         }
       } catch (e) {
         final errorStr = e.toString();
@@ -213,7 +214,7 @@ class AuthService {
           );
         }
         debugPrint('Auth polling error: $e');
-        await Future.delayed(const Duration(milliseconds: 2500));
+        await Future.delayed(const Duration(milliseconds: 1000));
       }
     }
 
@@ -426,7 +427,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
     while (DateTime.now().millisecondsSinceEpoch - startTime < timeout) {
       try {
         final response = await _apiClient.post(
-          '/v1/auth/account/wait',
+          '/v1/auth/account/request',
           data: {'publicKey': publicKey},
         );
 
@@ -459,30 +460,31 @@ Timestamp: ${DateTime.now().toIso8601String()}
 
         if (response.statusCode == 200) {
           final data = response.data as Map<String, dynamic>;
-          final token = data['token'] as String;
-          final encryptedSecret = data['secret'] as String;
 
-          final secret = await _decryptAuthSecret(encryptedSecret);
+          if (data['state'] == 'authorized') {
+            final token = data['token'] as String;
+            final encryptedResponse = data['response'] as String;
 
-          if (secret != null) {
-            await _encryption.initialize(secret);
+            final secret = await _decryptAuthSecret(encryptedResponse);
 
-            final credentials =
-                AuthCredentials(token: token, secret: base64Encode(secret));
-            await TokenStorage().setCredentials(credentials);
-            _apiClient.updateToken(token);
+            if (secret != null) {
+              await _encryption.initialize(secret);
 
-            return credentials;
+              final credentials =
+                  AuthCredentials(token: token, secret: base64Encode(secret));
+              await TokenStorage().setCredentials(credentials);
+              _apiClient.updateToken(token);
+
+              return credentials;
+            }
           }
-        } else if (response.statusCode == 202) {
-          await Future.delayed(const Duration(milliseconds: 2500));
-        } else {
-          throw Exception('Unexpected response: ${response.statusCode}');
         }
+
+        await Future.delayed(const Duration(milliseconds: 1000));
       } on DioException catch (e) {
         if (e.type == DioExceptionType.connectionError ||
             e.type == DioExceptionType.connectionTimeout) {
-          await Future.delayed(const Duration(milliseconds: 2500));
+          await Future.delayed(const Duration(milliseconds: 1000));
         } else if (e.response?.statusCode == 403) {
           throw AuthForbiddenError(
             'Device linking rejected',
@@ -490,11 +492,11 @@ Timestamp: ${DateTime.now().toIso8601String()}
           );
         } else {
           debugPrint('Device linking error: $e');
-          await Future.delayed(const Duration(milliseconds: 2500));
+          await Future.delayed(const Duration(milliseconds: 1000));
         }
       } catch (e) {
         debugPrint('Device linking error: $e');
-        await Future.delayed(const Duration(milliseconds: 2500));
+        await Future.delayed(const Duration(milliseconds: 1000));
       }
     }
 
