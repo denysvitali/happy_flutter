@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/websocket_client.dart';
 import 'package:happy_flutter/core/models/api_update.dart';
+import 'package:happy_flutter/core/utils/backoff.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status_codes;
 import 'package:mockito/mockito.dart';
@@ -156,7 +157,7 @@ void main() {
 
       // Should start with disconnected status
       await Future.delayed(const Duration(milliseconds: 10));
-      expect(statuss.contains(ConnectionStatus.disconnected), true);
+      expect(statuses.contains(ConnectionStatus.disconnected), true);
 
       await subscription.cancel();
     });

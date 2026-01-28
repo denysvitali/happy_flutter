@@ -13,6 +13,7 @@ analyzer:
     - lib/**/*.freezed.dart
     - lib/**/*.g.dart
     - lib/**/*.mocks.dart
+    - test/**/*.mocks.dart
 
   errors:
     missing_required_param: error
