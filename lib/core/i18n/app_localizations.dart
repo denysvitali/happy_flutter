@@ -20,6 +20,7 @@ class AppLocalizations {
   String get commonSave => 'Save';
   String get commonVersion => 'Version';
   String get commonBack => 'Back';
+  String get commonContinue => 'Continue';
   String get commonDone => 'Done';
   String get commonEdit => 'Edit';
   String get commonClose => 'Close';
@@ -213,6 +214,9 @@ class AppLocalizations {
   String get appearanceThemeDark => 'Dark';
   String get appearanceThemeDarkDesc => 'Always use dark theme';
   String appearanceThemeApplied(String theme) => '$theme theme applied';
+
+  // Language Search
+  String get searchLanguages => 'Search languages';
 
   // Behavior Settings
   String get settingsBehavior => 'Behavior';
