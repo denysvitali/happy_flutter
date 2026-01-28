@@ -16,7 +16,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsNotifierProvider);
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.settingsTitle)),
@@ -57,26 +57,26 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
   ) {
     final themeModeLabel = switch (settings.themeMode) {
-      'light' => context.l10n.appearanceThemeLight,
-      'dark' => context.l10n.appearanceThemeDark,
-      'adaptive' => context.l10n.appearanceThemeAdaptive,
-      _ => context.l10n.appearanceThemeAdaptive,
+      'light' => AppLocalizations.of(context).appearanceThemeLight,
+      'dark' => AppLocalizations.of(context).appearanceThemeDark,
+      'adaptive' => AppLocalizations.of(context).appearanceThemeAdaptive,
+      _ => AppLocalizations.of(context).appearanceThemeAdaptive,
     };
 
     return SettingsSection(
-      title: context.l10n.settingsAppearance,
+      title: AppLocalizations.of(context).settingsAppearance,
       children: [
         ListTile(
-          title: Text(context.l10n.appearanceTheme),
+          title: Text(AppLocalizations.of(context).appearanceTheme),
           subtitle: Text(themeModeLabel),
           leading: const Icon(Icons.palette),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => context.push('/settings/theme'),
         ),
         ListTile(
-          title: Text(context.l10n.settingsLanguage),
+          title: Text(AppLocalizations.of(context).settingsLanguage),
           subtitle: Text(settings.locale.isEmpty
-              ? context.l10n.settingsLanguageAutomatic
+              ? AppLocalizations.of(context).settingsLanguageAutomatic
               : _getLocaleDisplayName(settings.locale)),
           leading: const Icon(Icons.language),
           trailing: const Icon(Icons.chevron_right),
@@ -84,23 +84,23 @@ class SettingsScreen extends ConsumerWidget {
         ),
         const Divider(height: 1),
         SwitchListTile(
-          title: Text(context.l10n.settingsCompactSessionView),
-          subtitle: Text(context.l10n.settingsCompactSessionViewSubtitle),
+          title: Text(AppLocalizations.of(context).settingsCompactSessionView),
+          subtitle: Text(AppLocalizations.of(context).settingsCompactSessionViewSubtitle),
           value: settings.compactSessionView,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('compactSessionView', value),
         ),
         SwitchListTile(
-          title: Text(context.l10n.settingsShowFlavorIcons),
-          subtitle: Text(context.l10n.settingsShowFlavorIconsSubtitle),
+          title: Text(AppLocalizations.of(context).settingsShowFlavorIcons),
+          subtitle: Text(AppLocalizations.of(context).settingsShowFlavorIconsSubtitle),
           value: settings.showFlavorIcons,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('showFlavorIcons', value),
         ),
         ListTile(
-          title: Text(context.l10n.settingsAvatarStyle),
+          title: Text(AppLocalizations.of(context).settingsAvatarStyle),
           subtitle: Text(settings.avatarStyle),
           onTap: () => showAvatarStyleDialog(context, settings, ref),
         ),
@@ -122,7 +122,7 @@ class SettingsScreen extends ConsumerWidget {
     Settings settings,
     WidgetRef ref,
   ) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsBehavior,
       children: [
@@ -160,7 +160,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildVoiceSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: 'Voice',
       children: [
@@ -176,7 +176,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildAIProfilesSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsProfiles,
       children: [
@@ -192,7 +192,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildUsageSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsUsage,
       children: [
@@ -208,7 +208,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildFeaturesSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsFeatures,
       children: [
@@ -224,7 +224,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildDeveloperSection(BuildContext context, Settings settings) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsDeveloper,
       children: [
@@ -244,7 +244,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildAccountSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsAccount,
       children: [
@@ -260,7 +260,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildCertificatesSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsCertificates,
       children: [
@@ -287,7 +287,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildServerSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsServer,
       children: [
@@ -330,7 +330,7 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(context.l10n.settingsServerUrl),
+          title: Text(AppLocalizations.of(context).settingsServerUrl),
           content: Form(
             key: formKey,
             child: Column(
@@ -339,7 +339,7 @@ class SettingsScreen extends ConsumerWidget {
                 TextFormField(
                   controller: controller,
                   decoration: InputDecoration(
-                    labelText: context.l10n.settingsServerUrlLabel,
+                    labelText: AppLocalizations.of(context).settingsServerUrlLabel,
                     hintText: defaultServerUrl,
                     errorText: errorText,
                     suffixIcon: controller.text.isNotEmpty
@@ -361,7 +361,7 @@ class SettingsScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(context.l10n.commonCancel),
+              child: Text(AppLocalizations.of(context).commonCancel),
             ),
             if (currentUrl != defaultServerUrl)
               TextButton(
@@ -371,12 +371,12 @@ class SettingsScreen extends ConsumerWidget {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(context.l10n.settingsServerResetSuccess),
+                      content: Text(AppLocalizations.of(context).settingsServerResetSuccess),
                       duration: const Duration(seconds: 3),
                     ),
                   );
                 },
-                child: Text(context.l10n.settingsServerResetToDefault),
+                child: Text(AppLocalizations.of(context).settingsServerResetToDefault),
               ),
             FilledButton(
               onPressed: isVerifying
@@ -407,7 +407,7 @@ class SettingsScreen extends ConsumerWidget {
 
                       if (!verificationResult.isValid) {
                         setDialogState(() {
-                          errorText = context.l10n.settingsServerNotReachable;
+                          errorText = AppLocalizations.of(context).settingsServerNotReachable;
                         });
                         return;
                       }
@@ -420,7 +420,7 @@ class SettingsScreen extends ConsumerWidget {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(context.l10n.settingsServerSaved),
+                            content: Text(AppLocalizations.of(context).settingsServerSaved),
                             duration: const Duration(seconds: 3),
                           ),
                         );
@@ -432,7 +432,7 @@ class SettingsScreen extends ConsumerWidget {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(context.l10n.settingsServerSaveVerify),
+                  : Text(AppLocalizations.of(context).settingsServerSaveVerify),
             ),
           ],
         ),
@@ -441,7 +441,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildAboutSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsAbout,
       children: [
@@ -462,7 +462,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildSignOutSection(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       children: [
         ListTile(
@@ -479,7 +479,7 @@ class SettingsScreen extends ConsumerWidget {
     Settings settings,
     WidgetRef ref,
   ) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -507,7 +507,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void confirmSignOut(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
