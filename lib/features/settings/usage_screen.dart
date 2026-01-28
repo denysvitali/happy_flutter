@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/providers/app_providers.dart';
 
 /// Usage screen - Token usage, costs, limits display
 class UsageScreen extends ConsumerWidget {
