@@ -7,10 +7,12 @@ import 'core/api/api_client.dart';
 import 'core/i18n/app_localizations.dart';
 import 'core/i18n/supported_locales.dart';
 import 'core/models/auth.dart';
+import 'core/models/settings.dart';
 import 'core/providers/app_providers.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/server_config.dart';
 import 'core/services/storage_service.dart' as storage;
+import 'core/utils/theme_helper.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/sessions/sessions_screen.dart';
 import 'features/chat/chat_screen.dart';
@@ -23,6 +25,8 @@ import 'features/settings/features_settings_screen.dart';
 import 'features/settings/profiles_screen.dart';
 import 'features/settings/usage_screen.dart';
 import 'features/settings/developer_screen.dart';
+import 'features/dev/dev_logs_screen.dart';
+import 'core/components/command_palette/command_palette_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,14 +50,35 @@ class HappyApp extends ConsumerStatefulWidget {
   ConsumerState<HappyApp> createState() => _HappyAppState();
 }
 
-class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver {
+class _HappyAppState extends ConsumerState<HappyApp>
+    with WidgetsBindingObserver {
   late final GoRouter _router;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _router = GoRouter(
+    _router = _buildRouter();
+    Future.delayed(Duration.zero, () {
+      ref.read(authStateNotifierProvider.notifier).checkAuth();
+      _initializeTheme();
+    });
+  }
+
+  void _initializeTheme() async {
+    // Load settings and apply the theme
+    await ref.read(settingsNotifierProvider.notifier).loadSettings();
+    _applyThemeFromSettings();
+  }
+
+  void _applyThemeFromSettings() {
+    final settings = ref.read(settingsNotifierProvider);
+    final themeMode = AppThemeMode.fromString(settings.themeMode);
+    themeMode.applySystemChromeWithContext(ref.context);
+  }
+
+  GoRouter _buildRouter() {
+    return GoRouter(
       routes: [
         GoRoute(
           path: '/',
@@ -163,6 +188,13 @@ class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver
             child: DeveloperScreen(),
           ),
         ),
+        GoRoute(
+          path: '/settings/developer/logs',
+          name: 'dev-logs',
+          builder: (context, state) => AuthGate(
+            child: const DevLogsScreen(),
+          ),
+        ),
       ],
       redirect: (context, state) {
         final authState = ref.read(authStateNotifierProvider);
@@ -181,9 +213,6 @@ class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver
         return null;
       },
     );
-    Future.delayed(Duration.zero, () {
-      ref.read(authStateNotifierProvider.notifier).checkAuth();
-    });
   }
 
   @override
@@ -193,26 +222,59 @@ class _HappyAppState extends ConsumerState<HappyApp> with WidgetsBindingObserver
   }
 
   @override
+  void didChangePlatformBrightness() {
+    super.didChangePlatformBrightness();
+    // Re-apply theme when platform brightness changes (for adaptive mode)
+    _applyThemeFromSettings();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Re-apply theme when app resumes (helps with theme changes while app was in background)
+    if (state == AppLifecycleState.resumed) {
+      _applyThemeFromSettings();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Happy',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          primary: Colors.blue,
-          secondary: Colors.blueAccent,
-        ),
-        useMaterial3: true,
-      ),
-      localizationsDelegates: const [
-        AppLocalizationsDelegate(),
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: supportedLocales,
-      routerConfig: _router,
+    return Consumer(
+      builder: (context, ref, child) {
+        final settings = ref.watch(settingsNotifierProvider);
+        final themeMode = AppThemeMode.fromString(settings.themeMode);
+
+        // Apply system chrome for theme
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          themeMode.applySystemChromeWithContext(context);
+        });
+
+        return CommandPaletteProvider(
+          child: MaterialApp.router(
+            title: 'Happy',
+            theme: ThemeHelper.buildLightTheme(),
+            darkTheme: ThemeHelper.buildDarkTheme(),
+            themeMode: _getThemeMode(themeMode),
+            localizationsDelegates: const [
+              AppLocalizationsDelegate(),
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: supportedLocales,
+            routerConfig: _router,
+          ),
+        );
+      },
     );
+  }
+
+  ThemeMode _getThemeMode(AppThemeMode mode) {
+    return switch (mode) {
+      AppThemeMode.light => ThemeMode.light,
+      AppThemeMode.dark => ThemeMode.dark,
+      AppThemeMode.adaptive => ThemeMode.system,
+    };
   }
 }
 
