@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/providers/app_providers.dart';
+import '../dev/dev_logs_screen.dart';
 
 /// Developer screen - Debug tools (10x click to enable)
 class DeveloperScreen extends ConsumerStatefulWidget {
@@ -57,7 +59,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               title: 'Logs',
               subtitle: 'View application logs',
               icon: Icons.terminal,
-              onTap: () {},
+              onTap: () => context.push('/settings/developer/logs'),
             ),
             const SizedBox(height: 8),
             _buildDebugOption(

@@ -59,6 +59,7 @@ class SettingsScreen extends ConsumerWidget {
     final themeModeLabel = switch (settings.themeMode) {
       'light' => context.l10n.appearanceThemeLight,
       'dark' => context.l10n.appearanceThemeDark,
+      'adaptive' => context.l10n.appearanceThemeAdaptive,
       _ => context.l10n.appearanceThemeAdaptive,
     };
 
