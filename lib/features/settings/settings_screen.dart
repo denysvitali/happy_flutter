@@ -56,6 +56,7 @@ class SettingsScreen extends ConsumerWidget {
     Settings settings,
     WidgetRef ref,
   ) {
+    final l10n = AppLocalizations.of(context)!;
     final themeModeLabel = switch (settings.themeMode) {
       'light' => l10n.appearanceThemeLight,
       'dark' => l10n.appearanceThemeDark,
