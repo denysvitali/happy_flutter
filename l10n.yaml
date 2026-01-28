@@ -5,5 +5,3 @@ output-class: AppLocalizations
 untranslated-messages-file: untranslated_messages.txt
 nullable-getter: true
 format: true
-synthetic-package: false
-output-dir: lib/core/i18n

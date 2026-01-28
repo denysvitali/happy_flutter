@@ -76,17 +76,6 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Debug - Check app_localizations.dart
-        run: |
-          echo "=== Commit SHA ==="
-          git rev-parse HEAD
-          echo "=== app_localizations.dart content ==="
-          cat lib/core/i18n/app_localizations.dart | head -30
-          echo "=== Checking for appearanceTheme ==="
-          grep -n "appearanceTheme" lib/core/i18n/app_localizations.dart || echo "NOT FOUND"
-          echo "=== Checking for AppLocalizationsDelegate ==="
-          grep -n "AppLocalizationsDelegate" lib/core/i18n/app_localizations.dart || echo "NOT FOUND"
-
       - name: Analyze code
         run: flutter analyze
 
