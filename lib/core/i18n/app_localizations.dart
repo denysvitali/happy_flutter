@@ -96,6 +96,14 @@ class AppLocalizations {
   String get chatActionConfirm => 'Confirm Action';
   String get chatActionReject => 'Reject';
   String get chatActionAccept => 'Accept';
+  String get chatChat => 'Chat';
+  String get chatChatLoading => 'Loading...';
+  String get chatDeleteSession => 'Delete Session';
+  String get chatDeleteSessionConfirm => 'Are you sure you want to delete this session?';
+  String get chatFailedToSend => 'Failed to send message';
+  String get chatSendMessageToBegin => 'Send a message to begin';
+  String get chatSessionSettings => 'Session Settings';
+  String get chatStartConversation => 'Start a conversation';
 
   // Settings
   String get settingsTitle => 'Settings';
