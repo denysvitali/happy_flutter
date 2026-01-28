@@ -119,6 +119,20 @@ class AppLocalizations {
   String get settingsDeveloper => 'Developer';
   String get settingsLogs => 'Logs';
   String get settingsVersion => 'Version';
+  String get settingsProfiles => 'AI Profiles';
+  String get settingsProfilesSubtitle => 'Manage AI profiles';
+  String get settingsUsage => 'Usage';
+  String get settingsUsageSubtitle => 'View usage statistics';
+  String get settingsFeatures => 'Features';
+  String get featuresExperiments => 'Experiments';
+  String get featuresExperimentsDesc => 'Try experimental features';
+  String get settingsServerUrlLabel => 'Server URL';
+  String get settingsServerResetSuccess => 'Server URL reset to default';
+  String get settingsServerResetToDefault => 'Reset to Default';
+  String get settingsServerSaved => 'Server URL saved';
+  String get settingsServerSaveVerify => 'Save & Verify';
+  String get settingsSignOut => 'Sign Out';
+  String get settingsSignOutConfirm => 'Are you sure you want to sign out?';
 
   // Tools
   String get toolEdit => 'Edit';
@@ -144,6 +158,32 @@ class AppLocalizations {
   String get permissionYolo => 'Yolo Mode';
   String get permissionReadOnly => 'Read Only';
   String get permissionSafeYolo => 'Safe Yolo';
+
+  // Voice Assistant
+  String get voiceAssistantActive => 'Voice assistant active';
+  String get voiceAssistantConnecting => 'Connecting...';
+  String get voiceAssistantDefault => 'Voice';
+  String get voiceAssistantTapToEnd => 'Tap to end';
+
+  // Sidebar
+  String get sidebarStatusConnected => 'Connected';
+  String get sidebarStatusConnecting => 'Connecting...';
+  String get sidebarStatusDisconnected => 'Disconnected';
+  String get sidebarStatusError => 'Error';
+  String get sidebarSessionsTitle => 'Sessions';
+
+  // Auth
+  String get authAccessDenied => 'Access Denied';
+  String get authClientError => 'Client Error';
+  String get authServerError => 'Server Error';
+  String get authCertificateError => 'Certificate Error';
+  String get authAuthenticationFailed => 'Authentication Failed';
+  String get authConnectionFailed => 'Connection Failed';
+  String get appTitle => 'Happy';
+  String get appSubtitle => 'Your AI coding assistant';
+  String get welcomeCreateAccount => 'Create Account';
+  String get welcomeLinkOrRestoreAccount => 'Link or Restore Account';
+  String get authServerSettings => 'Server Settings';
 
   // Errors
   String get errorGeneric => 'Something went wrong';
