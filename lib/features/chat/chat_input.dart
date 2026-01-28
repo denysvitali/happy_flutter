@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/draft_storage.dart';
 import 'widgets/autocomplete_overlay.dart';
-import 'widgets/permission_mode_selector.dart';
+import 'widgets/permission_mode_selector.dart' as perm;
 
 /// Slash command suggestions
 final class SlashCommand {
@@ -58,8 +58,8 @@ class ChatInput extends ConsumerStatefulWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
   final bool isSending;
-  final PermissionMode? permissionMode;
-  final ValueChanged<PermissionMode>? onPermissionModeChanged;
+  final perm.PermissionMode? permissionMode;
+  final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
   final List<AutocompleteSuggestion> fileSuggestions;
   final bool showSettingsButton;
   final String? machineName;
@@ -491,7 +491,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
         children: [
           // Permission mode selector
           if (widget.onPermissionModeChanged != null)
-            PermissionModeSelector(
+            perm.PermissionModeSelector(
               selectedMode: widget.permissionMode,
               onModeChanged: widget.onPermissionModeChanged,
             ),
@@ -539,15 +539,15 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                 ),
               ),
               // Permission mode options
-              ...PermissionMode.values.map(
+              ...perm.PermissionMode.allModes.map(
                 (mode) => ListTile(
-                  leading: Radio<PermissionMode>(
+                  leading: Radio<perm.PermissionMode>(
                     value: mode,
                     groupValue: widget.permissionMode,
                     onChanged: widget.onPermissionModeChanged != null
                         ? (value) {
                             widget.onPermissionModeChanged!(
-                              value as PermissionMode,
+                              value as perm.PermissionMode,
                             );
                           }
                         : null,

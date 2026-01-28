@@ -126,6 +126,30 @@ class KnownTools {
   static Widget mcpIcon(double size, Color color) =>
       Icon(Icons.extension, size: size, color: color);
 
+  /// Icon factory for notebook tools.
+  static Widget notebookIcon(double size, Color color) =>
+      Icon(Icons.book, size: size, color: color);
+
+  /// Icon factory for notebook edit tools.
+  static Widget notebookEditIcon(double size, Color color) =>
+      Icon(Icons.edit_note, size: size, color: color);
+
+  /// Icon factory for reasoning/think tools.
+  static Widget thinkIcon(double size, Color color) =>
+      Icon(Icons.psychology, size: size, color: color);
+
+  /// Icon factory for change title tools.
+  static Widget titleIcon(double size, Color color) =>
+      Icon(Icons.title, size: size, color: color);
+
+  /// Icon factory for codex/patch tools.
+  static Widget patchIcon(double size, Color color) =>
+      Icon(Icons.diff, size: size, color: color);
+
+  /// Icon factory for codex/diff tools.
+  static Widget diffIcon(double size, Color color) =>
+      Icon(Icons.compare_arrows, size: size, color: color);
+
   /// Default icon for unknown tools.
   static Widget defaultIcon(double size, Color color) =>
       Icon(Icons.build, size: size, color: color);
@@ -325,6 +349,200 @@ class KnownTools {
           return questions[0]['question'] as String?;
         }
         return '${questions.length} questions';
+      },
+    ),
+    // Lowercase variants for Gemini
+    'read': ToolDefinition(
+      icon: readIcon,
+      title: 'Read File',
+      minimal: true,
+      extractSubtitle: (tool, metadata) {
+        // Gemini format uses locations array
+        final locations = tool['input']?['locations'] as List?;
+        if (locations != null && locations.isNotEmpty) {
+          final path = locations[0]['path'] as String?;
+          if (path != null) return resolvePath(path, metadata);
+        }
+        final filePath = tool['input']?['file_path'] as String?;
+        if (filePath != null) return resolvePath(filePath, metadata);
+        return null;
+      },
+    ),
+    'search': ToolDefinition(
+      icon: searchIcon,
+      title: 'Search',
+      minimal: true,
+    ),
+    'edit': ToolDefinition(
+      icon: editIcon,
+      title: 'Edit File',
+      isMutable: true,
+      extractSubtitle: (tool, metadata) {
+        // Gemini sends data in nested structure
+        final toolCall = tool['input']?['toolCall'] as Map<String, dynamic>?;
+        if (toolCall != null) {
+          final content = toolCall['content'] as List?;
+          if (content != null && content.isNotEmpty) {
+            final path = content[0]['path'] as String?;
+            if (path != null) return resolvePath(path, metadata);
+          }
+          final title = toolCall['title'] as String?;
+          if (title != null && title.startsWith('Writing to ')) {
+            return title.replaceFirst('Writing to ', '');
+          }
+        }
+        final input = tool['input']?['input'] as List?;
+        if (input != null && input.isNotEmpty) {
+          final path = input[0]['path'] as String?;
+          if (path != null) return resolvePath(path, metadata);
+        }
+        final path = tool['input']?['path'] as String?;
+        if (path != null) return resolvePath(path, metadata);
+        return null;
+      },
+    ),
+    'shell': ToolDefinition(
+      icon: bashIcon,
+      title: 'Shell',
+      minimal: true,
+      isMutable: true,
+    ),
+    'execute': ToolDefinition(
+      icon: bashIcon,
+      title: 'Execute',
+      minimal: true,
+      isMutable: true,
+      extractSubtitle: (tool, _) {
+        final toolCall = tool['input']?['toolCall'] as Map<String, dynamic>?;
+        final title = toolCall?['title'] as String?;
+        if (title != null) {
+          // Extract command from title like "rm file.txt [cwd /path] (description)"
+          final bracketIdx = title.indexOf(' [');
+          if (bracketIdx > 0) {
+            return title.substring(0, bracketIdx);
+          }
+          return title;
+        }
+        return null;
+      },
+    ),
+    'think': ToolDefinition(
+      icon: reasoningIcon,
+      title: 'Reasoning',
+      minimal: true,
+    ),
+    'change_title': ToolDefinition(
+      icon: titleIcon,
+      title: 'Change Title',
+      minimal: true,
+      noStatus: true,
+    ),
+    // Codex tools
+    'CodexBash': ToolDefinition(
+      icon: bashIcon,
+      title: 'Terminal',
+      minimal: true,
+      hideDefaultError: true,
+      isMutable: true,
+      extractSubtitle: (tool, _) {
+        final parsedCmd = tool['input']?['parsed_cmd'] as List?;
+        if (parsedCmd != null && parsedCmd.isNotEmpty) {
+          final cmd = parsedCmd[0] as Map<String, dynamic>?;
+          return cmd?['cmd'] as String?;
+        }
+        final command = tool['input']?['command'] as List?;
+        if (command != null && command.isNotEmpty) {
+          return command.join(' ');
+        }
+        return null;
+      },
+    ),
+    'CodexPatch': ToolDefinition(
+      icon: patchIcon,
+      title: 'Apply Changes',
+      minimal: false,
+      hideDefaultError: true,
+      isMutable: true,
+      extractSubtitle: (tool, _) {
+        final changes = tool['input']?['changes'] as Map<String, dynamic>?;
+        if (changes != null && changes.isNotEmpty) {
+          final files = changes.keys.toList();
+          if (files.length == 1) {
+            return files[0].split('/').lastOrNull ?? files[0];
+          }
+          return '${files.length} files';
+        }
+        return null;
+      },
+    ),
+    'CodexDiff': ToolDefinition(
+      icon: diffIcon,
+      title: 'View Diff',
+      minimal: false,
+      hideDefaultError: true,
+      noStatus: true,
+      extractSubtitle: (tool, _) {
+        final diff = tool['input']?['unified_diff'] as String?;
+        if (diff != null) {
+          for (final line in diff.split('\n')) {
+            if (line.startsWith('+++ b/') || line.startsWith('+++ ')) {
+              return line.replaceFirst(RegExp(r'^\+\+\+ (b/)?'), '');
+            }
+          }
+        }
+        return null;
+      },
+    ),
+    // Gemini-specific tools
+    'GeminiReasoning': ToolDefinition(
+      icon: reasoningIcon,
+      title: 'Reasoning',
+      minimal: true,
+    ),
+    'GeminiBash': ToolDefinition(
+      icon: bashIcon,
+      title: 'Terminal',
+      minimal: true,
+      hideDefaultError: true,
+      isMutable: true,
+    ),
+    'GeminiPatch': ToolDefinition(
+      icon: patchIcon,
+      title: 'Apply Changes',
+      minimal: false,
+      hideDefaultError: true,
+      isMutable: true,
+    ),
+    'GeminiDiff': ToolDefinition(
+      icon: diffIcon,
+      title: 'View Diff',
+      minimal: false,
+      hideDefaultError: true,
+      noStatus: true,
+    ),
+    // Notebook tools
+    'NotebookRead': ToolDefinition(
+      icon: notebookIcon,
+      title: 'Read Notebook',
+      minimal: true,
+      extractSubtitle: (tool, metadata) {
+        final path = tool['input']?['notebook_path'] as String?;
+        if (path != null) return resolvePath(path, metadata);
+        return null;
+      },
+    ),
+    'NotebookEdit': ToolDefinition(
+      icon: notebookEditIcon,
+      title: 'Edit Notebook',
+      isMutable: true,
+      minimal: false,
+      extractSubtitle: (tool, metadata) {
+        final path = tool['input']?['notebook_path'] as String?;
+        if (path != null) {
+          final mode = tool['input']?['edit_mode'] as String? ?? 'replace';
+          return '${mode} in ${path.split('/').lastOrNull ?? path}';
+        }
+        return null;
       },
     ),
   };

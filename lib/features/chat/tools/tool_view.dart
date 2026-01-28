@@ -7,6 +7,15 @@ import 'known_tools.dart';
 import 'permission_footer.dart';
 import '../utils/tool_error_parser.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+import 'views/glob_view.dart';
+import 'views/grep_view.dart';
+import 'views/ls_view.dart';
+import 'views/read_view.dart';
+import 'views/codex_bash_view.dart';
+import 'views/codex_diff_view.dart';
+import 'views/codex_patch_view.dart';
+import 'views/gemini_edit_view.dart';
+import 'views/gemini_execute_view.dart';
 
 /// Main ToolView component with header, status, and elapsed time.
 ///
@@ -394,9 +403,233 @@ class ToolView extends StatelessWidget {
             Map<String, dynamic>? metadata,
             List<Map<String, dynamic>>? messages,
           )
-        >{};
+        >{
+          // File tools
+          'Glob': _buildGlobView,
+          'Grep': _buildGrepView,
+          'LS': _buildLSView,
+          'Read': _buildReadView,
+          'read': _buildReadView,
+          // Edit tools
+          'Edit': _buildEditView,
+          'MultiEdit': _buildMultiEditView,
+          'Write': _buildWriteView,
+          'edit': _buildGeminiEditView,
+          // Command tools
+          'Bash': _buildBashView,
+          'CodexBash': _buildCodexBashView,
+          'execute': _buildGeminiExecuteView,
+          // Patch/Diff tools
+          'CodexPatch': _buildCodexPatchView,
+          'CodexDiff': _buildCodexDiffView,
+          // Task and todo
+          'Task': _buildTaskView,
+          'TodoWrite': _buildTodoView,
+          // Web tools
+          'WebFetch': _buildWebFetchView,
+          'WebSearch': _buildWebSearchView,
+          // Other tools
+          'ExitPlanMode': _buildExitPlanView,
+          'exit_plan_mode': _buildExitPlanView,
+          'AskUserQuestion': _buildAskUserQuestionView,
+          // Notebook tools
+          'NotebookRead': _buildNotebookReadView,
+          'NotebookEdit': _buildNotebookEditView,
+        };
 
     return views[toolName];
+  }
+
+  // View builder methods
+  Widget _buildGlobView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return GlobView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildGrepView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return GrepView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildLSView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return LSView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildReadView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return ReadView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildEditView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return EditView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildMultiEditView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return MultiEditView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildWriteView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return WriteView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildGeminiEditView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return GeminiEditView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildBashView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return BashView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildCodexBashView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return CodexBashView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildGeminiExecuteView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return GeminiExecuteView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildCodexPatchView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return CodexPatchView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildCodexDiffView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return CodexDiffView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildTaskView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return TaskView(tool: tool, metadata: metadata, messages: messages);
+  }
+
+  Widget _buildTodoView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return TodoView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildWebFetchView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return WebFetchView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildWebSearchView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return WebSearchView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildExitPlanView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return ExitPlanToolView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildAskUserQuestionView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    return AskUserQuestionView(tool: tool, metadata: metadata, sessionId: parent.sessionId);
+  }
+
+  Widget _buildNotebookReadView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    // Reuse ReadView for notebook read
+    return ReadView(tool: tool, metadata: metadata);
+  }
+
+  Widget _buildNotebookEditView(
+    ToolView parent,
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? messages,
+  ) {
+    // NotebookEdit uses same structure as Edit
+    return EditView(tool: tool, metadata: metadata);
   }
 }
 
