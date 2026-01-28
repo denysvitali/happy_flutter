@@ -330,7 +330,7 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) {
-          final l10nDialog = AppLocalizations.of(dialogContext)!;
+          final l10nDialog = AppLocalizations.of(dialogContext);
           return AlertDialog(
           title: Text(l10nDialog.settingsServerUrl),
           content: Form(
@@ -485,7 +485,7 @@ class SettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (dialogContext) {
-        final l10nDialog = AppLocalizations.of(dialogContext)!;
+        final l10nDialog = AppLocalizations.of(dialogContext);
         return AlertDialog(
         title: Text(l10nDialog.settingsAvatarStyle),
         content: Column(
@@ -515,7 +515,7 @@ class SettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (dialogContext) {
-        final l10nDialog = AppLocalizations.of(dialogContext)!;
+        final l10nDialog = AppLocalizations.of(dialogContext);
         return AlertDialog(
         title: Text(l10nDialog.settingsSignOut),
         content: Text(l10nDialog.settingsSignOutConfirm),
