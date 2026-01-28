@@ -214,13 +214,6 @@ class AppLocalizations {
   String get appearanceThemeDarkDesc => 'Always use dark theme';
   String appearanceThemeApplied(String theme) => '$theme theme applied';
 
-  // Language
-  String get searchLanguages => 'Search languages';
-  String get settingsLanguageNeedsRestart => 'Language Changed';
-  String get settingsLanguageNeedsRestartMessage =>
-      'The app needs to restart to apply the new language setting.';
-  String get commonContinue => 'Continue';
-
   // Behavior Settings
   String get settingsBehavior => 'Behavior';
   String get settingsViewInline => 'View Inline';
