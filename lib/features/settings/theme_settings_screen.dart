@@ -19,7 +19,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsNotifierProvider);
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
@@ -76,7 +76,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
     mode.applySystemChromeWithContext(context);
 
     // Show feedback
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final message = switch (themeMode) {
       'light' => l10n.appearanceThemeApplied('Light'),
       'dark' => l10n.appearanceThemeApplied('Dark'),

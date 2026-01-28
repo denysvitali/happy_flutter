@@ -30,7 +30,7 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    final l10n = context.l10n;
+    final l10n = context.l10n!;
     final theme = Theme.of(context);
 
     final statusInfo = _getStatusInfo(connectionStatus, l10n);
@@ -120,7 +120,7 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
               ),
               const Spacer(),
               Text(
-                context.l10n.voiceAssistantTapToEnd,
+                context.l10n!.voiceAssistantTapToEnd,
                 style: TextStyle(
                   color: statusInfo.textColor,
                   fontSize: 12,

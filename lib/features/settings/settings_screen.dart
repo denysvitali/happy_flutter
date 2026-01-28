@@ -16,7 +16,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsNotifierProvider);
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.settingsTitle)),
@@ -57,26 +57,26 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
   ) {
     final themeModeLabel = switch (settings.themeMode) {
-      'light' => AppLocalizations.of(context).appearanceThemeLight,
-      'dark' => AppLocalizations.of(context).appearanceThemeDark,
-      'adaptive' => AppLocalizations.of(context).appearanceThemeAdaptive,
-      _ => AppLocalizations.of(context).appearanceThemeAdaptive,
+      'light' => l10n.appearanceThemeLight,
+      'dark' => l10n.appearanceThemeDark,
+      'adaptive' => l10n.appearanceThemeAdaptive,
+      _ => l10n.appearanceThemeAdaptive,
     };
 
     return SettingsSection(
-      title: AppLocalizations.of(context).settingsAppearance,
+      title: l10n.settingsAppearance,
       children: [
         ListTile(
-          title: Text(AppLocalizations.of(context).appearanceTheme),
+          title: Text(l10n.appearanceTheme),
           subtitle: Text(themeModeLabel),
           leading: const Icon(Icons.palette),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => context.push('/settings/theme'),
         ),
         ListTile(
-          title: Text(AppLocalizations.of(context).settingsLanguage),
+          title: Text(l10n.settingsLanguage),
           subtitle: Text(settings.locale.isEmpty
-              ? AppLocalizations.of(context).settingsLanguageAutomatic
+              ? l10n.settingsLanguageAutomatic
               : _getLocaleDisplayName(settings.locale)),
           leading: const Icon(Icons.language),
           trailing: const Icon(Icons.chevron_right),
@@ -84,23 +84,23 @@ class SettingsScreen extends ConsumerWidget {
         ),
         const Divider(height: 1),
         SwitchListTile(
-          title: Text(AppLocalizations.of(context).settingsCompactSessionView),
-          subtitle: Text(AppLocalizations.of(context).settingsCompactSessionViewSubtitle),
+          title: Text(l10n.settingsCompactSessionView),
+          subtitle: Text(l10n.settingsCompactSessionViewSubtitle),
           value: settings.compactSessionView,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('compactSessionView', value),
         ),
         SwitchListTile(
-          title: Text(AppLocalizations.of(context).settingsShowFlavorIcons),
-          subtitle: Text(AppLocalizations.of(context).settingsShowFlavorIconsSubtitle),
+          title: Text(l10n.settingsShowFlavorIcons),
+          subtitle: Text(l10n.settingsShowFlavorIconsSubtitle),
           value: settings.showFlavorIcons,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('showFlavorIcons', value),
         ),
         ListTile(
-          title: Text(AppLocalizations.of(context).settingsAvatarStyle),
+          title: Text(l10n.settingsAvatarStyle),
           subtitle: Text(settings.avatarStyle),
           onTap: () => showAvatarStyleDialog(context, settings, ref),
         ),
@@ -122,7 +122,7 @@ class SettingsScreen extends ConsumerWidget {
     Settings settings,
     WidgetRef ref,
   ) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return SettingsSection(
       title: l10n.settingsBehavior,
       children: [
@@ -160,7 +160,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildVoiceSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return SettingsSection(
       title: 'Voice',
       children: [
@@ -176,7 +176,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildAIProfilesSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return SettingsSection(
       title: l10n.settingsProfiles,
       children: [
@@ -192,7 +192,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildUsageSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return SettingsSection(
       title: l10n.settingsUsage,
       children: [
@@ -208,7 +208,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildFeaturesSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return SettingsSection(
       title: l10n.settingsFeatures,
       children: [
@@ -224,7 +224,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildDeveloperSection(BuildContext context, Settings settings) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return SettingsSection(
       title: l10n.settingsDeveloper,
       children: [
@@ -244,7 +244,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildAccountSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return SettingsSection(
       title: l10n.settingsAccount,
       children: [
@@ -260,7 +260,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildCertificatesSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return SettingsSection(
       title: l10n.settingsCertificates,
       children: [
@@ -287,7 +287,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildServerSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return SettingsSection(
       title: l10n.settingsServer,
       children: [
@@ -328,9 +328,11 @@ class SettingsScreen extends ConsumerWidget {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(AppLocalizations.of(context).settingsServerUrl),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final l10nDialog = AppLocalizations.of(dialogContext)!;
+          return AlertDialog(
+          title: Text(l10nDialog.settingsServerUrl),
           content: Form(
             key: formKey,
             child: Column(
@@ -339,7 +341,7 @@ class SettingsScreen extends ConsumerWidget {
                 TextFormField(
                   controller: controller,
                   decoration: InputDecoration(
-                    labelText: AppLocalizations.of(context).settingsServerUrlLabel,
+                    labelText: l10nDialog.settingsServerUrlLabel,
                     hintText: defaultServerUrl,
                     errorText: errorText,
                     suffixIcon: controller.text.isNotEmpty
@@ -360,23 +362,23 @@ class SettingsScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(AppLocalizations.of(context).commonCancel),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10nDialog.commonCancel),
             ),
             if (currentUrl != defaultServerUrl)
               TextButton(
                 onPressed: () {
                   setServerUrl(null);
                   ApiClient().refreshServerUrl();
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
                     SnackBar(
-                      content: Text(AppLocalizations.of(context).settingsServerResetSuccess),
+                      content: Text(l10nDialog.settingsServerResetSuccess),
                       duration: const Duration(seconds: 3),
                     ),
                   );
                 },
-                child: Text(AppLocalizations.of(context).settingsServerResetToDefault),
+                child: Text(l10nDialog.settingsServerResetToDefault),
               ),
             FilledButton(
               onPressed: isVerifying
@@ -407,7 +409,7 @@ class SettingsScreen extends ConsumerWidget {
 
                       if (!verificationResult.isValid) {
                         setDialogState(() {
-                          errorText = AppLocalizations.of(context).settingsServerNotReachable;
+                          errorText = l10nDialog.settingsServerNotReachable;
                         });
                         return;
                       }
@@ -416,11 +418,11 @@ class SettingsScreen extends ConsumerWidget {
                       setServerUrl(url);
                       ApiClient().refreshServerUrl();
 
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
+                      if (dialogContext.mounted) {
+                        Navigator.pop(dialogContext);
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
                           SnackBar(
-                            content: Text(AppLocalizations.of(context).settingsServerSaved),
+                            content: Text(l10nDialog.settingsServerSaved),
                             duration: const Duration(seconds: 3),
                           ),
                         );
@@ -432,16 +434,17 @@ class SettingsScreen extends ConsumerWidget {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(AppLocalizations.of(context).settingsServerSaveVerify),
+                  : Text(l10nDialog.settingsServerSaveVerify),
             ),
           ],
-        ),
+        );
+        },
       ),
     );
   }
 
   Widget buildAboutSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return SettingsSection(
       title: l10n.settingsAbout,
       children: [
@@ -462,7 +465,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildSignOutSection(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return SettingsSection(
       children: [
         ListTile(
@@ -479,11 +482,13 @@ class SettingsScreen extends ConsumerWidget {
     Settings settings,
     WidgetRef ref,
   ) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.settingsAvatarStyle),
+      builder: (dialogContext) {
+        final l10nDialog = AppLocalizations.of(dialogContext)!;
+        return AlertDialog(
+        title: Text(l10nDialog.settingsAvatarStyle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: ['brutalist', 'minimal', 'rounded', 'circle']
@@ -496,38 +501,42 @@ class SettingsScreen extends ConsumerWidget {
                     ref
                         .read(settingsNotifierProvider.notifier)
                         .updateSetting('avatarStyle', value);
-                    Navigator.pop(context);
+                    Navigator.pop(dialogContext);
                   },
                 ),
               )
               .toList(),
         ),
-      ),
+      );
+      },
     );
   }
 
   void confirmSignOut(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.settingsSignOut),
-        content: Text(l10n.settingsSignOutConfirm),
+      builder: (dialogContext) {
+        final l10nDialog = AppLocalizations.of(dialogContext)!;
+        return AlertDialog(
+        title: Text(l10nDialog.settingsSignOut),
+        content: Text(l10nDialog.settingsSignOutConfirm),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.commonCancel),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(l10nDialog.commonCancel),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               ref.read(authStateNotifierProvider.notifier).signOut();
             },
-            child: Text(l10n.settingsSignOut),
+            child: Text(l10nDialog.settingsSignOut),
           ),
         ],
-      ),
+      );
+      },
     );
   }
 

@@ -4,7 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'core/api/api_client.dart';
-import 'core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'core/i18n/supported_locales.dart';
 import 'core/models/auth.dart';
 import 'core/models/settings.dart';
