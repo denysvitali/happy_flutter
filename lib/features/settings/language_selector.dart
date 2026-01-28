@@ -27,7 +27,7 @@ class LanguageSelector extends ConsumerWidget {
     if (isFullScreen) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(l10n!.settingsLanguage),
+          title: Text(l10n.settingsLanguage),
         ),
         body: ListView(
           padding: const EdgeInsets.all(16),
@@ -152,7 +152,7 @@ class LanguageSelector extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => context.pop(),
-            child: Text(l10n!.commonCancel),
+            child: Text(l10n.commonCancel),
           ),
         ],
       ),

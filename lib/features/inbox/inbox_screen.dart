@@ -23,7 +23,7 @@ class InboxScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              l10n!.inboxEmptyTitle,
+              l10n.inboxEmptyTitle,
               style: theme.textTheme.titleLarge?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500,
