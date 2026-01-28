@@ -139,7 +139,7 @@ jobs:
         id: android-sdk-cache
         with:
           path: ${{ github.workspace }}/android-sdk
-          key: ${{ runner.os }}-android-sdk-v2
+          key: ${{ runner.os }}-android-sdk-ndk-v1
           restore-keys: |
             ${{ runner.os }}-android-sdk-
 
@@ -298,29 +298,13 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
 
-      - name: Setup Android SDK
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        run: |
-          mkdir -p $ANDROID_HOME
-          cd $ANDROID_HOME
-          # Download command line tools
-          curl -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q cmdline-tools.zip
-          mkdir -p cmdline-tools/latest
-          mv cmdline-tools/bin cmdline-tools/lib cmdline-tools/NOTICE.txt cmdline-tools/source.properties cmdline-tools/latest/ 2>/dev/null || true
-          rm cmdline-tools.zip
-          # Accept licenses and install required components
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;27.0.12077973"
-          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-
       - name: Cache Android SDK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         uses: actions/cache@v4
         id: android-sdk-cache
         with:
           path: ${{ github.workspace }}/android-sdk
-          key: ${{ runner.os }}-android-sdk-v2
+          key: ${{ runner.os }}-android-sdk-ndk-v1
           restore-keys: |
             ${{ runner.os }}-android-sdk-
 
