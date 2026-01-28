@@ -46,7 +46,7 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsNotifierProvider);
     final preferredLanguage = settings.preferredLanguage;
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
 
     // Get detected device language
     final locale = WidgetsBinding.instance.platformDispatcher.locale;
