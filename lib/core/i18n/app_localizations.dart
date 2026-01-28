@@ -82,6 +82,8 @@ class AppLocalizations {
   // Tabs
   String get tabsInbox => 'Inbox';
   String get tabsSettings => 'Settings';
+  String get inboxEmptyTitle => 'Inbox Empty';
+  String get inboxEmptyDescription => 'Your inbox is empty';
 
   // Chat
   String get chatInputHint => 'Message...';
@@ -105,6 +107,7 @@ class AppLocalizations {
   String get settingsLanguage => 'Language';
   String get settingsLanguageAutomatic => 'Automatic';
   String get settingsLanguageAutomaticSubtitle => 'Use device language';
+  String get noLanguagesFound => 'No languages found';
   String get settingsServer => 'Server';
   String get settingsServerUrl => 'Server URL';
   String get settingsServerNotReachable => 'Server not reachable';
