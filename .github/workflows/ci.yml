@@ -74,7 +74,6 @@ jobs:
             ${{ runner.os }}-pub-
 
       - name: Get dependencies
-        if: steps.flutter-action.outputs.PUB-CACHE-HIT != 'true'
         run: flutter pub get
 
       - name: Analyze code
@@ -182,7 +181,6 @@ jobs:
             ${{ runner.os }}-flutter-build-
 
       - name: Get dependencies
-        if: steps.flutter-action.outputs.PUB-CACHE-HIT != 'true'
         run: flutter pub get
 
       - name: Determine flavor
