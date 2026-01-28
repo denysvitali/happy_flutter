@@ -151,6 +151,51 @@ class AppLocalizations {
   String get errorServer => 'Server error. Please try again later.';
   String get errorNotFound => 'Not found';
   String get voiceAssistantError => 'Voice assistant error';
+
+  // Appearance Theme
+  String get appearanceTheme => 'Theme';
+  String get appearanceThemeAdaptive => 'Adaptive';
+  String get appearanceThemeAdaptiveDesc => 'Match system settings';
+  String get appearanceThemeLight => 'Light';
+  String get appearanceThemeLightDesc => 'Always use light theme';
+  String get appearanceThemeDark => 'Dark';
+  String get appearanceThemeDarkDesc => 'Always use dark theme';
+  String appearanceThemeApplied(String theme) => '$theme theme applied';
+
+  // Language
+  String get searchLanguages => 'Search languages';
+  String get settingsLanguageNeedsRestart => 'Language Changed';
+  String get settingsLanguageNeedsRestartMessage =>
+      'The app needs to restart to apply the new language setting.';
+  String get commonContinue => 'Continue';
+
+  // Behavior Settings
+  String get settingsBehavior => 'Behavior';
+  String get settingsViewInline => 'View Inline';
+  String get settingsViewInlineSubtitle => 'Show tool calls inline in chat';
+  String get settingsExpandTodos => 'Expand Todos';
+  String get settingsShowLineNumbers => 'Show Line Numbers';
+
+  // Appearance Settings
+  String get settingsCompactSessionView => 'Compact Session View';
+  String get settingsCompactSessionViewSubtitle =>
+      'Use smaller cards for sessions';
+  String get settingsShowFlavorIcons => 'Show Flavor Icons';
+  String get settingsShowFlavorIconsSubtitle =>
+      'Show AI provider icons in avatars';
+  String get settingsAvatarStyle => 'Avatar Style';
+  String get settingsWrapLinesInDiffs => 'Wrap Lines in Diffs';
+
+  // Account & Other
+  String get accountAccountSettings => 'Account Settings';
+  String get settingsCertificates => 'Certificates';
+  String get settingsUserCaCertificates => 'User CA Certificates';
+  String get settingsUserCertificatesInstalled =>
+      'User certificates are installed';
+  String get settingsNoUserCertificates => 'No user certificates installed';
+  String get settingsAbout => 'About';
+  String get settingsPrivacyPolicy => 'Privacy Policy';
+  String get settingsTermsOfService => 'Terms of Service';
 }
 
 /// Localizations delegate

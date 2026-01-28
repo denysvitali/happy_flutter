@@ -124,7 +124,7 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
                 _buildLanguageOption(
                   context: context,
                   code: autoLanguageCode,
-                  title: l10n!.settingsLanguageAutomatic,
+                  title: l10n.settingsLanguageAutomatic,
                   subtitle: '${l10n.settingsLanguageAutomaticSubtitle} ($detectedLanguageName)',
                   isSelected: currentSelection == autoLanguageCode,
                   onTap: () => _handleLanguageChange(autoLanguageCode),
@@ -138,7 +138,7 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
                     child: Padding(
                       padding: const EdgeInsets.all(32),
                       child: Text(
-                        l10n!.noLanguagesFound,
+                        l10n.noLanguagesFound,
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
