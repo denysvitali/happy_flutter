@@ -48,7 +48,7 @@ class VoiceSettingsScreen extends ConsumerWidget {
                 color: Color(0xFF007AFF),
               ),
               title: const Text('Voice Language'),
-              subtitle: Text(selectedLanguage.displayName),
+              subtitle: Text(selectedLanguage?.displayName ?? 'Auto-detect'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.push(

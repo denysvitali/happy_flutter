@@ -225,7 +225,7 @@ class CodexBashView extends StatelessWidget {
           if (state == 'error' && result != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              Container(
+              child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.errorContainer,
