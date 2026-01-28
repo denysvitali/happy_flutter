@@ -7,12 +7,17 @@ class AppLocalizations {
 
   AppLocalizations(this.locale);
 
+  /// Get the AppLocalizations instance for the given context.
+  /// This will never return null - if localizations aren't found,
+  /// it returns a default English instance.
   static AppLocalizations of(BuildContext context) {
-    final localizations = Localizations.of<AppLocalizations>(context, AppLocalizations);
-    if (localizations == null) {
-      throw StateError('AppLocalizations not found in context');
-    }
-    return localizations;
+    final localizations = Localizations.of<AppLocalizations>(
+      context,
+      AppLocalizations,
+    );
+    // Return localizations if found, otherwise return default instance
+    // The default instance uses English locale
+    return localizations ?? AppLocalizations(const Locale('en'));
   }
 
   // Common

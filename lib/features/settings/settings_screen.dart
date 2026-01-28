@@ -16,7 +16,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsNotifierProvider);
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.settingsTitle)),
@@ -122,7 +122,7 @@ class SettingsScreen extends ConsumerWidget {
     Settings settings,
     WidgetRef ref,
   ) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsBehavior,
       children: [
@@ -160,7 +160,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildVoiceSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: 'Voice',
       children: [
@@ -176,7 +176,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildAIProfilesSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsProfiles,
       children: [
@@ -192,7 +192,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildUsageSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsUsage,
       children: [
@@ -208,7 +208,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildFeaturesSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsFeatures,
       children: [
@@ -224,7 +224,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildDeveloperSection(BuildContext context, Settings settings) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsDeveloper,
       children: [
@@ -244,7 +244,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildAccountSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsAccount,
       children: [
@@ -260,7 +260,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildCertificatesSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsCertificates,
       children: [
@@ -287,7 +287,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildServerSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsServer,
       children: [
@@ -441,7 +441,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildAboutSection(BuildContext context) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsAbout,
       children: [
@@ -462,7 +462,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget buildSignOutSection(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       children: [
         ListTile(
@@ -479,7 +479,7 @@ class SettingsScreen extends ConsumerWidget {
     Settings settings,
     WidgetRef ref,
   ) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -507,7 +507,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void confirmSignOut(BuildContext context, WidgetRef ref) {
-    final l10n = context.l10n;
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
