@@ -83,12 +83,16 @@ jobs:
     name: Build Debug APK
     needs: analyze
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     # Run on push/PR events (but not tags), or workflow_dispatch with debug or both selected
     if: |
       (github.event_name != 'workflow_dispatch' &&
        !startsWith(github.ref, 'refs/tags/v')) ||
       github.event.inputs.build_type == 'debug' ||
       github.event.inputs.build_type == 'both'
+    env:
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
 
     steps:
       - name: Checkout repository
@@ -99,6 +103,13 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /opt/microsoft/powershell
+          sudo rm -rf /usr/local/share/chromedriver-linux64
+          sudo rm -rf /usr/local/share/edge_driver
+          sudo rm -rf /usr/local/share/gecko_driver
+          sudo rm -rf /usr/share/swift
           df -h
 
       - name: Cache Flutter SDK
@@ -125,22 +136,28 @@ jobs:
 
       - name: Cache Android SDK
         uses: actions/cache@v4
-        id: android-cache
+        id: android-sdk-cache
         with:
-          path: |
-            /usr/local/lib/android/sdk
-            ~/.android
-          key: ${{ runner.os }}-android-${{ env.FLUTTER_VERSION }}-${{ hashFiles('android/app/build.gradle.kts') }}
+          path: ${{ github.workspace }}/android-sdk
+          key: ${{ runner.os }}-android-sdk-v2
           restore-keys: |
-            ${{ runner.os }}-android-
+            ${{ runner.os }}-android-sdk-
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          accept-android-sdk-licenses: true
-
-      - name: Accept all Android SDK licenses
-        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+        if: steps.android-sdk-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p $ANDROID_HOME
+          cd $ANDROID_HOME
+          # Download command line tools
+          curl -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q cmdline-tools.zip
+          mkdir -p cmdline-tools/latest
+          mv cmdline-tools/bin cmdline-tools/lib cmdline-tools/NOTICE.txt cmdline-tools/source.properties cmdline-tools/latest/ 2>/dev/null || true
+          rm cmdline-tools.zip
+          # Accept licenses and install required components
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -208,11 +225,15 @@ jobs:
     name: Build Release APK
     needs: analyze
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     # Run on workflow_dispatch with release or both selected, or on version tags
     if: |
       (github.event_name == 'workflow_dispatch' &&
        (github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both')) ||
       startsWith(github.ref, 'refs/tags/v')
+    env:
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
 
     steps:
       - name: Checkout repository
@@ -236,6 +257,13 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /opt/microsoft/powershell
+          sudo rm -rf /usr/local/share/chromedriver-linux64
+          sudo rm -rf /usr/local/share/edge_driver
+          sudo rm -rf /usr/local/share/gecko_driver
+          sudo rm -rf /usr/share/swift
           df -h
 
       - name: Create keystore
@@ -270,21 +298,47 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
 
+      - name: Setup Android SDK
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        run: |
+          mkdir -p $ANDROID_HOME
+          cd $ANDROID_HOME
+          # Download command line tools
+          curl -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q cmdline-tools.zip
+          mkdir -p cmdline-tools/latest
+          mv cmdline-tools/bin cmdline-tools/lib cmdline-tools/NOTICE.txt cmdline-tools/source.properties cmdline-tools/latest/ 2>/dev/null || true
+          rm cmdline-tools.zip
+          # Accept licenses and install required components
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+
       - name: Cache Android SDK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         uses: actions/cache@v4
-        id: android-cache
+        id: android-sdk-cache
         with:
-          path: |
-            /usr/local/lib/android/sdk
-            ~/.android
-          key: ${{ runner.os }}-android-${{ env.FLUTTER_VERSION }}-${{ hashFiles('android/app/build.gradle.kts') }}
+          path: ${{ github.workspace }}/android-sdk
+          key: ${{ runner.os }}-android-sdk-v2
           restore-keys: |
-            ${{ runner.os }}-android-
+            ${{ runner.os }}-android-sdk-
 
       - name: Setup Android SDK
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        uses: android-actions/setup-android@v3
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' && steps.android-sdk-cache.outputs.cache-hit != 'true' }}
+        run: |
+          mkdir -p $ANDROID_HOME
+          cd $ANDROID_HOME
+          # Download command line tools
+          curl -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q cmdline-tools.zip
+          mkdir -p cmdline-tools/latest
+          mv cmdline-tools/bin cmdline-tools/lib cmdline-tools/NOTICE.txt cmdline-tools/source.properties cmdline-tools/latest/ 2>/dev/null || true
+          rm cmdline-tools.zip
+          # Accept licenses and install required components
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
 
       - name: Cache pub dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
