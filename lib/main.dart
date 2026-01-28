@@ -9,7 +9,6 @@ import 'core/i18n/supported_locales.dart';
 import 'core/models/auth.dart';
 import 'core/models/settings.dart';
 import 'core/providers/app_providers.dart';
-import 'core/services/auth_service.dart';
 import 'core/services/server_config.dart';
 import 'core/services/storage_service.dart' as storage;
 import 'core/utils/theme_helper.dart';

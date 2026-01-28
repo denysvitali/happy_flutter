@@ -7,7 +7,6 @@ import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/certificate_provider.dart';
 import '../../core/services/server_config.dart';
-import 'language_selector.dart';
 
 /// Settings screen
 class SettingsScreen extends ConsumerWidget {
