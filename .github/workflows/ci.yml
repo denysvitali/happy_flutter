@@ -74,9 +74,6 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Generate localizations
-        run: flutter gen-l10n
-
       - name: Analyze code
         run: flutter analyze || echo "Lint issues found (non-blocking)"
 
