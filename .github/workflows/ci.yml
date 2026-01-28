@@ -156,7 +156,7 @@ jobs:
           rm cmdline-tools.zip
           # Accept licenses and install required components
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;27.0.12077973"
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
 
       - name: Cache pub dependencies
@@ -311,7 +311,7 @@ jobs:
           rm cmdline-tools.zip
           # Accept licenses and install required components
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;27.0.12077973"
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
 
       - name: Cache Android SDK
@@ -337,7 +337,7 @@ jobs:
           rm cmdline-tools.zip
           # Accept licenses and install required components
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;27.0.12077973"
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
 
       - name: Cache pub dependencies
