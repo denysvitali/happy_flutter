@@ -34,6 +34,7 @@ on:
 env:
   FLUTTER_VERSION: '3.38.7'
   JAVA_VERSION: '17'
+  DART_VM_OPTIONS: '--max-gen-heap-size=4096'
 
 permissions:
   contents: read
@@ -59,6 +60,7 @@ jobs:
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
+        id: flutter-action
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
@@ -72,6 +74,7 @@ jobs:
             ${{ runner.os }}-pub-
 
       - name: Get dependencies
+        if: steps.flutter-action.outputs.PUB-CACHE-HIT != 'true'
         run: flutter pub get
 
       - name: Analyze code
@@ -110,6 +113,7 @@ jobs:
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
+        id: flutter-action
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
@@ -147,18 +151,38 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      - name: Cache Gradle
+      - name: Cache Gradle dependencies
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-            android/.gradle
-          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/build.gradle.kts', 'android/**/gradle.properties', 'pubspec.lock') }}
+          key: ${{ runner.os }}-gradle-deps-${{ hashFiles('android/**/build.gradle.kts', 'android/**/gradle.properties') }}
           restore-keys: |
-            ${{ runner.os }}-gradle-
+            ${{ runner.os }}-gradle-deps-
+
+      - name: Cache Gradle build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches/build-cache-1
+            android/.gradle
+          key: ${{ runner.os }}-gradle-build-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-build-
+
+      - name: Cache Flutter build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .dart_tool/
+            build/
+          key: ${{ runner.os }}-flutter-build-${{ hashFiles('**/pubspec.lock', 'lib/**/*.dart') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-build-
 
       - name: Get dependencies
+        if: steps.flutter-action.outputs.PUB-CACHE-HIT != 'true'
         run: flutter pub get
 
       - name: Determine flavor
@@ -171,7 +195,7 @@ jobs:
           echo "FLAVOR=$FLAVOR" >> $GITHUB_OUTPUT
 
       - name: Build Debug APK
-        run: flutter build apk --debug --no-pub --flavor ${{ steps.flavor.outputs.FLAVOR }}
+        run: flutter build apk --debug --no-pub --flavor ${{ steps.flavor.outputs.FLAVOR }} --target-platform android-arm64
         env:
           APP_ENV: ${{ steps.flavor.outputs.FLAVOR }}
 
@@ -236,6 +260,7 @@ jobs:
       - name: Setup Flutter
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         uses: subosito/flutter-action@v2
+        id: flutter-action
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
@@ -272,20 +297,41 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      - name: Cache Gradle
+      - name: Cache Gradle dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-            android/.gradle
-          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/build.gradle.kts', 'android/**/gradle.properties', 'pubspec.lock') }}
+          key: ${{ runner.os }}-gradle-deps-${{ hashFiles('android/**/build.gradle.kts', 'android/**/gradle.properties') }}
           restore-keys: |
-            ${{ runner.os }}-gradle-
+            ${{ runner.os }}-gradle-deps-
+
+      - name: Cache Gradle build cache
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches/build-cache-1
+            android/.gradle
+          key: ${{ runner.os }}-gradle-build-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-build-
+
+      - name: Cache Flutter build
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            .dart_tool/
+            build/
+          key: ${{ runner.os }}-flutter-build-${{ hashFiles('**/pubspec.lock', 'lib/**/*.dart') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-build-
 
       - name: Get dependencies
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' && steps.flutter-action.outputs.PUB-CACHE-HIT != 'true' }}
         run: flutter pub get
 
       - name: Determine flavor
