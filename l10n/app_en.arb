@@ -1,0 +1,973 @@
+{
+  "appTitle": "Happy",
+  "appSubtitle": "Mobile client for Claude Code & Codex",
+  "appVersion": "Version",
+  "appLoading": "Loading...",
+  "appRetry": "Retry",
+
+  "@appTitle": {
+    "description": "App title"
+  },
+
+  "commonCancel": "Cancel",
+  "commonOk": "OK",
+  "commonYes": "Yes",
+  "commonNo": "No",
+  "commonContinue": "Continue",
+  "commonBack": "Back",
+  "commonSave": "Save",
+  "commonSaveAs": "Save As",
+  "commonDelete": "Delete",
+  "commonCreate": "Create",
+  "commonRename": "Rename",
+  "commonReset": "Reset",
+  "commonError": "Error",
+  "commonSuccess": "Success",
+  "commonCopy": "Copy",
+  "commonCopied": "Copied",
+  "commonLogout": "Logout",
+  "commonDiscard": "Discard",
+  "commonOptional": "optional",
+  "commonScanning": "Scanning...",
+  "commonUrlPlaceholder": "https://example.com",
+  "commonHome": "Home",
+  "commonMessage": "Message",
+  "commonFiles": "Files",
+  "commonFileViewer": "File Viewer",
+  "commonLoading": "Loading...",
+  "commonDeleteConfirmTitle": "Confirm Deletion",
+  "commonDeleteConfirmMessage": "Are you sure you want to delete this?",
+
+  "@commonCancel": {
+    "description": "Common cancel button"
+  },
+
+  "tabsInbox": "Inbox",
+  "tabsSessions": "Terminals",
+  "tabsSettings": "Settings",
+
+  "@tabsInbox": {
+    "description": "Tab navigation label for Inbox"
+  },
+
+  "inboxEmptyTitle": "Empty Inbox",
+  "inboxEmptyDescription": "Connect with friends to start sharing sessions",
+  "inboxUpdates": "Updates",
+
+  "statusConnected": "Connected",
+  "statusConnecting": "Connecting",
+  "statusDisconnected": "Disconnected",
+  "statusError": "Error",
+  "statusOnline": "Online",
+  "statusOffline": "Offline",
+  "statusActiveNow": "Active now",
+  "statusUnknown": "Unknown",
+  "statusPermissionRequired": "Permission required",
+  "statusLastSeen": "Last seen {time}",
+
+  "@statusConnected": {
+    "description": "Connection status",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+
+  "timeJustNow": "just now",
+  "timeMinutesAgo": "{count, plural, =1 {1 minute ago} other {{count} minutes ago}}",
+  "timeHoursAgo": "{count, plural, =1 {1 hour ago} other {{count} hours ago}}",
+
+  "@timeMinutesAgo": {
+    "description": "Time ago in minutes",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "authTitle": "Authenticate",
+  "authAccessDenied": "Access denied",
+  "authAuthenticationFailed": "Authentication failed",
+  "authEnterSecretKey": "Please enter a secret key",
+  "authInvalidSecretKey": "Invalid secret key. Please check and try again.",
+  "authRestoreAccount": "Restore Account",
+  "authEnterUrlManually": "Enter URL manually",
+  "authPasteAuthUrl": "Paste the authentication URL from your terminal",
+  "authAuthenticateTerminal": "Authenticate Terminal",
+  "authAuthenticateWithUrlPaste": "Authenticate Terminal with URL paste",
+  "authCameraPermissionsRequired": "Camera permissions are required to scan QR codes",
+  "authExchangingTokens": "Exchanging tokens...",
+  "authClaudeAuthSuccess": "Successfully connected to Claude",
+
+  "@authTitle": {
+    "description": "Authentication screen title"
+  },
+
+  "welcomeTitle": "Codex and Claude Code mobile client",
+  "welcomeSubtitle": "End-to-end encrypted and your account is stored only on your device.",
+  "welcomeCreateAccount": "Create account",
+  "welcomeLinkOrRestoreAccount": "Link or restore account",
+  "welcomeLoginWithMobileApp": "Login with mobile app",
+
+  "sessionTitle": "Sessions",
+  "sessionNewSession": "New Session",
+  "sessionStartNewToGetStarted": "Start a new session to get started",
+  "sessionNoSessionsYet": "No sessions yet",
+  "sessionActiveSessions": "Active",
+  "sessionHistory": "History",
+  "sessionMachine": "Machine",
+  "sessionSelectMachine": "Select a machine",
+  "sessionPath": "Path",
+  "sessionPathHint": "Enter path",
+  "sessionInputPlaceholder": "Type a message ...",
+  "sessionStartSession": "Start Session",
+  "sessionStarting": "Starting session...",
+  "sessionStarted": "Session Started",
+  "sessionStartedMessage": "The session has been started successfully.",
+  "sessionFailedToStart": "Failed to start session. Make sure the daemon is running on the target machine.",
+  "sessionTimeout": "Session startup timed out. The machine may be slow or the daemon may not be responding.",
+  "sessionNotConnectedToServer": "Not connected to server. Check your internet connection.",
+  "sessionNoMachineSelected": "Please select a machine to start the session",
+  "sessionNoPathSelected": "Please select a directory to start the session in",
+
+  "@sessionTitle": {
+    "description": "Sessions screen title"
+  },
+
+  "sessionTypeTitle": "Session Type",
+  "sessionTypeSimple": "Simple",
+  "sessionTypeWorktree": "Worktree",
+  "sessionTypeComingSoon": "Coming soon",
+
+  "newSessionTitle": "Start New Session",
+  "newSessionNoMachinesFound": "No machines found. Start a Happy session on your computer first.",
+  "newSessionAllMachinesOffline": "All machines appear offline",
+  "newSessionMachineDetails": "View machine details →",
+  "newSessionDirectoryDoesNotExist": "Directory Not Found",
+  "newSessionCreateDirectoryConfirm": "The directory {directory} does not exist. Do you want to create it?",
+  "newSessionSessionSpawningFailed": "Session spawning failed - no session ID returned.",
+
+  "@newSessionTitle": {
+    "description": "New session screen title",
+    "placeholders": {
+      "directory": {
+        "type": "String"
+      }
+    }
+  },
+
+  "sessionHistoryTitle": "Session History",
+  "sessionHistoryEmpty": "No sessions found",
+  "sessionHistoryToday": "Today",
+  "sessionHistoryYesterday": "Yesterday",
+  "sessionHistoryDaysAgo": "{count, plural, =1 {1 day ago} other {{count} days ago}}",
+  "sessionHistoryViewAll": "View all sessions",
+
+  "@sessionHistoryTitle": {
+    "description": "Session history screen title",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "sessionInfoTitle": "Session Info",
+  "sessionInfoHappySessionId": "Happy Session ID",
+  "sessionInfoClaudeCodeSessionId": "Claude Code Session ID",
+  "sessionInfoAiProvider": "AI Provider",
+  "sessionInfoConnectionStatus": "Connection Status",
+  "sessionInfoCreated": "Created",
+  "sessionInfoLastUpdated": "Last Updated",
+  "sessionInfoSequence": "Sequence",
+  "sessionInfoMetadata": "Metadata",
+  "sessionInfoHost": "Host",
+  "sessionInfoPath": "Path",
+  "sessionInfoOperatingSystem": "Operating System",
+  "sessionInfoProcessId": "Process ID",
+  "sessionInfoCliVersion": "CLI Version",
+  "sessionInfoAgentState": "Agent State",
+  "sessionInfoControlledByUser": "Controlled by User",
+  "sessionInfoPendingRequests": "Pending Requests",
+  "sessionInfoActivity": "Activity",
+  "sessionInfoThinking": "Thinking",
+  "sessionInfoThinkingSince": "Thinking Since",
+  "sessionInfoCliVersionOutdated": "CLI Update Required",
+  "sessionInfoCliVersionOutdatedMessage": "Version {currentVersion} installed. Update to {requiredVersion} or later",
+  "sessionInfoUpdateCliInstructions": "Please run npm install -g happy-coder@latest",
+  "sessionInfoQuickActions": "Quick Actions",
+  "sessionInfoViewMachine": "View Machine",
+  "sessionInfoViewMachineSubtitle": "View machine details and sessions",
+  "sessionInfoKillSession": "Kill Session",
+  "sessionInfoKillSessionConfirm": "Are you sure you want to terminate this session?",
+  "sessionInfoKillSessionSubtitle": "Immediately terminate the session",
+  "sessionInfoArchiveSession": "Archive Session",
+  "sessionInfoArchiveSessionConfirm": "Are you sure you want to archive this session?",
+  "sessionInfoArchiveSessionSubtitle": "Archive this session and stop it",
+  "sessionInfoDeleteSession": "Delete Session",
+  "sessionInfoDeleteSessionSubtitle": "Permanently remove this session",
+  "sessionInfoDeleteSessionConfirm": "Delete Session Permanently?",
+  "sessionInfoDeleteSessionWarning": "This action cannot be undone. All messages and data associated with this session will be permanently deleted.",
+  "sessionInfoCopySessionId": "Copy Session ID",
+  "sessionInfoCopyMetadata": "Copy Metadata",
+  "sessionInfoSessionIdCopied": "Session ID copied to clipboard",
+  "sessionInfoMetadataCopied": "Metadata copied to clipboard",
+  "sessionInfoCopyFailed": "Failed to copy to clipboard",
+  "sessionInfoHappyHome": "Happy Home",
+  "sessionInfoFailedToKillSession": "Failed to kill session",
+  "sessionInfoFailedToArchiveSession": "Failed to archive session",
+  "sessionInfoFailedToDeleteSession": "Failed to delete session",
+  "sessionInfoSessionDeleted": "Session deleted successfully",
+
+  "@sessionInfoTitle": {
+    "description": "Session info screen title",
+    "placeholders": {
+      "currentVersion": {
+        "type": "String"
+      },
+      "requiredVersion": {
+        "type": "String"
+      }
+    }
+  },
+
+  "machineTitle": "Machine",
+  "machineLaunchNewSessionInDirectory": "Launch New Session in Directory",
+  "machineOfflineUnableToSpawn": "Launcher disabled while machine is offline",
+  "machineOfflineHelp": "• Make sure your computer is online\n• Run `happy daemon status` to diagnose\n• Are you running the latest CLI version? Upgrade with `npm install -g happy-coder@latest`",
+  "machineDaemon": "Daemon",
+  "machineStatus": "Status",
+  "machineStopDaemon": "Stop Daemon",
+  "machineLastKnownPid": "Last Known PID",
+  "machineLastKnownHttpPort": "Last Known HTTP Port",
+  "machineStartedAt": "Started At",
+  "machineCliVersion": "CLI Version",
+  "machineDaemonStateVersion": "Daemon State Version",
+  "machineActiveSessions": "Active Sessions ({count})",
+  "machineMachineGroup": "Machine",
+  "machineHost": "Host",
+  "machineMachineId": "Machine ID",
+  "machineUsername": "Username",
+  "machineHomeDirectory": "Home Directory",
+  "machinePlatform": "Platform",
+  "machineArchitecture": "Architecture",
+  "machineLastSeen": "Last Seen",
+  "machineNever": "Never",
+  "machineMetadataVersion": "Metadata Version",
+  "machineUntitledSession": "Untitled Session",
+  "machineBack": "Back",
+  "machineShowLess": "Show less",
+  "machineShowAll": "Show all ({count} paths)",
+  "machineEnterCustomPath": "Enter custom path",
+  "machineOfflineUnableToSpawnNew": "Unable to spawn new session, offline",
+
+  "@machineTitle": {
+    "description": "Machine screen title",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "chatTitle": "Chat",
+  "chatStartConversation": "Start a conversation",
+  "chatSendMessageToBegin": "Send a message to begin",
+  "chatSessionSettings": "Session settings",
+  "chatDeleteSession": "Delete session",
+  "chatDeleteSessionConfirm": "Are you sure you want to delete this session?",
+  "chatFailedToSend": "Failed to send message",
+  "chatThinking": "Claude is thinking...",
+  "chatToolRunning": "Running: {toolName}",
+
+  "@chatTitle": {
+    "description": "Chat screen title",
+    "placeholders": {
+      "toolName": {
+        "type": "String"
+      }
+    }
+  },
+
+  "settingsTitle": "Settings",
+  "settingsConnectedAccounts": "Connected Accounts",
+  "settingsConnectAccount": "Connect account",
+  "settingsGithub": "GitHub",
+  "settingsMachines": "Machines",
+  "settingsFeatures": "Features",
+  "settingsSocial": "Social",
+  "settingsAccount": "Account",
+  "settingsAccountSubtitle": "Manage your account details",
+  "settingsAppearance": "Appearance",
+  "settingsAppearanceSubtitle": "Customize how the app looks",
+  "settingsVoiceAssistant": "Voice Assistant",
+  "settingsVoiceAssistantSubtitle": "Configure voice interaction preferences",
+  "settingsFeaturesTitle": "Features",
+  "settingsFeaturesSubtitle": "Enable or disable app features",
+  "settingsDeveloper": "Developer",
+  "settingsDeveloperTools": "Developer Tools",
+  "settingsAbout": "About",
+  "settingsAboutFooter": "Happy Coder is a Codex and Claude Code mobile client. It's fully end-to-end encrypted and your account is stored only on your device. Not affiliated with Anthropic.",
+  "settingsWhatsNew": "What's New",
+  "settingsWhatsNewSubtitle": "See the latest updates and improvements",
+  "settingsReportIssue": "Report an Issue",
+  "settingsPrivacyPolicy": "Privacy Policy",
+  "settingsTermsOfService": "Terms of Service",
+  "settingsEula": "EULA",
+  "settingsSupportUs": "Support us",
+  "settingsSupportUsSubtitlePro": "Thank you for your support!",
+  "settingsSupportUsSubtitle": "Support project development",
+  "settingsScanQrCodeToAuthenticate": "Scan QR code to authenticate",
+  "settingsGithubConnected": "Connected as @{login}",
+  "settingsConnectGithubAccount": "Connect your GitHub account",
+  "settingsUsage": "Usage",
+  "settingsUsageSubtitle": "View your API usage and costs",
+  "settingsProfiles": "Profiles",
+  "settingsProfilesSubtitle": "Manage environment variable profiles for sessions",
+  "settingsSignOut": "Sign out",
+  "settingsSignOutConfirm": "Are you sure you want to sign out? Make sure you have backed up your secret key!",
+
+  "@settingsTitle": {
+    "description": "Settings screen title",
+    "placeholders": {
+      "login": {
+        "type": "String"
+      }
+    }
+  },
+
+  "settingsLanguage": "Language",
+  "settingsLanguageSubtitle": "Choose your preferred language for the app interface",
+  "settingsLanguageCurrent": "Current Language",
+  "settingsLanguageAutomatic": "Automatic",
+  "settingsLanguageAutomaticSubtitle": "Detect from device settings",
+  "settingsLanguageNeedsRestart": "Language Changed",
+  "settingsLanguageNeedsRestartMessage": "The app needs to restart to apply the new language setting.",
+  "settingsLanguageRestartNow": "Restart Now",
+  "settingsLanguageSearchPlaceholder": "Search languages...",
+
+  "settingsAppearanceTheme": "Theme",
+  "settingsAppearanceThemeSubtitle": "Choose your preferred color scheme",
+  "settingsAppearanceThemeAdaptive": "Adaptive",
+  "settingsAppearanceThemeAdaptiveSubtitle": "Match system settings",
+  "settingsAppearanceThemeLight": "Light",
+  "settingsAppearanceThemeLightSubtitle": "Always use light theme",
+  "settingsAppearanceThemeDark": "Dark",
+  "settingsAppearanceThemeDarkSubtitle": "Always use dark theme",
+  "settingsAppearanceDisplay": "Display",
+  "settingsAppearanceDisplaySubtitle": "Control layout and spacing",
+  "settingsAppearanceInlineToolCalls": "Inline Tool Calls",
+  "settingsAppearanceInlineToolCallsSubtitle": "Display tool calls directly in chat messages",
+  "settingsAppearanceExpandTodoLists": "Expand Todo Lists",
+  "settingsAppearanceExpandTodoListsSubtitle": "Show all todos instead of just changes",
+  "settingsAppearanceShowLineNumbersInDiffs": "Show Line Numbers in Diffs",
+  "settingsAppearanceShowLineNumbersInDiffsSubtitle": "Display line numbers in code diffs",
+  "settingsAppearanceShowLineNumbersInToolViews": "Show Line Numbers in Tool Views",
+  "settingsAppearanceShowLineNumbersInToolViewsSubtitle": "Display line numbers in tool view diffs",
+  "settingsAppearanceWrapLinesInDiffs": "Wrap Lines in Diffs",
+  "settingsAppearanceWrapLinesInDiffsSubtitle": "Wrap long lines instead of horizontal scrolling in diff views",
+  "settingsAppearanceAlwaysShowContextSize": "Always Show Context Size",
+  "settingsAppearanceAlwaysShowContextSizeSubtitle": "Display context usage even when not near limit",
+  "settingsAppearanceAvatarStyle": "Avatar Style",
+  "settingsAppearanceAvatarStyleSubtitle": "Choose session avatar appearance",
+  "settingsAppearanceAvatarStylePixelated": "Pixelated",
+  "settingsAppearanceAvatarStyleGradient": "Gradient",
+  "settingsAppearanceAvatarStyleBrutalist": "Brutalist",
+  "settingsAppearanceShowFlavorIcons": "Show AI Provider Icons",
+  "settingsAppearanceShowFlavorIconsSubtitle": "Display AI provider icons on session avatars",
+  "settingsAppearanceCompactSessionView": "Compact Session View",
+  "settingsAppearanceCompactSessionViewSubtitle": "Show active sessions in a more compact layout",
+
+  "settingsFeaturesExperiments": "Experiments",
+  "settingsFeaturesExperimentsSubtitle": "Enable experimental features that are still in development. These features may be unstable or change without notice.",
+  "settingsFeaturesExperimentalFeatures": "Experimental Features",
+  "settingsFeaturesExperimentalFeaturesEnabled": "Experimental features enabled",
+  "settingsFeaturesExperimentalFeaturesDisabled": "Using stable features only",
+  "settingsFeaturesWebFeatures": "Web Features",
+  "settingsFeaturesWebFeaturesSubtitle": "Features available only in the web version of the app.",
+  "settingsFeaturesEnterToSend": "Enter to Send",
+  "settingsFeaturesEnterToSendEnabled": "Press Enter to send (Shift+Enter for a new line)",
+  "settingsFeaturesEnterToSendDisabled": "Enter inserts a new line",
+  "settingsFeaturesCommandPalette": "Command Palette",
+  "settingsFeaturesCommandPaletteEnabled": "Press ⌘K to open",
+  "settingsFeaturesCommandPaletteDisabled": "Quick command access disabled",
+  "settingsFeaturesMarkdownCopyV2": "Markdown Copy v2",
+  "settingsFeaturesMarkdownCopyV2Subtitle": "Long press opens copy modal",
+  "settingsFeaturesHideInactiveSessions": "Hide inactive sessions",
+  "settingsFeaturesHideInactiveSessionsSubtitle": "Show only active chats in your list",
+  "settingsFeaturesEnhancedSessionWizard": "Enhanced Session Wizard",
+  "settingsFeaturesEnhancedSessionWizardEnabled": "Profile-first session launcher active",
+  "settingsFeaturesEnhancedSessionWizardDisabled": "Using standard session launcher",
+
+  "settingsAccountTitle": "Account Settings",
+  "settingsAccountStatus": "Status",
+  "settingsAccountStatusActive": "Active",
+  "settingsAccountStatusNotAuthenticated": "Not Authenticated",
+  "settingsAccountAnonymousId": "Anonymous ID",
+  "settingsAccountPublicId": "Public ID",
+  "settingsAccountNotAvailable": "Not available",
+  "settingsAccountLinkNewDevice": "Link New Device",
+  "settingsAccountLinkNewDeviceSubtitle": "Scan QR code to link device",
+  "settingsAccountProfile": "Profile",
+  "settingsAccountName": "Name",
+  "settingsAccountGithub": "GitHub",
+  "settingsAccountTapToDisconnect": "Tap to disconnect",
+  "settingsAccountServer": "Server",
+  "settingsAccountBackup": "Backup",
+  "settingsAccountBackupDescription": "Your secret key is the only way to recover your account. Save it in a secure place like a password manager.",
+  "settingsAccountSecretKey": "Secret Key",
+  "settingsAccountTapToReveal": "Tap to reveal",
+  "settingsAccountTapToHide": "Tap to hide",
+  "settingsAccountSecretKeyLabel": "SECRET KEY (TAP TO COPY)",
+  "settingsAccountSecretKeyCopied": "Secret key copied to clipboard. Store it in a safe place!",
+  "settingsAccountSecretKeyCopyFailed": "Failed to copy secret key",
+  "settingsAccountPrivacy": "Privacy",
+  "settingsAccountPrivacyDescription": "Help improve the app by sharing anonymous usage data. No personal information is collected.",
+  "settingsAccountAnalytics": "Analytics",
+  "settingsAccountAnalyticsDisabled": "No data is shared",
+  "settingsAccountAnalyticsEnabled": "Anonymous usage data is shared",
+  "settingsAccountDangerZone": "Danger Zone",
+  "settingsAccountLogout": "Logout",
+  "settingsAccountLogoutSubtitle": "Sign out and clear local data",
+
+  "settingsServerTitle": "Server Configuration",
+  "settingsServerUrl": "Server URL",
+  "settingsServerUrlLabel": "Please enter a server URL",
+  "settingsServerNotValidHappyServer": "Not a valid Happy Server",
+  "settingsServerChangeServer": "Change Server",
+  "settingsServerContinueWithServer": "Continue with this server?",
+  "settingsServerResetToDefault": "Reset to Default",
+  "settingsServerResetServerDefault": "Reset server to default?",
+  "settingsServerValidating": "Validating...",
+  "settingsServerValidatingServer": "Validating server...",
+  "settingsServerServerReturnedError": "Server returned an error",
+  "settingsServerFailedToConnectToServer": "Failed to connect to server",
+  "settingsServerCurrentlyUsingCustomServer": "Currently using custom server",
+  "settingsServerCustomServerUrlLabel": "Custom Server URL",
+  "settingsServerAdvancedFeatureFooter": "This is an advanced feature. Only change the server if you know what you're doing. You will need to log out and log in again after changing servers.",
+
+  "settingsVoiceTitle": "Voice Assistant",
+  "settingsVoiceLanguage": "Language",
+  "settingsVoiceLanguageSubtitle": "Choose your preferred language for voice assistant interactions. This setting syncs across all your devices.",
+  "settingsVoicePreferredLanguage": "Preferred Language",
+  "settingsVoicePreferredLanguageSubtitle": "Language used for voice assistant responses",
+  "settingsVoiceLanguageSearchPlaceholder": "Search languages...",
+  "settingsVoiceLanguageSearchTitle": "Languages",
+  "settingsVoiceLanguageFooter": "{count, plural, =1 {1 language} other {{count} languages}} available",
+  "settingsVoiceLanguageAutoDetect": "Auto-detect",
+
+  "@settingsVoiceLanguageFooter": {
+    "description": "Voice language selection footer",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "settingsProfilesTitle": "Profiles",
+  "settingsProfilesSubtitle": "Manage environment variable profiles for sessions",
+  "settingsProfilesNoProfile": "No Profile",
+  "settingsProfilesNoProfileDescription": "Use default environment settings",
+  "settingsProfilesDefaultModel": "Default Model",
+  "settingsProfilesAddProfile": "Add Profile",
+  "settingsProfilesProfileName": "Profile Name",
+  "settingsProfilesEnterName": "Enter profile name",
+  "settingsProfilesBaseUrl": "Base URL",
+  "settingsProfilesAuthToken": "Auth Token",
+  "settingsProfilesEnterToken": "Enter auth token",
+  "settingsProfilesModel": "Model",
+  "settingsProfilesTmuxSession": "Tmux Session",
+  "settingsProfilesEnterTmuxSession": "Enter tmux session name",
+  "settingsProfilesTmuxTempDir": "Tmux Temp Directory",
+  "settingsProfilesEnterTmuxTempDir": "Enter temp directory path",
+  "settingsProfilesTmuxUpdateEnvironment": "Update environment automatically",
+  "settingsProfilesNameRequired": "Profile name is required",
+  "settingsProfilesDeleteConfirm": "Are you sure you want to delete the profile \"{name}\"?",
+  "settingsProfilesEditProfile": "Edit Profile",
+  "settingsProfilesAddProfileTitle": "Add New Profile",
+  "settingsProfilesDeleteTitle": "Delete Profile",
+  "settingsProfilesDeleteMessage": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
+  "settingsProfilesDeleteConfirmAction": "Delete",
+  "settingsProfilesDeleteCancel": "Cancel",
+
+  "@settingsProfilesDeleteConfirm": {
+    "description": "Profile deletion confirmation",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+
+  "settingsUsageTitle": "Usage",
+  "settingsUsageToday": "Today",
+  "settingsUsageLast7Days": "Last 7 days",
+  "settingsUsageLast30Days": "Last 30 days",
+  "settingsUsageTotalTokens": "Total Tokens",
+  "settingsUsageTotalCost": "Total Cost",
+  "settingsUsageTokens": "Tokens",
+  "settingsUsageCost": "Cost",
+  "settingsUsageUsageOverTime": "Usage over time",
+  "settingsUsageByModel": "By Model",
+  "settingsUsageNoData": "No usage data available",
+
+  "settingsDeveloperTitle": "Developer",
+  "settingsDeveloperTools": "Developer Tools",
+  "settingsDeveloperVersion": "Version {version}",
+  "settingsDeveloperCopyDebugInfo": "Copy Debug Info",
+  "settingsDeveloperDebugInfoCopied": "Debug info copied to clipboard",
+
+  "@settingsDeveloperVersion": {
+    "description": "Developer settings version display",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+
+  "errorsNetworkError": "Network error occurred",
+  "errorsServerError": "Server error occurred",
+  "errorsUnknownError": "An unknown error occurred",
+  "errorsConnectionTimeout": "Connection timed out",
+  "errorsAuthenticationFailed": "Authentication failed",
+  "errorsPermissionDenied": "Permission denied",
+  "errorsFileNotFound": "File not found",
+  "errorsInvalidFormat": "Invalid format",
+  "errorsOperationFailed": "Operation failed",
+  "errorsTryAgain": "Please try again",
+  "errorsContactSupport": "Contact support if the problem persists",
+  "errorsSessionNotFound": "Session not found",
+  "errorsVoiceSessionFailed": "Failed to start voice session",
+  "errorsVoiceServiceUnavailable": "Voice service is temporarily unavailable",
+  "errorsOauthInitializationFailed": "Failed to initialize OAuth flow",
+  "errorsTokenStorageFailed": "Failed to store authentication tokens",
+  "errorsOauthStateMismatch": "Security validation failed. Please try again",
+  "errorsTokenExchangeFailed": "Failed to exchange authorization code",
+  "errorsOauthAuthorizationDenied": "Authorization was denied",
+  "errorsWebViewLoadFailed": "Failed to load authentication page",
+  "errorsFailedToLoadProfile": "Failed to load user profile",
+  "errorsUserNotFound": "User not found",
+  "errorsSessionDeleted": "Session has been deleted",
+  "errorsSessionDeletedDescription": "This session has been permanently removed",
+  "errorsFieldError": "{field}: {reason}",
+  "errorsValidationError": "{field} must be between {min} and {max}",
+  "errorsRetryIn": "Retry in {seconds, plural, =1 {1 second} other {{seconds} seconds}}",
+  "errorsErrorWithCode": "{message} (Error {code})",
+  "errorsDisconnectServiceFailed": "Failed to disconnect {service}",
+  "errorsConnectServiceFailed": "Failed to connect {service}. Please try again.",
+  "errorsFailedToLoadFriends": "Failed to load friends list",
+  "errorsFailedToAcceptRequest": "Failed to accept friend request",
+  "errorsFailedToRejectRequest": "Failed to reject friend request",
+  "errorsFailedToRemoveFriend": "Failed to remove friend",
+  "errorsSearchFailed": "Search failed. Please try again.",
+  "errorsFailedToSendRequest": "Failed to send friend request",
+
+  "@errorsFieldError": {
+    "description": "Field validation error",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+
+  "@errorsValidationError": {
+    "description": "Validation error with min/max",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      },
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+
+  "@errorsRetryIn": {
+    "description": "Retry countdown message",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+
+  "terminalWebBrowserRequired": "Web Browser Required",
+  "terminalWebBrowserRequiredDescription": "Terminal connection links can only be opened in a web browser for security reasons. Please use the QR code scanner or open this link on a computer.",
+  "terminalProcessingConnection": "Processing connection...",
+  "terminalInvalidConnectionLink": "Invalid Connection Link",
+  "terminalInvalidConnectionLinkDescription": "The connection link is missing or invalid. Please check the URL and try again.",
+  "terminalConnectTerminal": "Connect Terminal",
+  "terminalRequestDescription": "A terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.",
+  "terminalConnectionDetails": "Connection Details",
+  "terminalPublicKey": "Public Key",
+  "terminalEncryption": "Encryption",
+  "terminalEndToEndEncrypted": "End-to-end encrypted",
+  "terminalAcceptConnection": "Accept Connection",
+  "terminalConnecting": "Connecting...",
+  "terminalReject": "Reject",
+  "terminalSecurity": "Security",
+  "terminalSecurityFooter": "This connection link was processed securely in your browser and was never sent to any server. Your private data will remain secure and only you can decrypt the messages.",
+  "terminalSecurityFooterDevice": "This connection was processed securely on your device and was never sent to any server. Your private data will remain secure and only you can decrypt the messages.",
+  "terminalClientSideProcessing": "Client-Side Processing",
+  "terminalLinkProcessedLocally": "Link processed locally in browser",
+  "terminalLinkProcessedOnDevice": "Link processed locally on device",
+
+  "sidebarSessionsTitle": "Terminals",
+  "sidebarStatusConnected": "Connected",
+  "sidebarStatusConnecting": "Connecting...",
+  "sidebarStatusDisconnected": "Disconnected",
+  "sidebarStatusError": "Error",
+
+  "commandPalettePlaceholder": "Type a command or search...",
+
+  "toolViewInput": "Input",
+  "toolViewOutput": "Output",
+  "toolViewDescription": "Description",
+  "toolViewInputParams": "Input Parameters",
+  "toolViewError": "Error",
+  "toolViewCompleted": "Tool completed successfully",
+  "toolViewNoOutput": "No output was produced",
+  "toolViewRunning": "Tool is running...",
+  "toolViewRawJsonDevMode": "Raw JSON (Dev Mode)",
+
+  "toolNamesTask": "Task",
+  "toolNamesTerminal": "Terminal",
+  "toolNamesSearchFiles": "Search Files",
+  "toolNamesSearch": "Search",
+  "toolNamesSearchContent": "Search Content",
+  "toolNamesListFiles": "List Files",
+  "toolNamesPlanProposal": "Plan proposal",
+  "toolNamesReadFile": "Read File",
+  "toolNamesEditFile": "Edit File",
+  "toolNamesWriteFile": "Write File",
+  "toolNamesFetchUrl": "Fetch URL",
+  "toolNamesReadNotebook": "Read Notebook",
+  "toolNamesEditNotebook": "Edit Notebook",
+  "toolNamesTodoList": "Todo List",
+  "toolNamesWebSearch": "Web Search",
+  "toolNamesReasoning": "Reasoning",
+  "toolNamesApplyChanges": "Update file",
+  "toolNamesViewDiff": "Current file changes",
+  "toolNamesQuestion": "Question",
+
+  "toolDescTerminalCmd": "Terminal(cmd: {cmd})",
+  "toolDescSearchPattern": "Search(pattern: {pattern})",
+  "toolDescSearchPath": "Search(path: {basename})",
+  "toolDescFetchUrlHost": "Fetch URL(url: {host})",
+  "toolDescEditNotebookMode": "Edit Notebook(file: {path}, mode: {mode})",
+  "toolDescTodoListCount": "Todo List(count: {count})",
+  "toolDescWebSearchQuery": "Web Search(query: {query})",
+  "toolDescGrepPattern": "grep(pattern: {pattern})",
+  "toolDescMultiEditEdits": "{path} ({count} edits)",
+  "toolDescReadingFile": "Reading {file}",
+  "toolDescWritingFile": "Writing {file}",
+  "toolDescModifyingFile": "Modifying {file}",
+  "toolDescModifyingFiles": "Modifying {count} files",
+  "toolDescModifyingMultipleFiles": "{file} and {count} more",
+  "toolDescShowingDiff": "Showing changes",
+
+  "@toolDescTerminalCmd": {
+    "description": "Terminal tool description",
+    "placeholders": {
+      "cmd": {
+        "type": "String"
+      }
+    }
+  },
+
+  "filesSearchPlaceholder": "Search files...",
+  "filesDetachedHead": "detached HEAD",
+  "filesSummary": "{staged} staged • {unstaged} unstaged",
+  "filesNotRepo": "Not a git repository",
+  "filesNotUnderGit": "This directory is not under git version control",
+  "filesSearching": "Searching files...",
+  "filesNoFilesFound": "No files found",
+  "filesNoFilesInProject": "No files in project",
+  "filesTryDifferentTerm": "Try a different search term",
+  "filesSearchResults": "Search Results ({count})",
+  "filesProjectRoot": "Project root",
+  "filesStagedChanges": "Staged Changes ({count})",
+  "filesUnstagedChanges": "Unstaged Changes ({count})",
+  "filesLoadingFile": "Loading {fileName}...",
+  "filesBinaryFile": "Binary File",
+  "filesCannotDisplayBinary": "Cannot display binary file content",
+  "filesDiff": "Diff",
+  "filesFile": "File",
+  "filesFileEmpty": "File is empty",
+  "filesNoChanges": "No changes to display",
+
+  "@filesSearchResults": {
+    "description": "File search results count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "profileUserProfile": "User Profile",
+  "profileDetails": "Details",
+  "profileFirstName": "First Name",
+  "profileLastName": "Last Name",
+  "profileUsername": "Username",
+  "profileStatus": "Status",
+
+  "agentPermissionModeTitle": "PERMISSION MODE",
+  "agentPermissionModeDefault": "Default",
+  "agentPermissionModeAcceptEdits": "Accept Edits",
+  "agentPermissionModePlan": "Plan Mode",
+  "agentPermissionModeBypassPermissions": "Yolo Mode",
+  "agentPermissionModeBadgeAcceptAllEdits": "Accept All Edits",
+  "agentPermissionModeBadgeBypassAllPermissions": "Bypass All Permissions",
+  "agentPermissionModeBadgePlanMode": "Plan Mode",
+  "agentAgentClaude": "Claude",
+  "agentAgentCodex": "Codex",
+  "agentAgentGemini": "Gemini",
+  "agentModelTitle": "MODEL",
+  "agentModelConfigureInCli": "Configure models in CLI settings",
+  "agentContextRemaining": "{percent}% left",
+  "agentSuggestionFileLabel": "FILE",
+  "agentSuggestionFolderLabel": "FOLDER",
+  "agentNoMachinesAvailable": "No machines",
+
+  "@agentContextRemaining": {
+    "description": "Context usage remaining",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+
+  "updateBannerUpdateAvailable": "Update available",
+  "updateBannerPressToApply": "Press to apply the update",
+  "updateBannerWhatsNew": "What's new",
+  "updateBannerSeeLatest": "See the latest updates and improvements",
+  "updateBannerNativeUpdateAvailable": "App Update Available",
+  "updateBannerTapToUpdateAppStore": "Tap to update in App Store",
+  "updateBannerTapToUpdatePlayStore": "Tap to update in Play Store",
+
+  "changelogVersion": "Version {version}",
+  "changelogNoEntriesAvailable": "No changelog entries available.",
+
+  "@changelogVersion": {
+    "description": "Changelog version header",
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+
+  "modalsAuthenticateTerminal": "Authenticate Terminal",
+  "modalsPasteUrlFromTerminal": "Paste the authentication URL from your terminal",
+  "modalsDeviceLinkedSuccessfully": "Device linked successfully",
+  "modalsTerminalConnectedSuccessfully": "Terminal connected successfully",
+  "modalsInvalidAuthUrl": "Invalid authentication URL",
+  "modalsDeveloperMode": "Developer Mode",
+  "modalsDeveloperModeEnabled": "Developer mode enabled",
+  "modalsDeveloperModeDisabled": "Developer mode disabled",
+  "modalsDisconnectGithub": "Disconnect GitHub",
+  "modalsDisconnectGithubConfirm": "Are you sure you want to disconnect your GitHub account?",
+  "modalsDisconnectService": "Disconnect {service}",
+  "modalsDisconnectServiceConfirm": "Are you sure you want to disconnect {service} from your account?",
+  "modalsDisconnect": "Disconnect",
+  "modalsFailedToConnectTerminal": "Failed to connect terminal",
+  "modalsCameraPermissionsRequiredToConnectTerminal": "Camera permissions are required to connect terminal",
+  "modalsFailedToLinkDevice": "Failed to link device",
+
+  "@modalsDisconnectService": {
+    "description": "Disconnect service dialog",
+    "placeholders": {
+      "service": {
+        "type": "String"
+      }
+    }
+  },
+
+  "navigationConnectTerminal": "Connect Terminal",
+  "navigationLinkNewDevice": "Link New Device",
+  "navigationRestoreWithSecretKey": "Restore with Secret Key",
+  "navigationWhatsNew": "What's New",
+  "navigationFriends": "Friends",
+
+  "emptyMainScreenReadyToCode": "Ready to code?",
+  "emptyMainScreenInstallCli": "Install the Happy CLI",
+  "emptyMainScreenRunIt": "Run it",
+  "emptyMainScreenScanQrCode": "Scan the QR code",
+  "emptyMainScreenOpenCamera": "Open Camera",
+
+  "reviewEnjoyingApp": "Enjoying the app?",
+  "reviewFeedbackPrompt": "We'd love to hear your feedback!",
+  "reviewYesILoveIt": "Yes, I love it!",
+  "reviewNotReally": "Not really",
+
+  "itemsCopiedToClipboard": "{label} copied to clipboard",
+
+  "@itemsCopiedToClipboard": {
+    "description": "Copy toast message",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+
+  "messageSwitchedToMode": "Switched to {mode} mode",
+  "messageUnknownEvent": "Unknown event",
+  "messageUsageLimitUntil": "Usage limit reached until {time}",
+  "messageUnknownTime": "unknown time",
+
+  "@messageSwitchedToMode": {
+    "description": "Permission mode switch message",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+
+  "codexPermissionsYesForSession": "Yes, and don't ask for a session",
+  "codexPermissionsStopAndExplain": "Stop, and explain what to do",
+
+  "claudePermissionsYesAllowAllEdits": "Yes, allow all edits during this session",
+  "claudePermissionsYesForTool": "Yes, don't ask again for this tool",
+  "claudePermissionsNoTellClaude": "No, and provide feedback",
+
+  "textSelectionSelectText": "Select text range",
+  "textSelectionTitle": "Select Text",
+  "textSelectionNoTextProvided": "No text provided",
+  "textSelectionTextNotFound": "Text not found or expired",
+  "textSelectionTextCopied": "Text copied to clipboard",
+  "textSelectionFailedToCopy": "Failed to copy text to clipboard",
+  "textSelectionNoTextToCopy": "No text available to copy",
+
+  "markdownCodeCopied": "Code copied",
+  "markdownCopyFailed": "Copy failed",
+  "markdownMermaidRenderFailed": "Failed to render mermaid diagram",
+
+  "artifactsTitle": "Artifacts",
+  "artifactsCountSingular": "1 artifact",
+  "artifactsCountPlural": "{count} artifacts",
+  "artifactsEmpty": "No artifacts yet",
+  "artifactsEmptyDescription": "Create your first artifact to get started",
+  "artifactsNew": "New Artifact",
+  "artifactsEdit": "Edit Artifact",
+  "artifactsDelete": "Delete",
+  "artifactsUpdateError": "Failed to update artifact. Please try again.",
+  "artifactsNotFound": "Artifact not found",
+  "artifactsDiscardChanges": "Discard changes?",
+  "artifactsDiscardChangesDescription": "You have unsaved changes. Are you sure you want to discard them?",
+  "artifactsDeleteConfirm": "Delete artifact?",
+  "artifactsDeleteConfirmDescription": "This action cannot be undone",
+  "artifactsTitleLabel": "TITLE",
+  "artifactsTitlePlaceholder": "Enter a title for your artifact",
+  "artifactsBodyLabel": "CONTENT",
+  "artifactsBodyPlaceholder": "Write your content here...",
+  "artifactsEmptyFieldsError": "Please enter a title or content",
+  "artifactsCreateError": "Failed to create artifact. Please try again.",
+  "artifactsSave": "Save",
+  "artifactsSaving": "Saving...",
+  "artifactsLoading": "Loading artifacts...",
+  "artifactsError": "Failed to load artifact",
+
+  "@artifactsCountPlural": {
+    "description": "Artifact count plural form",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "friendsTitle": "Friends",
+  "friendsManageFriends": "Manage your friends and connections",
+  "friendsSearchTitle": "Find Friends",
+  "friendsPendingRequests": "Friend Requests",
+  "friendsMyFriends": "My Friends",
+  "friendsNoFriendsYet": "You don't have any friends yet",
+  "friendsFindFriends": "Find Friends",
+  "friendsRemove": "Remove",
+  "friendsPendingRequest": "Pending",
+  "friendsSentOn": "Sent on {date}",
+  "friendsAccept": "Accept",
+  "friendsReject": "Reject",
+  "friendsAddFriend": "Add Friend",
+  "friendsAlreadyFriends": "Already Friends",
+  "friendsRequestPending": "Request Pending",
+  "friendsSearchInstructions": "Enter a username to search for friends",
+  "friendsSearchPlaceholder": "Enter username...",
+  "friendsSearching": "Searching...",
+  "friendsUserNotFound": "User not found",
+  "friendsNoUserFound": "No user found with that username",
+  "friendsCheckUsername": "Please check the username and try again",
+  "friendsHowToFind": "How to Find Friends",
+  "friendsFindInstructions": "Search for friends by their username. Both you and your friend need to have GitHub connected to send friend requests.",
+  "friendsRequestSent": "Friend request sent!",
+  "friendsRequestAccepted": "Friend request accepted!",
+  "friendsRequestRejected": "Friend request rejected",
+  "friendsFriendRemoved": "Friend removed",
+  "friendsConfirmRemove": "Remove Friend",
+  "friendsConfirmRemoveMessage": "Are you sure you want to remove this friend?",
+  "friendsCannotAddYourself": "You cannot send a friend request to yourself",
+  "friendsBothMustHaveGithub": "Both users must have GitHub connected to become friends",
+  "friendsStatusNone": "Not connected",
+  "friendsStatusRequested": "Request sent",
+  "friendsStatusPending": "Request pending",
+  "friendsStatusFriend": "Friends",
+  "friendsStatusRejected": "Rejected",
+  "friendsAcceptRequest": "Accept Request",
+  "friendsRemoveFriend": "Remove Friend",
+  "friendsRemoveFriendConfirm": "Are you sure you want to remove {name} as a friend?",
+  "friendsRequestSentDescription": "Your friend request has been sent to {name}",
+  "friendsRequestFriendship": "Request friendship",
+  "friendsCancelRequest": "Cancel friendship request",
+  "friendsCancelRequestConfirm": "Cancel your friendship request to {name}?",
+  "friendsDenyRequest": "Deny friendship",
+  "friendsNowFriendsWith": "You are now friends with {name}",
+
+  "@friendsSentOn": {
+    "description": "Friend request sent date",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+
+  "feedFriendRequestFrom": "{name} sent you a friend request",
+  "feedFriendRequestGeneric": "New friend request",
+  "feedFriendAccepted": "You are now friends with {name}",
+  "feedFriendAcceptedGeneric": "Friend request accepted",
+
+  "@feedFriendRequestFrom": {
+    "description": "Feed notification for friend request",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+
+  "usageToday": "Today",
+  "usageLast7Days": "Last 7 days",
+  "usageLast30Days": "Last 30 days",
+  "usageTotalTokens": "Total Tokens",
+  "usageTotalCost": "Total Cost",
+  "usageTokens": "Tokens",
+  "usageCost": "Cost",
+  "usageUsageOverTime": "Usage over time",
+  "usageByModel": "By Model",
+  "usageNoData": "No usage data available"
+}

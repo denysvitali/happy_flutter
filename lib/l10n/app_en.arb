@@ -1405,5 +1405,34 @@
         "type": "String"
       }
     }
-  }
+  },
+  "voiceSettingsTitle": "Voice",
+  "@voiceSettingsTitle": {},
+  "voiceSettingsSubtitle": "Configure ElevenLabs voice output",
+  "@voiceSettingsSubtitle": {},
+  "voiceSettingsLanguage": "Voice Language",
+  "@voiceSettingsLanguage": {},
+  "voiceSettingsLanguageSubtitle": "Select language for voice assistant",
+  "@voiceSettingsLanguageSubtitle": {},
+  "voiceSettingsAutoDetect": "Auto-detect",
+  "@voiceSettingsAutoDetect": {},
+  "voiceSettingsAutoDetectSubtitle": "Automatically detect language from conversation",
+  "@voiceSettingsAutoDetectSubtitle": {},
+  "voiceSettingsSelectLanguage": "Select Language",
+  "@voiceSettingsSelectLanguage": {},
+  "voiceSettingsSearchPlaceholder": "Search languages...",
+  "@voiceSettingsSearchPlaceholder": {},
+  "voiceSettingsLanguagesAvailable": "{count} languages available",
+  "@voiceSettingsLanguagesAvailable": {
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "voiceSettingsDescription": "Select the language for voice assistant output. Language settings are provided by ElevenLabs.",
+  "@voiceSettingsDescription": {},
+  "voiceSettingsVoiceAssistant": "Voice Assistant",
+  "@voiceSettingsVoiceAssistant": {}
 }
