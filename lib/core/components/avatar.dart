@@ -33,7 +33,7 @@ String _generateColor(int number, bool monochrome) {
     return grayColors[number % grayColors.length];
   }
 
-  const hue = (number * 137.508) % 360;
+  final hue = (number * 137.508) % 360;
   return 'hsl(${hue.toInt()}, 45%, 65%)';
 }
 
@@ -488,7 +488,7 @@ class AvatarBrutalist extends StatelessWidget {
     'assets/images/brutalist/Brutalism 118.png',
   ];
 
-  static const _allImages = _abstractImages + _bauhausImages + _brutalismImages;
+  static final _allImages = [..._abstractImages, ..._bauhausImages, ..._brutalismImages];
 
   static const _colorPairs = [
     _ColorPair(tint: Color(0xFFFFA617), background: Color(0xFF0056B3)),

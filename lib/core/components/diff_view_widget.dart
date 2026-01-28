@@ -362,7 +362,7 @@ class _DiffViewState extends State<DiffView> {
 
     if (number == null) return '';
 
-    return number.toString().padStart(3);
+    return number.toString().padLeft(3, ' ');
   }
 
   Widget _buildLineContent(DiffLine line, Color baseColor) {
@@ -377,7 +377,7 @@ class _DiffViewState extends State<DiffView> {
 
   String _formatLineContent(String content) {
     // Trim trailing spaces
-    return content.trimEnd();
+    return content.trimRight();
   }
 
   Widget _buildWithInlineHighlighting(

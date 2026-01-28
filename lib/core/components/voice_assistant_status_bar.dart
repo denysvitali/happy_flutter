@@ -12,13 +12,13 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
   /// Variant of the status bar - 'full' for mobile, 'sidebar' for tablet
   final String variant;
 
-  /// Optional style override
-  final BoxStyle? style;
+  /// Optional background color override
+  final Color? backgroundColor;
 
   const VoiceAssistantStatusBar({
     super.key,
     this.variant = 'sidebar',
-    this.style,
+    this.backgroundColor,
   });
 
   @override

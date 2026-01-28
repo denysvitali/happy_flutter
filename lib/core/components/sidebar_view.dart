@@ -473,16 +473,16 @@ class _SessionListItem extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      session.name,
+                      session.metadata?.name ?? session.id,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w500,
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
-                    if (session.path != null)
+                    if (session.metadata?.path != null)
                       Text(
-                        session.path!,
+                        session.metadata!.path!,
                         style: TextStyle(
                           fontSize: 12,
                           color: theme.colorScheme.onSurfaceVariant,

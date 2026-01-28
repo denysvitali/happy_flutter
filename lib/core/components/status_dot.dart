@@ -13,15 +13,15 @@ class StatusDot extends StatefulWidget {
   /// Size of the dot (diameter)
   final double size;
 
-  /// Optional additional style
-  final BoxStyle? style;
+  /// Optional margin around the dot
+  final EdgeInsets? margin;
 
   const StatusDot({
     super.key,
     required this.color,
     this.isPulsing = false,
     this.size = 6,
-    this.style,
+    this.margin,
   });
 
   @override

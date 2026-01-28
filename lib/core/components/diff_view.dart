@@ -352,7 +352,7 @@ class DiffParser {
         if (bestOldMatch != -1 && (bestNewMatch == -1 || (bestOldMatch - oldIdx) <= (newIdx - bestNewMatch))) {
           // Found a better match in old lines
           // Add context lines before the change
-          for (int j = Math.max(0, oldIdx - contextLines); j < oldIdx; j++) {
+          for (int j = math.max(0, oldIdx - contextLines); j < oldIdx; j++) {
             allLines.add(DiffLine(
               type: DiffLineType.normal,
               content: oldLines[j],
@@ -454,12 +454,12 @@ class DiffParser {
 
     final chars1 = str1.split('');
     final chars2 = str2.split('');
-    final maxLen = Math.max(chars1.length, chars2.length);
+    final maxLen = math.max(chars1.length, chars2.length);
 
     if (maxLen == 0) return 1.0;
 
     int matches = 0;
-    final minLen = Math.min(chars1.length, chars2.length);
+    final minLen = math.min(chars1.length, chars2.length);
 
     for (int i = 0; i < minLen; i++) {
       if (chars1[i] == chars2[i]) matches++;
@@ -616,7 +616,7 @@ class DiffParser {
         if (a[i - 1] == b[j - 1]) {
           dp[i][j] = dp[i - 1][j - 1] + 1;
         } else {
-          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+          dp[i][j] = math.max(dp[i - 1][j], dp[i][j - 1]);
         }
       }
     }
@@ -674,11 +674,11 @@ class DiffParser {
     for (int i = 0; i < changes.length; i++) {
       final changeIndex = changes[i].key;
 
-      final startContext = Math.max(0, changeIndex - contextLines);
-      final endContext = Math.min(lines.length - 1, changeIndex + contextLines);
+      final startContext = math.max(0, changeIndex - contextLines);
+      final endContext = math.min(lines.length - 1, changeIndex + contextLines);
 
       // Add lines from last included index to current hunk
-      for (int j = Math.max(lastIncludedIndex + 1, startContext);
+      for (int j = math.max(lastIncludedIndex + 1, startContext);
           j <= endContext;
           j++) {
         currentHunk.add(lines[j]);
