@@ -8,8 +8,9 @@ class AppLocalizations {
   AppLocalizations(this.locale);
 
   static AppLocalizations of(BuildContext context) {
-    return Localizations.of<AppLocalizations>(context, AppLocalizations)!
-        as AppLocalizations;
+    final localizations = Localizations.of<AppLocalizations>(context, AppLocalizations);
+    assert(localizations != null, 'AppLocalizations not found in context');
+    return localizations!;
   }
 
   // Common
