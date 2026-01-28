@@ -163,9 +163,9 @@ int _findActiveWordEnd(
 /// Returns an [ActiveWord] containing word details, or null if no prefixed word is found at cursor position.
 ActiveWord? findActiveWord(
   String content,
-  TextSelection selection,
+  TextSelection selection, [
   List<String> prefixes = const ['@', ':', '/'],
-) {
+]) {
   // Only detect when cursor is at a single point (no text selected)
   if (selection.start != selection.end) {
     return null;
@@ -242,10 +242,10 @@ String getActiveWordQuery(String activeWord) {
 ApplySuggestionResult applySuggestion(
   String content,
   TextSelection selection,
-  String suggestion,
+  String suggestion, [
   List<String> prefixes = const ['@', ':', '/'],
   bool addSpace = true,
-) {
+]) {
   // Find the active word at the current position
   final activeWord = findActiveWord(content, selection, prefixes);
 

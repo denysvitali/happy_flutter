@@ -1,281 +1,67 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:js_interop';
-import 'dart:math';
 
-/// Web platform crypto implementation using Web Crypto API
+/// Web platform crypto implementation stub.
 ///
-/// This provides browser-compatible encryption using SubtleCrypto.
-/// Uses AES-GCM for authenticated encryption compatible with mobile.
+/// This is a placeholder implementation. The web crypto implementation
+/// requires proper JS interop setup which is disabled for now.
+/// The app uses native mobile implementations (sodium_libs) instead.
 
-// JS Interop definitions for Web Crypto API
-
-@JS('crypto.subtle')
-external SubtleCrypto? get subtleCrypto;
-
-@JS('crypto.getRandomValues')
-external void getRandomValues(Uint8List array);
-
-@JS()
-@staticInterop
-@anonymous
-class SubtleCryptoImportKey {
-  external factory SubtleCryptoImportKey({
-    String name,
-    bool extractable,
-    JSArray keyUsages,
-  });
-}
-
-@JS()
-extension type SubtleCrypto._(JSObject _) implements JSObject {
-  external JSPromise<JSUint8Array> importKey(
-    JSString format,
-    JSUint8Array keyData,
-    SubtleCryptoImportKey algorithm,
-    JSBoolean extractable,
-    JSArray keyUsages,
-  );
-
-  external JSPromise<JSUint8Array> encrypt(
-    AesGcmParams algorithm,
-    JSUint8Array key,
-    JSUint8Array data,
-  );
-
-  external JSPromise<JSUint8Array> decrypt(
-    AesGcmParams algorithm,
-    JSUint8Array key,
-    JSUint8Array data,
-  );
-}
-
-@JS()
-@staticInterop
-@anonymous
-class AesGcmParams {
-  external factory AesGcmParams({
-    required JSString name,
-    required JSUint8Array iv,
-  });
-}
-
-// Key usage constants as JS strings
-final _encryptKeyUsage = 'encrypt'.toJS;
-final _decryptKeyUsage = 'decrypt'.toJS;
-
-/// Helper to create a JS array with a single element
-JSArray _jsArrayWith(JSAny element) {
-  final arr = JSArray();
-  arr.push(element);
-  return arr;
-}
-
-/// Web Crypto Box implementation using AES-GCM
-///
-/// This provides crypto_box-like functionality using Web Crypto API.
-/// Compatible with the bundle format: ephemeral_pk (32) + nonce (24) + ciphertext
+/// Web Crypto Box implementation stub
 class WebCryptoBox {
   static const int publicKeyBytes = 32;
   static const int secretKeyBytes = 32;
-  static const int nonceBytes = 24; // libsodium crypto_box_NONCEBYTES
+  static const int nonceBytes = 24;
 
-  /// Generate a random nonce (24 bytes for libsodium compatibility)
   static Uint8List randomNonce() {
-    final nonce = Uint8List(nonceBytes);
-    getRandomValues(nonce);
-    return nonce;
+    throw UnimplementedError('Web crypto not implemented');
   }
 
-  /// Generate a new keypair
-  ///
-  /// Note: This is a simplified implementation using SHA-256 key derivation.
-  /// For full NaCl compatibility, use a WebAssembly port of libsodium.
   static Future<WebCryptoKeyPair> generateKeypair() async {
-    // Generate random seed
-    final seed = Uint8List(32);
-    getRandomValues(seed);
-
-    // Use SHA256 to derive keypair from seed (simplified X25519-like)
-    final publicKey = Uint8List(32);
-    final privateKey = Uint8List(32);
-
-    // Simple key derivation (not true X25519, but compatible for testing)
-    for (int i = 0; i < 32; i++) {
-      privateKey[i] = seed[i];
-      publicKey[i] = (seed[i] ^ seed[(i + 16) % 32]);
-    }
-
-    return WebCryptoKeyPair(publicKey: publicKey, privateKey: privateKey);
+    throw UnimplementedError('Web crypto not implemented');
   }
 
-  /// Encrypt data using recipient's public key
-  ///
-  /// Bundle format: ephemeral_pk (32) + nonce (24) + ciphertext
   static Future<Uint8List> encrypt(
     Uint8List data,
     Uint8List recipientPublicKey,
     Uint8List senderPrivateKey,
   ) async {
-    // Generate ephemeral keypair
-    final ephemeralKeyPair = await generateKeypair();
-    final nonce = randomNonce();
-
-    // Compute shared secret (simplified ECDH-like)
-    final sharedSecret = _computeSharedSecret(
-      senderPrivateKey,
-      recipientPublicKey,
-    );
-
-    // Use AES-GCM for encryption
-    final encrypted = await _aesGcmEncrypt(data, sharedSecret, nonce);
-
-    // Bundle: ephemeral_pk (32) + nonce (16) + ciphertext
-    final result = Uint8List(publicKeyBytes + nonceBytes + encrypted.length);
-    result.setAll(0, ephemeralKeyPair.publicKey);
-    result.setAll(publicKeyBytes, nonce);
-    result.setAll(publicKeyBytes + nonceBytes, encrypted);
-
-    return result;
+    throw UnimplementedError('Web crypto not implemented');
   }
 
-  /// Decrypt encrypted bundle
-  ///
-  /// Returns null if decryption fails
   static Future<Uint8List?> decrypt(
     Uint8List encryptedBundle,
     Uint8List recipientPrivateKey,
   ) async {
-    try {
-      // Extract: ephemeral_pk (32) + nonce (24) + ciphertext
-      if (encryptedBundle.length < publicKeyBytes + nonceBytes) {
-        return null;
-      }
-
-      final ephemeralPublicKey = encryptedBundle.sublist(0, publicKeyBytes);
-      final nonce = encryptedBundle.sublist(publicKeyBytes, publicKeyBytes + nonceBytes);
-      final ciphertext = encryptedBundle.sublist(publicKeyBytes + nonceBytes);
-
-      // Compute shared secret
-      final sharedSecret = _computeSharedSecret(
-        recipientPrivateKey,
-        ephemeralPublicKey,
-      );
-
-      // Decrypt using AES-GCM
-      final decrypted = await _aesGcmDecrypt(ciphertext, sharedSecret, nonce);
-
-      return decrypted;
-    } catch (e) {
-      // Decryption failed
-      return null;
-    }
-  }
-
-  /// Compute shared secret (simplified)
-  static Uint8List _computeSharedSecret(
-    Uint8List privateKey,
-    Uint8List publicKey,
-  ) {
-    // Simplified key derivation using XOR + rotation
-    final result = Uint8List(32);
-    for (int i = 0; i < 32; i++) {
-      result[i] = (privateKey[i] ^ publicKey[i]) & 0xff;
-    }
-    return result;
-  }
-
-  /// AES-GCM encryption using Web Crypto API
-  static Future<Uint8List> _aesGcmEncrypt(
-    Uint8List data,
-    Uint8List key,
-    Uint8List nonce,
-  ) async {
-    final crypto = subtleCrypto;
-    if (crypto == null) {
-      throw StateError('Web Crypto API not available');
-    }
-
-    // Import key
-    final keyData = JSUint8Array.from(key);
-    final importAlgorithm = SubtleCryptoImportKey(
-      name: 'AES-GCM',
-      extractable: false,
-      keyUsages: _jsArrayWith(_encryptKeyUsage),
-    );
-
-    // Create a dummy cryptoKey - we'll use a simpler approach
-    final iv = JSUint8Array.from(nonce.sublist(0, 12)); // AES-GCM uses 12-byte IV
-    final algorithm = AesGcmParams(name: 'AES-GCM'.toJS, iv: iv);
-    final dataJs = JSUint8Array.from(data);
-
-    // Since we can't properly import keys with the current JS interop,
-    // we'll use a synchronous encryption approach for now
-    // This is a placeholder that will need proper implementation
-    throw UnimplementedError(
-      'Web Crypto encryption requires proper key import implementation',
-    );
-  }
-
-  /// AES-GCM decryption using Web Crypto API
-  static Future<Uint8List> _aesGcmDecrypt(
-    Uint8List data,
-    Uint8List key,
-    Uint8List nonce,
-  ) async {
-    final crypto = subtleCrypto;
-    if (crypto == null) {
-      throw StateError('Web Crypto API not available');
-    }
-
-    throw UnimplementedError(
-      'Web Crypto decryption requires proper key import implementation',
-    );
+    throw UnimplementedError('Web crypto not implemented');
   }
 }
 
-/// Web Crypto SecretBox implementation using AES-GCM
-///
-/// This provides crypto_secretbox-like functionality using Web Crypto API.
-/// Compatible with the format: nonce (24) + ciphertext
+/// Web Crypto SecretBox implementation stub
 class WebCryptoSecretBox {
-  static const int nonceBytes = 24; // libsodium crypto_secretbox_NONCEBYTES
+  static const int nonceBytes = 24;
   static const int keyBytes = 32;
 
-  /// Encrypt data using secret key
-  ///
-  /// Format: nonce (24) + ciphertext (with auth tag)
   static Future<Uint8List> encrypt(
     dynamic data,
     Uint8List secretKey,
   ) async {
-    // For now, return a placeholder that indicates this needs implementation
-    throw UnimplementedError(
-      'Web Crypto SecretBox requires proper Web Crypto API implementation',
-    );
+    throw UnimplementedError('Web crypto not implemented');
   }
 
-  /// Decrypt encrypted data
-  ///
-  /// Returns null if decryption fails
   static Future<dynamic> decrypt(
     Uint8List encryptedData,
     Uint8List secretKey,
   ) async {
-    throw UnimplementedError(
-      'Web Crypto SecretBox requires proper Web Crypto API implementation',
-    );
+    throw UnimplementedError('Web crypto not implemented');
   }
 
-  /// Generate random nonce
   static Uint8List randomNonce() {
-    final nonce = Uint8List(nonceBytes);
-    getRandomValues(nonce);
-    return nonce;
+    throw UnimplementedError('Web crypto not implemented');
   }
 }
 
-/// Web crypto key pair for asymmetric encryption
+/// Web crypto key pair stub
 class WebCryptoKeyPair {
   final Uint8List publicKey;
   final Uint8List privateKey;
@@ -283,54 +69,27 @@ class WebCryptoKeyPair {
   WebCryptoKeyPair({required this.publicKey, required this.privateKey});
 }
 
-/// AES-GCM encryption for web using Web Crypto API
-///
-/// Compatible with the mobile implementation's output format:
-/// [12-byte IV][ciphertext][16-byte auth tag]
+/// AES-GCM encryption stub for web
 class WebAesGcm {
-  /// Auth tag size in bytes (AES-GCM = 16 bytes)
   static const int authTagSize = 16;
-
-  /// GCM nonce/IV size in bytes
   static const int nonceSize = 12;
-
-  /// AES key size (256 bits = 32 bytes)
   static const int keySize = 32;
 
-  /// Encrypt data using AES-256-GCM via Web Crypto API.
-  ///
-  /// Output format: [12-byte IV][ciphertext + 16-byte auth tag]
   static Future<Uint8List> encrypt(
     Uint8List data,
     Uint8List secretKey,
   ) async {
-    throw UnimplementedError(
-      'Web AES-GCM requires proper Web Crypto API implementation',
-    );
+    throw UnimplementedError('Web AES-GCM not implemented');
   }
 
-  /// Decrypt AES-256-GCM data via Web Crypto API.
-  ///
-  /// Input format: [12-byte IV][ciphertext + 16-byte auth tag]
   static Future<Uint8List?> decrypt(
     Uint8List encryptedData,
     Uint8List secretKey,
   ) async {
-    throw UnimplementedError(
-      'Web AES-GCM requires proper Web Crypto API implementation',
-    );
+    throw UnimplementedError('Web AES-GCM not implemented');
   }
 
-  /// Generate cryptographically secure random nonce.
-  static Uint8List _generateNonce() {
-    final nonce = Uint8List(nonceSize);
-    getRandomValues(nonce);
-    return nonce;
-  }
-
-  /// Validate that data is AES-256-GCM encrypted (has correct format).
   static bool isAesGcmEncrypted(Uint8List data) {
-    // Minimum size: 12 (IV) + 0 (ciphertext) + 16 (auth tag) = 28
     if (data.length < nonceSize + authTagSize) {
       return false;
     }
