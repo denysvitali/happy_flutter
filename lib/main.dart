@@ -26,7 +26,6 @@ import 'features/settings/profiles_screen.dart';
 import 'features/settings/usage_screen.dart';
 import 'features/settings/developer_screen.dart';
 import 'features/dev/dev_logs_screen.dart';
-import 'core/components/command_palette/command_palette_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -249,21 +248,19 @@ class _HappyAppState extends ConsumerState<HappyApp>
           themeMode.applySystemChromeWithContext(context);
         });
 
-        return CommandPaletteProvider(
-          child: MaterialApp.router(
-            title: 'Happy',
-            theme: ThemeHelper.buildLightTheme(),
-            darkTheme: ThemeHelper.buildDarkTheme(),
-            themeMode: _getThemeMode(themeMode),
-            localizationsDelegates: const [
-              AppLocalizationsDelegate(),
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            supportedLocales: supportedLocales,
-            routerConfig: _router,
-          ),
+        return MaterialApp.router(
+          title: 'Happy',
+          theme: ThemeHelper.buildLightTheme(),
+          darkTheme: ThemeHelper.buildDarkTheme(),
+          themeMode: _getThemeMode(themeMode),
+          localizationsDelegates: const [
+            AppLocalizationsDelegate(),
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: supportedLocales,
+          routerConfig: _router,
         );
       },
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// Theme mode enumeration matching React Native's themePreference
 enum AppThemeMode {
@@ -24,19 +25,8 @@ enum AppThemeMode {
 /// Extension on BuildContext for theme-aware operations
 extension ThemeContextExtension on BuildContext {
   /// Get the current app theme mode from settings
-  AppThemeMode get appThemeMode {
-    final settings = this.readExtension<Settings?>();
-    if (settings == null) {
-      // Try to read from provider directly if extension didn't work
-      try {
-        final notifier = this.read<Settings?>(/* This would need provider ref */);
-        return AppThemeMode.fromString(notifier?.themeMode ?? 'system');
-      } catch (_) {
-        return AppThemeMode.adaptive;
-      }
-    }
-    return AppThemeMode.fromString(settings.themeMode);
-  }
+  /// Note: This is a stub - actual theme mode should be read from provider
+  AppThemeMode get appThemeMode => AppThemeMode.adaptive;
 
   /// Check if the app should use dark theme
   bool get isDarkMode {
