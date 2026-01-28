@@ -8,8 +8,11 @@ class AppLocalizations {
   AppLocalizations(this.locale);
 
   static AppLocalizations of(BuildContext context) {
-    return Localizations.of<AppLocalizations>(context, AppLocalizations) ??
-        AppLocalizations(Localizations.localeOf(context));
+    final localizations = Localizations.of<AppLocalizations>(context, AppLocalizations);
+    if (localizations != null) {
+      return localizations;
+    }
+    return AppLocalizations(Localizations.localeOf(context));
   }
 
   // Common
