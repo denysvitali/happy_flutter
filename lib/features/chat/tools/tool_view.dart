@@ -16,6 +16,16 @@ import 'views/codex_diff_view.dart';
 import 'views/codex_patch_view.dart';
 import 'views/gemini_edit_view.dart';
 import 'views/gemini_execute_view.dart';
+import 'views/edit_view.dart';
+import 'views/multi_edit_view.dart';
+import 'views/write_view.dart';
+import 'views/bash_view.dart';
+import 'views/task_view.dart';
+import 'views/todo_view.dart';
+import 'views/web_fetch_view.dart';
+import 'views/web_search_view.dart';
+import 'views/exit_plan_tool_view.dart';
+import 'views/ask_user_question_view.dart';
 
 /// Main ToolView component with header, status, and elapsed time.
 ///

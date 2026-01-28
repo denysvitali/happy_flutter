@@ -202,7 +202,7 @@ class SessionAvatar extends StatelessWidget {
     return switch (flavorName) {
       'claude' => Icons.auto_awesome,
       'codex' => Icons.code,
-      'gemini' => Icons.sparkles,
+      'gemini' => Icons.auto_awesome,
       _ => Icons.auto_awesome,
     };
   }

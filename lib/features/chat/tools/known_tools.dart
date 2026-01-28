@@ -144,7 +144,7 @@ class KnownTools {
 
   /// Icon factory for codex/patch tools.
   static Widget patchIcon(double size, Color color) =>
-      Icon(Icons.diff, size: size, color: color);
+      Icon(Icons.compare_arrows, size: size, color: color);
 
   /// Icon factory for codex/diff tools.
   static Widget diffIcon(double size, Color color) =>

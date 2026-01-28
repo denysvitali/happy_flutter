@@ -164,7 +164,7 @@ class _VoiceLanguageSelectionScreenState
               itemCount: filteredLanguages.length,
               itemBuilder: (context, index) {
                 final language = filteredLanguages[index];
-                final isSelected = _isLanguageSelected(language);
+                final isSelected = _isLanguageSelected(context, ref, language);
 
                 return Card(
                   margin: const EdgeInsets.symmetric(
@@ -184,7 +184,7 @@ class _VoiceLanguageSelectionScreenState
                             color: Theme.of(context).colorScheme.primary,
                           )
                         : null,
-                    onTap: () => _selectLanguage(language),
+                    onTap: () => _selectLanguage(context, ref, language),
                   ),
                 );
               },
@@ -195,15 +195,22 @@ class _VoiceLanguageSelectionScreenState
     );
   }
 
-  bool _isLanguageSelected(VoiceLanguage language) {
-    final settingsNotifier = context.read(settingsNotifierProvider.notifier);
-    final currentState = context.read(settingsNotifierProvider);
+  bool _isLanguageSelected(
+    BuildContext context,
+    WidgetRef ref,
+    VoiceLanguage language,
+  ) {
+    final currentState = ref.read(settingsNotifierProvider);
     final currentCode = currentState.voiceAssistantLanguage ?? '';
     return currentCode == language.code;
   }
 
-  void _selectLanguage(VoiceLanguage language) {
-    final notifier = context.read(settingsNotifierProvider.notifier);
+  void _selectLanguage(
+    BuildContext context,
+    WidgetRef ref,
+    VoiceLanguage language,
+  ) {
+    final notifier = ref.read(settingsNotifierProvider.notifier);
     notifier.updateSetting(
       'voiceAssistantLanguage',
       language.code.isEmpty ? null : language.code,

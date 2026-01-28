@@ -29,22 +29,21 @@ class CryptoBox {
     }
 
     // Initialize sodium with sodium_libs for Flutter
-    _sodium = await SodiumInit.init(
-      (type) async {
-        // Load the bundled sodium library from sodium_libs package
-        // The library name differs by platform
-        if (Platform.isAndroid) {
-          return DynamicLibrary.open('libsodium.so');
-        } else if (Platform.isIOS || Platform.isMacOS) {
-          return DynamicLibrary.open('libsodium.dylib');
-        } else if (Platform.isLinux) {
-          return DynamicLibrary.open('libsodium.so');
-        } else if (Platform.isWindows) {
-          return DynamicLibrary.open('libsodium.dll');
-        }
-        throw UnsupportedError('Unsupported platform for sodium: ${Platform.operatingSystem}');
-      },
-    );
+    // Load the bundled sodium library from sodium_libs package
+    // The library name differs by platform
+    DynamicLibrary loader() {
+      if (Platform.isAndroid) {
+        return DynamicLibrary.open('libsodium.so');
+      } else if (Platform.isIOS || Platform.isMacOS) {
+        return DynamicLibrary.open('libsodium.dylib');
+      } else if (Platform.isLinux) {
+        return DynamicLibrary.open('libsodium.so');
+      } else if (Platform.isWindows) {
+        return DynamicLibrary.open('libsodium.dll');
+      }
+      throw UnsupportedError('Unsupported platform for sodium: ${Platform.operatingSystem}');
+    }
+    _sodium = await SodiumInit.init(loader);
     return _sodium!;
   }
 

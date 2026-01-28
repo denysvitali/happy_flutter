@@ -49,7 +49,7 @@ class CodexDiffView extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  Icons.diff_visit,
+                  Icons.compare_arrows,
                   size: 16,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -154,7 +154,7 @@ class _DiffContentView extends StatelessWidget {
         // Old text (deletions)
         if (oldText.isNotEmpty)
           _buildDiffSection(
-            context,
+            Theme.of(context),
             'Before',
             oldLines,
             const Color(0xFFFFEBEB),
@@ -164,7 +164,7 @@ class _DiffContentView extends StatelessWidget {
         // New text (additions)
         if (newText.isNotEmpty)
           _buildDiffSection(
-            context,
+            Theme.of(context),
             'After',
             newLines,
             const Color(0xFFE6FFEC),

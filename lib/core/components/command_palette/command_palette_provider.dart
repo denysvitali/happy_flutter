@@ -1,7 +1,17 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../core/i18n/app_localizations.dart';
+import '../../../core/providers/app_providers.dart';
+import 'command_model.dart';
+import 'command_palette_controller.dart';
+import 'command_palette.dart';
 
 /// Provider for the command palette controller.
 final commandPaletteControllerProvider = ChangeNotifierProvider<

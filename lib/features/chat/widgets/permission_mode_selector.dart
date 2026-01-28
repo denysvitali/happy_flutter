@@ -264,7 +264,7 @@ class _PermissionModeSelectorState
   }
 
   List<PermissionMode> _getAvailableModes() {
-    return widget.availableModes ?? PermissionMode.allModes;
+    return widget.availableModes ?? PermissionMode.values;
   }
 
   Widget _buildDropdownItems(BuildContext context) {
@@ -497,7 +497,7 @@ class PermissionModeSettingsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final modes = availableModes ?? PermissionMode.allModes;
+    final modes = availableModes ?? PermissionMode.values;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
