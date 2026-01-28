@@ -53,6 +53,36 @@ class AppLocalizations {
   String get sessionsThisMonth => 'This Month';
   String get sessionsOlder => 'Older';
 
+  // Session Screen (missing properties)
+  String get sessionHistoryTitle => 'Sessions';
+  String get sessionActiveSessions => 'Active';
+  String get sessionHistory => 'History';
+  String get sessionNoSessionsYet => 'No sessions yet';
+  String get sessionNewSession => 'New Session';
+  String get sessionMachine => 'Machine';
+  String get sessionSelectMachine => 'Select Machine';
+  String get sessionPath => 'Path';
+  String get sessionPathHint => 'Enter path';
+
+  // Date Groups
+  String get dateGroupToday => 'Today';
+  String get dateGroupYesterday => 'Yesterday';
+  String get dateGroupLastSevenDays => 'Last 7 Days';
+  String get dateGroupOlder => 'Older';
+
+  // Empty State
+  String get emptyMainScreenInstallCli => '1. Install the Happy CLI';
+  String get emptyMainScreenRunIt => '2. Run it in your project directory';
+  String get emptyMainScreenScanQrCode => '3. Scan the QR code to connect';
+
+  // New Session Dialog
+  String get newSessionTitle => 'New Session';
+  String get newSessionNoMachinesFound => 'No machines found';
+
+  // Tabs
+  String get tabsInbox => 'Inbox';
+  String get tabsSettings => 'Settings';
+
   // Chat
   String get chatInputHint => 'Message...';
   String get chatEmpty => 'Start a conversation';
@@ -73,6 +103,8 @@ class AppLocalizations {
   String get settingsThemeDark => 'Dark';
   String get settingsThemeSystem => 'System';
   String get settingsLanguage => 'Language';
+  String get settingsLanguageAutomatic => 'Automatic';
+  String get settingsLanguageAutomaticSubtitle => 'Use device language';
   String get settingsServer => 'Server';
   String get settingsServerUrl => 'Server URL';
   String get settingsServerNotReachable => 'Server not reachable';

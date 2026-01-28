@@ -37,7 +37,7 @@ class LanguageSelector extends ConsumerWidget {
               title: Text(l10n.settingsLanguageAutomatic),
               subtitle: Text(l10n.settingsLanguageAutomaticSubtitle),
               leading: const Icon(Icons.auto_awesome),
-                selected: (settings.preferredLanguage?.isEmpty ?? true),
+              selected: (settings.preferredLanguage?.isEmpty ?? true),
               selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
               onTap: () {
                 ref.read(settingsNotifierProvider.notifier).updateSetting(
@@ -51,7 +51,7 @@ class LanguageSelector extends ConsumerWidget {
             // Supported languages
             ...supportedLocales.map(
               (locale) => ListTile(
-                title: Text(getLocaleDisplayName(locale)),
+                title: Text(getLocaleNativeDisplayName(locale)),
                 leading: Radio<Locale>(
                   value: locale,
                   groupValue: currentLocale,
@@ -92,7 +92,7 @@ class LanguageSelector extends ConsumerWidget {
       subtitle: Text(
         (settings.preferredLanguage?.isEmpty ?? true)
             ? l10n.settingsLanguageAutomatic
-            : getLocaleDisplayName(currentLocale),
+            : getLocaleNativeDisplayName(currentLocale),
       ),
       leading: const Icon(Icons.language),
       trailing: const Icon(Icons.chevron_right),
@@ -135,7 +135,7 @@ class LanguageSelector extends ConsumerWidget {
                     ? '${locale.languageCode}_${locale.scriptCode}'
                     : locale.languageCode;
                 return RadioListTile<String>(
-                  title: Text(getLocaleDisplayName(locale)),
+                  title: Text(getLocaleNativeDisplayName(locale)),
                   value: localeString,
                   groupValue: ref.read(settingsNotifierProvider).preferredLanguage,
                   onChanged: (value) {
@@ -163,7 +163,7 @@ class LanguageSelector extends ConsumerWidget {
     if (localeString.isEmpty) {
       return const Locale('en');
     }
-    return parseLocale(localeString);
+    return parseLocaleString(localeString);
   }
 
   bool _isSameLocale(Locale a, Locale b) {

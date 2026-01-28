@@ -94,16 +94,16 @@ class VoiceSettingsScreen extends ConsumerWidget {
 }
 
 /// Voice language selection screen with search functionality
-class VoiceLanguageSelectionScreen extends StatefulWidget {
+class VoiceLanguageSelectionScreen extends ConsumerStatefulWidget {
   const VoiceLanguageSelectionScreen({super.key});
 
   @override
-  State<VoiceLanguageSelectionScreen> createState() =>
+  ConsumerState<VoiceLanguageSelectionScreen> createState() =>
       _VoiceLanguageSelectionScreenState();
 }
 
 class _VoiceLanguageSelectionScreenState
-    extends State<VoiceLanguageSelectionScreen> {
+    extends ConsumerState<VoiceLanguageSelectionScreen> {
   String _searchQuery = '';
 
   @override
@@ -164,7 +164,7 @@ class _VoiceLanguageSelectionScreenState
               itemCount: filteredLanguages.length,
               itemBuilder: (context, index) {
                 final language = filteredLanguages[index];
-                final isSelected = _isLanguageSelected(context, ref, language);
+                final isSelected = _isLanguageSelected(language);
 
                 return Card(
                   margin: const EdgeInsets.symmetric(
@@ -184,7 +184,7 @@ class _VoiceLanguageSelectionScreenState
                             color: Theme.of(context).colorScheme.primary,
                           )
                         : null,
-                    onTap: () => _selectLanguage(context, ref, language),
+                    onTap: () => _selectLanguage(language),
                   ),
                 );
               },
@@ -195,21 +195,13 @@ class _VoiceLanguageSelectionScreenState
     );
   }
 
-  bool _isLanguageSelected(
-    BuildContext context,
-    WidgetRef ref,
-    VoiceLanguage language,
-  ) {
+  bool _isLanguageSelected(VoiceLanguage language) {
     final currentState = ref.read(settingsNotifierProvider);
     final currentCode = currentState.voiceAssistantLanguage ?? '';
     return currentCode == language.code;
   }
 
-  void _selectLanguage(
-    BuildContext context,
-    WidgetRef ref,
-    VoiceLanguage language,
-  ) {
+  void _selectLanguage(VoiceLanguage language) {
     final notifier = ref.read(settingsNotifierProvider.notifier);
     notifier.updateSetting(
       'voiceAssistantLanguage',

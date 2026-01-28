@@ -23,7 +23,7 @@ class LanguageInfo {
   });
 
   /// Display name with region if available
-  String getDisplayName {
+  String get displayName {
     if (region != null && region!.isNotEmpty) {
       return '$englishName - $nativeName ($region)';
     }
