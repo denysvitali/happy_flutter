@@ -77,7 +77,7 @@ jobs:
         run: flutter pub get
 
       - name: Analyze code
-        run: flutter analyze || echo "Lint issues found (non-blocking)"
+        run: flutter analyze
 
   build-debug:
     name: Build Debug APK
