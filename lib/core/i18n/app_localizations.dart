@@ -115,6 +115,7 @@ class AppLocalizations {
   String get errorNetwork => 'Network error. Please check your connection.';
   String get errorServer => 'Server error. Please try again later.';
   String get errorNotFound => 'Not found';
+  String get voiceAssistantError => 'Voice assistant error';
 }
 
 /// Localizations delegate

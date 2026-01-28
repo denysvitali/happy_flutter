@@ -7,7 +7,7 @@ import 'package:qr/qr.dart';
 import '../../core/models/auth.dart';
 import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/services/auth_service.dart' hide AuthForbiddenError, AuthRequestError, ServerError, SSLError;
+import '../../core/services/auth_service.dart';
 import '../../core/utils/backup_key_utils.dart';
 import '../auth/auth_screen.dart' show QRCodeDisplay;
 
