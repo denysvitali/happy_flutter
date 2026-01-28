@@ -22,7 +22,7 @@ class LanguageSelector extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsNotifierProvider);
     final currentLocale = _parseLocale(settings.preferredLanguage ?? '');
-    final l10n = AppLocalizations.of(context);
+    final l10n = context.l10n;
 
     if (isFullScreen) {
       return Scaffold(
@@ -105,7 +105,7 @@ class LanguageSelector extends ConsumerWidget {
     WidgetRef ref,
     Locale currentLocale,
   ) async {
-    final l10n = AppLocalizations.of(context);
+    final l10n = context.l10n;
 
     await showDialog(
       context: context,
