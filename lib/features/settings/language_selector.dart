@@ -88,7 +88,7 @@ class LanguageSelector extends ConsumerWidget {
 
     // Compact selector for embedding in other screens
     return ListTile(
-      title: Text(l10n!.settingsLanguage),
+      title: Text(l10n.settingsLanguage),
       subtitle: Text(
         (settings.preferredLanguage?.isEmpty ?? true)
             ? l10n.settingsLanguageAutomatic
@@ -110,7 +110,7 @@ class LanguageSelector extends ConsumerWidget {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(l10n!.settingsLanguage),
+        title: Text(l10n.settingsLanguage),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
