@@ -24,7 +24,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isSending = false;
-  PermissionMode _permissionMode = PermissionMode.browse;
+  PermissionMode _permissionMode = PermissionMode.readOnly;
 
   @override
   void initState() {
@@ -39,7 +39,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       setState(() {
         _permissionMode = PermissionMode.values.firstWhere(
           (m) => m.name == savedMode,
-          orElse: () => PermissionMode.browse,
+          orElse: () => PermissionMode.readOnly,
         );
       });
     }

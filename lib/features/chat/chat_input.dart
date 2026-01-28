@@ -539,7 +539,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                 ),
               ),
               // Permission mode options
-              ...perm.PermissionMode.allModes.map(
+              ...perm.PermissionMode.values.map(
                 (mode) => ListTile(
                   leading: Radio<perm.PermissionMode>(
                     value: mode,
