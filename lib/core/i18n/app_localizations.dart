@@ -8,7 +8,8 @@ class AppLocalizations {
   AppLocalizations(this.locale);
 
   static AppLocalizations of(BuildContext context) {
-    return AppLocalizations(Localizations.localeOf(context));
+    return Localizations.of<AppLocalizations>(context, AppLocalizations) ??
+        AppLocalizations(Localizations.localeOf(context));
   }
 
   // Common
@@ -115,6 +116,9 @@ class AppLocalizations {
   String get settingsLanguage => 'Language';
   String get settingsLanguageAutomatic => 'Automatic';
   String get settingsLanguageAutomaticSubtitle => 'Use device language';
+  String get settingsLanguageNeedsRestart => 'Language Changed';
+  String get settingsLanguageNeedsRestartMessage =>
+      'The app needs to restart to apply the new language setting.';
   String get noLanguagesFound => 'No languages found';
   String get settingsServer => 'Server';
   String get settingsServerUrl => 'Server URL';
