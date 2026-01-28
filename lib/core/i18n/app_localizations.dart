@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Stub AppLocalizations class for CI compatibility
 /// TODO: Replace with proper generated localizations
+/// v2 - force re-analysis
 class AppLocalizations {
   final Locale locale;
 
