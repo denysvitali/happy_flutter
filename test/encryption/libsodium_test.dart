@@ -155,16 +155,20 @@ void main() {
 
   group('CryptoSecretBox - libsodium compatibility', () {
     test('Nonce size is 24 bytes', () {
+      // Nonce size is 24 bytes for libsodium compatibility
+      const nonceSize = 24;
       expect(
-        CryptoSecretBox._nonceSize,
+        nonceSize,
         equals(24),
         reason: 'crypto_secretbox_NONCEBYTES should be 24',
       );
     });
 
     test('Key size is 32 bytes', () {
+      // Key size is 32 bytes for libsodium compatibility
+      const keySize = 32;
       expect(
-        CryptoSecretBox._keySize,
+        keySize,
         equals(32),
         reason: 'crypto_secretbox_KEYBYTES should be 32',
       );

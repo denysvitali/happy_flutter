@@ -4,18 +4,18 @@ import 'package:happy_flutter/core/encryption/aes_gcm.dart';
 import 'package:happy_flutter/core/encryption/base64.dart';
 
 void main() {
-  group('AesGcm - True AES-256-GCM Encryption', () {
+  group('AesGcmEncryption - True AES-256-GCM Encryption', () {
     group('Key and Nonce Constants', () {
       test('has correct key size', () {
-        expect(AesGcm.keySize, 32); // 256 bits
+        expect(AesGcmEncryption.keySize, 32); // 256 bits
       });
 
       test('has correct nonce size', () {
-        expect(AesGcm.nonceSize, 12); // GCM standard
+        expect(AesGcmEncryption.nonceSize, 12); // GCM standard
       });
 
       test('has correct auth tag size', () {
-        expect(AesGcm.authTagSize, 16); // GCM standard
+        expect(AesGcmEncryption.authTagSize, 16); // GCM standard
       });
     });
 
@@ -24,11 +24,12 @@ void main() {
         final secretKey = _generateKey();
         final originalData = {'message': 'Hello, World!', 'value': 42};
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
 
         expect(encrypted, isNot(equals(originalData)));
 
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, isNotNull);
         expect(decrypted, equals(originalData));
@@ -38,8 +39,9 @@ void main() {
         final secretKey = _generateKey();
         final originalData = 'Hello, World!';
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
       });
@@ -48,8 +50,9 @@ void main() {
         final secretKey = _generateKey();
         final originalData = 12345;
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
       });
@@ -58,8 +61,9 @@ void main() {
         final secretKey = _generateKey();
         final originalData = [1, 2, 3, 'four', {'five': 5}];
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
       });
@@ -79,8 +83,9 @@ void main() {
           'timestamp': 1234567890,
         };
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
       });
@@ -89,15 +94,17 @@ void main() {
         final secretKey = _generateKey();
         final data = 'Hello, World!';
 
-        final encrypted1 = await AesGcm.encrypt(data, secretKey);
-        final encrypted2 = await AesGcm.encrypt(data, secretKey);
+        final encrypted1 = await AesGcmEncryption.encrypt(data, secretKey);
+        final encrypted2 = await AesGcmEncryption.encrypt(data, secretKey);
 
         // Should be different due to random nonce
         expect(encrypted1, isNot(equals(encrypted2)));
 
         // But both should decrypt to the same value
-        final decrypted1 = await AesGcm.decrypt(encrypted1, secretKey);
-        final decrypted2 = await AesGcm.decrypt(encrypted2, secretKey);
+        final decrypted1 = await AesGcmEncryption.decrypt(encrypted1,
+            secretKey,);
+        final decrypted2 = await AesGcmEncryption.decrypt(encrypted2,
+            secretKey,);
 
         expect(decrypted1, equals(decrypted2));
         expect(decrypted1, equals(data));
@@ -108,9 +115,9 @@ void main() {
         final secretKey2 = _generateKey();
         final data = 'Hello, World!';
 
-        final encrypted = await AesGcm.encrypt(data, secretKey1);
+        final encrypted = await AesGcmEncryption.encrypt(data, secretKey1);
 
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey2);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey2);
 
         expect(decrypted, isNull);
       });
@@ -119,8 +126,9 @@ void main() {
         final secretKey = _generateKey();
         final originalData = '';
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
       });
@@ -129,8 +137,9 @@ void main() {
         final secretKey = _generateKey();
         final originalData = <String, dynamic>{};
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
       });
@@ -139,8 +148,9 @@ void main() {
         final secretKey = _generateKey();
         final originalData = <dynamic>[];
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
       });
@@ -152,8 +162,9 @@ void main() {
         final largeString = List.generate(1024, (i) => 'X').join();
         final originalData = {'data': largeString};
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
       });
@@ -167,8 +178,9 @@ void main() {
           'russian': 'Привет мир',
         };
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
       });
@@ -182,8 +194,9 @@ void main() {
           'mixed': '"Hello\nWorld"\tTest',
         };
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
       });
@@ -195,12 +208,13 @@ void main() {
         final originalData = {'message': 'Hello, Base64!'};
 
         final encryptedBase64 =
-            await AesGcm.encryptToBase64(originalData, secretKey);
+            await AesGcmEncryption.encryptToBase64(originalData, secretKey);
 
         expect(encryptedBase64, isA<String>());
 
         final decrypted =
-            await AesGcm.decryptFromBase64(encryptedBase64, secretKey);
+            await AesGcmEncryption.decryptFromBase64(encryptedBase64,
+                secretKey,);
 
         expect(decrypted, equals(originalData));
       });
@@ -209,7 +223,10 @@ void main() {
         final secretKey = _generateKey();
         final data = 'Hello, World!';
 
-        final encryptedBase64 = await AesGcm.encryptToBase64(data, secretKey);
+        final encryptedBase64 = await AesGcmEncryption.encryptToBase64(
+          data,
+          secretKey,
+        );
 
         // Should be valid Base64 (only contains valid characters)
         expect(encryptedBase64, matches(RegExp(r'^[A-Za-z0-9+/]+=*$')));
@@ -224,8 +241,14 @@ void main() {
         final secretKey = _generateKey();
         final data = 'Hello, World!';
 
-        final encrypted1 = await AesGcm.encryptToBase64(data, secretKey);
-        final encrypted2 = await AesGcm.encryptToBase64(data, secretKey);
+        final encrypted1 = await AesGcmEncryption.encryptToBase64(
+          data,
+          secretKey,
+        );
+        final encrypted2 = await AesGcmEncryption.encryptToBase64(
+          data,
+          secretKey,
+        );
 
         // Same plaintext should produce same length Base64
         expect(encrypted1.length, equals(encrypted2.length));
@@ -237,37 +260,45 @@ void main() {
         final secretKey = _generateKey();
         final data = 'Hello, World!';
 
-        final encrypted = await AesGcm.encrypt(data, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(data, secretKey);
 
         // Format: [12-byte nonce][ciphertext + 16-byte auth tag]
         expect(
           encrypted.length,
-          greaterThanOrEqualTo(AesGcm.nonceSize + AesGcm.authTagSize),
+          greaterThanOrEqualTo(
+            AesGcmEncryption.nonceSize + AesGcmEncryption.authTagSize,
+          ),
         );
 
         // Verify we can extract components
-        final nonce = encrypted.sublist(0, AesGcm.nonceSize);
-        expect(nonce.length, AesGcm.nonceSize);
+        final nonce = encrypted.sublist(0, AesGcmEncryption.nonceSize);
+        expect(nonce.length, AesGcmEncryption.nonceSize);
 
-        final ciphertextWithTag = encrypted.sublist(AesGcm.nonceSize);
+        final ciphertextWithTag = encrypted.sublist(
+          AesGcmEncryption.nonceSize,
+        );
         expect(
           ciphertextWithTag.length,
-          greaterThanOrEqualTo(AesGcm.authTagSize),
+          greaterThanOrEqualTo(AesGcmEncryption.authTagSize),
         );
       });
 
       test('isAesGcmEncrypted validates correctly', () {
         // Valid encrypted data (minimum size)
-        final validData = Uint8List(AesGcm.nonceSize + AesGcm.authTagSize);
-        expect(AesGcm.isAesGcmEncrypted(validData), true);
+        final validData = Uint8List(
+          AesGcmEncryption.nonceSize + AesGcmEncryption.authTagSize,
+        );
+        expect(AesGcmEncryption.isAesGcmEncrypted(validData), true);
 
         // Data too short
-        final shortData = Uint8List(AesGcm.nonceSize + AesGcm.authTagSize - 1);
-        expect(AesGcm.isAesGcmEncrypted(shortData), false);
+        final shortData = Uint8List(
+          AesGcmEncryption.nonceSize + AesGcmEncryption.authTagSize - 1,
+        );
+        expect(AesGcmEncryption.isAesGcmEncrypted(shortData), false);
 
         // Empty data
         final emptyData = Uint8List(0);
-        expect(AesGcm.isAesGcmEncrypted(emptyData), false);
+        expect(AesGcmEncryption.isAesGcmEncrypted(emptyData), false);
       });
     });
 
@@ -277,7 +308,7 @@ void main() {
         final data = 'Hello, World!';
 
         expect(
-          () => AesGcm.encrypt(data, wrongKey),
+          () => AesGcmEncryption.encrypt(data, wrongKey),
           throwsA(isA<ArgumentError>()),
         );
       });
@@ -286,7 +317,10 @@ void main() {
         final secretKey = _generateKey();
         final corruptedData = Uint8List.fromList([1, 2, 3, 4, 5]);
 
-        final decrypted = await AesGcm.decrypt(corruptedData, secretKey);
+        final decrypted = await AesGcmEncryption.decrypt(
+          corruptedData,
+          secretKey,
+        );
 
         expect(decrypted, isNull);
       });
@@ -295,7 +329,7 @@ void main() {
         final secretKey = _generateKey();
         final shortData = Uint8List.fromList([1, 2]);
 
-        final decrypted = await AesGcm.decrypt(shortData, secretKey);
+        final decrypted = await AesGcmEncryption.decrypt(shortData, secretKey);
 
         expect(decrypted, isNull);
       });
@@ -304,12 +338,12 @@ void main() {
         final secretKey = _generateKey();
         final data = 'Hello, World!';
 
-        final encrypted = await AesGcm.encrypt(data, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(data, secretKey);
 
         // Corrupt the data
         encrypted[0] = encrypted[0] ^ 0xFF;
 
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, isNull);
       });
@@ -320,9 +354,10 @@ void main() {
         final secretKey = _generateKey();
         final data = 'Hello, World!';
 
-        final encrypted = await AesGcm.encrypt(data, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(data, secretKey);
 
-        // React Native's rn-encryption format: [12-byte IV][ciphertext][16-byte tag]
+        // React Native's rn-encryption format: [12-byte IV][ciphertext]
+        // [16-byte tag]
         // Our format should match this structure
         expect(encrypted.length, greaterThan(12 + 16));
 
@@ -339,7 +374,10 @@ void main() {
         final secretKey = _generateKey();
         final data = 'Hello, World!';
 
-        final encryptedBase64 = await AesGcm.encryptToBase64(data, secretKey);
+        final encryptedBase64 = await AesGcmEncryption.encryptToBase64(
+          data,
+          secretKey,
+        );
 
         // Should be a valid Base64 string
         expect(encryptedBase64, matches(RegExp(r'^[A-Za-z0-9+/]+=*$')));
@@ -356,20 +394,21 @@ void main() {
         final key2 = _generateKey();
         final data = 'Hello, World!';
 
-        final encrypted1 = await AesGcm.encrypt(data, key1);
-        final encrypted2 = await AesGcm.encrypt(data, key2);
+        final encrypted1 = await AesGcmEncryption.encrypt(data, key1);
+        final encrypted2 = await AesGcmEncryption.encrypt(data, key2);
 
         // Different keys should produce completely different output
         expect(encrypted1, isNot(equals(encrypted2)));
       });
 
-      test('same data with same key but different nonce produces different output',
-          () async {
+      test(
+          'same data with same key but different nonce produces '
+          'different output', () async {
         final secretKey = _generateKey();
         final data = 'Hello, World!';
 
-        final encrypted1 = await AesGcm.encrypt(data, secretKey);
-        final encrypted2 = await AesGcm.encrypt(data, secretKey);
+        final encrypted1 = await AesGcmEncryption.encrypt(data, secretKey);
+        final encrypted2 = await AesGcmEncryption.encrypt(data, secretKey);
 
         // Random nonce ensures different output each time
         expect(encrypted1, isNot(equals(encrypted2)));
@@ -381,8 +420,9 @@ void main() {
         final secretKey = _generateKey();
         final originalData = [255, 254, 253, 0, 1, 2];
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
       });
@@ -394,8 +434,9 @@ void main() {
           'other': 'test',
         };
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
       });
@@ -408,8 +449,9 @@ void main() {
           'mixed': true,
         };
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
       });
@@ -426,8 +468,9 @@ void main() {
           },
         };
 
-        final encrypted = await AesGcm.encrypt(originalData, secretKey);
-        final decrypted = await AesGcm.decrypt(encrypted, secretKey);
+        final encrypted = await AesGcmEncryption.encrypt(originalData,
+            secretKey,);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
       });

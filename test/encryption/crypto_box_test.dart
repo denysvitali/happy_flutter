@@ -231,20 +231,15 @@ void main() {
     });
 
     group('KeyPair Class', () {
-      test('KeyPair holds all required fields', () {
+      test('KeyPair holds all required fields', () async {
         final publicKey = Uint8List.fromList([1, 2, 3]);
-        final privateKey = Uint8List.fromList([4, 5, 6]);
-        final secretKey = Uint8List.fromList([7, 8, 9]);
+        // Generate a real keypair to get valid SecureKey instances
+        final keypair = await CryptoBox.generateKeypair();
 
-        final keypair = KeyPair(
-          publicKey: publicKey,
-          privateKey: privateKey,
-          secretKey: secretKey,
-        );
-
-        expect(keypair.publicKey, publicKey);
-        expect(keypair.privateKey, privateKey);
-        expect(keypair.secretKey, secretKey);
+        expect(keypair.publicKey, isA<Uint8List>());
+        expect(keypair.publicKey.length, CryptoBoxConstants.publicKeyBytes);
+        expect(keypair.privateKey, isNotNull);
+        expect(keypair.secretKey, isNotNull);
       });
     });
 
