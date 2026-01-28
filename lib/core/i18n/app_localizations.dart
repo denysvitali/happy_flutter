@@ -9,8 +9,10 @@ class AppLocalizations {
 
   static AppLocalizations of(BuildContext context) {
     final localizations = Localizations.of<AppLocalizations>(context, AppLocalizations);
-    assert(localizations != null, 'AppLocalizations not found in context');
-    return localizations!;
+    if (localizations == null) {
+      throw StateError('AppLocalizations not found in context');
+    }
+    return localizations;
   }
 
   // Common
