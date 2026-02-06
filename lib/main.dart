@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -28,6 +30,9 @@ import 'features/dev/dev_logs_screen.dart';
 import 'features/inbox/inbox_screen.dart';
 import 'features/inbox/friends_search_screen.dart';
 
+// Deep link handler for receiving happy:// URLs
+const _deepLinkChannel = MethodChannel('com.example.happy_flutter/deep_links');
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -36,11 +41,26 @@ void main() async {
   final serverUrl = getServerUrl();
   await ApiClient().initialize(serverUrl: serverUrl);
 
-  runApp(const ProviderScope(child: HappyApp()));
+  // Handle initial deep link if the app was opened from a link
+  final deepLink = await _getInitialDeepLink();
+
+  runApp(ProviderScope(child: HappyApp(initialDeepLink: deepLink)));
+}
+
+/// Get the initial deep link if the app was opened from one
+Future<String?> _getInitialDeepLink() async {
+  try {
+    final result = await _deepLinkChannel.invokeMethod('getInitialDeepLink');
+    return result as String?;
+  } catch (e) {
+    return null;
+  }
 }
 
 class HappyApp extends ConsumerStatefulWidget {
-  const HappyApp({super.key});
+  final String? initialDeepLink;
+
+  const HappyApp({super.key, this.initialDeepLink});
 
   @override
   ConsumerState<HappyApp> createState() => _HappyAppState();
@@ -55,10 +75,30 @@ class _HappyAppState extends ConsumerState<HappyApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _router = _buildRouter();
+    _setupDeepLinkListener();
     Future.delayed(Duration.zero, () {
       ref.read(authStateNotifierProvider.notifier).checkAuth();
       _initializeTheme();
+      _processInitialDeepLink();
     });
+  }
+
+  void _setupDeepLinkListener() {
+    // Listen for deep links received while app is running
+    _deepLinkChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onDeepLink') {
+        final deepLink = call.arguments as String?;
+        if (deepLink != null) {
+          ref.read(authStateNotifierProvider.notifier).handleDeepLink(deepLink);
+        }
+      }
+    });
+  }
+
+  void _processInitialDeepLink() {
+    if (widget.initialDeepLink != null) {
+      ref.read(authStateNotifierProvider.notifier).handleDeepLink(widget.initialDeepLink!);
+    }
   }
 
   void _initializeTheme() async {
@@ -73,13 +113,24 @@ class _HappyAppState extends ConsumerState<HappyApp>
     themeMode.applySystemChromeWithContext(ref.context);
   }
 
+  void _processPendingDeepLink() {
+    if (_pendingDeepLink != null) {
+      ref.read(authStateNotifierProvider.notifier).handleDeepLink(_pendingDeepLink!);
+      _pendingDeepLink = null;
+    }
+  }
+
   GoRouter _buildRouter() {
     return GoRouter(
+      initialLocation: '/',
       routes: [
         GoRoute(
           path: '/',
           name: 'auth',
-          builder: (context, state) => const AuthGate(child: SessionsScreen()),
+          builder: (context, state) => AuthGate(
+            child: SessionsScreen(),
+            initialDeepLink: widget.initialDeepLink,
+          ),
         ),
         GoRoute(
           path: '/sessions',
