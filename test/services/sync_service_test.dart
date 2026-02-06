@@ -65,6 +65,20 @@ void main() {
       expect(todosInvalidations, 1);
     });
 
+    test('kv-batch-update invalidates todo sync when todo key is in changes',
+        () async {
+      instance.handleUpdate({
+        't': 'kv-batch-update',
+        'changes': [
+          {'key': 'todo.abc', 'value': 'encrypted'},
+        ],
+      });
+
+      await instance.todosSync.awaitQueue();
+
+      expect(todosInvalidations, 1);
+    });
+
     test('delete-session clears in-memory message state for that session',
         () async {
       instance.messagesSync['session_1'] = InvalidateSync(() async {});
@@ -77,6 +91,61 @@ void main() {
       expect(instance.messagesSync.containsKey('session_1'), false);
       expect(instance.sessionReceivedMessages.containsKey('session_1'), false);
       expect(sessionsInvalidations, 1);
+    });
+  });
+
+  group('Sync.parseTodoListsFromDecryptedKv', () {
+    test('parses RN todo format and maps to global and session lists', () {
+      final instance = Sync();
+
+      final parsed = instance.parseTodoListsFromDecryptedKv({
+        'todo.index': {
+          'undoneOrder': ['todo_1'],
+          'completedOrder': ['todo_2'],
+        },
+        'todo.todo_1': {
+          'id': 'todo_1',
+          'title': 'First',
+          'done': false,
+          'createdAt': 1,
+          'updatedAt': 2,
+        },
+        'todo.todo_2': {
+          'id': 'todo_2',
+          'content': 'Second',
+          'status': 'completed',
+          'priority': 'high',
+          'createdAt': 1,
+          'updatedAt': 2,
+          'sessionId': 'session_1',
+        },
+        'todo.todo_3': {
+          'title': 'Third',
+          'done': true,
+          'createdAt': 1,
+          'updatedAt': 2,
+          'linkedSessions': {
+            'session_2': {'title': 'Linked', 'linkedAt': 1},
+          },
+        },
+      });
+
+      expect(parsed.containsKey(null), true);
+      expect(parsed.containsKey('session_1'), true);
+      expect(parsed.containsKey('session_2'), true);
+
+      final globalItems = parsed[null]!.items;
+      expect(globalItems.length, 3);
+      expect(globalItems.map((item) => item.id).toList(), [
+        'todo_1',
+        'todo_2',
+        'todo_3',
+      ]);
+      expect(globalItems.first.content, 'First');
+      expect(globalItems[1].status.name, 'completed');
+
+      expect(parsed['session_1']!.items.single.id, 'todo_2');
+      expect(parsed['session_2']!.items.single.id, 'todo_3');
     });
   });
 }

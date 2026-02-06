@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../api/socket_io_client.dart';
 import '../api/api_client.dart';
+import '../api/kv_api.dart';
 import '../models/auth.dart';
 import '../encryption/encryption_manager.dart';
 import '../services/encryption_service.dart';
@@ -72,6 +73,9 @@ class Sync {
 
   // Pending settings
   Map<String, dynamic> pendingSettings = {};
+  final Map<String?, TodoList> _todoLists = <String?, TodoList>{};
+
+  Map<String?, TodoList> get todoLists => Map.unmodifiable(_todoLists);
 
   /// Initialize sync with credentials and encryption
   Future<void> create(AuthCredentials credentials, Encryption encryption) async {
@@ -318,12 +322,23 @@ class Sync {
 
   /// Handle KV batch update (for todos)
   void _handleKvBatchUpdate(Map<String, dynamic> data) {
-    final serialized = jsonEncode(data).toLowerCase();
-    if (serialized.contains('todo')) {
+    final changes = data['changes'];
+    if (changes is List &&
+        changes.any((change) =>
+            change is Map<String, dynamic> &&
+            (change['key'] as String?)?.startsWith('todo.') == true)) {
       todosSync.invalidate();
       debugPrint('KV batch update received (todos)');
       return;
     }
+
+    final serialized = jsonEncode(data).toLowerCase();
+    if (serialized.contains('todo')) {
+      todosSync.invalidate();
+      debugPrint('KV batch update received (todos-fallback)');
+      return;
+    }
+
     debugPrint('KV batch update received (non-todo)');
   }
 
@@ -536,8 +551,192 @@ class Sync {
   /// Fetch todos from server
   Future<void> fetchTodos() async {
     debugPrint('Fetching todos...');
+    try {
+      final items = await KvApi().getByPrefix('todo.', limit: 1000);
+      final decryptedByKey = <String, Map<String, dynamic>>{};
 
-    // TODO: Implement todo fetching
+      for (final item in items) {
+        try {
+          final decrypted = await encryption.decryptRaw(item.value);
+          if (decrypted is Map<String, dynamic>) {
+            decryptedByKey[item.key] = decrypted;
+          }
+        } catch (error) {
+          debugPrint('Failed to decrypt todo item ${item.key}: $error');
+        }
+      }
+
+      final parsedTodoLists = parseTodoListsFromDecryptedKv(decryptedByKey);
+      _todoLists
+        ..clear()
+        ..addAll(parsedTodoLists);
+
+      final totalItems = parsedTodoLists.values
+          .expand((list) => list.items)
+          .toSet()
+          .length;
+      debugPrint(
+        'Fetched todos: ${parsedTodoLists.length} list(s), $totalItems item(s)',
+      );
+    } catch (error) {
+      debugPrint('Failed to fetch todos: $error');
+    }
+  }
+
+  @visibleForTesting
+  Map<String?, TodoList> parseTodoListsFromDecryptedKv(
+    Map<String, Map<String, dynamic>> decryptedByKey,
+  ) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final todosById = <String, TodoItem>{};
+    List<String> undoneOrder = <String>[];
+    List<String> doneOrder = <String>[];
+
+    for (final entry in decryptedByKey.entries) {
+      final key = entry.key;
+      final value = entry.value;
+
+      if (key == 'todo.index') {
+        final rawUndone = value['undoneOrder'];
+        if (rawUndone is List) {
+          undoneOrder = rawUndone.whereType<String>().toList();
+        }
+
+        final rawCompleted = value['completedOrder'];
+        if (rawCompleted is List) {
+          doneOrder = rawCompleted.whereType<String>().toList();
+        } else {
+          final rawDone = value['doneOrder'];
+          if (rawDone is List) {
+            doneOrder = rawDone.whereType<String>().toList();
+          }
+        }
+        continue;
+      }
+
+      if (!key.startsWith('todo.')) {
+        continue;
+      }
+
+      final todoId = key.substring(5);
+      if (todoId.isEmpty || todoId == 'index') {
+        continue;
+      }
+
+      final mapped = _mapDecryptedTodoItem(
+        todoId,
+        value,
+        createdFallbackAt: now,
+      );
+      todosById[todoId] = mapped;
+    }
+
+    undoneOrder = undoneOrder.where(todosById.containsKey).toList();
+    doneOrder = doneOrder.where(todosById.containsKey).toList();
+
+    final orderedIds = <String>{...undoneOrder, ...doneOrder};
+    for (final entry in todosById.entries) {
+      if (!orderedIds.contains(entry.key)) {
+        if (entry.value.status == TodoState.completed ||
+            entry.value.status == TodoState.canceled) {
+          doneOrder.add(entry.key);
+        } else {
+          undoneOrder.add(entry.key);
+        }
+      }
+    }
+
+    final allOrderedIds = <String>[...undoneOrder, ...doneOrder];
+    final grouped = <String?, List<TodoItem>>{null: <TodoItem>[]};
+    var order = 0;
+
+    for (final todoId in allOrderedIds) {
+      final base = todosById[todoId];
+      if (base == null) {
+        continue;
+      }
+
+      final item = base.copyWith(order: order++);
+      grouped[null]!.add(item);
+
+      final sessionId = item.sessionId;
+      if (sessionId != null && sessionId.isNotEmpty) {
+        grouped.putIfAbsent(sessionId, () => <TodoItem>[]).add(item);
+      }
+    }
+
+    final result = <String?, TodoList>{};
+    for (final entry in grouped.entries) {
+      result[entry.key] = TodoList(
+        sessionId: entry.key,
+        items: entry.value,
+        updatedAt: now,
+      );
+    }
+    return result;
+  }
+
+  TodoItem _mapDecryptedTodoItem(
+    String todoId,
+    Map<String, dynamic> raw, {
+    required int createdFallbackAt,
+  }) {
+    final content = (raw['content'] as String?) ??
+        (raw['title'] as String?) ??
+        '';
+
+    final rawStatus = raw['status'];
+    final status = _mapTodoStatus(rawStatus, raw['done']);
+
+    final linkedSessions = raw['linkedSessions'];
+    String? sessionId = raw['sessionId'] as String?;
+    if ((sessionId == null || sessionId.isEmpty) &&
+        linkedSessions is Map<String, dynamic> &&
+        linkedSessions.isNotEmpty) {
+      sessionId = linkedSessions.keys.first;
+    }
+
+    final dependenciesRaw = raw['dependencies'];
+    final dependencies = dependenciesRaw is List
+        ? dependenciesRaw.whereType<String>().toList()
+        : <String>[];
+
+    return TodoItem(
+      id: (raw['id'] as String?) ?? todoId,
+      content: content,
+      status: status,
+      priority: (raw['priority'] as String?) ?? 'medium',
+      order: 0,
+      parentId: raw['parentId'] as String?,
+      dependencies: dependencies,
+      dueAt: _asInt(raw['dueAt']),
+      createdAt: _asInt(raw['createdAt']) ?? createdFallbackAt,
+      updatedAt: _asInt(raw['updatedAt']) ?? createdFallbackAt,
+      sessionId: sessionId,
+      completedAt: _asInt(raw['completedAt']),
+    );
+  }
+
+  TodoState _mapTodoStatus(dynamic rawStatus, dynamic rawDone) {
+    if (rawStatus is String) {
+      return TodoState.fromString(rawStatus);
+    }
+
+    if (rawDone is bool) {
+      return rawDone ? TodoState.completed : TodoState.pending;
+    }
+
+    return TodoState.pending;
+  }
+
+  int? _asInt(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is double) {
+      return value.toInt();
+    }
+    return null;
   }
 
   /// Sync settings with server
