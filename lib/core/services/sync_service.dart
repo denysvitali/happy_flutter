@@ -213,6 +213,9 @@ class Sync {
     socketIoClient.onReconnected(() {
       debugPrint('Socket reconnected');
       _invalidateAllSyncs();
+      for (final sync in messagesSync.values) {
+        sync.invalidate();
+      }
     });
 
     socketIoClient.onStatusChange((status) {
@@ -293,6 +296,10 @@ class Sync {
       messagesSync.remove(sessionId)?.dispose();
       sessionReceivedMessages.remove(sessionId);
       _sessionMessages.remove(sessionId);
+      _todoLists.remove(sessionId);
+      _sessions.remove(sessionId);
+      _sessionDataKeys.remove(sessionId);
+      encryption.removeSessionEncryption(sessionId);
     }
     sessionsSync.invalidate();
     debugPrint(
