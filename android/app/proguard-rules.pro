@@ -29,3 +29,8 @@
     public static **[] values();
     public static ** valueOf(java.lang.String);
 }
+
+# Don't warn about missing Play Core split install classes (not used in this app)
+-dontwarn com.google.android.play.core.splitcompat.**
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**
