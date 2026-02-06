@@ -316,10 +316,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              // Delete session
-              // Navigator.pop(context);
+              final deleted = await sync.deleteSession(widget.sessionId);
+              if (!mounted) {
+                return;
+              }
+              if (deleted) {
+                Navigator.of(this.context).pop();
+                return;
+              }
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                const SnackBar(content: Text('Failed to delete session')),
+              );
             },
             child: Text(l10n.commonDelete),
           ),

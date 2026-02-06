@@ -1301,6 +1301,22 @@ what you have, you must use the options mode.
     await sessionsSync.invalidateAndAwait();
   }
 
+  /// Delete a session.
+  Future<bool> deleteSession(String sessionId) async {
+    try {
+      final response = await ApiClient().delete('/v1/sessions/$sessionId');
+      if (!ApiClient().isSuccess(response)) {
+        return false;
+      }
+
+      _handleDeleteSession(<String, dynamic>{'sid': sessionId});
+      return true;
+    } catch (error) {
+      debugPrint('Failed to delete session $sessionId: $error');
+      return false;
+    }
+  }
+
   /// Send message to session
   Future<void> sendMessage(
     String sessionId,
