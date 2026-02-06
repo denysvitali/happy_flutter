@@ -1576,6 +1576,54 @@ what you have, you must use the options mode.
       });
     _sessionMessages[sessionId] = sorted;
   }
+
+  /// Shutdown sync engine and clear volatile state.
+  Future<void> shutdown() async {
+    socketIoClient.offMessage('update');
+    socketIoClient.offMessage('ephemeral');
+    socketIoClient.disconnect();
+
+    for (final sync in messagesSync.values) {
+      sync.dispose();
+    }
+    messagesSync.clear();
+    sessionReceivedMessages.clear();
+
+    sessionsSync.dispose();
+    settingsSync.dispose();
+    profileSync.dispose();
+    purchasesSync.dispose();
+    machinesSync.dispose();
+    pushTokenSync.dispose();
+    nativeUpdateSync.dispose();
+    artifactsSync.dispose();
+    friendsSync.dispose();
+    friendRequestsSync.dispose();
+    feedSync.dispose();
+    todosSync.dispose();
+
+    _sessionDataKeys.clear();
+    _machineDataKeys.clear();
+    _artifactDataKeys.clear();
+    _todoLists.clear();
+    _friends.clear();
+    _friendRequests.clear();
+    _feedItems.clear();
+    _artifacts.clear();
+    _sessionMessages.clear();
+    _sessions.clear();
+    _machines.clear();
+    _profile = null;
+    _settingsSnapshot = Settings();
+    _settingsVersion = 0;
+    _purchases = Purchases.defaults;
+    pendingSettings.clear();
+    _registeredPushToken = null;
+    _nativeUpdateUrl = null;
+    _isReady = false;
+    _connectionStatus = ConnectionStatus.disconnected;
+    isInitialized = false;
+  }
 }
 
 // Global singleton instance
@@ -1611,4 +1659,12 @@ Future<void> syncRestore(AuthCredentials credentials) async {
 
   final encryption = await Encryption.create(secretKey);
   await sync.restore(credentials, encryption);
+}
+
+/// Shutdown sync engine and clear in-memory state.
+Future<void> syncShutdown() async {
+  if (!sync.isInitialized) {
+    return;
+  }
+  await sync.shutdown();
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
@@ -22,6 +23,14 @@ class SessionsScreen extends ConsumerStatefulWidget {
 class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   AppTab _activeTab = AppTab.sessions;
   int _inboxBadgeCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(() async {
+      await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +150,7 @@ class _SessionsListContent extends ConsumerWidget {
   }
 
   Future<void> _refreshSessions(WidgetRef ref) async {
+    await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
   }
 
   int _calculateItemCount(
@@ -181,6 +191,7 @@ class _SessionsListContent extends ConsumerWidget {
         final sessionIndex = index - currentIndex;
         return ActiveSessionCard(
           session: activeSessions[sessionIndex],
+          onTap: () => context.push('/chat/${activeSessions[sessionIndex].id}'),
         );
       }
       currentIndex += activeSessions.length;
@@ -221,6 +232,7 @@ class _SessionsListContent extends ConsumerWidget {
         final isSingle = isFirst && isLast;
         return SessionCard(
           session: session,
+          onTap: () => context.push('/chat/${session.id}'),
           isFirst: isFirst,
           isLast: isLast,
           isSingle: isSingle,
@@ -307,6 +319,12 @@ class _StatusDotState extends State<StatusDot>
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+    if (widget.isPulsing) {
+      _controller.repeat(reverse: true);
+    } else {
+      _controller.value = 1.0;
+    }
   }
 
   @override
@@ -350,10 +368,12 @@ class _StatusDotState extends State<StatusDot>
 /// Active session card with green status indicator styling.
 class ActiveSessionCard extends StatelessWidget {
   final Session session;
+  final VoidCallback? onTap;
 
   const ActiveSessionCard({
     super.key,
     required this.session,
+    this.onTap,
   });
 
   @override
@@ -377,9 +397,7 @@ class ActiveSessionCard extends StatelessWidget {
       elevation: 0,
       color: theme.colorScheme.surface,
       child: InkWell(
-        onTap: () {
-          // Navigate to chat screen
-        },
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -512,6 +530,7 @@ class ActiveSessionCard extends StatelessWidget {
 /// Matches React Native's CompactSessionRow implementation.
 class SessionCard extends StatelessWidget {
   final Session session;
+  final VoidCallback? onTap;
   final bool isFirst;
   final bool isLast;
   final bool isSingle;
@@ -520,6 +539,7 @@ class SessionCard extends StatelessWidget {
   const SessionCard({
     super.key,
     required this.session,
+    this.onTap,
     this.isFirst = false,
     this.isLast = false,
     this.isSingle = false,
@@ -559,9 +579,7 @@ class SessionCard extends StatelessWidget {
       elevation: 0,
       color: theme.colorScheme.surface,
       child: InkWell(
-        onTap: () {
-          // Navigate to chat screen
-        },
+        onTap: onTap,
         borderRadius: borderRadius,
         child: Padding(
           padding: const EdgeInsets.all(16),

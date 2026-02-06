@@ -8,10 +8,12 @@ import '../models/friend.dart';
 import '../models/artifact.dart';
 import '../models/feed.dart';
 import '../models/todo.dart';
-import '../api/websocket_client.dart' show ConnectionStatus, WebSocketClient;
+import '../api/websocket_client.dart' show ConnectionStatus;
+import '../api/socket_io_client.dart' as socket_io;
 import '../api/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
+import '../services/sync_service.dart';
 
 /// App state providers
 
@@ -40,6 +42,11 @@ class AuthStateNotifier extends Notifier<AuthState> {
         final credentials = await TokenStorage().getCredentials();
         if (credentials != null) {
           ApiClient().updateToken(credentials.token);
+          await syncRestore(credentials);
+          ref.read(connectionNotifierProvider.notifier).listenToStatus();
+          ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+          ref.read(machinesNotifierProvider.notifier).loadFromSync();
+          ref.read(settingsNotifierProvider.notifier).loadFromSync();
         }
         if (_pendingDeepLink != null) {
           await _handleDeepLink(_pendingDeepLink!);
@@ -68,7 +75,10 @@ class AuthStateNotifier extends Notifier<AuthState> {
   }
 
   Future<void> signOut() async {
+    await syncShutdown();
     await _authService.signOut();
+    ref.read(sessionsNotifierProvider.notifier).clear();
+    ref.read(machinesNotifierProvider.notifier).clear();
     state = AuthState.unauthenticated;
   }
 }
@@ -100,6 +110,25 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     };
   }
 
+  void loadFromSync() {
+    if (!sync.isInitialized) {
+      return;
+    }
+    state = Map<String, Session>.from(sync.sessions);
+  }
+
+  Future<void> refreshFromSync() async {
+    if (!sync.isInitialized) {
+      return;
+    }
+    await sync.refreshSessions();
+    loadFromSync();
+  }
+
+  void clear() {
+    state = {};
+  }
+
   Session? getSession(String id) => state[id];
 }
 
@@ -123,6 +152,25 @@ class MachinesNotifier extends Notifier<Map<String, Machine>> {
       for (final machine in machines) machine.id: machine,
     };
   }
+
+  void loadFromSync() {
+    if (!sync.isInitialized) {
+      return;
+    }
+    state = Map<String, Machine>.from(sync.machines);
+  }
+
+  Future<void> refreshFromSync() async {
+    if (!sync.isInitialized) {
+      return;
+    }
+    await sync.refreshMachines();
+    loadFromSync();
+  }
+
+  void clear() {
+    state = {};
+  }
 }
 
 /// Settings provider
@@ -135,6 +183,21 @@ class SettingsNotifier extends Notifier<Settings> {
   Future<void> loadSettings() async {
     final settings = await _storage.getSettings();
     state = settings;
+  }
+
+  void loadFromSync() {
+    if (!sync.isInitialized) {
+      return;
+    }
+    state = sync.settingsSnapshot;
+  }
+
+  Future<void> refreshFromSync() async {
+    if (!sync.isInitialized) {
+      return;
+    }
+    await sync.settingsSync.invalidateAndAwait();
+    state = sync.settingsSnapshot;
   }
 
   Future<void> updateSetting<T>(String key, T value) async {
@@ -152,23 +215,40 @@ class SettingsNotifier extends Notifier<Settings> {
 
 /// WebSocket connection provider
 class ConnectionNotifier extends Notifier<ConnectionStatus> {
-  final _wsClient = WebSocketClient();
+  void Function()? _unsubscribe;
 
   @override
-  ConnectionStatus build() => ConnectionStatus.disconnected;
+  ConnectionStatus build() {
+    ref.onDispose(() => _unsubscribe?.call());
+    return _mapSocketStatus(sync.connectionStatus);
+  }
 
   void connect(String serverUrl, String token) {
-    _wsClient.connect(serverUrl: serverUrl, token: token);
+    socket_io.socketIoClient.connect(serverUrl: serverUrl, token: token);
   }
 
   void disconnect() {
-    _wsClient.disconnect();
+    socket_io.socketIoClient.disconnect();
   }
 
   void listenToStatus() {
-    _wsClient.onStatusChange((status) {
-      state = status;
+    _unsubscribe?.call();
+    _unsubscribe = socket_io.socketIoClient.onStatusChange((status) {
+      state = _mapSocketStatus(status);
     });
+  }
+
+  ConnectionStatus _mapSocketStatus(socket_io.ConnectionStatus status) {
+    switch (status) {
+      case socket_io.ConnectionStatus.connected:
+        return ConnectionStatus.connected;
+      case socket_io.ConnectionStatus.connecting:
+        return ConnectionStatus.connecting;
+      case socket_io.ConnectionStatus.error:
+        return ConnectionStatus.error;
+      case socket_io.ConnectionStatus.disconnected:
+        return ConnectionStatus.disconnected;
+    }
   }
 }
 
@@ -648,4 +728,3 @@ class TodoListState {
   int get completedCount =>
       allTodos.where((t) => t.status == TodoState.completed).length;
 }
-
