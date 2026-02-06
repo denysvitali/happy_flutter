@@ -79,12 +79,19 @@ class Sync {
   final List<FriendRequest> _friendRequests = <FriendRequest>[];
   final List<FeedItem> _feedItems = <FeedItem>[];
   final List<DecryptedArtifact> _artifacts = <DecryptedArtifact>[];
+  final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
 
   Map<String?, TodoList> get todoLists => Map.unmodifiable(_todoLists);
   List<UserProfile> get friends => List.unmodifiable(_friends);
   List<FriendRequest> get friendRequests => List.unmodifiable(_friendRequests);
   List<FeedItem> get feedItems => List.unmodifiable(_feedItems);
   List<DecryptedArtifact> get artifacts => List.unmodifiable(_artifacts);
+  Map<String, List<Map<String, dynamic>>> get sessionMessages =>
+      Map.unmodifiable(
+        _sessionMessages.map(
+          (key, value) => MapEntry(key, List<Map<String, dynamic>>.from(value)),
+        ),
+      );
 
   /// Initialize sync with credentials and encryption
   Future<void> create(AuthCredentials credentials, Encryption encryption) async {
@@ -265,6 +272,7 @@ class Sync {
     if (sessionId != null) {
       messagesSync.remove(sessionId)?.dispose();
       sessionReceivedMessages.remove(sessionId);
+      _sessionMessages.remove(sessionId);
     }
     sessionsSync.invalidate();
     debugPrint(
@@ -1165,10 +1173,43 @@ class Sync {
       final response = await apiClient.get('/v1/sessions/$sessionId/messages');
 
       if (apiClient.isSuccess(response)) {
-        final data = response.data;
-        final messages = data['messages'] as List;
+        final data = response.data as Map<String, dynamic>;
+        final messages = (data['messages'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .toList()
+            .reversed
+            .toList();
 
-        // TODO: Decrypt and process messages
+        final receivedMessages = sessionReceivedMessages.putIfAbsent(
+          sessionId,
+          () => <String>{},
+        );
+        final toDecrypt = <Map<String, dynamic>>[];
+        for (final message in messages) {
+          final messageId = message['id'] as String?;
+          if (messageId == null || receivedMessages.contains(messageId)) {
+            continue;
+          }
+          toDecrypt.add(message);
+        }
+
+        final decryptedMessages = await sessionEncryption.decryptMessages(
+          toDecrypt,
+        );
+
+        final mappedMessages = <Map<String, dynamic>>[];
+        for (final decrypted in decryptedMessages) {
+          if (decrypted == null || decrypted.content == null) {
+            continue;
+          }
+          receivedMessages.add(decrypted.id);
+          final mapped = _mapDecryptedSessionMessage(decrypted);
+          mappedMessages.add(mapped);
+        }
+
+        if (mappedMessages.isNotEmpty) {
+          _upsertSessionMessages(sessionId, mappedMessages);
+        }
       } else {
         debugPrint('Failed to fetch messages: ${response.statusCode}');
       }
@@ -1181,6 +1222,91 @@ class Sync {
   Future<bool> waitForAgentReady(String sessionId, [int timeoutMs = SESSION_READY_TIMEOUT_MS]) async {
     // TODO: Implement agent ready waiting
     return Future.value(true);
+  }
+
+  Map<String, dynamic> _mapDecryptedSessionMessage(DecryptedMessage message) {
+    final createdAt = message.createdAt.millisecondsSinceEpoch;
+    final content = message.content;
+    if (content is Map<String, dynamic>) {
+      final role = content['role'] as String?;
+      final nestedContent = content['content'];
+      if (nestedContent is Map<String, dynamic>) {
+        final type = nestedContent['type'] as String?;
+        if (type == 'text') {
+          return {
+            'id': message.id,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': role,
+            'kind': 'text',
+            'content': nestedContent['text']?.toString() ?? '',
+            'raw': content,
+          };
+        }
+        if (type == 'tool_use') {
+          return {
+            'id': message.id,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': role,
+            'kind': 'tool-call',
+            'name': nestedContent['name'],
+            'input': nestedContent['input'],
+            'toolUseId': nestedContent['id'],
+            'content': nestedContent,
+            'raw': content,
+          };
+        }
+      }
+
+      return {
+        'id': message.id,
+        'localId': message.localId,
+        'seq': message.seq,
+        'createdAt': createdAt,
+        'role': role,
+        'kind': 'unknown',
+        'content': content.toString(),
+        'raw': content,
+      };
+    }
+
+    return {
+      'id': message.id,
+      'localId': message.localId,
+      'seq': message.seq,
+      'createdAt': createdAt,
+      'kind': 'text',
+      'content': content?.toString() ?? '',
+      'raw': content,
+    };
+  }
+
+  void _upsertSessionMessages(
+    String sessionId,
+    List<Map<String, dynamic>> messages,
+  ) {
+    final existing = _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
+    final merged = <String, Map<String, dynamic>>{
+      for (final message in existing) message['id'] as String: message,
+    };
+    for (final message in messages) {
+      final messageId = message['id'] as String;
+      merged[messageId] = message;
+    }
+
+    final sorted = merged.values.toList()
+      ..sort((a, b) {
+        final aCreated = _asInt(a['createdAt']) ?? 0;
+        final bCreated = _asInt(b['createdAt']) ?? 0;
+        if (aCreated != bCreated) {
+          return aCreated.compareTo(bCreated);
+        }
+        return (a['seq'] as int? ?? 0).compareTo(b['seq'] as int? ?? 0);
+      });
+    _sessionMessages[sessionId] = sorted;
   }
 }
 

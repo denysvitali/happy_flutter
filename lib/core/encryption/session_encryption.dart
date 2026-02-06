@@ -56,9 +56,7 @@ class SessionEncryption {
           seq: message['seq'] as int? ?? 0,
           localId: message['localId'] as String?,
           content: null,
-          createdAt: message['createdAt'] != null
-              ? DateTime.parse(message['createdAt'] as String)
-              : DateTime.now(),
+          createdAt: _parseCreatedAt(message['createdAt']),
         );
         if (messageId != null) {
           _cache.setCachedMessage(messageId, results[i]!);
@@ -87,9 +85,7 @@ class SessionEncryption {
             seq: item.message['seq'] as int? ?? 0,
             localId: item.message['localId'] as String?,
             content: decryptedData,
-            createdAt: item.message['createdAt'] != null
-                ? DateTime.parse(item.message['createdAt'] as String)
-                : DateTime.now(),
+            createdAt: _parseCreatedAt(item.message['createdAt']),
           );
           _cache.setCachedMessage(result.id, result);
           results[item.index] = result;
@@ -99,9 +95,7 @@ class SessionEncryption {
             seq: item.message['seq'] as int? ?? 0,
             localId: item.message['localId'] as String?,
             content: null,
-            createdAt: item.message['createdAt'] != null
-                ? DateTime.parse(item.message['createdAt'] as String)
-                : DateTime.now(),
+            createdAt: _parseCreatedAt(item.message['createdAt']),
           );
           _cache.setCachedMessage(result.id, result);
           results[item.index] = result;
@@ -204,5 +198,18 @@ class SessionEncryption {
     final data = decrypted[0] as Map<String, dynamic>;
     _cache.setCachedAgentState(_sessionId, version, data);
     return data;
+  }
+
+  DateTime _parseCreatedAt(dynamic raw) {
+    if (raw is int) {
+      return DateTime.fromMillisecondsSinceEpoch(raw);
+    }
+    if (raw is String) {
+      final parsed = DateTime.tryParse(raw);
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+    return DateTime.now();
   }
 }

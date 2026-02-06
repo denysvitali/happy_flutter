@@ -1,4 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/encryption/encryptor.dart';
+import 'package:happy_flutter/core/encryption/encryption_cache.dart';
+import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 
@@ -184,4 +189,50 @@ void main() {
       expect(feedItem.body.title, 'Friend request');
     });
   });
+
+  group('SessionEncryption', () {
+    test('decryptMessages accepts numeric createdAt timestamps', () async {
+      final encryption = SessionEncryption(
+        sessionId: 'session_1',
+        encryptor: _FakeEncryptorDecryptor(),
+        decryptor: _FakeEncryptorDecryptor(),
+        cache: EncryptionCache(),
+      );
+
+      final decrypted = await encryption.decryptMessages([
+        {
+          'id': 'msg_1',
+          'seq': 1,
+          'localId': null,
+          'content': {'t': 'encrypted', 'c': ''},
+          'createdAt': 1234567890,
+        }
+      ]);
+
+      expect(decrypted, hasLength(1));
+      expect(
+        decrypted.first?.createdAt.millisecondsSinceEpoch,
+        1234567890,
+      );
+    });
+  });
+}
+
+class _FakeEncryptorDecryptor implements Encryptor, Decryptor {
+  @override
+  Future<List<Uint8List>> encrypt(List<dynamic> data) async {
+    return data
+        .map((_) => Uint8List.fromList(<int>[0]))
+        .toList(growable: false);
+  }
+
+  @override
+  Future<List<dynamic?>> decrypt(List<Uint8List> data) async {
+    return data
+        .map((_) => <String, dynamic>{
+              'role': 'user',
+              'content': <String, dynamic>{'type': 'text', 'text': 'hello'},
+            })
+        .toList(growable: false);
+  }
 }
