@@ -25,6 +25,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   Timer? _syncPollTimer;
+  bool _isSubscribing = false;
   bool _isSending = false;
   bool _isLoadingMessages = true;
   bool _isSubscribed = false;
@@ -61,25 +62,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _initializeSyncBackedChat() async {
+    _syncPollTimer = Timer.periodic(
+      const Duration(milliseconds: 600),
+      (_) => unawaited(_onSyncTick()),
+    );
+    await _onSyncTick();
+  }
+
+  Future<void> _onSyncTick() async {
     if (!sync.isInitialized) {
-      if (mounted) {
-        setState(() => _isLoadingMessages = false);
+      return;
+    }
+
+    if (!_isSubscribed && !_isSubscribing) {
+      _isSubscribing = true;
+      try {
+        sync.onSessionVisible(widget.sessionId);
+        _isSubscribed = true;
+        await sync.messagesSync[widget.sessionId]?.awaitQueue();
+        _refreshFromSync(markLoaded: true);
+      } finally {
+        _isSubscribing = false;
       }
       return;
     }
 
-    if (!_isSubscribed) {
-      sync.onSessionVisible(widget.sessionId);
-      _isSubscribed = true;
-    }
-
-    await sync.messagesSync[widget.sessionId]?.awaitQueue();
-    _refreshFromSync(markLoaded: true);
-
-    _syncPollTimer = Timer.periodic(
-      const Duration(milliseconds: 600),
-      (_) => _refreshFromSync(),
-    );
+    _refreshFromSync();
   }
 
   void _refreshFromSync({bool markLoaded = false}) {

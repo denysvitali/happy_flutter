@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,6 +25,7 @@ class SessionsScreen extends ConsumerStatefulWidget {
 class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   AppTab _activeTab = AppTab.sessions;
   int _inboxBadgeCount = 0;
+  Timer? _syncSnapshotTimer;
 
   @override
   void initState() {
@@ -30,6 +33,16 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     Future<void>.microtask(() async {
       await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
     });
+    _syncSnapshotTimer = Timer.periodic(
+      const Duration(milliseconds: 700),
+      (_) => ref.read(sessionsNotifierProvider.notifier).loadFromSync(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _syncSnapshotTimer?.cancel();
+    super.dispose();
   }
 
   @override
