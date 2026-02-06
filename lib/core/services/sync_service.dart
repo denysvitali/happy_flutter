@@ -72,6 +72,7 @@ class Sync {
   bool _isReady = false;
   ConnectionStatus _connectionStatus = ConnectionStatus.disconnected;
   String? _registeredPushToken;
+  String? _nativeUpdateUrl;
 
   // Recalculation locking
   int recalculationLockCount = 0;
@@ -103,6 +104,8 @@ class Sync {
   Profile? get profile => _profile;
   bool get isReady => _isReady;
   ConnectionStatus get connectionStatus => _connectionStatus;
+  String? get nativeUpdateUrl => _nativeUpdateUrl;
+  bool get hasNativeUpdate => _nativeUpdateUrl != null;
   Map<String, List<Map<String, dynamic>>> get sessionMessages =>
       Map.unmodifiable(
         _sessionMessages.map(
@@ -1176,8 +1179,49 @@ class Sync {
   /// Fetch native app update status
   Future<void> fetchNativeUpdate() async {
     debugPrint('Fetching native update...');
+    if (kIsWeb) {
+      _nativeUpdateUrl = null;
+      return;
+    }
 
-    // TODO: Implement native update check
+    final platform = switch (defaultTargetPlatform) {
+      TargetPlatform.android => 'android',
+      TargetPlatform.iOS => 'ios',
+      _ => null,
+    };
+    if (platform == null) {
+      _nativeUpdateUrl = null;
+      return;
+    }
+
+    try {
+      final apiClient = ApiClient();
+      final response = await apiClient.post(
+        '/v1/version',
+        data: <String, dynamic>{
+          'platform': platform,
+          'version':
+              const String.fromEnvironment('FLUTTER_BUILD_NAME',
+                  defaultValue: '1.0.0'),
+          'app_id':
+              const String.fromEnvironment('FLUTTER_APPLICATION_ID',
+                  defaultValue: 'happy.flutter'),
+        },
+      );
+      if (!apiClient.isSuccess(response)) {
+        _nativeUpdateUrl = null;
+        return;
+      }
+
+      final data = response.data as Map<String, dynamic>?;
+      final updateUrl = data?['updateUrl'] as String? ??
+          data?['update_url'] as String?;
+      _nativeUpdateUrl =
+          updateUrl != null && updateUrl.isNotEmpty ? updateUrl : null;
+    } catch (error) {
+      debugPrint('Failed to fetch native update: $error');
+      _nativeUpdateUrl = null;
+    }
   }
 
   /// Register or refresh device push token
