@@ -410,7 +410,7 @@ jobs:
             ${{ runner.os }}-flutter-build-
 
       - name: Get dependencies
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' && steps.flutter-action.outputs.PUB-CACHE-HIT != 'true' }}
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: flutter pub get
 
       - name: Determine flavor
