@@ -113,13 +113,6 @@ class _HappyAppState extends ConsumerState<HappyApp>
     themeMode.applySystemChromeWithContext(ref.context);
   }
 
-  void _processPendingDeepLink() {
-    if (_pendingDeepLink != null) {
-      ref.read(authStateNotifierProvider.notifier).handleDeepLink(_pendingDeepLink!);
-      _pendingDeepLink = null;
-    }
-  }
-
   GoRouter _buildRouter() {
     return GoRouter(
       initialLocation: '/',
