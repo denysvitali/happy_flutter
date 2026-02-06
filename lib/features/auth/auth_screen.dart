@@ -13,6 +13,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/server_config.dart';
 import '../../core/services/storage_service.dart';
+import '../../core/utils/backup_key_utils.dart';
 
 /// Custom round button widget similar to happy project's RoundButton
 class RoundButton extends StatelessWidget {
@@ -253,6 +254,134 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
   }
 
+  Future<void> _showSecretKeyDialog() async {
+    final controller = TextEditingController();
+    String? errorText;
+    bool isSubmitting = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Sign In with Secret Key'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Enter backup key, base64/base64url key, or 64-char hex key.',
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                enabled: !isSubmitting,
+                decoration: InputDecoration(
+                  labelText: 'Secret Key',
+                  hintText: 'Backup key / base64 / hex',
+                  errorText: errorText,
+                  border: const OutlineInputBorder(),
+                ),
+                maxLines: 2,
+                minLines: 1,
+                onChanged: (_) {
+                  if (errorText != null) {
+                    setDialogState(() {
+                      errorText = null;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      final clipboard =
+                          await Clipboard.getData(Clipboard.kTextPlain);
+                      final text = clipboard?.text?.trim();
+                      if (text == null || text.isEmpty) {
+                        return;
+                      }
+                      controller.text = text;
+                      setDialogState(() {
+                        errorText = null;
+                      });
+                    },
+              child: const Text('Paste'),
+            ),
+            TextButton(
+              onPressed: isSubmitting ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      final input = controller.text.trim();
+                      if (input.isEmpty) {
+                        setDialogState(() {
+                          errorText = 'Please enter a secret key';
+                        });
+                        return;
+                      }
+
+                      final normalized = _normalizeRestoreKey(input);
+                      if (normalized == null) {
+                        setDialogState(() {
+                          errorText =
+                              'Invalid secret key. Use backup key, '
+                              'base64, base64url, or 64-char hex.';
+                        });
+                        return;
+                      }
+
+                      setDialogState(() {
+                        errorText = null;
+                        isSubmitting = true;
+                      });
+
+                      try {
+                        await AuthService().restoreAccount(normalized);
+                        if (!mounted) {
+                          return;
+                        }
+                        Navigator.of(this.context).pop();
+                        ref.read(authStateNotifierProvider.notifier).checkAuth();
+                      } catch (e) {
+                        if (!mounted) {
+                          return;
+                        }
+                        setDialogState(() {
+                          errorText = _formatErrorMessage(e, this.context);
+                        });
+                      } finally {
+                        if (mounted) {
+                          setDialogState(() {
+                            isSubmitting = false;
+                          });
+                        }
+                      }
+                    },
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Sign In'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    controller.dispose();
+  }
+
   void _showQRAuth() async {
     setState(() {
       _showQRScreen = true;
@@ -308,6 +437,53 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       return e.message;
     }
     return '${l10n.authAuthenticationFailed}: $e';
+  }
+
+  String? _normalizeRestoreKey(String input) {
+    final noWhitespace = input.replaceAll(RegExp(r'\s+'), '');
+    if (noWhitespace.isEmpty) {
+      return null;
+    }
+
+    if (BackupKeyUtils.isValidKey(noWhitespace)) {
+      return noWhitespace;
+    }
+
+    final hex = noWhitespace.startsWith('0x')
+        ? noWhitespace.substring(2)
+        : noWhitespace;
+    if (RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(hex)) {
+      final bytes = _decodeHex(hex);
+      if (bytes != null) {
+        return BackupKeyUtils.encodeKey(bytes);
+      }
+    }
+
+    final b64 = noWhitespace.replaceAll('-', '+').replaceAll('_', '/');
+    final remainder = b64.length % 4;
+    final padded = remainder == 0 ? b64 : b64.padRight(b64.length + (4 - remainder), '=');
+    try {
+      final bytes = base64Decode(padded);
+      if (bytes.length == 32) {
+        return BackupKeyUtils.encodeKey(bytes);
+      }
+    } catch (_) {
+      // Ignore and report invalid format below.
+    }
+
+    return null;
+  }
+
+  Uint8List? _decodeHex(String hex) {
+    try {
+      final bytes = <int>[];
+      for (int i = 0; i < hex.length; i += 2) {
+        bytes.add(int.parse(hex.substring(i, i + 2), radix: 16));
+      }
+      return Uint8List.fromList(bytes);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _pollForApproval(Uint8List publicKey) async {
@@ -853,6 +1029,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     isPrimary: false,
                   ),
                 ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: 280,
+                  child: RoundButton(
+                    title: 'Sign In with Secret Key',
+                    onPressed: _showSecretKeyDialog,
+                    isPrimary: false,
+                  ),
+                ),
               ],
             ),
           ),
@@ -996,6 +1181,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       child: RoundButton(
                         title: 'Link or Restore Account',
                         onPressed: _showQRAuth,
+                        isPrimary: false,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: 280,
+                      child: RoundButton(
+                        title: 'Sign In with Secret Key',
+                        onPressed: _showSecretKeyDialog,
                         isPrimary: false,
                       ),
                     ),

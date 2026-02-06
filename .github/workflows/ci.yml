@@ -99,6 +99,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Determine build metadata
+        id: build_meta
+        run: |
+          BUILD_NUMBER=$(( ${{ github.run_number }} * 100 + ${{ github.run_attempt }} ))
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+
+      - name: Prepare signing keystore (optional)
+        id: debug_keystore
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "KEYSTORE_PATH=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > ci-keystore.jks
+          echo "KEYSTORE_PATH=${{ github.workspace }}/ci-keystore.jks" >> $GITHUB_OUTPUT
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet
@@ -215,14 +233,22 @@ jobs:
           echo "FLAVOR=$FLAVOR" >> $GITHUB_OUTPUT
 
       - name: Build Debug APK
-        run: flutter build apk --debug --no-pub --flavor ${{ steps.flavor.outputs.FLAVOR }} --target-platform android-arm64
+        run: |
+          flutter build apk --debug --no-pub \
+            --flavor ${{ steps.flavor.outputs.FLAVOR }} \
+            --target-platform android-arm64 \
+            --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }}
         env:
           APP_ENV: ${{ steps.flavor.outputs.FLAVOR }}
+          KEYSTORE_PATH: ${{ steps.debug_keystore.outputs.KEYSTORE_PATH }}
+          KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
+          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
+          KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: happy-flutter-debug-${{ steps.flavor.outputs.FLAVOR }}
+          name: happy-flutter-debug-${{ steps.flavor.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
           path: build/app/outputs/flutter-apk/app-${{ steps.flavor.outputs.FLAVOR }}-debug.apk
           retention-days: 14
 
@@ -231,8 +257,9 @@ jobs:
     needs: analyze
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Run on workflow_dispatch with release or both selected, or on version tags
+    # Run on main pushes, workflow_dispatch (release/both), and version tags.
     if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' &&
        (github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both')) ||
       startsWith(github.ref, 'refs/tags/v')
@@ -244,6 +271,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Determine build metadata
+        id: build_meta
+        run: |
+          BUILD_NUMBER=$(( ${{ github.run_number }} * 100 + ${{ github.run_attempt }} ))
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_OUTPUT
 
       - name: Check for keystore
         id: check_keystore
@@ -391,7 +424,10 @@ jobs:
 
       - name: Build Release APK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        run: flutter build apk --release --no-pub --flavor ${{ steps.flavor.outputs.FLAVOR }}
+        run: |
+          flutter build apk --release --no-pub \
+            --flavor ${{ steps.flavor.outputs.FLAVOR }} \
+            --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }}
         env:
           APP_ENV: ${{ steps.flavor.outputs.FLAVOR }}
           KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.jks
@@ -403,7 +439,7 @@ jobs:
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: happy-flutter-release-${{ steps.flavor.outputs.FLAVOR }}
+          name: happy-flutter-release-${{ steps.flavor.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
           path: build/app/outputs/flutter-apk/app-${{ steps.flavor.outputs.FLAVOR }}-release.apk
           retention-days: 14
 

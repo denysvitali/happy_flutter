@@ -56,7 +56,7 @@ class AuthService {
     } on DioException catch (e) {
       if (e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.connectionTimeout) {
-        throw AuthException('Connection failed: ${e.message}');
+        throw AuthException('Connection failed: ${_formatDioError(e)}');
       } else if (e.type == DioExceptionType.badResponse) {
         final statusCode = e.response?.statusCode;
         final errorMsg = _extractErrorMessage(e.response?.data);
@@ -298,7 +298,7 @@ class AuthService {
     } on DioException catch (e) {
       if (e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.connectionTimeout) {
-        throw AuthException('Connection failed: ${e.message}');
+        throw AuthException('Connection failed: ${_formatDioError(e)}');
       } else if (e.type == DioExceptionType.badResponse) {
         final statusCode = e.response?.statusCode;
         final errorMsg = _extractErrorMessage(e.response?.data);
@@ -600,6 +600,25 @@ Timestamp: ${DateTime.now().toIso8601String()}
       return data;
     }
     return 'Unknown error';
+  }
+
+  String _formatDioError(DioException e) {
+    final message = e.message?.trim();
+    if (message != null && message.isNotEmpty && message != 'null') {
+      return message;
+    }
+
+    final error = e.error?.toString().trim();
+    if (error != null && error.isNotEmpty && error != 'null') {
+      return error;
+    }
+
+    final status = e.response?.statusCode;
+    if (status != null) {
+      return 'HTTP $status';
+    }
+
+    return e.type.name;
   }
 
   /// Get diagnostic information from response

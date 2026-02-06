@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:native_dio_adapter/native_dio_adapter.dart';
 import 'mmkv_storage.dart';
 
 const String defaultServerUrl = 'https://api.cluster-fluster.com';
@@ -123,8 +124,12 @@ Future<ServerUrlVerificationResult> verifyServerUrl(String url) async {
   }
 
   try {
-    // Use Dio instead of HttpClient (works on web and native)
+    // Use NativeAdapter on supported native platforms so certificate trust
+    // behavior matches the main API client.
     final dio = Dio();
+    if (!kIsWeb) {
+      dio.httpClientAdapter = NativeAdapter();
+    }
     dio.options.connectTimeout = const Duration(seconds: 10);
     dio.options.receiveTimeout = const Duration(seconds: 10);
 
@@ -148,7 +153,7 @@ Future<ServerUrlVerificationResult> verifyServerUrl(String url) async {
       );
     }
   } on DioException catch (e) {
-    final errorMsg = 'Connection failed: ${e.message}';
+    final errorMsg = 'Connection failed: ${_formatDioError(e)}';
     debugPrint('Server verification failed: $e');
     saveServerUrlError(errorMsg);
 
@@ -180,4 +185,23 @@ Future<ServerUrlVerificationResult> verifyServerUrl(String url) async {
     saveServerUrlError(errorMsg);
     return ServerUrlVerificationResult.failed(errorMsg, 'Unknown');
   }
+}
+
+String _formatDioError(DioException e) {
+  final message = e.message?.trim();
+  if (message != null && message.isNotEmpty && message != 'null') {
+    return message;
+  }
+
+  final error = e.error?.toString().trim();
+  if (error != null && error.isNotEmpty && error != 'null') {
+    return error;
+  }
+
+  final status = e.response?.statusCode;
+  if (status != null) {
+    return 'HTTP $status';
+  }
+
+  return e.type.name;
 }

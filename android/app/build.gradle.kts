@@ -58,7 +58,7 @@ android {
     val keystorePath = System.getenv("KEYSTORE_PATH")
     signingConfigs {
         create("release") {
-            if (keystorePath != null) {
+            if (!keystorePath.isNullOrBlank()) {
                 storeFile = file(keystorePath)
                 storePassword = System.getenv("KEYSTORE_STORE_PASSWORD")
                 keyPassword = System.getenv("KEYSTORE_KEY_PASSWORD")
@@ -70,6 +70,12 @@ android {
     buildTypes {
         getByName("debug") {
             isMinifyEnabled = false
+            // Allow CI debug artifacts to be signed with the same keystore
+            // as release builds (when KEYSTORE_PATH is provided), so they
+            // can be installed as upgrades on Android devices.
+            if (!keystorePath.isNullOrBlank()) {
+                signingConfig = signingConfigs.findByName("release")
+            }
         }
         getByName("release") {
             isMinifyEnabled = true
@@ -78,7 +84,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            if (keystorePath != null) {
+            if (!keystorePath.isNullOrBlank()) {
                 signingConfig = signingConfigs.findByName("release")
             }
         }
