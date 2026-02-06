@@ -118,6 +118,7 @@ class Sync {
     profileSync = InvalidateSync(fetchProfile);
     purchasesSync = InvalidateSync(syncPurchases);
     machinesSync = InvalidateSync(fetchMachines);
+    pushTokenSync = InvalidateSync(syncPushToken);
     nativeUpdateSync = InvalidateSync(fetchNativeUpdate);
     artifactsSync = InvalidateSync(fetchArtifactsList);
     friendsSync = InvalidateSync(fetchFriends);
@@ -229,8 +230,14 @@ class Sync {
 
   /// Handle new message update
   void _handleNewMessage(Map<String, dynamic> data) {
-    // TODO: Implement new message handling
-    debugPrint('New message received');
+    final sessionId = data['sid'] as String?;
+    if (sessionId != null && messagesSync.containsKey(sessionId)) {
+      messagesSync[sessionId]?.invalidate();
+    }
+    sessionsSync.invalidate();
+    debugPrint(
+      'New message received${sessionId != null ? ': $sessionId' : ''}',
+    );
   }
 
   /// Handle new session update
@@ -241,21 +248,34 @@ class Sync {
 
   /// Handle session deletion
   void _handleDeleteSession(Map<String, dynamic> data) {
-    debugPrint('Session deletion received');
-    // TODO: Implement session deletion
+    final sessionId = data['sid'] as String?;
+    if (sessionId != null) {
+      messagesSync.remove(sessionId)?.dispose();
+      sessionReceivedMessages.remove(sessionId);
+    }
+    sessionsSync.invalidate();
+    debugPrint(
+      'Session deletion received${sessionId != null ? ': $sessionId' : ''}',
+    );
   }
 
   /// Handle session update
   void _handleUpdateSession(Map<String, dynamic> data) {
-    debugPrint('Session update received');
-    // TODO: Implement session update
+    final sessionId = data['id'] as String?;
+    sessionsSync.invalidate();
+    if (sessionId != null && messagesSync.containsKey(sessionId)) {
+      messagesSync[sessionId]?.invalidate();
+    }
+    debugPrint(
+      'Session update received${sessionId != null ? ': $sessionId' : ''}',
+    );
   }
 
   /// Handle account update
   void _handleUpdateAccount(Map<String, dynamic> data) {
     debugPrint('Account update received');
     profileSync.invalidate();
-    // TODO: Handle settings update from account
+    settingsSync.invalidate();
   }
 
   /// Handle machine update
@@ -298,13 +318,29 @@ class Sync {
 
   /// Handle KV batch update (for todos)
   void _handleKvBatchUpdate(Map<String, dynamic> data) {
-    debugPrint('KV batch update received');
-    // TODO: Implement todo socket updates
+    final serialized = jsonEncode(data).toLowerCase();
+    if (serialized.contains('todo')) {
+      todosSync.invalidate();
+      debugPrint('KV batch update received (todos)');
+      return;
+    }
+    debugPrint('KV batch update received (non-todo)');
   }
 
   /// Handle ephemeral updates
   void handleEphemeralUpdate(dynamic data) {
-    // TODO: Implement ephemeral update handling
+    if (data is! Map<String, dynamic>) {
+      return;
+    }
+
+    final sessionId = data['sid'] as String?;
+    if (sessionId == null) {
+      return;
+    }
+
+    if (messagesSync.containsKey(sessionId)) {
+      messagesSync[sessionId]?.invalidate();
+    }
   }
 
   /// Fetch sessions from server
@@ -313,7 +349,6 @@ class Sync {
 
     try {
       final apiClient = ApiClient();
-      final serverUrl = await getServerUrl();
       
       final response = await apiClient.get('/v1/sessions');
       
@@ -511,7 +546,6 @@ class Sync {
 
     try {
       final apiClient = ApiClient();
-      final serverUrl = await getServerUrl();
 
       // Apply pending settings
       if (pendingSettings.isNotEmpty) {
@@ -555,7 +589,6 @@ class Sync {
 
     try {
       final apiClient = ApiClient();
-      final serverUrl = await getServerUrl();
 
       final response = await apiClient.get('/v1/account/profile');
 
@@ -577,6 +610,12 @@ class Sync {
     debugPrint('Fetching native update...');
 
     // TODO: Implement native update check
+  }
+
+  /// Register or refresh device push token
+  Future<void> syncPushToken() async {
+    debugPrint('Syncing push token...');
+    // TODO: Wire Firebase/APNs token provider and call PushApi.registerToken
   }
 
   /// Refresh machines from server
