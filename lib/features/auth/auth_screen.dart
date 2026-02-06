@@ -268,7 +268,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Enter backup key, base64/base64url key, or 64-char hex key.',
+                'Enter backup key (11 groups like XXXXX-XXXXX...), base64/base64url, or 64-char hex key.',
               ),
               const SizedBox(height: 12),
               TextField(
@@ -330,8 +330,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       if (normalized == null) {
                         setDialogState(() {
                           errorText =
-                              'Invalid secret key. Use backup key, '
-                              'base64, base64url, or 64-char hex.';
+                              'Invalid key. Use backup key (11 groups), base64, base64url, or 64-char hex.';
                         });
                         return;
                       }

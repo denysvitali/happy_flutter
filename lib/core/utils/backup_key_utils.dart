@@ -1,30 +1,25 @@
 import 'dart:typed_data';
 
-/// Utility for backing up and restoring secret keys using base32 with dashes format.
+/// Utility for backing up and restoring secret keys using base32 with dashes
+/// format.
 ///
-/// The format is: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX (5 characters per group, 5 groups)
-/// This format is:
+/// This matches the React Native implementation in
+/// happy/packages/happy-app/sources/auth/secretKeyBackup.ts
+///
+/// The format is: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-
+/// XXXXX (11 groups of 5 characters = 55 with dashes, 52 without)
+///
+/// Uses RFC 4648 Base32 alphabet: ABCDEFGHIJKLMNOPQRSTUVWXYZ234567
 /// - Easy to read and transcribe
 /// - Case-insensitive
-/// - No confusing characters (0 vs O, 1 vs l vs I)
-/// - 25 characters total + 4 dashes = 29 characters
+/// - 32 bytes = 256 bits = 52 base32 chars
 class BackupKeyUtils {
-  static const int _groupLength = 5;
-  static const int _numGroups = 5;
-  static const int _totalChars = _groupLength * _numGroups;
-
-  /// Characters used in base32 encoding ( Crockford's base32 )
-  /// Excludes confusing characters: 0, 1, I, L, O, U
-  static const String _base32Chars = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-
-  static final Map<String, String> _normalizedChars = {
-    '0': '0', 'O': '0', 'o': '0',
-    '1': '1', 'I': '1', 'i': '1', 'L': '1', 'l': '1',
-  };
+  /// Base32 alphabet (RFC 4648) - excludes confusing characters
+  static const String _base32Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
   /// Encode a 32-byte secret key to base32 with dashes format
   ///
-  /// Format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX
+  /// Format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX
   static String encodeKey(Uint8List secretKey) {
     if (secretKey.length != 32) {
       throw ArgumentError('Secret key must be exactly 32 bytes');
@@ -37,18 +32,19 @@ class BackupKeyUtils {
   /// Decode a base32 with dashes format back to 32-byte secret key
   ///
   /// Accepts formats like:
-  /// - AAAAA-BBBBB-CCCCC-DDDDD-EEEEE
-  /// - AAAAABBBBBCCCCCDDDDDEEEEE
+  /// - AAAAA-BBBBB-CCCCC-DDDDD-EEEEE-FFFFF-GGGGG-HHHHH-IIIII-JJJJJ-KKKKK
+  /// - AAAAABBBBBCCCCCDDDDDEEEEEFFFFFGGGGGHHHHHIIIIJJJJJKKKK
   static Uint8List decodeKey(String formattedKey) {
     final cleaned = _removeDashesAndNormalize(formattedKey);
 
-    if (cleaned.length != _totalChars) {
+    final bytes = _fromBase32(cleaned);
+    if (bytes.length != 32) {
       throw FormatException(
-        'Invalid key format. Expected $_totalChars characters, got ${cleaned.length}',
+        'Invalid key length: expected 32 bytes, got ${bytes.length}',
       );
     }
 
-    return _fromBase32(cleaned);
+    return bytes;
   }
 
   /// Validate a formatted key
@@ -61,13 +57,13 @@ class BackupKeyUtils {
     }
   }
 
-  /// Convert bytes to Crockford's base32
+  /// Convert bytes to RFC 4648 base32
   static String _toBase32(Uint8List bytes) {
     if (bytes.isEmpty) return '';
 
     final result = StringBuffer();
-    int buffer = 0;
-    int bitsLeft = 0;
+    var buffer = 0;
+    var bitsLeft = 0;
 
     for (final byte in bytes) {
       buffer = (buffer << 8) | byte;
@@ -76,43 +72,39 @@ class BackupKeyUtils {
       while (bitsLeft >= 5) {
         bitsLeft -= 5;
         final index = (buffer >> bitsLeft) & 0x1F;
-        result.write(_base32Chars[index]);
+        result.write(_base32Alphabet[index]);
       }
     }
 
     // Handle remaining bits
     if (bitsLeft > 0) {
       final index = (buffer << (5 - bitsLeft)) & 0x1F;
-      result.write(_base32Chars[index]);
+      result.write(_base32Alphabet[index]);
     }
 
-    var resultStr = result.toString();
-    // Pad to 52 characters (40 bits / 5 = 8 chars per 5 bytes, 32 bytes = 52 chars)
-    while (resultStr.length < 52) {
-      resultStr += '0';
-    }
-    // Take only first 52 characters
-    return resultStr.substring(0, 52);
+    // 32 bytes = 256 bits = 52 base32 characters (rounded up from 51.2)
+    final resultStr = result.toString();
+    // Pad with 'A' (which represents 0) to reach 52 characters
+    final padded = resultStr.padRight(52, 'A');
+    return padded.substring(0, 52);
   }
 
-  /// Convert Crockford's base32 back to bytes
+  /// Convert RFC 4648 base32 back to bytes
   static Uint8List _fromBase32(String base32) {
-    if (base32.isEmpty) return Uint8List(0);
-
     final cleaned = base32.toUpperCase();
+
     final bytes = <int>[];
-    int buffer = 0;
-    int bitsLeft = 0;
+    var buffer = 0;
+    var bitsLeft = 0;
 
     for (final char in cleaned.runes) {
       final charStr = String.fromCharCode(char);
-      final normalized = _normalizedChars[charStr] ?? charStr;
 
-      if (!_base32Chars.contains(normalized)) {
+      final value = _base32Alphabet.indexOf(charStr);
+      if (value == -1) {
         throw FormatException('Invalid base32 character: $charStr');
       }
 
-      final value = _base32Chars.indexOf(normalized);
       buffer = (buffer << 5) | value;
       bitsLeft += 5;
 
@@ -128,26 +120,35 @@ class BackupKeyUtils {
   /// Format base32 string with dashes every 5 characters
   static String _formatWithDashes(String base32) {
     final groups = <String>[];
-    for (int i = 0; i < _numGroups; i++) {
-      final start = i * _groupLength;
-      groups.add(base32.substring(start, start + _groupLength));
+    for (int i = 0; i < base32.length; i += 5) {
+      groups.add(base32.substring(i, (i + 5).clamp(0, base32.length)));
     }
     return groups.join('-');
   }
 
-  /// Remove dashes and normalize confusing characters
+  /// Remove dashes and normalize the input
+  /// Matches React Native behavior:
+  /// - 0 -> O
+  /// - 1 -> I
+  /// - 8 -> B
+  /// - 9 -> G
   static String _removeDashesAndNormalize(String formatted) {
-    final result = StringBuffer();
+    var result = formatted.toUpperCase();
 
-    for (final char in formatted.runes) {
-      final charStr = String.fromCharCode(char);
-      if (charStr == '-') continue;
+    // Normalize common mistakes (matching React Native)
+    result = result.replaceAll('0', 'O');
+    result = result.replaceAll('1', 'I');
+    result = result.replaceAll('8', 'B');
+    result = result.replaceAll('9', 'G');
 
-      final normalized = _normalizedChars[charStr] ?? charStr.toUpperCase();
-      result.write(normalized);
+    // Remove all non-base32 characters (spaces, dashes, etc)
+    result = result.replaceAll(RegExp(r'[^A-Z2-7]'), '');
+
+    if (result.isEmpty) {
+      throw FormatException('No valid characters found');
     }
 
-    return result.toString();
+    return result;
   }
 
   /// Generate a random 32-byte key (for testing)
