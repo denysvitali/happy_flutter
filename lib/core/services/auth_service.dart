@@ -279,6 +279,7 @@ class AuthService {
   }
 
   /// Restore account from backup key
+  /// Uses the same /v1/auth endpoint as createAccount
   Future<AuthCredentials> restoreAccount(String formattedKey) async {
     final secret = BackupKeyUtils.decodeKey(formattedKey);
     final keypair = await _generateKeypair(secret);
@@ -287,8 +288,9 @@ class AuthService {
 
     Response response;
     try {
+      // Use /v1/auth endpoint (same as createAccount)
       response = await _apiClient.post(
-        '/v1/auth/restore',
+        '/v1/auth',
         data: {
           'challenge': base64Encode(challenge),
           'signature': base64Encode(signature),
@@ -306,11 +308,6 @@ class AuthService {
           throw AuthForbiddenError(
             errorMsg,
             serverResponse: e.response?.data?.toString(),
-          );
-        } else if (statusCode == 404) {
-          throw AuthRequestError(
-            'Account not found. Please check your backup key.',
-            statusCode: 404,
           );
         } else if (statusCode != null && statusCode >= 400) {
           throw AuthRequestError(
@@ -335,10 +332,11 @@ class AuthService {
       _apiClient.updateToken(token);
 
       return credentials;
-    } else if (response.statusCode == 404) {
+    } else if (response.statusCode != null && response.statusCode! >= 400) {
+      final errorMsg = _extractErrorMessage(response.data);
       throw AuthRequestError(
-        'Account not found. Please check your backup key and try again.',
-        statusCode: 404,
+        errorMsg,
+        statusCode: response.statusCode,
       );
     } else {
       throw AuthException('Failed to restore account: ${response.statusCode}');

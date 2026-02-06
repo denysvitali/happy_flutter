@@ -120,7 +120,7 @@ class BackupKeyUtils {
   /// Format base32 string with dashes every 5 characters
   static String _formatWithDashes(String base32) {
     final groups = <String>[];
-    for (int i = 0; i < base32.length; i += 5) {
+    for (var i = 0; i < base32.length; i += 5) {
       groups.add(base32.substring(i, (i + 5).clamp(0, base32.length)));
     }
     return groups.join('-');
@@ -154,7 +154,7 @@ class BackupKeyUtils {
   /// Generate a random 32-byte key (for testing)
   static Uint8List generateRandomKey() {
     final random = Uint8List(32);
-    for (int i = 0; i < 32; i++) {
+    for (var i = 0; i < 32; i++) {
       random[i] = (DateTime.now().millisecondsSinceEpoch + i) % 256;
     }
     return random;
