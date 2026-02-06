@@ -216,6 +216,23 @@ void main() {
       );
     });
   });
+
+  group('Sync.applySettings', () {
+    test('merges into snapshot and pending settings', () async {
+      final instance = Sync();
+      instance.settingsSync = InvalidateSync(() async {});
+
+      await instance.applySettings({
+        'themeMode': 'dark',
+        'viewInline': true,
+      });
+
+      expect(instance.settingsSnapshot.themeMode, 'dark');
+      expect(instance.settingsSnapshot.viewInline, true);
+      expect(instance.pendingSettings['themeMode'], 'dark');
+      expect(instance.pendingSettings['viewInline'], true);
+    });
+  });
 }
 
 class _FakeEncryptorDecryptor implements Encryptor, Decryptor {

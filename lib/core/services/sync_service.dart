@@ -80,12 +80,16 @@ class Sync {
   final List<FeedItem> _feedItems = <FeedItem>[];
   final List<DecryptedArtifact> _artifacts = <DecryptedArtifact>[];
   final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
+  Settings _settingsSnapshot = Settings();
+  int _settingsVersion = 0;
 
   Map<String?, TodoList> get todoLists => Map.unmodifiable(_todoLists);
   List<UserProfile> get friends => List.unmodifiable(_friends);
   List<FriendRequest> get friendRequests => List.unmodifiable(_friendRequests);
   List<FeedItem> get feedItems => List.unmodifiable(_feedItems);
   List<DecryptedArtifact> get artifacts => List.unmodifiable(_artifacts);
+  Settings get settingsSnapshot => _settingsSnapshot;
+  int get settingsVersion => _settingsVersion;
   Map<String, List<Map<String, dynamic>>> get sessionMessages =>
       Map.unmodifiable(
         _sessionMessages.map(
@@ -1047,24 +1051,61 @@ class Sync {
 
       // Apply pending settings
       if (pendingSettings.isNotEmpty) {
-        // TODO: Implement pending settings sync with versioning
+        final mergedSettings = Settings.fromJson({
+          ..._settingsSnapshot.toJson(),
+          ...pendingSettings,
+        });
+        final encryptedPending = await encryption.encryptRaw(
+          mergedSettings.toJson(),
+        ) as String;
+
+        final updateResponse = await apiClient.post(
+          '/v1/account/settings',
+          data: {
+            'settings': encryptedPending,
+            'expectedVersion': _settingsVersion,
+          },
+        );
+
+        final updateData = updateResponse.data as Map<String, dynamic>?;
+        final updateSuccess = updateData?['success'] == true;
+        if (apiClient.isSuccess(updateResponse) && updateSuccess) {
+          _settingsSnapshot = mergedSettings;
+          pendingSettings.clear();
+        } else if (updateData?['error'] == 'version-mismatch') {
+          final currentSettingsEncrypted =
+              updateData?['currentSettings'] as String?;
+          final currentVersion = _asInt(updateData?['currentVersion']) ?? 0;
+          final serverSettingsMap = currentSettingsEncrypted != null
+              ? await encryption.decryptRaw(currentSettingsEncrypted)
+                  as Map<String, dynamic>?
+              : null;
+          final serverSettings = Settings.fromJson(serverSettingsMap ?? {});
+          _settingsSnapshot = Settings.fromJson({
+            ...serverSettings.toJson(),
+            ...pendingSettings,
+          });
+          _settingsVersion = currentVersion;
+        }
       }
 
       // Fetch latest settings
       final response = await apiClient.get('/v1/account/settings');
 
       if (apiClient.isSuccess(response)) {
-        final data = response.data;
+        final data = response.data as Map<String, dynamic>;
         final encryptedSettings = data['settings'] as String?;
 
         if (encryptedSettings != null) {
-          final decrypted = await encryption.decryptRaw(encryptedSettings);
+          final decrypted = await encryption.decryptRaw(encryptedSettings)
+              as Map<String, dynamic>?;
           if (decrypted != null) {
-            final settings = Settings.fromJson(decrypted);
-            final settingsVersion = data['settingsVersion'] as int;
-
-            // TODO: Apply settings to state with version
+            _settingsSnapshot = Settings.fromJson(decrypted);
+            _settingsVersion = _asInt(data['settingsVersion']) ?? _settingsVersion;
           }
+        } else {
+          _settingsSnapshot = Settings();
+          _settingsVersion = _asInt(data['settingsVersion']) ?? _settingsVersion;
         }
       } else {
         debugPrint('Failed to fetch settings: ${response.statusCode}');
@@ -1133,7 +1174,15 @@ class Sync {
 
   /// Apply settings delta
   Future<void> applySettings(Map<String, dynamic> delta) async {
-    // TODO: Implement settings application
+    _settingsSnapshot = Settings.fromJson({
+      ..._settingsSnapshot.toJson(),
+      ...delta,
+    });
+    pendingSettings = {
+      ...pendingSettings,
+      ...delta,
+    };
+    settingsSync.invalidate();
   }
 
   /// Refresh purchases data
