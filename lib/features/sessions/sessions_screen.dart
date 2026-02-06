@@ -7,6 +7,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/api/websocket_client.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
 import '../../core/utils/session_utils.dart';
 import '../../core/utils/session_status.dart';
@@ -806,6 +807,7 @@ class NewSessionDialog extends ConsumerStatefulWidget {
 class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   String? _selectedPath;
   String? _selectedMachine;
+  bool _isCreating = false;
 
   @override
   Widget build(BuildContext context) {
@@ -859,17 +861,46 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           child: Text(l10n.commonCancel),
         ),
         ElevatedButton(
-          onPressed: _selectedPath != null && _selectedMachine != null
+          onPressed: !_isCreating &&
+                  _selectedPath != null &&
+                  _selectedMachine != null
               ? () => _createSession(context)
               : null,
-          child: Text(l10n.commonCreate),
+          child: _isCreating
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(l10n.commonCreate),
         ),
       ],
     );
   }
 
-  void _createSession(BuildContext context) {
-    // Implement session creation
+  Future<void> _createSession(BuildContext context) async {
+    final machineId = _selectedMachine;
+    final path = _selectedPath?.trim();
+    if (machineId == null || path == null || path.isEmpty) {
+      return;
+    }
+
+    setState(() => _isCreating = true);
+    final sessionId = await sync.createSession(machineId: machineId, path: path);
+    if (!mounted) {
+      return;
+    }
+
+    if (sessionId == null || sessionId.isEmpty) {
+      setState(() => _isCreating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to start session')),
+      );
+      return;
+    }
+
+    ref.read(sessionsNotifierProvider.notifier).loadFromSync();
     Navigator.pop(context);
+    context.push('/chat/$sessionId');
   }
 }

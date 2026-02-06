@@ -1317,6 +1317,61 @@ what you have, you must use the options mode.
     }
   }
 
+  /// Create a session on a target machine/path and return the new session ID.
+  Future<String?> createSession({
+    required String machineId,
+    required String path,
+  }) async {
+    if (!isInitialized) {
+      return null;
+    }
+
+    final machine = _machines[machineId];
+    final machineMetadata = machine?.metadata;
+    final metadata = <String, dynamic>{
+      'path': path,
+      'host': machineMetadata?.host ?? 'localhost',
+      'name': machineMetadata?.displayName ?? machineMetadata?.host,
+      'os': machineMetadata?.platform,
+      'machineId': machineId,
+      'homeDir': machineMetadata?.homeDir,
+      'happyHomeDir': machineMetadata?.happyHomeDir,
+    };
+
+    try {
+      final encryptedMetadata = await encryption.encryptRaw(metadata) as String;
+      final response = await ApiClient().post(
+        '/v1/sessions',
+        data: <String, dynamic>{
+          'tag': '$machineId:$path',
+          'metadata': encryptedMetadata,
+          'agentState': null,
+        },
+      );
+
+      if (!ApiClient().isSuccess(response)) {
+        debugPrint('Failed to create session: ${response.statusCode}');
+        return null;
+      }
+
+      final data = response.data;
+      String? sessionId;
+      if (data is Map<String, dynamic>) {
+        final session = data['session'];
+        if (session is Map<String, dynamic>) {
+          sessionId = session['id'] as String?;
+        }
+        sessionId ??= data['id'] as String?;
+      }
+
+      await refreshSessions();
+      return sessionId;
+    } catch (error) {
+      debugPrint('Failed to create session: $error');
+      return null;
+    }
+  }
+
   /// Send message to session
   Future<void> sendMessage(
     String sessionId,
