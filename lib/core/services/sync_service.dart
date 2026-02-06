@@ -8,6 +8,7 @@ import '../api/api_client.dart';
 import '../api/kv_api.dart';
 import '../models/auth.dart';
 import '../encryption/encryption_manager.dart';
+import '../encryption/artifact_encryption.dart';
 import '../services/encryption_service.dart';
 import '../services/storage_service.dart';
 import '../services/server_config.dart';
@@ -77,11 +78,13 @@ class Sync {
   final List<UserProfile> _friends = <UserProfile>[];
   final List<FriendRequest> _friendRequests = <FriendRequest>[];
   final List<FeedItem> _feedItems = <FeedItem>[];
+  final List<DecryptedArtifact> _artifacts = <DecryptedArtifact>[];
 
   Map<String?, TodoList> get todoLists => Map.unmodifiable(_todoLists);
   List<UserProfile> get friends => List.unmodifiable(_friends);
   List<FriendRequest> get friendRequests => List.unmodifiable(_friendRequests);
   List<FeedItem> get feedItems => List.unmodifiable(_feedItems);
+  List<DecryptedArtifact> get artifacts => List.unmodifiable(_artifacts);
 
   /// Initialize sync with credentials and encryption
   Future<void> create(AuthCredentials credentials, Encryption encryption) async {
@@ -531,8 +534,84 @@ class Sync {
   /// Fetch artifacts list from server
   Future<void> fetchArtifactsList() async {
     debugPrint('Fetching artifacts...');
+    try {
+      final response = await ApiClient().get('/v1/artifacts');
+      if (!ApiClient().isSuccess(response)) {
+        debugPrint('Failed to fetch artifacts: ${response.statusCode}');
+        return;
+      }
 
-    // TODO: Implement artifact fetching
+      final data = response.data;
+      final rawArtifacts = (data is Map<String, dynamic>)
+          ? data['artifacts']
+          : data;
+      if (rawArtifacts is! List) {
+        _artifacts.clear();
+        return;
+      }
+
+      final decryptedArtifacts = <DecryptedArtifact>[];
+      for (final raw in rawArtifacts) {
+        if (raw is! Map<String, dynamic>) {
+          continue;
+        }
+        try {
+          final artifact = Artifact.fromJson(raw);
+          final decryptedKey = await encryption.decryptEncryptionKey(
+            artifact.dataEncryptionKey,
+          );
+          if (decryptedKey != null) {
+            _artifactDataKeys[artifact.id] = decryptedKey;
+            final artifactEncryption = ArtifactEncryption(decryptedKey);
+            final header = await artifactEncryption.decryptHeader(artifact.header);
+            final body = artifact.body != null
+                ? await artifactEncryption.decryptBody(artifact.body!)
+                : null;
+
+            decryptedArtifacts.add(
+              DecryptedArtifact(
+                id: artifact.id,
+                title: header?['title'] as String?,
+                sessions: (header?['sessions'] as List<dynamic>?)
+                    ?.whereType<String>()
+                    .toList(),
+                draft: header?['draft'] as bool?,
+                body: body?['body'] as String?,
+                headerVersion: artifact.headerVersion,
+                bodyVersion: artifact.bodyVersion,
+                seq: artifact.seq,
+                createdAt: artifact.createdAt,
+                updatedAt: artifact.updatedAt,
+                isDecrypted: header != null,
+              ),
+            );
+          } else {
+            decryptedArtifacts.add(
+              DecryptedArtifact(
+                id: artifact.id,
+                title: null,
+                body: null,
+                headerVersion: artifact.headerVersion,
+                bodyVersion: artifact.bodyVersion,
+                seq: artifact.seq,
+                createdAt: artifact.createdAt,
+                updatedAt: artifact.updatedAt,
+                isDecrypted: false,
+              ),
+            );
+          }
+        } catch (error) {
+          debugPrint('Failed to decrypt artifact: $error');
+        }
+      }
+
+      _artifacts
+        ..clear()
+        ..addAll(decryptedArtifacts);
+      debugPrint('Fetched artifacts: ${_artifacts.length}');
+    } catch (error) {
+      debugPrint('Failed to fetch artifacts: $error');
+    }
   }
 
   /// Fetch friends list from server
