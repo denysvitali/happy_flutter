@@ -233,6 +233,15 @@ void main() {
       expect(instance.pendingSettings['viewInline'], true);
     });
   });
+
+  group('Sync.waitForAgentReady', () {
+    test('returns false when session is not available before timeout',
+        () async {
+      final instance = Sync();
+      final ready = await instance.waitForAgentReady('missing', 10);
+      expect(ready, false);
+    });
+  });
 }
 
 class _FakeEncryptorDecryptor implements Encryptor, Decryptor {

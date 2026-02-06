@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../api/socket_io_client.dart';
 import '../api/api_client.dart';
 import '../api/kv_api.dart';
+import '../api/push_api.dart';
 import '../models/auth.dart';
 import '../encryption/encryption_manager.dart';
 import '../encryption/artifact_encryption.dart';
@@ -67,6 +69,9 @@ class Sync {
   // State tracking
   bool revenueCatInitialized = false;
   bool isInitialized = false;
+  bool _isReady = false;
+  ConnectionStatus _connectionStatus = ConnectionStatus.disconnected;
+  String? _registeredPushToken;
 
   // Recalculation locking
   int recalculationLockCount = 0;
@@ -96,6 +101,8 @@ class Sync {
   Map<String, Session> get sessions => Map.unmodifiable(_sessions);
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
   Profile? get profile => _profile;
+  bool get isReady => _isReady;
+  ConnectionStatus get connectionStatus => _connectionStatus;
   Map<String, List<Map<String, dynamic>>> get sessionMessages =>
       Map.unmodifiable(
         _sessionMessages.map(
@@ -170,13 +177,16 @@ class Sync {
     // Invalidate all syncs
     _invalidateAllSyncs();
 
-    // Wait for sessions and machines to load before marking as ready
-    await Future.wait([
-      sessionsSync.awaitQueue(),
-      machinesSync.awaitQueue(),
-    ]);
-
-    // TODO: Implement ready state notification
+    // Wait for sessions and machines to load before marking as ready.
+    try {
+      await Future.wait([
+        sessionsSync.awaitQueue(),
+        machinesSync.awaitQueue(),
+      ]);
+      _isReady = true;
+    } catch (error) {
+      debugPrint('Failed initial ready sync: $error');
+    }
   }
 
   /// Invalidate all sync managers
@@ -206,7 +216,7 @@ class Sync {
     });
 
     socketIoClient.onStatusChange((status) {
-      // TODO: Update connection status in state
+      _connectionStatus = status;
     });
   }
 
@@ -685,7 +695,7 @@ class Sync {
 
   /// Fetch friend requests from server (backward compatibility)
   Future<void> fetchFriendRequests() async {
-    debugPrint('Fetching friend requests (handled by fetchFriends)');
+    await fetchFriends();
   }
 
   /// Fetch feed items from server
@@ -1166,7 +1176,27 @@ class Sync {
   /// Register or refresh device push token
   Future<void> syncPushToken() async {
     debugPrint('Syncing push token...');
-    // TODO: Wire Firebase/APNs token provider and call PushApi.registerToken
+    if (kIsWeb) {
+      return;
+    }
+
+    try {
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission();
+      final token = await messaging.getToken();
+      if (token == null || token.isEmpty) {
+        return;
+      }
+
+      if (_registeredPushToken == token) {
+        return;
+      }
+
+      await PushApi().registerToken(token);
+      _registeredPushToken = token;
+    } catch (error) {
+      debugPrint('Failed to sync push token: $error');
+    }
   }
 
   /// Refresh machines from server
@@ -1181,7 +1211,84 @@ class Sync {
 
   /// Send message to session
   Future<void> sendMessage(String sessionId, String text, {String? displayText}) async {
-    // TODO: Implement message sending
+    final sessionEncryption = encryption.getSessionEncryption(sessionId);
+    if (sessionEncryption == null) {
+      debugPrint('Session encryption not initialized for $sessionId');
+      return;
+    }
+
+    final session = _sessions[sessionId];
+    if (session == null) {
+      debugPrint('Session $sessionId not loaded');
+      return;
+    }
+
+    final permissionMode = session.permissionMode ?? 'default';
+    final flavor = session.metadata?.flavor;
+    final isGemini = flavor == 'gemini';
+    final modelMode = session.modelMode ??
+        (isGemini ? 'gemini-2.5-pro' : 'default');
+    final localId = encryption.generateId();
+    final sentFrom = switch (defaultTargetPlatform) {
+      TargetPlatform.android => 'android',
+      TargetPlatform.iOS => 'ios',
+      TargetPlatform.macOS => 'mac',
+      _ => 'web',
+    };
+    final model = isGemini && modelMode != 'default' ? modelMode : null;
+
+    final rawRecord = <String, dynamic>{
+      'role': 'user',
+      'content': <String, dynamic>{
+        'type': 'text',
+        'text': text,
+      },
+      'meta': <String, dynamic>{
+        'sentFrom': sentFrom,
+        'permissionMode': permissionMode,
+        'model': model,
+        'fallbackModel': null,
+        if (displayText != null) 'displayText': displayText,
+      },
+    };
+
+    final encryptedRawRecord = await sessionEncryption.encryptRawRecord(
+      rawRecord,
+    );
+
+    _upsertSessionMessages(
+      sessionId,
+      [
+        {
+          'id': localId,
+          'localId': localId,
+          'seq': 0,
+          'createdAt': DateTime.now().millisecondsSinceEpoch,
+          'role': 'user',
+          'kind': 'text',
+          'content': text,
+          'raw': rawRecord,
+        },
+      ],
+    );
+
+    final ready = await waitForAgentReady(sessionId);
+    if (!ready) {
+      debugPrint(
+        'Session $sessionId not marked ready after timeout, sending anyway',
+      );
+    }
+
+    socketIoClient.send(
+      'message',
+      {
+        'sid': sessionId,
+        'message': encryptedRawRecord,
+        'localId': localId,
+        'sentFrom': sentFrom,
+        'permissionMode': permissionMode,
+      },
+    );
   }
 
   /// Apply settings delta
@@ -1281,8 +1388,15 @@ class Sync {
 
   /// Wait for agent to be ready
   Future<bool> waitForAgentReady(String sessionId, [int timeoutMs = SESSION_READY_TIMEOUT_MS]) async {
-    // TODO: Implement agent ready waiting
-    return Future.value(true);
+    final timeoutAt = DateTime.now().millisecondsSinceEpoch + timeoutMs;
+    while (DateTime.now().millisecondsSinceEpoch < timeoutAt) {
+      final session = _sessions[sessionId];
+      if (session != null && session.agentStateVersion > 0) {
+        return true;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+    return false;
   }
 
   Map<String, dynamic> _mapDecryptedSessionMessage(DecryptedMessage message) {
