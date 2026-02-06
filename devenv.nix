@@ -4,13 +4,13 @@
   # https://devenv.sh/packages/
   packages = [
     pkgs.git
+    pkgs.flutter
+    pkgs.dart
   ];
 
-  # Android SDK and Flutter integration
-  android = {
-    enable = true;
-    flutter.enable = true;
-  };
+  # Keep shell lightweight for CI/agent workflows.
+  # Android SDK images are not required for analyze/test.
+  android.enable = false;
 
   # https://devenv.sh/languages/
   # languages.rust.enable = true;

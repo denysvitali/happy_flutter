@@ -1301,6 +1301,17 @@ what you have, you must use the options mode.
     await sessionsSync.invalidateAndAwait();
   }
 
+  /// Refresh friends and pending requests from server.
+  Future<void> refreshFriends() async {
+    await friendsSync.invalidateAndAwait();
+    await friendRequestsSync.invalidateAndAwait();
+  }
+
+  /// Refresh feed items from server.
+  Future<void> refreshFeed() async {
+    await feedSync.invalidateAndAwait();
+  }
+
   /// Delete a session.
   Future<bool> deleteSession(String sessionId) async {
     try {

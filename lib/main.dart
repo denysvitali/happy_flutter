@@ -23,7 +23,10 @@ import 'features/settings/features_settings_screen.dart';
 import 'features/settings/profiles_screen.dart';
 import 'features/settings/usage_screen.dart';
 import 'features/settings/developer_screen.dart';
+import 'features/settings/changelog_screen.dart';
 import 'features/dev/dev_logs_screen.dart';
+import 'features/inbox/inbox_screen.dart';
+import 'features/inbox/friends_search_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,11 +36,7 @@ void main() async {
   final serverUrl = getServerUrl();
   await ApiClient().initialize(serverUrl: serverUrl);
 
-  runApp(
-    const ProviderScope(
-      child: HappyApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: HappyApp()));
 }
 
 class HappyApp extends ConsumerStatefulWidget {
@@ -80,117 +79,108 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/',
           name: 'auth',
-          builder: (context, state) => const AuthGate(
-            child: SessionsScreen(),
-          ),
+          builder: (context, state) => const AuthGate(child: SessionsScreen()),
         ),
         GoRoute(
           path: '/sessions',
           name: 'sessions',
-          builder: (context, state) => AuthGate(
-            child: SessionsScreen(),
-          ),
+          builder: (context, state) => AuthGate(child: SessionsScreen()),
         ),
         GoRoute(
           path: '/chat/:sessionId',
           name: 'chat',
           builder: (context, state) {
             final sessionId = state.pathParameters['sessionId']!;
-            return AuthGate(
-              child: ChatScreen(sessionId: sessionId),
-            );
+            return AuthGate(child: ChatScreen(sessionId: sessionId));
           },
+        ),
+        GoRoute(
+          path: '/inbox',
+          name: 'inbox',
+          builder: (context, state) => const AuthGate(child: InboxScreen()),
+        ),
+        GoRoute(
+          path: '/friends/search',
+          name: 'friends-search',
+          builder: (context, state) =>
+              const AuthGate(child: FriendsSearchScreen()),
         ),
         GoRoute(
           path: '/settings',
           name: 'settings',
-          builder: (context, state) => const AuthGate(
-            child: SettingsScreen(),
-          ),
+          builder: (context, state) => const AuthGate(child: SettingsScreen()),
         ),
         GoRoute(
           path: '/settings/account',
           name: 'account',
-          builder: (context, state) => const AuthGate(
-            child: AccountScreen(),
-          ),
+          builder: (context, state) => const AuthGate(child: AccountScreen()),
         ),
         GoRoute(
           path: '/settings/account/restore',
           name: 'restore',
-          builder: (context, state) => const AuthGate(
-            child: RestoreAccountScreen(),
-          ),
+          builder: (context, state) =>
+              const AuthGate(child: RestoreAccountScreen()),
         ),
         GoRoute(
           path: '/settings/account/link',
           name: 'link',
-          builder: (context, state) => const AuthGate(
-            child: LinkDeviceScreen(),
-          ),
+          builder: (context, state) =>
+              const AuthGate(child: LinkDeviceScreen()),
         ),
         GoRoute(
           path: '/settings/account/devices',
           name: 'devices',
-          builder: (context, state) => const AuthGate(
-            child: LinkedDevicesScreen(),
-          ),
+          builder: (context, state) =>
+              const AuthGate(child: LinkedDevicesScreen()),
         ),
         GoRoute(
           path: '/settings/theme',
           name: 'theme',
-          builder: (context, state) => const AuthGate(
-            child: ThemeSettingsScreen(),
-          ),
+          builder: (context, state) =>
+              const AuthGate(child: ThemeSettingsScreen()),
         ),
         GoRoute(
           path: '/settings/language',
           name: 'language',
-          builder: (context, state) => const AuthGate(
-            child: LanguageSettingsScreen(),
-          ),
+          builder: (context, state) =>
+              const AuthGate(child: LanguageSettingsScreen()),
         ),
         GoRoute(
           path: '/settings/voice',
           name: 'voice',
-          builder: (context, state) => const AuthGate(
-            child: VoiceSettingsScreen(),
-          ),
+          builder: (context, state) =>
+              const AuthGate(child: VoiceSettingsScreen()),
         ),
         GoRoute(
           path: '/settings/features',
           name: 'features',
-          builder: (context, state) => const AuthGate(
-            child: FeaturesSettingsScreen(),
-          ),
+          builder: (context, state) =>
+              const AuthGate(child: FeaturesSettingsScreen()),
         ),
         GoRoute(
           path: '/settings/profiles',
           name: 'profiles',
-          builder: (context, state) => const AuthGate(
-            child: ProfilesScreen(),
-          ),
+          builder: (context, state) => const AuthGate(child: ProfilesScreen()),
         ),
         GoRoute(
           path: '/settings/usage',
           name: 'usage',
-          builder: (context, state) => const AuthGate(
-            child: UsageScreen(),
-          ),
+          builder: (context, state) => const AuthGate(child: UsageScreen()),
+        ),
+        GoRoute(
+          path: '/settings/changelog',
+          name: 'changelog',
+          builder: (context, state) => const AuthGate(child: ChangelogScreen()),
         ),
         GoRoute(
           path: '/settings/developer',
           name: 'developer',
-          builder: (context, state) => AuthGate(
-            child: DeveloperScreen(),
-          ),
+          builder: (context, state) => AuthGate(child: DeveloperScreen()),
         ),
         GoRoute(
           path: '/settings/developer/logs',
           name: 'dev-logs',
-          builder: (context, state) => AuthGate(
-            child: const DevLogsScreen(),
-          ),
+          builder: (context, state) => AuthGate(child: const DevLogsScreen()),
         ),
       ],
       redirect: (context, state) {

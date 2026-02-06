@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../i18n/app_localizations.dart';
 
 /// Tab type for the app
 enum AppTab {
@@ -68,6 +69,7 @@ class _TabBarState extends State<TabBar> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = context.l10n;
 
     final backgroundColor = widget.backgroundColor ?? colorScheme.surface;
     final selectedColor = widget.selectedItemColor ?? colorScheme.primary;
@@ -140,7 +142,7 @@ class _TabBarState extends State<TabBar> {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          tab.label,
+                          _labelForTab(tab.key, l10n),
                           style: theme.textTheme.labelSmall?.copyWith(
                             fontSize: 10,
                             color: isActive ? selectedColor : unselectedColor,
@@ -157,6 +159,17 @@ class _TabBarState extends State<TabBar> {
         ),
       ),
     );
+  }
+
+  String _labelForTab(AppTab tab, AppLocalizations l10n) {
+    switch (tab) {
+      case AppTab.inbox:
+        return l10n.tabsInbox;
+      case AppTab.sessions:
+        return l10n.sessionHistoryTitle;
+      case AppTab.settings:
+        return l10n.tabsSettings;
+    }
   }
 
   Widget _buildBadge(int count, Color backgroundColor) {
@@ -220,6 +233,7 @@ class CompactTabBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = context.l10n;
     final selectedColor = this.selectedColor ?? colorScheme.primary;
     final unselectedColor = this.unselectedColor ?? colorScheme.onSurfaceVariant;
 
@@ -255,10 +269,21 @@ class CompactTabBar extends StatelessWidget {
             color: isActive ? selectedColor : unselectedColor,
           ),
           onPressed: () => onTabPress(tab.key),
-          tooltip: tab.label,
+          tooltip: _labelForTab(tab.key, l10n),
         );
       }).toList(),
     );
+  }
+
+  String _labelForTab(AppTab tab, AppLocalizations l10n) {
+    switch (tab) {
+      case AppTab.inbox:
+        return l10n.tabsInbox;
+      case AppTab.sessions:
+        return l10n.sessionHistoryTitle;
+      case AppTab.settings:
+        return l10n.tabsSettings;
+    }
   }
 }
 

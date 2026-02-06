@@ -25,7 +25,6 @@ class SessionsScreen extends ConsumerStatefulWidget {
 
 class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   AppTab _activeTab = AppTab.sessions;
-  int _inboxBadgeCount = 0;
   Timer? _syncSnapshotTimer;
 
   @override
@@ -33,10 +32,16 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     super.initState();
     Future<void>.microtask(() async {
       await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
+      await ref.read(friendsNotifierProvider.notifier).refreshFromSync();
+      await ref.read(feedNotifierProvider.notifier).refreshFromSync();
     });
     _syncSnapshotTimer = Timer.periodic(
       const Duration(milliseconds: 700),
-      (_) => ref.read(sessionsNotifierProvider.notifier).loadFromSync(),
+      (_) {
+        ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+        ref.read(friendsNotifierProvider.notifier).loadFromSync();
+        ref.read(feedNotifierProvider.notifier).loadFromSync();
+      },
     );
   }
 
@@ -49,6 +54,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final friendsState = ref.watch(friendsNotifierProvider);
+    final feedState = ref.watch(feedNotifierProvider);
+    final inboxBadgeCount = friendsState.incomingRequests.length;
+    final showInboxDot = feedState.unreadCount > 0;
 
     return Scaffold(
       appBar: _buildAppBar(context, l10n),
@@ -56,7 +65,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       bottomNavigationBar: TabBar(
         activeTab: _activeTab,
         onTabPress: (tab) => setState(() => _activeTab = tab),
-        inboxBadgeCount: _inboxBadgeCount,
+        inboxBadgeCount: inboxBadgeCount,
+        showInboxBadge: showInboxDot,
       ),
     );
   }

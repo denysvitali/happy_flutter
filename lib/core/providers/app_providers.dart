@@ -20,8 +20,8 @@ import '../services/sync_service.dart';
 /// Authentication state provider
 final authStateNotifierProvider =
     NotifierProvider<AuthStateNotifier, AuthState>(() {
-  return AuthStateNotifier();
-});
+      return AuthStateNotifier();
+    });
 
 class AuthStateNotifier extends Notifier<AuthState> {
   final _authService = AuthService();
@@ -47,6 +47,12 @@ class AuthStateNotifier extends Notifier<AuthState> {
           ref.read(sessionsNotifierProvider.notifier).loadFromSync();
           ref.read(machinesNotifierProvider.notifier).loadFromSync();
           ref.read(settingsNotifierProvider.notifier).loadFromSync();
+          ref.read(profileNotifierProvider.notifier).loadFromSync();
+          ref.read(friendsNotifierProvider.notifier).loadFromSync();
+          ref.read(feedNotifierProvider.notifier).loadFromSync();
+          await ref.read(profileNotifierProvider.notifier).refreshFromSync();
+          await ref.read(friendsNotifierProvider.notifier).refreshFromSync();
+          await ref.read(feedNotifierProvider.notifier).refreshFromSync();
         }
         if (_pendingDeepLink != null) {
           await _handleDeepLink(_pendingDeepLink!);
@@ -79,6 +85,9 @@ class AuthStateNotifier extends Notifier<AuthState> {
     await _authService.signOut();
     ref.read(sessionsNotifierProvider.notifier).clear();
     ref.read(machinesNotifierProvider.notifier).clear();
+    ref.read(profileNotifierProvider.notifier).clear();
+    ref.read(friendsNotifierProvider.notifier).clear();
+    ref.read(feedNotifierProvider.notifier).clear();
     state = AuthState.unauthenticated;
   }
 }
@@ -105,9 +114,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   }
 
   void setSessions(List<Session> sessions) {
-    state = {
-      for (final session in sessions) session.id: session,
-    };
+    state = {for (final session in sessions) session.id: session};
   }
 
   void loadFromSync() {
@@ -148,9 +155,7 @@ class MachinesNotifier extends Notifier<Map<String, Machine>> {
   }
 
   void setMachines(List<Machine> machines) {
-    state = {
-      for (final machine in machines) machine.id: machine,
-    };
+    state = {for (final machine in machines) machine.id: machine};
   }
 
   void loadFromSync() {
@@ -283,49 +288,56 @@ class CurrentSessionNotifier extends Notifier<Session?> {
 /// Sessions provider
 final sessionsNotifierProvider =
     NotifierProvider<SessionsNotifier, Map<String, Session>>(() {
-  return SessionsNotifier();
-});
+      return SessionsNotifier();
+    });
 
 /// Machines provider
 final machinesNotifierProvider =
     NotifierProvider<MachinesNotifier, Map<String, Machine>>(() {
-  return MachinesNotifier();
-});
+      return MachinesNotifier();
+    });
 
 /// Settings provider
-final settingsNotifierProvider =
-    NotifierProvider<SettingsNotifier, Settings>(() {
-  return SettingsNotifier();
-});
+final settingsNotifierProvider = NotifierProvider<SettingsNotifier, Settings>(
+  () {
+    return SettingsNotifier();
+  },
+);
 
 /// WebSocket connection provider
 final connectionNotifierProvider =
     NotifierProvider<ConnectionNotifier, ConnectionStatus>(() {
-  return ConnectionNotifier();
-});
+      return ConnectionNotifier();
+    });
 
 /// Current session provider
 final currentSessionNotifierProvider =
     NotifierProvider<CurrentSessionNotifier, Session?>(() {
-  return CurrentSessionNotifier();
-});
+      return CurrentSessionNotifier();
+    });
 
 /// Profile provider
-final profileNotifierProvider =
-    NotifierProvider<ProfileNotifier, Profile?>(() {
+final profileNotifierProvider = NotifierProvider<ProfileNotifier, Profile?>(() {
   return ProfileNotifier();
 });
 
 class ProfileNotifier extends Notifier<Profile?> {
-  final _storage = SettingsStorage();
-
   @override
   Profile? build() => null;
 
-  Future<void> loadProfile() async {
-    // Load profile from storage
-    // This is a placeholder - actual implementation would call API
-    state = null;
+  void loadFromSync() {
+    if (!sync.isInitialized) {
+      return;
+    }
+    state = sync.profile;
+  }
+
+  Future<void> refreshFromSync() async {
+    if (!sync.isInitialized) {
+      return;
+    }
+    await sync.refreshProfile();
+    loadFromSync();
   }
 
   void updateProfile(Profile profile) {
@@ -351,16 +363,19 @@ class ProfileNotifier extends Notifier<Profile?> {
       state = state!.copyWith(github: null);
     }
   }
+
+  void clear() {
+    state = null;
+  }
 }
 
 /// Per-session git status provider
 final sessionGitStatusProvider =
     NotifierProvider<SessionGitStatusNotifier, Map<String, GitStatus>>(() {
-  return SessionGitStatusNotifier();
-});
+      return SessionGitStatusNotifier();
+    });
 
-class SessionGitStatusNotifier
-    extends Notifier<Map<String, GitStatus>> {
+class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
   @override
   Map<String, GitStatus> build() => {};
 
@@ -384,8 +399,8 @@ class SessionGitStatusNotifier
 /// Artifacts provider
 final artifactsNotifierProvider =
     NotifierProvider<ArtifactsNotifier, Map<String, Artifact>>(() {
-  return ArtifactsNotifier();
-});
+      return ArtifactsNotifier();
+    });
 
 class ArtifactsNotifier extends Notifier<Map<String, Artifact>> {
   @override
@@ -408,9 +423,7 @@ class ArtifactsNotifier extends Notifier<Map<String, Artifact>> {
   }
 
   void setArtifacts(List<Artifact> artifacts) {
-    state = {
-      for (final artifact in artifacts) artifact.id: artifact,
-    };
+    state = {for (final artifact in artifacts) artifact.id: artifact};
   }
 
   // NOTE: Cannot filter by sessionId without decrypting headers first
@@ -424,23 +437,40 @@ class ArtifactsNotifier extends Notifier<Map<String, Artifact>> {
 }
 
 /// Friends/social provider
-final friendsNotifierProvider =
-    NotifierProvider<FriendsNotifier, FriendsState>(() {
-  return FriendsNotifier();
-});
+final friendsNotifierProvider = NotifierProvider<FriendsNotifier, FriendsState>(
+  () {
+    return FriendsNotifier();
+  },
+);
 
 class FriendsNotifier extends Notifier<FriendsState> {
   @override
   FriendsState build() => FriendsState();
+
+  void loadFromSync() {
+    if (!sync.isInitialized) {
+      return;
+    }
+    state = state.copyWith(
+      friends: sync.friends,
+      pendingRequests: sync.friendRequests,
+    );
+  }
+
+  Future<void> refreshFromSync() async {
+    if (!sync.isInitialized) {
+      return;
+    }
+    await sync.refreshFriends();
+    loadFromSync();
+  }
 
   void setFriends(List<UserProfile> friends) {
     state = state.copyWith(friends: friends);
   }
 
   void addFriend(UserProfile friend) {
-    state = state.copyWith(
-      friends: [...state.friends, friend],
-    );
+    state = state.copyWith(friends: [...state.friends, friend]);
   }
 
   void removeFriend(String userId) {
@@ -472,8 +502,9 @@ class FriendsNotifier extends Notifier<FriendsState> {
 
   void removePendingRequest(String requestId) {
     state = state.copyWith(
-      pendingRequests:
-          state.pendingRequests.where((r) => r.id != requestId).toList(),
+      pendingRequests: state.pendingRequests
+          .where((r) => r.id != requestId)
+          .toList(),
     );
   }
 
@@ -486,10 +517,7 @@ class FriendsState {
   final List<UserProfile> friends;
   final List<FriendRequest> pendingRequests;
 
-  FriendsState({
-    this.friends = const [],
-    this.pendingRequests = const [],
-  });
+  FriendsState({this.friends = const [], this.pendingRequests = const []});
 
   FriendsState copyWith({
     List<UserProfile>? friends,
@@ -504,14 +532,12 @@ class FriendsState {
   List<UserProfile> get friendList =>
       friends.where((f) => f.status == RelationshipStatus.friends).toList();
 
-  List<FriendRequest> get incomingRequests => pendingRequests
-      .where((r) => r.status == 'pending')
-      .toList();
+  List<FriendRequest> get incomingRequests =>
+      pendingRequests.where((r) => r.status == 'pending').toList();
 }
 
 /// Feed/activity provider
-final feedNotifierProvider =
-    NotifierProvider<FeedNotifier, FeedState>(() {
+final feedNotifierProvider = NotifierProvider<FeedNotifier, FeedState>(() {
   return FeedNotifier();
 });
 
@@ -519,14 +545,27 @@ class FeedNotifier extends Notifier<FeedState> {
   @override
   FeedState build() => FeedState();
 
+  void loadFromSync() {
+    if (!sync.isInitialized) {
+      return;
+    }
+    state = state.copyWith(items: sync.feedItems);
+  }
+
+  Future<void> refreshFromSync() async {
+    if (!sync.isInitialized) {
+      return;
+    }
+    await sync.refreshFeed();
+    loadFromSync();
+  }
+
   void setFeedItems(List<FeedItem> items) {
     state = state.copyWith(items: items);
   }
 
   void addFeedItem(FeedItem item) {
-    state = state.copyWith(
-      items: [item, ...state.items],
-    );
+    state = state.copyWith(items: [item, ...state.items]);
   }
 
   void markAsRead(String itemId) {
@@ -582,10 +621,7 @@ class FeedState {
   final List<FeedItem> items;
   final List<AppNotification> notifications;
 
-  FeedState({
-    this.items = const [],
-    this.notifications = const [],
-  });
+  FeedState({this.items = const [], this.notifications = const []});
 
   FeedState copyWith({
     List<FeedItem>? items,
@@ -605,8 +641,8 @@ class FeedState {
 /// Todo list provider
 final todoStateNotifierProvider =
     NotifierProvider<TodoStateNotifier, TodoListState>(() {
-  return TodoStateNotifier();
-});
+      return TodoStateNotifier();
+    });
 
 class TodoStateNotifier extends Notifier<TodoListState> {
   @override
@@ -615,9 +651,7 @@ class TodoStateNotifier extends Notifier<TodoListState> {
   void setTodoList(TodoList list) {
     final sessionId = list.sessionId;
     if (sessionId != null) {
-      state = state.copyWith(
-        lists: {...state.lists, sessionId: list},
-      );
+      state = state.copyWith(lists: {...state.lists, sessionId: list});
     }
   }
 
@@ -629,14 +663,15 @@ class TodoStateNotifier extends Notifier<TodoListState> {
         items: updatedItems,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
-      state = state.copyWith(
-        lists: {...state.lists, sessionId: updatedList},
-      );
+      state = state.copyWith(lists: {...state.lists, sessionId: updatedList});
     }
   }
 
-  void updateTodo(String sessionId, String todoId,
-      TodoItem Function(TodoItem) update) {
+  void updateTodo(
+    String sessionId,
+    String todoId,
+    TodoItem Function(TodoItem) update,
+  ) {
     final list = state.lists[sessionId];
     if (list != null) {
       final updatedItems = list.items.map((item) {
@@ -649,24 +684,21 @@ class TodoStateNotifier extends Notifier<TodoListState> {
         items: updatedItems,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
-      state = state.copyWith(
-        lists: {...state.lists, sessionId: updatedList},
-      );
+      state = state.copyWith(lists: {...state.lists, sessionId: updatedList});
     }
   }
 
   void removeTodo(String sessionId, String todoId) {
     final list = state.lists[sessionId];
     if (list != null) {
-      final updatedItems =
-          list.items.where((item) => item.id != todoId).toList();
+      final updatedItems = list.items
+          .where((item) => item.id != todoId)
+          .toList();
       final updatedList = list.copyWith(
         items: updatedItems,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
-      state = state.copyWith(
-        lists: {...state.lists, sessionId: updatedList},
-      );
+      state = state.copyWith(lists: {...state.lists, sessionId: updatedList});
     }
   }
 
@@ -692,9 +724,7 @@ class TodoStateNotifier extends Notifier<TodoListState> {
         items: updatedItems,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
-      state = state.copyWith(
-        lists: {...state.lists, sessionId: updatedList},
-      );
+      state = state.copyWith(lists: {...state.lists, sessionId: updatedList});
     }
   }
 
