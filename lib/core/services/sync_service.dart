@@ -82,6 +82,9 @@ class Sync {
   final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
   Settings _settingsSnapshot = Settings();
   int _settingsVersion = 0;
+  final Map<String, Session> _sessions = <String, Session>{};
+  final Map<String, Machine> _machines = <String, Machine>{};
+  Profile? _profile;
 
   Map<String?, TodoList> get todoLists => Map.unmodifiable(_todoLists);
   List<UserProfile> get friends => List.unmodifiable(_friends);
@@ -90,6 +93,9 @@ class Sync {
   List<DecryptedArtifact> get artifacts => List.unmodifiable(_artifacts);
   Settings get settingsSnapshot => _settingsSnapshot;
   int get settingsVersion => _settingsVersion;
+  Map<String, Session> get sessions => Map.unmodifiable(_sessions);
+  Map<String, Machine> get machines => Map.unmodifiable(_machines);
+  Profile? get profile => _profile;
   Map<String, List<Map<String, dynamic>>> get sessionMessages =>
       Map.unmodifiable(
         _sessionMessages.map(
@@ -455,7 +461,11 @@ class Sync {
           }
         }
 
-        // TODO: Apply sessions to storage/state
+        _sessions
+          ..clear()
+          ..addEntries(
+            decryptedSessions.map((session) => MapEntry(session.id, session)),
+          );
         debugPrint('Fetched and decrypted ${decryptedSessions.length} sessions');
       } else {
         debugPrint('Failed to fetch sessions: ${response.statusCode}');
@@ -533,7 +543,11 @@ class Sync {
           }
         }
 
-        // TODO: Apply machines to storage/state
+        _machines
+          ..clear()
+          ..addEntries(
+            decryptedMachines.map((machine) => MapEntry(machine.id, machine)),
+          );
         debugPrint('Fetched and decrypted ${decryptedMachines.length} machines');
       } else {
         debugPrint('Failed to fetch machines: ${response.statusCode}');
@@ -1132,10 +1146,8 @@ class Sync {
       final response = await apiClient.get('/v1/account/profile');
 
       if (apiClient.isSuccess(response)) {
-        final data = response.data;
-        final profile = Profile.fromJson(data);
-
-        // TODO: Apply profile to state
+        final data = response.data as Map<String, dynamic>;
+        _profile = Profile.fromJson(data);
       } else {
         debugPrint('Failed to fetch profile: ${response.statusCode}');
       }
