@@ -44,11 +44,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _loadSavedPermissionMode() async {
     final savedMode = await DraftStorage().getPermissionMode(widget.sessionId);
     if (savedMode != null) {
+      final parsedMode = PermissionModeExtension.fromString(savedMode);
       setState(() {
-        _permissionMode = PermissionMode.values.firstWhere(
-          (m) => m.name == savedMode,
-          orElse: () => PermissionMode.readOnly,
-        );
+        _permissionMode = parsedMode ?? PermissionMode.readOnly;
       });
     }
   }
@@ -229,7 +227,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _onPermissionModeChanged(PermissionMode mode) {
     setState(() => _permissionMode = mode);
-    DraftStorage().savePermissionMode(widget.sessionId, mode.name);
+    DraftStorage().savePermissionMode(widget.sessionId, mode.toModeString());
   }
 
   void _showPermissionModeSettings() {
@@ -282,7 +280,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (!sync.isInitialized) {
         throw StateError('Sync is not initialized');
       }
-      await sync.sendMessage(widget.sessionId, text, displayText: text);
+      await sync.sendMessage(
+        widget.sessionId,
+        text,
+        displayText: text,
+        permissionMode: _permissionMode.toModeString(),
+      );
       await Future<void>.delayed(const Duration(milliseconds: 120));
       _refreshFromSync();
     } catch (e) {

@@ -1302,7 +1302,12 @@ what you have, you must use the options mode.
   }
 
   /// Send message to session
-  Future<void> sendMessage(String sessionId, String text, {String? displayText}) async {
+  Future<void> sendMessage(
+    String sessionId,
+    String text, {
+    String? displayText,
+    String? permissionMode,
+  }) async {
     final sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
       debugPrint('Session encryption not initialized for $sessionId');
@@ -1315,7 +1320,8 @@ what you have, you must use the options mode.
       return;
     }
 
-    final permissionMode = session.permissionMode ?? 'default';
+    final effectivePermissionMode =
+        permissionMode ?? session.permissionMode ?? 'default';
     final flavor = session.metadata?.flavor;
     final isGemini = flavor == 'gemini';
     final modelMode = session.modelMode ??
@@ -1337,7 +1343,7 @@ what you have, you must use the options mode.
       },
       'meta': <String, dynamic>{
         'sentFrom': sentFrom,
-        'permissionMode': permissionMode,
+        'permissionMode': effectivePermissionMode,
         'model': model,
         'fallbackModel': null,
         'appendSystemPrompt': _appendSystemPrompt,
@@ -1379,7 +1385,7 @@ what you have, you must use the options mode.
         'message': encryptedRawRecord,
         'localId': localId,
         'sentFrom': sentFrom,
-        'permissionMode': permissionMode,
+        'permissionMode': effectivePermissionMode,
       },
     );
   }
