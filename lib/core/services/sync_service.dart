@@ -25,6 +25,7 @@ import '../models/artifact.dart';
 import '../models/friend.dart';
 import '../models/feed.dart';
 import '../models/todo.dart';
+import '../models/purchases.dart';
 import '../utils/invalidate_sync.dart';
 import '../utils/parse_token.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -116,6 +117,7 @@ what you have, you must use the options mode.
   final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
   Settings _settingsSnapshot = Settings();
   int _settingsVersion = 0;
+  Purchases _purchases = Purchases.defaults;
   final Map<String, Session> _sessions = <String, Session>{};
   final Map<String, Machine> _machines = <String, Machine>{};
   Profile? _profile;
@@ -127,6 +129,7 @@ what you have, you must use the options mode.
   List<DecryptedArtifact> get artifacts => List.unmodifiable(_artifacts);
   Settings get settingsSnapshot => _settingsSnapshot;
   int get settingsVersion => _settingsVersion;
+  Purchases get purchases => _purchases;
   Map<String, Session> get sessions => Map.unmodifiable(_sessions);
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
   Profile? get profile => _profile;
@@ -1180,8 +1183,18 @@ what you have, you must use the options mode.
   /// Sync purchases with RevenueCat
   Future<void> syncPurchases() async {
     debugPrint('Syncing purchases...');
+    try {
+      final apiClient = ApiClient();
+      final response = await apiClient.get('/v1/account/profile');
+      if (!apiClient.isSuccess(response)) {
+        return;
+      }
 
-    // TODO: Implement RevenueCat integration
+      final data = response.data as Map<String, dynamic>?;
+      _purchases = Purchases.parse(data?['purchases']);
+    } catch (error) {
+      debugPrint('Failed to sync purchases: $error');
+    }
   }
 
   /// Fetch profile from server
