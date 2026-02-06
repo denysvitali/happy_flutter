@@ -148,4 +148,40 @@ void main() {
       expect(parsed['session_2']!.items.single.id, 'todo_3');
     });
   });
+
+  group('Sync mapping helpers', () {
+    test('maps friend profile shape from React Native API', () {
+      final instance = Sync();
+      final profile = instance.mapFriendProfile({
+        'id': 'user_1',
+        'firstName': 'Ada',
+        'lastName': 'Lovelace',
+        'username': 'ada',
+        'status': 'requested',
+        'avatar': {'url': 'https://example.com/avatar.png'},
+      });
+
+      expect(profile.id, 'user_1');
+      expect(profile.name, 'Ada Lovelace');
+      expect(profile.avatarUrl, 'https://example.com/avatar.png');
+      expect(profile.status.name, 'pendingOutgoing');
+    });
+
+    test('maps feed item body variants', () {
+      final instance = Sync();
+      final feedItem = instance.mapFeedItem({
+        'id': 'feed_1',
+        'createdAt': 123,
+        'body': {
+          'kind': 'friend_request',
+          'uid': 'user_2',
+        },
+      });
+
+      expect(feedItem.id, 'feed_1');
+      expect(feedItem.userId, 'user_2');
+      expect(feedItem.type.name, 'friendRequest');
+      expect(feedItem.body.title, 'Friend request');
+    });
+  });
 }

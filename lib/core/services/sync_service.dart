@@ -74,8 +74,14 @@ class Sync {
   // Pending settings
   Map<String, dynamic> pendingSettings = {};
   final Map<String?, TodoList> _todoLists = <String?, TodoList>{};
+  final List<UserProfile> _friends = <UserProfile>[];
+  final List<FriendRequest> _friendRequests = <FriendRequest>[];
+  final List<FeedItem> _feedItems = <FeedItem>[];
 
   Map<String?, TodoList> get todoLists => Map.unmodifiable(_todoLists);
+  List<UserProfile> get friends => List.unmodifiable(_friends);
+  List<FriendRequest> get friendRequests => List.unmodifiable(_friendRequests);
+  List<FeedItem> get feedItems => List.unmodifiable(_feedItems);
 
   /// Initialize sync with credentials and encryption
   Future<void> create(AuthCredentials credentials, Encryption encryption) async {
@@ -532,8 +538,44 @@ class Sync {
   /// Fetch friends list from server
   Future<void> fetchFriends() async {
     debugPrint('Fetching friends...');
+    try {
+      final response = await ApiClient().get('/v1/friends');
+      if (!ApiClient().isSuccess(response)) {
+        debugPrint('Failed to fetch friends: ${response.statusCode}');
+        return;
+      }
 
-    // TODO: Implement friends fetching
+      final data = response.data;
+      final rawFriends = (data is Map<String, dynamic>)
+          ? data['friends']
+          : data;
+      if (rawFriends is! List) {
+        _friends.clear();
+        _friendRequests.clear();
+        return;
+      }
+
+      final parsedFriends = <UserProfile>[];
+      for (final raw in rawFriends) {
+        if (raw is Map<String, dynamic>) {
+          parsedFriends.add(_mapFriendProfile(raw));
+        }
+      }
+
+      _friends
+        ..clear()
+        ..addAll(parsedFriends);
+      _friendRequests
+        ..clear()
+        ..addAll(_deriveFriendRequests(parsedFriends));
+
+      debugPrint(
+        'Fetched friends: ${_friends.length}, '
+        'pending requests: ${_friendRequests.length}',
+      );
+    } catch (error) {
+      debugPrint('Failed to fetch friends: $error');
+    }
   }
 
   /// Fetch friend requests from server (backward compatibility)
@@ -544,8 +586,39 @@ class Sync {
   /// Fetch feed items from server
   Future<void> fetchFeed() async {
     debugPrint('Fetching feed...');
+    try {
+      final response = await ApiClient().get(
+        '/v1/feed',
+        queryParameters: <String, dynamic>{'limit': 50},
+      );
+      if (!ApiClient().isSuccess(response)) {
+        debugPrint('Failed to fetch feed: ${response.statusCode}');
+        return;
+      }
 
-    // TODO: Implement feed fetching
+      final data = response.data;
+      final rawItems = (data is Map<String, dynamic>)
+          ? data['items']
+          : data;
+      if (rawItems is! List) {
+        _feedItems.clear();
+        return;
+      }
+
+      final parsed = <FeedItem>[];
+      for (final raw in rawItems) {
+        if (raw is Map<String, dynamic>) {
+          parsed.add(_mapFeedItem(raw));
+        }
+      }
+
+      _feedItems
+        ..clear()
+        ..addAll(parsed);
+      debugPrint('Fetched feed items: ${_feedItems.length}');
+    } catch (error) {
+      debugPrint('Failed to fetch feed: $error');
+    }
   }
 
   /// Fetch todos from server
@@ -737,6 +810,145 @@ class Sync {
       return value.toInt();
     }
     return null;
+  }
+
+  @visibleForTesting
+  UserProfile mapFriendProfile(Map<String, dynamic> raw) {
+    return _mapFriendProfile(raw);
+  }
+
+  UserProfile _mapFriendProfile(Map<String, dynamic> raw) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final id = (raw['id'] as String?) ??
+        (raw['uid'] as String?) ??
+        'unknown';
+    final firstName = raw['firstName'] as String?;
+    final lastName = raw['lastName'] as String?;
+    final username = raw['username'] as String?;
+    final name = [firstName, lastName]
+        .whereType<String>()
+        .where((part) => part.isNotEmpty)
+        .join(' ')
+        .trim();
+    final avatar = raw['avatar'];
+    String? avatarUrl;
+    if (avatar is Map<String, dynamic>) {
+      avatarUrl = avatar['url'] as String?;
+    } else {
+      avatarUrl = raw['avatarUrl'] as String?;
+    }
+
+    return UserProfile(
+      id: id,
+      name: name.isNotEmpty ? name : username,
+      email: raw['email'] as String?,
+      avatarUrl: avatarUrl,
+      status: _mapRelationshipStatus(raw['status'] as String?),
+      lastSeenAt: _asInt(raw['lastSeenAt']),
+      createdAt: _asInt(raw['createdAt']) ?? now,
+    );
+  }
+
+  RelationshipStatus _mapRelationshipStatus(String? status) {
+    switch (status) {
+      case 'friend':
+      case 'friends':
+        return RelationshipStatus.friends;
+      case 'requested':
+        return RelationshipStatus.pendingOutgoing;
+      case 'pending':
+        return RelationshipStatus.pendingIncoming;
+      case 'blocked':
+        return RelationshipStatus.blocked;
+      case 'blockedByThem':
+        return RelationshipStatus.blockedByThem;
+      default:
+        return RelationshipStatus.none;
+    }
+  }
+
+  List<FriendRequest> _deriveFriendRequests(List<UserProfile> profiles) {
+    return profiles
+        .where((profile) => profile.status == RelationshipStatus.pendingIncoming)
+        .map((profile) => FriendRequest(
+              id: 'friend-request-${profile.id}',
+              fromUserId: profile.id,
+              fromUserName: profile.name ?? profile.id,
+              fromUserAvatarUrl: profile.avatarUrl,
+              toUserId: serverID,
+              createdAt: profile.createdAt,
+              status: 'pending',
+            ))
+        .toList();
+  }
+
+  @visibleForTesting
+  FeedItem mapFeedItem(Map<String, dynamic> raw) {
+    return _mapFeedItem(raw);
+  }
+
+  FeedItem _mapFeedItem(Map<String, dynamic> raw) {
+    final id = (raw['id'] as String?) ?? '';
+    final createdAt =
+        _asInt(raw['createdAt']) ?? DateTime.now().millisecondsSinceEpoch;
+    final bodyRaw = raw['body'];
+    final bodyMap = bodyRaw is Map<String, dynamic>
+        ? bodyRaw
+        : <String, dynamic>{};
+    final kind = bodyMap['kind'] as String?;
+
+    FeedType type;
+    FeedBody body;
+    String userId = raw['userId'] as String? ?? 'system';
+
+    switch (kind) {
+      case 'friend_request':
+        type = FeedType.friendRequest;
+        userId = (bodyMap['uid'] as String?) ?? userId;
+        body = FeedBody(
+          title: 'Friend request',
+          message: 'New friend request',
+          extra: bodyMap,
+        );
+        break;
+      case 'friend_accepted':
+        type = FeedType.friendAccepted;
+        userId = (bodyMap['uid'] as String?) ?? userId;
+        body = FeedBody(
+          title: 'Friend accepted',
+          message: 'Your request was accepted',
+          extra: bodyMap,
+        );
+        break;
+      case 'text':
+        type = FeedType.system;
+        body = FeedBody(
+          title: 'Update',
+          message: bodyMap['text'] as String?,
+          extra: bodyMap,
+        );
+        break;
+      default:
+        type = FeedType.system;
+        body = FeedBody(
+          title: 'Update',
+          message: raw['message'] as String?,
+          extra: bodyMap.isEmpty ? raw : bodyMap,
+        );
+        break;
+    }
+
+    return FeedItem(
+      id: id,
+      userId: userId,
+      userName: raw['userName'] as String?,
+      userAvatarUrl: raw['userAvatarUrl'] as String?,
+      type: type,
+      body: body,
+      createdAt: createdAt,
+      read: raw['read'] as bool? ?? false,
+      sessionId: raw['sessionId'] as String?,
+    );
   }
 
   /// Sync settings with server
