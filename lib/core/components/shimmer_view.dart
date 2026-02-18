@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'dart:math' as math;
 
 /// Shimmer loading view widget that wraps content with animated shimmer effect.
 ///
@@ -150,7 +148,6 @@ class _ShimmerGradientTransform extends GradientTransform {
     final shimmerWidth = bounds.width * (widthPercent / 100);
     final start = -shimmerWidth + (bounds.width + shimmerWidth) * animation.value;
     final clampedStart = start.clamp(-shimmerWidth, bounds.width);
-    final clampedEnd = (start + shimmerWidth).clamp(0, bounds.width + shimmerWidth);
 
     return Matrix4.translationValues(clampedStart - bounds.left, 0, 0);
   }

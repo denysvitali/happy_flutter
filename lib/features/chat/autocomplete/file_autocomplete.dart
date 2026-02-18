@@ -475,58 +475,6 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
     }
   }
 
-  void _moveSelectionUp() {
-    if (_suggestions.isEmpty) return;
-    setState(() {
-      if (_selectedIndex <= 0) {
-        _selectedIndex = _suggestions.length - 1;
-      } else {
-        _selectedIndex--;
-      }
-    });
-    _scrollToSelected();
-  }
-
-  void _moveSelectionDown() {
-    if (_suggestions.isEmpty) return;
-    setState(() {
-      if (_selectedIndex >= _suggestions.length - 1) {
-        _selectedIndex = 0;
-      } else {
-        _selectedIndex++;
-      }
-    });
-    _scrollToSelected();
-  }
-
-  void _scrollToSelected() {
-    if (_selectedIndex < 0) return;
-
-    final scrollOffset = _selectedIndex * widget.itemHeight;
-    _scrollController.animateTo(
-      scrollOffset,
-      duration: const Duration(milliseconds: 100),
-      curve: Curves.easeOut,
-    );
-  }
-
-  void _handleKeyPress(RawKeyEvent event) {
-    if (!_showOverlay) return;
-
-    if (event is RawKeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-        _moveSelectionUp();
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-        _moveSelectionDown();
-      } else if (event.logicalKey == LogicalKeyboardKey.enter ||
-          event.logicalKey == LogicalKeyboardKey.tab) {
-        _selectSuggestion(_selectedIndex >= 0 ? _selectedIndex : 0);
-      } else if (event.logicalKey == LogicalKeyboardKey.escape) {
-        _hideOverlay();
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

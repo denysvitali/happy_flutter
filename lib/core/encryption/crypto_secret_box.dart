@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 import 'dart:convert';
-import 'dart:ffi';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sodium/sodium.dart';
 import 'web_crypto.dart' if (dart.library.html) 'web_crypto_web.dart';

@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 import 'dart:math';
 import 'dart:convert';
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cryptography/cryptography.dart';
 import 'base64.dart';

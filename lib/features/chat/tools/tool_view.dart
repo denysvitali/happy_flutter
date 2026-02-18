@@ -6,7 +6,6 @@ import 'tool_error.dart';
 import 'known_tools.dart';
 import 'permission_footer.dart';
 import '../utils/tool_error_parser.dart';
-import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'views/glob_view.dart';
 import 'views/grep_view.dart';
 import 'views/ls_view.dart';
@@ -277,7 +276,6 @@ class ToolView extends StatelessWidget {
     ToolErrorParseResult errorResult,
     Map<String, dynamic>? permission,
   ) {
-    final theme = Theme.of(context);
     final toolName = tool['name'] as String? ?? '';
 
     // Get the specific view component for this tool

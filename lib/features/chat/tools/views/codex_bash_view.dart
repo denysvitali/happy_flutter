@@ -24,7 +24,7 @@ class CodexBashView extends StatelessWidget {
     String? fileName;
     String? commandStr;
 
-    if (parsedCmd != null && parsedCmd is List && parsedCmd.isNotEmpty) {
+    if (parsedCmd != null && parsedCmd.isNotEmpty) {
       final firstCmd = parsedCmd[0] as Map<String, dynamic>?;
       if (firstCmd != null) {
         operationType = firstCmd['type'] as String? ?? 'bash';
@@ -35,7 +35,7 @@ class CodexBashView extends StatelessWidget {
 
     // Get display command
     final displayCommand = commandStr ??
-        (command != null && command is List && command.isNotEmpty
+        (command != null && command.isNotEmpty
             ? command.join(' ')
             : '');
 

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 
 /// Log levels in increasing order of severity

@@ -66,7 +66,7 @@ class AsyncLock {
 
       final nextResolver = _promiseResolverQueue.removeAt(0);
       // Resolve on the next tick
-      if (nextResolver != null) {
+      {
         Future<void>.microtask(() => nextResolver.complete(true));
       }
     }

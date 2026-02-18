@@ -31,7 +31,6 @@ class TodoView extends StatelessWidget {
   Widget build(BuildContext context) {
     final input = tool['input'] as Map<String, dynamic>? ?? {};
     final result = tool['result'] as Map<String, dynamic>?;
-    final state = tool['state'] as String? ?? '';
 
     // Get todos from input first, then from result
     List<TodoItem> todos = _parseTodos(input['todos']);

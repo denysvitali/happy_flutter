@@ -4,7 +4,6 @@
 /// with the mermaid.js library. Supports both mobile and web platforms.
 library;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 

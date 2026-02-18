@@ -281,7 +281,7 @@ class SimpleMarkdownView extends StatelessWidget {
             );
           }).toList(),
         );
-      case CodeBlock(:final language, :final content):
+      case CodeBlock(:final content):
         return Container(
           padding: const EdgeInsets.all(12),
           margin: const EdgeInsets.symmetric(vertical: 8),

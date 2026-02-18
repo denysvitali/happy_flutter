@@ -49,7 +49,6 @@ class TextBlockWidget extends StatelessWidget {
   }
 
   InlineSpan _buildSpan(MarkdownSpan span) {
-    final style = <InlineSpan>[];
     final textStyle = TextStyle(
       color: span.url != null ? Colors.blue : null,
       decoration: span.url != null ? TextDecoration.underline : null,

@@ -249,7 +249,6 @@ class _ChatInputState extends ConsumerState<ChatInput> {
 
     if (lastWordMatch != null) {
       final startIndex = lastWordMatch.start;
-      final prefix = lastWordMatch.group(0)!;
       final newText = text.replaceRange(
         startIndex,
         cursorPosition,

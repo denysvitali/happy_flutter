@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'mmkv_storage.dart';
 
 /// Service for managing draft message persistence

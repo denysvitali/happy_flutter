@@ -69,7 +69,6 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
           textColor: Colors.red,
         );
       case ConnectionStatus.disconnected:
-      default:
         return _StatusInfo(
           color: Colors.grey,
           backgroundColor: Colors.grey[100]!,

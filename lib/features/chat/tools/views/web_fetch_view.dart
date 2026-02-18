@@ -17,17 +17,6 @@ class WebFetchView extends StatelessWidget {
     final url = input['url'] as String? ?? '';
     final prompt = input['prompt'] as String?;
 
-    // Try to extract hostname for display
-    String displayHost = 'URL';
-    if (url.isNotEmpty) {
-      try {
-        final uri = Uri.parse(url);
-        displayHost = uri.host;
-      } catch (_) {
-        displayHost = url;
-      }
-    }
-
     return ToolSectionView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

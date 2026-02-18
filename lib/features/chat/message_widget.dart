@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/models/message.dart';
 import 'markdown/markdown.dart';
 import 'tools/tools.dart';
 

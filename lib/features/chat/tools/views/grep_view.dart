@@ -31,7 +31,6 @@ class GrepView extends StatelessWidget {
   Widget build(BuildContext context) {
     final input = tool['input'] as Map<String, dynamic>? ?? {};
     final result = tool['result'];
-    final state = tool['state'] as String? ?? '';
 
     final pattern = input['pattern'] as String? ?? '';
     final path = input['path'] as String?;

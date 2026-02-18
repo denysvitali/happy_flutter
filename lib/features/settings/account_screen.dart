@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:qr/qr.dart';
 import '../../core/models/auth.dart';
 import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';

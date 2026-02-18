@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'dart:math' as math;
 
 /// Animated shimmer gradient loading effect
 class Shimmer extends StatefulWidget {
@@ -116,16 +114,9 @@ class _ShimmerGradientTransform extends GradientTransform {
   Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
     final shimmerWidth = bounds.width * (widthPercent / 100);
     final start = -shimmerWidth + (bounds.width + shimmerWidth) * animation.value;
-    final end = start + shimmerWidth;
 
     // Clamp values to bounds
     final clampedStart = start.clamp(-shimmerWidth, bounds.width);
-    final clampedEnd = end.clamp(0, bounds.width + shimmerWidth);
-
-    // Normalize to 0-1 range
-    final tStart = (clampedStart - (-shimmerWidth)) / (bounds.width + shimmerWidth * 2);
-    final tEnd = (clampedEnd - (-shimmerWidth)) / (bounds.width + shimmerWidth * 2);
-
     return Matrix4.translationValues(clampedStart - bounds.left, 0, 0);
   }
 }

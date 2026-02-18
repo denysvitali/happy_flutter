@@ -501,7 +501,6 @@ class ActiveSessionCard extends StatelessWidget {
   }
 
   Widget _buildStatusRow(BuildContext context, SessionStatus status) {
-    final theme = Theme.of(context);
     final color = Color(status.statusColor);
 
     return Padding(
@@ -672,7 +671,6 @@ class SessionCard extends StatelessWidget {
   }
 
   Widget _buildStatusRow(BuildContext context, SessionStatus status) {
-    final theme = Theme.of(context);
     final color = Color(status.statusColor);
 
     return Padding(

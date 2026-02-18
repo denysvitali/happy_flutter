@@ -75,7 +75,6 @@ class AskUserQuestionView extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final isCompleted = state == 'completed';
     final isRunning = state == 'running';
 
     return ToolSectionView(

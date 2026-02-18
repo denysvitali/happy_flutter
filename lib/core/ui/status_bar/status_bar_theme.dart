@@ -51,8 +51,6 @@ class StatusBarTheme extends StatefulWidget {
 }
 
 class _StatusBarThemeState extends State<StatusBarTheme> {
-  SystemUiOverlayStyle? _pendingStyle;
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -226,8 +224,6 @@ class AnimatedStatusBar extends StatefulWidget {
 class _AnimatedStatusBarState extends State<AnimatedStatusBar>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<SystemUiOverlayStyle> _styleAnimation;
-
   @override
   void initState() {
     super.initState();
@@ -235,13 +231,6 @@ class _AnimatedStatusBarState extends State<AnimatedStatusBar>
       duration: widget.duration,
       vsync: this,
     );
-
-    _styleAnimation = TweenSequence<SystemUiOverlayStyle>([
-      TweenSequenceItem(
-        tween: ConstantTween(SystemUiOverlayStyle.light),
-        weight: 1,
-      ),
-    ]).animate(_controller);
   }
 
   @override

@@ -52,7 +52,6 @@ class _DiffViewState extends State<DiffView> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = widget.config.theme;
 
     return Container(
       decoration: BoxDecoration(
@@ -157,11 +156,7 @@ class _DiffViewState extends State<DiffView> {
         : isRemoved
             ? colors.removedText
             : colors.contextText;
-    final bgColor = isAdded
-        ? colors.addedBg
-        : isRemoved
-            ? colors.removedBg
-            : colors.contextBg;
+
 
     return IntrinsicWidth(
       child: Row(

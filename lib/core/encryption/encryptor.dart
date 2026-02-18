@@ -4,7 +4,6 @@ import 'package:sodium/sodium.dart';
 import 'crypto_secret_box.dart';
 import 'crypto_box.dart';
 import 'text.dart';
-import 'base64.dart';
 import 'aes_gcm.dart';
 
 /// Encryptor interface
@@ -14,7 +13,7 @@ abstract class Encryptor {
 
 /// Decryptor interface
 abstract class Decryptor {
-  Future<List<dynamic?>> decrypt(List<Uint8List> data);
+  Future<List<dynamic>> decrypt(List<Uint8List> data);
 }
 
 /// NaCl Secret Box encryption (symmetric)
@@ -34,8 +33,8 @@ class SecretBoxEncryption implements Encryptor, Decryptor {
   }
 
   @override
-  Future<List<dynamic?>> decrypt(List<Uint8List> data) async {
-    final results = <dynamic?>[];
+  Future<List<dynamic>> decrypt(List<Uint8List> data) async {
+    final results = <dynamic>[];
     for (final item in data) {
       final decrypted = await CryptoSecretBox.decrypt(item, _secretKey);
       results.add(decrypted);
@@ -74,8 +73,8 @@ class BoxEncryption implements Encryptor, Decryptor {
   }
 
   @override
-  Future<List<dynamic?>> decrypt(List<Uint8List> data) async {
-    final results = <dynamic?>[];
+  Future<List<dynamic>> decrypt(List<Uint8List> data) async {
+    final results = <dynamic>[];
     for (final item in data) {
       final decrypted = await CryptoBox.decrypt(item, _privateKey);
       if (decrypted == null) {
@@ -118,8 +117,8 @@ class AES256Encryption implements Encryptor, Decryptor {
   }
 
   @override
-  Future<List<dynamic?>> decrypt(List<Uint8List> data) async {
-    final results = <dynamic?>[];
+  Future<List<dynamic>> decrypt(List<Uint8List> data) async {
+    final results = <dynamic>[];
     for (final item in data) {
       try {
         if (item.isEmpty || item[0] != 0) {

@@ -6,7 +6,6 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/sync_service.dart';
-import '../../core/utils/utils.dart';
 import 'chat_input.dart';
 import 'message_widget.dart';
 import 'widgets/permission_mode_selector.dart';

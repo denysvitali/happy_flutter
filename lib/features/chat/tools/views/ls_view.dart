@@ -38,8 +38,6 @@ class LSView extends StatelessWidget {
 
     // Resolve path with metadata
     final resolvedPath = resolvePath(path, metadata);
-    final displayName = resolvedPath.split('/').lastOrNull ?? resolvedPath;
-
     // Parse result as entries
     final entries = _parseEntries(result);
 
@@ -114,11 +112,9 @@ class LSView extends StatelessWidget {
               return LSEntry(
                 name: item['name'] as String? ?? item['file'] as String? ?? '',
                 isDirectory: item['isDirectory'] as bool? ??
-                    item['type'] == 'directory' ??
-                    false,
+                    item['type'] == 'directory',
                 isFile: item['isFile'] as bool? ??
-                    item['type'] == 'file' ??
-                    false,
+                    item['type'] == 'file',
                 permissions: item['permissions'] as String?,
                 size: item['size'] as int?,
               );
@@ -148,11 +144,9 @@ class LSView extends StatelessWidget {
               return LSEntry(
                 name: item['name'] as String? ?? item['file'] as String? ?? '',
                 isDirectory: item['isDirectory'] as bool? ??
-                    item['type'] == 'directory' ??
-                    false,
+                    item['type'] == 'directory',
                 isFile: item['isFile'] as bool? ??
-                    item['type'] == 'file' ??
-                    false,
+                    item['type'] == 'file',
                 permissions: item['permissions'] as String?,
                 size: item['size'] as int?,
               );

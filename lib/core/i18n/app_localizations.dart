@@ -245,6 +245,45 @@ class AppLocalizations {
   String get settingsAvatarStyle => 'Avatar Style';
   String get settingsWrapLinesInDiffs => 'Wrap Lines in Diffs';
 
+  // Zen (Todo)
+  String get zenTitle => 'Zen';
+  String get zenNewTask => 'New Task';
+  String get zenAddTask => 'Add Task';
+  String get zenDescriptionHint => 'What needs to be done?';
+  String get zenPriorityLabel => 'Priority';
+  String get zenStatusLabel => 'Status';
+  String get zenCreatedLabel => 'Created';
+  String get zenCompletedLabel => 'Completed';
+  String get zenMarkDone => 'Mark Done';
+  String get zenTaskTitle => 'Task';
+  String get zenTaskNotFound => 'Task not found';
+  String get zenDeleteTitle => 'Delete Task';
+  String get zenDeleteConfirm => 'Are you sure you want to delete this task?';
+  String get zenEmptyTitle => 'No Tasks Yet';
+  String get zenEmptySubtitle => 'Tap + to add your first task.';
+  String get zenSectionActive => 'Active';
+  String get zenSectionCompleted => 'Completed';
+
+  // Friends
+  String get friendsTitle => 'Friends';
+  String get friendsTabFriends => 'Friends';
+  String get friendsTabRequests => 'Requests';
+  String get friendsAddFriend => 'Find Friends';
+  String get friendsEmptyTitle => 'No Friends Yet';
+  String get friendsEmptySubtitle =>
+      'Search for people to connect with.';
+  String get friendsNoRequests => 'No Incoming Requests';
+  String get friendsRemoveTitle => 'Remove Friend';
+  String friendsRemoveConfirm(String name) =>
+      'Remove $name from your friends?';
+  String get friendsRemoveAction => 'Remove';
+  String get friendsRemoved => 'Friend removed';
+  String get friendsWantsToConnect => 'Wants to connect';
+  String get friendsAccept => 'Accept';
+  String get friendsReject => 'Reject';
+  String get friendsRequestAccepted => 'Request accepted';
+  String get friendsRequestRejected => 'Request rejected';
+
   // Account & Other
   String get accountAccountSettings => 'Account Settings';
   String get settingsCertificates => 'Certificates';

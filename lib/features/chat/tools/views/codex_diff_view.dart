@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../tool_section_view.dart';
-import 'package:happy_flutter/core/utils/path_utils.dart';
 
 /// Parsed unified diff result.
 class ParsedDiff {

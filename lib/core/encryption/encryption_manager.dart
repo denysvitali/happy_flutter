@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'dart:math';
 import 'package:uuid/uuid.dart';
 import 'derive_key.dart';
 import 'encryptor.dart';
@@ -86,7 +85,9 @@ class Encryption {
 
       // Create and cache session encryption
       if (encryptorDecryptor is Encryptor && encryptorDecryptor is Decryptor) {
+        // ignore: unnecessary_cast
         final enc = encryptorDecryptor as Encryptor;
+        // ignore: unnecessary_cast
         final dec = encryptorDecryptor as Decryptor;
         final sessionEnc = SessionEncryption(
           sessionId: sessionId,
@@ -128,7 +129,9 @@ class Encryption {
 
       // Create and cache machine encryption
       if (encryptorDecryptor is Encryptor && encryptorDecryptor is Decryptor) {
+        // ignore: unnecessary_cast
         final enc = encryptorDecryptor as Encryptor;
+        // ignore: unnecessary_cast
         final dec = encryptorDecryptor as Decryptor;
         final machineEnc = MachineEncryption(
           machineId: machineId,

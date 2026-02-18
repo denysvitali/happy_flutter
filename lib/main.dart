@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -29,6 +28,35 @@ import 'features/settings/changelog_screen.dart';
 import 'features/dev/dev_logs_screen.dart';
 import 'features/inbox/inbox_screen.dart';
 import 'features/inbox/friends_search_screen.dart';
+// Agent 1 — session enhancement screens
+import 'features/chat/session_recent_screen.dart';
+import 'features/chat/session_info_screen.dart';
+import 'features/chat/session_files_screen.dart';
+import 'features/chat/session_file_viewer_screen.dart';
+import 'features/chat/message_detail_screen.dart';
+// Agent 2 — new session + machine/user screens
+import 'features/sessions/new_session_screen.dart';
+import 'features/sessions/pick_machine_screen.dart';
+import 'features/sessions/pick_path_screen.dart';
+import 'features/sessions/pick_profile_screen.dart';
+import 'features/machine/machine_detail_screen.dart';
+import 'features/user/user_profile_screen.dart';
+// Agent 3 — artifacts screens
+import 'features/artifacts/artifacts_list_screen.dart';
+import 'features/artifacts/artifact_detail_screen.dart';
+import 'features/artifacts/new_artifact_screen.dart';
+import 'features/artifacts/edit_artifact_screen.dart';
+// Agent 4 — zen + friends screens
+import 'features/zen/zen_home_screen.dart';
+import 'features/zen/zen_new_screen.dart';
+import 'features/zen/zen_view_screen.dart';
+import 'features/inbox/friends_screen.dart';
+// Agent 5 — terminal + additional settings screens
+import 'features/terminal/terminal_connect_screen.dart';
+import 'features/terminal/terminal_screen.dart';
+import 'features/settings/server_settings_screen.dart';
+import 'features/settings/claude_connect_screen.dart';
+import 'features/settings/voice_language_settings_screen.dart';
 
 // Deep link handler for receiving happy:// URLs
 const _deepLinkChannel = MethodChannel('com.example.happy_flutter/deep_links');
@@ -225,6 +253,183 @@ class _HappyAppState extends ConsumerState<HappyApp>
           path: '/settings/developer/logs',
           name: 'dev-logs',
           builder: (context, state) => AuthGate(child: const DevLogsScreen()),
+        ),
+        // ── Agent 1: session enhancement screens ─────────────────────────
+        GoRoute(
+          path: '/session/recent',
+          name: 'session-recent',
+          builder: (context, state) =>
+              const AuthGate(child: SessionRecentScreen()),
+        ),
+        GoRoute(
+          path: '/chat/:sessionId/info',
+          name: 'session-info',
+          builder: (context, state) {
+            final id = state.pathParameters['sessionId']!;
+            return AuthGate(child: SessionInfoScreen(sessionId: id));
+          },
+        ),
+        GoRoute(
+          path: '/chat/:sessionId/files',
+          name: 'session-files',
+          builder: (context, state) {
+            final id = state.pathParameters['sessionId']!;
+            return AuthGate(child: SessionFilesScreen(sessionId: id));
+          },
+        ),
+        GoRoute(
+          path: '/chat/:sessionId/file',
+          name: 'session-file',
+          builder: (context, state) {
+            final path2 = state.uri.queryParameters['path'] ?? '';
+            final content = state.uri.queryParameters['content'];
+            return AuthGate(
+              child: SessionFileViewerScreen(path: path2, content: content),
+            );
+          },
+        ),
+        GoRoute(
+          path: '/chat/:sessionId/message/:messageId',
+          name: 'message-detail',
+          builder: (context, state) {
+            final sid = state.pathParameters['sessionId']!;
+            final mid = state.pathParameters['messageId']!;
+            return AuthGate(
+              child: MessageDetailScreen(sessionId: sid, messageId: mid),
+            );
+          },
+        ),
+        // ── Agent 2: new session + machine/user screens ───────────────────
+        GoRoute(
+          path: '/new',
+          name: 'new-session',
+          builder: (context, state) =>
+              const AuthGate(child: NewSessionScreen()),
+        ),
+        GoRoute(
+          path: '/new/pick/machine',
+          name: 'pick-machine',
+          builder: (context, state) =>
+              const AuthGate(child: PickMachineScreen()),
+        ),
+        GoRoute(
+          path: '/new/pick/path',
+          name: 'pick-path',
+          builder: (context, state) =>
+              const AuthGate(child: PickPathScreen()),
+        ),
+        GoRoute(
+          path: '/new/pick/profile',
+          name: 'pick-profile',
+          builder: (context, state) =>
+              const AuthGate(child: PickProfileScreen()),
+        ),
+        GoRoute(
+          path: '/machine/:machineId',
+          name: 'machine-detail',
+          builder: (context, state) {
+            final id = state.pathParameters['machineId']!;
+            return AuthGate(child: MachineDetailScreen(machineId: id));
+          },
+        ),
+        GoRoute(
+          path: '/user/:userId',
+          name: 'user-profile',
+          builder: (context, state) {
+            final id = state.pathParameters['userId']!;
+            return AuthGate(child: UserProfileScreen(userId: id));
+          },
+        ),
+        // ── Agent 3: artifacts screens ────────────────────────────────────
+        GoRoute(
+          path: '/artifacts',
+          name: 'artifacts',
+          builder: (context, state) =>
+              const AuthGate(child: ArtifactsListScreen()),
+        ),
+        GoRoute(
+          path: '/artifacts/new',
+          name: 'artifact-new',
+          builder: (context, state) =>
+              const AuthGate(child: NewArtifactScreen()),
+        ),
+        GoRoute(
+          path: '/artifacts/:artifactId',
+          name: 'artifact-detail',
+          builder: (context, state) {
+            final id = state.pathParameters['artifactId']!;
+            return AuthGate(child: ArtifactDetailScreen(artifactId: id));
+          },
+        ),
+        GoRoute(
+          path: '/artifacts/:artifactId/edit',
+          name: 'artifact-edit',
+          builder: (context, state) {
+            final id = state.pathParameters['artifactId']!;
+            return AuthGate(child: EditArtifactScreen(artifactId: id));
+          },
+        ),
+        // ── Agent 4: zen + friends screens ───────────────────────────────
+        GoRoute(
+          path: '/zen',
+          name: 'zen',
+          builder: (context, state) =>
+              const AuthGate(child: ZenHomeScreen()),
+        ),
+        GoRoute(
+          path: '/zen/new',
+          name: 'zen-new',
+          builder: (context, state) =>
+              const AuthGate(child: ZenNewScreen()),
+        ),
+        GoRoute(
+          path: '/zen/view',
+          name: 'zen-view',
+          builder: (context, state) {
+            final todoId = state.uri.queryParameters['todoId'] ?? '';
+            final sessionId =
+                state.uri.queryParameters['sessionId'] ?? 'global';
+            return AuthGate(
+              child: ZenViewScreen(todoId: todoId, sessionId: sessionId),
+            );
+          },
+        ),
+        GoRoute(
+          path: '/friends',
+          name: 'friends',
+          builder: (context, state) =>
+              const AuthGate(child: FriendsScreen()),
+        ),
+        // ── Agent 5: terminal + additional settings screens ───────────────
+        GoRoute(
+          path: '/terminal/connect',
+          name: 'terminal-connect',
+          builder: (context, state) =>
+              const AuthGate(child: TerminalConnectScreen()),
+        ),
+        GoRoute(
+          path: '/terminal',
+          name: 'terminal',
+          builder: (context, state) =>
+              const AuthGate(child: TerminalScreen()),
+        ),
+        GoRoute(
+          path: '/settings/server',
+          name: 'server-settings',
+          builder: (context, state) =>
+              const AuthGate(child: ServerSettingsScreen()),
+        ),
+        GoRoute(
+          path: '/settings/connect/claude',
+          name: 'claude-connect',
+          builder: (context, state) =>
+              const AuthGate(child: ClaudeConnectScreen()),
+        ),
+        GoRoute(
+          path: '/settings/voice/language',
+          name: 'voice-language',
+          builder: (context, state) =>
+              const AuthGate(child: VoiceLanguageSettingsScreen()),
         ),
       ],
       redirect: (context, state) {

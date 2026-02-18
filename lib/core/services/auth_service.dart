@@ -411,7 +411,7 @@ Response: ${e.response?.data}
 Timestamp: ${DateTime.now().toIso8601String()}
 ========================================
 ''';
-      print(errorMessage);
+      debugPrint(errorMessage);
 
       throw AuthException('Failed to start device linking: ${e.response?.statusCode}');
     }

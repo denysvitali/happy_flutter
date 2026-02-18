@@ -1,0 +1,143 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/i18n/app_localizations.dart'; // for context.l10n extension
+
+/// Screen for creating a new artifact.
+///
+/// Shows a form with title and content fields. Actual encryption
+/// and API submission are out of scope for this screen — see TODO below.
+class NewArtifactScreen extends ConsumerStatefulWidget {
+  const NewArtifactScreen({super.key});
+
+  @override
+  ConsumerState<NewArtifactScreen> createState() =>
+      _NewArtifactScreenState();
+}
+
+class _NewArtifactScreenState
+    extends ConsumerState<NewArtifactScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _contentController = TextEditingController();
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleCreate() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+
+    if (title.isEmpty && content.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a title or content.'),
+        ),
+      );
+      return;
+    }
+
+    // TODO: Encrypt title and content, generate a data encryption key,
+    // build an ArtifactCreateRequest, and submit via the API client.
+    // Once the artifact is created and added to the provider, navigate
+    // to the new artifact's detail screen with context.go('/artifacts/<id>').
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'TODO: Artifact creation with encryption not yet implemented.',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('New Artifact'),
+        actions: [
+          TextButton(
+            onPressed: _handleCreate,
+            child: Text(l10n.commonCreate),
+          ),
+        ],
+      ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          keyboardDismissBehavior:
+              ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _SectionLabel(label: 'TITLE'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _titleController,
+                decoration: InputDecoration(
+                  hintText: 'Enter a title (optional)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  filled: true,
+                ),
+                textCapitalization: TextCapitalization.sentences,
+                textInputAction: TextInputAction.next,
+                maxLines: 1,
+              ),
+              const SizedBox(height: 24),
+              const _SectionLabel(label: 'CONTENT'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _contentController,
+                decoration: InputDecoration(
+                  hintText: 'Enter content (optional)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  filled: true,
+                  alignLabelWithHint: true,
+                ),
+                textCapitalization: TextCapitalization.sentences,
+                maxLines: 10,
+                minLines: 6,
+                keyboardType: TextInputType.multiline,
+              ),
+              const SizedBox(height: 32),
+              FilledButton(
+                onPressed: _handleCreate,
+                child: Text(l10n.commonCreate),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.2,
+          ),
+    );
+  }
+}

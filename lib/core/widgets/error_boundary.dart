@@ -68,7 +68,6 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
     }
   }
 
-  @override
   void onError(FlutterErrorDetails errorDetails) {
     setState(() {
       _error = errorDetails.exception;

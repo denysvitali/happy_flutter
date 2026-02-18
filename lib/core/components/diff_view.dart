@@ -298,7 +298,6 @@ class DiffParser {
     int deletions = 0;
 
     // Find matching and non-matching lines
-    final pendingRemovals = <_LineMatch>[];
     final changes = <_Change>[];
 
     for (int i = 0; i < oldLines.length; i++) {
@@ -582,7 +581,7 @@ class DiffParser {
         currentBuffer += token.value;
       } else {
         merged.add(DiffToken(
-          value: currentBuffer!,
+          value: currentBuffer,
           added: currentAdded ?? false,
           removed: currentRemoved ?? false,
         ));
@@ -717,15 +716,6 @@ class DiffParser {
 
     return hunks;
   }
-}
-
-/// Internal class for tracking line matches.
-class _LineMatch {
-  final String line;
-  final int lineNum;
-  final int index;
-
-  _LineMatch({required this.line, required this.lineNum, required this.index});
 }
 
 /// Internal class for tracking changes.

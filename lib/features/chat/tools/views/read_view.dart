@@ -39,7 +39,7 @@ class ReadView extends StatelessWidget {
             result['text'] as String? ??
             result['body'] as String?;
         totalLines = result['totalLines'] as int? ??
-            result['numLines'] as int ??
+            result['numLines'] as int? ??
             (content?.split('\n').length ?? 0);
       }
     }

@@ -37,7 +37,7 @@ class MMKVStorage {
 
       // Check if migration is needed
       final migrationComplete =
-          _instance._mmkv!.decodeBool(_StorageKeys.migrationComplete) ?? false;
+          _instance._mmkv!.decodeBool(_StorageKeys.migrationComplete);
 
       if (!migrationComplete) {
         await _instance._migrateFromSharedPreferences();

@@ -40,7 +40,6 @@ class PermissionFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final status = permission['status'] as String? ?? 'pending';
 
     final isPending = status == 'pending';

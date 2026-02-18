@@ -13,8 +13,6 @@ class AvatarBrutalist extends BaseAvatar {
   Widget build(BuildContext context) {
     final color = generateColor(id);
     final initials = generateInitials(id);
-    final contrastColor = generateSecondaryColor(id);
-
     return Container(
       width: size,
       height: size,

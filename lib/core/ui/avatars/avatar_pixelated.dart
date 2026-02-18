@@ -12,7 +12,6 @@ class AvatarPixelated extends BaseAvatar {
   @override
   Widget build(BuildContext context) {
     final color = generateColor(id);
-    final initials = generateInitials(id);
 
     // Create a 5x5 pixel grid
     final gridSize = 5;

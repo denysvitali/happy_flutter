@@ -35,7 +35,6 @@ Uint8List hexDecode(String input) {
 
 /// UUID generation - simple version
 String generateUUID() {
-  final random = Random();
   return '${_generateHex(8)}-${_generateHex(4)}-${_generateHex(4)}-${_generateHex(4)}-${_generateHex(12)}';
 }
 

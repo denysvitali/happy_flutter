@@ -11,8 +11,6 @@ import '../api/push_api.dart';
 import '../models/auth.dart';
 import '../encryption/encryption_manager.dart';
 import '../encryption/artifact_encryption.dart';
-import '../services/encryption_service.dart';
-import '../services/storage_service.dart';
 import '../services/server_config.dart';
 import '../encryption/base64.dart';
 import '../encryption/encryption_cache.dart';
@@ -28,7 +26,6 @@ import '../models/todo.dart';
 import '../models/purchases.dart';
 import '../utils/invalidate_sync.dart';
 import '../utils/parse_token.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Global singleton instance
 class Sync {
@@ -498,7 +495,7 @@ what you have, you must use the options mode.
                 activeAt: session['activeAt'] as int,
                 metadata: metadata != null ? Metadata.fromJson(metadata) : null,
                 metadataVersion: session['metadataVersion'] as int,
-                agentState: agentState != null ? AgentState.fromJson(agentState) : null,
+                agentState: agentState.isNotEmpty ? AgentState.fromJson(agentState) : null,
                 agentStateVersion: session['agentStateVersion'] as int,
                 thinking: false,
                 thinkingAt: null,
@@ -1122,7 +1119,7 @@ what you have, you must use the options mode.
         });
         final encryptedPending = await encryption.encryptRaw(
           mergedSettings.toJson(),
-        ) as String;
+        );
 
         final updateResponse = await apiClient.post(
           '/v1/account/settings',
@@ -1350,7 +1347,7 @@ what you have, you must use the options mode.
     };
 
     try {
-      final encryptedMetadata = await encryption.encryptRaw(metadata) as String;
+      final encryptedMetadata = await encryption.encryptRaw(metadata);
       final response = await ApiClient().post(
         '/v1/sessions',
         data: <String, dynamic>{

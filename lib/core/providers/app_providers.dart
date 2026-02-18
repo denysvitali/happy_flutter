@@ -1,5 +1,6 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:riverpod/riverpod.dart';
-import '../models/session.dart' hide TodoItem;
+import '../models/session.dart';
 import '../models/machine.dart';
 import '../models/settings.dart';
 import '../models/auth.dart';
@@ -76,7 +77,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
     try {
       await _authService.approveLinkingRequest(url);
     } catch (e) {
-      print('Failed to handle deep link: $e');
+      debugPrint('Failed to handle deep link: $e');
     }
   }
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/ui/avatars/avatar.dart';
 import '../../core/ui/avatars/avatar_gradient.dart';
 import '../../core/ui/avatars/avatar_pixelated.dart';
 import '../../core/ui/avatars/avatar_brutalist.dart';
@@ -148,8 +147,6 @@ class SessionAvatar extends StatelessWidget {
 
   Widget _buildFlavorIcon(String flavorName, int circleSize, int iconSize) {
     final iconPath = _getFlavorIconPath(flavorName);
-    final isCodex = flavorName == 'codex';
-
     return Builder(
       builder: (context) {
         final theme = Theme.of(context);

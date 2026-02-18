@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 
 /// Avatar style options
 enum AvatarStyle {
@@ -26,23 +25,6 @@ int _avatarHashCode(String str) {
   return hash.abs();
 }
 
-/// Generate a color from a number using golden angle for nice distribution
-String _generateColor(int number, bool monochrome) {
-  if (monochrome) {
-    const grayColors = ['#070707', '#242424', '#575757', '#979797', '#bbbbbb'];
-    return grayColors[number % grayColors.length];
-  }
-
-  final hue = (number * 137.508) % 360;
-  return 'hsl(${hue.toInt()}, 45%, 65%)';
-}
-
-/// Convert HSL color to grayscale
-String _hslToGrayscale(String hslColor) {
-  final match = RegExp(r'hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)').firstMatch(hslColor);
-  if (match == null) return hslColor;
-  return 'hsl(0, 0%, ${match.group(3)}%)';
-}
 
 /// AvatarBrutalist - Uses abstract/bauhaus/brutalist style images with color pairs
 class AvatarBrutalist extends StatelessWidget {
@@ -702,8 +684,6 @@ class AvatarSkia extends StatelessWidget {
   final bool square;
   final bool monochrome;
 
-  static const _gridSize = 8;
-  static const _elements = 64;
   static const _colorPalette = [
     '#0a0310',
     '#49007e',
@@ -731,8 +711,6 @@ class AvatarSkia extends StatelessWidget {
   Widget build(BuildContext context) {
     final hash = _avatarHashCode(id);
     final palette = monochrome ? _grayscalePalette : _colorPalette;
-    final cellSize = size / _gridSize;
-
     final borderRadius = square ? 0.0 : size / 2;
 
     return ClipRRect(
