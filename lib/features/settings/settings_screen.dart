@@ -13,6 +13,9 @@ import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/certificate_provider.dart';
 import '../../core/services/server_config.dart';
+import '../../core/theme/app_tokens.dart';
+
+// ─── Settings Screen ─────────────────────────────────────────────────────────
 
 /// Settings screen
 class SettingsScreen extends ConsumerWidget {
@@ -28,45 +31,49 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.settingsTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.lg,
+        ),
         children: [
-          buildProfileHeader(context, profile),
-          const SizedBox(height: 24),
-          buildAppearanceSection(context, settings, ref),
-          const SizedBox(height: 24),
-          buildBehaviorSection(context, settings, ref),
-          const SizedBox(height: 24),
-          buildVoiceSection(context),
-          const SizedBox(height: 24),
-          buildConnectedAccountsSection(context, ref, profile),
-          const SizedBox(height: 24),
-          buildAIProfilesSection(context),
-          const SizedBox(height: 24),
-          buildUsageSection(context),
-          const SizedBox(height: 24),
-          buildFeaturesSection(context),
-          const SizedBox(height: 24),
-          buildSocialSection(context),
-          const SizedBox(height: 24),
-          buildMachinesSection(context, machines),
-          const SizedBox(height: 24),
-          buildAccountSection(context),
-          const SizedBox(height: 24),
-          buildCertificatesSection(context),
-          const SizedBox(height: 24),
-          buildServerSection(context),
-          const SizedBox(height: 24),
-          buildDeveloperSection(context, settings),
-          const SizedBox(height: 24),
-          buildAboutSection(context),
-          const SizedBox(height: 24),
-          buildSignOutSection(context, ref),
+          _ProfileHeader(profile: profile),
+          const SizedBox(height: AppSpacing.xxl),
+          _buildAppearanceSection(context, settings, ref),
+          const SizedBox(height: AppSpacing.sm),
+          _buildBehaviorSection(context, settings, ref),
+          const SizedBox(height: AppSpacing.sm),
+          _buildVoiceSection(context),
+          const SizedBox(height: AppSpacing.sm),
+          _buildConnectedAccountsSection(context, ref, profile),
+          const SizedBox(height: AppSpacing.sm),
+          _buildAIProfilesSection(context),
+          const SizedBox(height: AppSpacing.sm),
+          _buildUsageSection(context),
+          const SizedBox(height: AppSpacing.sm),
+          _buildFeaturesSection(context),
+          const SizedBox(height: AppSpacing.sm),
+          _buildSocialSection(context),
+          const SizedBox(height: AppSpacing.sm),
+          _buildMachinesSection(context, machines),
+          if (machines.isNotEmpty) const SizedBox(height: AppSpacing.sm),
+          _buildAccountSection(context),
+          const SizedBox(height: AppSpacing.sm),
+          _buildCertificatesSection(context),
+          const SizedBox(height: AppSpacing.sm),
+          _buildServerSection(context),
+          const SizedBox(height: AppSpacing.sm),
+          _buildDeveloperSection(context, settings),
+          const SizedBox(height: AppSpacing.sm),
+          _buildAboutSection(context),
+          const SizedBox(height: AppSpacing.sm),
+          _AccountSection(ref: ref),
+          const SizedBox(height: AppSpacing.xxxl),
         ],
       ),
     );
   }
 
-  Widget buildConnectedAccountsSection(
+  Widget _buildConnectedAccountsSection(
     BuildContext context,
     WidgetRef ref,
     Profile? profile,
@@ -75,14 +82,13 @@ class SettingsScreen extends ConsumerWidget {
     final claudeConnected =
         profile?.connectedServices.contains('anthropic') ?? false;
 
-    return SettingsSection(
+    return _SettingsSection(
       title: 'Connected Accounts',
       children: [
-        ListTile(
-          leading: const Icon(Icons.smart_toy_outlined),
-          title: const Text('Claude Code'),
-          subtitle: Text(claudeConnected ? 'Connected' : 'Not connected'),
-          trailing: const Icon(Icons.chevron_right),
+        _SettingsNavRow(
+          icon: Icons.smart_toy_outlined,
+          title: 'Claude Code',
+          subtitle: claudeConnected ? 'Connected' : 'Not connected',
           onTap: () async {
             if (claudeConnected) {
               try {
@@ -90,18 +96,18 @@ class SettingsScreen extends ConsumerWidget {
                 await ref
                     .read(profileNotifierProvider.notifier)
                     .refreshFromSync();
-                if (!context.mounted) {
-                  return;
-                }
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Claude disconnected')),
+                  const SnackBar(
+                    content: Text('Claude disconnected'),
+                  ),
                 );
               } catch (error) {
-                if (!context.mounted) {
-                  return;
-                }
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to disconnect: $error')),
+                  SnackBar(
+                    content: Text('Failed to disconnect: $error'),
+                  ),
                 );
               }
             } else {
@@ -109,13 +115,12 @@ class SettingsScreen extends ConsumerWidget {
             }
           },
         ),
-        ListTile(
-          leading: const Icon(Icons.code),
-          title: const Text('GitHub'),
-          subtitle: Text(
-            github != null ? 'Connected as @${github.login}' : 'Not connected',
-          ),
-          trailing: const Icon(Icons.chevron_right),
+        _SettingsNavRow(
+          icon: Icons.code,
+          title: 'GitHub',
+          subtitle: github != null
+              ? 'Connected as @${github.login}'
+              : 'Not connected',
           onTap: () async {
             if (github != null) {
               try {
@@ -123,31 +128,34 @@ class SettingsScreen extends ConsumerWidget {
                 await ref
                     .read(profileNotifierProvider.notifier)
                     .refreshFromSync();
-                if (!context.mounted) {
-                  return;
-                }
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('GitHub disconnected')),
+                  const SnackBar(
+                    content: Text('GitHub disconnected'),
+                  ),
                 );
               } catch (error) {
-                if (!context.mounted) {
-                  return;
-                }
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to disconnect: $error')),
+                  SnackBar(
+                    content: Text('Failed to disconnect: $error'),
+                  ),
                 );
               }
             } else {
               try {
                 final params = await GitHubApi().getOAuthParams();
                 final uri = Uri.parse(params.url);
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                await launchUrl(
+                  uri,
+                  mode: LaunchMode.externalApplication,
+                );
               } catch (error) {
-                if (!context.mounted) {
-                  return;
-                }
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to start OAuth: $error')),
+                  SnackBar(
+                    content: Text('Failed to start OAuth: $error'),
+                  ),
                 );
               }
             }
@@ -157,56 +165,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget buildProfileHeader(BuildContext context, Profile? profile) {
-    final theme = Theme.of(context);
-    final name = profile?.displayName?.trim();
-    final avatarUrl = profile?.avatarUrl;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundImage: avatarUrl != null
-                  ? NetworkImage(avatarUrl)
-                  : null,
-              child: avatarUrl == null
-                  ? Text(
-                      _initialForName(name ?? 'H'),
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    (name == null || name.isEmpty) ? 'Happy' : name,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    profile?.bio ?? 'Secure mobile companion for your sessions',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget buildAppearanceSection(
+  Widget _buildAppearanceSection(
     BuildContext context,
     Settings settings,
     WidgetRef ref,
@@ -219,48 +178,47 @@ class SettingsScreen extends ConsumerWidget {
       _ => l10n.appearanceThemeAdaptive,
     };
 
-    return SettingsSection(
+    return _SettingsSection(
       title: l10n.settingsAppearance,
       children: [
-        ListTile(
-          title: Text(l10n.appearanceTheme),
-          subtitle: Text(themeModeLabel),
-          leading: const Icon(Icons.palette),
-          trailing: const Icon(Icons.chevron_right),
+        _SettingsNavRow(
+          icon: Icons.palette,
+          title: l10n.appearanceTheme,
+          subtitle: themeModeLabel,
           onTap: () => context.push('/settings/theme'),
         ),
-        ListTile(
-          title: Text(l10n.settingsLanguage),
-          subtitle: Text(
-            settings.locale.isEmpty
-                ? l10n.settingsLanguageAutomatic
-                : _getLocaleDisplayName(settings.locale),
-          ),
-          leading: const Icon(Icons.language),
-          trailing: const Icon(Icons.chevron_right),
+        _SettingsNavRow(
+          icon: Icons.language,
+          title: l10n.settingsLanguage,
+          subtitle: settings.locale.isEmpty
+              ? l10n.settingsLanguageAutomatic
+              : _getLocaleDisplayName(settings.locale),
           onTap: () => context.push('/settings/language'),
         ),
-        const Divider(height: 1),
-        SwitchListTile(
-          title: Text(l10n.settingsCompactSessionView),
-          subtitle: Text(l10n.settingsCompactSessionViewSubtitle),
+        _SettingsToggleRow(
+          icon: Icons.view_compact_outlined,
+          title: l10n.settingsCompactSessionView,
+          subtitle: l10n.settingsCompactSessionViewSubtitle,
           value: settings.compactSessionView,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('compactSessionView', value),
         ),
-        SwitchListTile(
-          title: Text(l10n.settingsShowFlavorIcons),
-          subtitle: Text(l10n.settingsShowFlavorIconsSubtitle),
+        _SettingsToggleRow(
+          icon: Icons.emoji_emotions_outlined,
+          title: l10n.settingsShowFlavorIcons,
+          subtitle: l10n.settingsShowFlavorIconsSubtitle,
           value: settings.showFlavorIcons,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('showFlavorIcons', value),
         ),
-        ListTile(
-          title: Text(l10n.settingsAvatarStyle),
-          subtitle: Text(settings.avatarStyle),
-          onTap: () => showAvatarStyleDialog(context, settings, ref),
+        _SettingsNavRow(
+          icon: Icons.account_circle_outlined,
+          title: l10n.settingsAvatarStyle,
+          subtitle: settings.avatarStyle,
+          onTap: () =>
+              showAvatarStyleDialog(context, settings, ref),
         ),
       ],
     );
@@ -277,39 +235,43 @@ class SettingsScreen extends ConsumerWidget {
     return '${parts[0][0].toUpperCase()}${parts[0].substring(1)}';
   }
 
-  Widget buildBehaviorSection(
+  Widget _buildBehaviorSection(
     BuildContext context,
     Settings settings,
     WidgetRef ref,
   ) {
     final l10n = AppLocalizations.of(context);
-    return SettingsSection(
+    return _SettingsSection(
       title: l10n.settingsBehavior,
       children: [
-        SwitchListTile(
-          title: Text(l10n.settingsViewInline),
-          subtitle: Text(l10n.settingsViewInlineSubtitle),
+        _SettingsToggleRow(
+          icon: Icons.open_in_new_outlined,
+          title: l10n.settingsViewInline,
+          subtitle: l10n.settingsViewInlineSubtitle,
           value: settings.viewInline,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('viewInline', value),
         ),
-        SwitchListTile(
-          title: Text(l10n.settingsExpandTodos),
+        _SettingsToggleRow(
+          icon: Icons.check_box_outlined,
+          title: l10n.settingsExpandTodos,
           value: settings.expandTodos,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('expandTodos', value),
         ),
-        SwitchListTile(
-          title: Text(l10n.settingsShowLineNumbers),
+        _SettingsToggleRow(
+          icon: Icons.format_list_numbered,
+          title: l10n.settingsShowLineNumbers,
           value: settings.showLineNumbers,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('showLineNumbers', value),
         ),
-        SwitchListTile(
-          title: Text(l10n.settingsWrapLinesInDiffs),
+        _SettingsToggleRow(
+          icon: Icons.wrap_text,
+          title: l10n.settingsWrapLinesInDiffs,
           value: settings.wrapLinesInDiffs,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
@@ -319,98 +281,90 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget buildVoiceSection(BuildContext context) {
-    return SettingsSection(
+  Widget _buildVoiceSection(BuildContext context) {
+    return _SettingsSection(
       title: 'Voice',
       children: [
-        ListTile(
-          title: const Text('Voice Settings'),
-          subtitle: const Text('Configure ElevenLabs voice'),
-          leading: const Icon(Icons.record_voice_over),
-          trailing: const Icon(Icons.chevron_right),
+        _SettingsNavRow(
+          icon: Icons.record_voice_over,
+          title: 'Voice Settings',
+          subtitle: 'Configure ElevenLabs voice',
           onTap: () => context.push('/settings/voice'),
         ),
       ],
     );
   }
 
-  Widget buildAIProfilesSection(BuildContext context) {
+  Widget _buildAIProfilesSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return SettingsSection(
+    return _SettingsSection(
       title: l10n.settingsProfiles,
       children: [
-        ListTile(
-          title: Text(l10n.settingsProfiles),
-          subtitle: Text(l10n.settingsProfilesSubtitle),
-          leading: const Icon(Icons.account_tree),
-          trailing: const Icon(Icons.chevron_right),
+        _SettingsNavRow(
+          icon: Icons.account_tree,
+          title: l10n.settingsProfiles,
+          subtitle: l10n.settingsProfilesSubtitle,
           onTap: () => context.push('/settings/profiles'),
         ),
       ],
     );
   }
 
-  Widget buildUsageSection(BuildContext context) {
+  Widget _buildUsageSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return SettingsSection(
+    return _SettingsSection(
       title: l10n.settingsUsage,
       children: [
-        ListTile(
-          title: Text(l10n.settingsUsage),
-          subtitle: Text(l10n.settingsUsageSubtitle),
-          leading: const Icon(Icons.analytics),
-          trailing: const Icon(Icons.chevron_right),
+        _SettingsNavRow(
+          icon: Icons.analytics,
+          title: l10n.settingsUsage,
+          subtitle: l10n.settingsUsageSubtitle,
           onTap: () => context.push('/settings/usage'),
         ),
       ],
     );
   }
 
-  Widget buildFeaturesSection(BuildContext context) {
+  Widget _buildFeaturesSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return SettingsSection(
+    return _SettingsSection(
       title: l10n.settingsFeatures,
       children: [
-        ListTile(
-          title: Text(l10n.featuresExperiments),
-          subtitle: Text(l10n.featuresExperimentsDesc),
-          leading: const Icon(Icons.science),
-          trailing: const Icon(Icons.chevron_right),
+        _SettingsNavRow(
+          icon: Icons.science,
+          title: l10n.featuresExperiments,
+          subtitle: l10n.featuresExperimentsDesc,
           onTap: () => context.push('/settings/features'),
         ),
       ],
     );
   }
 
-  Widget buildSocialSection(BuildContext context) {
-    return SettingsSection(
+  Widget _buildSocialSection(BuildContext context) {
+    return _SettingsSection(
       title: 'Social',
       children: [
-        ListTile(
-          title: const Text('Find Friends'),
-          subtitle: const Text('Search and send friend requests'),
-          leading: const Icon(Icons.person_add_alt_1),
-          trailing: const Icon(Icons.chevron_right),
+        _SettingsNavRow(
+          icon: Icons.person_add_alt_1,
+          title: 'Find Friends',
+          subtitle: 'Search and send friend requests',
           onTap: () => context.push('/friends/search'),
         ),
-        ListTile(
-          title: const Text('Open Inbox'),
-          subtitle: const Text('View updates and requests'),
-          leading: const Icon(Icons.inbox_outlined),
-          trailing: const Icon(Icons.chevron_right),
+        _SettingsNavRow(
+          icon: Icons.inbox_outlined,
+          title: 'Open Inbox',
+          subtitle: 'View updates and requests',
           onTap: () => context.push('/inbox'),
         ),
       ],
     );
   }
 
-  Widget buildMachinesSection(
+  Widget _buildMachinesSection(
     BuildContext context,
     Map<String, Machine> machines,
   ) {
-    if (machines.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    if (machines.isEmpty) return const SizedBox.shrink();
 
     final machineList = machines.values.toList()
       ..sort((a, b) {
@@ -420,84 +374,86 @@ class SettingsScreen extends ConsumerWidget {
         return a.active ? -1 : 1;
       });
 
-    return SettingsSection(
+    return _SettingsSection(
       title: 'Machines',
       children: machineList
           .map((machine) {
             final metadata = machine.metadata;
-            final title = metadata?.displayName ?? metadata?.host ?? machine.id;
+            final title =
+                metadata?.displayName ??
+                metadata?.host ??
+                machine.id;
             final subtitle =
                 '${metadata?.platform ?? 'unknown'}'
                 ' • ${machine.active ? 'Online' : 'Offline'}';
-            return ListTile(
-              leading: Icon(
-                Icons.computer_outlined,
-                color: machine.active ? Colors.green : Colors.grey,
-              ),
-              title: Text(title),
-              subtitle: Text(subtitle),
+            return _SettingsRow(
+              icon: Icons.computer_outlined,
+              iconColor: machine.active
+                  ? Colors.green
+                  : Colors.grey,
+              title: title,
+              subtitle: subtitle,
             );
           })
           .toList(growable: false),
     );
   }
 
-  Widget buildDeveloperSection(BuildContext context, Settings settings) {
+  Widget _buildDeveloperSection(
+    BuildContext context,
+    Settings settings,
+  ) {
     final l10n = AppLocalizations.of(context);
-    return SettingsSection(
+    return _SettingsSection(
       title: l10n.settingsDeveloper,
       children: [
-        ListTile(
-          title: const Text('Developer Options'),
-          subtitle: Text(
-            settings.developerModeEnabled
-                ? 'Enabled'
-                : 'Tap 10 times to enable',
-          ),
-          leading: const Icon(Icons.build),
-          trailing: const Icon(Icons.chevron_right),
+        _SettingsNavRow(
+          icon: Icons.build,
+          title: 'Developer Options',
+          subtitle: settings.developerModeEnabled
+              ? 'Enabled'
+              : 'Tap 10 times to enable',
           onTap: () => context.push('/settings/developer'),
         ),
       ],
     );
   }
 
-  Widget buildAccountSection(BuildContext context) {
+  Widget _buildAccountSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return SettingsSection(
+    return _SettingsSection(
       title: l10n.settingsAccount,
       children: [
-        ListTile(
-          leading: const Icon(Icons.person),
-          title: Text(l10n.accountAccountSettings),
-          subtitle: const Text('Backup key, devices, services'),
-          trailing: const Icon(Icons.chevron_right),
+        _SettingsNavRow(
+          icon: Icons.person,
+          title: l10n.accountAccountSettings,
+          subtitle: 'Backup key, devices, services',
           onTap: () => context.push('/settings/account'),
         ),
       ],
     );
   }
 
-  Widget buildCertificatesSection(BuildContext context) {
+  Widget _buildCertificatesSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return SettingsSection(
+    return _SettingsSection(
       title: l10n.settingsCertificates,
       children: [
         FutureBuilder<bool>(
-          future: Future.value(CertificateProvider().hasUserCertificates()),
+          future: Future.value(
+            CertificateProvider().hasUserCertificates(),
+          ),
           builder: (context, snapshot) {
             final hasCerts = snapshot.data ?? false;
-
-            return ListTile(
-              title: Text(l10n.settingsUserCaCertificates),
-              subtitle: Text(
-                hasCerts
-                    ? l10n.settingsUserCertificatesInstalled
-                    : l10n.settingsNoUserCertificates,
-              ),
-              trailing: hasCerts
-                  ? Icon(Icons.check_circle, color: Colors.green[400])
-                  : Icon(Icons.info_outline, color: Colors.grey[400]),
+            return _SettingsRow(
+              icon: hasCerts
+                  ? Icons.verified_user
+                  : Icons.info_outline,
+              iconColor: hasCerts ? Colors.green : null,
+              title: l10n.settingsUserCaCertificates,
+              subtitle: hasCerts
+                  ? l10n.settingsUserCertificatesInstalled
+                  : l10n.settingsNoUserCertificates,
             );
           },
         ),
@@ -505,26 +461,37 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget buildServerSection(BuildContext context) {
+  Widget _buildServerSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return SettingsSection(
+    return _SettingsSection(
       title: l10n.settingsServer,
       children: [
         FutureBuilder<Map<String, dynamic>>(
           future: _getServerInfo(),
           builder: (context, snapshot) {
-            final url = snapshot.data?['url'] as String? ?? 'Loading...';
-            final isCustom = snapshot.data?['isCustom'] as bool? ?? false;
+            final url =
+                snapshot.data?['url'] as String? ?? 'Loading...';
+            final isCustom =
+                snapshot.data?['isCustom'] as bool? ?? false;
 
-            return ListTile(
-              title: Text(l10n.settingsServerUrl),
-              subtitle: Text(url),
+            return _SettingsRow(
+              icon: isCustom ? Icons.edit : Icons.cloud_outlined,
+              title: l10n.settingsServerUrl,
+              subtitle: url,
               trailing: isCustom
                   ? Icon(
                       Icons.edit,
+                      size: 16,
                       color: Theme.of(context).colorScheme.primary,
                     )
-                  : Icon(Icons.chevron_right),
+                  : Icon(
+                      Icons.chevron_right,
+                      size: 20,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.3),
+                    ),
               onTap: () => showServerUrlDialog(context, url),
             );
           },
@@ -539,7 +506,10 @@ class SettingsScreen extends ConsumerWidget {
     return {'url': url, 'isCustom': isCustom};
   }
 
-  void showServerUrlDialog(BuildContext context, String currentUrl) {
+  void showServerUrlDialog(
+    BuildContext context,
+    String currentUrl,
+  ) {
     final controller = TextEditingController(text: currentUrl);
     final formKey = GlobalKey<FormState>();
     String? errorText;
@@ -590,14 +560,19 @@ class SettingsScreen extends ConsumerWidget {
                     setServerUrl(null);
                     ApiClient().refreshServerUrl();
                     Navigator.pop(dialogContext);
-                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    ScaffoldMessenger.of(dialogContext)
+                        .showSnackBar(
                       SnackBar(
-                        content: Text(l10nDialog.settingsServerResetSuccess),
+                        content: Text(
+                          l10nDialog.settingsServerResetSuccess,
+                        ),
                         duration: const Duration(seconds: 3),
                       ),
                     );
                   },
-                  child: Text(l10nDialog.settingsServerResetToDefault),
+                  child: Text(
+                    l10nDialog.settingsServerResetToDefault,
+                  ),
                 ),
               FilledButton(
                 onPressed: isVerifying
@@ -605,7 +580,6 @@ class SettingsScreen extends ConsumerWidget {
                     : () async {
                         final url = controller.text.trim();
 
-                        // Validate URL format
                         final validation = validateServerUrl(url);
                         if (!validation.valid) {
                           setDialogState(() {
@@ -619,8 +593,8 @@ class SettingsScreen extends ConsumerWidget {
                           isVerifying = true;
                         });
 
-                        // Verify server is reachable
-                        final verificationResult = await verifyServerUrl(url);
+                        final verificationResult =
+                            await verifyServerUrl(url);
 
                         setDialogState(() {
                           isVerifying = false;
@@ -628,20 +602,25 @@ class SettingsScreen extends ConsumerWidget {
 
                         if (!verificationResult.isValid) {
                           setDialogState(() {
-                            errorText = l10nDialog.settingsServerNotReachable;
+                            errorText = l10nDialog
+                                .settingsServerNotReachable;
                           });
                           return;
                         }
 
-                        // Save the URL
                         setServerUrl(url);
-                        unawaited(ApiClient().refreshServerUrl());
+                        unawaited(
+                          ApiClient().refreshServerUrl(),
+                        );
 
                         if (dialogContext.mounted) {
                           Navigator.pop(dialogContext);
-                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                          ScaffoldMessenger.of(dialogContext)
+                              .showSnackBar(
                             SnackBar(
-                              content: Text(l10nDialog.settingsServerSaved),
+                              content: Text(
+                                l10nDialog.settingsServerSaved,
+                              ),
                               duration: const Duration(seconds: 3),
                             ),
                           );
@@ -651,7 +630,9 @@ class SettingsScreen extends ConsumerWidget {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
                       )
                     : Text(l10nDialog.settingsServerSaveVerify),
               ),
@@ -662,52 +643,43 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget buildAboutSection(BuildContext context) {
+  Widget _buildAboutSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return SettingsSection(
+    return _SettingsSection(
       title: l10n.settingsAbout,
       children: [
-        ListTile(
-          title: Text(l10n.commonVersion),
-          subtitle: const Text('1.0.0'),
+        _SettingsRow(
+          icon: Icons.info_outline,
+          title: l10n.commonVersion,
+          subtitle: '1.0.0',
         ),
-        ListTile(
-          title: const Text("What's New"),
-          subtitle: const Text('Latest improvements and updates'),
+        _SettingsNavRow(
+          icon: Icons.new_releases_outlined,
+          title: "What's New",
+          subtitle: 'Latest improvements and updates',
           onTap: () => context.push('/settings/changelog'),
         ),
-        ListTile(
-          title: const Text('GitHub'),
-          subtitle: const Text('slopus/happy'),
+        _SettingsNavRow(
+          icon: Icons.code,
+          title: 'GitHub',
+          subtitle: 'slopus/happy',
           onTap: () => openUrl('https://github.com/slopus/happy'),
         ),
-        ListTile(
-          title: const Text('Report an Issue'),
-          onTap: () => openUrl('https://github.com/slopus/happy/issues'),
+        _SettingsNavRow(
+          icon: Icons.bug_report_outlined,
+          title: 'Report an Issue',
+          onTap: () =>
+              openUrl('https://github.com/slopus/happy/issues'),
         ),
-        ListTile(
-          title: Text(l10n.settingsPrivacyPolicy),
+        _SettingsNavRow(
+          icon: Icons.privacy_tip_outlined,
+          title: l10n.settingsPrivacyPolicy,
           onTap: () => openUrl('https://happy.dev/privacy'),
         ),
-        ListTile(
-          title: Text(l10n.settingsTermsOfService),
+        _SettingsNavRow(
+          icon: Icons.gavel_outlined,
+          title: l10n.settingsTermsOfService,
           onTap: () => openUrl('https://happy.dev/terms'),
-        ),
-      ],
-    );
-  }
-
-  Widget buildSignOutSection(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    return SettingsSection(
-      children: [
-        ListTile(
-          title: Text(
-            l10n.settingsSignOut,
-            style: const TextStyle(color: Colors.red),
-          ),
-          leading: const Icon(Icons.logout, color: Colors.red),
-          onTap: () => confirmSignOut(context, ref),
         ),
       ],
     );
@@ -763,10 +735,14 @@ class SettingsScreen extends ConsumerWidget {
               child: Text(l10nDialog.commonCancel),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
               onPressed: () {
                 Navigator.pop(dialogContext);
-                ref.read(authStateNotifierProvider.notifier).signOut();
+                ref
+                    .read(authStateNotifierProvider.notifier)
+                    .signOut();
               },
               child: Text(l10nDialog.settingsSignOut),
             ),
@@ -780,41 +756,476 @@ class SettingsScreen extends ConsumerWidget {
     final uri = Uri.parse(url);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
+}
 
-  String _initialForName(String value) {
-    if (value.isEmpty) {
-      return '?';
-    }
+// ─── Private widget components ───────────────────────────────────────────────
+
+/// Hero-area profile header with gradient backdrop, centered avatar,
+/// name in headlineSmall, and bio/subtitle in bodyMedium.
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({required this.profile});
+
+  final Profile? profile;
+
+  static String _initialForName(String value) {
+    if (value.isEmpty) return '?';
     return value.substring(0, 1).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final name = profile?.displayName?.trim();
+    final avatarUrl = profile?.avatarUrl;
+    final displayName =
+        (name == null || name.isEmpty) ? 'Happy' : name;
+    final bio = profile?.bio ??
+        'Secure mobile companion for your sessions';
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              cs.primary.withValues(alpha: 0.05),
+              cs.surface,
+            ],
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xxl,
+          vertical: AppSpacing.xxl,
+        ),
+        child: Column(
+          children: [
+            CircleAvatar(
+              radius: 36,
+              backgroundColor: cs.primaryContainer,
+              backgroundImage: avatarUrl != null
+                  ? NetworkImage(avatarUrl)
+                  : null,
+              child: avatarUrl == null
+                  ? Text(
+                      _initialForName(displayName),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: cs.onPrimaryContainer,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              displayName,
+              style: theme.textTheme.headlineSmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              bio,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: cs.onSurface.withValues(alpha: 0.6),
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
-/// Settings section wrapper
-class SettingsSection extends StatelessWidget {
+/// iOS-style section container — label above card, children inside a
+/// rounded Card with 12 px radius.
+class _SettingsSection extends StatelessWidget {
+  const _SettingsSection({
+    required this.children,
+    this.title,
+  });
 
-  const SettingsSection({required this.children, super.key, this.title});
   final String? title;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (title != null) ...[
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AppSpacing.xs,
+              bottom: AppSpacing.xs,
+            ),
+            child: Text(
+              title!.toUpperCase(),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.primary,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+        ],
+        Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            side: BorderSide(
+              color: cs.outlineVariant,
+            ),
+          ),
+          child: Column(
+            children: _intersperse(children),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Inserts a slim divider between children (but not before/after).
+  List<Widget> _intersperse(List<Widget> items) {
+    if (items.length <= 1) return items;
+    final result = <Widget>[];
+    for (var i = 0; i < items.length; i++) {
+      result.add(items[i]);
+      if (i < items.length - 1) {
+        result.add(const Divider(
+          height: 1,
+          indent: 56,
+          endIndent: 0,
+        ));
+      }
+    }
+    return result;
+  }
+}
+
+/// A plain setting row: icon container + title/subtitle + optional trailing.
+class _SettingsRow extends StatelessWidget {
+  const _SettingsRow({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.iconColor,
+    this.trailing,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Color? iconColor;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: SizedBox(
+        height: subtitle != null ? null : 56,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
+          child: Row(
+            children: [
+              _IconContainer(
+                icon: icon,
+                color: iconColor,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: cs.onSurface.withValues(alpha: 0.6),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (trailing != null) ...[
+                const SizedBox(width: AppSpacing.sm),
+                trailing!,
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A setting row with a Switch.adaptive trailing widget.
+class _SettingsToggleRow extends StatelessWidget {
+  const _SettingsToggleRow({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.onChanged,
+    this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return InkWell(
+      onTap: () => onChanged(!value),
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            _IconContainer(icon: icon),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurface.withValues(alpha: 0.6),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Switch.adaptive(
+              value: value,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A setting row that navigates somewhere — includes a right chevron.
+class _SettingsNavRow extends StatelessWidget {
+  const _SettingsNavRow({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return _SettingsRow(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      onTap: onTap,
+      trailing: Icon(
+        Icons.chevron_right,
+        size: 20,
+        color: cs.onSurface.withValues(alpha: 0.3),
+      ),
+    );
+  }
+}
+
+/// 36x36 rounded icon container used as the leading widget in rows.
+class _IconContainer extends StatelessWidget {
+  const _IconContainer({
+    required this.icon,
+    this.color,
+  });
+
+  final IconData icon;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final effectiveColor = color ?? cs.primary;
+
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Icon(
+        icon,
+        size: 18,
+        color: effectiveColor,
+      ),
+    );
+  }
+}
+
+/// Sign-out / account management area at the bottom of the settings list.
+class _AccountSection extends ConsumerWidget {
+  const _AccountSection({required this.ref});
+
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context, WidgetRef widgetRef) {
+    final l10n = AppLocalizations.of(context);
+    const errorRed = Color(0xFFDC2626);
+
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        icon: const Icon(Icons.logout, size: 18),
+        label: Text(l10n.settingsSignOut),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: errorRed,
+          side: const BorderSide(color: errorRed),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xxl,
+            vertical: AppSpacing.md,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+        ),
+        onPressed: () => _confirmSignOut(context, widgetRef),
+      ),
+    );
+  }
+
+  void _confirmSignOut(BuildContext context, WidgetRef widgetRef) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final l10nDialog = AppLocalizations.of(dialogContext);
+        return AlertDialog(
+          title: Text(l10nDialog.settingsSignOut),
+          content: Text(l10nDialog.settingsSignOutConfirm),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10nDialog.commonCancel),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                widgetRef
+                    .read(authStateNotifierProvider.notifier)
+                    .signOut();
+              },
+              child: Text(l10nDialog.settingsSignOut),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ─── Public SettingsSection (kept for external use) ─────────────────────────
+
+/// Settings section wrapper (public API preserved for external callers).
+class SettingsSection extends StatelessWidget {
+  const SettingsSection({
+    required this.children,
+    super.key,
+    this.title,
+  });
+
+  /// Optional section heading text.
+  final String? title;
+
+  /// Child widgets rendered inside the section card.
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (title != null)
           Padding(
-            padding: const EdgeInsets.only(left: 16, bottom: 8),
+            padding: const EdgeInsets.only(
+              left: AppSpacing.xs,
+              bottom: AppSpacing.xs,
+            ),
             child: Text(
-              title!,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[600],
-                letterSpacing: 0.5,
+              title!.toUpperCase(),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.primary,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
               ),
             ),
           ),
-        Card(child: Column(children: children)),
+        Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            side: BorderSide(color: cs.outlineVariant),
+          ),
+          child: Column(children: children),
+        ),
       ],
     );
   }

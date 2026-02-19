@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 
 import '../tool_section_view.dart';
+import 'bash_view.dart' show FilePillChip;
 
 /// View for displaying Read tool file content preview.
 class ReadView extends StatelessWidget {
@@ -106,7 +107,10 @@ class _ReadViewContentState extends State<_ReadViewContent> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // File path header
+        // File path as pill chip
+        FilePillChip(path: widget.resolvedPath),
+        const SizedBox(height: 6),
+        // Original styled header (for copy button + extension badge)
         _FileHeader(
           resolvedPath: widget.resolvedPath,
           extension: widget.extension,
@@ -124,19 +128,20 @@ class _ReadViewContentState extends State<_ReadViewContent> {
               totalLines: widget.totalLines,
             ),
           ),
-        // Content preview
-        if (content != null && content.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: _ContentBlock(
-              content: content,
-              offset: widget.offset,
-              expanded: _expanded,
-              maxLines: _defaultMaxLines,
-              onToggleExpand: () =>
-                  setState(() => _expanded = !_expanded),
-            ),
+        // Content section label + preview
+        if (content != null && content.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _ReadSectionLabel(label: 'CONTENT'),
+          const SizedBox(height: 4),
+          _ContentBlock(
+            content: content,
+            offset: widget.offset,
+            expanded: _expanded,
+            maxLines: _defaultMaxLines,
+            onToggleExpand: () =>
+                setState(() => _expanded = !_expanded),
           ),
+        ],
         if (content == null && widget.totalLines != null)
           Padding(
             padding: const EdgeInsets.only(top: 6),
@@ -156,6 +161,29 @@ class _ReadViewContentState extends State<_ReadViewContent> {
 // ---------------------------------------------------------------------------
 // Private sub-widgets
 // ---------------------------------------------------------------------------
+
+/// Small section label for read view blocks.
+class _ReadSectionLabel extends StatelessWidget {
+  const _ReadSectionLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w600,
+        color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+        letterSpacing: 0.8,
+        fontFamily: 'monospace',
+        fontFamilyFallback: const ['Courier New', 'Courier'],
+      ),
+    );
+  }
+}
 
 class _FileHeader extends StatelessWidget {
 

@@ -34,13 +34,21 @@ class BashView extends StatelessWidget {
         state == 'error' && result != null ? result.toString() : null;
 
     return ToolSectionView(
-      child: CommandView(
-        command: command,
-        description: description,
-        stdout: stdout,
-        stderr: stderr,
-        exitCode: exitCode,
-        error: error,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _SectionLabel(label: 'COMMAND'),
+          const SizedBox(height: 4),
+          CommandView(
+            command: command,
+            description: description,
+            stdout: stdout,
+            stderr: stderr,
+            exitCode: exitCode,
+            error: error,
+          ),
+        ],
       ),
     );
   }
@@ -555,6 +563,102 @@ class _CopyButtonState extends State<_CopyButton> {
               ? const Color(0xFF3FB950)
               : const Color(0xFF8B949E),
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+/// Small all-caps section label (e.g. "COMMAND", "OUTPUT").
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w600,
+        color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+        letterSpacing: 0.8,
+        fontFamily: 'monospace',
+        fontFamilyFallback: const ['Courier New', 'Courier'],
+      ),
+    );
+  }
+}
+
+/// A pill chip that displays a file path with a leading file icon.
+class FilePillChip extends StatelessWidget {
+  /// Creates a [FilePillChip].
+  const FilePillChip({required this.path, super.key});
+
+  /// The file path to display.
+  final String path;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final lastSlash = path.lastIndexOf('/');
+    final dir =
+        lastSlash >= 0 ? path.substring(0, lastSlash + 1) : '';
+    final filename =
+        lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.6),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.insert_drive_file_outlined,
+            size: 13,
+            color: cs.onSurfaceVariant,
+          ),
+          const SizedBox(width: 5),
+          Flexible(
+            child: RichText(
+              overflow: TextOverflow.ellipsis,
+              text: TextSpan(
+                children: [
+                  if (dir.isNotEmpty)
+                    TextSpan(
+                      text: dir,
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  TextSpan(
+                    text: filename,
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: cs.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

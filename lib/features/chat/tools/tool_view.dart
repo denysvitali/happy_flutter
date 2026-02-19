@@ -46,6 +46,34 @@ Color _stateAccentColor(ToolState state) {
   }
 }
 
+/// Returns the background color for the status badge.
+Color _statusBadgeBg(ToolState state) {
+  switch (state) {
+    case ToolState.running:
+      return const Color(0xFF2196F3);
+    case ToolState.completed:
+      return const Color(0xFF34C759);
+    case ToolState.error:
+      return const Color(0xFFFF3B30);
+    case ToolState.pending:
+      return const Color(0xFF8E8E93);
+  }
+}
+
+/// Returns label text for the status badge.
+String _statusBadgeLabel(ToolState state) {
+  switch (state) {
+    case ToolState.running:
+      return 'Running';
+    case ToolState.completed:
+      return 'Done';
+    case ToolState.error:
+      return 'Error';
+    case ToolState.pending:
+      return 'Pending';
+  }
+}
+
 /// Accent color for permission-required state (orange).
 const Color _permissionColor = Color(0xFFFF9500);
 
@@ -445,16 +473,25 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       builder: (context, child) {
         final borderOpacity =
             state == ToolState.running ? _pulseAnim.value : 1.0;
-        final effectiveBorder = BorderSide(
+        final accentBorder = BorderSide(
           color: accentColor.withValues(alpha: borderOpacity),
-          width: 2,
+          width: 4,
+        );
+        final sideBorder = BorderSide(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+          width: 1,
         );
 
         return Container(
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(8),
-            border: Border(left: effectiveBorder),
+            border: Border(
+              left: accentBorder,
+              top: sideBorder,
+              right: sideBorder,
+              bottom: sideBorder,
+            ),
           ),
           margin: const EdgeInsets.symmetric(vertical: 4),
           child: Column(
@@ -476,17 +513,18 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
                         widget.onPress!.call();
                       }
                     : null,
-                child: _buildHeader(
-                  context,
-                  theme,
-                  toolIcon,
-                  toolTitle,
-                  status,
-                  subtitle,
-                  state,
-                  createdAt,
-                  statusIcon,
-                  hasContent,
+                child: _ToolHeader(
+                  toolIcon: toolIcon,
+                  toolTitle: toolTitle,
+                  status: status,
+                  subtitle: subtitle,
+                  state: state,
+                  createdAt: createdAt,
+                  statusIcon: statusIcon,
+                  hasContent: hasContent,
+                  showCheckFlash: _showCheckFlash,
+                  chevronAnim: _chevronAnim,
+                  hasPermissionRequest: hasPermissionRequest,
                 ),
               ),
               if (hasContent)
@@ -528,135 +566,6 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
           ),
         );
       },
-    );
-  }
-
-  /// Builds the header row with a subtle gradient background.
-  Widget _buildHeader(
-    BuildContext context,
-    ThemeData theme,
-    Widget toolIcon,
-    String toolTitle,
-    String? status,
-    String? subtitle,
-    ToolState state,
-    int? createdAt,
-    Widget? statusIcon,
-    bool hasContent,
-  ) {
-    final baseColor = theme.colorScheme.surfaceContainerHighest;
-    final gradientTop = Color.lerp(
-      baseColor,
-      theme.colorScheme.surface,
-      0.25,
-    )!;
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [gradientTop, baseColor],
-        ),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
-        ),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 24,
-            height: 24,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: toolIcon,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        toolTitle,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (status != null)
-                      Text(
-                        ' $status',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w400,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                  ],
-                ),
-                if (subtitle != null)
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
-          ),
-          if (state == ToolState.running && createdAt != null)
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: ElapsedTimeWidget(startTime: createdAt),
-            ),
-          Padding(
-            padding: const EdgeInsets.only(left: 8),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (child, animation) => ScaleTransition(
-                scale: animation,
-                child: FadeTransition(opacity: animation, child: child),
-              ),
-              child: _showCheckFlash
-                  ? Icon(
-                      Icons.check_circle,
-                      key: const ValueKey('flash'),
-                      size: 20,
-                      color: const Color(0xFF34C759),
-                    )
-                  : (statusIcon != null
-                      ? SizedBox(
-                          key: const ValueKey('status'),
-                          child: statusIcon,
-                        )
-                      : const SizedBox.shrink(
-                          key: ValueKey('empty'),
-                        )),
-            ),
-          ),
-          if (hasContent)
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: RotationTransition(
-                turns: _chevronAnim,
-                child: Icon(
-                  Icons.expand_more,
-                  size: 18,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-        ],
-      ),
     );
   }
 
@@ -703,13 +612,15 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
           if (toolInput != null)
             ToolSectionView(
               title: 'INPUT',
-              child: _buildCodeBlock(toolInput.toString()),
+              child: _ToolOutputContainer(content: toolInput.toString()),
             ),
           if (state == ToolState.completed && toolResult != null)
             ToolSectionView(
               title: 'OUTPUT',
-              child: _buildCodeBlock(
-                toolResult is String ? toolResult : toolResult.toString(),
+              child: _ToolOutputContainer(
+                content: toolResult is String
+                    ? toolResult
+                    : toolResult.toString(),
               ),
             ),
           if (state == ToolState.error &&
@@ -720,24 +631,6 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
               !errorResult.isToolUseError)
             ToolError(message: toolResult.toString()),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCodeBlock(String code) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: SelectableText(
-        code,
-        style: const TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 12,
-          color: Color(0xFFD4D4D4),
-        ),
       ),
     );
   }
@@ -812,6 +705,287 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       tool: tool,
       metadata: metadata,
       sessionId: widget.sessionId,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Extracted private widget classes for composability
+// ---------------------------------------------------------------------------
+
+/// Header row for a tool card — icon, title, status badge, elapsed time,
+/// check flash, and expand/collapse chevron.
+class _ToolHeader extends StatelessWidget {
+  const _ToolHeader({
+    required this.toolIcon,
+    required this.toolTitle,
+    required this.state,
+    required this.hasContent,
+    required this.showCheckFlash,
+    required this.chevronAnim,
+    required this.hasPermissionRequest,
+    this.status,
+    this.subtitle,
+    this.createdAt,
+    this.statusIcon,
+  });
+
+  /// The leading icon widget for this tool type.
+  final Widget toolIcon;
+
+  /// The resolved display title for this tool.
+  final String toolTitle;
+
+  /// Optional inline status text shown after the title.
+  final String? status;
+
+  /// Optional subtitle shown below the title.
+  final String? subtitle;
+
+  /// The current execution state.
+  final ToolState state;
+
+  /// Unix-ms timestamp when the tool started (for elapsed time).
+  final int? createdAt;
+
+  /// Optional status icon override (error/denied/cancelled).
+  final Widget? statusIcon;
+
+  /// Whether this tool card has expandable content.
+  final bool hasContent;
+
+  /// Whether to show the green check-circle flash animation.
+  final bool showCheckFlash;
+
+  /// The chevron rotation animation (0 = collapsed, 0.5 = expanded).
+  final Animation<double> chevronAnim;
+
+  /// Whether a permission request is currently pending.
+  final bool hasPermissionRequest;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final baseColor = theme.colorScheme.surfaceContainerHighest;
+    final gradientTop = Color.lerp(
+      baseColor,
+      theme.colorScheme.surface,
+      0.25,
+    )!;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [gradientTop, baseColor],
+        ),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(8),
+          topRight: Radius.circular(8),
+        ),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: toolIcon,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        toolTitle,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'monospace',
+                          fontFamilyFallback: const [
+                            'Courier New',
+                            'Courier',
+                          ],
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (status != null)
+                      Text(
+                        ' $status',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w400,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          // Status badge pill
+          if (!hasPermissionRequest)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: _ToolStatusBadge(state: state),
+            ),
+          // Elapsed time while running
+          if (state == ToolState.running && createdAt != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: _ToolDuration(startTime: createdAt!),
+            ),
+          // Status icon / check flash
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (child, animation) => ScaleTransition(
+                scale: animation,
+                child: FadeTransition(
+                  opacity: animation,
+                  child: child,
+                ),
+              ),
+              child: showCheckFlash
+                  ? Icon(
+                      Icons.check_circle,
+                      key: const ValueKey('flash'),
+                      size: 20,
+                      color: const Color(0xFF34C759),
+                    )
+                  : (statusIcon != null
+                      ? SizedBox(
+                          key: const ValueKey('status'),
+                          child: statusIcon,
+                        )
+                      : const SizedBox.shrink(
+                          key: ValueKey('empty'),
+                        )),
+            ),
+          ),
+          // Expand/collapse chevron
+          if (hasContent)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: RotationTransition(
+                turns: chevronAnim,
+                child: Icon(
+                  Icons.expand_more,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Compact status pill showing Running / Done / Error / Pending.
+///
+/// 20px tall pill with 0.15-opacity background and matching text colour.
+class _ToolStatusBadge extends StatelessWidget {
+  const _ToolStatusBadge({required this.state});
+
+  /// The current execution state.
+  final ToolState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = _statusBadgeBg(state);
+    final label = _statusBadgeLabel(state);
+
+    return Container(
+      height: 20,
+      padding: const EdgeInsets.symmetric(horizontal: 7),
+      decoration: BoxDecoration(
+        color: bg.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: bg.withValues(alpha: 0.35),
+          width: 0.5,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: bg,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
+  }
+}
+
+/// Elapsed time label — only visible while the tool is running.
+class _ToolDuration extends StatelessWidget {
+  const _ToolDuration({required this.startTime});
+
+  /// The Unix-ms timestamp when the tool started.
+  final int startTime;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElapsedTimeWidget(startTime: startTime);
+  }
+}
+
+/// Scrollable monospace output area used in the fallback content block.
+class _ToolOutputContainer extends StatelessWidget {
+  const _ToolOutputContainer({required this.content});
+
+  /// The text to display.
+  final String content;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 300),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+        ),
+      ),
+      child: SingleChildScrollView(
+        child: SelectableText(
+          content,
+          style: TextStyle(
+            fontFamily: 'monospace',
+            fontFamilyFallback: const ['Courier New', 'Courier'],
+            fontSize: 12,
+            color: theme.colorScheme.onSurface,
+            height: 1.5,
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../tool_section_view.dart';
+import 'bash_view.dart' show FilePillChip;
 
 /// View for displaying Write tool content.
 ///
@@ -46,11 +47,17 @@ class _WriteViewState extends State<WriteView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── File path + Created badge ─────────────────────
+          // ── File path pill chip ────────────────────────────
+          FilePillChip(path: filePath),
+          const SizedBox(height: 6),
+
+          // ── Created badge + original path header ──────────
           _WritePathHeader(filePath: filePath),
           const SizedBox(height: 8),
 
-          // ── Content preview ───────────────────────────────
+          // ── Content section label + preview ───────────────
+          _WriteSectionLabel(label: 'CONTENT'),
+          const SizedBox(height: 4),
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
@@ -189,6 +196,29 @@ class _WriteViewState extends State<WriteView> {
       'css': 'CSS',
     };
     return map[ext] ?? ext;
+  }
+}
+
+/// Small all-caps section label for write view content blocks.
+class _WriteSectionLabel extends StatelessWidget {
+  const _WriteSectionLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w600,
+        color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+        letterSpacing: 0.8,
+        fontFamily: 'monospace',
+        fontFamilyFallback: const ['Courier New', 'Courier'],
+      ),
+    );
   }
 }
 

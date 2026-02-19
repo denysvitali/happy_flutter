@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import '../../i18n/app_localizations.dart';
 
@@ -8,9 +10,207 @@ enum AppTab {
   settings,
 }
 
+// ─── AppTabInfo ──────────────────────────────────────────────────────────────
+
+/// Tab information data class
+@immutable
+class AppTabInfo {
+  const AppTabInfo({
+    required this.key,
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+  });
+
+  final AppTab key;
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+}
+
+// ─── _TabBadge ───────────────────────────────────────────────────────────────
+
+/// Red notification count badge, positioned over the top-right of an icon.
+class _TabBadge extends StatelessWidget {
+  const _TabBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count > 99 ? '99+' : count.toString();
+    final isMultiDigit = count > 9;
+    return Container(
+      height: 16,
+      constraints: BoxConstraints(minWidth: isMultiDigit ? 22 : 16),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMultiDigit ? 4 : 0,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.red,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 10,
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+          height: 1,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+}
+
+// ─── _TabIndicator ───────────────────────────────────────────────────────────
+
+/// Animated pill-shaped indicator that slides between tab positions.
+///
+/// [tabCount] is the total number of tabs; [activeIndex] is the currently
+/// selected one. The pill is drawn behind the active icon+label.
+class _TabIndicator extends StatelessWidget {
+  const _TabIndicator({
+    required this.activeIndex,
+    required this.tabCount,
+  });
+
+  final int activeIndex;
+  final int tabCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tabWidth = constraints.maxWidth / tabCount;
+        final pillWidth = tabWidth * 0.72;
+        final leftOffset =
+            activeIndex * tabWidth + (tabWidth - pillWidth) / 2;
+
+        return Stack(
+          children: [
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              left: leftOffset,
+              top: 0,
+              bottom: 0,
+              width: pillWidth,
+              child: Container(
+                height: 40,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ─── _TabItem ────────────────────────────────────────────────────────────────
+
+/// A single tab button: icon stacked above label, with optional badge.
+class _TabItem extends StatelessWidget {
+  const _TabItem({
+    required this.tab,
+    required this.isActive,
+    required this.label,
+    required this.onTap,
+    this.badgeCount,
+    this.showDot = false,
+  });
+
+  final AppTabInfo tab;
+  final bool isActive;
+  final String label;
+  final VoidCallback onTap;
+  final int? badgeCount;
+  final bool showDot;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final activeColor = colorScheme.primary;
+    final inactiveColor =
+        colorScheme.onSurface.withValues(alpha: 0.5);
+    final itemColor = isActive ? activeColor : inactiveColor;
+
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          height: double.infinity,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Icon with optional badge
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    isActive ? tab.activeIcon : tab.icon,
+                    size: 24,
+                    color: itemColor,
+                  ),
+                  // Count badge
+                  if (tab.key == AppTab.inbox &&
+                      badgeCount != null &&
+                      badgeCount! > 0)
+                    Positioned(
+                      top: -5,
+                      right: -10,
+                      child: _TabBadge(count: badgeCount!),
+                    ),
+                  // Dot badge (unread but no count)
+                  if (tab.key == AppTab.inbox &&
+                      showDot &&
+                      (badgeCount == null || badgeCount! == 0))
+                    Positioned(
+                      top: -3,
+                      right: -2,
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: 10,
+                  color: itemColor,
+                  fontWeight: isActive
+                      ? FontWeight.w700
+                      : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── TabBar ──────────────────────────────────────────────────────────────────
+
 /// Bottom/app tab bar widget
 class TabBar extends StatefulWidget {
-
   const TabBar({
     required this.activeTab,
     required this.onTabPress,
@@ -23,6 +223,7 @@ class TabBar extends StatefulWidget {
     this.indicatorColor,
     super.key,
   });
+
   final AppTab activeTab;
   final void Function(AppTab tab) onTabPress;
   final int? inboxBadgeCount;
@@ -40,184 +241,127 @@ class TabBar extends StatefulWidget {
 class _TabBarState extends State<TabBar> {
   late final List<AppTabInfo> _tabs;
 
+  static const _kTabs = [
+    AppTabInfo(
+      key: AppTab.inbox,
+      icon: Icons.inbox_outlined,
+      activeIcon: Icons.inbox,
+      label: 'Inbox',
+    ),
+    AppTabInfo(
+      key: AppTab.sessions,
+      icon: Icons.chat_bubble_outline,
+      activeIcon: Icons.chat_bubble,
+      label: 'Sessions',
+    ),
+    AppTabInfo(
+      key: AppTab.settings,
+      icon: Icons.settings_outlined,
+      activeIcon: Icons.settings,
+      label: 'Settings',
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
-    _tabs = [
-      const AppTabInfo(
-        key: AppTab.inbox,
-        icon: Icons.inbox_outlined,
-        activeIcon: Icons.inbox,
-        label: 'Inbox',
-      ),
-      const AppTabInfo(
-        key: AppTab.sessions,
-        icon: Icons.chat_bubble_outline,
-        activeIcon: Icons.chat_bubble,
-        label: 'Sessions',
-      ),
-      const AppTabInfo(
-        key: AppTab.settings,
-        icon: Icons.settings_outlined,
-        activeIcon: Icons.settings,
-        label: 'Settings',
-      ),
-    ];
+    _tabs = _kTabs;
+  }
+
+  int get _activeIndex =>
+      _tabs.indexWhere((t) => t.key == widget.activeTab);
+
+  String _labelForTab(AppTab tab, AppLocalizations l10n) {
+    return switch (tab) {
+      AppTab.inbox => l10n.tabsInbox,
+      AppTab.sessions => l10n.sessionHistoryTitle,
+      AppTab.settings => l10n.tabsSettings,
+    };
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
     final l10n = context.l10n;
+    final isIOS = Platform.isIOS;
 
-    final backgroundColor = widget.backgroundColor ?? colorScheme.surface;
-    final selectedColor = widget.selectedItemColor ?? colorScheme.primary;
-    final unselectedColor =
-        widget.unselectedItemColor ?? colorScheme.onSurfaceVariant;
-    final indicatorColor = widget.indicatorColor ?? colorScheme.primary;
+    final bgColor =
+        widget.backgroundColor ?? colorScheme.surface;
 
     return Container(
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: bgColor,
+        // Subtle top border instead of a hard shadow line
         border: Border(
           top: BorderSide(
-            color: theme.dividerColor.withValues(alpha: 0.3),
+            color: colorScheme.onSurface.withValues(alpha: 0.08),
           ),
         ),
+        // Frosted glass elevation on iOS; clean card on Android
+        boxShadow: isIOS
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 20,
+                  offset: const Offset(0, -4),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
+                ),
+              ],
       ),
       child: SafeArea(
         top: false,
-        bottom: true,
         child: SizedBox(
-          height: widget.height + MediaQuery.of(context).padding.bottom,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: _tabs.map((tab) {
-              final isActive = widget.activeTab == tab.key;
-
-              return Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => widget.onTabPress(tab.key),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Icon(
-                              isActive ? tab.activeIcon : tab.icon,
-                              size: 24,
-                              color: isActive ? selectedColor : unselectedColor,
-                            ),
-                            if (tab.key == AppTab.inbox &&
-                                (widget.inboxBadgeCount != null &&
-                                    widget.inboxBadgeCount! > 0))
-                              Positioned(
-                                top: -4,
-                                right: -8,
-                                child: _buildBadge(
-                                  widget.inboxBadgeCount!,
-                                  indicatorColor,
-                                ),
-                              ),
-                            if (tab.key == AppTab.inbox &&
-                                widget.showInboxBadge &&
-                                (widget.inboxBadgeCount == null ||
-                                    widget.inboxBadgeCount! == 0))
-                              Positioned(
-                                top: -4,
-                                right: -2,
-                                child: Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: indicatorColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          _labelForTab(tab.key, l10n),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontSize: 10,
-                            color: isActive ? selectedColor : unselectedColor,
-                            fontWeight: isActive
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
+          height: widget.height,
+          child: Stack(
+            children: [
+              // Animated pill indicator layer (behind the items)
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: _TabIndicator(
+                    activeIndex: _activeIndex,
+                    tabCount: _tabs.length,
                   ),
                 ),
-              );
-            }).toList(),
+              ),
+              // Tab items row (above indicator)
+              Row(
+                children: _tabs.map((tab) {
+                  final isActive = widget.activeTab == tab.key;
+                  return _TabItem(
+                    tab: tab,
+                    isActive: isActive,
+                    label: _labelForTab(tab.key, l10n),
+                    onTap: () => widget.onTabPress(tab.key),
+                    badgeCount: tab.key == AppTab.inbox
+                        ? widget.inboxBadgeCount
+                        : null,
+                    showDot: tab.key == AppTab.inbox &&
+                        widget.showInboxBadge,
+                  );
+                }).toList(),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-
-  String _labelForTab(AppTab tab, AppLocalizations l10n) {
-    switch (tab) {
-      case AppTab.inbox:
-        return l10n.tabsInbox;
-      case AppTab.sessions:
-        return l10n.sessionHistoryTitle;
-      case AppTab.settings:
-        return l10n.tabsSettings;
-    }
-  }
-
-  Widget _buildBadge(int count, Color backgroundColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      constraints: const BoxConstraints(
-        minWidth: 16,
-        minHeight: 16,
-      ),
-      child: Text(
-        count > 99 ? '99+' : count.toString(),
-        style: TextStyle(
-          fontSize: 10,
-          color: Theme.of(context).colorScheme.onPrimary,
-          fontWeight: FontWeight.w600,
-        ),
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
 }
 
-/// Tab information data class
-@immutable
-class AppTabInfo {
+// ─── CompactTabBar ───────────────────────────────────────────────────────────
 
-  const AppTabInfo({
-    required this.key,
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-  });
-  final AppTab key;
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-}
-
-/// Compact tab bar for tablets
+/// Icon-only compact tab bar, designed for tablet rail/sidebar use.
+///
+/// Each icon has a 44 px minimum tap target. Active icons use the primary
+/// color; inactive icons use onSurface at 40 % opacity.
 class CompactTabBar extends StatelessWidget {
-
   const CompactTabBar({
     required this.activeTab,
     required this.onTabPress,
@@ -226,74 +370,81 @@ class CompactTabBar extends StatelessWidget {
     this.unselectedColor,
     super.key,
   });
+
   final AppTab activeTab;
   final void Function(AppTab tab) onTabPress;
   final double iconSize;
   final Color? selectedColor;
   final Color? unselectedColor;
 
+  static const _kTabs = [
+    AppTabInfo(
+      key: AppTab.inbox,
+      icon: Icons.inbox_outlined,
+      activeIcon: Icons.inbox,
+      label: 'Inbox',
+    ),
+    AppTabInfo(
+      key: AppTab.sessions,
+      icon: Icons.chat_bubble_outline,
+      activeIcon: Icons.chat_bubble,
+      label: 'Sessions',
+    ),
+    AppTabInfo(
+      key: AppTab.settings,
+      icon: Icons.settings_outlined,
+      activeIcon: Icons.settings,
+      label: 'Settings',
+    ),
+  ];
+
+  String _labelForTab(AppTab tab, AppLocalizations l10n) {
+    return switch (tab) {
+      AppTab.inbox => l10n.tabsInbox,
+      AppTab.sessions => l10n.sessionHistoryTitle,
+      AppTab.settings => l10n.tabsSettings,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
     final l10n = context.l10n;
-    final selectedColor = this.selectedColor ?? colorScheme.primary;
-    final unselectedColor =
-        this.unselectedColor ?? colorScheme.onSurfaceVariant;
-
-    final tabs = [
-      const AppTabInfo(
-        key: AppTab.inbox,
-        icon: Icons.inbox_outlined,
-        activeIcon: Icons.inbox,
-        label: 'Inbox',
-      ),
-      const AppTabInfo(
-        key: AppTab.sessions,
-        icon: Icons.chat_bubble_outline,
-        activeIcon: Icons.chat_bubble,
-        label: 'Sessions',
-      ),
-      const AppTabInfo(
-        key: AppTab.settings,
-        icon: Icons.settings_outlined,
-        activeIcon: Icons.settings,
-        label: 'Settings',
-      ),
-    ];
+    final active = selectedColor ?? colorScheme.primary;
+    final inactive = unselectedColor ??
+        colorScheme.onSurface.withValues(alpha: 0.4);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: tabs.map((tab) {
+      children: _kTabs.map((tab) {
         final isActive = activeTab == tab.key;
-        return IconButton(
-          icon: Icon(
-            isActive ? tab.activeIcon : tab.icon,
-            size: iconSize,
-            color: isActive ? selectedColor : unselectedColor,
+        return SizedBox(
+          width: 44,
+          height: 44,
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            icon: Icon(
+              isActive ? tab.activeIcon : tab.icon,
+              size: iconSize,
+              color: isActive ? active : inactive,
+            ),
+            onPressed: () => onTabPress(tab.key),
+            tooltip: _labelForTab(tab.key, l10n),
           ),
-          onPressed: () => onTabPress(tab.key),
-          tooltip: _labelForTab(tab.key, l10n),
         );
       }).toList(),
     );
   }
-
-  String _labelForTab(AppTab tab, AppLocalizations l10n) {
-    switch (tab) {
-      case AppTab.inbox:
-        return l10n.tabsInbox;
-      case AppTab.sessions:
-        return l10n.sessionHistoryTitle;
-      case AppTab.settings:
-        return l10n.tabsSettings;
-    }
-  }
 }
 
-/// Segment control style tab bar
-class SegmentTabBar extends StatefulWidget {
+// ─── SegmentTabBar ───────────────────────────────────────────────────────────
 
+/// iOS-style segmented control tab bar with animated active segment.
+///
+/// The container is a rounded pill with a `surfaceContainerHighest`
+/// background. The active segment slides as a white/surface pill with a
+/// subtle shadow and a 200 ms easeInOut animation.
+class SegmentTabBar extends StatefulWidget {
   const SegmentTabBar({
     required this.tabs,
     required this.selectedIndex,
@@ -303,6 +454,7 @@ class SegmentTabBar extends StatefulWidget {
     this.unselectedTextStyle,
     super.key,
   });
+
   final List<String> tabs;
   final int selectedIndex;
   final void Function(int index) onTabPress;
@@ -317,53 +469,92 @@ class SegmentTabBar extends StatefulWidget {
 class _SegmentTabBarState extends State<SegmentTabBar> {
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       padding: widget.padding,
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
+        color: colorScheme.surfaceContainerHighest
+            .withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: widget.tabs.asMap().entries.map((entry) {
-          final index = entry.key;
-          final isSelected = widget.selectedIndex == index;
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Resolve inner padding to calculate usable width
+          final resolvedPadding =
+              widget.padding.resolve(Directionality.of(context));
+          final innerWidth = constraints.maxWidth -
+              resolvedPadding.left -
+              resolvedPadding.right;
+          final segmentWidth = innerWidth / widget.tabs.length;
 
-          return GestureDetector(
-            onTap: () => widget.onTabPress(index),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected ? colorScheme.surface : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1),
+          return Stack(
+            children: [
+              // Sliding active segment pill
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                left: widget.selectedIndex * segmentWidth,
+                top: 0,
+                bottom: 0,
+                width: segmentWidth,
+                child: Container(
+                  margin: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.10),
+                        blurRadius: 6,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Label row (above the pill)
+              Row(
+                children: widget.tabs.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final isSelected =
+                      widget.selectedIndex == index;
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => widget.onTabPress(index),
+                    child: SizedBox(
+                      width: segmentWidth,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 7,
                         ),
-                      ]
-                    : null,
+                        child: Text(
+                          entry.value,
+                          textAlign: TextAlign.center,
+                          style: isSelected
+                              ? (widget.selectedTextStyle ??
+                                  const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.2,
+                                  ))
+                              : (widget.unselectedTextStyle ??
+                                  TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: colorScheme.onSurface
+                                        .withValues(alpha: 0.6),
+                                    height: 1.2,
+                                  )),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
-              child: Text(
-                entry.value,
-                style: isSelected
-                    ? (widget.selectedTextStyle ??
-                        theme.textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ))
-                    : (widget.unselectedTextStyle ??
-                        theme.textTheme.labelLarge?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        )),
-              ),
-            ),
+            ],
           );
-        }).toList(),
+        },
       ),
     );
   }

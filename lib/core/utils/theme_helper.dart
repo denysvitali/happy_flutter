@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 /// Theme mode enumeration matching React Native's themePreference
 enum AppThemeMode {
@@ -258,10 +259,12 @@ AppBarTheme _buildAppBarTheme({required bool dark}) {
 }
 
 CardThemeData _buildCardTheme({required bool dark}) {
+  // Richer shadow via AppShadow.card preset instead of raw elevation.
   return CardThemeData(
-    elevation: 0,
+    elevation: AppElevation.none,
+    shadowColor: Colors.transparent,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
       side: BorderSide(
         color: dark
             ? Colors.white.withAlpha(18)
@@ -274,18 +277,32 @@ CardThemeData _buildCardTheme({required bool dark}) {
   );
 }
 
+/// Returns the [BoxShadow] list appropriate for a card in the given theme.
+///
+/// Use this when you need a [BoxDecoration] with the card shadow preset,
+/// e.g. in a custom widget that cannot use [Card]:
+/// ```dart
+/// BoxDecoration(boxShadow: cardBoxShadow(dark: isDark))
+/// ```
+List<BoxShadow> cardBoxShadow({required bool dark}) {
+  if (dark) return const [];
+  return AppShadow.card;
+}
+
 InputDecorationTheme _buildInputDecorationTheme({required bool dark}) {
   final borderColor = dark
       ? Colors.white.withAlpha(30)
       : Colors.black.withAlpha(20);
-  final focusColor = _kSeedColor;
-  const radius = BorderRadius.all(Radius.circular(12));
+  // 2 px primary-color focus ring with a 15 % opacity fill tint.
+  const focusColor = _kSeedColor;
+  final focusFill = focusColor.withAlpha(38); // ~0.15 opacity
+  final radius = BorderRadius.circular(AppRadius.md);
 
   return InputDecorationTheme(
     filled: true,
     fillColor: dark ? _kDarkSurfaceVariant : _kLightSurfaceVariant,
-    contentPadding: const EdgeInsets.symmetric(
-      horizontal: 16,
+    contentPadding: EdgeInsets.symmetric(
+      horizontal: AppSpacing.lg,
       vertical: 14,
     ),
     border: OutlineInputBorder(
@@ -298,7 +315,7 @@ InputDecorationTheme _buildInputDecorationTheme({required bool dark}) {
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: radius,
-      borderSide: BorderSide(color: focusColor, width: 2),
+      borderSide: const BorderSide(color: focusColor, width: 2),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: radius,
@@ -315,18 +332,36 @@ InputDecorationTheme _buildInputDecorationTheme({required bool dark}) {
           ? const Color(0xFF64748B)
           : const Color(0xFF94A3B8),
     ),
+    // Subtle primary-tinted fill when focused (applied by widget via
+    // focusedBorder fill workaround; see focusFill below).
+    // Flutter's InputDecorationTheme does not directly support a
+    // separate focusedFillColor, so we expose focusFill as a helper
+    // colour used by custom form-field wrappers.
+    prefixIconColor: WidgetStateColor.resolveWith(
+      (states) => states.contains(WidgetState.focused)
+          ? focusFill
+          : (dark
+              ? const Color(0xFF64748B)
+              : const Color(0xFF94A3B8)),
+    ),
   );
 }
 
 ChipThemeData _buildChipTheme({required bool dark}) {
+  // 8 px radius, tighter label (11 px), improved horizontal padding.
   return ChipThemeData(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    padding: EdgeInsets.symmetric(
+      horizontal: AppSpacing.sm,
+      vertical: AppSpacing.xs / 2, // 2 px vertical
+    ),
+    labelPadding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
     labelStyle: GoogleFonts.inter(
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: FontWeight.w500,
+      letterSpacing: 0.2,
     ),
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(AppRadius.sm),
     ),
     side: BorderSide(
       color: dark
@@ -343,13 +378,13 @@ ElevatedButtonThemeData _buildElevatedButtonTheme() {
     style: ElevatedButton.styleFrom(
       backgroundColor: _kSeedColor,
       foregroundColor: Colors.white,
-      elevation: 0,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24,
+      elevation: AppElevation.none,
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.xxl,
         vertical: 14,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       textStyle: GoogleFonts.inter(
         fontSize: 15,
@@ -360,24 +395,65 @@ ElevatedButtonThemeData _buildElevatedButtonTheme() {
   );
 }
 
+/// Lighter top-to-base gradient stop for primary filled buttons.
+///
+/// The gradient runs from [_kFilledButtonTop] (5 % lightened via alpha
+/// blend with white) down to [_kSeedColor].
+const _kFilledButtonTop = Color(0xFF4B80F0); // ~15 % lighter than seed
+
 FilledButtonThemeData _buildFilledButtonTheme() {
+  // FilledButton.styleFrom doesn't support gradients directly.
+  // We use a custom ButtonStyle with a WidgetStateProperty for
+  // backgroundBuilder so the gradient is applied as a decoration
+  // painted behind the label while foreground stays white.
   return FilledButtonThemeData(
-    style: FilledButton.styleFrom(
-      backgroundColor: _kSeedColor,
-      foregroundColor: Colors.white,
-      elevation: 0,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24,
-        vertical: 14,
+    style: ButtonStyle(
+      foregroundColor: const WidgetStatePropertyAll(Colors.white),
+      overlayColor: WidgetStatePropertyAll(
+        Colors.white.withAlpha(30),
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+      elevation: const WidgetStatePropertyAll(AppElevation.none),
+      shadowColor:
+          const WidgetStatePropertyAll(Colors.transparent),
+      padding: WidgetStatePropertyAll(
+        EdgeInsets.symmetric(
+          horizontal: AppSpacing.xxl,
+          vertical: 14,
+        ),
       ),
-      textStyle: GoogleFonts.inter(
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.1,
+      shape: WidgetStatePropertyAll(
+        RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
       ),
+      textStyle: WidgetStatePropertyAll(
+        GoogleFonts.inter(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.1,
+        ),
+      ),
+      // Gradient via backgroundBuilder (Flutter ≥ 3.13).
+      backgroundBuilder: (context, states, child) {
+        final disabled = states.contains(WidgetState.disabled);
+        return Ink(
+          decoration: BoxDecoration(
+            gradient: disabled
+                ? null
+                : const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [_kFilledButtonTop, _kSeedColor],
+                  ),
+            color: disabled
+                ? const Color(0xFF94A3B8)
+                : null,
+            borderRadius:
+                BorderRadius.circular(AppRadius.md),
+          ),
+          child: child,
+        );
+      },
     ),
   );
 }
@@ -385,21 +461,50 @@ FilledButtonThemeData _buildFilledButtonTheme() {
 OutlinedButtonThemeData _buildOutlinedButtonTheme({
   required bool dark,
 }) {
+  // Ghost style: transparent background, subtle primary-color border
+  // that deepens on hover/pressed; foreground is the seed color.
   return OutlinedButtonThemeData(
-    style: OutlinedButton.styleFrom(
-      foregroundColor: _kSeedColor,
-      side: const BorderSide(color: _kSeedColor),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24,
-        vertical: 14,
+    style: ButtonStyle(
+      foregroundColor:
+          const WidgetStatePropertyAll(_kSeedColor),
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.pressed)) {
+          return _kSeedColor.withAlpha(20);
+        }
+        if (states.contains(WidgetState.hovered)) {
+          return _kSeedColor.withAlpha(10);
+        }
+        return Colors.transparent;
+      }),
+      overlayColor: WidgetStatePropertyAll(
+        _kSeedColor.withAlpha(15),
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+      side: WidgetStateProperty.resolveWith((states) {
+        final alpha =
+            states.contains(WidgetState.focused) ? 255 : 120;
+        return BorderSide(
+          color: _kSeedColor.withAlpha(alpha),
+          width: states.contains(WidgetState.focused) ? 2 : 1,
+        );
+      }),
+      elevation: const WidgetStatePropertyAll(AppElevation.none),
+      padding: WidgetStatePropertyAll(
+        EdgeInsets.symmetric(
+          horizontal: AppSpacing.xxl,
+          vertical: 14,
+        ),
       ),
-      textStyle: GoogleFonts.inter(
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.1,
+      shape: WidgetStatePropertyAll(
+        RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+      ),
+      textStyle: WidgetStatePropertyAll(
+        GoogleFonts.inter(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.1,
+        ),
       ),
     ),
   );

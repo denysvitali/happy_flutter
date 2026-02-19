@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/diff_view_widget.dart'
     as dw show DiffView;
+import 'bash_view.dart' show FilePillChip;
 
 /// View for displaying Edit tool diffs.
 ///
@@ -51,10 +52,15 @@ class _EditViewState extends State<EditView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── File path header ────────────────────────────
-          if (filePath.isNotEmpty)
-            _FilePathHeader(filePath: filePath),
-          const SizedBox(height: 6),
+          // ── File path pill chip ─────────────────────────
+          if (filePath.isNotEmpty) ...[
+            FilePillChip(path: filePath),
+            const SizedBox(height: 8),
+          ],
+
+          // ── Diff section label ──────────────────────────
+          _EditSectionLabel(label: 'DIFF'),
+          const SizedBox(height: 4),
 
           // ── Expand/collapse toggle for large diffs ──────
           if (!isShort)
@@ -105,72 +111,24 @@ class _EditViewState extends State<EditView> {
   }
 }
 
-/// Displays a file path as a prominent pill-style label with a file icon.
-class _FilePathHeader extends StatelessWidget {
+/// Small all-caps section label for edit view blocks.
+class _EditSectionLabel extends StatelessWidget {
+  const _EditSectionLabel({required this.label});
 
-  const _FilePathHeader({required this.filePath});
-  final String filePath;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    // Split into directory prefix and filename for styling.
-    final lastSlash = filePath.lastIndexOf('/');
-    final dir =
-        lastSlash >= 0 ? filePath.substring(0, lastSlash + 1) : '';
-    final filename = lastSlash >= 0
-        ? filePath.substring(lastSlash + 1)
-        : filePath;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: cs.outlineVariant, width: 0.5),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.edit_document,
-            size: 14,
-            color: cs.onSurfaceVariant,
-          ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: RichText(
-              overflow: TextOverflow.ellipsis,
-              text: TextSpan(
-                children: [
-                  if (dir.isNotEmpty)
-                    TextSpan(
-                      text: dir,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                        fontFamily: 'monospace',
-                        fontSize: 12,
-                      ),
-                    ),
-                  TextSpan(
-                    text: filename,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurface,
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+    final cs = Theme.of(context).colorScheme;
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w600,
+        color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+        letterSpacing: 0.8,
+        fontFamily: 'monospace',
+        fontFamilyFallback: const ['Courier New', 'Courier'],
       ),
     );
   }

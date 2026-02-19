@@ -16,6 +16,10 @@ import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
 import 'session_avatar.dart';
 
+// ─── Stagger constants ───────────────────────────────────────────────────────
+const _kStaggerStep = 30; // ms between each card
+const _kSlideDuration = 250; // ms for slide+fade
+
 /// Sessions list screen with date grouping and enhanced status display.
 class SessionsScreen extends ConsumerStatefulWidget {
   const SessionsScreen({super.key});
@@ -142,7 +146,8 @@ class _SessionsListContent extends ConsumerStatefulWidget {
       _SessionsListContentState();
 }
 
-class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
+class _SessionsListContentState
+    extends ConsumerState<_SessionsListContent> {
   bool _hasLoaded = false;
   // Track list key to trigger stagger animation on first load.
   bool _animationTriggered = false;
@@ -194,6 +199,7 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
             .read(sessionsNotifierProvider.notifier)
             .refreshFromSync();
       },
+      color: Theme.of(context).colorScheme.primary,
       child: _buildSessionsList(
         context,
         activeSessions,
@@ -227,7 +233,7 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
     if (activeSessions.isNotEmpty) {
       children.add(
         _FadeInSection(
-          delay: Duration(milliseconds: 50 * staggerIndex),
+          delay: Duration(milliseconds: _kStaggerStep * staggerIndex),
           child: _SectionHeader(
             title: context.l10n.sessionActiveSessions,
           ),
@@ -239,7 +245,9 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
         if (activeByPath.length > 1) {
           children.add(
             _FadeInSection(
-              delay: Duration(milliseconds: 50 * staggerIndex),
+              delay: Duration(
+                milliseconds: _kStaggerStep * staggerIndex,
+              ),
               child: _PathHeader(path: entry.key),
             ),
           );
@@ -265,7 +273,7 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
     if (inactiveSessions.isNotEmpty) {
       children.add(
         _FadeInSection(
-          delay: Duration(milliseconds: 50 * staggerIndex),
+          delay: Duration(milliseconds: _kStaggerStep * staggerIndex),
           child: _SectionHeader(
             title: '${context.l10n.sessionHistory}'
                 ' (${inactiveSessions.length})',
@@ -310,8 +318,10 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
         case SessionHistoryDateHeader(:final date):
           widgets.add(
             _FadeInSection(
-              delay: Duration(milliseconds: 50 * itemIndex),
-              child: _DateHeaderWidget(date: date),
+              delay: Duration(
+                milliseconds: _kStaggerStep * itemIndex,
+              ),
+              child: _DateSectionHeader(date: date),
             ),
           );
         case SessionHistorySession(:final session):
@@ -344,12 +354,13 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
   }
 }
 
+// ─── Animation helpers ───────────────────────────────────────────────────────
+
 /// Staggered slide-in animation wrapper.
 ///
-/// Each card slides up from 24px below its final position, with an
-/// opacity fade, delayed by [index] * 50ms.
+/// Each card slides up from 24 px below its final position, with an
+/// opacity fade, delayed by [index] * [_kStaggerStep] ms.
 class _StaggeredSlideIn extends StatefulWidget {
-
   const _StaggeredSlideIn({
     required this.index,
     required this.animate,
@@ -373,7 +384,7 @@ class _StaggeredSlideInState extends State<_StaggeredSlideIn>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: _kSlideDuration),
       vsync: this,
     );
     _opacity = CurvedAnimation(
@@ -381,14 +392,15 @@ class _StaggeredSlideInState extends State<_StaggeredSlideIn>
       curve: Curves.easeOut,
     );
     _slide = Tween<Offset>(
-      begin: const Offset(0, 0.12),
+      begin: const Offset(0, 0.10),
       end: Offset.zero,
     ).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
     );
 
     if (widget.animate) {
-      final delay = Duration(milliseconds: 50 * widget.index);
+      final delay =
+          Duration(milliseconds: _kStaggerStep * widget.index);
       Future.delayed(delay, () {
         if (mounted) _controller.forward();
       });
@@ -414,7 +426,6 @@ class _StaggeredSlideInState extends State<_StaggeredSlideIn>
 
 /// Fade-in for non-card elements (headers).
 class _FadeInSection extends StatefulWidget {
-
   const _FadeInSection({required this.delay, required this.child});
   final Duration delay;
   final Widget child;
@@ -456,7 +467,9 @@ class _FadeInSectionState extends State<_FadeInSection>
   }
 }
 
-/// Path header for grouping sessions.
+// ─── Section / header widgets ─────────────────────────────────────────────────
+
+/// Path header for grouping active sessions by working directory.
 class _PathHeader extends StatelessWidget {
   const _PathHeader({required this.path});
   final String path;
@@ -481,7 +494,6 @@ class _PathHeader extends StatelessWidget {
 
 /// Section header for active / archived sessions.
 class _SectionHeader extends StatelessWidget {
-
   const _SectionHeader({required this.title});
   final String title;
 
@@ -502,26 +514,89 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// Date header widget for grouped sessions.
-class _DateHeaderWidget extends StatelessWidget {
-
-  const _DateHeaderWidget({required this.date});
+/// iOS-style date section header — small-caps label + extending divider.
+class _DateSectionHeader extends StatelessWidget {
+  const _DateSectionHeader({required this.date});
   final String date;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
+    final labelColor = theme.colorScheme.primary;
+    final dividerColor =
+        theme.colorScheme.outlineVariant.withValues(alpha: 0.6);
+
+    return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-      color: theme.colorScheme.surface,
-      child: Text(
-        date.toUpperCase(),
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w600,
-          fontSize: 13,
-          letterSpacing: 0.5,
+      child: Row(
+        children: [
+          Text(
+            date.toUpperCase(),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: labelColor,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [dividerColor, Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Status widgets ──────────────────────────────────────────────────────────
+
+/// Pill-shaped status badge used inside session cards.
+///
+/// Shows a dot + text in a rounded container with a tinted background.
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({
+    required this.color,
+    required this.text,
+    required this.isPulsing,
+  });
+  final Color color;
+  final String text;
+  final bool isPulsing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: color.withValues(alpha: 0.25),
         ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          StatusDot(color: color, isPulsing: isPulsing, size: 6),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -531,12 +606,13 @@ class _DateHeaderWidget extends StatelessWidget {
 ///
 /// Matches React Native's StatusDot component implementation.
 class StatusDot extends StatefulWidget {
-
   const StatusDot({
-    required this.color, super.key,
+    required this.color,
+    super.key,
     this.isPulsing = false,
     this.size = 6,
   });
+
   /// The dot color.
   final Color color;
 
@@ -596,9 +672,8 @@ class _StatusDotState extends State<StatusDot>
       animation: _animation,
       builder: (context, child) {
         // React Native pulsing: opacity goes from 1.0 to 0.3 and back.
-        final opacity = widget.isPulsing
-            ? 0.3 + 0.7 * _animation.value
-            : 1.0;
+        final opacity =
+            widget.isPulsing ? 0.3 + 0.7 * _animation.value : 1.0;
         return Container(
           width: widget.size,
           height: widget.size,
@@ -612,13 +687,16 @@ class _StatusDotState extends State<StatusDot>
   }
 }
 
-/// Active session card with a pulsing green glow border.
-class ActiveSessionCard extends StatefulWidget {
+// ─── Active session card ─────────────────────────────────────────────────────
 
+/// Active session card with a gradient border and primary-tinted background.
+class ActiveSessionCard extends StatefulWidget {
   const ActiveSessionCard({
-    required this.session, super.key,
+    required this.session,
+    super.key,
     this.onTap,
   });
+
   /// The session to display.
   final Session session;
 
@@ -656,6 +734,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final sessionStatus = getSessionStatus(widget.session);
     final avatarId = getSessionAvatarId(widget.session);
     final sessionName = getSessionName(widget.session);
@@ -665,117 +744,123 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
     return AnimatedBuilder(
       animation: _glowAnimation,
       builder: (context, child) {
-        // Pulsing glow: blur 4–18px, spread 0–3px, opacity 0.15–0.55.
         final t = _glowAnimation.value;
-        final blurRadius = 4.0 + 14.0 * t;
-        final spreadRadius = 0.0 + 3.0 * t;
-        final glowOpacity = 0.15 + 0.40 * t;
-        final borderOpacity = 0.25 + 0.35 * t;
+        final glowOpacity = 0.10 + 0.30 * t;
+        final borderOpacity = 0.30 + 0.40 * t;
 
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: Colors.green.withValues(alpha: borderOpacity),
-              width: 1.5,
-            ),
+        return Container(
+          margin: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 4,
           ),
-          elevation: 0,
-          color: theme.colorScheme.surface,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            // Subtle primary-tinted background overlay.
+            color: cs.surface,
+            // Gradient border via a gradient BoxDecoration trick:
+            // outer container has gradient, inner has surface color.
+            boxShadow: [
+              BoxShadow(
+                color: cs.primary.withValues(alpha: glowOpacity),
+                blurRadius: 14 * t + 4,
+                spreadRadius: 2 * t,
+              ),
+            ],
+          ),
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.green.withValues(alpha: glowOpacity),
-                  blurRadius: blurRadius,
-                  spreadRadius: spreadRadius,
-                ),
-              ],
+              borderRadius: BorderRadius.circular(14),
+              color: cs.primary.withValues(alpha: 0.04),
+              border: Border.all(
+                color: cs.primary.withValues(alpha: borderOpacity),
+                width: 1.5,
+              ),
             ),
-            child: InkWell(
-              onTap: widget.onTap,
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Active indicator badge.
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.green.withValues(alpha: 
-                              0.4 + 0.3 * t,
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                onTap: widget.onTap,
+                borderRadius: BorderRadius.circular(14),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Pulsing green active indicator.
+                      _ActiveIndicatorDot(t: t, primary: cs.primary),
+                      const SizedBox(width: 12),
+                      // Avatar with Hero animation.
+                      Hero(
+                        tag: 'session-avatar-${widget.session.id}',
+                        child: SessionAvatar(
+                          id: avatarId,
+                          flavor: sessionFlavor,
+                          size: 48,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              sessionName,
+                              style:
+                                  theme.textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: cs.onSurface,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
-                            blurRadius: 6 + 4 * t,
-                            spreadRadius: 1,
-                          ),
-                        ],
+                            const SizedBox(height: 3),
+                            Text(
+                              sessionSubtitle,
+                              style:
+                                  theme.textTheme.labelSmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                                fontFamily: 'monospace',
+                                fontSize: 11,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                            if (sessionStatus.shouldShowStatus) ...[
+                              const SizedBox(height: 8),
+                              _StatusPill(
+                                color: Color(sessionStatus.statusColor),
+                                text: sessionStatus.statusText,
+                                isPulsing: sessionStatus.isPulsing,
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Avatar with Hero animation.
-                    Hero(
-                      tag: 'session-avatar-${widget.session.id}',
-                      child: SessionAvatar(
-                        id: avatarId,
-                        flavor: sessionFlavor,
-                        size: 48,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            sessionName,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w500,
+                            formatTimestamp(
+                              widget.session.updatedAt,
+                              relative: true,
                             ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            sessionSubtitle,
-                            style: TextStyle(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              fontSize: 13,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                              fontSize: 11,
                             ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
                           ),
-                          if (sessionStatus.shouldShowStatus)
-                            _buildStatusRow(context, sessionStatus),
+                          const SizedBox(height: 6),
+                          StatusDot(
+                            color: Color(sessionStatus.statusDotColor),
+                            isPulsing: sessionStatus.isPulsing,
+                            size: 8,
+                          ),
                         ],
                       ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          formatTimestamp(
-                            widget.session.updatedAt,
-                            relative: true,
-                          ),
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        _buildStatusIndicator(sessionStatus),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -784,68 +869,50 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
       },
     );
   }
+}
 
-  Widget _buildStatusRow(BuildContext context, SessionStatus status) {
-    final color = Color(status.statusColor);
+/// Small pulsing dot shown on the left of the active session card.
+class _ActiveIndicatorDot extends StatelessWidget {
+  const _ActiveIndicatorDot({required this.t, required this.primary});
+  final double t;
+  final Color primary;
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 16,
-            height: 16,
-            child: Center(
-              child: StatusDot(
-                color: color,
-                isPulsing: status.isPulsing,
-                size: 8,
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              status.statusText,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: Colors.green,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withValues(alpha: 0.35 + 0.30 * t),
+            blurRadius: 6 + 4 * t,
+            spreadRadius: 1,
           ),
         ],
       ),
     );
   }
-
-  Widget _buildStatusIndicator(SessionStatus status) {
-    final color = Color(status.statusDotColor);
-
-    return StatusDot(
-      color: status.isConnected ? color : const Color(0xFF999999),
-      isPulsing: status.isPulsing,
-      size: 8,
-    );
-  }
 }
+
+// ─── Archived session card ───────────────────────────────────────────────────
 
 /// Session card widget with enhanced status display and avatars.
 ///
 /// Matches React Native's CompactSessionRow implementation.
 class SessionCard extends StatelessWidget {
-
   const SessionCard({
-    required this.session, super.key,
+    required this.session,
+    super.key,
     this.onTap,
     this.isFirst = false,
     this.isLast = false,
     this.isSingle = false,
     this.showDateHeader = false,
   });
+
   /// The session to display.
   final Session session;
 
@@ -867,14 +934,15 @@ class SessionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final sessionStatus = getSessionStatus(session);
     final avatarId = getSessionAvatarId(session);
     final sessionName = getSessionName(session);
     final sessionSubtitle = getSessionSubtitle(session);
     final sessionFlavor = session.metadata?.flavor;
 
-    // Determine card styling based on position.
-    BorderRadius? borderRadius;
+    // Determine card border-radius based on position within group.
+    BorderRadius borderRadius;
     if (isSingle) {
       borderRadius = BorderRadius.circular(12);
     } else if (isFirst) {
@@ -883,26 +951,31 @@ class SessionCard extends StatelessWidget {
     } else if (isLast) {
       borderRadius =
           const BorderRadius.vertical(bottom: Radius.circular(12));
+    } else {
+      borderRadius = BorderRadius.zero;
     }
 
     // Session title color based on connection status (matches RN).
     final titleColor = sessionStatus.isConnected
-        ? theme.colorScheme.onSurface
-        : theme.colorScheme.onSurfaceVariant;
+        ? cs.onSurface
+        : cs.onSurfaceVariant;
 
     return Card(
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: borderRadius ?? BorderRadius.zero,
+        borderRadius: borderRadius,
         side: BorderSide.none,
       ),
       elevation: 0,
-      color: theme.colorScheme.surface,
+      color: cs.surface,
       child: InkWell(
         onTap: onTap,
         borderRadius: borderRadius,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 12,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -912,19 +985,19 @@ class SessionCard extends StatelessWidget {
                 child: SessionAvatar(
                   id: avatarId,
                   flavor: sessionFlavor,
-                  size: 48,
+                  size: 44,
                   monochrome: !sessionStatus.isConnected,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       sessionName,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
                         color: titleColor,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -933,31 +1006,45 @@ class SessionCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       sessionSubtitle,
-                      style: TextStyle(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 13,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        fontFamily: 'monospace',
+                        fontSize: 11,
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
-                    if (sessionStatus.shouldShowStatus)
-                      _buildStatusRow(context, sessionStatus),
+                    if (sessionStatus.shouldShowStatus) ...[
+                      const SizedBox(height: 6),
+                      _StatusPill(
+                        color: Color(sessionStatus.statusColor),
+                        text: sessionStatus.statusText,
+                        isPulsing: sessionStatus.isPulsing,
+                      ),
+                    ],
                   ],
                 ),
               ),
-              // Right side: timestamp and status indicator.
+              const SizedBox(width: 8),
+              // Right side: timestamp and status dot.
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     formatTimestamp(session.updatedAt, relative: true),
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontSize: 12,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      fontSize: 11,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  _buildStatusIndicator(sessionStatus),
+                  StatusDot(
+                    color: sessionStatus.isConnected
+                        ? Color(sessionStatus.statusDotColor)
+                        : const Color(0xFF999999),
+                    isPulsing: sessionStatus.isPulsing,
+                    size: 7,
+                  ),
                 ],
               ),
             ],
@@ -966,56 +1053,11 @@ class SessionCard extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildStatusRow(BuildContext context, SessionStatus status) {
-    final color = Color(status.statusColor);
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 16,
-            height: 16,
-            child: Center(
-              child: StatusDot(
-                color: color,
-                isPulsing: status.isPulsing,
-                size: 8,
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              status.statusText,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusIndicator(SessionStatus status) {
-    final color = Color(status.statusDotColor);
-
-    return StatusDot(
-      color: status.isConnected ? color : const Color(0xFF999999),
-      isPulsing: status.isPulsing,
-      size: 8,
-    );
-  }
 }
 
-/// Empty sessions view with an animated computer icon.
+// ─── Empty state ─────────────────────────────────────────────────────────────
+
+/// Empty sessions view with an animated computer icon and CTA button.
 class EmptySessionsView extends StatefulWidget {
   const EmptySessionsView({super.key});
 
@@ -1027,7 +1069,7 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _pulse;
-  late Animation<double> _fadeIn;
+  late Animation<double> _glow;
 
   @override
   void initState() {
@@ -1043,7 +1085,7 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
     );
 
     // Icon glow opacity: 0.0 to 0.6.
-    _fadeIn = Tween<double>(begin: 0.0, end: 0.6).animate(
+    _glow = Tween<double>(begin: 0.0, end: 0.6).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
@@ -1058,9 +1100,8 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    final iconColor =
-        theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4);
-    final glowColor = theme.colorScheme.primary;
+    final cs = theme.colorScheme;
+    final iconColor = cs.onSurfaceVariant.withValues(alpha: 0.4);
 
     return Center(
       child: Padding(
@@ -1084,8 +1125,9 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: glowColor
-                                  .withValues(alpha: _fadeIn.value * 0.35),
+                              color: cs.primary.withValues(
+                                alpha: _glow.value * 0.35,
+                              ),
                               blurRadius: 32,
                               spreadRadius: 8,
                             ),
@@ -1106,34 +1148,31 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
             Text(
               l10n.sessionNoSessionsYet,
               style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                color: cs.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               l10n.emptyMainScreenInstallCli,
-              style: TextStyle(
-                fontSize: 14,
-                color: theme.colorScheme.onSurfaceVariant,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
               l10n.emptyMainScreenRunIt,
-              style: TextStyle(
-                fontSize: 14,
-                color: theme.colorScheme.onSurfaceVariant,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
               l10n.emptyMainScreenScanQrCode,
-              style: TextStyle(
-                fontSize: 14,
-                color: theme.colorScheme.onSurfaceVariant,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
@@ -1151,12 +1190,14 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
   }
 }
 
+// ─── Connection status badge ─────────────────────────────────────────────────
+
 /// Connection status badge in the app bar.
 ///
 /// Shows a pulsing indicator while connecting.
 class ConnectionStatusBadge extends StatefulWidget {
-
   const ConnectionStatusBadge({required this.status, super.key});
+
   /// The current connection status.
   final ConnectionStatus status;
 
@@ -1227,7 +1268,8 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
             ? AnimatedBuilder(
                 animation: _pulseAnimation,
                 builder: (context, child) {
-                  final opacity = 0.35 + 0.65 * _pulseAnimation.value;
+                  final opacity =
+                      0.35 + 0.65 * _pulseAnimation.value;
                   final scale = 0.75 + 0.5 * _pulseAnimation.value;
                   return Transform.scale(
                     scale: scale,
@@ -1244,6 +1286,8 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
     );
   }
 }
+
+// ─── New session dialog ──────────────────────────────────────────────────────
 
 /// New session dialog.
 class NewSessionDialog extends ConsumerStatefulWidget {

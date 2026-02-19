@@ -102,6 +102,476 @@ const _kBorderAnim = Duration(milliseconds: 200);
 const _kSendAnim = Duration(milliseconds: 120);
 const _kSwitchAnim = Duration(milliseconds: 180);
 
+// ---------------------------------------------------------------------------
+// Private sub-widgets
+// ---------------------------------------------------------------------------
+
+/// Send / stop button with animated icon crossfade and scale spring.
+class _SendButton extends StatelessWidget {
+  /// Creates a [_SendButton].
+  const _SendButton({
+    required this.isSending,
+    required this.isSendDisabled,
+    required this.onTap,
+    required this.scaleAnimation,
+  });
+
+  /// Whether a message is actively being sent (shows stop indicator).
+  final bool isSending;
+
+  /// Whether sending is disabled entirely.
+  final bool isSendDisabled;
+
+  /// Callback when the button is tapped.
+  final VoidCallback onTap;
+
+  /// Spring-scale animation driven by the parent state.
+  final Animation<double> scaleAnimation;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final canSend = !isSendDisabled && !isSending;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: ScaleTransition(
+        scale: scaleAnimation,
+        child: AnimatedContainer(
+          duration: _kBorderAnim,
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: canSend
+                ? cs.primary
+                : cs.surfaceContainerHighest,
+            boxShadow: canSend
+                ? [
+                    BoxShadow(
+                      color: cs.primary.withValues(alpha: 0.28),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : const [],
+          ),
+          child: AnimatedSwitcher(
+            duration: _kSwitchAnim,
+            switchInCurve: Curves.easeIn,
+            switchOutCurve: Curves.easeOut,
+            transitionBuilder: (child, anim) =>
+                FadeTransition(opacity: anim, child: child),
+            child: isSending
+                ? Padding(
+                    key: const ValueKey('spinner'),
+                    padding: const EdgeInsets.all(11),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: cs.onSurface.withValues(alpha: 0.6),
+                    ),
+                  )
+                : Icon(
+                    key: const ValueKey('send'),
+                    Icons.arrow_upward_rounded,
+                    size: 20,
+                    color: canSend
+                        ? cs.onPrimary
+                        : cs.onSurface.withValues(alpha: 0.38),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Model selector pill that opens a bottom-sheet picker.
+class _ModelSelector extends StatelessWidget {
+  /// Creates a [_ModelSelector].
+  const _ModelSelector({
+    required this.model,
+    required this.onTap,
+  });
+
+  /// The currently selected model.
+  final ClaudeModel model;
+
+  /// Called when the chip is tapped (should open picker).
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isDefault = model == ClaudeModel.defaultModel;
+
+    final chipBg = isDefault
+        ? cs.surfaceContainerHighest
+        : cs.primary;
+    final chipFg = isDefault ? cs.onSurfaceVariant : cs.onPrimary;
+    final chipBorder = isDefault
+        ? cs.outlineVariant.withValues(alpha: 0.7)
+        : cs.primary;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: _kBorderAnim,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 5,
+        ),
+        decoration: BoxDecoration(
+          color: chipBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: chipBorder),
+          boxShadow: isDefault
+              ? const []
+              : [
+                  BoxShadow(
+                    color: cs.primary.withValues(alpha: 0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              model == ClaudeModel.opus
+                  ? Icons.diamond_outlined
+                  : Icons.auto_awesome_outlined,
+              size: 12,
+              color: chipFg,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              model.label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 11,
+                color: chipFg,
+                fontWeight:
+                    isDefault ? FontWeight.w500 : FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(width: 2),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 13,
+              color: chipFg.withValues(alpha: 0.7),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Context-size indicator showing token usage as "Nk / Mk" label.
+class _ContextSizeIndicator extends StatelessWidget {
+  /// Creates a [_ContextSizeIndicator].
+  const _ContextSizeIndicator({required this.contextSize});
+
+  /// Token count currently used.
+  final int contextSize;
+
+  static const int _maxContext = 190000;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final pctUsed =
+        (contextSize / _maxContext * 100).clamp(0.0, 100.0);
+    final pctRemaining = (100 - pctUsed).round();
+
+    final Color indicatorColor;
+    if (pctRemaining <= 5) {
+      indicatorColor = theme.colorScheme.error;
+    } else if (pctRemaining <= 15) {
+      indicatorColor = Colors.orange;
+    } else {
+      indicatorColor =
+          theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
+    }
+
+    // Format as "Nk tokens"
+    final String label;
+    if (contextSize >= 1000) {
+      final kVal = (contextSize / 1000).toStringAsFixed(0);
+      label = '${kVal}k / 190k';
+    } else {
+      label = '$contextSize / 190k';
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 32,
+          height: 3,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: pctUsed / 100,
+              backgroundColor:
+                  theme.colorScheme.surfaceContainerHighest,
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(indicatorColor),
+            ),
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: indicatorColor,
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Toolbar row containing permission selector, model selector, and
+/// context indicator.
+class _InputToolbar extends StatelessWidget {
+  /// Creates an [_InputToolbar].
+  const _InputToolbar({
+    required this.onShowModelPicker,
+    this.permissionMode,
+    this.onPermissionModeChanged,
+    this.modelMode,
+    this.contextSize,
+  });
+
+  /// Active permission mode (null = server default).
+  final perm.PermissionMode? permissionMode;
+
+  /// Callback when permission mode changes.
+  final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
+
+  /// Active model (null = server default).
+  final ClaudeModel? modelMode;
+
+  /// Opens the model bottom-sheet picker.
+  final VoidCallback onShowModelPicker;
+
+  /// Current context token usage, or null if unknown.
+  final int? contextSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final model = modelMode ?? ClaudeModel.defaultModel;
+
+    return Row(
+      children: [
+        if (onPermissionModeChanged != null)
+          perm.PermissionModeSelector(
+            selectedMode: permissionMode,
+            onModeChanged: onPermissionModeChanged,
+          ),
+        const SizedBox(width: 6),
+        _ModelSelector(
+          model: model,
+          onTap: onShowModelPicker,
+        ),
+        const Spacer(),
+        if (contextSize != null && contextSize! > 0)
+          _ContextSizeIndicator(contextSize: contextSize!),
+      ],
+    );
+  }
+}
+
+/// Floating autocomplete suggestion list rendered above the input.
+class _FileAutocomplete extends StatelessWidget {
+  /// Creates a [_FileAutocomplete].
+  const _FileAutocomplete({
+    required this.suggestions,
+    required this.selectedIndex,
+    required this.onSelect,
+  });
+
+  /// Filtered suggestions to display.
+  final List<AutocompleteSuggestion> suggestions;
+
+  /// Currently highlighted suggestion index.
+  final int selectedIndex;
+
+  /// Called when a suggestion is tapped.
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: cs.outlineVariant.withValues(alpha: 0.5),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: AutocompleteOverlay(
+              suggestions: suggestions,
+              selectedIndex: selectedIndex,
+              onSelect: onSelect,
+              padding: EdgeInsets.zero,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Model picker bottom sheet helpers (standalone functions)
+// ---------------------------------------------------------------------------
+
+Widget _buildModelTile(
+  BuildContext ctx,
+  ClaudeModel model,
+  ClaudeModel current,
+  ThemeData theme,
+  ValueChanged<ClaudeModel> onChanged,
+) {
+  final cs = theme.colorScheme;
+  final isSelected = model == current;
+
+  return InkWell(
+    onTap: () {
+      Navigator.pop(ctx);
+      onChanged(model);
+    },
+    child: AnimatedContainer(
+      duration: _kBorderAnim,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 12,
+      ),
+      color: isSelected
+          ? cs.primaryContainer.withValues(alpha: 0.35)
+          : Colors.transparent,
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? cs.primary
+                  : cs.surfaceContainerHighest,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              model == ClaudeModel.opus
+                  ? Icons.diamond_outlined
+                  : model == ClaudeModel.sonnet
+                      ? Icons.auto_awesome_outlined
+                      : Icons.smart_toy_outlined,
+              size: 18,
+              color: isSelected ? cs.onPrimary : cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              model.label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight:
+                    isSelected ? FontWeight.w700 : FontWeight.w400,
+                color: isSelected ? cs.primary : cs.onSurface,
+              ),
+            ),
+          ),
+          if (isSelected)
+            Icon(
+              Icons.check_circle_rounded,
+              size: 18,
+              color: cs.primary,
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+void _showModelPickerSheet(
+  BuildContext context,
+  ClaudeModel current,
+  ValueChanged<ClaudeModel> onChanged,
+) {
+  final theme = Theme.of(context);
+  final cs = theme.colorScheme;
+
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: cs.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: cs.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text(
+                'Select Model',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            for (final model in ClaudeModel.values)
+              _buildModelTile(ctx, model, current, theme, onChanged),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Public widget
+// ---------------------------------------------------------------------------
+
 /// Enhanced chat input with autocomplete, draft persistence, and
 /// polished animations.
 class ChatInput extends ConsumerStatefulWidget {
@@ -306,7 +776,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
     if (trigger == '@') {
       final suggestions = widget.fileSuggestions
           .where(
-            (s) => s.label.toLowerCase().contains(query.toLowerCase()),
+            (s) =>
+                s.label.toLowerCase().contains(query.toLowerCase()),
           )
           .toList();
       _autocompleteController.setSuggestions(suggestions, query);
@@ -414,17 +885,14 @@ class _ChatInputState extends ConsumerState<ChatInput>
         if (widget.machineName != null || widget.currentPath != null)
           _buildContextInfoBar(context),
         if (_showAutocomplete)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: AutocompleteOverlay(
-              suggestions: _autocompleteController.suggestions,
-              selectedIndex: _autocompleteController.selectedIndex,
-              onSelect: (index) {
-                _applySuggestion(
-                  _autocompleteController.suggestions[index],
-                );
-              },
-            ),
+          _FileAutocomplete(
+            suggestions: _autocompleteController.suggestions,
+            selectedIndex: _autocompleteController.selectedIndex,
+            onSelect: (index) {
+              _applySuggestion(
+                _autocompleteController.suggestions[index],
+              );
+            },
           ),
         _buildInputContainer(context),
       ],
@@ -432,186 +900,139 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   // ---------------------------------------------------------------------------
-  // Input container
+  // Input container  (card-like elevated surface)
   // ---------------------------------------------------------------------------
 
   Widget _buildInputContainer(BuildContext context) {
     final theme = Theme.of(context);
-
-    return Stack(
-      children: [
-        // Subtle top-edge fade gradient
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 14,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  theme.scaffoldBackgroundColor,
-                  theme.scaffoldBackgroundColor.withValues(alpha: 0),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-          decoration: BoxDecoration(
-            color: theme.scaffoldBackgroundColor,
-            border: Border(
-              top: BorderSide(
-                color: theme.dividerColor.withValues(alpha: 0.6),
-              ),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildStatusBar(context),
-              const SizedBox(height: 6),
-              _buildInputRow(context),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Text field + send button row
-  // ---------------------------------------------------------------------------
-
-  Widget _buildInputRow(BuildContext context) {
-    final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final borderColor =
-        _isFocused ? cs.primary : cs.outlineVariant;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          child: AnimatedContainer(
-            duration: _kBorderAnim,
-            curve: Curves.easeInOut,
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: borderColor, width: 1.5),
-              boxShadow: _isFocused
-                  ? [
-                      BoxShadow(
-                        color: cs.primary.withValues(alpha: 0.12),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : const [],
-            ),
-            child: KeyboardListener(
-              focusNode: FocusNode(skipTraversal: true),
-              onKeyEvent: _handleKeyPress,
-              child: TextField(
-                controller: widget.controller,
-                focusNode: _focusNode,
-                decoration: InputDecoration(
-                  hintText: 'Message\u2026  \u2318\u23ce to send',
-                  hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-                    fontSize: 14,
-                  ),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 11,
-                  ),
-                ),
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(fontSize: 15),
-                maxLines: 4,
-                minLines: 1,
-                textInputAction:
-                    defaultTargetPlatform == TargetPlatform.android
-                        ? TextInputAction.newline
-                        : TextInputAction.send,
-                onSubmitted:
-                    defaultTargetPlatform == TargetPlatform.android
-                        ? null
-                        : (_) => widget.onSend(),
-              ),
-            ),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        border: Border(
+          top: BorderSide(
+            color: cs.onSurface.withValues(alpha: 0.08),
           ),
         ),
-        const SizedBox(width: 8),
-        _buildSendButton(context),
-      ],
-    );
-  }
-
-  Widget _buildSendButton(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final canSend = !widget.isSendDisabled && !widget.isSending;
-
-    return GestureDetector(
-      onTap: _onSendTap,
-      child: ScaleTransition(
-        scale: _sendScale,
-        child: AnimatedContainer(
-          duration: _kBorderAnim,
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: canSend
-                ? cs.primary
-                : cs.onSurface.withValues(alpha: 0.12),
-            boxShadow: canSend
-                ? [
-                    BoxShadow(
-                      color: cs.primary.withValues(alpha: 0.30),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : const [],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, -2),
           ),
-          child: AnimatedSwitcher(
-            duration: _kSwitchAnim,
-            switchInCurve: Curves.easeIn,
-            switchOutCurve: Curves.easeOut,
-            child: widget.isSending
-                ? Padding(
-                    key: const ValueKey('spinner'),
-                    padding: const EdgeInsets.all(11),
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: cs.onPrimary,
-                    ),
-                  )
-                : Icon(
-                    key: const ValueKey('send'),
-                    Icons.arrow_upward_rounded,
-                    size: 20,
-                    color: canSend
-                        ? cs.onPrimary
-                        : cs.onSurface.withValues(alpha: 0.38),
-                  ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Card-like text area
+          _buildCardInputArea(context),
+          const SizedBox(height: 8),
+          // Toolbar below card
+          _InputToolbar(
+            permissionMode: widget.permissionMode,
+            onPermissionModeChanged: widget.onPermissionModeChanged,
+            modelMode: widget.modelMode,
+            onShowModelPicker: () => widget.onModelModeChanged != null
+                ? _showModelPicker(context)
+                : null,
+            contextSize: widget.contextSize,
           ),
-        ),
+        ],
       ),
     );
   }
 
   // ---------------------------------------------------------------------------
-  // Context info bar
+  // Card text area + send button
+  // ---------------------------------------------------------------------------
+
+  Widget _buildCardInputArea(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final borderColor =
+        _isFocused ? cs.primary : cs.onSurface.withValues(alpha: 0.12);
+
+    return AnimatedContainer(
+      duration: _kBorderAnim,
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+        boxShadow: _isFocused
+            ? [
+                BoxShadow(
+                  color: cs.primary.withValues(alpha: 0.10),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(child: _buildTextField(context)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 8, 8, 8),
+            child: _SendButton(
+              isSending: widget.isSending,
+              isSendDisabled: widget.isSendDisabled,
+              onTap: _onSendTap,
+              scaleAnimation: _sendScale,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return KeyboardListener(
+      focusNode: FocusNode(skipTraversal: true),
+      onKeyEvent: _handleKeyPress,
+      child: TextField(
+        controller: widget.controller,
+        focusNode: _focusNode,
+        decoration: InputDecoration(
+          hintText: 'Message\u2026  \u2318\u23ce to send',
+          hintStyle: theme.textTheme.bodyMedium?.copyWith(
+            color: cs.onSurface.withValues(alpha: 0.35),
+            fontSize: 14,
+          ),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+        ),
+        style: theme.textTheme.bodyMedium?.copyWith(fontSize: 15),
+        maxLines: 4,
+        minLines: 1,
+        textInputAction:
+            defaultTargetPlatform == TargetPlatform.android
+                ? TextInputAction.newline
+                : TextInputAction.send,
+        onSubmitted:
+            defaultTargetPlatform == TargetPlatform.android
+                ? null
+                : (_) => widget.onSend(),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Context info bar (machine / path)
   // ---------------------------------------------------------------------------
 
   Widget _buildContextInfoBar(BuildContext context) {
@@ -727,268 +1148,15 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   // ---------------------------------------------------------------------------
-  // Status bar (permission mode + model + context)
+  // Model picker (bottom sheet)
   // ---------------------------------------------------------------------------
-
-  Widget _buildStatusBar(BuildContext context) {
-    return Row(
-      children: [
-        if (widget.onPermissionModeChanged != null)
-          perm.PermissionModeSelector(
-            selectedMode: widget.permissionMode,
-            onModeChanged: widget.onPermissionModeChanged,
-          ),
-        if (widget.onModelModeChanged != null) ...[
-          const SizedBox(width: 6),
-          _buildModelChip(context),
-        ],
-        const Spacer(),
-        if (widget.contextSize != null && widget.contextSize! > 0)
-          _buildContextIndicator(context),
-      ],
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Model chip
-  // ---------------------------------------------------------------------------
-
-  Widget _buildModelChip(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final model = widget.modelMode ?? ClaudeModel.defaultModel;
-    final isDefault = model == ClaudeModel.defaultModel;
-
-    final chipBg = isDefault
-        ? cs.surfaceContainerHighest
-        : cs.primary;
-    final chipFg = isDefault ? cs.onSurfaceVariant : cs.onPrimary;
-    final chipBorder =
-        isDefault ? cs.outlineVariant.withValues(alpha: 0.7) : cs.primary;
-
-    return GestureDetector(
-      onTap: () => _showModelPicker(context),
-      child: AnimatedContainer(
-        duration: _kBorderAnim,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 6,
-        ),
-        decoration: BoxDecoration(
-          color: chipBg,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: chipBorder),
-          boxShadow: isDefault
-              ? const []
-              : [
-                  BoxShadow(
-                    color: cs.primary.withValues(alpha: 0.25),
-                    blurRadius: 6,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              model == ClaudeModel.opus
-                  ? Icons.diamond_outlined
-                  : Icons.auto_awesome_outlined,
-              size: 12,
-              color: chipFg,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              model.label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontSize: 11,
-                color: chipFg,
-                fontWeight:
-                    isDefault ? FontWeight.w500 : FontWeight.w700,
-                letterSpacing: 0.2,
-              ),
-            ),
-            const SizedBox(width: 2),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 13,
-              color: chipFg.withValues(alpha: 0.7),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _showModelPicker(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     final current = widget.modelMode ?? ClaudeModel.defaultModel;
-
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: cs.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Drag handle
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: cs.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: Text(
-                  'Select Model',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              for (final model in ClaudeModel.values)
-                _buildModelTile(ctx, model, current, theme),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModelTile(
-    BuildContext ctx,
-    ClaudeModel model,
-    ClaudeModel current,
-    ThemeData theme,
-  ) {
-    final cs = theme.colorScheme;
-    final isSelected = model == current;
-
-    return InkWell(
-      onTap: () {
-        Navigator.pop(ctx);
-        widget.onModelModeChanged?.call(model);
-      },
-      child: AnimatedContainer(
-        duration: _kBorderAnim,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 12,
-        ),
-        color: isSelected
-            ? cs.primaryContainer.withValues(alpha: 0.35)
-            : Colors.transparent,
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? cs.primary
-                    : cs.surfaceContainerHighest,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                model == ClaudeModel.opus
-                    ? Icons.diamond_outlined
-                    : model == ClaudeModel.sonnet
-                        ? Icons.auto_awesome_outlined
-                        : Icons.smart_toy_outlined,
-                size: 18,
-                color: isSelected
-                    ? cs.onPrimary
-                    : cs.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                model.label,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: isSelected
-                      ? FontWeight.w700
-                      : FontWeight.w400,
-                  color: isSelected ? cs.primary : cs.onSurface,
-                ),
-              ),
-            ),
-            if (isSelected)
-              Icon(
-                Icons.check_circle_rounded,
-                size: 18,
-                color: cs.primary,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Context window indicator
-  // ---------------------------------------------------------------------------
-
-  Widget _buildContextIndicator(BuildContext context) {
-    final theme = Theme.of(context);
-    const maxContext = 190000;
-    final used = widget.contextSize ?? 0;
-    final pctUsed = (used / maxContext * 100).clamp(0.0, 100.0);
-    final pctRemaining = (100 - pctUsed).round();
-
-    final Color indicatorColor;
-    if (pctRemaining <= 5) {
-      indicatorColor = theme.colorScheme.error;
-    } else if (pctRemaining <= 15) {
-      indicatorColor = Colors.orange;
-    } else {
-      indicatorColor = theme.colorScheme.onSurfaceVariant;
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 36,
-          height: 4,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: LinearProgressIndicator(
-              value: pctUsed / 100,
-              backgroundColor:
-                  theme.colorScheme.surfaceContainerHighest,
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(indicatorColor),
-            ),
-          ),
-        ),
-        const SizedBox(width: 5),
-        Text(
-          '$pctRemaining%',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: indicatorColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
+    _showModelPickerSheet(
+      context,
+      current,
+      (model) => widget.onModelModeChanged?.call(model),
     );
   }
 }

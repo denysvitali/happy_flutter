@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
@@ -14,7 +15,6 @@ import 'widgets/permission_mode_selector.dart';
 
 /// Chat screen for a session
 class ChatScreen extends ConsumerStatefulWidget {
-
   const ChatScreen({required this.sessionId, super.key});
   final String sessionId;
 
@@ -35,8 +35,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   ///
   /// Autoscroll is enabled when the user is within [_autoScrollThreshold]
   /// pixels of the bottom of the list. When the user scrolls up past that
-  /// threshold, autoscroll is disabled so they can read history without being
-  /// interrupted by new messages. A FAB is shown to re-enable autoscroll.
+  /// threshold, autoscroll is disabled so they can read history without
+  /// being interrupted by new messages. A pill button is shown to
+  /// re-enable autoscroll.
   bool _autoScroll = true;
 
   /// Distance (in pixels) from the bottom of the list within which
@@ -59,7 +60,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _loadSavedPermissionMode() async {
-    final savedMode = await DraftStorage().getPermissionMode(widget.sessionId);
+    final savedMode =
+        await DraftStorage().getPermissionMode(widget.sessionId);
     if (savedMode != null) {
       final parsedMode = PermissionModeExtension.fromString(savedMode);
       setState(() {
@@ -169,7 +171,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final pos = _scrollController.position;
 
     // With reverse: true, pixels == 0 means we are at the bottom (newest
-    // messages). Autoscroll is active when within [_autoScrollThreshold] of 0.
+    // messages). Autoscroll is active when within [_autoScrollThreshold]
+    // of 0.
     final nearBottom = pos.pixels <= _autoScrollThreshold;
     if (nearBottom != _autoScroll) {
       setState(() {
@@ -177,8 +180,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       });
     }
 
-    // Load older messages when the user scrolls toward the top of the reversed
-    // list (pixels approaching maxScrollExtent).
+    // Load older messages when the user scrolls toward the top of the
+    // reversed list (pixels approaching maxScrollExtent).
     if (pos.pixels >= pos.maxScrollExtent - 300) {
       _loadMore();
     }
@@ -187,30 +190,106 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _loadMore() {
     if (_visibleCount >= _messages.length) return;
     setState(() {
-      _visibleCount = (_visibleCount + _pageSize).clamp(0, _messages.length);
+      _visibleCount =
+          (_visibleCount + _pageSize).clamp(0, _messages.length);
     });
+  }
+
+  Machine? _getMachine() {
+    final machineId = _session?.metadata?.machineId;
+    if (machineId == null) return null;
+    return sync.machines[machineId];
+  }
+
+  String _getSessionTitle() {
+    final summary = _session?.metadata?.summary?.text;
+    if (summary != null && summary.isNotEmpty) return summary;
+    final path = _session?.metadata?.path;
+    if (path != null && path.isNotEmpty) {
+      return path.split('/').last;
+    }
+    return 'Chat';
+  }
+
+  String _formatRelativePath(String? path) {
+    if (path == null || path.isEmpty) return '';
+    final homeDir = _session?.metadata?.homeDir;
+    if (homeDir != null && path.startsWith(homeDir)) {
+      return '~${path.substring(homeDir.length)}';
+    }
+    return path;
+  }
+
+  static const _thinkingMessages = [
+    'Vibing...',
+    'Thinking deeply...',
+    'Crafting a response...',
+    'Working on it...',
+    'In the zone...',
+    'Pondering...',
+  ];
+
+  String _getStatusText() {
+    final session = _session;
+    if (session == null) return '';
+
+    final hasRequests =
+        session.agentState?.requests?.isNotEmpty ?? false;
+    if (hasRequests) return 'Permission required';
+
+    if (session.thinking) {
+      final idx = Random(
+        session.thinkingAt ?? DateTime.now().millisecondsSinceEpoch,
+      ).nextInt(_thinkingMessages.length);
+      return _thinkingMessages[idx];
+    }
+
+    if (session.presence == 'online') return 'Online';
+
+    // Offline — show "Last seen" based on updatedAt
+    final lastSeen = DateTime.fromMillisecondsSinceEpoch(
+      session.updatedAt,
+    );
+    final diff = DateTime.now().difference(lastSeen);
+    if (diff.inMinutes < 1) return 'Last seen just now';
+    if (diff.inMinutes < 60) {
+      return 'Last seen ${diff.inMinutes}m ago';
+    }
+    if (diff.inHours < 24) {
+      return 'Last seen ${diff.inHours}h ago';
+    }
+    return 'Last seen ${diff.inDays}d ago';
+  }
+
+  Color _getStatusColor(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final session = _session;
+    if (session == null) return colorScheme.outline;
+
+    if (session.agentState?.requests?.isNotEmpty ?? false) {
+      // amber / warning — use tertiary or a semantic amber
+      return const Color(0xFFF59E0B);
+    }
+    if (session.thinking) return colorScheme.primary;
+    if (session.presence == 'online') return const Color(0xFF22C55E);
+    return colorScheme.outline;
   }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final isThinking = _session?.thinking ?? false;
 
     return Scaffold(
-      appBar: AppBar(
-        title: _buildAppBarTitle(l10n),
-        actions: [
-          if (isThinking)
-            IconButton(
-              icon: const Icon(Icons.stop_circle_outlined),
-              tooltip: 'Stop',
-              onPressed: _stopSession,
-            ),
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () => _showSessionMenu(context),
-          ),
-        ],
+      appBar: _ChatAppBar(
+        session: _session,
+        sessionTitle: _getSessionTitle(),
+        relativePath: _formatRelativePath(_session?.metadata?.path),
+        machine: _getMachine(),
+        statusText: _getStatusText(),
+        statusColor: _getStatusColor(context),
+        isThinking: isThinking,
+        onStop: _stopSession,
+        onMenuTap: () => _showSessionMenu(context),
       ),
       body: Column(
         children: [
@@ -226,24 +305,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           child: CircularProgressIndicator(),
                         )
                       : _messages.isEmpty
-                          ? const _EmptyChatView(key: ValueKey('empty'))
+                          ? const _EmptyChatView(
+                              key: ValueKey('empty'),
+                            )
                           : _buildMessageList(),
                 ),
-                // "Scroll to bottom" FAB — shown when autoscroll is disabled
-                // (i.e. the user has scrolled up to read history).
-                if (!_autoScroll && !_isLoadingMessages)
-                  Positioned(
-                    right: 12,
-                    bottom: 60,
-                    child: FloatingActionButton.small(
-                      onPressed: () {
-                        setState(() => _autoScroll = true);
-                        _scrollToBottom();
-                      },
-                      tooltip: 'Scroll to bottom',
-                      child: const Icon(Icons.keyboard_arrow_down),
+                // Scroll-to-bottom pill — shown when autoscroll is disabled
+                // (the user has scrolled up to read history).
+                AnimatedOpacity(
+                  opacity:
+                      (!_autoScroll && !_isLoadingMessages) ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  child: AnimatedScale(
+                    scale:
+                        (!_autoScroll && !_isLoadingMessages) ? 1.0 : 0.8,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    child: Align(
+                      alignment: Alignment.bottomRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 12, bottom: 56),
+                        child: _ScrollToBottomPill(
+                          onTap: () {
+                            setState(() => _autoScroll = true);
+                            _scrollToBottom();
+                          },
+                        ),
+                      ),
                     ),
                   ),
+                ),
                 // Typing indicator overlay at the bottom of the messages area
                 Positioned(
                   left: 0,
@@ -318,144 +410,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  Machine? _getMachine() {
-    final machineId = _session?.metadata?.machineId;
-    if (machineId == null) return null;
-    return sync.machines[machineId];
-  }
-
-  String _getSessionTitle() {
-    final summary = _session?.metadata?.summary?.text;
-    if (summary != null && summary.isNotEmpty) return summary;
-    final path = _session?.metadata?.path;
-    if (path != null && path.isNotEmpty) {
-      return path.split('/').last;
-    }
-    return 'Chat';
-  }
-
-  String _formatRelativePath(String? path) {
-    if (path == null || path.isEmpty) return '';
-    final homeDir = _session?.metadata?.homeDir;
-    if (homeDir != null && path.startsWith(homeDir)) {
-      return '~${path.substring(homeDir.length)}';
-    }
-    return path;
-  }
-
-  static const _thinkingMessages = [
-    'Vibing...',
-    'Thinking deeply...',
-    'Crafting a response...',
-    'Working on it...',
-    'In the zone...',
-    'Pondering...',
-  ];
-
-  String _getStatusText() {
-    final session = _session;
-    if (session == null) return '';
-
-    final hasRequests =
-        session.agentState?.requests?.isNotEmpty ?? false;
-    if (hasRequests) return 'Permission required';
-
-    if (session.thinking) {
-      final idx = Random(
-        session.thinkingAt ?? DateTime.now().millisecondsSinceEpoch,
-      ).nextInt(_thinkingMessages.length);
-      return _thinkingMessages[idx];
-    }
-
-    if (session.presence == 'online') return 'Online';
-
-    // Offline — show "Last seen" based on updatedAt
-    final lastSeen = DateTime.fromMillisecondsSinceEpoch(
-      session.updatedAt,
-    );
-    final diff = DateTime.now().difference(lastSeen);
-    if (diff.inMinutes < 1) return 'Last seen just now';
-    if (diff.inMinutes < 60) {
-      return 'Last seen ${diff.inMinutes}m ago';
-    }
-    if (diff.inHours < 24) {
-      return 'Last seen ${diff.inHours}h ago';
-    }
-    return 'Last seen ${diff.inDays}d ago';
-  }
-
-  Color _getStatusColor() {
-    final session = _session;
-    if (session == null) return Colors.grey;
-
-    if (session.agentState?.requests?.isNotEmpty ?? false) {
-      return Colors.orange;
-    }
-    if (session.thinking) return Colors.blue;
-    if (session.presence == 'online') return Colors.green;
-    return Colors.grey;
-  }
-
-  Widget _buildAppBarTitle(AppLocalizations l10n) {
-    if (_session == null) {
-      return Text(l10n.chatChat);
-    }
-
-    final machine = _getMachine();
-    final machineName =
-        machine?.metadata?.displayName ?? machine?.metadata?.host;
-    final path = _formatRelativePath(_session?.metadata?.path);
-    final statusText = _getStatusText();
-    final statusColor = _getStatusColor();
-    final isThinking = _session?.thinking ?? false;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _getSessionTitle(),
-          style: const TextStyle(fontSize: 16),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 2),
-        if (path.isNotEmpty)
-          Text(
-            path,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[500],
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        Row(
-          children: [
-            _StatusDot(
-              color: statusColor,
-              pulsing: isThinking,
-            ),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                [
-                  statusText,
-                  if (machineName != null) machineName,
-                ].join('  ·  '),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[500],
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   void _showSessionMenu(BuildContext context) {
     final l10n = context.l10n;
     showModalBottomSheet(
@@ -505,9 +459,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
         // "Load more" at the top (last index in reversed list)
         if (hasMore && index == visibleMessages.length) {
-          return Center(
+          return const Center(
             child: Padding(
-              padding: const EdgeInsets.all(8),
+              padding: EdgeInsets.all(8),
               child: SizedBox(
                 width: 20,
                 height: 20,
@@ -518,17 +472,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
 
         final message = visibleMessages[reversedIndex];
+        final nextMessage = reversedIndex + 1 < visibleMessages.length
+            ? visibleMessages[reversedIndex + 1]
+            : null;
+
+        // Consistent spacing: 8px between same-sender, 16px between
+        // different senders.
+        final currentRole = message['role'] as String?;
+        final nextRole = nextMessage?['role'] as String?;
+        final sameSender = nextRole == currentRole;
+        final bottomPad = sameSender ? 8.0 : 16.0;
+
         final messageKey = message['id'] as String? ??
             message['toolUseId'] as String? ??
             'msg-$reversedIndex';
-        return MessageWidget(
+        return Padding(
           key: ValueKey(messageKey),
-          messageData: message,
-          isFromCurrentUser: message['role'] == 'user',
-          metadata: _session?.metadata?.toJson(),
-          messages: _messages,
-          sessionId: widget.sessionId,
-          onOptionPress: _onOptionPress,
+          padding: EdgeInsets.only(bottom: bottomPad),
+          child: MessageWidget(
+            messageData: message,
+            isFromCurrentUser: message['role'] == 'user',
+            metadata: _session?.metadata?.toJson(),
+            messages: _messages,
+            sessionId: widget.sessionId,
+            onOptionPress: _onOptionPress,
+          ),
         );
       },
     );
@@ -622,13 +590,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _refreshFromSync();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(
-          content: Text(
-            '${context.l10n.chatFailedToSend}: $e',
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${context.l10n.chatFailedToSend}: $e',
+            ),
           ),
-        ));
+        );
         _controller.text = text;
       }
     } finally {
@@ -651,10 +619,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: Text(l10n.commonCancel),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
             onPressed: () async {
               Navigator.pop(context);
-              final deleted = await sync.deleteSession(widget.sessionId);
+              final deleted =
+                  await sync.deleteSession(widget.sessionId);
               if (!mounted) {
                 return;
               }
@@ -663,7 +634,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 return;
               }
               ScaffoldMessenger.of(this.context).showSnackBar(
-                const SnackBar(content: Text('Failed to delete session')),
+                const SnackBar(
+                  content: Text('Failed to delete session'),
+                ),
               );
             },
             child: Text(l10n.commonDelete),
@@ -674,10 +647,270 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 }
 
+// ─── _ChatAppBar ──────────────────────────────────────────────────────────
+
+/// Custom [PreferredSizeWidget] app bar for the chat screen.
+///
+/// Shows the session title (bolder weight), a pill-shaped path chip
+/// in monospace, and a status row with a [_StatusDot] and status text.
+class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _ChatAppBar({
+    required this.session,
+    required this.sessionTitle,
+    required this.relativePath,
+    required this.machine,
+    required this.statusText,
+    required this.statusColor,
+    required this.isThinking,
+    required this.onStop,
+    required this.onMenuTap,
+  });
+
+  final Session? session;
+  final String sessionTitle;
+  final String relativePath;
+  final Machine? machine;
+  final String statusText;
+  final Color statusColor;
+  final bool isThinking;
+  final VoidCallback onStop;
+  final VoidCallback onMenuTap;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      title: _buildTitle(context),
+      actions: [
+        if (isThinking)
+          IconButton(
+            icon: const Icon(Icons.stop_circle_outlined),
+            tooltip: 'Stop',
+            onPressed: onStop,
+          ),
+        IconButton(
+          icon: const Icon(Icons.more_vert),
+          onPressed: onMenuTap,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTitle(BuildContext context) {
+    if (session == null) {
+      return Text(context.l10n.chatChat);
+    }
+
+    final colorScheme = Theme.of(context).colorScheme;
+    final machineName =
+        machine?.metadata?.displayName ?? machine?.metadata?.host;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Session name — slightly bolder for polish
+        Text(
+          sessionTitle,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: colorScheme.onSurface,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 2),
+        // Path pill chip + status badge in one row
+        Row(
+          children: [
+            if (relativePath.isNotEmpty) ...[
+              _PathChip(path: relativePath),
+              const SizedBox(width: 6),
+              // Subtle vertical separator
+              Container(
+                width: 1,
+                height: 10,
+                color: colorScheme.outlineVariant,
+              ),
+              const SizedBox(width: 6),
+            ],
+            _StatusDot(color: statusColor, pulsing: isThinking),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                [
+                  statusText,
+                  if (machineName != null) machineName,
+                ].join('  ·  '),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ─── _PathChip ────────────────────────────────────────────────────────────
+
+/// Pill-shaped chip that shows a filesystem path in monospace.
+class _PathChip extends StatelessWidget {
+  const _PathChip({required this.path});
+  final String path;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(
+          color: colorScheme.outlineVariant,
+        ),
+      ),
+      child: Text(
+        path,
+        style: GoogleFonts.sourceCodePro(
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+          color: colorScheme.onSurfaceVariant,
+          letterSpacing: -0.2,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+}
+
+// ─── _ScrollToBottomPill ──────────────────────────────────────────────────
+
+/// A small pill-shaped button with a downward chevron that scrolls
+/// the message list back to the latest message.
+///
+/// Rendered inside [AnimatedOpacity] + [AnimatedScale] by the parent
+/// for a smooth fade+scale entrance/exit.
+class _ScrollToBottomPill extends StatelessWidget {
+  const _ScrollToBottomPill({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      color: colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(100),
+      elevation: 2,
+      shadowColor: colorScheme.shadow.withValues(alpha: 0.15),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(100),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 6,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 2),
+              Text(
+                'Latest',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── _EmptyChatView ───────────────────────────────────────────────────────
+
+/// Centered empty-state view shown when a session has no messages yet.
+///
+/// Displays a large icon on a soft circular background, a title, and
+/// a subtitle prompt — all using theme colors.
+class _EmptyChatView extends StatelessWidget {
+  const _EmptyChatView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Icon on a soft circular background
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer.withValues(alpha: 0.35),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 48,
+                color: colorScheme.primary.withValues(alpha: 0.7),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              l10n.chatStartConversation,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.chatSendMessageToBegin,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── _TypingIndicator ─────────────────────────────────────────────────────
+
 /// Animated typing indicator showing three bouncing dots in a speech bubble.
 ///
-/// Each dot animates sequentially with a staggered delay, translating
-/// upward by 4 logical pixels and back, creating a wave effect.
+/// Each dot animates with a staggered delay (0 ms, 150 ms, 300 ms) using a
+/// spring-like bounce curve for a smooth, natural wave effect.
 class _TypingIndicator extends StatefulWidget {
   const _TypingIndicator();
 
@@ -692,40 +925,54 @@ class _TypingIndicatorState extends State<_TypingIndicator>
   late Animation<double> _dot2;
   late Animation<double> _dot3;
 
+  // Stagger offsets: 0 ms, 150 ms, 300 ms across a 900 ms cycle.
+  static const double _cycleMs = 900;
+  static const double _stagger1 = 0 / _cycleMs;
+  static const double _stagger2 = 150 / _cycleMs;
+  static const double _stagger3 = 300 / _cycleMs;
+  // Each dot occupies ~37 % of the cycle (≈330 ms window).
+  static const double _dotSpan = 330 / _cycleMs;
+
   @override
   void initState() {
     super.initState();
-    // Total cycle: 900 ms — each dot occupies a 300 ms window,
-    // staggered by 150 ms so they overlap slightly for a smooth wave.
     _controller = AnimationController(
       duration: const Duration(milliseconds: 900),
       vsync: this,
     )..repeat();
 
-    _dot1 = _buildDotAnimation(0.0, 0.33);
-    _dot2 = _buildDotAnimation(0.22, 0.55);
-    _dot3 = _buildDotAnimation(0.44, 0.77);
+    _dot1 = _buildDotAnimation(_stagger1, _stagger1 + _dotSpan);
+    _dot2 = _buildDotAnimation(_stagger2, _stagger2 + _dotSpan);
+    _dot3 = _buildDotAnimation(_stagger3, _stagger3 + _dotSpan);
   }
 
-  /// Builds a bounce animation for a single dot within [start]..[end]
-  /// of the controller's 0..1 range. Outside that interval the dot
-  /// sits at rest (offset 0).
+  /// Builds a spring-like bounce animation for a single dot within
+  /// [start]..[end] of the controller's 0..1 range.
   Animation<double> _buildDotAnimation(double start, double end) {
     return TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0, end: -4)
-            .chain(CurveTween(curve: Curves.easeOut)),
-        weight: 50,
+        tween: Tween<double>(begin: 0, end: -5)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 45,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: -4, end: 0)
-            .chain(CurveTween(curve: Curves.easeIn)),
-        weight: 50,
+        tween: Tween<double>(begin: -5, end: 1)
+            .chain(CurveTween(curve: Curves.easeInCubic)),
+        weight: 30,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1, end: 0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 25,
       ),
     ]).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: Interval(start, end, curve: Curves.linear),
+        curve: Interval(
+          start.clamp(0.0, 1.0),
+          end.clamp(0.0, 1.0),
+          curve: Curves.linear,
+        ),
       ),
     );
   }
@@ -739,7 +986,6 @@ class _TypingIndicatorState extends State<_TypingIndicator>
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    // Use the same surface-variant color as bot message bubbles.
     final bubbleColor = colorScheme.surfaceContainerHighest;
     final dotColor = colorScheme.onSurfaceVariant;
 
@@ -782,7 +1028,6 @@ class _TypingIndicatorState extends State<_TypingIndicator>
 
 /// A single dot used by [_TypingIndicator].
 class _Dot extends StatelessWidget {
-
   const _Dot({required this.offset, required this.color});
   final double offset;
   final Color color;
@@ -803,9 +1048,14 @@ class _Dot extends StatelessWidget {
   }
 }
 
-/// Pulsing status dot indicator
-class _StatusDot extends StatefulWidget {
+// ─── _StatusDot ───────────────────────────────────────────────────────────
 
+/// An 8 px circle status indicator with optional pulse animation.
+///
+/// - Connected / online  → green  (`Color(0xFF22C55E)`)
+/// - Thinking / active   → primary (blue) with pulse
+/// - Disconnected / idle → `colorScheme.outline` (grey)
+class _StatusDot extends StatefulWidget {
   const _StatusDot({required this.color, this.pulsing = false});
   final Color color;
   final bool pulsing;
@@ -866,34 +1116,6 @@ class _StatusDotState extends State<_StatusDot>
           ),
         );
       },
-    );
-  }
-}
-
-/// Empty chat view
-class _EmptyChatView extends StatelessWidget {
-  const _EmptyChatView({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            l10n.chatStartConversation,
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            l10n.chatSendMessageToBegin,
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-          ),
-        ],
-      ),
     );
   }
 }

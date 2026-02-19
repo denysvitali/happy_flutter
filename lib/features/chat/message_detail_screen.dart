@@ -64,6 +64,8 @@ class MessageDetailScreen extends ConsumerWidget {
   }
 }
 
+// ── Text detail view ───────────────────────────────────────────────────────
+
 class _TextDetailView extends StatelessWidget {
   const _TextDetailView({required this.data});
   final Map<String, dynamic> data;
@@ -84,6 +86,8 @@ class _TextDetailView extends StatelessWidget {
     );
   }
 }
+
+// ── Tool detail view ───────────────────────────────────────────────────────
 
 class _ToolDetailView extends StatelessWidget {
   const _ToolDetailView({required this.data});
@@ -115,29 +119,13 @@ class _ToolDetailView extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         // Header card
-        _DetailCard(
-          title: toolTitle,
-          icon: Icons.build_outlined,
-          trailing: ToolStatusIndicator(state: state, size: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _LabelValue(label: 'Tool', value: toolName),
-              _LabelValue(label: 'State', value: toolState),
-              if (isTask && input != null) ...[
-                if (input['subagent_type'] != null)
-                  _LabelValue(
-                    label: 'Agent type',
-                    value: input['subagent_type'].toString(),
-                  ),
-                if (input['description'] != null)
-                  _LabelValue(
-                    label: 'Description',
-                    value: input['description'].toString(),
-                  ),
-              ],
-            ],
-          ),
+        _MessageHeader(
+          toolTitle: toolTitle,
+          toolName: toolName,
+          toolState: toolState,
+          state: state,
+          isTask: isTask,
+          input: input,
         ),
         const SizedBox(height: 12),
 
@@ -151,8 +139,7 @@ class _ToolDetailView extends StatelessWidget {
               children: [
                 _LabelValue(
                   label: 'Status',
-                  value:
-                      permission['status'] as String? ?? 'unknown',
+                  value: permission['status'] as String? ?? 'unknown',
                 ),
                 if (permission['reason'] != null)
                   _LabelValue(
@@ -167,7 +154,7 @@ class _ToolDetailView extends StatelessWidget {
 
         // Input
         if (input != null) ...[
-          _JsonCard(
+          _ToolResultSection(
             title: 'Input',
             icon: Icons.input,
             json: input,
@@ -176,16 +163,13 @@ class _ToolDetailView extends StatelessWidget {
         ],
 
         // Output/Result
-        if (result != null &&
-            state != ToolState.running) ...[
-          _JsonCard(
+        if (result != null && state != ToolState.running) ...[
+          _ToolResultSection(
             title: state == ToolState.error ? 'Error' : 'Output',
             icon: state == ToolState.error
                 ? Icons.error_outline
                 : Icons.output,
-            json: result is Map<String, dynamic>
-                ? result
-                : null,
+            json: result is Map<String, dynamic> ? result : null,
             text: result is! Map<String, dynamic>
                 ? result.toString()
                 : null,
@@ -233,6 +217,248 @@ class _ToolDetailView extends StatelessWidget {
   }
 }
 
+// ── Message header ─────────────────────────────────────────────────────────
+
+/// Header card showing tool identity, state badge, and key metadata.
+class _MessageHeader extends StatelessWidget {
+  const _MessageHeader({
+    required this.toolTitle,
+    required this.toolName,
+    required this.toolState,
+    required this.state,
+    required this.isTask,
+    required this.input,
+  });
+
+  final String toolTitle;
+  final String toolName;
+  final String toolState;
+  final ToolState state;
+  final bool isTask;
+  final Map<String, dynamic>? input;
+
+  @override
+  Widget build(BuildContext context) {
+    return _DetailCard(
+      title: toolTitle,
+      icon: Icons.build_outlined,
+      trailing: ToolStatusIndicator(state: state, size: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _LabelValue(label: 'Tool', value: toolName),
+          _LabelValue(label: 'State', value: toolState),
+          if (isTask && input != null) ...[
+            if (input!['subagent_type'] != null)
+              _LabelValue(
+                label: 'Agent type',
+                value: input!['subagent_type'].toString(),
+              ),
+            if (input!['description'] != null)
+              _LabelValue(
+                label: 'Description',
+                value: input!['description'].toString(),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Tool result section ────────────────────────────────────────────────────
+
+/// Displays a JSON or text result block with a dark monospace code block,
+/// language label area, and a copy button in the top-right corner.
+class _ToolResultSection extends StatelessWidget {
+  const _ToolResultSection({
+    required this.title,
+    required this.icon,
+    this.json,
+    this.text,
+    this.isError = false,
+  });
+
+  final String title;
+  final IconData icon;
+  final Map<String, dynamic>? json;
+  final String? text;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final content = json != null
+        ? const JsonEncoder.withIndent('  ').convert(json)
+        : (text ?? '');
+
+    return Card(
+      elevation: 0,
+      color: cs.surfaceContainerHighest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title row
+            Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
+                  color: isError ? cs.error : cs.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isError ? cs.error : null,
+                    ),
+                  ),
+                ),
+                // Copy button — top-right of the block
+                _CopyButton(content: content),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Dark code block with monospace font
+            _CodeBlock(content: content),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Message actions bar ────────────────────────────────────────────────────
+
+/// Clean bottom action bar with icon buttons and a subtle top border.
+// ignore: unused_element
+class _MessageActions extends StatelessWidget {
+  const _MessageActions({required this.content});
+
+  final String content;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        border: Border(
+          top: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.copy_outlined),
+            tooltip: 'Copy',
+            iconSize: 20,
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: content));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Copied to clipboard'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'Share',
+            iconSize: 20,
+            onPressed: null, // placeholder — wire up if needed
+          ),
+          IconButton(
+            icon: const Icon(Icons.bookmark_border_outlined),
+            tooltip: 'Bookmark',
+            iconSize: 20,
+            onPressed: null, // placeholder — wire up if needed
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Message bubble ─────────────────────────────────────────────────────────
+
+/// Renders a single chat message bubble with rounded corners (16 px).
+/// User messages are right-aligned with a primary-tinted background;
+/// assistant messages are left-aligned with the surface variant.
+// ignore: unused_element
+class _MessageBubble extends StatelessWidget {
+  const _MessageBubble({
+    required this.text,
+    required this.isUser,
+  });
+
+  final String text;
+  final bool isUser;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final bgColor = isUser
+        ? cs.primaryContainer
+        : cs.surfaceContainerHighest;
+    final textColor = isUser
+        ? cs.onPrimaryContainer
+        : cs.onSurface;
+    final borderColor = isUser
+        ? cs.primary.withValues(alpha: 0.3)
+        : cs.outlineVariant.withValues(alpha: 0.5);
+
+    final radius = BorderRadius.only(
+      topLeft: const Radius.circular(16),
+      topRight: const Radius.circular(16),
+      bottomLeft: isUser
+          ? const Radius.circular(16)
+          : const Radius.circular(4),
+      bottomRight: isUser
+          ? const Radius.circular(4)
+          : const Radius.circular(16),
+    );
+
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 320),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: radius,
+          border: Border.all(color: borderColor),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 10,
+        ),
+        child: SelectableText(
+          text,
+          style: theme.textTheme.bodyMedium?.copyWith(color: textColor),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Child tool item ────────────────────────────────────────────────────────
+
 class _ChildToolItem extends StatelessWidget {
   const _ChildToolItem({required this.tool, required this.message});
   final Map<String, dynamic> tool;
@@ -252,8 +478,7 @@ class _ChildToolItem extends StatelessWidget {
     final knownTool = KnownTools.get(toolName);
     var title = toolName;
     if (knownTool?.extractDescription != null) {
-      title =
-          knownTool!.extractDescription!(tool, null) ?? toolName;
+      title = knownTool!.extractDescription!(tool, null) ?? toolName;
     } else if (knownTool?.title is String) {
       title = knownTool!.title;
     }
@@ -338,6 +563,8 @@ class _ChildToolItem extends StatelessWidget {
   }
 }
 
+// ── Tool detail bottom sheet ───────────────────────────────────────────────
+
 class _ToolDetailBottomSheet extends StatelessWidget {
   const _ToolDetailBottomSheet({
     required this.tool,
@@ -398,21 +625,19 @@ class _ToolDetailBottomSheet extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             children: [
               if (input != null)
-                _JsonCard(
+                _ToolResultSection(
                   title: 'Input',
                   icon: Icons.input,
                   json: input,
                 ),
               if (input != null) const SizedBox(height: 12),
               if (result != null) ...[
-                _JsonCard(
+                _ToolResultSection(
                   title: state == 'error' ? 'Error' : 'Output',
                   icon: state == 'error'
                       ? Icons.error_outline
                       : Icons.output,
-                  json: result is Map<String, dynamic>
-                      ? result
-                      : null,
+                  json: result is Map<String, dynamic> ? result : null,
                   text: result is! Map<String, dynamic>
                       ? result.toString()
                       : null,
@@ -440,7 +665,7 @@ class _ToolDetailBottomSheet extends StatelessWidget {
   }
 }
 
-// ── Shared detail widgets ──────────────────────────────────────
+// ── Shared detail widgets ──────────────────────────────────────────────────
 
 class _DetailCard extends StatelessWidget {
   const _DetailCard({
@@ -530,102 +755,61 @@ class _LabelValue extends StatelessWidget {
   }
 }
 
-class _JsonCard extends StatelessWidget {
-  const _JsonCard({
-    required this.title,
-    required this.icon,
-    this.json,
-    this.text,
-    this.isError = false,
-  });
-  final String title;
-  final IconData icon;
-  final Map<String, dynamic>? json;
-  final String? text;
-  final bool isError;
+// ── Code block + copy button ───────────────────────────────────────────────
+
+/// Always-dark monospace code container used inside [_ToolResultSection].
+class _CodeBlock extends StatelessWidget {
+  const _CodeBlock({required this.content});
+
+  final String content;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final content = json != null
-        ? const JsonEncoder.withIndent('  ').convert(json)
-        : (text ?? '');
-
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerHighest,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 18,
-                  color: isError
-                      ? theme.colorScheme.error
-                      : theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: isError
-                          ? theme.colorScheme.error
-                          : null,
-                    ),
-                  ),
-                ),
-                // Copy button
-                IconButton(
-                  icon: const Icon(Icons.copy, size: 16),
-                  onPressed: () {
-                    Clipboard.setData(
-                      ClipboardData(text: content),
-                    );
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Copied to clipboard'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SelectableText(
-                content,
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                  color: Color(0xFFD4D4D4),
-                ),
-              ),
-            ),
-          ],
+      child: SelectableText(
+        content,
+        style: const TextStyle(
+          fontFamily: 'monospace',
+          fontSize: 12,
+          color: Color(0xFFD4D4D4),
         ),
       ),
+    );
+  }
+}
+
+/// Small icon button that copies [content] to the clipboard.
+class _CopyButton extends StatelessWidget {
+  const _CopyButton({required this.content});
+
+  final String content;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.copy, size: 16),
+      tooltip: 'Copy',
+      onPressed: () {
+        Clipboard.setData(ClipboardData(text: content));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Copied to clipboard'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      },
+      constraints: const BoxConstraints(
+        minWidth: 32,
+        minHeight: 32,
+      ),
+      padding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
     );
   }
 }

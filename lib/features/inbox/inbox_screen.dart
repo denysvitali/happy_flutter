@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -65,7 +66,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     final friends = friendsState.friendList;
     final incoming = friendsState.incomingRequests;
     final requested = friendsState.friends
-        .where((friend) => friend.status == RelationshipStatus.pendingOutgoing)
+        .where(
+          (friend) => friend.status == RelationshipStatus.pendingOutgoing,
+        )
         .toList(growable: false);
 
     final isEmpty =
@@ -109,11 +112,15 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                         request: request,
                         disabled: _isBusy,
                         onAccept: () => _runFriendAction(
-                          () => _socialService.addFriend(request.fromUserId),
+                          () => _socialService.addFriend(
+                            request.fromUserId,
+                          ),
                           'Request accepted',
                         ),
                         onReject: () => _runFriendAction(
-                          () => _socialService.removeFriend(request.fromUserId),
+                          () => _socialService.removeFriend(
+                            request.fromUserId,
+                          ),
                           'Request rejected',
                         ),
                       ),
@@ -137,9 +144,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                           onPressed: _isBusy
                               ? null
                               : () => _runFriendAction(
-                                  () => _socialService.removeFriend(friend.id),
-                                  'Request canceled',
-                                ),
+                                    () => _socialService.removeFriend(
+                                      friend.id,
+                                    ),
+                                    'Request canceled',
+                                  ),
                           child: const Text('Cancel'),
                         ),
                       ),
@@ -201,7 +210,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Remove Friend'),
-        content: Text('Remove ${friend.name ?? friend.id} from your friends?'),
+        content: Text(
+          'Remove ${friend.name ?? friend.id} from your friends?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -231,6 +242,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   }
 }
 
+// ── Header ─────────────────────────────────────────────────────────────────
+
 class _InboxHeader extends StatelessWidget {
   const _InboxHeader({required this.onFindFriends});
 
@@ -238,12 +251,15 @@ class _InboxHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Row(
       children: [
-        const Expanded(
+        Expanded(
           child: Text(
             'Inbox',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         FilledButton.icon(
@@ -256,48 +272,88 @@ class _InboxHeader extends StatelessWidget {
   }
 }
 
+// ── Empty state ────────────────────────────────────────────────────────────
+
+class _InboxEmptyState extends StatelessWidget {
+  const _InboxEmptyState({required this.onFindFriends});
+
+  final VoidCallback onFindFriends;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Icon(
+            Icons.inbox_outlined,
+            size: 36,
+            color: cs.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Empty Inbox',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Connect with friends to start sharing sessions.',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: cs.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 24),
+        FilledButton.icon(
+          onPressed: onFindFriends,
+          icon: const Icon(Icons.person_search),
+          label: const Text('Find Friends'),
+        ),
+      ],
+    );
+  }
+}
+
 class _InboxEmptyView extends StatelessWidget {
-  const _InboxEmptyView({required this.onFindFriends, required this.onRefresh});
+  const _InboxEmptyView({
+    required this.onFindFriends,
+    required this.onRefresh,
+  });
 
   final VoidCallback onFindFriends;
   final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
         children: [
           _InboxHeader(onFindFriends: onFindFriends),
-          const SizedBox(height: 36),
-          Icon(
-            Icons.inbox_outlined,
-            size: 72,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'Empty Inbox',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Connect with friends to start sharing sessions.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          const SizedBox(height: 48),
+          Center(
+            child: _InboxEmptyState(onFindFriends: onFindFriends),
           ),
         ],
       ),
     );
   }
 }
+
+// ── Section container ──────────────────────────────────────────────────────
 
 class _Section extends StatelessWidget {
   const _Section({required this.title, required this.child});
@@ -330,13 +386,19 @@ class _Section extends StatelessWidget {
               ),
             ),
           ),
-          Padding(padding: const EdgeInsets.fromLTRB(8, 4, 8, 8), child: child),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+            child: child,
+          ),
         ],
       ),
     );
   }
 }
 
+// ── Feed card ──────────────────────────────────────────────────────────────
+
+/// Individual feed activity row with avatar, title, message and timestamp.
 class _FeedCard extends StatelessWidget {
   const _FeedCard({required this.item});
 
@@ -344,40 +406,234 @@ class _FeedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isUnread = !item.read;
+
     return Card(
       elevation: 0,
       margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ListTile(
-        contentPadding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        leading: CircleAvatar(
-          child: Icon(
-            item.type == FeedType.friendRequest
-                ? Icons.person_add_alt_1
-                : Icons.notifications,
-          ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Avatar
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: cs.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                item.type == FeedType.friendRequest
+                    ? Icons.person_add_alt_1
+                    : Icons.notifications,
+                size: 20,
+                color: cs.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Name + preview
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.body.title,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: isUnread
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (item.body.message != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      item.body.message!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Timestamp + unread dot column
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  _timeAgo(item.createdAt),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: isUnread ? cs.primary : cs.onSurfaceVariant,
+                    fontWeight: isUnread
+                        ? FontWeight.w600
+                        : FontWeight.w400,
+                  ),
+                ),
+                if (isUnread) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: cs.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
         ),
-        title: Text(item.body.title),
-        subtitle: Text(item.body.message ?? 'No details'),
-        trailing: Text(_timeAgo(item.createdAt)),
       ),
     );
   }
 
   static String _timeAgo(int createdAtMs) {
     final created = DateTime.fromMillisecondsSinceEpoch(createdAtMs);
-    final diff = DateTime.now().difference(created);
+    final now = DateTime.now();
+    final diff = now.difference(created);
     if (diff.inMinutes < 1) {
       return 'now';
     }
-    if (diff.inHours < 1) {
-      return '${diff.inMinutes}m';
+    if (diff.inMinutes < 60) {
+      return '${diff.inMinutes}m ago';
     }
-    if (diff.inDays < 1) {
-      return '${diff.inHours}h';
+    if (diff.inHours < 24) {
+      return '${diff.inHours}h ago';
     }
-    return '${diff.inDays}d';
+    // Yesterday check
+    final yesterday = DateTime(now.year, now.month, now.day - 1);
+    final createdDate = DateTime(created.year, created.month, created.day);
+    if (createdDate == yesterday) {
+      return 'Yesterday';
+    }
+    // Older — show short date
+    return '${created.month}/${created.day}';
   }
 }
+
+// ── Inbox item row (alias used by friend rows) ─────────────────────────────
+
+/// A polished inbox list row: 40 px avatar on the left, name + subtitle
+/// in the center, optional trailing widget on the right.
+class _InboxItem extends StatelessWidget {
+  const _InboxItem({
+    required this.title,
+    required this.subtitle,
+    required this.avatarUrl,
+    required this.trailing,
+  });
+
+  final String title;
+  final String subtitle;
+  final String? avatarUrl;
+  final Widget trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+        child: Row(
+          children: [
+            // 40 px avatar
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: avatarUrl != null
+                  ? ClipOval(
+                      child: Image.network(
+                        avatarUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, _) => _InitialAvatar(
+                          name: title,
+                          size: 40,
+                        ),
+                      ),
+                    )
+                  : _InitialAvatar(name: title, size: 40),
+            ),
+            const SizedBox(width: 12),
+            // Name + subtitle
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            trailing,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Fallback avatar displaying the first letter of the name on a
+/// [ColorScheme.primaryContainer] background.
+class _InitialAvatar extends StatelessWidget {
+  const _InitialAvatar({required this.name, required this.size});
+
+  final String name;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: cs.primaryContainer,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: TextStyle(
+          color: cs.onPrimaryContainer,
+          fontWeight: FontWeight.w700,
+          fontSize: size * 0.4,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Friend request card ────────────────────────────────────────────────────
 
 class _FriendRequestCard extends StatelessWidget {
   const _FriendRequestCard({
@@ -394,7 +650,7 @@ class _FriendRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _UserRow(
+    return _InboxItem(
       title: request.fromUserName,
       subtitle: 'Wants to connect',
       avatarUrl: request.fromUserAvatarUrl,
@@ -416,6 +672,8 @@ class _FriendRequestCard extends StatelessWidget {
   }
 }
 
+// ── Generic user row (sent requests, friends list) ─────────────────────────
+
 class _UserRow extends StatelessWidget {
   const _UserRow({
     required this.title,
@@ -431,40 +689,11 @@ class _UserRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 6, 8, 6),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundImage: avatarUrl != null
-                  ? NetworkImage(avatarUrl!)
-                  : null,
-              child: avatarUrl == null
-                  ? Text(title.isNotEmpty ? title[0].toUpperCase() : '?')
-                  : null,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            trailing,
-          ],
-        ),
-      ),
+    return _InboxItem(
+      title: title,
+      subtitle: subtitle,
+      avatarUrl: avatarUrl,
+      trailing: trailing,
     );
   }
 }
