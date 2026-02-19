@@ -19,6 +19,7 @@ class BashView extends StatelessWidget {
     final state = tool['state'] as String? ?? 'pending';
 
     final command = input['command'] as String? ?? '';
+    final description = input['description'] as String?;
 
     final stdout = state == 'completed' && result != null
         ? _getStdout(result)
@@ -35,6 +36,7 @@ class BashView extends StatelessWidget {
     return ToolSectionView(
       child: CommandView(
         command: command,
+        description: description,
         stdout: stdout,
         stderr: stderr,
         exitCode: exitCode,
@@ -73,6 +75,9 @@ class CommandView extends StatefulWidget {
   /// The shell command string.
   final String command;
 
+  /// Human-readable description of what the command does.
+  final String? description;
+
   /// Standard output text.
   final String? stdout;
 
@@ -91,6 +96,7 @@ class CommandView extends StatefulWidget {
   const CommandView({
     super.key,
     required this.command,
+    this.description,
     this.stdout,
     this.stderr,
     this.exitCode,
@@ -116,7 +122,10 @@ class _CommandViewState extends State<CommandView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _TerminalCommandBar(command: widget.command),
+        _TerminalCommandBar(
+          command: widget.command,
+          description: widget.description,
+        ),
         if (widget.stdout != null && widget.stdout!.isNotEmpty)
           _TerminalOutputSection(
             label: 'stdout',
@@ -175,12 +184,18 @@ class _CommandViewState extends State<CommandView> {
 
 class _TerminalCommandBar extends StatelessWidget {
   final String command;
+  final String? description;
 
-  const _TerminalCommandBar({required this.command});
+  const _TerminalCommandBar({
+    required this.command,
+    this.description,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Show description as primary label; fall back to "bash".
+    final label = description ?? 'bash';
 
     return Container(
       decoration: BoxDecoration(
@@ -192,7 +207,7 @@ class _TerminalCommandBar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Title bar
+          // Title bar — description (or "bash") + copy button
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: const BoxDecoration(
@@ -213,31 +228,36 @@ class _TerminalCommandBar extends StatelessWidget {
                   color: Color(0xFF8B949E),
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  'bash',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: const Color(0xFF8B949E),
-                    fontFamily: 'monospace',
-                    letterSpacing: 0.5,
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: description != null
+                          ? const Color(0xFFE6EDF3)
+                          : const Color(0xFF8B949E),
+                      fontFamily: description != null ? null : 'monospace',
+                      letterSpacing: description != null ? null : 0.5,
+                    ),
                   ),
                 ),
-                const Spacer(),
                 _CopyButton(text: command, iconSize: 14),
               ],
             ),
           ),
-          // Command line
+          // Command — single line, truncated
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 12,
               vertical: 10,
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
+                const Text(
                   r'$',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 13,
                     color: Color(0xFF3FB950),
@@ -246,8 +266,11 @@ class _TerminalCommandBar extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: SelectableText(
-                    command,
+                  child: Text(
+                    // Collapse newlines so multi-line commands show on one line
+                    command.replaceAll('\n', ' '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 13,
