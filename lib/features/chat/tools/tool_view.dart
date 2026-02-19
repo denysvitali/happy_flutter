@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/services/sync_service.dart';
 import '../utils/tool_error_parser.dart';
 import 'elapsed_time.dart';
@@ -463,9 +464,18 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () {
-                  widget.onPress?.call();
-                  _toggleExpanded();
+                  if (hasContent) {
+                    _toggleExpanded();
+                  } else {
+                    widget.onPress?.call();
+                  }
                 },
+                onLongPress: widget.onPress != null
+                    ? () {
+                        HapticFeedback.mediumImpact();
+                        widget.onPress!.call();
+                      }
+                    : null,
                 child: _buildHeader(
                   context,
                   theme,
