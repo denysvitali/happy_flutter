@@ -37,7 +37,7 @@ env:
   DART_VM_OPTIONS: '--max-gen-heap-size=4096'
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -442,6 +442,28 @@ jobs:
           name: happy-flutter-release-${{ steps.flavor.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
           path: build/app/outputs/flutter-apk/app-${{ steps.flavor.outputs.FLAVOR }}-release.apk
           retention-days: 14
+
+      - name: Determine release version
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        id: release_version
+        run: |
+          SEMVER=$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d'+' -f1 | tr -d ' ')
+          RELEASE_TAG="v${SEMVER}-${{ steps.build_meta.outputs.BUILD_NUMBER }}"
+          echo "SEMVER=$SEMVER" >> $GITHUB_OUTPUT
+          echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_version.outputs.RELEASE_TAG }}
+          name: Happy Flutter ${{ steps.release_version.outputs.RELEASE_TAG }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          files: build/app/outputs/flutter-apk/app-${{ steps.flavor.outputs.FLAVOR }}-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Web build disabled - requires web-compatible encryption/storage implementations
   # The app uses sodium (libsodium) and mmkv which are not web-compatible
