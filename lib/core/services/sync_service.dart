@@ -79,7 +79,7 @@ what you have, you must use the options mode.
   // Sync managers
   late InvalidateSync sessionsSync;
   final Map<String, InvalidateSync> messagesSync = {};
-  final Map<String, Set<String>> sessionReceivedMessages = {};
+  final Map<String, int> _sessionLastSeq = {};
   late InvalidateSync settingsSync;
   late InvalidateSync profileSync;
   late InvalidateSync purchasesSync;
@@ -338,7 +338,7 @@ what you have, you must use the options mode.
     final sessionId = data['sid'] as String?;
     if (sessionId != null) {
       messagesSync.remove(sessionId)?.dispose();
-      sessionReceivedMessages.remove(sessionId);
+      _sessionLastSeq.remove(sessionId);
       _sessionMessages.remove(sessionId);
       _todoLists.remove(sessionId);
       _sessions.remove(sessionId);
@@ -1377,6 +1377,10 @@ what you have, you must use the options mode.
   /// daemon returns a `requestToApproveDirectoryCreation` result; passing
   /// [approvedNewDirectoryCreation] = true tells it to create the directory.
   ///
+  /// The active profile's environment variables (API keys, model config, etc.)
+  /// and the last-used agent type are automatically read from settings and
+  /// forwarded to the daemon so it can configure the agent correctly.
+  ///
   /// Throws a [StateError] with a human-readable message on failure.
   Future<String> createSession({
     required String machineId,
@@ -1386,6 +1390,21 @@ what you have, you must use the options mode.
     if (!isInitialized) {
       throw StateError('Sync is not initialized');
     }
+    if (socketIoClient.connectionStatus != ConnectionStatus.connected) {
+      throw StateError('Not connected to server');
+    }
+
+    // Derive agent type and environment variables from the active profile.
+    final profileId = _settingsSnapshot.lastUsedProfile;
+    final profile = profileId != null
+        ? _settingsSnapshot.profiles
+            .where((p) => p.id == profileId)
+            .firstOrNull
+        : _settingsSnapshot.profiles.firstOrNull;
+    final envVars = profile != null
+        ? _profileEnvironmentVariables(profile)
+        : <String, String>{};
+    final agent = _settingsSnapshot.lastUsedAgent;
 
     final result = await machineRPC(
       machineId,
@@ -1394,6 +1413,8 @@ what you have, you must use the options mode.
         'type': 'spawn-in-directory',
         'directory': path,
         'approvedNewDirectoryCreation': approvedNewDirectoryCreation,
+        if (agent != null) 'agent': agent,
+        if (envVars.isNotEmpty) 'environmentVariables': envVars,
       },
     );
 
@@ -1423,6 +1444,88 @@ what you have, you must use the options mode.
     final errorMsg =
         result['errorMessage'] as String? ?? 'unknown error';
     throw StateError(errorMsg);
+  }
+
+  /// Convert an [AIBackendProfile] into a flat map of environment variables
+  /// that will be forwarded to the machine daemon when spawning a session.
+  ///
+  /// Mirrors React Native's `getProfileEnvironmentVariables` in settings.ts.
+  Map<String, String> _profileEnvironmentVariables(
+    AIBackendProfile profile,
+  ) {
+    final envVars = <String, String>{};
+
+    for (final v in profile.environmentVariables) {
+      envVars[v.name] = v.value;
+    }
+
+    final anthropic = profile.anthropicConfig;
+    if (anthropic != null) {
+      if (anthropic.baseUrl != null) {
+        envVars['ANTHROPIC_BASE_URL'] = anthropic.baseUrl!;
+      }
+      if (anthropic.authToken != null) {
+        envVars['ANTHROPIC_AUTH_TOKEN'] = anthropic.authToken!;
+      }
+      if (anthropic.model != null) {
+        envVars['ANTHROPIC_MODEL'] = anthropic.model!;
+      }
+    }
+
+    final openai = profile.openaiConfig;
+    if (openai != null) {
+      if (openai.apiKey != null) {
+        envVars['OPENAI_API_KEY'] = openai.apiKey!;
+      }
+      if (openai.baseUrl != null) {
+        envVars['OPENAI_BASE_URL'] = openai.baseUrl!;
+      }
+      if (openai.model != null) {
+        envVars['OPENAI_MODEL'] = openai.model!;
+      }
+    }
+
+    final azure = profile.azureOpenAIConfig;
+    if (azure != null) {
+      if (azure.apiKey != null) {
+        envVars['AZURE_OPENAI_API_KEY'] = azure.apiKey!;
+      }
+      if (azure.endpoint != null) {
+        envVars['AZURE_OPENAI_ENDPOINT'] = azure.endpoint!;
+      }
+      if (azure.apiVersion != null) {
+        envVars['AZURE_OPENAI_API_VERSION'] = azure.apiVersion!;
+      }
+      if (azure.deploymentName != null) {
+        envVars['AZURE_OPENAI_DEPLOYMENT_NAME'] = azure.deploymentName!;
+      }
+    }
+
+    final together = profile.togetherAIConfig;
+    if (together != null) {
+      if (together.apiKey != null) {
+        envVars['TOGETHER_API_KEY'] = together.apiKey!;
+      }
+      if (together.model != null) {
+        envVars['TOGETHER_MODEL'] = together.model!;
+      }
+    }
+
+    final tmux = profile.tmuxConfig;
+    if (tmux != null) {
+      if (tmux.sessionName != null) {
+        envVars['TMUX_SESSION_NAME'] = tmux.sessionName!;
+      }
+      if (tmux.tmpDir != null) {
+        envVars['TMUX_TMPDIR'] = tmux.tmpDir!;
+      }
+      if (tmux.updateEnvironment != null) {
+        envVars['TMUX_UPDATE_ENVIRONMENT'] =
+            tmux.updateEnvironment.toString();
+      }
+    }
+
+    return envVars;
   }
 
   /// Send message to session
@@ -1504,14 +1607,16 @@ what you have, you must use the options mode.
       );
     }
 
-    socketIoClient.send(
-      'message',
-      {
-        'sid': sessionId,
-        'message': encryptedRawRecord,
-        'localId': localId,
-        'sentFrom': sentFrom,
-        'permissionMode': effectivePermissionMode,
+    final apiClient = ApiClient();
+    await apiClient.post(
+      '/v3/sessions/$sessionId/messages',
+      data: {
+        'messages': [
+          {
+            'content': encryptedRawRecord,
+            'localId': localId,
+          },
+        ],
       },
     );
   }
@@ -1649,31 +1754,26 @@ what you have, you must use the options mode.
 
     try {
       final apiClient = ApiClient();
-      final response = await apiClient.get('/v1/sessions/$sessionId/messages');
+      var afterSeq = _sessionLastSeq[sessionId] ?? 0;
+      while (true) {
+        final response = await apiClient.get(
+          '/v3/sessions/$sessionId/messages',
+          queryParameters: {'after_seq': afterSeq, 'limit': 100},
+        );
 
-      if (apiClient.isSuccess(response)) {
+        if (!apiClient.isSuccess(response)) {
+          debugPrint('Failed to fetch messages: ${response.statusCode}');
+          break;
+        }
+
         final data = response.data as Map<String, dynamic>;
         final messages = (data['messages'] as List<dynamic>? ?? [])
             .whereType<Map<String, dynamic>>()
-            .toList()
-            .reversed
             .toList();
-
-        final receivedMessages = sessionReceivedMessages.putIfAbsent(
-          sessionId,
-          () => <String>{},
-        );
-        final toDecrypt = <Map<String, dynamic>>[];
-        for (final message in messages) {
-          final messageId = message['id'] as String?;
-          if (messageId == null || receivedMessages.contains(messageId)) {
-            continue;
-          }
-          toDecrypt.add(message);
-        }
+        final hasMore = data['hasMore'] as bool? ?? false;
 
         final decryptedMessages = await sessionEncryption.decryptMessages(
-          toDecrypt,
+          messages,
         );
 
         final mappedMessages = <Map<String, dynamic>>[];
@@ -1682,7 +1782,7 @@ what you have, you must use the options mode.
           if (decrypted == null || decrypted.content == null) {
             continue;
           }
-          receivedMessages.add(decrypted.id);
+          if (decrypted.seq > afterSeq) afterSeq = decrypted.seq;
           final (msgs, results) =
               _processDecryptedMessage(decrypted, sessionId);
           mappedMessages.addAll(msgs);
@@ -1696,8 +1796,8 @@ what you have, you must use the options mode.
           _applyToolResults(sessionId, toolResults);
         }
         _groupSidechainMessages(sessionId);
-      } else {
-        debugPrint('Failed to fetch messages: ${response.statusCode}');
+        _sessionLastSeq[sessionId] = afterSeq;
+        if (!hasMore) break;
       }
     } catch (error) {
       debugPrint('Error fetching messages: $error');
@@ -2452,7 +2552,7 @@ what you have, you must use the options mode.
       sync.dispose();
     }
     messagesSync.clear();
-    sessionReceivedMessages.clear();
+    _sessionLastSeq.clear();
 
     sessionsSync.dispose();
     settingsSync.dispose();

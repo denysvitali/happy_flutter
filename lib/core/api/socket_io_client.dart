@@ -54,6 +54,9 @@ class SocketIoClient {
   /// Get raw message stream
   Stream<SocketMessage> get messageStream => _messageController.stream;
 
+  /// Current connection status
+  ConnectionStatus get connectionStatus => _status;
+
   /// Initialize and connect using the official Socket.IO protocol
   void connect({
     required String serverUrl,
