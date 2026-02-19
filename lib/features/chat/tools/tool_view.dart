@@ -962,14 +962,15 @@ class _ToolHeader extends StatelessWidget {
           if (hasContent) ...[
             const SizedBox(width: 6),
             RotationTransition(
-                turns: chevronAnim,
-                child: Icon(
-                  Icons.expand_more,
-                  size: 18,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+              turns: chevronAnim,
+              child: Icon(
+                Icons.expand_more,
+                size: 18,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
+            ),
           ],
+        ],
       ),
     );
   }
@@ -1054,7 +1055,7 @@ class _ToolOutputContainer extends StatelessWidget {
 
     return Container(
       constraints: const BoxConstraints(maxHeight: 300),
-      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(6),

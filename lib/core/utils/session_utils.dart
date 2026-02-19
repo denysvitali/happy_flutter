@@ -407,14 +407,12 @@ List<SessionFolderItem> groupSessionsByFolder(
         first.metadata?.host ??
         'Unknown';
 
-    // Display path: substitute ~ for homeDir.
+    // Display path: substitute ~ for homeDir (uses normalised helper).
     final rawPath = first.metadata?.path ?? '';
-    final homeDir = first.metadata?.homeDir ?? '';
-    final displayPath = homeDir.isNotEmpty && rawPath.startsWith(homeDir)
-        ? '~${rawPath.substring(homeDir.length)}'
-        : rawPath.isEmpty
-            ? 'Unknown'
-            : rawPath;
+    final homeDir = first.metadata?.homeDir;
+    final displayPath = rawPath.isEmpty
+        ? 'Unknown'
+        : formatPathRelativeToHome(rawPath, homeDir: homeDir);
 
     items.add(
       SessionFolderHeader(

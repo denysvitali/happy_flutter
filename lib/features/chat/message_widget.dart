@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import 'markdown/markdown.dart';
@@ -183,6 +184,25 @@ class _UserBubble extends StatelessWidget {
                     color: theme.colorScheme.onPrimary,
                   ),
                   child: SelectionArea(
+                    contextMenuBuilder: (ctx, selectableRegionState) {
+                      return AdaptiveTextSelectionToolbar.buttonItems(
+                        anchors:
+                            selectableRegionState.contextMenuAnchors,
+                        buttonItems: [
+                          ...selectableRegionState
+                              .contextMenuButtonItems,
+                          ContextMenuButtonItem(
+                            label: 'Copy All',
+                            onPressed: () {
+                              ContextMenuController.removeAny();
+                              Clipboard.setData(
+                                ClipboardData(text: text),
+                              );
+                            },
+                          ),
+                        ],
+                      );
+                    },
                     child: MarkdownView(
                       markdown: text,
                       onOptionPress: onOptionPress,
@@ -229,6 +249,21 @@ class _BotMessage extends StatelessWidget {
         bottom: 4,
       ),
       child: SelectionArea(
+        contextMenuBuilder: (ctx, selectableRegionState) {
+          return AdaptiveTextSelectionToolbar.buttonItems(
+            anchors: selectableRegionState.contextMenuAnchors,
+            buttonItems: [
+              ...selectableRegionState.contextMenuButtonItems,
+              ContextMenuButtonItem(
+                label: 'Copy All',
+                onPressed: () {
+                  ContextMenuController.removeAny();
+                  Clipboard.setData(ClipboardData(text: text));
+                },
+              ),
+            ],
+          );
+        },
         child: DefaultTextStyle.merge(
           style: TextStyle(color: textColor),
           child: MarkdownView(

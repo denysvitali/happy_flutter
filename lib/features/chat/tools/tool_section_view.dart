@@ -26,23 +26,21 @@ class ToolSectionView extends StatelessWidget {
   Widget build(BuildContext context) {
     final effectiveChildren = child != null ? [child!] : children;
 
-    return Container(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (title != null)
-            _SectionHeader(title: title!, fullWidth: fullWidth),
-          if (fullWidth)
-            ...effectiveChildren
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: effectiveChildren,
-            ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (title != null)
+          _SectionHeader(title: title!, fullWidth: fullWidth),
+        if (fullWidth)
+          ...effectiveChildren
+        else
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: effectiveChildren,
+          ),
+      ],
     );
   }
 }

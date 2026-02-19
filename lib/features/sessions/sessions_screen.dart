@@ -157,7 +157,6 @@ class _SessionsListContentState
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final sessions = ref.watch(sessionsNotifierProvider);
     final machines = ref.watch(machinesNotifierProvider);
     final settings = ref.watch(settingsNotifierProvider);
@@ -707,47 +706,6 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// iOS-style date section header — small-caps label + extending divider.
-class _DateSectionHeader extends StatelessWidget {
-  const _DateSectionHeader({required this.date});
-  final String date;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final labelColor = theme.colorScheme.primary;
-    final dividerColor =
-        theme.colorScheme.outlineVariant.withValues(alpha: 0.6);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-      child: Row(
-        children: [
-          Text(
-            date.toUpperCase(),
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: labelColor,
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Container(
-              height: 1,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [dividerColor, Colors.transparent],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 
 /// Folder section header for grouping inactive sessions by directory + machine.
@@ -1133,107 +1091,105 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
             ],
           ),
           child: Material(
-              color: Colors.transparent,
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              onTap: widget.onTap,
               borderRadius: BorderRadius.circular(14),
-              child: InkWell(
-                onTap: widget.onTap,
-                borderRadius: BorderRadius.circular(14),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Pulsing green active indicator.
-                      _ActiveIndicatorDot(t: t, primary: cs.primary),
-                      const SizedBox(width: 12),
-                      // Avatar with Hero + optional draft badge.
-                      Hero(
-                        tag: 'session-avatar-${widget.session.id}',
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            SessionAvatar(
-                              id: avatarId,
-                              flavor: sessionFlavor,
-                              size: 48,
-                            ),
-                            if (hasDraft) const _DraftBadge(),
-                          ],
-                        ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Pulsing green active indicator.
+                    _ActiveIndicatorDot(t: t, primary: cs.primary),
+                    const SizedBox(width: 12),
+                    // Avatar with Hero + optional draft badge.
+                    Hero(
+                      tag: 'session-avatar-${widget.session.id}',
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          SessionAvatar(
+                            id: avatarId,
+                            flavor: sessionFlavor,
+                            size: 48,
+                          ),
+                          if (hasDraft) const _DraftBadge(),
+                        ],
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              sessionName,
-                              style:
-                                  theme.textTheme.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: cs.onSurface,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              sessionSubtitle,
-                              style:
-                                  theme.textTheme.labelSmall?.copyWith(
-                                color: cs.onSurfaceVariant,
-                                fontFamily: 'monospace',
-                                fontSize: 11,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                            if (sessionStatus.shouldShowStatus) ...[
-                              const SizedBox(height: 8),
-                              _StatusPill(
-                                color: Color(sessionStatus.statusColor),
-                                text: sessionStatus.statusText,
-                                isPulsing: sessionStatus.isPulsing,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            formatTimestamp(
-                              widget.session.updatedAt,
-                              relative: true,
+                            sessionName,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: cs.onSurface,
                             ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            sessionSubtitle,
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: cs.onSurfaceVariant,
+                              fontFamily: 'monospace',
                               fontSize: 11,
                             ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
-                          const SizedBox(height: 6),
-                          StatusDot(
-                            color: Color(sessionStatus.statusDotColor),
-                            isPulsing: sessionStatus.isPulsing,
-                            size: 8,
-                          ),
-                          if (todoProgress != null) ...[
-                            const SizedBox(height: 4),
-                            _TodoProgressBadge(
-                              completed: todoProgress.completed,
-                              total: todoProgress.total,
+                          if (sessionStatus.shouldShowStatus) ...[
+                            const SizedBox(height: 8),
+                            _StatusPill(
+                              color: Color(sessionStatus.statusColor),
+                              text: sessionStatus.statusText,
+                              isPulsing: sessionStatus.isPulsing,
                             ),
                           ],
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          formatTimestamp(
+                            widget.session.updatedAt,
+                            relative: true,
+                          ),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        StatusDot(
+                          color: Color(sessionStatus.statusDotColor),
+                          isPulsing: sessionStatus.isPulsing,
+                          size: 8,
+                        ),
+                        if (todoProgress != null) ...[
+                          const SizedBox(height: 4),
+                          _TodoProgressBadge(
+                            completed: todoProgress.completed,
+                            total: todoProgress.total,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
+              ),
             ),
           ),
         );
@@ -1811,6 +1767,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   String? _selectedMachine;
   bool _isCreating = false;
   String? _createError;
+  String _selectedAgent = 'claude';
+
+  @override
+  void initState() {
+    super.initState();
+    final settings = ref.read(settingsNotifierProvider);
+    _selectedAgent = settings.lastUsedAgent ?? 'claude';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1934,6 +1898,27 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               );
             },
           ),
+          const SizedBox(height: 16),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'claude',
+                label: Text('Claude'),
+              ),
+              ButtonSegment(
+                value: 'codex',
+                label: Text('Codex'),
+              ),
+              ButtonSegment(
+                value: 'gemini',
+                label: Text('Gemini'),
+              ),
+            ],
+            selected: {_selectedAgent},
+            onSelectionChanged: (selection) {
+              setState(() => _selectedAgent = selection.first);
+            },
+          ),
           if (_createError != null) ...[
             const SizedBox(height: 12),
             Text(
@@ -1983,6 +1968,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     });
 
     try {
+      await sync.applySettings({'lastUsedAgent': _selectedAgent});
       final sessionId = await sync.createSession(
         machineId: machineId,
         path: path,

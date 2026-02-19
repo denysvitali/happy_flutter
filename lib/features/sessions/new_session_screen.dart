@@ -19,6 +19,14 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   Machine? _selectedMachine;
   final _pathController = TextEditingController();
   bool _isCreating = false;
+  String _selectedAgent = 'claude';
+
+  @override
+  void initState() {
+    super.initState();
+    final settings = ref.read(settingsNotifierProvider);
+    _selectedAgent = settings.lastUsedAgent ?? 'claude';
+  }
 
   @override
   void dispose() {
@@ -40,6 +48,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     setState(() => _isCreating = true);
 
     try {
+      await sync.applySettings({'lastUsedAgent': _selectedAgent});
       final sessionId = await sync.createSession(
         machineId: machine.id,
         path: path,
@@ -239,6 +248,36 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                   ),
               ],
             ),
+          ),
+          const SizedBox(height: 20),
+
+          // Agent selector
+          Text(
+            'Agent',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'claude',
+                label: Text('Claude'),
+              ),
+              ButtonSegment(
+                value: 'codex',
+                label: Text('Codex'),
+              ),
+              ButtonSegment(
+                value: 'gemini',
+                label: Text('Gemini'),
+              ),
+            ],
+            selected: {_selectedAgent},
+            onSelectionChanged: (selection) {
+              setState(() => _selectedAgent = selection.first);
+            },
           ),
           const SizedBox(height: 32),
 
