@@ -37,23 +37,25 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
 
     setState(() => _isCreating = true);
 
-    final sessionId = await sync.createSession(
-      machineId: machine.id,
-      path: path,
-    );
-
-    if (!mounted) return;
-
-    if (sessionId == null || sessionId.isEmpty) {
+    try {
+      final sessionId = await sync.createSession(
+        machineId: machine.id,
+        path: path,
+      );
+      if (!mounted) return;
+      ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+      context.go('/chat/$sessionId');
+    } catch (e) {
+      if (!mounted) return;
       setState(() => _isCreating = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to start session')),
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst('Bad state: ', ''),
+          ),
+        ),
       );
-      return;
     }
-
-    ref.read(sessionsNotifierProvider.notifier).loadFromSync();
-    context.go('/chat/$sessionId');
   }
 
   Future<void> _pickMachine() async {
@@ -82,8 +84,11 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final machines =
-        ref.watch(machinesNotifierProvider).values.toList();
+    final machines = ref
+        .watch(machinesNotifierProvider)
+        .values
+        .where((m) => m.active)
+        .toList();
     final theme = Theme.of(context);
 
     return Scaffold(
