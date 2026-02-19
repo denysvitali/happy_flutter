@@ -197,10 +197,19 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     );
     _prevState = initial;
 
-    if (initial == ToolState.running) {
+    final initPermission =
+        widget.tool['permission'] as Map<String, dynamic>?;
+    final hasPermissionRequest =
+        initPermission != null &&
+        initPermission['status'] != 'denied' &&
+        initPermission['status'] != 'canceled';
+
+    if (initial == ToolState.running || hasPermissionRequest) {
       _expanded = true;
       _chevronController.forward();
-      _pulseController.repeat(reverse: true);
+      if (initial == ToolState.running) {
+        _pulseController.repeat(reverse: true);
+      }
     } else {
       _expanded = false;
     }
@@ -213,6 +222,17 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     final newState = _parseToolState(
       widget.tool['state'] as String? ?? 'pending',
     );
+
+    final updatedPermission =
+        widget.tool['permission'] as Map<String, dynamic>?;
+    final hasPermissionRequest =
+        updatedPermission != null &&
+        updatedPermission['status'] != 'denied' &&
+        updatedPermission['status'] != 'canceled';
+
+    if (hasPermissionRequest && !_expanded) {
+      _setExpanded(true);
+    }
 
     if (_prevState == newState) return;
 
@@ -262,37 +282,51 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     _setExpanded(!_expanded);
   }
 
-  void _handlePermissionAllow(
+  Future<void> _handlePermissionAllow(
     Map<String, dynamic> permission,
-  ) {
+  ) async {
     final permId = permission['id'] as String?;
     if (permId == null || widget.sessionId == null) return;
-    sync.sessionAllow(widget.sessionId!, permId);
+    try {
+      await sync.sessionAllow(widget.sessionId!, permId);
+    } catch (e) {
+      debugPrint('Permission allow failed: $e');
+    }
   }
 
-  void _handlePermissionDeny(Map<String, dynamic> permission) {
-    final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    sync.sessionDeny(widget.sessionId!, permId);
-  }
-
-  void _handlePermissionAllowAllEdits(
+  Future<void> _handlePermissionDeny(
     Map<String, dynamic> permission,
-  ) {
+  ) async {
     final permId = permission['id'] as String?;
     if (permId == null || widget.sessionId == null) return;
-    sync.sessionAllow(
-      widget.sessionId!,
-      permId,
-      mode: 'acceptEdits',
-    );
+    try {
+      await sync.sessionDeny(widget.sessionId!, permId);
+    } catch (e) {
+      debugPrint('Permission deny failed: $e');
+    }
   }
 
-  void _handlePermissionAllowForSession(
+  Future<void> _handlePermissionAllowAllEdits(
+    Map<String, dynamic> permission,
+  ) async {
+    final permId = permission['id'] as String?;
+    if (permId == null || widget.sessionId == null) return;
+    try {
+      await sync.sessionAllow(
+        widget.sessionId!,
+        permId,
+        mode: 'acceptEdits',
+      );
+    } catch (e) {
+      debugPrint('Permission allow all edits failed: $e');
+    }
+  }
+
+  Future<void> _handlePermissionAllowForSession(
     Map<String, dynamic> permission,
     String toolName,
     Map<String, dynamic>? toolInput,
-  ) {
+  ) async {
     final permId = permission['id'] as String?;
     if (permId == null || widget.sessionId == null) return;
     final List<String> allowTools;
@@ -302,11 +336,63 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     } else {
       allowTools = [toolName];
     }
-    sync.sessionAllow(
-      widget.sessionId!,
-      permId,
-      allowTools: allowTools,
-    );
+    try {
+      await sync.sessionAllow(
+        widget.sessionId!,
+        permId,
+        allowTools: allowTools,
+      );
+    } catch (e) {
+      debugPrint('Permission allow for session failed: $e');
+    }
+  }
+
+  Future<void> _handleCodexApprove(
+    Map<String, dynamic> permission,
+  ) async {
+    final permId = permission['id'] as String?;
+    if (permId == null || widget.sessionId == null) return;
+    try {
+      await sync.sessionAllow(
+        widget.sessionId!,
+        permId,
+        decision: 'approved',
+      );
+    } catch (e) {
+      debugPrint('Codex approve failed: $e');
+    }
+  }
+
+  Future<void> _handleCodexApproveForSession(
+    Map<String, dynamic> permission,
+  ) async {
+    final permId = permission['id'] as String?;
+    if (permId == null || widget.sessionId == null) return;
+    try {
+      await sync.sessionAllow(
+        widget.sessionId!,
+        permId,
+        decision: 'approved_for_session',
+      );
+    } catch (e) {
+      debugPrint('Codex approve for session failed: $e');
+    }
+  }
+
+  Future<void> _handleCodexAbort(
+    Map<String, dynamic> permission,
+  ) async {
+    final permId = permission['id'] as String?;
+    if (permId == null || widget.sessionId == null) return;
+    try {
+      await sync.sessionDeny(
+        widget.sessionId!,
+        permId,
+        decision: 'abort',
+      );
+    } catch (e) {
+      debugPrint('Codex abort failed: $e');
+    }
   }
 
   @override
@@ -551,6 +637,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
                   sessionId: widget.sessionId!,
                   toolName: toolName,
                   toolInput: toolInput,
+                  flavor: widget.metadata?['flavor'] as String?,
                   onAllow: () => _handlePermissionAllow(permission),
                   onDeny: () => _handlePermissionDeny(permission),
                   onAllowAllEdits: () =>
@@ -561,6 +648,11 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
                     toolName,
                     toolInput,
                   ),
+                  onCodexApprove: () =>
+                      _handleCodexApprove(permission),
+                  onCodexApproveForSession: () =>
+                      _handleCodexApproveForSession(permission),
+                  onCodexAbort: () => _handleCodexAbort(permission),
                 ),
             ],
           ),

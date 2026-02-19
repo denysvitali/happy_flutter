@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Permission request UI with Allow, Allow All, and Deny buttons.
-class PermissionFooter extends StatelessWidget {
+class PermissionFooter extends StatefulWidget {
 
   const PermissionFooter({
     required this.permission,
@@ -9,11 +9,16 @@ class PermissionFooter extends StatelessWidget {
     required this.toolName,
     super.key,
     this.toolInput,
+    this.flavor,
     this.onAllow,
     this.onDeny,
     this.onAllowAllEdits,
     this.onAllowForSession,
+    this.onCodexApprove,
+    this.onCodexApproveForSession,
+    this.onCodexAbort,
   });
+
   /// The permission data.
   final Map<String, dynamic> permission;
 
@@ -25,6 +30,9 @@ class PermissionFooter extends StatelessWidget {
 
   /// The tool input (for showing what will be allowed).
   final Map<String, dynamic>? toolInput;
+
+  /// The session flavor (e.g. 'claude', 'codex', 'gemini').
+  final String? flavor;
 
   /// Callback when permission is allowed.
   final VoidCallback? onAllow;
@@ -38,13 +46,50 @@ class PermissionFooter extends StatelessWidget {
   /// Callback when permission is allowed for the session.
   final VoidCallback? onAllowForSession;
 
-  String _actionDescription() {
-    if (toolInput == null) return 'run $toolName';
-    final input = toolInput!;
+  /// Callback for Codex approve (single action).
+  final VoidCallback? onCodexApprove;
 
-    switch (toolName) {
+  /// Callback for Codex approve for session.
+  final VoidCallback? onCodexApproveForSession;
+
+  /// Callback for Codex abort.
+  final VoidCallback? onCodexAbort;
+
+  @override
+  State<PermissionFooter> createState() => _PermissionFooterState();
+}
+
+class _PermissionFooterState extends State<PermissionFooter> {
+  bool _loading = false;
+
+  @override
+  void didUpdateWidget(PermissionFooter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final status =
+        widget.permission['status'] as String? ?? 'pending';
+    if (status != 'pending' && _loading) {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _wrap(VoidCallback? cb) async {
+    if (cb == null || _loading) return;
+    setState(() => _loading = true);
+    try {
+      cb();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _actionDescription() {
+    if (widget.toolInput == null) return 'run ${widget.toolName}';
+    final input = widget.toolInput!;
+
+    switch (widget.toolName) {
       case 'Edit':
       case 'MultiEdit':
+      case 'NotebookEdit':
         final path = input['path'] as String?;
         if (path != null) {
           final short = path.length > 36
@@ -65,18 +110,22 @@ class PermissionFooter extends StatelessWidget {
       case 'Bash':
         final cmd = input['command'] as String?;
         if (cmd != null) {
-          final short = cmd.length > 42 ? '${cmd.substring(0, 42)}…' : cmd;
+          final short =
+              cmd.length > 42 ? '${cmd.substring(0, 42)}…' : cmd;
           return 'run: $short';
         }
         return 'run bash command';
       default:
-        return 'run $toolName';
+        return 'run ${widget.toolName}';
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final permission = widget.permission;
+    final toolName = widget.toolName;
+
     final status = permission['status'] as String? ?? 'pending';
 
     final isPending = status == 'pending';
@@ -86,16 +135,28 @@ class PermissionFooter extends StatelessWidget {
     final mode = permission['mode'] as String?;
     final isApprovedViaAllEdits = isApproved && mode == 'acceptEdits';
 
-    final allowedTools = permission['allowedTools'] as List<String>?;
+    final rawAllowedTools =
+        permission['allowedTools'] as List<dynamic>?;
+    final allowedTools = rawAllowedTools?.cast<String>();
+
     final isApprovedForSession =
         isApproved &&
         allowedTools != null &&
-        allowedTools.contains(toolName);
+        allowedTools.any(
+          (t) => t == toolName || t.startsWith('$toolName('),
+        );
 
-    final isEditTool = toolName == 'Edit' || toolName == 'MultiEdit';
+    final isEditTool = toolName == 'Edit' ||
+        toolName == 'MultiEdit' ||
+        toolName == 'Write' ||
+        toolName == 'NotebookEdit' ||
+        toolName == 'ExitPlanMode';
 
-    final warningAmber = const Color(0xFFFFF8E1);
-    final warningBorder = const Color(0xFFFFB300);
+    final isCodex =
+        widget.flavor == 'codex' || toolName.startsWith('Codex');
+
+    const warningAmber = Color(0xFFFFF8E1);
+    const warningBorder = Color(0xFFFFB300);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(0, 4, 0, 4),
@@ -174,18 +235,35 @@ class PermissionFooter extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              child: _ActionButtons(
-                isPending: isPending,
-                isEditTool: isEditTool,
-                isApproved: isApproved,
-                isDenied: isDenied,
-                isApprovedViaAllEdits: isApprovedViaAllEdits,
-                isApprovedForSession: isApprovedForSession,
-                onAllow: onAllow,
-                onDeny: onDeny,
-                onAllowAllEdits: onAllowAllEdits,
-                onAllowForSession: onAllowForSession,
-              ),
+              child: _loading
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : isCodex
+                      ? _CodexActionButtons(
+                          onCodexApprove: () =>
+                              _wrap(widget.onCodexApprove),
+                          onCodexApproveForSession: () =>
+                              _wrap(widget.onCodexApproveForSession),
+                          onCodexAbort: () =>
+                              _wrap(widget.onCodexAbort),
+                        )
+                      : _ActionButtons(
+                          isPending: isPending,
+                          isEditTool: isEditTool,
+                          isApproved: isApproved,
+                          isDenied: isDenied,
+                          isApprovedViaAllEdits: isApprovedViaAllEdits,
+                          isApprovedForSession: isApprovedForSession,
+                          onAllow: () => _wrap(widget.onAllow),
+                          onDeny: () => _wrap(widget.onDeny),
+                          onAllowAllEdits: () =>
+                              _wrap(widget.onAllowAllEdits),
+                          onAllowForSession: () =>
+                              _wrap(widget.onAllowForSession),
+                        ),
             ),
           ],
         ],
@@ -294,6 +372,91 @@ class _ActionButtons extends StatelessWidget {
   }
 }
 
+class _CodexActionButtons extends StatelessWidget {
+
+  const _CodexActionButtons({
+    this.onCodexApprove,
+    this.onCodexApproveForSession,
+    this.onCodexAbort,
+  });
+
+  /// Callback for the "Yes" (approve once) button.
+  final VoidCallback? onCodexApprove;
+
+  /// Callback for the "For session" (approve for session) button.
+  final VoidCallback? onCodexApproveForSession;
+
+  /// Callback for the "Stop" (abort) button.
+  final VoidCallback? onCodexAbort;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        // Yes — primary green button
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: onCodexApprove,
+            icon: const Icon(Icons.check_rounded, size: 15),
+            label: const Text('Yes'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade700,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 9,
+              ),
+              textStyle: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(7),
+              ),
+              elevation: 0,
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 6),
+
+        // For session — outlined secondary button
+        _SecondaryButton(
+          label: 'For session',
+          onPressed: onCodexApproveForSession,
+        ),
+
+        const SizedBox(width: 6),
+
+        // Stop — outlined error button
+        OutlinedButton.icon(
+          onPressed: onCodexAbort,
+          icon: const Icon(Icons.close_rounded, size: 14),
+          label: const Text('Stop'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: theme.colorScheme.error,
+            side: BorderSide(
+              color: theme.colorScheme.error.withValues(alpha: 0.5),
+              width: 1,
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 9,
+            ),
+            textStyle: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(7),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _SecondaryButton extends StatelessWidget {
 
   const _SecondaryButton({
@@ -361,7 +524,8 @@ class PermissionButtons extends StatelessWidget {
             backgroundColor: theme.colorScheme.primary,
             foregroundColor: theme.colorScheme.onPrimary,
             elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             textStyle: theme.textTheme.labelMedium,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(7),
@@ -378,7 +542,8 @@ class PermissionButtons extends StatelessWidget {
             side: BorderSide(
               color: theme.colorScheme.error.withValues(alpha: 0.5),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             textStyle: theme.textTheme.labelMedium,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(7),

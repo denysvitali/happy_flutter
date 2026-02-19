@@ -1371,54 +1371,57 @@ what you have, you must use the options mode.
   }
 
   /// Create a session on a target machine/path and return the new session ID.
+  /// Create a session on a target machine/path and return the new session ID.
+  ///
+  /// Sends a `spawn-happy-session` RPC to the machine daemon, which starts a
+  /// new Claude Code agent in [path].  If the directory does not yet exist the
+  /// daemon returns a `requestToApproveDirectoryCreation` result; passing
+  /// [approvedNewDirectoryCreation] = true tells it to create the directory.
   Future<String?> createSession({
     required String machineId,
     required String path,
+    bool approvedNewDirectoryCreation = false,
   }) async {
     if (!isInitialized) {
       return null;
     }
 
-    final machine = _machines[machineId];
-    final machineMetadata = machine?.metadata;
-    final metadata = <String, dynamic>{
-      'path': path,
-      'host': machineMetadata?.host ?? 'localhost',
-      'name': machineMetadata?.displayName ?? machineMetadata?.host,
-      'os': machineMetadata?.platform,
-      'machineId': machineId,
-      'homeDir': machineMetadata?.homeDir,
-      'happyHomeDir': machineMetadata?.happyHomeDir,
-    };
-
     try {
-      final encryptedMetadata = await encryption.encryptRaw(metadata);
-      final response = await ApiClient().post(
-        '/v1/sessions',
-        data: <String, dynamic>{
-          'tag': '$machineId:$path',
-          'metadata': encryptedMetadata,
-          'agentState': null,
+      final result = await machineRPC(
+        machineId,
+        'spawn-happy-session',
+        <String, dynamic>{
+          'type': 'spawn-in-directory',
+          'directory': path,
+          'approvedNewDirectoryCreation': approvedNewDirectoryCreation,
         },
       );
 
-      if (!ApiClient().isSuccess(response)) {
-        debugPrint('Failed to create session: ${response.statusCode}');
+      if (result is! Map) {
+        debugPrint('Unexpected spawn result: $result');
         return null;
       }
 
-      final data = response.data;
-      String? sessionId;
-      if (data is Map<String, dynamic>) {
-        final session = data['session'];
-        if (session is Map<String, dynamic>) {
-          sessionId = session['id'] as String?;
-        }
-        sessionId ??= data['id'] as String?;
+      final resultType = result['type'] as String?;
+
+      if (resultType == 'success') {
+        final sessionId = result['sessionId'] as String?;
+        await refreshSessions();
+        return sessionId;
       }
 
-      await refreshSessions();
-      return sessionId;
+      if (resultType == 'requestToApproveDirectoryCreation') {
+        // Re-invoke with approval so the directory is created automatically.
+        return createSession(
+          machineId: machineId,
+          path: path,
+          approvedNewDirectoryCreation: true,
+        );
+      }
+
+      final errorMsg = result['errorMessage'] as String? ?? 'unknown error';
+      debugPrint('Failed to spawn session: $errorMsg');
+      return null;
     } catch (error) {
       debugPrint('Failed to create session: $error');
       return null;
@@ -1516,6 +1519,34 @@ what you have, you must use the options mode.
     );
   }
 
+  /// RPC call for machines - uses machine-specific encryption.
+  Future<dynamic> machineRPC(
+    String machineId,
+    String method,
+    Map<String, dynamic> params,
+  ) async {
+    final machineEncryption = encryption.getMachineEncryption(machineId);
+    if (machineEncryption == null) {
+      throw StateError(
+        'Machine encryption not found for $machineId',
+      );
+    }
+
+    final encrypted = await machineEncryption.encryptRaw(params);
+    final result = await socketIoClient.emitWithAck('rpc-call', {
+      'method': '$machineId:$method',
+      'params': encrypted,
+    });
+
+    if (result is Map && result['ok'] == true) {
+      final decrypted = await machineEncryption.decryptRaw(
+        result['result'] as String,
+      );
+      return decrypted;
+    }
+    throw StateError('Machine RPC call failed');
+  }
+
   /// RPC call for sessions - uses session-specific encryption.
   Future<dynamic> sessionRPC(
     String sessionId,
@@ -1550,20 +1581,27 @@ what you have, you must use the options mode.
     String permissionId, {
     String? mode,
     List<String>? allowTools,
+    String? decision,
   }) async {
     await sessionRPC(sessionId, 'permission', {
       'id': permissionId,
       'approved': true,
       if (mode != null) 'mode': mode,
       if (allowTools != null) 'allowTools': allowTools,
+      if (decision != null) 'decision': decision,
     });
   }
 
   /// Deny a permission request for a session.
-  Future<void> sessionDeny(String sessionId, String permissionId) async {
+  Future<void> sessionDeny(
+    String sessionId,
+    String permissionId, {
+    String? decision,
+  }) async {
     await sessionRPC(sessionId, 'permission', {
       'id': permissionId,
       'approved': false,
+      if (decision != null) 'decision': decision,
     });
   }
 

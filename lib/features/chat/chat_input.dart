@@ -595,6 +595,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.onProfilePressed,
     this.isSendDisabled = false,
     this.contextSize,
+    this.isPermissionPending = false,
   });
 
   /// Stable identifier for the current session (used for draft storage).
@@ -647,6 +648,10 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Current context window usage in tokens.
   final int? contextSize;
+
+  /// When true, input is locked while the agent awaits a permission
+  /// decision from the user.
+  final bool isPermissionPending;
 
   @override
   ConsumerState<ChatInput> createState() => _ChatInputState();
@@ -866,7 +871,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   void _onSendTap() {
-    if (widget.isSendDisabled || widget.isSending) return;
+    if (widget.isSendDisabled ||
+        widget.isSending ||
+        widget.isPermissionPending) {
+      return;
+    }
     _sendScaleController
       ..value = 0.0
       ..forward();
@@ -951,17 +960,24 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   Widget _buildCardInputArea(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final borderColor =
-        _isFocused ? cs.primary : cs.onSurface.withValues(alpha: 0.12);
+    final pending = widget.isPermissionPending;
+    final borderColor = pending
+        ? cs.onSurface.withValues(alpha: 0.08)
+        : _isFocused
+            ? cs.primary
+            : cs.onSurface.withValues(alpha: 0.12);
+    final cardColor = pending
+        ? cs.surfaceContainerHighest.withValues(alpha: 0.5)
+        : cs.surface;
 
     return AnimatedContainer(
       duration: _kBorderAnim,
       curve: Curves.easeInOut,
       decoration: BoxDecoration(
-        color: cs.surface,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor),
-        boxShadow: _isFocused
+        boxShadow: (!pending && _isFocused)
             ? [
                 BoxShadow(
                   color: cs.primary.withValues(alpha: 0.10),
@@ -985,7 +1001,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
             padding: const EdgeInsets.fromLTRB(0, 8, 8, 8),
             child: _SendButton(
               isSending: widget.isSending,
-              isSendDisabled: widget.isSendDisabled,
+              isSendDisabled:
+                  widget.isSendDisabled || widget.isPermissionPending,
               onTap: _onSendTap,
               scaleAnimation: _sendScale,
             ),
@@ -998,6 +1015,14 @@ class _ChatInputState extends ConsumerState<ChatInput>
   Widget _buildTextField(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final pending = widget.isPermissionPending;
+
+    final hintText = pending
+        ? 'Respond to the permission request above'
+        : 'Message\u2026  \u2318\u23ce to send';
+    final hintColor = pending
+        ? cs.onSurface.withValues(alpha: 0.45)
+        : cs.onSurface.withValues(alpha: 0.35);
 
     return KeyboardListener(
       focusNode: FocusNode(skipTraversal: true),
@@ -1005,18 +1030,25 @@ class _ChatInputState extends ConsumerState<ChatInput>
       child: TextField(
         controller: widget.controller,
         focusNode: _focusNode,
+        enabled: !pending,
         decoration: InputDecoration(
-          hintText: 'Message\u2026  \u2318\u23ce to send',
+          hintText: hintText,
           hintStyle: theme.textTheme.bodyMedium?.copyWith(
-            color: cs.onSurface.withValues(alpha: 0.35),
+            color: hintColor,
             fontSize: 14,
           ),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
           contentPadding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
         ),
-        style: theme.textTheme.bodyMedium?.copyWith(fontSize: 15),
+        style: theme.textTheme.bodyMedium?.copyWith(
+          fontSize: 15,
+          color: pending
+              ? cs.onSurface.withValues(alpha: 0.38)
+              : null,
+        ),
         maxLines: 4,
         minLines: 1,
         textInputAction:

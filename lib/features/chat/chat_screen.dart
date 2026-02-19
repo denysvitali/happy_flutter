@@ -120,6 +120,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (!mounted) {
       return;
     }
+
+    final hadRequests =
+        _session?.agentState?.requests?.isNotEmpty ?? false;
+    final hasRequests =
+        latestSession?.agentState?.requests?.isNotEmpty ?? false;
+    final newPermission = !hadRequests && hasRequests;
+
     setState(() {
       _session = latestSession;
       _messages = latestMessages;
@@ -129,6 +136,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
 
     if (messagesChanged && _autoScroll) {
+      _scrollToBottom();
+    }
+
+    if (newPermission) {
       _scrollToBottom();
     }
   }
@@ -375,6 +386,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ],
             ),
           ),
+          if (_session?.agentState?.requests?.isNotEmpty ?? false)
+            _PermissionRequiredBanner(
+              onTap: () => _scrollToBottom(),
+            ),
           ChatInput(
             sessionId: widget.sessionId,
             controller: _controller,
@@ -386,6 +401,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onModelModeChanged: _onModelModeChanged,
             contextSize: sync.sessionUsage[widget.sessionId]
                 ?['contextSize'] as int?,
+            isPermissionPending:
+                _session?.agentState?.requests?.isNotEmpty ?? false,
           ),
         ],
       ),
@@ -839,6 +856,62 @@ class _ScrollToBottomPill extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── _PermissionRequiredBanner ────────────────────────────────────────────
+
+/// A slim amber banner shown above the chat input when a session has
+/// pending permission requests. Tapping it scrolls to the bottom of the
+/// message list where the permission tool card is rendered.
+class _PermissionRequiredBanner extends StatelessWidget {
+  const _PermissionRequiredBanner({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 40,
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          color: Color(0xFFFFF3CD),
+          border: Border(
+            top: BorderSide(color: Color(0xFFFFC107), width: 1),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.security_rounded,
+              size: 16,
+              color: Color(0xFFE65100),
+            ),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Permission required',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF7A4100),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: Color(0xFFE65100),
+            ),
+          ],
         ),
       ),
     );
