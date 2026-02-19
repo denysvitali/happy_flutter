@@ -292,6 +292,7 @@ class _SessionsListContentState
         machines,
         startIndex: staggerIndex,
         animate: triggerStagger,
+        compactMode: compactMode,
       );
       children.addAll(archivedItems);
     }
@@ -308,6 +309,7 @@ class _SessionsListContentState
     Map<String, Machine> machines, {
     required int startIndex,
     required bool animate,
+    required bool compactMode,
   }) {
     final folderItems = groupSessionsByFolder(sessions, machines);
 
@@ -352,6 +354,7 @@ class _SessionsListContentState
                   isFirst: isFirst,
                   isLast: isLast,
                   isSingle: isSingle,
+                  compact: compactMode,
                 ),
               ),
             ),
@@ -795,49 +798,7 @@ class _FolderSectionHeader extends StatelessWidget {
 
 // ─── Status widgets ──────────────────────────────────────────────────────────
 
-/// Pill-shaped status badge used inside session cards.
-///
-/// Shows a dot + text in a rounded container with a tinted background.
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({
-    required this.color,
-    required this.text,
-    required this.isPulsing,
-  });
-  final Color color;
-  final String text;
-  final bool isPulsing;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: color.withValues(alpha: 0.25),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          StatusDot(color: color, isPulsing: isPulsing, size: 6),
-          const SizedBox(width: 5),
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// Status dot widget with pulsing animation.
 ///
@@ -1093,99 +1054,102 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
           child: Material(
             color: Colors.transparent,
             borderRadius: BorderRadius.circular(14),
+            clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: widget.onTap,
               borderRadius: BorderRadius.circular(14),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
+              child: IntrinsicHeight(
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Pulsing green active indicator.
-                    _ActiveIndicatorDot(t: t, primary: cs.primary),
-                    const SizedBox(width: 12),
-                    // Avatar with Hero + optional draft badge.
-                    Hero(
-                      tag: 'session-avatar-${widget.session.id}',
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          SessionAvatar(
-                            id: avatarId,
-                            flavor: sessionFlavor,
-                            size: 48,
-                          ),
-                          if (hasDraft) const _DraftBadge(),
-                        ],
-                      ),
+                    Container(
+                      width: 3,
+                      color: Color(sessionStatus.statusDotColor),
                     ),
-                    const SizedBox(width: 14),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            sessionName,
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: cs.onSurface,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Avatar with Hero + optional draft badge.
+                            Hero(
+                              tag: 'session-avatar-${widget.session.id}',
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  SessionAvatar(
+                                    id: avatarId,
+                                    flavor: sessionFlavor,
+                                    size: 48,
+                                  ),
+                                  if (hasDraft) const _DraftBadge(),
+                                ],
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            sessionSubtitle,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: cs.onSurfaceVariant,
-                              fontFamily: 'monospace',
-                              fontSize: 11,
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    sessionName,
+                                    style: theme.textTheme.bodyLarge?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: cs.onSurface,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    sessionSubtitle,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: cs.onSurfaceVariant,
+                                      fontFamily: 'monospace',
+                                      fontSize: 11,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ],
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                          if (sessionStatus.shouldShowStatus) ...[
-                            const SizedBox(height: 8),
-                            _StatusPill(
-                              color: Color(sessionStatus.statusColor),
-                              text: sessionStatus.statusText,
-                              isPulsing: sessionStatus.isPulsing,
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  formatTimestamp(
+                                    widget.session.updatedAt,
+                                    relative: true,
+                                  ),
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                StatusDot(
+                                  color: Color(sessionStatus.statusDotColor),
+                                  isPulsing: sessionStatus.isPulsing,
+                                  size: 8,
+                                ),
+                                if (todoProgress != null) ...[
+                                  const SizedBox(height: 4),
+                                  _TodoProgressBadge(
+                                    completed: todoProgress.completed,
+                                    total: todoProgress.total,
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          formatTimestamp(
-                            widget.session.updatedAt,
-                            relative: true,
-                          ),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                            fontSize: 11,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        StatusDot(
-                          color: Color(sessionStatus.statusDotColor),
-                          isPulsing: sessionStatus.isPulsing,
-                          size: 8,
-                        ),
-                        if (todoProgress != null) ...[
-                          const SizedBox(height: 4),
-                          _TodoProgressBadge(
-                            completed: todoProgress.completed,
-                            total: todoProgress.total,
-                          ),
-                        ],
-                      ],
                     ),
                   ],
                 ),
@@ -1198,31 +1162,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
   }
 }
 
-/// Small pulsing dot shown on the left of the active session card.
-class _ActiveIndicatorDot extends StatelessWidget {
-  const _ActiveIndicatorDot({required this.t, required this.primary});
-  final double t;
-  final Color primary;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 10,
-      height: 10,
-      decoration: BoxDecoration(
-        color: Colors.green,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.green.withValues(alpha: 0.35 + 0.30 * t),
-            blurRadius: 6 + 4 * t,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ─── Compact active session card ─────────────────────────────────────────────
 
@@ -1267,75 +1207,80 @@ class CompactActiveSessionCard extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: SizedBox(
             height: 56,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  // Small avatar with optional draft badge.
-                  Hero(
-                    tag: 'session-avatar-${session.id}',
-                    child: Stack(
-                      clipBehavior: Clip.none,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 3,
+                  color: Color(sessionStatus.statusDotColor),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
                       children: [
-                        SessionAvatar(
-                          id: avatarId,
-                          flavor: sessionFlavor,
-                          size: 36,
+                        // Small avatar with optional draft badge.
+                        Hero(
+                          tag: 'session-avatar-${session.id}',
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              SessionAvatar(
+                                id: avatarId,
+                                flavor: sessionFlavor,
+                                size: 36,
+                              ),
+                              if (hasDraft) const _DraftBadge(),
+                            ],
+                          ),
                         ),
-                        if (hasDraft) const _DraftBadge(),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            sessionName,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: cs.onSurface,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              formatTimestamp(
+                                session.updatedAt,
+                                relative: true,
+                              ),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                                fontSize: 11,
+                              ),
+                            ),
+                            if (todoProgress != null) ...[
+                              const SizedBox(height: 2),
+                              _TodoProgressBadge(
+                                completed: todoProgress.completed,
+                                total: todoProgress.total,
+                              ),
+                            ],
+                          ],
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  // Inline status dot left of title.
-                  StatusDot(
-                    color: Color(sessionStatus.statusDotColor),
-                    isPulsing: sessionStatus.isPulsing,
-                    size: 7,
-                  ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      sessionName,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: cs.onSurface,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        formatTimestamp(
-                          session.updatedAt,
-                          relative: true,
-                        ),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                          fontSize: 11,
-                        ),
-                      ),
-                      if (todoProgress != null) ...[
-                        const SizedBox(height: 2),
-                        _TodoProgressBadge(
-                          completed: todoProgress.completed,
-                          total: todoProgress.total,
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -1358,6 +1303,7 @@ class SessionCard extends StatelessWidget {
     this.isLast = false,
     this.isSingle = false,
     this.showDateHeader = false,
+    this.compact = false,
   });
 
   /// The session to display.
@@ -1377,6 +1323,9 @@ class SessionCard extends StatelessWidget {
 
   /// Whether to show a date header above the card.
   final bool showDateHeader;
+
+  /// Whether to use compact layout (smaller avatar, reduced padding).
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -1418,98 +1367,109 @@ class SessionCard extends StatelessWidget {
       ),
       elevation: 0,
       color: cs.surface,
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         borderRadius: borderRadius,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 8,
-          ),
+        child: IntrinsicHeight(
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Avatar with Hero animation, monochrome when disconnected,
-              // and optional draft badge.
-              Hero(
-                tag: 'session-avatar-${session.id}',
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    SessionAvatar(
-                      id: avatarId,
-                      flavor: sessionFlavor,
-                      size: 44,
-                      monochrome: !sessionStatus.isConnected,
-                    ),
-                    if (hasDraft) const _DraftBadge(),
-                  ],
-                ),
+              Container(
+                width: 3,
+                color: sessionStatus.isConnected
+                    ? Color(sessionStatus.statusDotColor)
+                    : const Color(0xFF999999),
               ),
-              const SizedBox(width: 14),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      sessionName,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: titleColor,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: compact ? 6 : 8,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Avatar with Hero animation, monochrome when
+                      // disconnected, and optional draft badge.
+                      Hero(
+                        tag: 'session-avatar-${session.id}',
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            SessionAvatar(
+                              id: avatarId,
+                              flavor: sessionFlavor,
+                              size: compact ? 36 : 44,
+                              monochrome: !sessionStatus.isConnected,
+                            ),
+                            if (hasDraft) const _DraftBadge(),
+                          ],
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      sessionSubtitle,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                        fontFamily: 'monospace',
-                        fontSize: 11,
+                      SizedBox(width: compact ? 10 : 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              sessionName,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: titleColor,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              sessionSubtitle,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                                fontFamily: 'monospace',
+                                fontSize: 11,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ],
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                    if (sessionStatus.shouldShowStatus) ...[
-                      const SizedBox(height: 6),
-                      _StatusPill(
-                        color: Color(sessionStatus.statusColor),
-                        text: sessionStatus.statusText,
-                        isPulsing: sessionStatus.isPulsing,
+                      const SizedBox(width: 8),
+                      // Right side: timestamp, status dot, optional todo.
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            formatTimestamp(
+                              session.updatedAt,
+                              relative: true,
+                            ),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          StatusDot(
+                            color: sessionStatus.isConnected
+                                ? Color(sessionStatus.statusDotColor)
+                                : const Color(0xFF999999),
+                            isPulsing: sessionStatus.isPulsing,
+                            size: 7,
+                          ),
+                          if (todoProgress != null) ...[
+                            const SizedBox(height: 4),
+                            _TodoProgressBadge(
+                              completed: todoProgress.completed,
+                              total: todoProgress.total,
+                            ),
+                          ],
+                        ],
                       ),
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              // Right side: timestamp, status dot, optional todo badge.
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    formatTimestamp(session.updatedAt, relative: true),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  StatusDot(
-                    color: sessionStatus.isConnected
-                        ? Color(sessionStatus.statusDotColor)
-                        : const Color(0xFF999999),
-                    isPulsing: sessionStatus.isPulsing,
-                    size: 7,
-                  ),
-                  if (todoProgress != null) ...[
-                    const SizedBox(height: 4),
-                    _TodoProgressBadge(
-                      completed: todoProgress.completed,
-                      total: todoProgress.total,
-                    ),
-                  ],
-                ],
               ),
             ],
           ),

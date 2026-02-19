@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert' show base64;
 import 'dart:io' show Platform, SecurityContext;
 
+import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
