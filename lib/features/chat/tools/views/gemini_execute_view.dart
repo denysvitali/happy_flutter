@@ -1,45 +1,62 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../tool_section_view.dart';
 
 /// View for displaying Gemini execute tool (lowercase 'execute').
-class GeminiExecuteView extends StatelessWidget {
+class GeminiExecuteView extends StatefulWidget {
+  /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
+
+  /// Optional metadata for path resolution.
   final Map<String, dynamic>? metadata;
 
-  const GeminiExecuteView({super.key, required this.tool, this.metadata});
+  const GeminiExecuteView({
+    super.key,
+    required this.tool,
+    this.metadata,
+  });
+
+  @override
+  State<GeminiExecuteView> createState() => _GeminiExecuteViewState();
+}
+
+class _GeminiExecuteViewState extends State<GeminiExecuteView> {
+  static const int _maxLines = 20;
+  bool _outputExpanded = false;
 
   @override
   Widget build(BuildContext context) {
-    final input = tool['input'] as Map<String, dynamic>? ?? {};
-    final result = tool['result'];
-    final state = tool['state'] as String? ?? '';
+    final input = widget.tool['input'] as Map<String, dynamic>? ?? {};
+    final result = widget.tool['result'];
+    final state = widget.tool['state'] as String? ?? '';
 
-    // Gemini sends nice title in toolCall.title
     final toolCall = input['toolCall'] as Map<String, dynamic>?;
     final title = toolCall?['title'] as String?;
 
-    // Extract command and description
     String? command;
     String? description;
+    String? cwd;
 
     if (title != null) {
-      // Title is like "rm file.txt [cwd /path] (description)"
-      // Extract just the command part before [
+      // Title format: "rm file.txt [cwd /path] (description)"
       final bracketIdx = title.indexOf(' [');
-      if (bracketIdx > 0) {
-        command = title.substring(0, bracketIdx);
-      } else {
-        command = title;
+      command = bracketIdx > 0
+          ? title.substring(0, bracketIdx)
+          : title;
+
+      final cwdMatch =
+          RegExp(r'\[cwd ([^\]]+)\]').firstMatch(title);
+      if (cwdMatch != null) {
+        cwd = cwdMatch.group(1);
       }
 
-      // Extract description from parentheses at the end
-      final parenMatch = RegExp(r'\(([^)]+)\)$').firstMatch(title);
+      final parenMatch =
+          RegExp(r'\(([^)]+)\)$').firstMatch(title);
       if (parenMatch != null) {
         description = parenMatch.group(1);
       }
     }
 
-    // Try to get command from other fields
     if (command == null) {
       final commandList = input['command'] as List?;
       if (commandList != null && commandList.isNotEmpty) {
@@ -47,97 +64,539 @@ class GeminiExecuteView extends StatelessWidget {
       }
     }
 
-    // Extract CWD
-    String? cwd;
-    if (title != null) {
-      final cwdMatch = RegExp(r'\[cwd ([^\]]+)\]').firstMatch(title);
-      if (cwdMatch != null) {
-        cwd = cwdMatch.group(1);
-      }
-    }
-    if (cwd == null) {
-      cwd = input['cwd'] as String?;
-    }
+    cwd ??= input['cwd'] as String?;
+
+    final stdout = state == 'completed' && result != null
+        ? _getStdout(result)
+        : null;
+    final stderr = state == 'completed' && result != null
+        ? _getStderr(result)
+        : null;
+    final exitCode = state == 'completed' && result != null
+        ? _getExitCode(result)
+        : null;
+    final error = state == 'error' && result != null
+        ? result.toString()
+        : null;
 
     return ToolSectionView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Command display
+          _TerminalCommandBar(
+            command: command ?? 'Unknown command',
+            cwd: cwd,
+            description: description,
+          ),
+          if (stdout != null && stdout.isNotEmpty)
+            _TerminalOutputSection(
+              label: 'stdout',
+              output: stdout,
+              isError: false,
+              expanded: _outputExpanded,
+              maxLines: _maxLines,
+              onToggleExpand: () =>
+                  setState(() => _outputExpanded = !_outputExpanded),
+            ),
+          if (stderr != null && stderr.isNotEmpty)
+            _TerminalOutputSection(
+              label: 'stderr',
+              output: stderr,
+              isError: true,
+              expanded: _outputExpanded,
+              maxLines: _maxLines,
+              onToggleExpand: () =>
+                  setState(() => _outputExpanded = !_outputExpanded),
+            ),
+          if (error != null)
+            _TerminalOutputSection(
+              label: 'error',
+              output: error,
+              isError: true,
+              expanded: _outputExpanded,
+              maxLines: _maxLines,
+              onToggleExpand: () =>
+                  setState(() => _outputExpanded = !_outputExpanded),
+            ),
+          if (exitCode != null) _ExitCodeBadge(exitCode: exitCode),
+        ],
+      ),
+    );
+  }
+
+  String? _getStdout(dynamic result) {
+    if (result is String) return result;
+    if (result is Map<String, dynamic>) {
+      return result['stdout'] as String?;
+    }
+    return null;
+  }
+
+  String? _getStderr(dynamic result) {
+    if (result is Map<String, dynamic>) {
+      return result['stderr'] as String?;
+    }
+    return null;
+  }
+
+  int? _getExitCode(dynamic result) {
+    if (result is Map<String, dynamic>) {
+      final raw = result['exitCode'] ?? result['exit_code'];
+      if (raw is int) return raw;
+      if (raw is String) return int.tryParse(raw);
+    }
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Terminal command bar with optional description
+// ---------------------------------------------------------------------------
+
+class _TerminalCommandBar extends StatelessWidget {
+  final String command;
+  final String? cwd;
+  final String? description;
+
+  const _TerminalCommandBar({
+    required this.command,
+    this.cwd,
+    this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1117),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF30363D)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Title bar
           Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 6,
+            ),
+            decoration: const BoxDecoration(
+              color: Color(0xFF161B22),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
+              ),
+              border: Border(
+                bottom: BorderSide(color: Color(0xFF30363D)),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.terminal,
+                  size: 14,
+                  color: Color(0xFF8B949E),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'execute',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: const Color(0xFF8B949E),
+                    fontFamily: 'monospace',
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                if (cwd != null && cwd!.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  const Text(
+                    '·',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF484F58),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      cwd!,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                        color: Color(0xFF484F58),
+                      ),
+                    ),
+                  ),
+                ] else
+                  const Spacer(),
+                _CopyButton(text: command, iconSize: 14),
+              ],
+            ),
+          ),
+          // Command line
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.terminal,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.primary,
+                const Text(
+                  r'$',
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                    color: Color(0xFF3FB950),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: SelectableText(
-                    command ?? 'Unknown command',
+                    command,
                     style: const TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 13,
+                      color: Color(0xFFE6EDF3),
+                      height: 1.4,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          // Description if available
-          if (description != null && description.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                description,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+          // Optional description banner
+          if (description != null && description!.isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 7,
+              ),
+              decoration: const BoxDecoration(
+                color: Color(0xFF161B22),
+                border: Border(
+                  top: BorderSide(color: Color(0xFF30363D)),
+                ),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(8),
+                  bottomRight: Radius.circular(8),
                 ),
               ),
-            ),
-          // CWD if available
-          if (cwd != null && cwd.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'Working directory: $cwd',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontFamily: 'monospace',
-                ),
-              ),
-            ),
-          // Error display
-          if (state == 'error' && result != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  result.toString(),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onErrorContainer,
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.info_outline,
+                    size: 12,
+                    color: Color(0xFF58A6FF),
                   ),
-                ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      description!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF8B949E),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Terminal output section (stdout / stderr / error)
+// ---------------------------------------------------------------------------
+
+class _TerminalOutputSection extends StatelessWidget {
+  final String label;
+  final String output;
+  final bool isError;
+  final bool expanded;
+  final int maxLines;
+  final VoidCallback onToggleExpand;
+
+  const _TerminalOutputSection({
+    required this.label,
+    required this.output,
+    required this.isError,
+    required this.expanded,
+    required this.maxLines,
+    required this.onToggleExpand,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final lines = output.split('\n');
+    final totalLines = lines.length;
+    final needsTruncation = totalLines > maxLines;
+    final visibleLines = expanded || !needsTruncation
+        ? lines
+        : lines.take(maxLines).toList();
+    final visibleText = visibleLines.join('\n');
+
+    final labelColor =
+        isError ? const Color(0xFFF85149) : const Color(0xFF8B949E);
+    final borderColor =
+        isError ? const Color(0xFF5A1E1E) : const Color(0xFF30363D);
+    final bgColor =
+        isError ? const Color(0xFF160B0B) : const Color(0xFF0D1117);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 5,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFF161B22),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
+              ),
+              border: Border(bottom: BorderSide(color: borderColor)),
+            ),
+            child: Row(
+              children: [
+                if (isError)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 5),
+                    child: Icon(
+                      Icons.error_outline,
+                      size: 13,
+                      color: Color(0xFFF85149),
+                    ),
+                  ),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    color: labelColor,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '$totalLines line${totalLines == 1 ? '' : 's'}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: const Color(0xFF484F58),
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _CopyButton(text: output, iconSize: 13),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: SelectableText(
+              visibleText,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 12,
+                color: isError
+                    ? const Color(0xFFFFA198)
+                    : const Color(0xFFE6EDF3),
+                height: 1.5,
+              ),
+            ),
+          ),
+          if (needsTruncation)
+            _ShowMoreButton(
+              expanded: expanded,
+              hiddenCount: totalLines - maxLines,
+              onToggle: onToggleExpand,
+              borderColor: borderColor,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Exit code badge
+// ---------------------------------------------------------------------------
+
+class _ExitCodeBadge extends StatelessWidget {
+  final int exitCode;
+
+  const _ExitCodeBadge({required this.exitCode});
+
+  @override
+  Widget build(BuildContext context) {
+    final isSuccess = exitCode == 0;
+    final color =
+        isSuccess ? const Color(0xFF3FB950) : const Color(0xFFF85149);
+    final bgColor =
+        isSuccess ? const Color(0xFF0D2818) : const Color(0xFF2D1117);
+    final borderColor =
+        isSuccess ? const Color(0xFF1A4328) : const Color(0xFF5A1E1E);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 3,
+        ),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isSuccess
+                  ? Icons.check_circle_outline
+                  : Icons.cancel_outlined,
+              size: 12,
+              color: color,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              'exit $exitCode',
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 11,
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Show more / less button
+// ---------------------------------------------------------------------------
+
+class _ShowMoreButton extends StatelessWidget {
+  final bool expanded;
+  final int hiddenCount;
+  final VoidCallback onToggle;
+  final Color borderColor;
+
+  const _ShowMoreButton({
+    required this.expanded,
+    required this.hiddenCount,
+    required this.onToggle,
+    required this.borderColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onToggle,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: borderColor)),
+          color: const Color(0xFF161B22),
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(8),
+            bottomRight: Radius.circular(8),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              expanded ? Icons.expand_less : Icons.expand_more,
+              size: 14,
+              color: const Color(0xFF8B949E),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              expanded
+                  ? 'Show less'
+                  : 'Show $hiddenCount more '
+                      'line${hiddenCount == 1 ? '' : 's'}',
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF8B949E),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Copy button
+// ---------------------------------------------------------------------------
+
+class _CopyButton extends StatefulWidget {
+  final String text;
+  final double iconSize;
+
+  const _CopyButton({required this.text, this.iconSize = 14});
+
+  @override
+  State<_CopyButton> createState() => _CopyButtonState();
+}
+
+class _CopyButtonState extends State<_CopyButton> {
+  bool _copied = false;
+
+  Future<void> _handleCopy() async {
+    await Clipboard.setData(ClipboardData(text: widget.text));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+    setState(() => _copied = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _handleCopy,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: Icon(
+          _copied ? Icons.check : Icons.copy,
+          key: ValueKey(_copied),
+          size: widget.iconSize,
+          color: _copied
+              ? const Color(0xFF3FB950)
+              : const Color(0xFF8B949E),
+        ),
       ),
     );
   }

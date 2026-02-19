@@ -21,19 +21,49 @@ class TodoItem {
 }
 
 /// View for displaying TodoWrite tool todo lists.
-class TodoView extends StatelessWidget {
+class TodoView extends StatefulWidget {
   final Map<String, dynamic> tool;
   final Map<String, dynamic>? metadata;
 
   const TodoView({super.key, required this.tool, this.metadata});
 
   @override
-  Widget build(BuildContext context) {
-    final input = tool['input'] as Map<String, dynamic>? ?? {};
-    final rawResult = tool['result'];
-    final result = rawResult is Map<String, dynamic> ? rawResult : null;
+  State<TodoView> createState() => _TodoViewState();
+}
 
-    // Get todos from input first, then from result
+class _TodoViewState extends State<TodoView> {
+  List<TodoItem> _todos = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _todos = _resolveTodos();
+  }
+
+  @override
+  void didUpdateWidget(TodoView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = _resolveTodos();
+    var changed = next.length != _todos.length;
+    if (!changed) {
+      for (var i = 0; i < next.length; i++) {
+        if (_todos[i].status != next[i].status ||
+            _todos[i].content != next[i].content) {
+          changed = true;
+          break;
+        }
+      }
+    }
+    if (changed) setState(() => _todos = next);
+  }
+
+  List<TodoItem> _resolveTodos() {
+    final input =
+        widget.tool['input'] as Map<String, dynamic>? ?? {};
+    final rawResult = widget.tool['result'];
+    final result =
+        rawResult is Map<String, dynamic> ? rawResult : null;
+
     List<TodoItem> todos = _parseTodos(input['todos']);
     if (todos.isEmpty && result != null) {
       final newTodos = result['newTodos'] as List?;
@@ -50,18 +80,7 @@ class TodoView extends StatelessWidget {
             .toList();
       }
     }
-
-    if (todos.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return ToolSectionView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: todos.map((todo) => _buildTodoItem(context, todo)).toList(),
-      ),
-    );
+    return todos;
   }
 
   List<TodoItem> _parseTodos(dynamic todos) {
@@ -81,55 +100,205 @@ class TodoView extends StatelessWidget {
         .toList();
   }
 
-  Widget _buildTodoItem(BuildContext context, TodoItem todo) {
-    final theme = Theme.of(context);
+  @override
+  Widget build(BuildContext context) {
+    if (_todos.isEmpty) return const SizedBox.shrink();
 
-    Color color;
-    if (todo.isCompleted) {
-      color = const Color(0xFF34C759);
-    } else if (todo.isInProgress) {
-      color = theme.colorScheme.primary;
-    } else {
-      color = theme.colorScheme.onSurfaceVariant;
-    }
+    final completed =
+        _todos.where((t) => t.isCompleted).length;
+    final total = _todos.length;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+    return ToolSectionView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: 24,
-            height: 24,
-            child: Checkbox(
-              value: todo.isCompleted,
-              onChanged: null,
-              materialTapTargetSize:
-                  MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.compact,
-              side: BorderSide(color: color, width: 1.5),
-              checkColor: Colors.white,
-              fillColor: WidgetStateProperty.all(
-                todo.isCompleted ? color : Colors.transparent,
-              ),
+          // Count summary header
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _CountSummary(
+              completed: completed,
+              total: total,
             ),
           ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              todo.content,
-              style: TextStyle(
-                fontSize: 14,
-                color: todo.isCompleted
-                    ? color.withAlpha(179)
-                    : color,
-                decoration: todo.isCompleted
-                    ? TextDecoration.lineThrough
-                    : null,
+          // Todo items
+          ..._todos.map(
+            (todo) => AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (child, animation) =>
+                  FadeTransition(
+                    opacity: animation,
+                    child: SizeTransition(
+                      sizeFactor: animation,
+                      child: child,
+                    ),
+                  ),
+              child: _TodoRow(
+                key: ValueKey('${todo.id ?? todo.content}'
+                    '_${todo.status}'),
+                todo: todo,
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Small summary label showing "X/Y done".
+class _CountSummary extends StatelessWidget {
+  const _CountSummary({
+    required this.completed,
+    required this.total,
+  });
+
+  final int completed;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final allDone = completed == total;
+    final color = allDone
+        ? const Color(0xFF34C759)
+        : theme.colorScheme.onSurfaceVariant;
+
+    return Row(
+      children: [
+        Icon(
+          allDone
+              ? Icons.check_circle_rounded
+              : Icons.checklist_rounded,
+          size: 14,
+          color: color,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$completed/$total done',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A single todo row with status icon and text.
+class _TodoRow extends StatelessWidget {
+  const _TodoRow({super.key, required this.todo});
+
+  final TodoItem todo;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final Color statusColor;
+    if (todo.isCompleted) {
+      statusColor = const Color(0xFF34C759);
+    } else if (todo.isInProgress) {
+      statusColor = theme.colorScheme.primary;
+    } else {
+      statusColor = theme.colorScheme.onSurfaceVariant
+          .withAlpha(153);
+    }
+
+    final Widget statusIcon;
+    if (todo.isCompleted) {
+      statusIcon = Icon(
+        Icons.check_circle_rounded,
+        size: 18,
+        color: statusColor,
+      );
+    } else if (todo.isInProgress) {
+      statusIcon = _PulsingIcon(color: statusColor);
+    } else {
+      statusIcon = Icon(
+        Icons.check_box_outline_blank_rounded,
+        size: 18,
+        color: statusColor,
+      );
+    }
+
+    final TextDecoration? decoration =
+        todo.isCompleted ? TextDecoration.lineThrough : null;
+    final Color textColor = todo.isCompleted
+        ? theme.colorScheme.onSurface.withAlpha(102)
+        : theme.colorScheme.onSurface;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: statusIcon,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              todo.content,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: textColor,
+                decoration: decoration,
+                decorationColor: textColor,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Animated pulsing radio icon for in-progress items.
+class _PulsingIcon extends StatefulWidget {
+  const _PulsingIcon({required this.color});
+  final Color color;
+
+  @override
+  State<_PulsingIcon> createState() => _PulsingIconState();
+}
+
+class _PulsingIconState extends State<_PulsingIcon>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _opacity = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: Icon(
+        Icons.radio_button_checked_rounded,
+        size: 18,
+        color: widget.color,
       ),
     );
   }

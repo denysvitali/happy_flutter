@@ -43,13 +43,39 @@ class AskUserQuestionView extends StatefulWidget {
   });
 
   @override
-  State<AskUserQuestionView> createState() => _AskUserQuestionViewState();
+  State<AskUserQuestionView> createState() =>
+      _AskUserQuestionViewState();
 }
 
-class _AskUserQuestionViewState extends State<AskUserQuestionView> {
+class _AskUserQuestionViewState extends State<AskUserQuestionView>
+    with TickerProviderStateMixin {
   final Map<int, Set<int>> _selections = {};
   bool _isSubmitting = false;
   bool _isSubmitted = false;
+
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _pulseController,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,12 +125,11 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView> {
 
     final isRunning = state == 'running';
     final canInteract = isRunning && !_isSubmitted;
-    final allAnswered = parsedQuestions.asMap().entries.every(
-      (e) {
-        final s = _selections[e.key];
-        return s != null && s.isNotEmpty;
-      },
-    );
+    final allAnswered =
+        parsedQuestions.asMap().entries.every((e) {
+      final s = _selections[e.key];
+      return s != null && s.isNotEmpty;
+    });
 
     return _buildInteractiveView(
       context,
@@ -128,7 +153,8 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView> {
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withAlpha(80),
+          color: theme.colorScheme.outlineVariant
+              .withAlpha(80),
         ),
       ),
       child: Column(
@@ -145,7 +171,8 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView> {
               const SizedBox(width: 6),
               Text(
                 'Answered',
-                style: theme.textTheme.labelMedium?.copyWith(
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(
                   color: theme.colorScheme.primary,
                   fontWeight: FontWeight.w600,
                 ),
@@ -159,10 +186,11 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView> {
             final selected = _selections[qIndex];
             final labels = selected != null
                 ? selected
-                    .map((i) =>
-                        i < q.options.length
-                            ? q.options[i].label
-                            : '')
+                    .map(
+                      (i) => i < q.options.length
+                          ? q.options[i].label
+                          : '',
+                    )
                     .where((l) => l.isNotEmpty)
                     .join(', ')
                 : '-';
@@ -172,23 +200,25 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView> {
                 top: qIndex > 0 ? 6 : 0,
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   Text(
                     '${q.header}: ',
-                    style:
-                        theme.textTheme.bodySmall?.copyWith(
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color:
-                          theme.colorScheme.onSurfaceVariant,
+                      color: theme
+                          .colorScheme.onSurfaceVariant,
                     ),
                   ),
                   Expanded(
                     child: Text(
                       labels,
-                      style:
-                          theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(
+                        color:
+                            theme.colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -208,135 +238,223 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView> {
     required bool allAnswered,
   }) {
     final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
 
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: theme.colorScheme.primary.withAlpha(60),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.primary.withAlpha(12),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) {
+        final glowAlpha =
+            (12 + (_pulseAnimation.value * 20)).round();
+        final borderAlpha =
+            (80 + (_pulseAnimation.value * 80)).round();
+
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          decoration: BoxDecoration(
+            color:
+                theme.colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: primary.withAlpha(borderAlpha),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: primary.withAlpha(glowAlpha),
+                blurRadius: 16,
+                spreadRadius: 2,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
+          child: child,
+        );
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           // Header bar
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-            decoration: BoxDecoration(
-              color:
-                  theme.colorScheme.primary.withAlpha(15),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(15),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.help_outline_rounded,
-                  size: 18,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Question',
-                  style:
-                      theme.textTheme.titleSmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildHeader(context),
 
           // Questions
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(
+                16, 16, 16, 16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                ...questions.asMap().entries.map((entry) {
-                  final qIndex = entry.key;
-                  final question = entry.value;
-                  return _QuestionSection(
-                    question: question,
-                    questionIndex: qIndex,
-                    selectedOptions:
-                        _selections[qIndex] ?? {},
-                    isInteractive: canInteract,
-                    onToggle: (optionIndex) =>
-                        _handleToggle(
-                      qIndex,
-                      optionIndex,
-                      question.multiSelect,
-                    ),
-                  );
-                }),
+                ...questions.asMap().entries.map(
+                  (entry) {
+                    final qIndex = entry.key;
+                    final question = entry.value;
+                    return _QuestionSection(
+                      question: question,
+                      questionIndex: qIndex,
+                      selectedOptions:
+                          _selections[qIndex] ?? {},
+                      isInteractive: canInteract,
+                      onToggle: (optionIndex) =>
+                          _handleToggle(
+                        qIndex,
+                        optionIndex,
+                        question.multiSelect,
+                      ),
+                    );
+                  },
+                ),
 
                 // Submit button
                 if (canInteract) ...[
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: FilledButton.icon(
-                      onPressed: allAnswered &&
-                              !_isSubmitting
-                          ? _handleSubmit
-                          : null,
-                      icon: _isSubmitting
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child:
-                                  CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(
-                              Icons.send_rounded,
-                              size: 16,
-                            ),
-                      label: Text(
-                        _isSubmitting
-                            ? 'Submitting...'
-                            : 'Submit',
-                      ),
-                      style: FilledButton.styleFrom(
-                        padding:
-                            const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
+                  const SizedBox(height: 4),
+                  _buildSubmitButton(
+                    context,
+                    allAnswered: allAnswered,
                   ),
                 ],
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 13,
+      ),
+      decoration: BoxDecoration(
+        color: primary.withAlpha(18),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(15),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: primary.withAlpha(22),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: primary.withAlpha(60),
+                width: 1,
+              ),
+            ),
+            child: Icon(
+              Icons.help_rounded,
+              size: 18,
+              color: primary,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Input needed',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(
+                    color: primary,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+                Text(
+                  'Please choose an option below',
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(
+                    color:
+                        primary.withAlpha(180),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 4,
+            ),
+            decoration: BoxDecoration(
+              color: primary.withAlpha(25),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: primary.withAlpha(60),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              'ACTION',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: primary,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubmitButton(
+    BuildContext context, {
+    required bool allAnswered,
+  }) {
+    final theme = Theme.of(context);
+
+    return Align(
+      alignment: Alignment.centerRight,
+      child: FilledButton.icon(
+        onPressed:
+            allAnswered && !_isSubmitting
+                ? _handleSubmit
+                : null,
+        icon: _isSubmitting
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(
+                Icons.send_rounded,
+                size: 16,
+              ),
+        label: Text(
+          _isSubmitting ? 'Submitting...' : 'Submit',
+        ),
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 12,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          backgroundColor:
+              allAnswered && !_isSubmitting
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant,
+        ),
       ),
     );
   }
@@ -363,7 +481,9 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView> {
   }
 
   Future<void> _handleSubmit() async {
-    if (_isSubmitting || widget.sessionId == null) return;
+    if (_isSubmitting || widget.sessionId == null) {
+      return;
+    }
 
     setState(() {
       _isSubmitting = true;
@@ -371,32 +491,43 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView> {
     });
 
     final input =
-        widget.tool['input'] as Map<String, dynamic>? ?? {};
-    final questions = input['questions'] as List? ?? [];
+        widget.tool['input'] as Map<String, dynamic>?
+            ?? {};
+    final questions =
+        input['questions'] as List? ?? [];
 
     // Build response text
     final lines = <String>[];
-    for (var qIdx = 0; qIdx < questions.length; qIdx++) {
-      final q = questions[qIdx] as Map<String, dynamic>;
+    for (var qIdx = 0;
+        qIdx < questions.length;
+        qIdx++) {
+      final q =
+          questions[qIdx] as Map<String, dynamic>;
       final selected = _selections[qIdx];
-      if (selected == null || selected.isEmpty) continue;
+      if (selected == null || selected.isEmpty) {
+        continue;
+      }
       final options = q['options'] as List? ?? [];
       final labels = selected
-          .map((i) => i < options.length
-              ? (options[i] as Map<String, dynamic>)['label']
-                  as String?
-              : null)
+          .map(
+            (i) => i < options.length
+                ? (options[i]
+                        as Map<String, dynamic>)[
+                    'label'] as String?
+                : null,
+          )
           .whereType<String>()
           .join(', ');
-      final header = q['header'] as String? ?? 'Answer';
+      final header =
+          q['header'] as String? ?? 'Answer';
       lines.add('$header: $labels');
     }
     final responseText = lines.join('\n');
 
     try {
       // 1. Approve permission if present
-      final permission =
-          widget.tool['permission'] as Map<String, dynamic>?;
+      final permission = widget.tool['permission']
+          as Map<String, dynamic>?;
       final permId = permission?['id'] as String?;
       if (permId != null) {
         await sync.sessionAllow(
@@ -447,66 +578,110 @@ class _QuestionSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header chip
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 3,
-            ),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              question.header.toUpperCase(),
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color:
-                    theme.colorScheme.onSecondaryContainer,
-                letterSpacing: 0.5,
+          // Header + question text
+          Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: theme
+                      .colorScheme.secondaryContainer,
+                  borderRadius:
+                      BorderRadius.circular(6),
+                ),
+                child: Text(
+                  question.header.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme
+                        .onSecondaryContainer,
+                    letterSpacing: 0.5,
+                  ),
+                ),
               ),
-            ),
+              if (question.multiSelect) ...[
+                const SizedBox(width: 6),
+                Text(
+                  'Select all that apply',
+                  style:
+                      theme.textTheme.labelSmall
+                          ?.copyWith(
+                    color: theme
+                        .colorScheme.onSurfaceVariant,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 10),
-          // Question text
-          Text(
-            question.question,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-              height: 1.4,
-            ),
+          // Question text with question mark icon
+          Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.help_outline_rounded,
+                size: 16,
+                color: theme
+                    .colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  question.question,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-          // Options
-          ...question.options.asMap().entries.map((entry) {
-            final index = entry.key;
-            final option = entry.value;
-            final isSelected =
-                selectedOptions.contains(index);
+          // Options as wrapping pill chips
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: question.options
+                .asMap()
+                .entries
+                .map((entry) {
+              final index = entry.key;
+              final option = entry.value;
+              final isSelected =
+                  selectedOptions.contains(index);
 
-            return _OptionButton(
-              option: option,
-              isSelected: isSelected,
-              isMultiSelect: question.multiSelect,
-              isInteractive: isInteractive,
-              onTap: () => onToggle(index),
-            );
-          }),
+              return _OptionChip(
+                option: option,
+                isSelected: isSelected,
+                isMultiSelect: question.multiSelect,
+                isInteractive: isInteractive,
+                onTap: () => onToggle(index),
+              );
+            }).toList(),
+          ),
         ],
       ),
     );
   }
 }
 
-class _OptionButton extends StatelessWidget {
+class _OptionChip extends StatefulWidget {
   final QuestionOption option;
   final bool isSelected;
   final bool isMultiSelect;
   final bool isInteractive;
   final VoidCallback onTap;
 
-  const _OptionButton({
+  const _OptionChip({
     required this.option,
     required this.isSelected,
     required this.isMultiSelect,
@@ -515,99 +690,222 @@ class _OptionButton extends StatelessWidget {
   });
 
   @override
+  State<_OptionChip> createState() =>
+      _OptionChipState();
+}
+
+class _OptionChipState extends State<_OptionChip>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pressController;
+  late final Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pressController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+      reverseDuration:
+          const Duration(milliseconds: 200),
+    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.94,
+    ).animate(
+      CurvedAnimation(
+        parent: _pressController,
+        curve: Curves.easeOut,
+        reverseCurve: Curves.elasticOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pressController.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails _) {
+    if (widget.isInteractive) {
+      _pressController.forward();
+    }
+  }
+
+  void _onTapUp(TapUpDetails _) {
+    _pressController.reverse();
+  }
+
+  void _onTapCancel() {
+    _pressController.reverse();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final isSelected = widget.isSelected;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: isInteractive ? onTap : null,
-          borderRadius: BorderRadius.circular(10),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.outlineVariant,
-                width: isSelected ? 1.5 : 1,
-              ),
-              borderRadius: BorderRadius.circular(10),
+    // Determine if option has a description to show
+    // as a full-width card vs compact chip.
+    final hasDesc =
+        widget.option.description.isNotEmpty;
+
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      onTap: widget.isInteractive ? widget.onTap : null,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? primary.withAlpha(28)
+                : theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(
+              hasDesc ? 12 : 20,
+            ),
+            border: Border.all(
               color: isSelected
-                  ? theme.colorScheme.primaryContainer
-                      .withAlpha(80)
-                  : Colors.transparent,
+                  ? primary
+                  : theme.colorScheme.outlineVariant,
+              width: isSelected ? 2.0 : 1.0,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildIndicator(theme),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        option.label,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color:
-                              theme.colorScheme.onSurface,
-                        ),
-                      ),
-                      if (option.description.isNotEmpty)
-                        Padding(
-                          padding:
-                              const EdgeInsets.only(top: 2),
-                          child: Text(
-                            option.description,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: theme.colorScheme
-                                  .onSurfaceVariant,
-                              height: 1.3,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: primary.withAlpha(40),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
           ),
+          padding: EdgeInsets.symmetric(
+            horizontal: hasDesc ? 12 : 14,
+            vertical: hasDesc ? 10 : 8,
+          ),
+          child: hasDesc
+              ? _buildWithDescription(
+                  context, theme, isSelected)
+              : _buildCompact(
+                  context, theme, isSelected),
         ),
       ),
     );
   }
 
-  Widget _buildIndicator(ThemeData theme) {
-    final borderColor = isSelected
-        ? theme.colorScheme.primary
-        : theme.colorScheme.onSurfaceVariant;
+  Widget _buildCompact(
+    BuildContext context,
+    ThemeData theme,
+    bool isSelected,
+  ) {
+    final primary = theme.colorScheme.primary;
 
-    if (isMultiSelect) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildIndicator(theme, size: 16),
+        const SizedBox(width: 6),
+        Text(
+          widget.option.label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected
+                ? FontWeight.w600
+                : FontWeight.w500,
+            color: isSelected
+                ? primary
+                : theme.colorScheme.onSurface,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWithDescription(
+    BuildContext context,
+    ThemeData theme,
+    bool isSelected,
+  ) {
+    final primary = theme.colorScheme.primary;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: _buildIndicator(theme, size: 18),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.option.label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isSelected
+                      ? FontWeight.w600
+                      : FontWeight.w500,
+                  color: isSelected
+                      ? primary
+                      : theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                widget.option.description,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme
+                      .colorScheme.onSurfaceVariant,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIndicator(
+    ThemeData theme, {
+    required double size,
+  }) {
+    final primary = theme.colorScheme.primary;
+    final isSelected = widget.isSelected;
+    final borderColor = isSelected
+        ? primary
+        : theme.colorScheme.onSurfaceVariant
+            .withAlpha(120);
+
+    if (widget.isMultiSelect) {
       return AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: 20,
-        height: 20,
-        margin: const EdgeInsets.only(top: 1),
+        duration: const Duration(milliseconds: 180),
+        width: size,
+        height: size,
         decoration: BoxDecoration(
-          border: Border.all(color: borderColor, width: 2),
-          borderRadius: BorderRadius.circular(4),
+          border:
+              Border.all(color: borderColor, width: 2),
+          borderRadius:
+              BorderRadius.circular(size * 0.25),
           color: isSelected
-              ? theme.colorScheme.primary
+              ? primary
               : Colors.transparent,
         ),
         child: isSelected
             ? Icon(
                 Icons.check,
-                size: 14,
+                size: size * 0.7,
                 color: theme.colorScheme.onPrimary,
               )
             : null,
@@ -615,23 +913,24 @@ class _OptionButton extends StatelessWidget {
     }
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      width: 20,
-      height: 20,
-      margin: const EdgeInsets.only(top: 1),
+      duration: const Duration(milliseconds: 180),
+      width: size,
+      height: size,
       decoration: BoxDecoration(
-        border: Border.all(color: borderColor, width: 2),
-        borderRadius: BorderRadius.circular(10),
+        border:
+            Border.all(color: borderColor, width: 2),
+        borderRadius: BorderRadius.circular(size / 2),
       ),
       child: Center(
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          width: 10,
-          height: 10,
+          duration: const Duration(milliseconds: 180),
+          width: size * 0.5,
+          height: size * 0.5,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(5),
+            borderRadius:
+                BorderRadius.circular(size * 0.25),
             color: isSelected
-                ? theme.colorScheme.primary
+                ? primary
                 : Colors.transparent,
           ),
         ),

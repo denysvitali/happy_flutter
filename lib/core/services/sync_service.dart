@@ -1523,10 +1523,25 @@ what you have, you must use the options mode.
   }
 
   /// Allow a permission request for a session.
-  Future<void> sessionAllow(String sessionId, String permissionId) async {
+  Future<void> sessionAllow(
+    String sessionId,
+    String permissionId, {
+    String? mode,
+    List<String>? allowTools,
+  }) async {
     await sessionRPC(sessionId, 'permission', {
       'id': permissionId,
       'approved': true,
+      if (mode != null) 'mode': mode,
+      if (allowTools != null) 'allowTools': allowTools,
+    });
+  }
+
+  /// Deny a permission request for a session.
+  Future<void> sessionDeny(String sessionId, String permissionId) async {
+    await sessionRPC(sessionId, 'permission', {
+      'id': permissionId,
+      'approved': false,
     });
   }
 

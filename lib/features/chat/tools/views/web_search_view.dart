@@ -3,25 +3,86 @@ import '../tool_section_view.dart';
 
 /// Search result item model.
 class SearchResult {
+  /// The title of the search result.
   final String title;
+
+  /// The URL of the search result.
   final String url;
+
+  /// An optional short description / snippet.
   final String? snippet;
 
+  /// Creates a [SearchResult].
   SearchResult({required this.title, required this.url, this.snippet});
 }
 
 /// View for displaying WebSearch tool results.
-class WebSearchView extends StatelessWidget {
+class WebSearchView extends StatefulWidget {
+  /// The tool data map containing input, result, and state.
   final Map<String, dynamic> tool;
+
+  /// Optional metadata associated with this tool invocation.
   final Map<String, dynamic>? metadata;
 
   const WebSearchView({super.key, required this.tool, this.metadata});
 
   @override
+  State<WebSearchView> createState() => _WebSearchViewState();
+}
+
+class _WebSearchViewState extends State<WebSearchView> {
+  bool _showAll = false;
+
+  static const int _maxInline = 5;
+
+  List<SearchResult> _parseResults(dynamic result) {
+    final results = <SearchResult>[];
+
+    if (result is List) {
+      for (final item in result) {
+        if (item is Map<String, dynamic>) {
+          results.add(_itemToResult(item));
+        }
+      }
+      return results;
+    }
+
+    if (result is Map<String, dynamic>) {
+      final source =
+          result['results'] as List? ??
+          result['hits'] as List? ??
+          result['items'] as List? ??
+          result['organic_results'] as List? ??
+          [];
+      for (final item in source) {
+        if (item is Map<String, dynamic>) {
+          results.add(_itemToResult(item));
+        }
+      }
+    }
+
+    return results;
+  }
+
+  SearchResult _itemToResult(Map<String, dynamic> item) {
+    return SearchResult(
+      title: item['title'] as String? ?? 'No title',
+      url: item['url'] as String? ??
+          item['link'] as String? ??
+          item['href'] as String? ??
+          '',
+      snippet: item['snippet'] as String? ??
+          item['description'] as String? ??
+          item['summary'] as String?,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final input = tool['input'] as Map<String, dynamic>? ?? {};
-    final result = tool['result'];
-    final state = tool['state'] as String? ?? '';
+    final input =
+        widget.tool['input'] as Map<String, dynamic>? ?? {};
+    final result = widget.tool['result'];
+    final state = widget.tool['state'] as String? ?? '';
 
     final query = input['query'] as String? ?? '';
 
@@ -30,104 +91,100 @@ class WebSearchView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Query display
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.search,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Search: "$query"',
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-          // Results if available
+          // Search bar
+          _SearchBar(query: query, state: state),
+
+          // Loading
+          if (state == 'running') const _LoadingIndicator(),
+
+          // Results
           if (state == 'completed' && result != null)
             _buildResultsSection(context, result),
+
+          // Error
+          if (state == 'error' || state == 'failed')
+            _ErrorBanner(
+              message: result is String ? result : null,
+            ),
         ],
       ),
     );
   }
 
   Widget _buildResultsSection(BuildContext context, dynamic result) {
+    final results = _parseResults(result);
+
+    if (results.isEmpty) return const SizedBox.shrink();
+
     final theme = Theme.of(context);
-
-    List<SearchResult> results = [];
-
-    if (result is List) {
-      // Result is already a list of results
-      for (final item in result) {
-        if (item is Map<String, dynamic>) {
-          results.add(
-            SearchResult(
-              title: item['title'] as String? ?? 'No title',
-              url: item['url'] as String? ?? '',
-              snippet: item['snippet'] as String?,
-            ),
-          );
-        }
-      }
-    } else if (result is Map<String, dynamic>) {
-      // Try common formats
-      final resultsList = result['results'] as List?;
-      final hits = result['hits'] as List?;
-      final items = result['items'] as List?;
-
-      final source = resultsList ?? hits ?? items ?? [];
-      for (final item in source) {
-        if (item is Map<String, dynamic>) {
-          results.add(
-            SearchResult(
-              title: item['title'] as String? ?? 'No title',
-              url: item['url'] as String? ?? item['link'] as String? ?? '',
-              snippet:
-                  item['snippet'] as String? ?? item['description'] as String?,
-            ),
-          );
-        }
-      }
-    }
-
-    if (results.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    final visible = _showAll ? results : results.take(_maxInline).toList();
+    final remaining = results.length - _maxInline;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'Results',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...results.take(5).map((result) => _buildResultItem(context, result)),
-          if (results.length > 5)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                '+ ${results.length - 5} more results',
+          // Results header
+          Row(
+            children: [
+              const _GoogleDotsIcon(),
+              const SizedBox(width: 8),
+              Text(
+                '${results.length} result${results.length == 1 ? '' : 's'}',
                 style: TextStyle(
                   fontSize: 12,
-                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w600,
                   color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Result cards
+          ...visible.map(
+            (r) => _ResultCard(searchResult: r),
+          ),
+          // Show more / less toggle
+          if (results.length > _maxInline)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: GestureDetector(
+                onTap: () => setState(() => _showAll = !_showAll),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _showAll
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        size: 14,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _showAll
+                            ? 'Show fewer'
+                            : '+ $remaining more result'
+                                '${remaining == 1 ? '' : 's'}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -135,52 +192,290 @@ class WebSearchView extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildResultItem(BuildContext context, SearchResult result) {
+/// Styled search bar showing the query.
+class _SearchBar extends StatelessWidget {
+  final String query;
+  final String state;
+
+  const _SearchBar({required this.query, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDone = state == 'completed';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDone
+              ? theme.colorScheme.outlineVariant
+              : theme.colorScheme.primary.withAlpha(77),
+          width: isDone ? 0.5 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.search,
+            size: 16,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              query,
+              style: TextStyle(
+                fontSize: 13,
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (isDone)
+            Icon(
+              Icons.check_circle,
+              size: 14,
+              color: const Color(0xFF16A34A),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Google-style coloured dots icon indicating a web search.
+class _GoogleDotsIcon extends StatelessWidget {
+  const _GoogleDotsIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 7.0;
+    const gap = 2.0;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const _Dot(size: size, color: Color(0xFF4285F4)),
+        SizedBox(width: gap),
+        const _Dot(size: size, color: Color(0xFFEA4335)),
+        SizedBox(width: gap),
+        const _Dot(size: size, color: Color(0xFFFBBC05)),
+        SizedBox(width: gap),
+        const _Dot(size: size, color: Color(0xFF34A853)),
+      ],
+    );
+  }
+}
+
+class _Dot extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _Dot({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  );
+}
+
+/// A single search result card with title, URL chip, and snippet.
+class _ResultCard extends StatelessWidget {
+  final SearchResult searchResult;
+
+  const _ResultCard({required this.searchResult});
+
+  /// Returns the domain portion of a URL for compact display.
+  String _domain(String url) {
+    try {
+      final uri = Uri.parse(url);
+      return uri.host.isNotEmpty ? uri.host : url;
+    } catch (_) {
+      return url;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Container(
-        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(6),
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant,
+            width: 0.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: theme.shadowColor.withAlpha(10),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              result.title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              result.url,
-              style: TextStyle(
-                fontSize: 11,
-                color: theme.colorScheme.onSurfaceVariant,
-                fontFamily: 'monospace',
-              ),
-            ),
-            if (result.snippet != null && result.snippet!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  result.snippet!,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: theme.colorScheme.onSurface,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Domain chip
+              if (searchResult.url.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.link,
+                        size: 10,
+                        color: theme.colorScheme.onSurfaceVariant
+                            .withAlpha(153),
+                      ),
+                      const SizedBox(width: 3),
+                      Flexible(
+                        child: Text(
+                          _domain(searchResult.url),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: theme.colorScheme.onSurfaceVariant,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          maxLines: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 5),
+              // Title
+              Text(
+                searchResult.title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.primary,
+                  height: 1.3,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              // Snippet
+              if (searchResult.snippet != null &&
+                  searchResult.snippet!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    searchResult.snippet!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurfaceVariant,
+                      height: 1.4,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Animated loading indicator while search is running.
+class _LoadingIndicator extends StatelessWidget {
+  const _LoadingIndicator();
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Searching the web...',
+            style: TextStyle(
+              fontSize: 12,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Error state banner.
+class _ErrorBanner extends StatelessWidget {
+  final String? message;
+
+  const _ErrorBanner({this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.errorContainer.withAlpha(128),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: theme.colorScheme.error.withAlpha(77),
+            width: 0.5,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 14,
+              color: theme.colorScheme.error,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message?.isNotEmpty == true
+                    ? message!
+                    : 'Search failed. Please try again.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.onErrorContainer,
                 ),
               ),
+            ),
           ],
         ),
       ),

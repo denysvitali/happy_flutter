@@ -13,31 +13,39 @@ class ToolError extends StatelessWidget {
     final theme = Theme.of(context);
     final result = ToolErrorParser.parse(message);
     final displayMessage = result.displayMessage;
-    final isToolUseError = result.isToolUseError;
 
-    final backgroundColor = theme.colorScheme.errorContainer;
-    final borderColor = theme.colorScheme.error;
+    final errorColor = theme.colorScheme.error;
+    final surfaceColor = theme.colorScheme.errorContainer
+        .withValues(alpha: 0.4);
     final textColor = theme.colorScheme.onErrorContainer;
 
     return Container(
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        border: Border.all(color: borderColor),
-        borderRadius: BorderRadius.circular(8),
+        color: surfaceColor,
+        border: Border(
+          left: BorderSide(color: errorColor, width: 3),
+        ),
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(6),
+          bottomRight: Radius.circular(6),
+        ),
       ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (isToolUseError)
-            Padding(
-              padding: const EdgeInsets.only(right: 8, top: 2),
-              child: Icon(Icons.warning, size: 16, color: textColor),
-            ),
+          Icon(Icons.error_outline_rounded, size: 15, color: errorColor),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               displayMessage.isNotEmpty ? displayMessage : message,
-              style: TextStyle(fontSize: 13, color: textColor),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: textColor,
+                fontSize: 12.5,
+                height: 1.5,
+                fontFamily: 'monospace',
+                fontFamilyFallback: const ['Courier New', 'Courier'],
+              ),
             ),
           ),
         ],
@@ -58,20 +66,39 @@ class ToolResultError extends StatelessWidget {
     final theme = Theme.of(context);
     final result = ToolErrorParser.parse(message);
     final isToolUseError = result.isToolUseError;
+    final errorColor = theme.colorScheme.error;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+    final displayText =
+        isToolUseError && result.errorMessage != null
+            ? result.errorMessage!
+            : message;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: errorColor.withValues(alpha: 0.06),
+        border: Border(
+          left: BorderSide(color: errorColor, width: 3),
+        ),
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(4),
+          bottomRight: Radius.circular(4),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.error_outline, size: 16, color: theme.colorScheme.error),
+          Icon(Icons.error_outline_rounded, size: 14, color: errorColor),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              isToolUseError && result.errorMessage != null
-                  ? result.errorMessage!
-                  : message,
-              style: TextStyle(fontSize: 13, color: theme.colorScheme.error),
+              displayText,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: errorColor,
+                height: 1.45,
+              ),
             ),
           ),
         ],

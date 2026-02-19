@@ -24,7 +24,6 @@ class ToolSectionView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final effectiveChildren = child != null ? [child!] : children;
 
     return Container(
@@ -34,22 +33,7 @@ class ToolSectionView extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (title != null)
-            Padding(
-              padding: EdgeInsets.only(
-                bottom: 6,
-                left: fullWidth ? 0 : 12,
-                right: fullWidth ? 0 : 12,
-              ),
-              child: Text(
-                title!.toUpperCase(),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
+            _SectionHeader(title: title!, fullWidth: fullWidth),
           if (fullWidth)
             ...effectiveChildren
           else
@@ -61,6 +45,56 @@ class ToolSectionView extends StatelessWidget {
                 children: effectiveChildren,
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final bool fullWidth;
+
+  const _SectionHeader({required this.title, required this.fullWidth});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final labelColor =
+        theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: 6,
+        left: fullWidth ? 0 : 12,
+        right: fullWidth ? 0 : 12,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: labelColor,
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.8,
+              fontFamily: 'monospace',
+              fontFamilyFallback: const ['Courier New', 'Courier'],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  labelColor.withValues(alpha: 0.35),
+                  labelColor.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -3,12 +3,7 @@ import '../tool_section_view.dart';
 
 /// Match item model for Grep results.
 class GrepMatch {
-  final String file;
-  final int lineNumber;
-  final String content;
-  final int? startIndex;
-  final int? endIndex;
-
+  /// Constructs a [GrepMatch].
   GrepMatch({
     required this.file,
     required this.lineNumber,
@@ -17,119 +12,128 @@ class GrepMatch {
     this.endIndex,
   });
 
+  /// The file containing the match.
+  final String file;
+
+  /// The line number of the match.
+  final int lineNumber;
+
+  /// The content of the matching line.
+  final String content;
+
+  /// Optional start index of the match within content.
+  final int? startIndex;
+
+  /// Optional end index of the match within content.
+  final int? endIndex;
+
+  /// Returns the display file name (basename only).
   String get displayFile => file.split('/').lastOrNull ?? file;
 }
 
 /// View for displaying Grep tool results.
-class GrepView extends StatelessWidget {
+class GrepView extends StatefulWidget {
+  /// Constructs a [GrepView].
+  const GrepView({required this.tool, super.key, this.metadata});
+
+  /// The tool invocation data.
   final Map<String, dynamic> tool;
+
+  /// Optional metadata for path resolution.
   final Map<String, dynamic>? metadata;
 
-  const GrepView({super.key, required this.tool, this.metadata});
+  @override
+  State<GrepView> createState() => _GrepViewState();
+}
+
+class _GrepViewState extends State<GrepView> {
+  static const int _initialLimit = 20;
+  bool _showAll = false;
 
   @override
   Widget build(BuildContext context) {
-    final input = tool['input'] as Map<String, dynamic>? ?? {};
-    final result = tool['result'];
+    final input =
+        widget.tool['input'] as Map<String, dynamic>? ?? {};
+    final result = widget.tool['result'];
 
     final pattern = input['pattern'] as String? ?? '';
     final path = input['path'] as String?;
     final outputMode = input['output_mode'] as String?;
     final showLineNumbers = input['-n'] as bool? ?? false;
 
-    // Parse result based on output mode
     final isContentMode = outputMode == 'content';
     final isCountMode = outputMode == 'count';
     final matches = _parseMatches(result, isContentMode);
+
+    // Group matches by file for content mode
+    final groupedMatches = _groupByFile(matches);
+
+    final cs = Theme.of(context).colorScheme;
 
     return ToolSectionView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Pattern display
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.search,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: SelectableText(
-                    'grep: $pattern',
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
+          // Header row: pattern badge + path chip
+          Row(
+            children: [
+              _GrepPatternBadge(pattern: pattern),
+              if (path != null && path.isNotEmpty) ...[
+                const SizedBox(width: 6),
+                _GrepPathChip(path: path),
               ],
-            ),
+            ],
           ),
-          // Path if provided
-          if (path != null && path.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.folder,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.secondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Path: $path',
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          // Count mode - show count only
+
+          // Count mode
           if (isCountMode && result != null)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: 10),
               child: _buildCountResult(context, result),
             ),
-          // Content mode - show matches
-          if (isContentMode && matches.isNotEmpty)
+
+          // Content mode — grouped by file
+          if (isContentMode && matches.isNotEmpty) ...[
             Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: matches.take(20).map((match) {
-                  return _buildMatchItem(context, match, showLineNumbers, matches.length > 20);
-                }).toList(),
+              padding: const EdgeInsets.only(top: 10),
+              child: _MatchCountBadge(
+                count: matches.length,
+                colorScheme: cs,
               ),
             ),
-          // Files with matches mode
-          if (!isContentMode && !isCountMode && matches.isEmpty && result != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
+              child: _GroupedMatchList(
+                groupedMatches: groupedMatches,
+                pattern: pattern,
+                showLineNumbers: showLineNumbers,
+                totalMatches: matches.length,
+                initialLimit: _initialLimit,
+                showAll: _showAll,
+                onToggleShowAll: () =>
+                    setState(() => _showAll = !_showAll),
+              ),
+            ),
+          ],
+
+          // Files-with-matches mode
+          if (!isContentMode && !isCountMode && result != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
               child: _buildFilesList(context, result),
             ),
         ],
       ),
     );
+  }
+
+  Map<String, List<GrepMatch>> _groupByFile(List<GrepMatch> matches) {
+    final grouped = <String, List<GrepMatch>>{};
+    for (final m in matches) {
+      grouped.putIfAbsent(m.file, () => []).add(m);
+    }
+    return grouped;
   }
 
   List<GrepMatch> _parseMatches(dynamic result, bool isContentMode) {
@@ -139,15 +143,20 @@ class GrepView extends StatelessWidget {
           .map((item) {
             if (item is Map<String, dynamic>) {
               return GrepMatch(
-                file: item['path'] as String? ?? item['file'] as String? ?? '',
-                lineNumber: item['lineNumber'] as int? ?? item['line'] as int? ?? 0,
-                content: item['content'] as String? ?? item['line'] as String? ?? '',
+                file: item['path'] as String? ??
+                    item['file'] as String? ??
+                    '',
+                lineNumber: item['lineNumber'] as int? ??
+                    item['line'] as int? ??
+                    0,
+                content: item['content'] as String? ??
+                    item['line'] as String? ??
+                    '',
                 startIndex: item['startIndex'] as int?,
                 endIndex: item['endIndex'] as int?,
               );
             }
             if (item is String) {
-              // Parse string format: "file:line:content"
               final parts = item.split(':');
               if (parts.length >= 3) {
                 return GrepMatch(
@@ -163,7 +172,6 @@ class GrepView extends StatelessWidget {
           .toList();
     }
     if (result is String && isContentMode) {
-      // Parse string format - each line may contain "file:line:content"
       final lines = result.split('\n');
       return lines
           .map((line) {
@@ -184,51 +192,9 @@ class GrepView extends StatelessWidget {
     return [];
   }
 
-  Widget _buildMatchItem(BuildContext context, GrepMatch match, bool showLineNumbers, bool hasMore) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (showLineNumbers)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Text(
-                  '${match.lineNumber}:',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontFamily: 'monospace',
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            Expanded(
-              child: SelectableText(
-                match.content,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontFamily: 'monospace',
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildCountResult(BuildContext context, dynamic result) {
-    final theme = Theme.of(context);
-    int count = 0;
-
+    final cs = Theme.of(context).colorScheme;
+    var count = 0;
     if (result is Map<String, dynamic>) {
       count = result['count'] as int? ?? result['total'] as int? ?? 0;
     } else if (result is String) {
@@ -236,26 +202,11 @@ class GrepView extends StatelessWidget {
     } else if (result is int) {
       count = result;
     }
-
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        '$count matches',
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: theme.colorScheme.primary,
-        ),
-      ),
-    );
+    return _MatchCountBadge(count: count, colorScheme: cs);
   }
 
   Widget _buildFilesList(BuildContext context, dynamic result) {
-    final theme = Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
     final files = <String>[];
 
     if (result is List) {
@@ -263,8 +214,8 @@ class GrepView extends StatelessWidget {
         if (item is String) {
           files.add(item);
         } else if (item is Map<String, dynamic>) {
-          final path = item['path'] as String? ?? item['file'] as String?;
-          if (path != null) files.add(path);
+          final p = item['path'] as String? ?? item['file'] as String?;
+          if (p != null) files.add(p);
         }
       }
     } else if (result is Map<String, dynamic>) {
@@ -274,68 +225,611 @@ class GrepView extends StatelessWidget {
           if (item is String) {
             files.add(item);
           } else if (item is Map<String, dynamic>) {
-            final path = item['path'] as String?;
-            if (path != null) files.add(path);
+            final p = item['path'] as String?;
+            if (p != null) files.add(p);
           }
         }
       }
     }
 
-    if (files.isEmpty) {
-      return const SizedBox.shrink();
+    if (files.isEmpty) return const SizedBox.shrink();
+
+    final visible = files.take(15).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _MatchCountBadge(
+          count: files.length,
+          label:
+              '${files.length} file${files.length != 1 ? 's' : ''}'
+              ' with matches',
+          colorScheme: cs,
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: cs.outlineVariant.withValues(alpha: 0.5),
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (int i = 0; i < visible.length; i++)
+                  _FileMatchRow(
+                    filePath: visible[i],
+                    isLast: i == visible.length - 1,
+                    colorScheme: cs,
+                  ),
+              ],
+            ),
+          ),
+        ),
+        if (files.length > 15)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '+ ${files.length - 15} more files',
+              style: TextStyle(
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Badge showing the grep pattern.
+class _GrepPatternBadge extends StatelessWidget {
+  const _GrepPatternBadge({required this.pattern});
+
+  final String pattern;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.manage_search,
+            size: 14,
+            color: cs.tertiary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'grep',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: cs.onSurfaceVariant,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(width: 1, height: 12, color: cs.outlineVariant),
+          const SizedBox(width: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 200),
+            child: SelectableText(
+              pattern,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: cs.tertiary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Chip showing the search path.
+class _GrepPathChip extends StatelessWidget {
+  const _GrepPathChip({required this.path});
+
+  final String path;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.folder_outlined, size: 13, color: cs.secondary),
+          const SizedBox(width: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 160),
+            child: Text(
+              path,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 11,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pill badge showing total match count.
+class _MatchCountBadge extends StatelessWidget {
+  const _MatchCountBadge({
+    required this.count,
+    required this.colorScheme,
+    this.label,
+  });
+
+  final int count;
+  final ColorScheme colorScheme;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = colorScheme;
+    final displayLabel =
+        label ?? '$count match${count != 1 ? 'es' : ''}';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: cs.tertiary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        displayLabel,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: cs.tertiary,
+        ),
+      ),
+    );
+  }
+}
+
+/// Renders all match groups with show-more support.
+class _GroupedMatchList extends StatelessWidget {
+  const _GroupedMatchList({
+    required this.groupedMatches,
+    required this.pattern,
+    required this.showLineNumbers,
+    required this.totalMatches,
+    required this.initialLimit,
+    required this.showAll,
+    required this.onToggleShowAll,
+  });
+
+  final Map<String, List<GrepMatch>> groupedMatches;
+  final String pattern;
+  final bool showLineNumbers;
+  final int totalMatches;
+  final int initialLimit;
+  final bool showAll;
+  final VoidCallback onToggleShowAll;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    final allEntries = groupedMatches.entries.toList();
+
+    // Collect which files/matches to show within limit
+    var shown = 0;
+    final visibleEntries = <MapEntry<String, List<GrepMatch>>>[];
+    for (final entry in allEntries) {
+      if (!showAll && shown >= initialLimit) break;
+      final matchesLeft = showAll
+          ? entry.value.length
+          : (initialLimit - shown).clamp(0, entry.value.length);
+      visibleEntries.add(
+        MapEntry(entry.key, entry.value.take(matchesLeft).toList()),
+      );
+      shown += matchesLeft;
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          '${files.length} file${files.length != 1 ? 's' : ''} with matches',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 8),
-        ...files.take(15).map((file) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.description,
-                  size: 16,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: SelectableText(
-                    file.split('/').lastOrNull ?? file,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontFamily: 'monospace',
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+        ...visibleEntries.map((entry) {
+          return _FileMatchGroup(
+            filePath: entry.key,
+            matches: entry.value,
+            pattern: pattern,
+            showLineNumbers: showLineNumbers,
+            colorScheme: cs,
           );
         }),
-        if (files.length > 15)
+        if (totalMatches > initialLimit)
           Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              '+ ${files.length - 15} more',
-              style: TextStyle(
-                fontSize: 12,
-                fontStyle: FontStyle.italic,
-                color: theme.colorScheme.onSurfaceVariant,
+            padding: const EdgeInsets.only(top: 6),
+            child: GestureDetector(
+              onTap: onToggleShowAll,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    showAll ? Icons.expand_less : Icons.expand_more,
+                    size: 15,
+                    color: cs.tertiary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    showAll
+                        ? 'Show less'
+                        : 'Show all $totalMatches matches',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: cs.tertiary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
       ],
+    );
+  }
+}
+
+/// A group of matches for a single file.
+class _FileMatchGroup extends StatelessWidget {
+  const _FileMatchGroup({
+    required this.filePath,
+    required this.matches,
+    required this.pattern,
+    required this.showLineNumbers,
+    required this.colorScheme,
+  });
+
+  final String filePath;
+  final List<GrepMatch> matches;
+  final String pattern;
+  final bool showLineNumbers;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = colorScheme;
+    final displayFile = filePath.split('/').lastOrNull ?? filePath;
+    final parentDir = _parentDir(filePath);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // File header
+          Row(
+            children: [
+              Icon(
+                Icons.insert_drive_file_outlined,
+                size: 13,
+                color: cs.secondary,
+              ),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  displayFile,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurface,
+                  ),
+                ),
+              ),
+              if (parentDir.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    parentDir,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: cs.onSurfaceVariant,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5,
+                  vertical: 1,
+                ),
+                decoration: BoxDecoration(
+                  color: cs.secondary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${matches.length}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: cs.secondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // Match rows
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: cs.outlineVariant.withValues(alpha: 0.5),
+              ),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (int i = 0; i < matches.length; i++)
+                    _MatchRow(
+                      match: matches[i],
+                      pattern: pattern,
+                      showLineNumbers: showLineNumbers,
+                      isLast: i == matches.length - 1,
+                      colorScheme: cs,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _parentDir(String path) {
+    final segments = path.split('/');
+    if (segments.length <= 1) return '';
+    return segments.take(segments.length - 1).join('/');
+  }
+}
+
+/// A single match line row.
+class _MatchRow extends StatelessWidget {
+  const _MatchRow({
+    required this.match,
+    required this.pattern,
+    required this.showLineNumbers,
+    required this.isLast,
+    required this.colorScheme,
+  });
+
+  final GrepMatch match;
+  final String pattern;
+  final bool showLineNumbers;
+  final bool isLast;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = colorScheme;
+    final content = match.content.trimRight();
+
+    return Container(
+      decoration: BoxDecoration(
+        border: isLast
+            ? null
+            : Border(
+                bottom: BorderSide(
+                  color: cs.outlineVariant.withValues(alpha: 0.3),
+                ),
+              ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 6,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Line number
+            if (showLineNumbers || match.lineNumber > 0)
+              Padding(
+                padding: const EdgeInsets.only(right: 8, top: 1),
+                child: Text(
+                  '${match.lineNumber}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                    color:
+                        cs.onSurfaceVariant.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            // Highlighted content
+            Expanded(
+              child: _HighlightedText(
+                content: content,
+                pattern: pattern,
+                highlightColor: cs.tertiary,
+                baseColor: cs.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Renders text with pattern occurrences highlighted.
+class _HighlightedText extends StatelessWidget {
+  const _HighlightedText({
+    required this.content,
+    required this.pattern,
+    required this.highlightColor,
+    required this.baseColor,
+  });
+
+  final String content;
+  final String pattern;
+  final Color highlightColor;
+  final Color baseColor;
+
+  @override
+  Widget build(BuildContext context) {
+    if (pattern.isEmpty) {
+      return SelectableText(
+        content,
+        style: TextStyle(
+          fontSize: 12,
+          fontFamily: 'monospace',
+          color: baseColor,
+        ),
+      );
+    }
+
+    final spans = <TextSpan>[];
+    final lowerContent = content.toLowerCase();
+    final lowerPattern = pattern.toLowerCase();
+    var start = 0;
+
+    while (true) {
+      final idx = lowerContent.indexOf(lowerPattern, start);
+      if (idx < 0) {
+        if (start < content.length) {
+          spans.add(
+            TextSpan(
+              text: content.substring(start),
+              style: TextStyle(
+                fontSize: 12,
+                fontFamily: 'monospace',
+                color: baseColor,
+              ),
+            ),
+          );
+        }
+        break;
+      }
+      if (idx > start) {
+        spans.add(
+          TextSpan(
+            text: content.substring(start, idx),
+            style: TextStyle(
+              fontSize: 12,
+              fontFamily: 'monospace',
+              color: baseColor,
+            ),
+          ),
+        );
+      }
+      spans.add(
+        TextSpan(
+          text: content.substring(idx, idx + pattern.length),
+          style: TextStyle(
+            fontSize: 12,
+            fontFamily: 'monospace',
+            fontWeight: FontWeight.w700,
+            color: highlightColor,
+            backgroundColor:
+                highlightColor.withValues(alpha: 0.15),
+          ),
+        ),
+      );
+      start = idx + pattern.length;
+    }
+
+    return SelectableText.rich(TextSpan(children: spans));
+  }
+}
+
+/// A simple row for a file in files-with-matches mode.
+class _FileMatchRow extends StatelessWidget {
+  const _FileMatchRow({
+    required this.filePath,
+    required this.isLast,
+    required this.colorScheme,
+  });
+
+  final String filePath;
+  final bool isLast;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = colorScheme;
+    final displayFile = filePath.split('/').lastOrNull ?? filePath;
+
+    return Container(
+      decoration: BoxDecoration(
+        border: isLast
+            ? null
+            : Border(
+                bottom: BorderSide(
+                  color: cs.outlineVariant.withValues(alpha: 0.35),
+                ),
+              ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 8,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.insert_drive_file_outlined,
+              size: 15,
+              color: cs.secondary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SelectableText(
+                displayFile,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontFamily: 'monospace',
+                  color: cs.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

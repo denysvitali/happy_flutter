@@ -1,9 +1,12 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/diff_view_widget.dart'
+    as dw show DiffView;
 
 /// View for displaying Edit tool diffs.
 ///
-/// Shows a compact unified diff, collapsed by default for large diffs.
+/// Shows the file path prominently, then a unified diff with red/green
+/// highlighting for removed/added lines, collapsed by default for
+/// large diffs.
 class EditView extends StatefulWidget {
   /// The tool call data.
   final Map<String, dynamic> tool;
@@ -22,13 +25,24 @@ class _EditViewState extends State<EditView> {
 
   @override
   Widget build(BuildContext context) {
-    final input = widget.tool['input'] as Map<String, dynamic>? ?? {};
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final input =
+        widget.tool['input'] as Map<String, dynamic>? ?? {};
+    final filePath = input['path'] as String? ??
+        input['file_path'] as String? ??
+        '';
     final oldString = input['old_string'] as String? ?? '';
     final newString = input['new_string'] as String? ?? '';
 
-    final diffLines = _computeUnifiedDiff(oldString, newString);
-    // Auto-expand if diff is short
-    final isShort = diffLines.length <= 8;
+    // Estimate line count to decide whether to collapse.
+    final oldLines =
+        oldString.isEmpty ? 0 : oldString.split('\n').length;
+    final newLines =
+        newString.isEmpty ? 0 : newString.split('\n').length;
+    final totalLines = oldLines + newLines;
+    final isShort = totalLines <= 16;
     final show = isShort || _expanded;
 
     return Padding(
@@ -37,173 +51,135 @@ class _EditViewState extends State<EditView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // ── File path header ────────────────────────────
+          if (filePath.isNotEmpty)
+            _FilePathHeader(filePath: filePath),
+          const SizedBox(height: 6),
+
+          // ── Expand/collapse toggle for large diffs ──────
           if (!isShort)
             GestureDetector(
-              onTap: () => setState(() => _expanded = !_expanded),
+              onTap: () =>
+                  setState(() => _expanded = !_expanded),
               child: Padding(
-                padding: const EdgeInsets.only(bottom: 4, left: 4),
+                padding: const EdgeInsets.only(bottom: 4, left: 2),
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       _expanded
                           ? Icons.expand_less
                           : Icons.expand_more,
                       size: 16,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant,
+                      color: cs.onSurfaceVariant,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       _expanded
                           ? 'Hide diff'
-                          : 'Show diff (${diffLines.length} lines)',
-                      style:
-                          Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary,
-                              ),
+                          : 'Show diff ($totalLines lines)',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: cs.primary,
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
+
+          // ── Diff ────────────────────────────────────────
           if (show)
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: diffLines.map((line) => _buildDiffLine(line)).toList(),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: dw.DiffView(
+                oldText: oldString,
+                newText: newString,
+                showLineNumbers: true,
+                showPlusMinusSymbols: true,
+                contextLines: 3,
               ),
             ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildDiffLine(_DiffLine line) {
-    Color bgColor;
-    Color textColor;
-    String prefix;
-    switch (line.type) {
-      case _DiffType.removal:
-        bgColor = const Color(0xFF3D1E20);
-        textColor = const Color(0xFFFF9B9B);
-        prefix = '- ';
-        break;
-      case _DiffType.addition:
-        bgColor = const Color(0xFF1E3D20);
-        textColor = const Color(0xFF9BFFAB);
-        prefix = '+ ';
-        break;
-      case _DiffType.context:
-        bgColor = Colors.transparent;
-        textColor = const Color(0xFF808080);
-        prefix = '  ';
-        break;
-    }
+/// Displays a file path as a prominent pill-style label with a file icon.
+class _FilePathHeader extends StatelessWidget {
+  final String filePath;
+
+  const _FilePathHeader({required this.filePath});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    // Split into directory prefix and filename for styling.
+    final lastSlash = filePath.lastIndexOf('/');
+    final dir =
+        lastSlash >= 0 ? filePath.substring(0, lastSlash + 1) : '';
+    final filename = lastSlash >= 0
+        ? filePath.substring(lastSlash + 1)
+        : filePath;
 
     return Container(
-      color: bgColor,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-      child: Text(
-        '$prefix${line.text}',
-        style: TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 11,
-          height: 1.4,
-          color: textColor,
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: cs.outlineVariant, width: 0.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.edit_document,
+            size: 14,
+            color: cs.onSurfaceVariant,
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: RichText(
+              overflow: TextOverflow.ellipsis,
+              text: TextSpan(
+                children: [
+                  if (dir.isNotEmpty)
+                    TextSpan(
+                      text: dir,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                      ),
+                    ),
+                  TextSpan(
+                    text: filename,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurface,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
-
-  List<_DiffLine> _computeUnifiedDiff(String oldStr, String newStr) {
-    final oldLines = oldStr.split('\n');
-    final newLines = newStr.split('\n');
-    final result = <_DiffLine>[];
-
-    // Simple LCS-based diff
-    final lcs = _lcs(oldLines, newLines);
-    int oi = 0, ni = 0, li = 0;
-
-    while (oi < oldLines.length || ni < newLines.length) {
-      if (li < lcs.length &&
-          oi < oldLines.length &&
-          ni < newLines.length &&
-          oldLines[oi] == lcs[li] &&
-          newLines[ni] == lcs[li]) {
-        result.add(_DiffLine(_DiffType.context, oldLines[oi]));
-        oi++;
-        ni++;
-        li++;
-      } else if (oi < oldLines.length &&
-          (li >= lcs.length || oldLines[oi] != lcs[li])) {
-        result.add(_DiffLine(_DiffType.removal, oldLines[oi]));
-        oi++;
-      } else if (ni < newLines.length &&
-          (li >= lcs.length || newLines[ni] != lcs[li])) {
-        result.add(_DiffLine(_DiffType.addition, newLines[ni]));
-        ni++;
-      }
-    }
-
-    return result;
-  }
-
-  /// Compute LCS of two string lists.
-  List<String> _lcs(List<String> a, List<String> b) {
-    final m = a.length;
-    final n = b.length;
-    // For very large inputs, skip LCS and just show before/after
-    if (m * n > 50000) {
-      return [];
-    }
-    final dp = List.generate(m + 1, (_) => List.filled(n + 1, 0));
-    for (int i = 1; i <= m; i++) {
-      for (int j = 1; j <= n; j++) {
-        if (a[i - 1] == b[j - 1]) {
-          dp[i][j] = dp[i - 1][j - 1] + 1;
-        } else {
-          dp[i][j] = max(dp[i - 1][j], dp[i][j - 1]);
-        }
-      }
-    }
-
-    final result = <String>[];
-    int i = m, j = n;
-    while (i > 0 && j > 0) {
-      if (a[i - 1] == b[j - 1]) {
-        result.add(a[i - 1]);
-        i--;
-        j--;
-      } else if (dp[i - 1][j] > dp[i][j - 1]) {
-        i--;
-      } else {
-        j--;
-      }
-    }
-    return result.reversed.toList();
-  }
 }
 
-enum _DiffType { removal, addition, context }
-
-class _DiffLine {
-  final _DiffType type;
-  final String text;
-  _DiffLine(this.type, this.text);
-}
-
-/// Simple diff view (re-exported for other uses).
+/// Backward-compatible DiffView shim used by other tool views.
+///
+/// Wraps [dw.DiffView] with the legacy parameter names used by
+/// earlier views in this package.
 class DiffView extends StatelessWidget {
   /// Old text content.
   final String oldText;
@@ -214,7 +190,7 @@ class DiffView extends StatelessWidget {
   /// Whether to show line numbers.
   final bool showLineNumbers;
 
-  /// Whether to show +/- prefix.
+  /// Whether to show +/- prefix symbols.
   final bool showPlusMinus;
 
   const DiffView({
@@ -227,13 +203,12 @@ class DiffView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return EditView(
-      tool: {
-        'input': {
-          'old_string': oldText,
-          'new_string': newText,
-        },
-      },
+    return dw.DiffView(
+      oldText: oldText,
+      newText: newText,
+      showLineNumbers: showLineNumbers,
+      showPlusMinusSymbols: showPlusMinus,
+      contextLines: 3,
     );
   }
 }

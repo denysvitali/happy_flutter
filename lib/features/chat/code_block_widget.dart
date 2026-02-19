@@ -2,24 +2,58 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'syntax_highlighter.dart';
 
+// Catppuccin Mocha palette constants
+const _mocha = _MochaColors();
+
+class _MochaColors {
+  const _MochaColors();
+
+  // Base surfaces
+  Color get base => const Color(0xFF1E1E2E);
+  Color get mantle => const Color(0xFF181825);
+  Color get crust => const Color(0xFF11111B);
+  Color get surface0 => const Color(0xFF313244);
+  Color get surface1 => const Color(0xFF45475A);
+  Color get overlay0 => const Color(0xFF6C7086);
+  Color get subtext0 => const Color(0xFFA6ADC8);
+  Color get text => const Color(0xFFCDD6F4);
+  Color get green => const Color(0xFFA6E3A1);
+  Color get red => const Color(0xFFF38BA8);
+}
+
 /// Widget for displaying a code block with syntax highlighting, copy button,
-/// and language badge.
+/// line numbers, and language header.
 class CodeBlockWidget extends StatefulWidget {
+  /// The source code to display.
   final String code;
+
+  /// Language identifier (e.g., 'dart', 'python', 'bash').
   final String? language;
+
+  /// Optional filename to display in the header.
+  final String? fileName;
+
+  /// Whether to show line numbers.
   final bool showLineNumbers;
+
+  /// Whether to render in dark mode.
   final bool isDarkMode;
+
+  /// Font size for code text.
   final double fontSize;
-  final EdgeInsetsGeometry padding;
+
+  /// Maximum number of visible lines before scrolling.
+  final int maxVisibleLines;
 
   const CodeBlockWidget({
     super.key,
     required this.code,
     this.language,
-    this.showLineNumbers = false,
-    this.isDarkMode = false,
-    this.fontSize = 14,
-    this.padding = const EdgeInsets.all(12),
+    this.fileName,
+    this.showLineNumbers = true,
+    this.isDarkMode = true,
+    this.fontSize = 13,
+    this.maxVisibleLines = 12,
   });
 
   @override
@@ -27,198 +61,320 @@ class CodeBlockWidget extends StatefulWidget {
 }
 
 class _CodeBlockWidgetState extends State<CodeBlockWidget> {
-  bool _showCopyButton = false;
   bool _copied = false;
+
+  /// Estimated line height in logical pixels (font size * line height ratio).
+  double get _lineHeight => widget.fontSize * 1.5;
+
+  /// Number of lines in the code.
+  int get _lineCount => '\n'.allMatches(widget.code).length + 1;
+
+  /// Whether the code needs vertical scrolling.
+  bool get _needsVerticalScroll =>
+      _lineCount > widget.maxVisibleLines;
+
+  /// Max height before vertical scrolling kicks in.
+  double get _maxHeight =>
+      widget.maxVisibleLines * _lineHeight + 24; // 24 for vertical padding
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final backgroundColor = widget.isDarkMode
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFF8F8F8);
-    final borderColor = widget.isDarkMode
-        ? const Color(0xFF303030)
-        : const Color(0xFFE0E0E0);
+    final isDark = widget.isDarkMode ||
+        Theme.of(context).brightness == Brightness.dark;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _showCopyButton = true),
-      onExit: (_) => setState(() => _showCopyButton = false),
-      child: Container(
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          border: Border.all(color: borderColor),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with language badge and copy button
-            _buildHeader(theme),
-            // Code content
-            Padding(
-              padding: widget.padding,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (widget.showLineNumbers) _buildLineNumbers(),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SyntaxHighlighter(
-                        code: widget.code,
-                        language: widget.language,
-                        isDarkMode: widget.isDarkMode,
-                        fontSize: widget.fontSize,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    final bgColor =
+        isDark ? _mocha.base : const Color(0xFFF8F8F8);
+    final borderColor =
+        isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _CodeHeader(
+            language: widget.language,
+            fileName: widget.fileName,
+            isDark: isDark,
+            copied: _copied,
+            onCopy: _copyToClipboard,
+          ),
+          _needsVerticalScroll
+              ? SizedBox(
+                  height: _maxHeight,
+                  child: _buildScrollableCode(isDark),
+                )
+              : _buildScrollableCode(isDark),
+        ],
       ),
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
-    final headerBackground = widget.isDarkMode
-        ? const Color(0xFF2C2C2E)
-        : const Color(0xFFF0F0F0);
+  /// Builds the horizontally (and optionally vertically) scrollable code area.
+  Widget _buildScrollableCode(bool isDark) {
+    final verticalScroll = SingleChildScrollView(
+      scrollDirection: Axis.vertical,
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: _buildCodeRow(isDark),
+    );
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: headerBackground,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
-        border: Border(
-          bottom: BorderSide(
-            color: widget.isDarkMode
-                ? const Color(0xFF303030)
-                : const Color(0xFFE0E0E0),
-          ),
-        ),
-      ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: verticalScroll,
+    );
+  }
+
+  Widget _buildCodeRow(bool isDark) {
+    return IntrinsicHeight(
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Language badge
-          if (widget.language != null)
-            _buildLanguageBadge(theme),
-          const Spacer(),
-          // Copy button (hover-to-reveal)
-          AnimatedOpacity(
-            opacity: _showCopyButton ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 150),
-            child: _buildCopyButton(theme),
+          if (widget.showLineNumbers) _LineNumbers(
+            lineCount: _lineCount,
+            fontSize: widget.fontSize,
+            lineHeight: _lineHeight,
+            isDark: isDark,
+          ),
+          Padding(
+            padding: EdgeInsets.only(
+              left: widget.showLineNumbers ? 12 : 16,
+              right: 16,
+            ),
+            child: SyntaxHighlighter(
+              code: widget.code,
+              language: widget.language,
+              isDarkMode: isDark,
+              fontSize: widget.fontSize,
+              lineHeight: _lineHeight,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLanguageBadge(ThemeData theme) {
-    final detectedLanguage = detectLanguage(widget.language);
-    final badgeColor = widget.isDarkMode
-        ? const Color(0xFF38383A)
-        : const Color(0xFFE5E5EA);
-    final textColor = widget.isDarkMode
-        ? const Color(0xFF8E8E93)
-        : const Color(0xFF6B7280);
+  Future<void> _copyToClipboard() async {
+    await Clipboard.setData(ClipboardData(text: widget.code));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+}
+
+/// Header bar showing language name, optional filename, and copy button.
+class _CodeHeader extends StatelessWidget {
+  final String? language;
+  final String? fileName;
+  final bool isDark;
+  final bool copied;
+  final VoidCallback onCopy;
+
+  const _CodeHeader({
+    required this.language,
+    required this.fileName,
+    required this.isDark,
+    required this.copied,
+    required this.onCopy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final headerBg = isDark ? _mocha.mantle : const Color(0xFFEFF1F3);
+    final dividerColor =
+        isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
+    final labelColor =
+        isDark ? _mocha.subtext0 : const Color(0xFF6E7781);
+
+    final displayName = _resolveDisplayName();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      height: 36,
       decoration: BoxDecoration(
-        color: badgeColor,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        detectedLanguage ?? widget.language!.toUpperCase(),
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: textColor,
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.5,
+        color: headerBg,
+        border: Border(
+          bottom: BorderSide(color: dividerColor),
         ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          // Language dot indicator
+          if (displayName != null) ...[
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: _languageColor(language),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
+          // Language / file name label
+          if (displayName != null)
+            Text(
+              displayName,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 12,
+                color: labelColor,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.3,
+              ),
+            ),
+          const Spacer(),
+          // Copy button – always visible
+          _CopyButton(
+            copied: copied,
+            isDark: isDark,
+            onTap: onCopy,
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildCopyButton(ThemeData theme) {
-    final iconColor = widget.isDarkMode
-        ? const Color(0xFFCAC4D0)
-        : const Color(0xFF49454F);
+  /// Returns filename if available, otherwise the normalised language name.
+  String? _resolveDisplayName() {
+    if (fileName != null && fileName!.isNotEmpty) return fileName;
+    final detected = detectLanguage(language);
+    return detected ?? language;
+  }
 
-    return Material(
-      color: Colors.transparent,
+  /// Returns a subtle accent colour associated with the language.
+  Color _languageColor(String? lang) {
+    final normalized = lang?.toLowerCase() ?? '';
+    return switch (normalized) {
+      'dart' => const Color(0xFF00B4AB),
+      'flutter' => const Color(0xFF54C5F8),
+      'python' || 'py' => const Color(0xFF3572A5),
+      'javascript' || 'js' || 'jsx' => const Color(0xFFF1E05A),
+      'typescript' || 'ts' || 'tsx' => const Color(0xFF3178C6),
+      'rust' || 'rs' => const Color(0xFFDEA584),
+      'go' || 'golang' => const Color(0xFF00ADD8),
+      'swift' => const Color(0xFFF05138),
+      'kotlin' || 'kt' => const Color(0xFFA97BFF),
+      'java' => const Color(0xFFB07219),
+      'ruby' || 'rb' => const Color(0xFF701516),
+      'bash' || 'sh' || 'shell' => const Color(0xFF89E051),
+      'css' || 'scss' || 'sass' => const Color(0xFF563D7C),
+      'html' || 'xml' => const Color(0xFFE34C26),
+      'json' => const Color(0xFF6B8E23),
+      'sql' => const Color(0xFFE38C00),
+      'yaml' || 'yml' => const Color(0xFFCB171E),
+      'markdown' || 'md' => const Color(0xFF083FA1),
+      _ => const Color(0xFF8B949E),
+    };
+  }
+}
+
+/// Animated copy button with "Copied!" feedback.
+class _CopyButton extends StatelessWidget {
+  final bool copied;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _CopyButton({
+    required this.copied,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final iconColor = copied
+        ? (isDark ? _mocha.green : const Color(0xFF1A7F37))
+        : (isDark ? _mocha.overlay0 : const Color(0xFF6E7781));
+
+    return Tooltip(
+      message: copied ? 'Copied!' : 'Copy code',
       child: InkWell(
-        onTap: _copyToClipboard,
+        onTap: onTap,
         borderRadius: BorderRadius.circular(4),
         child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _copied ? Icons.check : Icons.content_copy,
-                size: 14,
-                color: iconColor,
-              ),
-              if (_copied)
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Text(
-                    'Copied',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: iconColor,
-                      fontSize: 11,
-                    ),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Row(
+              key: ValueKey(copied),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  copied ? Icons.check_rounded : Icons.content_copy_rounded,
+                  size: 14,
+                  color: iconColor,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  copied ? 'Copied!' : 'Copy',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: iconColor,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildLineNumbers() {
-    final lines = widget.code.split('\n');
-    final textColor = widget.isDarkMode
-        ? const Color(0xFF6E7681)
-        : const Color(0xFF959DA5);
-    final backgroundColor = widget.isDarkMode
-        ? const Color(0xFF161B22)
-        : const Color(0xFFF6F8FA);
+/// Left column displaying line numbers.
+class _LineNumbers extends StatelessWidget {
+  final int lineCount;
+  final double fontSize;
+  final double lineHeight;
+  final bool isDark;
+
+  const _LineNumbers({
+    required this.lineCount,
+    required this.fontSize,
+    required this.lineHeight,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final numColor =
+        isDark ? _mocha.surface1 : const Color(0xFF8C959F);
+    final dividerColor =
+        isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
 
     return Container(
-      padding: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.only(left: 12, right: 10),
       decoration: BoxDecoration(
-        color: backgroundColor,
+        border: Border(
+          right: BorderSide(color: dividerColor),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
-        children: lines.map((_) {
-          return Text(
-            '',
-            style: TextStyle(
-              fontFamily: 'monospace',
-              fontSize: widget.fontSize,
-              color: textColor,
+        children: List.generate(lineCount, (i) {
+          return SizedBox(
+            height: lineHeight,
+            child: Text(
+              '${i + 1}',
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: fontSize,
+                color: numColor,
+                height: 1.0,
+              ),
             ),
           );
-        }).toList(),
+        }),
       ),
     );
-  }
-
-  Future<void> _copyToClipboard() async {
-    await Clipboard.setData(ClipboardData(text: widget.code));
-    setState(() => _copied = true);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _copied = false);
-      }
-    });
   }
 }

@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 
 /// Represents a syntax token with its text, type, and nesting level.
 class SyntaxToken {
+  /// The raw text of this token.
   final String text;
+
+  /// The semantic type of this token.
   final SyntaxTokenType type;
+
+  /// Bracket nesting depth (used for rainbow brackets).
   final int nestLevel;
 
   const SyntaxToken({
@@ -51,6 +56,7 @@ enum SyntaxTokenType {
   punctuation,
   default_;
 
+  /// Parses a token type from its string name.
   static SyntaxTokenType fromString(String str) {
     return switch (str) {
       'keyword' => keyword,
@@ -94,7 +100,7 @@ class SyntaxTokenizer {
   static final Set<String> openBrackets = bracketPairs.keys.toSet();
   static final Set<String> closeBrackets = bracketPairs.values.toSet();
 
-  /// Tokenizes the given code string into syntax tokens.
+  /// Tokenizes the given [code] string into syntax tokens for [language].
   static List<SyntaxToken> tokenize(String code, String? language) {
     final tokens = <SyntaxToken>[];
 
@@ -107,7 +113,6 @@ class SyntaxTokenizer {
     final patterns = _getPatterns(keywordSets);
     final nestingMap = _calculateBracketNesting(code);
 
-    // Split code into lines to preserve line breaks
     final lines = code.split('\n');
     int globalOffset = 0;
 
@@ -115,7 +120,9 @@ class SyntaxTokenizer {
       final line = lines[lineIndex];
 
       if (lineIndex > 0) {
-        tokens.add(const SyntaxToken(text: '\n', type: SyntaxTokenType.default_));
+        tokens.add(
+          const SyntaxToken(text: '\n', type: SyntaxTokenType.default_),
+        );
         globalOffset += 1;
       }
 
@@ -139,7 +146,7 @@ class SyntaxTokenizer {
         }
       }
 
-      // Sort tokens by position and remove overlaps
+      // Sort tokens by position and remove overlaps.
       lineTokens.sort((a, b) => a.start - b.start);
       final filteredTokens = <_LineToken>[];
       int lastEnd = 0;
@@ -150,18 +157,19 @@ class SyntaxTokenizer {
         }
       }
 
-      // Add tokens with proper nesting levels
+      // Add tokens with proper nesting levels.
       int currentIndex = 0;
       for (final token in filteredTokens) {
-        // Add text before this token
         if (token.start > currentIndex) {
           final beforeText = line.substring(currentIndex, token.start);
           if (beforeText.isNotEmpty) {
-            tokens.add(SyntaxToken(text: beforeText, type: SyntaxTokenType.default_));
+            tokens.add(SyntaxToken(
+              text: beforeText,
+              type: SyntaxTokenType.default_,
+            ));
           }
         }
 
-        // Add the token with nesting level if it's a bracket
         if (token.type == SyntaxTokenType.bracket) {
           final globalPos = globalOffset + token.start;
           final nestLevel = nestingMap[globalPos] ?? 1;
@@ -177,11 +185,13 @@ class SyntaxTokenizer {
         currentIndex = token.end;
       }
 
-      // Add remaining text
       if (currentIndex < line.length) {
         final remainingText = line.substring(currentIndex);
         if (remainingText.isNotEmpty) {
-          tokens.add(SyntaxToken(text: remainingText, type: SyntaxTokenType.default_));
+          tokens.add(SyntaxToken(
+            text: remainingText,
+            type: SyntaxTokenType.default_,
+          ));
         }
       }
 
@@ -219,7 +229,9 @@ class SyntaxTokenizer {
     };
   }
 
-  static List<_TokenPattern> _getPatterns(Map<String, List<String>> keywordSets) {
+  static List<_TokenPattern> _getPatterns(
+    Map<String, List<String>> keywordSets,
+  ) {
     final controlFlowPattern = keywordSets['controlFlow']!.join('|');
     final keywordsPattern = keywordSets['keywords']!.join('|');
     final typesPattern = keywordSets['types']!.join('|');
@@ -230,28 +242,39 @@ class SyntaxTokenizer {
     return [
       // Comments (highest priority)
       _TokenPattern(RegExp(r'/\*[\s\S]*?\*/'), SyntaxTokenType.comment),
-      _TokenPattern(RegExp(r'//.*$'), SyntaxTokenType.comment, multiline: true),
-      _TokenPattern(RegExp(r'#.*$'), SyntaxTokenType.comment, multiline: true),
+      _TokenPattern(
+        RegExp(r'//.*$'),
+        SyntaxTokenType.comment,
+        multiline: true,
+      ),
+      _TokenPattern(
+        RegExp(r'#.*$'),
+        SyntaxTokenType.comment,
+        multiline: true,
+      ),
       _TokenPattern(RegExp(r'"""[\s\S]*?"""'), SyntaxTokenType.docstring),
       _TokenPattern(RegExp(r"'''[\s\S]*?'''"), SyntaxTokenType.docstring),
 
-      // Strings and regex
+      // Strings
       _TokenPattern(
         RegExp(r'''(r?["'`])((?:(?!\1)[^\\]|\\.)*)(\1)'''),
         SyntaxTokenType.string,
       ),
+      // Regex literals
       _TokenPattern(
         RegExp(r'/(?:[^\/\\\n]|\\.)+/[gimuy]*'),
         SyntaxTokenType.regex,
       ),
 
-      // Numbers (including hex, binary, floats)
+      // Numbers (hex, binary, octal, floats)
       _TokenPattern(
-        RegExp(r'\b(0x[0-9a-fA-F]+|0b[01]+|0o[0-7]+|\d+\.?\d*(?:[eE][+-]?\d+)?)\b'),
+        RegExp(
+          r'\b(0x[0-9a-fA-F]+|0b[01]+|0o[0-7]+|\d+\.?\d*(?:[eE][+-]?\d+)?)\b',
+        ),
         SyntaxTokenType.number,
       ),
 
-      // Decorators
+      // Decorators / annotations
       _TokenPattern(RegExp(r'@\w+'), SyntaxTokenType.decorator),
 
       // Function definitions
@@ -265,7 +288,7 @@ class SyntaxTokenizer {
         SyntaxTokenType.function,
       ),
 
-      // Method calls (object.method)
+      // Method calls and property access
       _TokenPattern(
         RegExp(r'\.([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(?=\()'),
         SyntaxTokenType.method,
@@ -278,17 +301,41 @@ class SyntaxTokenizer {
       ),
 
       // Keywords by category
-      _TokenPattern(RegExp('\\b($importsPattern)\\b'), SyntaxTokenType.import),
-      _TokenPattern(RegExp('\\b($controlFlowPattern)\\b'), SyntaxTokenType.controlFlow),
-      _TokenPattern(RegExp('\\b($keywordsPattern)\\b'), SyntaxTokenType.keyword),
-      _TokenPattern(RegExp('\\b($typesPattern)\\b'), SyntaxTokenType.type),
-      _TokenPattern(RegExp('\\b($modifiersPattern)\\b'), SyntaxTokenType.modifier),
-      _TokenPattern(RegExp('\\b($booleanPattern)\\b'), SyntaxTokenType.boolean),
+      _TokenPattern(
+        RegExp('\\b($importsPattern)\\b'),
+        SyntaxTokenType.import,
+      ),
+      _TokenPattern(
+        RegExp('\\b($controlFlowPattern)\\b'),
+        SyntaxTokenType.controlFlow,
+      ),
+      _TokenPattern(
+        RegExp('\\b($keywordsPattern)\\b'),
+        SyntaxTokenType.keyword,
+      ),
+      _TokenPattern(
+        RegExp('\\b($typesPattern)\\b'),
+        SyntaxTokenType.type,
+      ),
+      _TokenPattern(
+        RegExp('\\b($modifiersPattern)\\b'),
+        SyntaxTokenType.modifier,
+      ),
+      _TokenPattern(
+        RegExp('\\b($booleanPattern)\\b'),
+        SyntaxTokenType.boolean,
+      ),
 
-      // Operators by category
-      _TokenPattern(RegExp(r'(===|!==|==|!=|<=|>=|<|>)'), SyntaxTokenType.comparison),
+      // Operators
+      _TokenPattern(
+        RegExp(r'(===|!==|==|!=|<=|>=|<|>)'),
+        SyntaxTokenType.comparison,
+      ),
       _TokenPattern(RegExp(r'(&&|\|\||!)'), SyntaxTokenType.logical),
-      _TokenPattern(RegExp(r'(=|\+=|-=|\*=|/=|%=||=|&=|\^=)'), SyntaxTokenType.assignment),
+      _TokenPattern(
+        RegExp(r'(=|\+=|-=|\*=|/=|%=||=|&=|\^=)'),
+        SyntaxTokenType.assignment,
+      ),
       _TokenPattern(RegExp(r'(\+|-|\*|/|%|\*\*)'), SyntaxTokenType.operator),
       _TokenPattern(RegExp(r'(\?|:)'), SyntaxTokenType.operator),
 
@@ -298,7 +345,7 @@ class SyntaxTokenizer {
     ];
   }
 
-  /// Calculates bracket nesting levels for each position in the code.
+  /// Calculates bracket nesting levels for each position in [code].
   static Map<int, int> _calculateBracketNesting(String code) {
     final nestingMap = <int, int>{};
     final stack = <_BracketInfo>[];
@@ -358,19 +405,22 @@ class _BracketInfo {
   _BracketInfo({required this.char, required this.pos});
 }
 
-/// Gets syntax colors for the given theme mode.
+/// Syntax color palettes for light and dark themes.
+///
+/// Dark theme uses Catppuccin Mocha; light theme mirrors the previous
+/// palette which was already well-tuned.
 class SyntaxColors {
-  /// Light theme colors (matching React Native light theme).
+  /// Light theme colors.
   static const Map<SyntaxTokenType, Color> light = {
     SyntaxTokenType.keyword: Color(0xFF1d4ed8),
-    SyntaxTokenType.controlFlow: Color(0xFF1d4ed8),
-    SyntaxTokenType.type: Color(0xFF1d4ed8),
+    SyntaxTokenType.controlFlow: Color(0xFF6d28d9),
+    SyntaxTokenType.type: Color(0xFF0f766e),
     SyntaxTokenType.modifier: Color(0xFF1d4ed8),
     SyntaxTokenType.string: Color(0xFF059669),
     SyntaxTokenType.number: Color(0xFF0891b2),
     SyntaxTokenType.boolean: Color(0xFF0891b2),
     SyntaxTokenType.regex: Color(0xFF059669),
-    SyntaxTokenType.function: Color(0xFF9333ea),
+    SyntaxTokenType.function: Color(0xFF7c3aed),
     SyntaxTokenType.method: Color(0xFF9333ea),
     SyntaxTokenType.property: Color(0xFF374151),
     SyntaxTokenType.comment: Color(0xFF6b7280),
@@ -379,7 +429,7 @@ class SyntaxColors {
     SyntaxTokenType.assignment: Color(0xFF1d4ed8),
     SyntaxTokenType.comparison: Color(0xFF1d4ed8),
     SyntaxTokenType.logical: Color(0xFF1d4ed8),
-    SyntaxTokenType.decorator: Color(0xFF1d4ed8),
+    SyntaxTokenType.decorator: Color(0xFFca8a04),
     SyntaxTokenType.import: Color(0xFF1d4ed8),
     SyntaxTokenType.variable: Color(0xFF374151),
     SyntaxTokenType.parameter: Color(0xFF374151),
@@ -388,62 +438,99 @@ class SyntaxColors {
     SyntaxTokenType.default_: Color(0xFF374151),
   };
 
-  /// Dark theme colors (matching React Native dark theme).
+  // ---------------------------------------------------------------------------
+  // Catppuccin Mocha dark theme
+  // https://github.com/catppuccin/catppuccin
+  // ---------------------------------------------------------------------------
+  // Colour reference:
+  //   text     #CDD6F4  subtext0 #A6ADC8  overlay0 #6C7086
+  //   red      #F38BA8  peach    #FAB387  yellow   #F9E2AF
+  //   green    #A6E3A1  teal     #94E2D5  sky      #89DCEB
+  //   sapphire #74C7EC  blue     #89B4FA  lavender #B4BEFE
+  //   mauve    #CBA6F7  pink     #F5C2E7  flamingo #F2CDCD
+  // ---------------------------------------------------------------------------
+
+  /// Dark theme colors (Catppuccin Mocha).
   static const Map<SyntaxTokenType, Color> dark = {
-    SyntaxTokenType.keyword: Color(0xFF569CD6),
-    SyntaxTokenType.controlFlow: Color(0xFF569CD6),
-    SyntaxTokenType.type: Color(0xFF569CD6),
-    SyntaxTokenType.modifier: Color(0xFF569CD6),
-    SyntaxTokenType.string: Color(0xFFCE9178),
-    SyntaxTokenType.number: Color(0xFFB5CEA8),
-    SyntaxTokenType.boolean: Color(0xFFB5CEA8),
-    SyntaxTokenType.regex: Color(0xFFCE9178),
-    SyntaxTokenType.function: Color(0xFFDCDCAA),
-    SyntaxTokenType.method: Color(0xFFDCDCAA),
-    SyntaxTokenType.property: Color(0xFFD4D4D4),
-    SyntaxTokenType.comment: Color(0xFF6A9955),
-    SyntaxTokenType.docstring: Color(0xFF6A9955),
-    SyntaxTokenType.operator: Color(0xFFD4D4D4),
-    SyntaxTokenType.assignment: Color(0xFF569CD6),
-    SyntaxTokenType.comparison: Color(0xFF569CD6),
-    SyntaxTokenType.logical: Color(0xFF569CD6),
-    SyntaxTokenType.decorator: Color(0xFF569CD6),
-    SyntaxTokenType.import: Color(0xFF569CD6),
-    SyntaxTokenType.variable: Color(0xFFD4D4D4),
-    SyntaxTokenType.parameter: Color(0xFFD4D4D4),
-    SyntaxTokenType.bracket: Color(0xFFD4D4D4),
-    SyntaxTokenType.punctuation: Color(0xFFD4D4D4),
-    SyntaxTokenType.default_: Color(0xFFD4D4D4),
+    // Keywords – blue/lavender
+    SyntaxTokenType.keyword: Color(0xFF89B4FA),
+    // Control flow (if/else/for/return) – mauve/purple
+    SyntaxTokenType.controlFlow: Color(0xFFCBA6F7),
+    // Types – teal
+    SyntaxTokenType.type: Color(0xFF94E2D5),
+    // Modifiers (public/static/async) – blue
+    SyntaxTokenType.modifier: Color(0xFF89B4FA),
+    // Strings – green
+    SyntaxTokenType.string: Color(0xFFA6E3A1),
+    // Numbers – peach
+    SyntaxTokenType.number: Color(0xFFFAB387),
+    // Booleans / null – peach
+    SyntaxTokenType.boolean: Color(0xFFFAB387),
+    // Regex literals – green (like strings)
+    SyntaxTokenType.regex: Color(0xFFA6E3A1),
+    // Function names – yellow
+    SyntaxTokenType.function: Color(0xFFF9E2AF),
+    // Method calls – sky
+    SyntaxTokenType.method: Color(0xFF89DCEB),
+    // Property access – subtext0
+    SyntaxTokenType.property: Color(0xFFA6ADC8),
+    // Comments – overlay0 (muted)
+    SyntaxTokenType.comment: Color(0xFF6C7086),
+    // Docstrings – overlay0
+    SyntaxTokenType.docstring: Color(0xFF6C7086),
+    // Arithmetic operators – text
+    SyntaxTokenType.operator: Color(0xFFCDD6F4),
+    // Assignment operators – blue
+    SyntaxTokenType.assignment: Color(0xFF89B4FA),
+    // Comparison operators – sapphire
+    SyntaxTokenType.comparison: Color(0xFF74C7EC),
+    // Logical operators (&&/||) – mauve
+    SyntaxTokenType.logical: Color(0xFFCBA6F7),
+    // Decorators / annotations – yellow
+    SyntaxTokenType.decorator: Color(0xFFF9E2AF),
+    // Import statements – blue
+    SyntaxTokenType.import: Color(0xFF89B4FA),
+    // Variables – text
+    SyntaxTokenType.variable: Color(0xFFCDD6F4),
+    // Parameters – text
+    SyntaxTokenType.parameter: Color(0xFFCDD6F4),
+    // Brackets – handled by nesting colours below
+    SyntaxTokenType.bracket: Color(0xFFCDD6F4),
+    // Punctuation (.,;) – overlay0
+    SyntaxTokenType.punctuation: Color(0xFF6C7086),
+    // Default / plain text
+    SyntaxTokenType.default_: Color(0xFFCDD6F4),
   };
 
-  /// Bracket nesting colors for light theme.
+  // Rainbow bracket colours – light theme
   static const List<Color> bracketNestingLight = [
-    Color(0xFF374151), // default (level 0)
-    Color(0xFFff6b6b), // bracket1
-    Color(0xFF4ecdc4), // bracket2
-    Color(0xFF45b7d1), // bracket3
-    Color(0xFFf7b731), // bracket4
-    Color(0xFF5f27cd), // bracket5
+    Color(0xFF374151), // level 0 (unused sentinel)
+    Color(0xFFE05252), // 1 – red
+    Color(0xFF00897B), // 2 – teal
+    Color(0xFF1976D2), // 3 – blue
+    Color(0xFFF57F17), // 4 – amber
+    Color(0xFF6A1B9A), // 5 – purple
   ];
 
-  /// Bracket nesting colors for dark theme.
+  // Rainbow bracket colours – Catppuccin Mocha
   static const List<Color> bracketNestingDark = [
-    Color(0xFFD4D4D4), // default (level 0)
-    Color(0xFFFFD700), // bracket1
-    Color(0xFFDA70D6), // bracket2
-    Color(0xFF179FFF), // bracket3
-    Color(0xFFFF8C00), // bracket4
-    Color(0xFF00FF00), // bracket5
+    Color(0xFFCDD6F4), // level 0 (unused sentinel) – text
+    Color(0xFFF9E2AF), // 1 – yellow
+    Color(0xFFCBA6F7), // 2 – mauve
+    Color(0xFF89DCEB), // 3 – sky
+    Color(0xFFFAB387), // 4 – peach
+    Color(0xFF74C7EC), // 5 – sapphire
   ];
 
-  /// Gets the appropriate color for a token type.
+  /// Returns the appropriate color for [type] at [nestLevel].
   static Color getColor(
     SyntaxTokenType type,
     int nestLevel,
     bool isDarkMode,
   ) {
     final colors = isDarkMode ? dark : light;
-    final bracketColors = isDarkMode ? bracketNestingDark : bracketNestingLight;
+    final bracketColors =
+        isDarkMode ? bracketNestingDark : bracketNestingLight;
 
     if (type == SyntaxTokenType.bracket) {
       final level = nestLevel % 5;
@@ -454,13 +541,24 @@ class SyntaxColors {
   }
 }
 
-/// Widget that displays syntax-highlighted code.
+/// Widget that displays syntax-highlighted code using [RichText].
 class SyntaxHighlighter extends StatelessWidget {
+  /// Raw source code.
   final String code;
+
+  /// Language identifier (e.g., 'dart', 'python').
   final String? language;
+
+  /// Whether to use the dark colour palette.
   final bool isDarkMode;
+
+  /// Base font size in logical pixels.
   final double fontSize;
+
+  /// Absolute line height in logical pixels.
   final double lineHeight;
+
+  /// Font weight applied to keywords and control-flow tokens.
   final FontWeight? keywordFontWeight;
 
   const SyntaxHighlighter({
@@ -501,10 +599,7 @@ class SyntaxHighlighter extends StatelessWidget {
 
       return TextSpan(
         text: token.text,
-        style: TextStyle(
-          color: color,
-          fontWeight: fontWeight,
-        ),
+        style: TextStyle(color: color, fontWeight: fontWeight),
       );
     }).toList();
   }
@@ -521,15 +616,15 @@ class SyntaxHighlighter extends StatelessWidget {
   }
 }
 
-/// Detects the programming language from a code block.
+/// Normalises a language identifier to a canonical name.
+///
+/// Returns the canonical name if known, otherwise returns [languageHint]
+/// as-is (lowercased). Returns `null` when [languageHint] is `null`.
 String? detectLanguage(String? languageHint) {
-  if (languageHint == null) {
-    return null;
-  }
+  if (languageHint == null) return null;
 
   final normalized = languageHint.toLowerCase().trim();
 
-  // Map common language names
   const languageMap = {
     'js': 'javascript',
     'javascript': 'javascript',
@@ -584,6 +679,8 @@ String? detectLanguage(String? languageHint) {
     'markdown': 'markdown',
     'dockerfile': 'dockerfile',
     'docker': 'dockerfile',
+    'dart': 'dart',
+    'flutter': 'dart',
   };
 
   return languageMap[normalized] ?? normalized;
