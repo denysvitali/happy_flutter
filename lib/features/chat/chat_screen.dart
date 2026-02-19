@@ -25,11 +25,10 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  Timer? _syncPollTimer;
-  bool _isSubscribing = false;
+  StreamSubscription<void>? _dataSyncSubscription;
+  StreamSubscription<String>? _messageSyncSubscription;
   bool _isSending = false;
   bool _isLoadingMessages = true;
-  bool _isSubscribed = false;
 
   /// Whether autoscroll to the bottom is active.
   ///
@@ -48,8 +47,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   ClaudeModel _modelMode = ClaudeModel.defaultModel;
   Session? _session;
   List<Map<String, dynamic>> _messages = const [];
+  /// Cached result of `_session?.metadata?.toJson()`.
+  ///
+  /// Recomputed only when [_session] changes so that [_buildMessageList]
+  /// does not allocate a new [Map] for every message item on every rebuild.
+  Map<String, dynamic>? _metadataJson;
   static const int _pageSize = 50;
   int _visibleCount = _pageSize;
+  bool _isLoadingMore = false;
 
   @override
   void initState() {
@@ -72,39 +77,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
-    _syncPollTimer?.cancel();
+    _dataSyncSubscription?.cancel();
+    _messageSyncSubscription?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   Future<void> _initializeSyncBackedChat() async {
-    _syncPollTimer = Timer.periodic(
-      const Duration(milliseconds: 600),
-      (_) => unawaited(_onSyncTick()),
-    );
-    await _onSyncTick();
-  }
+    // Subscribe to changes before initial load to avoid race conditions.
+    _messageSyncSubscription = sync.onSessionMessagesChanged
+        .where((id) => id == widget.sessionId)
+        .listen((_) {
+          if (mounted) _refreshFromSync();
+        });
+    _dataSyncSubscription = sync.onDataChanged.listen((_) {
+      if (mounted) _refreshFromSync();
+    });
 
-  Future<void> _onSyncTick() async {
     if (!sync.isInitialized) {
       return;
     }
 
-    if (!_isSubscribed && !_isSubscribing) {
-      _isSubscribing = true;
-      try {
-        sync.onSessionVisible(widget.sessionId);
-        _isSubscribed = true;
-        await sync.messagesSync[widget.sessionId]?.awaitQueue();
-        _refreshFromSync(markLoaded: true);
-      } finally {
-        _isSubscribing = false;
-      }
-      return;
+    // Trigger initial session subscription and wait for messages to load.
+    sync.onSessionVisible(widget.sessionId);
+    await sync.messagesSync[widget.sessionId]?.awaitQueue();
+    if (mounted) {
+      _refreshFromSync(markLoaded: true);
     }
-
-    _refreshFromSync();
   }
 
   void _refreshFromSync({bool markLoaded = false}) {
@@ -130,6 +130,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     setState(() {
       _session = latestSession;
       _messages = latestMessages;
+      if (sessionChanged) {
+        _metadataJson = latestSession?.metadata?.toJson();
+      }
       if (markLoaded) {
         _isLoadingMessages = false;
       }
@@ -199,10 +202,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _loadMore() {
+    if (_isLoadingMore) return;
     if (_visibleCount >= _messages.length) return;
+    _isLoadingMore = true;
     setState(() {
       _visibleCount =
           (_visibleCount + _pageSize).clamp(0, _messages.length);
+    });
+    // Reset the guard after the frame so rapid scroll events don't
+    // queue multiple consecutive setState calls.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _isLoadingMore = false;
     });
   }
 
@@ -465,6 +475,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final visibleMessages = _messages.sublist(startIndex);
     final hasMore = startIndex > 0;
 
+    // Build a key→listIndex lookup once (O(n)) so that
+    // findChildIndexCallback is O(1) instead of O(n) per item.
+    final keyToListIndex = <String, int>{};
+    for (var i = 0; i < visibleMessages.length; i++) {
+      final m = visibleMessages[i];
+      final k =
+          m['id'] as String? ?? m['toolUseId'] as String?;
+      if (k != null) {
+        // The list is reversed: logical index i maps to item
+        // index (visibleMessages.length - 1 - i).
+        keyToListIndex[k] = visibleMessages.length - 1 - i;
+      }
+    }
+
+    // Use the cached metadata so itemBuilder does not allocate a
+    // new Map on every message item during each rebuild.
+    final metadataJson = _metadataJson;
+
     return ListView.builder(
       controller: _scrollController,
       reverse: true,
@@ -472,16 +500,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       itemCount: visibleMessages.length + (hasMore ? 1 : 0),
       findChildIndexCallback: (key) {
         if (key is! ValueKey<String>) return null;
-        final msgKey = key.value;
-        for (var i = 0; i < visibleMessages.length; i++) {
-          final m = visibleMessages[i];
-          final k =
-              m['id'] as String? ?? m['toolUseId'] as String?;
-          if (k != null && k == msgKey) {
-            return visibleMessages.length - 1 - i;
-          }
-        }
-        return null;
+        return keyToListIndex[key.value];
       },
       itemBuilder: (context, index) {
         // Reversed: index 0 = last message (bottom)
@@ -522,7 +541,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           child: MessageWidget(
             messageData: message,
             isFromCurrentUser: message['role'] == 'user',
-            metadata: _session?.metadata?.toJson(),
+            metadata: metadataJson,
             messages: _messages,
             sessionId: widget.sessionId,
             onOptionPress: _onOptionPress,

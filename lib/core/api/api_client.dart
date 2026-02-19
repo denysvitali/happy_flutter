@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:native_dio_adapter/native_dio_adapter.dart';
+import 'package:sentry_dio/sentry_dio.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../services/server_config.dart';
 
@@ -58,6 +62,7 @@ class ApiClient {
         },
       ),
     );
+    _dio!.addSentry();
   }
 
   /// Refresh the server URL without restarting the app
@@ -89,8 +94,9 @@ class ApiClient {
       debugPrint(
         'Native HTTP adapter configured for platform-specific CA support',
       );
-    } catch (e) {
+    } catch (e, s) {
       debugPrint('Error configuring HTTP client: $e');
+      unawaited(Sentry.captureException(e, stackTrace: s));
     }
   }
 

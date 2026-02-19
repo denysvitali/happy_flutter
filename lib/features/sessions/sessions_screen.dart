@@ -32,7 +32,7 @@ class SessionsScreen extends ConsumerStatefulWidget {
 
 class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   AppTab _activeTab = AppTab.sessions;
-  Timer? _syncSnapshotTimer;
+  StreamSubscription<void>? _syncSubscription;
 
   @override
   void initState() {
@@ -42,20 +42,18 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       await ref.read(friendsNotifierProvider.notifier).refreshFromSync();
       await ref.read(feedNotifierProvider.notifier).refreshFromSync();
     });
-    _syncSnapshotTimer = Timer.periodic(
-      const Duration(milliseconds: 700),
-      (_) {
-        ref.read(sessionsNotifierProvider.notifier).loadFromSync();
-        ref.read(machinesNotifierProvider.notifier).loadFromSync();
-        ref.read(friendsNotifierProvider.notifier).loadFromSync();
-        ref.read(feedNotifierProvider.notifier).loadFromSync();
-      },
-    );
+    _syncSubscription = sync.onDataChanged.listen((_) {
+      if (!mounted) return;
+      ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+      ref.read(machinesNotifierProvider.notifier).loadFromSync();
+      ref.read(friendsNotifierProvider.notifier).loadFromSync();
+      ref.read(feedNotifierProvider.notifier).loadFromSync();
+    });
   }
 
   @override
   void dispose() {
-    _syncSnapshotTimer?.cancel();
+    _syncSubscription?.cancel();
     super.dispose();
   }
 
@@ -1026,6 +1024,111 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
 
     return AnimatedBuilder(
       animation: _glowAnimation,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 3,
+                  color: Color(sessionStatus.statusDotColor),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Avatar with Hero + optional draft badge.
+                        Hero(
+                          tag: 'session-avatar-${widget.session.id}',
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              SessionAvatar(
+                                id: avatarId,
+                                flavor: sessionFlavor,
+                                size: 48,
+                              ),
+                              if (hasDraft) const _DraftBadge(),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                sessionName,
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: cs.onSurface,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                sessionSubtitle,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: cs.onSurfaceVariant,
+                                  fontFamily: 'monospace',
+                                  fontSize: 11,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              formatTimestamp(
+                                widget.session.updatedAt,
+                                relative: true,
+                              ),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            StatusDot(
+                              color: Color(sessionStatus.statusDotColor),
+                              isPulsing: sessionStatus.isPulsing,
+                              size: 8,
+                            ),
+                            if (todoProgress != null) ...[
+                              const SizedBox(height: 4),
+                              _TodoProgressBadge(
+                                completed: todoProgress.completed,
+                                total: todoProgress.total,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
       builder: (context, child) {
         final t = _glowAnimation.value;
         final glowOpacity = 0.04 + 0.08 * t;
@@ -1051,111 +1154,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
               ),
             ],
           ),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: widget.onTap,
-              borderRadius: BorderRadius.circular(14),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      width: 3,
-                      color: Color(sessionStatus.statusDotColor),
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // Avatar with Hero + optional draft badge.
-                            Hero(
-                              tag: 'session-avatar-${widget.session.id}',
-                              child: Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  SessionAvatar(
-                                    id: avatarId,
-                                    flavor: sessionFlavor,
-                                    size: 48,
-                                  ),
-                                  if (hasDraft) const _DraftBadge(),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    sessionName,
-                                    style: theme.textTheme.bodyLarge?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: cs.onSurface,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    sessionSubtitle,
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: cs.onSurfaceVariant,
-                                      fontFamily: 'monospace',
-                                      fontSize: 11,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  formatTimestamp(
-                                    widget.session.updatedAt,
-                                    relative: true,
-                                  ),
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: cs.onSurfaceVariant,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                StatusDot(
-                                  color: Color(sessionStatus.statusDotColor),
-                                  isPulsing: sessionStatus.isPulsing,
-                                  size: 8,
-                                ),
-                                if (todoProgress != null) ...[
-                                  const SizedBox(height: 4),
-                                  _TodoProgressBadge(
-                                    completed: todoProgress.completed,
-                                    total: todoProgress.total,
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          child: child,
         );
       },
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:riverpod/riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../api/api_client.dart';
 import '../api/socket_io_client.dart' as socket_io;
@@ -55,6 +56,12 @@ class AuthStateNotifier extends Notifier<AuthState> {
           await ref.read(profileNotifierProvider.notifier).refreshFromSync();
           await ref.read(friendsNotifierProvider.notifier).refreshFromSync();
           await ref.read(feedNotifierProvider.notifier).refreshFromSync();
+          final profile = ref.read(profileNotifierProvider);
+          if (profile != null) {
+            Sentry.configureScope(
+              (scope) => scope.setUser(SentryUser(id: profile.id)),
+            );
+          }
         }
         if (_pendingDeepLink != null) {
           await _handleDeepLink(_pendingDeepLink!);
@@ -91,6 +98,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
     ref.read(friendsNotifierProvider.notifier).clear();
     ref.read(feedNotifierProvider.notifier).clear();
     state = AuthState.unauthenticated;
+    Sentry.configureScope((scope) => scope.setUser(null));
   }
 }
 

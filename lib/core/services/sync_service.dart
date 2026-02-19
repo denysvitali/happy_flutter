@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../api/api_client.dart';
 import '../api/kv_api.dart';
@@ -121,6 +122,11 @@ what you have, you must use the options mode.
   final Map<String, Machine> _machines = <String, Machine>{};
   Profile? _profile;
 
+  // Change notification streams
+  final _dataChangeController = StreamController<void>.broadcast();
+  final _sessionMessageChangeController =
+      StreamController<String>.broadcast();
+
   Map<String?, TodoList> get todoLists => Map.unmodifiable(_todoLists);
   List<UserProfile> get friends => List.unmodifiable(_friends);
   List<FriendRequest> get friendRequests => List.unmodifiable(_friendRequests);
@@ -150,13 +156,20 @@ what you have, you must use the options mode.
   List<Map<String, dynamic>> messagesForSession(String sessionId) =>
       List.unmodifiable(_sessionMessages[sessionId] ?? const []);
 
+  /// Stream that emits when session/machine/general data changes.
+  Stream<void> get onDataChanged => _dataChangeController.stream;
+
+  /// Stream that emits the sessionId when messages for that session change.
+  Stream<String> get onSessionMessagesChanged =>
+      _sessionMessageChangeController.stream;
+
   /// Initialize sync with credentials and encryption
   Future<void> create(
     AuthCredentials credentials,
     Encryption encryption,
   ) async {
     if (isInitialized) {
-      debugPrint('Sync already initialized');
+      if (kDebugMode) debugPrint('Sync already initialized');
       return;
     }
 
@@ -180,7 +193,7 @@ what you have, you must use the options mode.
     Encryption encryption,
   ) async {
     if (isInitialized) {
-      debugPrint('Sync already initialized');
+      if (kDebugMode) debugPrint('Sync already initialized');
       return;
     }
 
@@ -236,7 +249,7 @@ what you have, you must use the options mode.
       ]);
       _isReady = true;
     } catch (error) {
-      debugPrint('Failed initial ready sync: $error');
+      if (kDebugMode) debugPrint('Failed initial ready sync: $error');
     }
   }
 
@@ -262,7 +275,7 @@ what you have, you must use the options mode.
       ..onMessage('update', handleUpdate)
       ..onMessage('ephemeral', handleEphemeralUpdate)
       ..onReconnected(() {
-        debugPrint('Socket reconnected');
+        if (kDebugMode) debugPrint('Socket reconnected');
         _invalidateAllSyncs();
         for (final sync in messagesSync.values) {
           sync.invalidate();
@@ -317,7 +330,7 @@ what you have, you must use the options mode.
           break;
       }
     } catch (error) {
-      debugPrint('Failed to handle update: $error');
+      if (kDebugMode) debugPrint('Failed to handle update: $error');
     }
   }
 
@@ -328,14 +341,17 @@ what you have, you must use the options mode.
       messagesSync[sessionId]?.invalidate();
     }
     sessionsSync.invalidate();
-    debugPrint(
-      'New message received${sessionId != null ? ': $sessionId' : ''}',
-    );
+    if (kDebugMode) {
+      debugPrint(
+        'New message received'
+        '${sessionId != null ? ': $sessionId' : ''}',
+      );
+    }
   }
 
   /// Handle new session update
   void _handleNewSession(Map<String, dynamic> data) {
-    debugPrint('New session received');
+    if (kDebugMode) debugPrint('New session received');
     sessionsSync.invalidate();
   }
 
@@ -353,9 +369,12 @@ what you have, you must use the options mode.
       encryption.removeSessionEncryption(sessionId);
     }
     sessionsSync.invalidate();
-    debugPrint(
-      'Session deletion received${sessionId != null ? ': $sessionId' : ''}',
-    );
+    if (kDebugMode) {
+      debugPrint(
+        'Session deletion received'
+        '${sessionId != null ? ': $sessionId' : ''}',
+      );
+    }
   }
 
   /// Handle session update
@@ -365,27 +384,30 @@ what you have, you must use the options mode.
     if (sessionId != null && messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId]?.invalidate();
     }
-    debugPrint(
-      'Session update received${sessionId != null ? ': $sessionId' : ''}',
-    );
+    if (kDebugMode) {
+      debugPrint(
+        'Session update received'
+        '${sessionId != null ? ': $sessionId' : ''}',
+      );
+    }
   }
 
   /// Handle account update
   void _handleUpdateAccount(Map<String, dynamic> data) {
-    debugPrint('Account update received');
+    if (kDebugMode) debugPrint('Account update received');
     profileSync.invalidate();
     settingsSync.invalidate();
   }
 
   /// Handle machine update
   void _handleUpdateMachine(Map<String, dynamic> data) {
-    debugPrint('Machine update received');
+    if (kDebugMode) debugPrint('Machine update received');
     machinesSync.invalidate();
   }
 
   /// Handle relationship update
   void _handleRelationshipUpdated(Map<String, dynamic> data) {
-    debugPrint('Relationship update received');
+    if (kDebugMode) debugPrint('Relationship update received');
     friendsSync.invalidate();
     friendRequestsSync.invalidate();
     feedSync.invalidate();
@@ -393,25 +415,25 @@ what you have, you must use the options mode.
 
   /// Handle new artifact update
   void _handleNewArtifact(Map<String, dynamic> data) {
-    debugPrint('New artifact received');
+    if (kDebugMode) debugPrint('New artifact received');
     artifactsSync.invalidate();
   }
 
   /// Handle artifact update
   void _handleUpdateArtifact(Map<String, dynamic> data) {
-    debugPrint('Artifact update received');
+    if (kDebugMode) debugPrint('Artifact update received');
     artifactsSync.invalidate();
   }
 
   /// Handle artifact deletion
   void _handleDeleteArtifact(Map<String, dynamic> data) {
-    debugPrint('Artifact deletion received');
+    if (kDebugMode) debugPrint('Artifact deletion received');
     artifactsSync.invalidate();
   }
 
   /// Handle new feed post
   void _handleNewFeedPost(Map<String, dynamic> data) {
-    debugPrint('New feed post received');
+    if (kDebugMode) debugPrint('New feed post received');
     feedSync.invalidate();
   }
 
@@ -423,18 +445,22 @@ what you have, you must use the options mode.
             change is Map<String, dynamic> &&
             ((change['key'] as String?)?.startsWith('todo.') ?? false))) {
       todosSync.invalidate();
-      debugPrint('KV batch update received (todos)');
+      if (kDebugMode) {
+        debugPrint('KV batch update received (todos)');
+      }
       return;
     }
 
     final serialized = jsonEncode(data).toLowerCase();
     if (serialized.contains('todo')) {
       todosSync.invalidate();
-      debugPrint('KV batch update received (todos-fallback)');
+      if (kDebugMode) {
+        debugPrint('KV batch update received (todos-fallback)');
+      }
       return;
     }
 
-    debugPrint('KV batch update received (non-todo)');
+    if (kDebugMode) debugPrint('KV batch update received (non-todo)');
   }
 
   /// Handle ephemeral updates
@@ -463,6 +489,7 @@ what you have, you must use the options mode.
               : null,
           presence: 'online',
         );
+        _dataChangeController.add(null);
       }
       return;
     }
@@ -474,7 +501,7 @@ what you have, you must use the options mode.
 
   /// Fetch sessions from server
   Future<void> fetchSessions() async {
-    debugPrint('Fetching sessions...');
+    if (kDebugMode) debugPrint('Fetching sessions...');
 
     try {
       final apiClient = ApiClient();
@@ -491,7 +518,11 @@ what you have, you must use the options mode.
         );
 
         if (!apiClient.isSuccess(response)) {
-          debugPrint('Failed to fetch sessions: ${response.statusCode}');
+          if (kDebugMode) {
+            debugPrint(
+              'Failed to fetch sessions: ${response.statusCode}',
+            );
+          }
           break;
         }
 
@@ -572,7 +603,11 @@ what you have, you must use the options mode.
 
             decryptedSessions.add(processedSession);
           } catch (error) {
-            debugPrint('Failed to decrypt session $sessionId: $error');
+            if (kDebugMode) {
+              debugPrint(
+                'Failed to decrypt session $sessionId: $error',
+              );
+            }
           }
         }
       }
@@ -588,15 +623,21 @@ what you have, you must use the options mode.
         _applyPermissionRequests(sessionId);
       }
 
-      debugPrint('Fetched and decrypted ${decryptedSessions.length} sessions');
+      if (kDebugMode) {
+        debugPrint(
+          'Fetched and decrypted ${decryptedSessions.length} sessions',
+        );
+      }
+      _dataChangeController.add(null);
     } catch (error) {
-      debugPrint('Error fetching sessions: $error');
+      if (kDebugMode) debugPrint('Error fetching sessions: $error');
+      unawaited(Sentry.captureException(error));
     }
   }
 
   /// Fetch machines from server
   Future<void> fetchMachines() async {
-    debugPrint('Fetching machines...');
+    if (kDebugMode) debugPrint('Fetching machines...');
 
     try {
       final apiClient = ApiClient();
@@ -660,7 +701,11 @@ what you have, you must use the options mode.
 
               decryptedMachines.add(processedMachine);
             } catch (error) {
-              debugPrint('Failed to decrypt machine $machineId: $error');
+              if (kDebugMode) {
+                debugPrint(
+                  'Failed to decrypt machine $machineId: $error',
+                );
+              }
             }
           }
         }
@@ -670,23 +715,36 @@ what you have, you must use the options mode.
           ..addEntries(
             decryptedMachines.map((machine) => MapEntry(machine.id, machine)),
           );
-        debugPrint(
-            'Fetched and decrypted ${decryptedMachines.length} machines');
+        if (kDebugMode) {
+          debugPrint(
+            'Fetched and decrypted ${decryptedMachines.length} machines',
+          );
+        }
+        _dataChangeController.add(null);
       } else {
-        debugPrint('Failed to fetch machines: ${response.statusCode}');
+        if (kDebugMode) {
+          debugPrint(
+            'Failed to fetch machines: ${response.statusCode}',
+          );
+        }
       }
     } catch (error) {
-      debugPrint('Error fetching machines: $error');
+      if (kDebugMode) debugPrint('Error fetching machines: $error');
+      unawaited(Sentry.captureException(error));
     }
   }
 
   /// Fetch artifacts list from server
   Future<void> fetchArtifactsList() async {
-    debugPrint('Fetching artifacts...');
+    if (kDebugMode) debugPrint('Fetching artifacts...');
     try {
       final response = await ApiClient().get('/v1/artifacts');
       if (!ApiClient().isSuccess(response)) {
-        debugPrint('Failed to fetch artifacts: ${response.statusCode}');
+        if (kDebugMode) {
+          debugPrint(
+            'Failed to fetch artifacts: ${response.statusCode}',
+          );
+        }
         return;
       }
 
@@ -751,26 +809,33 @@ what you have, you must use the options mode.
             );
           }
         } catch (error) {
-          debugPrint('Failed to decrypt artifact: $error');
+          if (kDebugMode) debugPrint('Failed to decrypt artifact: $error');
         }
       }
 
       _artifacts
         ..clear()
         ..addAll(decryptedArtifacts);
-      debugPrint('Fetched artifacts: ${_artifacts.length}');
+      if (kDebugMode) {
+        debugPrint('Fetched artifacts: ${_artifacts.length}');
+      }
     } catch (error) {
-      debugPrint('Failed to fetch artifacts: $error');
+      if (kDebugMode) debugPrint('Failed to fetch artifacts: $error');
+      unawaited(Sentry.captureException(error));
     }
   }
 
   /// Fetch friends list from server
   Future<void> fetchFriends() async {
-    debugPrint('Fetching friends...');
+    if (kDebugMode) debugPrint('Fetching friends...');
     try {
       final response = await ApiClient().get('/v1/friends');
       if (!ApiClient().isSuccess(response)) {
-        debugPrint('Failed to fetch friends: ${response.statusCode}');
+        if (kDebugMode) {
+          debugPrint(
+            'Failed to fetch friends: ${response.statusCode}',
+          );
+        }
         return;
       }
 
@@ -798,12 +863,15 @@ what you have, you must use the options mode.
         ..clear()
         ..addAll(_deriveFriendRequests(parsedFriends));
 
-      debugPrint(
-        'Fetched friends: ${_friends.length}, '
-        'pending requests: ${_friendRequests.length}',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'Fetched friends: ${_friends.length}, '
+          'pending requests: ${_friendRequests.length}',
+        );
+      }
     } catch (error) {
-      debugPrint('Failed to fetch friends: $error');
+      if (kDebugMode) debugPrint('Failed to fetch friends: $error');
+      unawaited(Sentry.captureException(error));
     }
   }
 
@@ -814,14 +882,16 @@ what you have, you must use the options mode.
 
   /// Fetch feed items from server
   Future<void> fetchFeed() async {
-    debugPrint('Fetching feed...');
+    if (kDebugMode) debugPrint('Fetching feed...');
     try {
       final response = await ApiClient().get(
         '/v1/feed',
         queryParameters: <String, dynamic>{'limit': 50},
       );
       if (!ApiClient().isSuccess(response)) {
-        debugPrint('Failed to fetch feed: ${response.statusCode}');
+        if (kDebugMode) {
+          debugPrint('Failed to fetch feed: ${response.statusCode}');
+        }
         return;
       }
 
@@ -844,15 +914,18 @@ what you have, you must use the options mode.
       _feedItems
         ..clear()
         ..addAll(parsed);
-      debugPrint('Fetched feed items: ${_feedItems.length}');
+      if (kDebugMode) {
+        debugPrint('Fetched feed items: ${_feedItems.length}');
+      }
     } catch (error) {
-      debugPrint('Failed to fetch feed: $error');
+      if (kDebugMode) debugPrint('Failed to fetch feed: $error');
+      unawaited(Sentry.captureException(error));
     }
   }
 
   /// Fetch todos from server
   Future<void> fetchTodos() async {
-    debugPrint('Fetching todos...');
+    if (kDebugMode) debugPrint('Fetching todos...');
     try {
       final items = await KvApi().getByPrefix('todo.', limit: 1000);
       final decryptedByKey = <String, Map<String, dynamic>>{};
@@ -864,7 +937,11 @@ what you have, you must use the options mode.
             decryptedByKey[item.key] = decrypted;
           }
         } catch (error) {
-          debugPrint('Failed to decrypt todo item ${item.key}: $error');
+          if (kDebugMode) {
+            debugPrint(
+              'Failed to decrypt todo item ${item.key}: $error',
+            );
+          }
         }
       }
 
@@ -877,11 +954,15 @@ what you have, you must use the options mode.
           .expand((list) => list.items)
           .toSet()
           .length;
-      debugPrint(
-        'Fetched todos: ${parsedTodoLists.length} list(s), $totalItems item(s)',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'Fetched todos: ${parsedTodoLists.length} list(s),'
+          ' $totalItems item(s)',
+        );
+      }
     } catch (error) {
-      debugPrint('Failed to fetch todos: $error');
+      if (kDebugMode) debugPrint('Failed to fetch todos: $error');
+      unawaited(Sentry.captureException(error));
     }
   }
 
@@ -1184,7 +1265,7 @@ what you have, you must use the options mode.
 
   /// Sync settings with server
   Future<void> syncSettings() async {
-    debugPrint('Syncing settings...');
+    if (kDebugMode) debugPrint('Syncing settings...');
 
     try {
       final apiClient = ApiClient();
@@ -1250,16 +1331,21 @@ what you have, you must use the options mode.
               _asInt(data['settingsVersion']) ?? _settingsVersion;
         }
       } else {
-        debugPrint('Failed to fetch settings: ${response.statusCode}');
+        if (kDebugMode) {
+          debugPrint(
+            'Failed to fetch settings: ${response.statusCode}',
+          );
+        }
       }
     } catch (error) {
-      debugPrint('Error syncing settings: $error');
+      if (kDebugMode) debugPrint('Error syncing settings: $error');
+      unawaited(Sentry.captureException(error));
     }
   }
 
   /// Sync purchases with RevenueCat
   Future<void> syncPurchases() async {
-    debugPrint('Syncing purchases...');
+    if (kDebugMode) debugPrint('Syncing purchases...');
     try {
       final apiClient = ApiClient();
       final response = await apiClient.get('/v1/account/profile');
@@ -1270,13 +1356,14 @@ what you have, you must use the options mode.
       final data = response.data as Map<String, dynamic>?;
       _purchases = Purchases.parse(data?['purchases']);
     } catch (error) {
-      debugPrint('Failed to sync purchases: $error');
+      if (kDebugMode) debugPrint('Failed to sync purchases: $error');
+      unawaited(Sentry.captureException(error));
     }
   }
 
   /// Fetch profile from server
   Future<void> fetchProfile() async {
-    debugPrint('Fetching profile...');
+    if (kDebugMode) debugPrint('Fetching profile...');
 
     try {
       final apiClient = ApiClient();
@@ -1287,16 +1374,21 @@ what you have, you must use the options mode.
         final data = response.data as Map<String, dynamic>;
         _profile = Profile.fromJson(data);
       } else {
-        debugPrint('Failed to fetch profile: ${response.statusCode}');
+        if (kDebugMode) {
+          debugPrint(
+            'Failed to fetch profile: ${response.statusCode}',
+          );
+        }
       }
     } catch (error) {
-      debugPrint('Error fetching profile: $error');
+      if (kDebugMode) debugPrint('Error fetching profile: $error');
+      unawaited(Sentry.captureException(error));
     }
   }
 
   /// Fetch native app update status
   Future<void> fetchNativeUpdate() async {
-    debugPrint('Fetching native update...');
+    if (kDebugMode) debugPrint('Fetching native update...');
     if (kIsWeb) {
       _nativeUpdateUrl = null;
       return;
@@ -1337,14 +1429,15 @@ what you have, you must use the options mode.
       _nativeUpdateUrl =
           updateUrl != null && updateUrl.isNotEmpty ? updateUrl : null;
     } catch (error) {
-      debugPrint('Failed to fetch native update: $error');
+      if (kDebugMode) debugPrint('Failed to fetch native update: $error');
+      unawaited(Sentry.captureException(error));
       _nativeUpdateUrl = null;
     }
   }
 
   /// Register or refresh device push token
   Future<void> syncPushToken() async {
-    debugPrint('Syncing push token...');
+    if (kDebugMode) debugPrint('Syncing push token...');
     if (kIsWeb) {
       return;
     }
@@ -1364,7 +1457,8 @@ what you have, you must use the options mode.
       await PushApi().registerToken(token);
       _registeredPushToken = token;
     } catch (error) {
-      debugPrint('Failed to sync push token: $error');
+      if (kDebugMode) debugPrint('Failed to sync push token: $error');
+      unawaited(Sentry.captureException(error));
     }
   }
 
@@ -1400,7 +1494,10 @@ what you have, you must use the options mode.
       _handleDeleteSession(<String, dynamic>{'sid': sessionId});
       return true;
     } catch (error) {
-      debugPrint('Failed to delete session $sessionId: $error');
+      if (kDebugMode) {
+        debugPrint('Failed to delete session $sessionId: $error');
+      }
+      unawaited(Sentry.captureException(error));
       return false;
     }
   }
@@ -1637,9 +1734,12 @@ what you have, you must use the options mode.
 
     final ready = await waitForAgentReady(sessionId);
     if (!ready) {
-      debugPrint(
-        'Session $sessionId not marked ready after timeout, sending anyway',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'Session $sessionId not marked ready after timeout,'
+          ' sending anyway',
+        );
+      }
     }
 
     final apiClient = ApiClient();
@@ -1820,7 +1920,9 @@ what you have, you must use the options mode.
 
   /// Fetch messages for a session
   Future<void> fetchMessages(String sessionId) async {
-    debugPrint('Fetching messages for session: $sessionId');
+    if (kDebugMode) {
+      debugPrint('Fetching messages for session: $sessionId');
+    }
 
     final sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
@@ -1837,7 +1939,11 @@ what you have, you must use the options mode.
         );
 
         if (!apiClient.isSuccess(response)) {
-          debugPrint('Failed to fetch messages: ${response.statusCode}');
+          if (kDebugMode) {
+            debugPrint(
+              'Failed to fetch messages: ${response.statusCode}',
+            );
+          }
           break;
         }
 
@@ -1876,8 +1982,11 @@ what you have, you must use the options mode.
         MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
         if (!hasMore) break;
       }
+      _sessionMessageChangeController.add(sessionId);
+      _dataChangeController.add(null);
     } catch (error) {
-      debugPrint('Error fetching messages: $error');
+      if (kDebugMode) debugPrint('Error fetching messages: $error');
+      unawaited(Sentry.captureException(error));
     }
   }
 
@@ -2792,7 +2901,7 @@ final sync = Sync();
 /// Initialize sync engine
 Future<void> syncCreate(AuthCredentials credentials) async {
   if (sync.isInitialized) {
-    debugPrint('Sync already initialized');
+    if (kDebugMode) debugPrint('Sync already initialized');
     return;
   }
 
@@ -2809,7 +2918,7 @@ Future<void> syncCreate(AuthCredentials credentials) async {
 /// Restore sync engine from disk
 Future<void> syncRestore(AuthCredentials credentials) async {
   if (sync.isInitialized) {
-    debugPrint('Sync already initialized');
+    if (kDebugMode) debugPrint('Sync already initialized');
     return;
   }
 

@@ -542,7 +542,11 @@ class SyntaxColors {
 }
 
 /// Widget that displays syntax-highlighted code using [RichText].
-class SyntaxHighlighter extends StatelessWidget {
+///
+/// Tokenization and span building are performed once in [initState] and
+/// only recomputed in [didUpdateWidget] when the relevant inputs change,
+/// avoiding expensive regex work on every rebuild.
+class SyntaxHighlighter extends StatefulWidget {
 
   const SyntaxHighlighter({
     required this.code, super.key,
@@ -571,31 +575,40 @@ class SyntaxHighlighter extends StatelessWidget {
   final FontWeight? keywordFontWeight;
 
   @override
-  Widget build(BuildContext context) {
-    final tokens = SyntaxTokenizer.tokenize(code, language);
-    final textSpans = _buildTextSpans(tokens);
+  State<SyntaxHighlighter> createState() => _SyntaxHighlighterState();
+}
 
-    return RichText(
-      text: TextSpan(
-        children: textSpans,
-        style: TextStyle(
-          fontFamily: 'monospace',
-          fontSize: fontSize,
-          height: lineHeight / fontSize,
-        ),
-      ),
-    );
+class _SyntaxHighlighterState extends State<SyntaxHighlighter> {
+  late List<TextSpan> _textSpans;
+
+  @override
+  void initState() {
+    super.initState();
+    _textSpans = _computeSpans();
   }
 
-  List<TextSpan> _buildTextSpans(List<SyntaxToken> tokens) {
+  @override
+  void didUpdateWidget(SyntaxHighlighter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.code != widget.code ||
+        oldWidget.language != widget.language ||
+        oldWidget.isDarkMode != widget.isDarkMode ||
+        oldWidget.fontSize != widget.fontSize ||
+        oldWidget.lineHeight != widget.lineHeight ||
+        oldWidget.keywordFontWeight != widget.keywordFontWeight) {
+      _textSpans = _computeSpans();
+    }
+  }
+
+  List<TextSpan> _computeSpans() {
+    final tokens = SyntaxTokenizer.tokenize(widget.code, widget.language);
     return tokens.map((token) {
       final color = SyntaxColors.getColor(
         token.type,
         token.nestLevel,
-        isDarkMode,
+        widget.isDarkMode,
       );
       final fontWeight = _getFontWeight(token.type);
-
       return TextSpan(
         text: token.text,
         style: TextStyle(color: color, fontWeight: fontWeight),
@@ -609,9 +622,23 @@ class SyntaxHighlighter extends StatelessWidget {
       SyntaxTokenType.controlFlow ||
       SyntaxTokenType.type ||
       SyntaxTokenType.function =>
-        keywordFontWeight,
+        widget.keywordFontWeight,
       _ => FontWeight.w400,
     };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RichText(
+      text: TextSpan(
+        children: _textSpans,
+        style: TextStyle(
+          fontFamily: 'monospace',
+          fontSize: widget.fontSize,
+          height: widget.lineHeight / widget.fontSize,
+        ),
+      ),
+    );
   }
 }
 

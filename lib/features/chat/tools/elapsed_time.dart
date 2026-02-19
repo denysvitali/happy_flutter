@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 /// Timer widget that updates every second to show elapsed time.
@@ -16,6 +18,7 @@ class ElapsedTimeWidget extends StatefulWidget {
 
 class _ElapsedTimeWidgetState extends State<ElapsedTimeWidget> {
   int _elapsedSeconds = 0;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -27,12 +30,23 @@ class _ElapsedTimeWidgetState extends State<ElapsedTimeWidget> {
   void didUpdateWidget(ElapsedTimeWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.startTime != widget.startTime) {
+      _timer?.cancel();
+      _timer = null;
       _updateElapsed();
     }
   }
 
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _timer = null;
+    super.dispose();
+  }
+
   void _updateElapsed() {
     if (widget.startTime == null) {
+      _timer?.cancel();
+      _timer = null;
       setState(() => _elapsedSeconds = 0);
       return;
     }
@@ -42,6 +56,11 @@ class _ElapsedTimeWidgetState extends State<ElapsedTimeWidget> {
     setState(
       () => _elapsedSeconds = elapsed.clamp(0, double.maxFinite).toInt(),
     );
+
+    _timer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      _updateElapsed();
+    });
   }
 
   @override
@@ -94,6 +113,7 @@ class _ElapsedTimeBuilder extends StatefulWidget {
 
 class _ElapsedTimeBuilderState extends State<_ElapsedTimeBuilder> {
   int _elapsedSeconds = 0;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -105,12 +125,23 @@ class _ElapsedTimeBuilderState extends State<_ElapsedTimeBuilder> {
   void didUpdateWidget(_ElapsedTimeBuilder oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.startTime != widget.startTime) {
+      _timer?.cancel();
+      _timer = null;
       _updateElapsed();
     }
   }
 
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _timer = null;
+    super.dispose();
+  }
+
   void _updateElapsed() {
     if (widget.startTime == null) {
+      _timer?.cancel();
+      _timer = null;
       setState(() => _elapsedSeconds = 0);
       return;
     }
@@ -120,6 +151,11 @@ class _ElapsedTimeBuilderState extends State<_ElapsedTimeBuilder> {
     setState(
       () => _elapsedSeconds = elapsed.clamp(0, double.maxFinite).toInt(),
     );
+
+    _timer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      _updateElapsed();
+    });
   }
 
   @override

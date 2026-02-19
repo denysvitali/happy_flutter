@@ -51,6 +51,9 @@ class _MermaidBlockWidgetState extends State<MermaidBlockWidget> {
           },
         ),
       );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadMermaid();
+    });
   }
 
   @override
@@ -194,13 +197,6 @@ class _MermaidBlockWidgetState extends State<MermaidBlockWidget> {
     if (_controller == null) {
       return const SizedBox.shrink();
     }
-
-    // Trigger the load on first build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_isLoading) {
-        _loadMermaid();
-      }
-    });
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),

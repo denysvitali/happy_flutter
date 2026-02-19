@@ -38,7 +38,7 @@ class AgentConversationScreen extends StatefulWidget {
 class _AgentConversationScreenState
     extends State<AgentConversationScreen> {
   final ScrollController _scroll = ScrollController();
-  Timer? _pollTimer;
+  StreamSubscription<String>? _messageSubscription;
   Map<String, dynamic>? _taskMsg;
   int _prevChildCount = 0;
 
@@ -46,19 +46,14 @@ class _AgentConversationScreenState
   void initState() {
     super.initState();
     _taskMsg = widget.taskData;
-    _startPolling();
-  }
-
-  void _startPolling() {
-    _pollTimer = Timer.periodic(
-      const Duration(milliseconds: 500),
-      (_) => _refresh(),
-    );
+    _messageSubscription = sync.onSessionMessagesChanged
+        .where((id) => id == widget.sessionId)
+        .listen((_) => _refresh());
+    _refresh(); // initial load
   }
 
   void _refresh() {
-    final messages =
-        sync.sessionMessages[widget.sessionId] ?? [];
+    final messages = sync.messagesForSession(widget.sessionId);
     for (final msg in messages) {
       if (msg['id'] == widget.messageId) {
         final children = msg['children'] as List<dynamic>?;
@@ -86,7 +81,7 @@ class _AgentConversationScreenState
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
+    _messageSubscription?.cancel();
     _scroll.dispose();
     super.dispose();
   }

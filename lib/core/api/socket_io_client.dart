@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:socket_io_client/socket_io_client.dart' as sio;
 
 import '../../core/models/api_update.dart';
@@ -120,8 +122,9 @@ class SocketIoClient {
       if (event == 'update' && data is Map<String, dynamic>) {
         try {
           _updateController.add(ApiUpdate.fromJson(data));
-        } catch (e) {
+        } catch (e, s) {
           if (kDebugMode) print('Failed to parse update: $e');
+          unawaited(Sentry.captureException(e, stackTrace: s));
         }
       }
     });

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:web_socket_channel/status.dart' as status_codes;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -52,10 +53,11 @@ class _SocketPacket {
           data: decoded[1],
         );
       }
-    } catch (e) {
+    } catch (e, s) {
       if (kDebugMode) {
         print('Failed to decode Socket.io message: $e');
       }
+      unawaited(Sentry.captureException(e, stackTrace: s));
     }
 
     return null;
@@ -188,10 +190,11 @@ class WebSocketClient {
           }
         },
       );
-    } catch (e) {
+    } catch (e, s) {
       if (kDebugMode) {
         print('Failed to create WebSocket connection: $e');
       }
+      unawaited(Sentry.captureException(e, stackTrace: s));
       _handleConnectionError(e);
     }
   }
@@ -382,10 +385,11 @@ class WebSocketClient {
         try {
           final update = ApiUpdate.fromJson(socketMessage.data);
           _updateController.add(update);
-        } catch (e) {
+        } catch (e, s) {
           if (kDebugMode) {
             print('Failed to parse update: $e');
           }
+          unawaited(Sentry.captureException(e, stackTrace: s));
         }
       }
     } else if (kDebugMode) {

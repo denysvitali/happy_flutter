@@ -70,7 +70,8 @@ class _ShimmerViewState extends State<ShimmerView>
     _controller = AnimationController(
       duration: widget.duration,
       vsync: this,
-    )..repeat(reverse: true);
+    );
+    if (widget.enabled) _controller.repeat(reverse: true);
     _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
@@ -118,15 +119,7 @@ class _ShimmerViewState extends State<ShimmerView>
           child: child,
         );
       },
-      child: ColorFiltered(
-        colorFilter: const ColorFilter.matrix([
-          1, 0, 0, 0, 0,
-          0, 1, 0, 0, 0,
-          0, 0, 1, 0, 0,
-          0, 0, 0, 1, 0,
-        ]),
-        child: widget.child,
-      ),
+      child: widget.child,
     );
   }
 }

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert' show base64;
 import 'dart:io' show Platform, SecurityContext;
 
-import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -93,13 +93,6 @@ Future<void> main() async {
           kReleaseMode ? 'production' : 'debug';
     },
     appRunner: () async {
-      // TODO: Remove after confirming Sentry receives events.
-      if (kDebugMode) {
-        await Sentry.captureException(
-          Exception('Sentry connectivity test — safe to ignore'),
-          stackTrace: StackTrace.current,
-        );
-      }
       WidgetsFlutterBinding.ensureInitialized();
 
       if (!kIsWeb && Platform.isAndroid) {
@@ -154,6 +147,7 @@ class HappyApp extends ConsumerStatefulWidget {
 class _HappyAppState extends ConsumerState<HappyApp>
     with WidgetsBindingObserver {
   late final GoRouter _router;
+  AppThemeMode? _lastAppliedThemeMode;
 
   @override
   void initState() {
@@ -562,10 +556,13 @@ class _HappyAppState extends ConsumerState<HappyApp>
         final settings = ref.watch(settingsNotifierProvider);
         final themeMode = AppThemeMode.fromString(settings.themeMode);
 
-        // Apply system chrome for theme
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          themeMode.applySystemChromeWithContext(context);
-        });
+        // Apply system chrome only when theme mode actually changes.
+        if (themeMode != _lastAppliedThemeMode) {
+          _lastAppliedThemeMode = themeMode;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            themeMode.applySystemChromeWithContext(context);
+          });
+        }
 
         return MaterialApp.router(
           title: 'Happy',
