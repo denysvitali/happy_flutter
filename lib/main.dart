@@ -4,6 +4,7 @@ import 'dart:io' show Platform, SecurityContext;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_user_certificates_android/flutter_user_certificates_android.dart';
@@ -79,29 +80,44 @@ Uint8List _derToPem(Uint8List der) {
   return Uint8List.fromList(buf.toString().codeUnits);
 }
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+Future<void> main() async {
+  await SentryFlutter.init(
+    (options) {
+      options.dsn =
+          'https://34d0c1a2feec3a101164ba74383fc87e@o4506225548853248.ingest.us.sentry.io/4510613188378624';
+      options.sendDefaultPii = true;
+    },
+    appRunner: () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-  if (!kIsWeb && Platform.isAndroid) {
-    final certs =
-        await FlutterUserCertificatesAndroid().getUserCertificates();
-    for (final derBytes in (certs ?? {}).values) {
-      // Android KeyStore returns DER; Dart's SecurityContext needs PEM.
-      final pem = _derToPem(derBytes);
-      SecurityContext.defaultContext
-          .setTrustedCertificatesBytes(pem);
-    }
-  }
+      if (!kIsWeb && Platform.isAndroid) {
+        final certs =
+            await FlutterUserCertificatesAndroid().getUserCertificates();
+        for (final derBytes in (certs ?? {}).values) {
+          // Android KeyStore returns DER; Dart's SecurityContext needs PEM.
+          final pem = _derToPem(derBytes);
+          SecurityContext.defaultContext
+              .setTrustedCertificatesBytes(pem);
+        }
+      }
 
-  await storage.Storage().initialize();
+      await storage.Storage().initialize();
 
-  final serverUrl = getServerUrl();
-  await ApiClient().initialize(serverUrl: serverUrl);
+      final serverUrl = getServerUrl();
+      await ApiClient().initialize(serverUrl: serverUrl);
 
-  // Handle initial deep link if the app was opened from a link
-  final deepLink = await _getInitialDeepLink();
+      // Handle initial deep link if the app was opened from a link
+      final deepLink = await _getInitialDeepLink();
 
-  runApp(ProviderScope(child: HappyApp(initialDeepLink: deepLink)));
+      runApp(
+        ProviderScope(
+          child: SentryWidget(
+            child: HappyApp(initialDeepLink: deepLink),
+          ),
+        ),
+      );
+    },
+  );
 }
 
 /// Get the initial deep link if the app was opened from one

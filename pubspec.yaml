@@ -16,6 +16,9 @@ dependencies:
   flutter_web_plugins:
     sdk: flutter
 
+  # Error tracking
+  sentry_flutter: ^8.0.0
+
   # Core dependencies
   dio: ^5.8.0+1
   cronet_http: ^1.6.0

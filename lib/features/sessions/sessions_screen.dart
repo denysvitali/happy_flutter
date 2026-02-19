@@ -1118,14 +1118,18 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                             ),
-                            if (sessionStatus.shouldShowStatus) ...[
-                              const SizedBox(height: 8),
-                              _StatusPill(
+                            const SizedBox(height: 8),
+                            Visibility(
+                              visible: sessionStatus.shouldShowStatus,
+                              maintainSize: true,
+                              maintainAnimation: true,
+                              maintainState: true,
+                              child: _StatusPill(
                                 color: Color(sessionStatus.statusColor),
                                 text: sessionStatus.statusText,
                                 isPulsing: sessionStatus.isPulsing,
                               ),
-                            ],
+                            ),
                           ],
                         ),
                       ),
@@ -1443,14 +1447,18 @@ class SessionCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
-                    if (sessionStatus.shouldShowStatus) ...[
-                      const SizedBox(height: 6),
-                      _StatusPill(
+                    const SizedBox(height: 6),
+                    Visibility(
+                      visible: sessionStatus.shouldShowStatus,
+                      maintainSize: true,
+                      maintainAnimation: true,
+                      maintainState: true,
+                      child: _StatusPill(
                         color: Color(sessionStatus.statusColor),
                         text: sessionStatus.statusText,
                         isPulsing: sessionStatus.isPulsing,
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),

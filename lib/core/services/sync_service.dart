@@ -549,6 +549,12 @@ what you have, you must use the options mode.
           ..addEntries(
             decryptedSessions.map((session) => MapEntry(session.id, session)),
           );
+
+        // Re-apply permission data now that agentState is fresh.
+        for (final sessionId in _sessionMessages.keys) {
+          _applyPermissionRequests(sessionId);
+        }
+
         debugPrint(
             'Fetched and decrypted ${decryptedSessions.length} sessions');
       } else {
@@ -1796,6 +1802,7 @@ what you have, you must use the options mode.
           _applyToolResults(sessionId, toolResults);
         }
         _groupSidechainMessages(sessionId);
+        _applyPermissionRequests(sessionId);
         _sessionLastSeq[sessionId] = afterSeq;
         if (!hasMore) break;
       }
@@ -2452,13 +2459,130 @@ what you have, you must use the options mode.
 
       final msg = updated[idx];
       final isError = result['isError'] == true;
+
+      // Propagate completed permission data from tool result if present.
+      Map<String, dynamic>? permissionUpdate;
+      final perms = result['permissions'];
+      if (perms is Map<String, dynamic>) {
+        final permResult = perms['result'] as String?;
+        final status =
+            permResult == 'approved' ? 'approved' : 'denied';
+        permissionUpdate = {
+          'id': toolUseId,
+          'status': status,
+          if (perms['date'] != null) 'date': perms['date'],
+          if (perms['mode'] != null) 'mode': perms['mode'],
+          if (perms['allowedTools'] != null)
+            'allowedTools': perms['allowedTools'],
+          if (perms['decision'] != null) 'decision': perms['decision'],
+        };
+      }
+
       updated[idx] = {
         ...msg,
         'state': isError ? 'error' : 'completed',
         'result': result['result'],
         'completedAt': result['createdAt'],
+        if (permissionUpdate != null) 'permission': permissionUpdate,
       };
       changed = true;
+    }
+
+    if (changed) {
+      _sessionMessages[sessionId] = updated;
+    }
+  }
+
+  /// Enrich tool-call messages with permission data from [AgentState].
+  ///
+  /// The server stores pending permissions in [AgentState.requests] and
+  /// completed ones in [AgentState.completedRequests], both keyed by the
+  /// tool-use ID.  This mirrors Phase 0 of the React Native reducer which
+  /// stamps `permission` onto each matching tool-call message so the UI can
+  /// render the Allow / Deny buttons.
+  void _applyPermissionRequests(String sessionId) {
+    final session = _sessions[sessionId];
+    if (session == null) return;
+
+    final agentState = session.agentState;
+    if (agentState == null) return;
+
+    final requests = agentState.requests;
+    final completedRequests = agentState.completedRequests;
+
+    if ((requests == null || requests.isEmpty) &&
+        (completedRequests == null || completedRequests.isEmpty)) {
+      return;
+    }
+
+    final existing = _sessionMessages[sessionId];
+    if (existing == null || existing.isEmpty) return;
+
+    // Build a lookup: toolUseId → index in existing list (O(n)).
+    final toolUseIdToIndex = <String, int>{};
+    for (var i = 0; i < existing.length; i++) {
+      final msg = existing[i];
+      if (msg['kind'] == 'tool-call') {
+        final id = msg['toolUseId'] as String?;
+        if (id != null) toolUseIdToIndex[id] = i;
+      }
+    }
+
+    var changed = false;
+    final updated = List<Map<String, dynamic>>.from(existing);
+
+    // Stamp pending permission onto matching tool-call messages.
+    if (requests != null) {
+      for (final entry in requests.entries) {
+        final permId = entry.key;
+        final idx = toolUseIdToIndex[permId];
+        if (idx == null) continue;
+
+        final msg = updated[idx];
+        // Only add if there is no permission data yet (avoid downgrading
+        // a completed permission back to pending on re-fetch).
+        if (msg['permission'] == null) {
+          updated[idx] = {
+            ...msg,
+            'permission': {'id': permId, 'status': 'pending'},
+          };
+          changed = true;
+        }
+      }
+    }
+
+    // Stamp completed permission data onto matching tool-call messages.
+    if (completedRequests != null) {
+      for (final entry in completedRequests.entries) {
+        final permId = entry.key;
+        final info = entry.value;
+        final idx = toolUseIdToIndex[permId];
+        if (idx == null) continue;
+
+        final msg = updated[idx];
+        final existingPerm =
+            msg['permission'] as Map<String, dynamic>?;
+        // Skip if already resolved — the tool-result `permissions` field
+        // (applied in _applyToolResults) is more authoritative.
+        if (existingPerm != null &&
+            existingPerm['status'] != 'pending') {
+          continue;
+        }
+
+        updated[idx] = {
+          ...msg,
+          'permission': {
+            'id': permId,
+            'status': info.status,
+            if (info.mode != null) 'mode': info.mode,
+            if (info.allowedTools != null)
+              'allowedTools': info.allowedTools,
+            if (info.decision != null) 'decision': info.decision,
+            if (info.reason != null) 'reason': info.reason,
+          },
+        };
+        changed = true;
+      }
     }
 
     if (changed) {

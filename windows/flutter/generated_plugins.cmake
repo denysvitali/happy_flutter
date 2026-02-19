@@ -8,6 +8,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   geolocator_windows
   local_auth_windows
   record_windows
+  sentry_flutter
   sodium_libs
   url_launcher_windows
 )
