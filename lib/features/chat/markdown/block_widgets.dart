@@ -30,11 +30,12 @@ class TextBlockWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final inheritedColor = DefaultTextStyle.of(context).style.color;
     final baseStyle = DefaultTextStyle.of(context).style.merge(
           TextStyle(
             fontSize: 16,
             height: 1.5,
-            color: theme.colorScheme.onSurface,
+            color: inheritedColor ?? theme.colorScheme.onSurface,
           ),
         );
 
@@ -121,6 +122,7 @@ class HeaderBlockWidget extends StatelessWidget {
       _ => FontWeight.w600,
     };
 
+    final inheritedColor = DefaultTextStyle.of(context).style.color;
     return SelectionArea(
       child: RichText(
         text: TextSpan(
@@ -128,7 +130,7 @@ class HeaderBlockWidget extends StatelessWidget {
             fontSize: fontSize.toDouble(),
             fontWeight: fontWeight,
             height: 1.3,
-            color: theme.colorScheme.onSurface,
+            color: inheritedColor ?? theme.colorScheme.onSurface,
           ),
           children: content.map(_buildSpan).toList(),
         ),
@@ -176,6 +178,8 @@ class ListBlockWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final inheritedColor = DefaultTextStyle.of(context).style.color;
+    final textColor = inheritedColor ?? theme.colorScheme.onSurface;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,7 +196,7 @@ class ListBlockWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   height: 1.5,
-                  color: theme.colorScheme.onSurface,
+                  color: textColor,
                 ),
               ),
             ),
@@ -203,7 +207,7 @@ class ListBlockWidget extends StatelessWidget {
                     style: DefaultTextStyle.of(context).style.copyWith(
                           fontSize: 16,
                           height: 1.5,
-                          color: theme.colorScheme.onSurface,
+                          color: textColor,
                         ),
                     children: item.map(_buildSpan).toList(),
                   ),
@@ -252,6 +256,8 @@ class NumberedListBlockWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final inheritedColor = DefaultTextStyle.of(context).style.color;
+    final textColor = inheritedColor ?? theme.colorScheme.onSurface;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,7 +274,7 @@ class NumberedListBlockWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   height: 1.5,
-                  color: theme.colorScheme.onSurface,
+                  color: textColor,
                 ),
               ),
             ),
@@ -279,7 +285,7 @@ class NumberedListBlockWidget extends StatelessWidget {
                     style: DefaultTextStyle.of(context).style.copyWith(
                           fontSize: 16,
                           height: 1.5,
-                          color: theme.colorScheme.onSurface,
+                          color: textColor,
                         ),
                     children: item.spans.map(_buildSpan).toList(),
                   ),
@@ -538,6 +544,7 @@ class OptionsBlockWidget extends StatelessWidget {
         final index = entry.key;
         final item = entry.value;
 
+        final inheritedColor = DefaultTextStyle.of(context).style.color;
         final child = Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Text(
@@ -545,7 +552,7 @@ class OptionsBlockWidget extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               height: 1.5,
-              color: theme.colorScheme.onSurface,
+              color: inheritedColor ?? theme.colorScheme.onSurface,
             ),
           ),
         );
@@ -598,6 +605,7 @@ class TableBlockWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final inheritedColor = DefaultTextStyle.of(context).style.color;
     final columnCount = headers.length;
     final minWidth = columnCount > 0
         ? (300 / columnCount).floor().toDouble()
@@ -676,7 +684,8 @@ class TableBlockWidget extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 14,
                           height: 1.4,
-                          color: theme.colorScheme.onSurface,
+                          color: inheritedColor ??
+                              theme.colorScheme.onSurface,
                         ),
                       ),
                     );

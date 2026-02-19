@@ -23,6 +23,7 @@ import 'features/artifacts/artifacts_list_screen.dart';
 import 'features/artifacts/edit_artifact_screen.dart';
 import 'features/artifacts/new_artifact_screen.dart';
 import 'features/auth/auth_screen.dart';
+import 'features/chat/agent_conversation_screen.dart';
 import 'features/chat/chat_screen.dart';
 import 'features/chat/message_detail_screen.dart';
 import 'features/chat/session_file_viewer_screen.dart';
@@ -331,6 +332,22 @@ class _HappyAppState extends ConsumerState<HappyApp>
                 sessionId: sid,
                 messageId: mid,
                 messageData: extra,
+              ),
+            );
+          },
+        ),
+        GoRoute(
+          path: '/chat/:sessionId/agent/:messageId',
+          name: 'agent-conversation',
+          builder: (context, state) {
+            final sid = state.pathParameters['sessionId']!;
+            final mid = state.pathParameters['messageId']!;
+            final extra = state.extra as Map<String, dynamic>?;
+            return AuthGate(
+              child: AgentConversationScreen(
+                sessionId: sid,
+                messageId: mid,
+                taskData: extra,
               ),
             );
           },

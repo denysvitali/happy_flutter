@@ -71,6 +71,8 @@ class UsageScreen extends ConsumerWidget {
     required String title,
     required List<_UsageItem> items,
   }) {
+    final onSurfaceVariant =
+        Theme.of(context).colorScheme.onSurfaceVariant;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -91,7 +93,7 @@ class UsageScreen extends ConsumerWidget {
                         if (item.limit != null)
                           Text(
                             '${_formatNumber(item.value)} / ${_formatNumber(item.limit!)}',
-                            style: const TextStyle(color: Colors.grey),
+                            style: TextStyle(color: onSurfaceVariant),
                           )
                         else
                           Text(
@@ -120,6 +122,8 @@ class UsageScreen extends ConsumerWidget {
     required double remainingCredits,
     required String period,
   }) {
+    final onPrimaryContainer =
+        Theme.of(context).colorScheme.onPrimaryContainer;
     return Card(
       color: Theme.of(context).colorScheme.primaryContainer,
       child: Padding(
@@ -131,12 +135,15 @@ class UsageScreen extends ConsumerWidget {
               children: [
                 Text(
                   'Total Cost ($period)',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: onPrimaryContainer,
+                      ),
                 ),
                 Text(
                   _formatCurrency(totalCost),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
+                        color: onPrimaryContainer,
                       ),
                 ),
               ],
@@ -145,10 +152,16 @@ class UsageScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Remaining Credits'),
+                Text(
+                  'Remaining Credits',
+                  style: TextStyle(color: onPrimaryContainer),
+                ),
                 Text(
                   _formatCurrency(remainingCredits),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: onPrimaryContainer,
+                  ),
                 ),
               ],
             ),

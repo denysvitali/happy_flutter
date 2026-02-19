@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -532,8 +533,14 @@ class _ChatInputState extends ConsumerState<ChatInput>
                     ?.copyWith(fontSize: 15),
                 maxLines: 4,
                 minLines: 1,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => widget.onSend(),
+                textInputAction:
+                    defaultTargetPlatform == TargetPlatform.android
+                        ? TextInputAction.newline
+                        : TextInputAction.send,
+                onSubmitted:
+                    defaultTargetPlatform == TargetPlatform.android
+                        ? null
+                        : (_) => widget.onSend(),
               ),
             ),
           ),
@@ -760,7 +767,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         duration: _kBorderAnim,
         padding: const EdgeInsets.symmetric(
           horizontal: 10,
-          vertical: 4,
+          vertical: 6,
         ),
         decoration: BoxDecoration(
           color: chipBg,

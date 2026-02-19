@@ -69,12 +69,12 @@ class _MessageWidgetState extends State<MessageWidget>
   Widget build(BuildContext context) {
     final kind = widget.messageData['kind'] as String? ?? 'unknown';
 
-    // Agent events render as centered system-style text – no animation.
+    // Agent events render as centered system-style text - no animation.
     if (kind == 'agent-event') {
       return _AgentEventWidget(event: widget.messageData['event']);
     }
 
-    // Tool calls render without bubble styling – no animation.
+    // Tool calls render without bubble styling - no animation.
     if (kind == 'tool-call') {
       final messageId = widget.messageData['id'] as String?;
       return Padding(
@@ -113,7 +113,7 @@ class _MessageWidgetState extends State<MessageWidget>
                 text: text,
                 onOptionPress: widget.onOptionPress,
               )
-            : _BotBubble(
+            : _BotMessage(
                 text: text,
                 onOptionPress: widget.onOptionPress,
               ),
@@ -160,7 +160,7 @@ class _UserBubble extends StatelessWidget {
                   vertical: 10,
                 ),
                 constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.75,
+                  maxWidth: MediaQuery.of(context).size.width * 0.85,
                 ),
                 decoration: BoxDecoration(
                   color: color,
@@ -178,10 +178,15 @@ class _UserBubble extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: SelectionArea(
-                  child: MarkdownView(
-                    markdown: text,
-                    onOptionPress: onOptionPress,
+                child: DefaultTextStyle.merge(
+                  style: TextStyle(
+                    color: theme.colorScheme.onPrimary,
+                  ),
+                  child: SelectionArea(
+                    child: MarkdownView(
+                      markdown: text,
+                      onOptionPress: onOptionPress,
+                    ),
                   ),
                 ),
               ),
@@ -199,11 +204,11 @@ class _UserBubble extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Bot bubble (left-aligned, surface color, tail bottom-left)
+// Bot message (left-aligned, plain content, full width, no bubble)
 // ---------------------------------------------------------------------------
 
-class _BotBubble extends StatelessWidget {
-  const _BotBubble({
+class _BotMessage extends StatelessWidget {
+  const _BotMessage({
     required this.text,
     this.onOptionPress,
   });
@@ -214,64 +219,22 @@ class _BotBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = theme.colorScheme.surfaceContainerHighest;
     final textColor = theme.colorScheme.onSurface;
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.only(
-          left: 12,
-          right: 56,
-          top: 2,
-          bottom: 6,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            // Tail pointing bottom-left
-            CustomPaint(
-              size: const Size(8, 10),
-              painter: _BotTailPainter(color: color),
-            ),
-            Flexible(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.75,
-                ),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(18),
-                    topRight: Radius.circular(18),
-                    bottomLeft: Radius.circular(4),
-                    bottomRight: Radius.circular(18),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: SelectionArea(
-                  child: DefaultTextStyle.merge(
-                    style: TextStyle(color: textColor),
-                    child: MarkdownView(
-                      markdown: text,
-                      onOptionPress: onOptionPress,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: 12,
+        right: 12,
+        top: 2,
+        bottom: 6,
+      ),
+      child: SelectionArea(
+        child: DefaultTextStyle.merge(
+          style: TextStyle(color: textColor),
+          child: MarkdownView(
+            markdown: text,
+            onOptionPress: onOptionPress,
+          ),
         ),
       ),
     );
@@ -308,34 +271,6 @@ class _UserTailPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_UserTailPainter old) => old.color != color;
-}
-
-/// Draws a small triangle tail for the bot (received) bubble.
-///
-/// The tail attaches to the bottom-left corner of the bubble,
-/// pointing downward and to the left, like an iMessage received bubble.
-class _BotTailPainter extends CustomPainter {
-  const _BotTailPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    final path = Path()
-      ..moveTo(size.width, 0)
-      ..lineTo(0, size.height)
-      ..lineTo(size.width, size.height)
-      ..close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(_BotTailPainter old) => old.color != color;
 }
 
 // ---------------------------------------------------------------------------
@@ -384,7 +319,7 @@ class _AgentEventWidget extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// MarkdownMessage – simple standalone markdown renderer
+// MarkdownMessage - simple standalone markdown renderer
 // ---------------------------------------------------------------------------
 
 /// Markdown rendered message widget.

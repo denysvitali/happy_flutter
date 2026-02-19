@@ -98,6 +98,9 @@ class ToolView extends StatefulWidget {
     this.messages,
     this.sessionId,
     this.onPress,
+    this.onPlanAccepted,
+    this.onPlanDiscarded,
+    this.onPlanChangesProposed,
   });
 
   /// The tool call data.
@@ -114,6 +117,15 @@ class ToolView extends StatefulWidget {
 
   /// Callback when the tool header is pressed.
   final VoidCallback? onPress;
+
+  /// Called when the user accepts a plan proposal.
+  final void Function(String permissionMode)? onPlanAccepted;
+
+  /// Called when the user discards a plan proposal.
+  final VoidCallback? onPlanDiscarded;
+
+  /// Called when the user wants to propose changes to a plan.
+  final VoidCallback? onPlanChangesProposed;
 
   @override
   State<ToolView> createState() => _ToolViewState();
@@ -757,9 +769,20 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       'TodoWrite': (t, m, _) => TodoView(tool: t, metadata: m),
       'WebFetch': (t, m, _) => WebFetchView(tool: t, metadata: m),
       'WebSearch': (t, m, _) => WebSearchView(tool: t, metadata: m),
-      'ExitPlanMode': (t, m, _) => ExitPlanToolView(tool: t, metadata: m),
-      'exit_plan_mode': (t, m, _) =>
-          ExitPlanToolView(tool: t, metadata: m),
+      'ExitPlanMode': (t, m, _) => ExitPlanToolView(
+            tool: t,
+            metadata: m,
+            onAccept: widget.onPlanAccepted,
+            onDiscard: widget.onPlanDiscarded,
+            onProposeChanges: widget.onPlanChangesProposed,
+          ),
+      'exit_plan_mode': (t, m, _) => ExitPlanToolView(
+            tool: t,
+            metadata: m,
+            onAccept: widget.onPlanAccepted,
+            onDiscard: widget.onPlanDiscarded,
+            onProposeChanges: widget.onPlanChangesProposed,
+          ),
       'AskUserQuestion': _buildAskUserQuestionView,
       'NotebookRead': (t, m, _) => ReadView(tool: t, metadata: m),
       'NotebookEdit': (t, m, _) => EditView(tool: t, metadata: m),

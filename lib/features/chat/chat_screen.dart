@@ -30,6 +30,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isSending = false;
   bool _isLoadingMessages = true;
   bool _isSubscribed = false;
+
+  /// Whether autoscroll to the bottom is active.
+  ///
+  /// Autoscroll is enabled when the user is within [_autoScrollThreshold]
+  /// pixels of the bottom of the list. When the user scrolls up past that
+  /// threshold, autoscroll is disabled so they can read history without being
+  /// interrupted by new messages. A FAB is shown to re-enable autoscroll.
+  bool _autoScroll = true;
+
+  /// Distance (in pixels) from the bottom of the list within which
+  /// autoscroll is considered active.
+  static const double _autoScrollThreshold = 100;
+
   PermissionMode _permissionMode = PermissionMode.readOnly;
   ClaudeModel _modelMode = ClaudeModel.defaultModel;
   Session? _session;
@@ -114,7 +127,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     });
 
-    if (messagesChanged) {
+    if (messagesChanged && _autoScroll) {
       _scrollToBottom();
     }
   }
@@ -153,9 +166,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _onScroll() {
-    // With reverse: true, scrolling "up" means approaching maxScrollExtent
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+
+    // With reverse: true, pixels == 0 means we are at the bottom (newest
+    // messages). Autoscroll is active when within [_autoScrollThreshold] of 0.
+    final nearBottom = pos.pixels <= _autoScrollThreshold;
+    if (nearBottom != _autoScroll) {
+      setState(() {
+        _autoScroll = nearBottom;
+      });
+    }
+
+    // Load older messages when the user scrolls toward the top of the reversed
+    // list (pixels approaching maxScrollExtent).
+    if (pos.pixels >= pos.maxScrollExtent - 300) {
       _loadMore();
     }
   }
@@ -176,6 +201,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       appBar: AppBar(
         title: _buildAppBarTitle(l10n),
         actions: [
+          if (isThinking)
+            IconButton(
+              icon: const Icon(Icons.stop_circle_outlined),
+              tooltip: 'Stop',
+              onPressed: _stopSession,
+            ),
           IconButton(
             icon: const Icon(Icons.more_vert),
             onPressed: () => _showSessionMenu(context),
@@ -199,6 +230,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           ? const _EmptyChatView(key: ValueKey('empty'))
                           : _buildMessageList(),
                 ),
+                // "Scroll to bottom" FAB — shown when autoscroll is disabled
+                // (i.e. the user has scrolled up to read history).
+                if (!_autoScroll && !_isLoadingMessages)
+                  Positioned(
+                    right: 12,
+                    bottom: 60,
+                    child: FloatingActionButton.small(
+                      onPressed: () {
+                        setState(() => _autoScroll = true);
+                        _scrollToBottom();
+                      },
+                      tooltip: 'Scroll to bottom',
+                      child: const Icon(Icons.keyboard_arrow_down),
+                    ),
+                  ),
                 // Typing indicator overlay at the bottom of the messages area
                 Positioned(
                   left: 0,
@@ -262,6 +308,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _onModelModeChanged(ClaudeModel model) {
     setState(() => _modelMode = model);
+  }
+
+  void _onPlanAccepted(String permissionMode) {
+    final parsed = PermissionModeExtension.fromString(permissionMode);
+    if (parsed != null) {
+      _onPermissionModeChanged(parsed);
+    }
+  }
+
+  void _onPlanDiscarded() {
+    // Nothing to do — user can type a new message.
+  }
+
+  void _onPlanChangesProposed() {
+    // Nothing to do — user can just type.
+  }
+
+  Future<void> _stopSession() async {
+    if (!sync.isInitialized) return;
+    try {
+      await sync.sessionRPC(widget.sessionId, 'interrupt', {});
+    } catch (e) {
+      debugPrint('Stop session failed: $e');
+    }
   }
 
   Machine? _getMachine() {
