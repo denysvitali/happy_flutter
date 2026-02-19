@@ -3,6 +3,7 @@
 ///
 /// Based on React Native's LANGUAGES constant from:
 /// /home/workspace/git/happy/expo-app/sources/constants/Languages.ts
+library;
 
 /// ElevenLabs supported language codes
 class ElevenLabsLanguageCode {
@@ -41,12 +42,7 @@ class ElevenLabsLanguageCode {
 }
 
 /// Voice language metadata interface
-class VoiceLanguage {
-  final String code; // null for auto-detect
-  final String name;
-  final String nativeName;
-  final String? region;
-  final String? elevenLabsCode; // ElevenLabs language code mapping
+class VoiceLanguage { // ElevenLabs language code mapping
 
   const VoiceLanguage({
     required this.code,
@@ -55,8 +51,13 @@ class VoiceLanguage {
     this.region,
     this.elevenLabsCode,
   });
+  final String code; // null for auto-detect
+  final String name;
+  final String nativeName;
+  final String? region;
+  final String? elevenLabsCode;
 
-  /// Get display name for the language (e.g., "English (English) - United States")
+  /// Get display name for the language
   String get displayName {
     final parts = <String>[];
 

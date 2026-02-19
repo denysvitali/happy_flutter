@@ -10,15 +10,15 @@ enum StatusBarStyle {
 
 /// Status bar configuration
 class StatusBarConfig {
-  final StatusBarStyle style;
-  final bool animate;
-  final SystemUiOverlayStyle? overlayStyle;
 
   const StatusBarConfig({
     this.style = StatusBarStyle.automatic,
     this.animate = true,
     this.overlayStyle,
   });
+  final StatusBarStyle style;
+  final bool animate;
+  final SystemUiOverlayStyle? overlayStyle;
 
   StatusBarConfig copyWith({
     StatusBarStyle? style,
@@ -35,9 +35,6 @@ class StatusBarConfig {
 
 /// Theme-aware status bar widget
 class StatusBarTheme extends StatefulWidget {
-  final Widget child;
-  final StatusBarConfig config;
-  final bool darkMode;
 
   const StatusBarTheme({
     required this.child,
@@ -45,6 +42,9 @@ class StatusBarTheme extends StatefulWidget {
     this.darkMode = false,
     super.key,
   });
+  final Widget child;
+  final StatusBarConfig config;
+  final bool darkMode;
 
   @override
   State<StatusBarTheme> createState() => _StatusBarThemeState();
@@ -113,12 +113,6 @@ class _StatusBarThemeState extends State<StatusBarTheme> {
 
 /// Navigation bar theme configuration
 class NavigationBarTheme {
-  final Color? backgroundColor;
-  final Color? itemColor;
-  final Color? selectedItemColor;
-  final Color? indicatorColor;
-  final SystemUiMode? systemNavigationBarMode;
-  final SystemUiOverlayStyle? systemNavigationBarOverlay;
 
   const NavigationBarTheme({
     this.backgroundColor,
@@ -128,6 +122,12 @@ class NavigationBarTheme {
     this.systemNavigationBarMode,
     this.systemNavigationBarOverlay,
   });
+  final Color? backgroundColor;
+  final Color? itemColor;
+  final Color? selectedItemColor;
+  final Color? indicatorColor;
+  final SystemUiMode? systemNavigationBarMode;
+  final SystemUiOverlayStyle? systemNavigationBarOverlay;
 
   NavigationBarTheme copyWith({
     Color? backgroundColor,
@@ -142,17 +142,16 @@ class NavigationBarTheme {
       itemColor: itemColor ?? this.itemColor,
       selectedItemColor: selectedItemColor ?? this.selectedItemColor,
       indicatorColor: indicatorColor ?? this.indicatorColor,
-      systemNavigationBarMode: systemNavigationBarMode ?? this.systemNavigationBarMode,
-      systemNavigationBarOverlay: systemNavigationBarOverlay ?? this.systemNavigationBarOverlay,
+      systemNavigationBarMode:
+          systemNavigationBarMode ?? this.systemNavigationBarMode,
+      systemNavigationBarOverlay:
+          systemNavigationBarOverlay ?? this.systemNavigationBarOverlay,
     );
   }
 }
 
 /// Widget to configure navigation bar
 class NavigationBarThemeWrapper extends StatelessWidget {
-  final Widget child;
-  final NavigationBarTheme theme;
-  final bool darkMode;
 
   const NavigationBarThemeWrapper({
     required this.child,
@@ -160,6 +159,9 @@ class NavigationBarThemeWrapper extends StatelessWidget {
     this.darkMode = false,
     super.key,
   });
+  final Widget child;
+  final NavigationBarTheme theme;
+  final bool darkMode;
 
   @override
   Widget build(BuildContext context) {
@@ -177,10 +179,6 @@ class NavigationBarThemeWrapper extends StatelessWidget {
 
 /// Combined status and navigation bar theme wrapper
 class SystemBarsTheme extends StatelessWidget {
-  final Widget child;
-  final StatusBarConfig statusBarConfig;
-  final NavigationBarTheme navigationBarTheme;
-  final bool darkMode;
 
   const SystemBarsTheme({
     required this.child,
@@ -189,6 +187,10 @@ class SystemBarsTheme extends StatelessWidget {
     this.darkMode = false,
     super.key,
   });
+  final Widget child;
+  final StatusBarConfig statusBarConfig;
+  final NavigationBarTheme navigationBarTheme;
+  final bool darkMode;
 
   @override
   Widget build(BuildContext context) {
@@ -206,9 +208,6 @@ class SystemBarsTheme extends StatelessWidget {
 
 /// Animated status bar color transition
 class AnimatedStatusBar extends StatefulWidget {
-  final Widget child;
-  final SystemUiOverlayStyle targetStyle;
-  final Duration duration;
 
   const AnimatedStatusBar({
     required this.child,
@@ -216,6 +215,9 @@ class AnimatedStatusBar extends StatefulWidget {
     this.duration = const Duration(milliseconds: 300),
     super.key,
   });
+  final Widget child;
+  final SystemUiOverlayStyle targetStyle;
+  final Duration duration;
 
   @override
   State<AnimatedStatusBar> createState() => _AnimatedStatusBarState();

@@ -35,8 +35,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       return;
     }
     setState(() {
-      lines.add('> $trimmed');
-      lines.add('[output pending]');
+      lines
+        ..add('> $trimmed')
+        ..add('[output pending]');
     });
     _commandController.clear();
     // Scroll to bottom after the frame renders
@@ -74,7 +75,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
         ],
       ),
     ).then((confirmed) {
-      if (confirmed == true && mounted) {
+      if ((confirmed ?? false) && mounted) {
         Navigator.of(context).maybePop();
       }
     });
@@ -145,7 +146,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
             child: Row(
               children: [
                 const Text(
-                  '\$ ',
+                  r'$ ',
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 14,

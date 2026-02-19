@@ -1,5 +1,5 @@
 /// Vibing messages for thinking state display.
-/// These are creative, playful status messages shown when a session is thinking.
+/// These are creative, playful status messages shown when a
 const List<String> vibingMessages = [
   'Accomplishing',
   'Actioning',
@@ -92,5 +92,7 @@ const List<String> vibingMessages = [
 
 /// Gets a random vibing message for display.
 String getRandomVibingMessage() {
-  return vibingMessages[DateTime.now().millisecondsSinceEpoch % vibingMessages.length];
+  return vibingMessages[
+      DateTime.now().millisecondsSinceEpoch % vibingMessages.length
+  ];
 }

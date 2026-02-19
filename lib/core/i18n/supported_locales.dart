@@ -300,13 +300,17 @@ String _getLocaleKey(Locale locale) {
 /// Get the display name for a locale (in the locale's native language).
 String getLocaleNativeDisplayName(Locale locale) {
   final key = _getLocaleKey(locale);
-  return localeNativeNames[key] ?? localeNativeNames[locale.languageCode] ?? locale.languageCode;
+  return localeNativeNames[key] ??
+      localeNativeNames[locale.languageCode] ??
+      locale.languageCode;
 }
 
 /// Get the display name for a locale (in English).
 String getLocaleEnglishDisplayName(Locale locale) {
   final key = _getLocaleKey(locale);
-  return localeEnglishNames[key] ?? localeEnglishNames[locale.languageCode] ?? locale.languageCode;
+  return localeEnglishNames[key] ??
+      localeEnglishNames[locale.languageCode] ??
+      locale.languageCode;
 }
 
 /// Parse a locale string (e.g., 'en', 'zh_Hans', 'pt_BR') to a Locale object.
@@ -314,7 +318,7 @@ Locale parseLocaleString(String localeString) {
   final parts = localeString.split('_');
   if (parts.length == 2) {
     final countryOrScript = parts[1];
-    // Check if it's a script code (3-4 chars, capitalized) or country code (2 chars)
+    // Check if it's a script code (3-4 chars, capitalized)
     if (countryOrScript.length >= 3) {
       return Locale.fromSubtags(
         languageCode: parts[0],

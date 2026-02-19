@@ -1,8 +1,5 @@
 /// API update types for WebSocket messages
 class ApiUpdateNewMessage {
-  final String t;
-  final String sid;
-  final Map<String, dynamic> message;
 
   ApiUpdateNewMessage(
       {required this.t, required this.sid, required this.message});
@@ -14,13 +11,12 @@ class ApiUpdateNewMessage {
       message: json['message'] as Map<String, dynamic>,
     );
   }
+  final String t;
+  final String sid;
+  final Map<String, dynamic> message;
 }
 
 class ApiUpdateNewSession {
-  final String t;
-  final String id;
-  final int createdAt;
-  final int updatedAt;
 
   ApiUpdateNewSession(
       {required this.t,
@@ -36,24 +32,24 @@ class ApiUpdateNewSession {
       updatedAt: json['updatedAt'] as int,
     );
   }
+  final String t;
+  final String id;
+  final int createdAt;
+  final int updatedAt;
 }
 
 class ApiDeleteSession {
-  final String t;
-  final String sid;
 
   ApiDeleteSession({required this.t, required this.sid});
 
   factory ApiDeleteSession.fromJson(Map<String, dynamic> json) {
     return ApiDeleteSession(t: json['t'] as String, sid: json['sid'] as String);
   }
+  final String t;
+  final String sid;
 }
 
 class ApiUpdateSessionState {
-  final String t;
-  final String id;
-  final VersionedValue? agentState;
-  final VersionedValue? metadata;
 
   ApiUpdateSessionState(
       {required this.t, required this.id, this.agentState, this.metadata});
@@ -70,11 +66,13 @@ class ApiUpdateSessionState {
           : null,
     );
   }
+  final String t;
+  final String id;
+  final VersionedValue? agentState;
+  final VersionedValue? metadata;
 }
 
 class VersionedValue {
-  final int version;
-  final String value;
 
   VersionedValue({required this.version, required this.value});
 
@@ -82,12 +80,12 @@ class VersionedValue {
     return VersionedValue(
         version: json['version'] as int, value: json['value'] as String);
   }
+  final int version;
+  final String value;
 }
 
 /// API update type discriminator
 class ApiUpdate {
-  final String type;
-  final dynamic data;
 
   ApiUpdate({required this.type, required this.data});
 
@@ -98,4 +96,6 @@ class ApiUpdate {
       data: body,
     );
   }
+  final String type;
+  final dynamic data;
 }

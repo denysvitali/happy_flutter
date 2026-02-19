@@ -30,7 +30,9 @@ class LoggerState {
 
     // Apply level filter
     if (filterLevel != null) {
-      result = result.where((entry) => entry.level.index >= filterLevel!).toList();
+      result = result.where(
+        (entry) => entry.level.index >= filterLevel!,
+      ).toList();
     }
 
     // Apply search filter
@@ -40,7 +42,8 @@ class LoggerState {
           .where(
             (entry) =>
                 entry.message.toLowerCase().contains(query) ||
-                (entry.error?.toString().toLowerCase().contains(query) ?? false),
+                (entry.error?.toString().toLowerCase().contains(query)
+                    ?? false),
           )
           .toList();
     }

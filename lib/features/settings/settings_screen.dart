@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -104,7 +105,7 @@ class SettingsScreen extends ConsumerWidget {
                 );
               }
             } else {
-              context.push('/settings/account');
+              unawaited(context.push('/settings/account'));
             }
           },
         ),
@@ -269,7 +270,9 @@ class SettingsScreen extends ConsumerWidget {
     if (localeString.isEmpty) return '';
     final parts = localeString.split('_');
     if (parts.length == 2) {
-      return '${parts[0][0].toUpperCase()}${parts[0].substring(1)} (${parts[1]})';
+      final first =
+          '${parts[0][0].toUpperCase()}${parts[0].substring(1)}';
+      return '$first (${parts[1]})';
     }
     return '${parts[0][0].toUpperCase()}${parts[0].substring(1)}';
   }
@@ -424,7 +427,8 @@ class SettingsScreen extends ConsumerWidget {
             final metadata = machine.metadata;
             final title = metadata?.displayName ?? metadata?.host ?? machine.id;
             final subtitle =
-                '${metadata?.platform ?? 'unknown'} • ${machine.active ? 'Online' : 'Offline'}';
+                '${metadata?.platform ?? 'unknown'}'
+                ' • ${machine.active ? 'Online' : 'Offline'}';
             return ListTile(
               leading: Icon(
                 Icons.computer_outlined,
@@ -530,8 +534,8 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Future<Map<String, dynamic>> _getServerInfo() async {
-    final url = await getServerUrl();
-    final isCustom = await isUsingCustomServer();
+    final url = getServerUrl();
+    final isCustom = isUsingCustomServer();
     return {'url': url, 'isCustom': isCustom};
   }
 
@@ -539,7 +543,7 @@ class SettingsScreen extends ConsumerWidget {
     final controller = TextEditingController(text: currentUrl);
     final formKey = GlobalKey<FormState>();
     String? errorText;
-    bool isVerifying = false;
+    var isVerifying = false;
 
     showDialog(
       context: context,
@@ -631,7 +635,7 @@ class SettingsScreen extends ConsumerWidget {
 
                         // Save the URL
                         setServerUrl(url);
-                        ApiClient().refreshServerUrl();
+                        unawaited(ApiClient().refreshServerUrl());
 
                         if (dialogContext.mounted) {
                           Navigator.pop(dialogContext);
@@ -668,7 +672,7 @@ class SettingsScreen extends ConsumerWidget {
           subtitle: const Text('1.0.0'),
         ),
         ListTile(
-          title: const Text('What\'s New'),
+          title: const Text("What's New"),
           subtitle: const Text('Latest improvements and updates'),
           onTap: () => context.push('/settings/changelog'),
         ),
@@ -720,23 +724,25 @@ class SettingsScreen extends ConsumerWidget {
         final l10nDialog = AppLocalizations.of(dialogContext);
         return AlertDialog(
           title: Text(l10nDialog.settingsAvatarStyle),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: ['brutalist', 'minimal', 'rounded', 'circle']
-                .map(
-                  (style) => RadioListTile(
-                    title: Text(style),
-                    value: style,
-                    groupValue: settings.avatarStyle,
-                    onChanged: (value) {
-                      ref
-                          .read(settingsNotifierProvider.notifier)
-                          .updateSetting('avatarStyle', value);
-                      Navigator.pop(dialogContext);
-                    },
-                  ),
-                )
-                .toList(),
+          content: RadioGroup<String>(
+            groupValue: settings.avatarStyle,
+            onChanged: (value) {
+              ref
+                  .read(settingsNotifierProvider.notifier)
+                  .updateSetting('avatarStyle', value);
+              Navigator.pop(dialogContext);
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: ['brutalist', 'minimal', 'rounded', 'circle']
+                  .map(
+                    (style) => RadioListTile(
+                      title: Text(style),
+                      value: style,
+                    ),
+                  )
+                  .toList(),
+            ),
           ),
         );
       },
@@ -785,10 +791,10 @@ class SettingsScreen extends ConsumerWidget {
 
 /// Settings section wrapper
 class SettingsSection extends StatelessWidget {
+
+  const SettingsSection({required this.children, super.key, this.title});
   final String? title;
   final List<Widget> children;
-
-  const SettingsSection({super.key, this.title, required this.children});
 
   @override
   Widget build(BuildContext context) {

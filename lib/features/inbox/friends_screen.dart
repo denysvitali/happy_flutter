@@ -269,7 +269,7 @@ class _FriendTile extends StatelessWidget {
         side: BorderSide(
           color: Theme.of(
             context,
-          ).colorScheme.outlineVariant.withOpacity(0.4),
+          ).colorScheme.outlineVariant.withValues(alpha: 0.4),
         ),
       ),
       child: ListTile(
@@ -379,7 +379,7 @@ class _RequestTile extends StatelessWidget {
         side: BorderSide(
           color: Theme.of(
             context,
-          ).colorScheme.outlineVariant.withOpacity(0.4),
+          ).colorScheme.outlineVariant.withValues(alpha: 0.4),
         ),
       ),
       child: Padding(

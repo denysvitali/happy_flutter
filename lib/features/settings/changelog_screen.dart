@@ -7,7 +7,7 @@ class ChangelogScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('What\'s New')),
+      appBar: AppBar(title: const Text("What's New")),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

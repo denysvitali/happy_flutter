@@ -13,9 +13,7 @@ class ZenViewScreen extends ConsumerWidget {
   /// [todoId] identifies the task. [sessionId] identifies the list it
   /// belongs to.
   const ZenViewScreen({
-    super.key,
-    required this.todoId,
-    required this.sessionId,
+    required this.todoId, required this.sessionId, super.key,
   });
 
   /// The id of the task to display.
@@ -28,7 +26,7 @@ class ZenViewScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final todoState = ref.watch(todoStateNotifierProvider);
     final list = todoState.lists[sessionId];
-    final TodoItem? item =
+    final item =
         list?.items.where((t) => t.id == todoId).firstOrNull;
 
     if (item == null) {
@@ -273,9 +271,9 @@ class _PriorityChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Text(
         priority,

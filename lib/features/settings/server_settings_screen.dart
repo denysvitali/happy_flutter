@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
@@ -155,7 +156,7 @@ class _ServerSettingsScreenState
           ),
         ),
       );
-      _checkConnectivity(defaultUrl);
+      unawaited(_checkConnectivity(defaultUrl));
     });
   }
 
@@ -192,7 +193,7 @@ class _ServerSettingsScreenState
                             Text(
                               _statusMessage!,
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: _isConnected == true
+                                color: _isConnected ?? false
                                     ? Colors.green
                                     : _isConnected == false
                                         ? theme.colorScheme.error
@@ -309,7 +310,7 @@ class _ServerSettingsScreenState
         ),
       );
     }
-    if (_isConnected == true) {
+    if (_isConnected ?? false) {
       return const Icon(Icons.check_circle, color: Colors.green, size: 24);
     }
     if (_isConnected == false) {

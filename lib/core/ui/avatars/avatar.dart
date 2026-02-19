@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 
 /// Base avatar widget
 abstract class BaseAvatar extends StatelessWidget {
-  final String id;
-  final double size;
 
   const BaseAvatar({
-    super.key,
-    required this.id,
+    required this.id, super.key,
     this.size = 48,
   });
+  final String id;
+  final double size;
 
   /// Generate a consistent color from the ID
   Color generateColor(String id) {

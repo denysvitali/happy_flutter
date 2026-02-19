@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/services/logger_service.dart';
+
 import '../../core/providers/logger_provider.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/utils/datetime_extensions.dart';
 
 /// Debug logs screen - only available in debug builds
@@ -64,7 +65,9 @@ class DevLogsScreen extends ConsumerWidget {
             icon: const Icon(Icons.filter_list),
             tooltip: 'Filter by Level',
             onSelected: (value) {
-              ref.read(loggerNotifierProvider.notifier).setFilterLevel(value?.index);
+              ref.read(
+                loggerNotifierProvider.notifier,
+              ).setFilterLevel(value?.index);
             },
             itemBuilder: (context) => [
               const PopupMenuItem<LogLevel?>(
@@ -102,12 +105,13 @@ class DevLogsScreen extends ConsumerWidget {
           // Filter status bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Theme.of(context).colorScheme.surfaceVariant,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Logs (${filteredLogs.length}${loggerState.filterLevel != null ? ' filtered' : ''})',
+                  'Logs (${filteredLogs.length}'
+                  '${loggerState.filterLevel != null ? ' filtered' : ''})',
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
                 if (loggerState.filterLevel != null)
@@ -137,14 +141,18 @@ class DevLogsScreen extends ConsumerWidget {
                         const SizedBox(height: 16),
                         Text(
                           'No logs yet',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyLarge?.copyWith(
                                 color: Theme.of(context).colorScheme.outline,
                               ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Logs will appear here as they are generated',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.copyWith(
                                 color: Theme.of(context).colorScheme.outline,
                               ),
                           textAlign: TextAlign.center,
@@ -204,7 +212,7 @@ class DevLogsScreen extends ConsumerWidget {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       ref.read(loggerNotifierProvider.notifier).clear();
     }
   }
@@ -237,7 +245,9 @@ class DevLogsScreen extends ConsumerWidget {
           FilledButton(
             onPressed: () {
               // Store search query and apply filter
-              ref.read(loggerNotifierProvider.notifier).setSearchQuery(controller.text);
+              ref.read(
+                loggerNotifierProvider.notifier,
+              ).setSearchQuery(controller.text);
               Navigator.pop(context);
             },
             child: const Text('Search'),
@@ -250,9 +260,9 @@ class DevLogsScreen extends ConsumerWidget {
 
 /// Scrollable list of log entries
 class LogListView extends StatefulWidget {
-  final List<LogEntry> logs;
 
-  const LogListView({super.key, required this.logs});
+  const LogListView({required this.logs, super.key});
+  final List<LogEntry> logs;
 
   @override
   State<LogListView> createState() => _LogListViewState();
@@ -312,9 +322,9 @@ class _LogListViewState extends State<LogListView> {
 
 /// Individual log entry widget with color coding by level
 class LogEntryWidget extends StatelessWidget {
-  final LogEntry entry;
 
-  const LogEntryWidget({super.key, required this.entry});
+  const LogEntryWidget({required this.entry, super.key});
+  final LogEntry entry;
 
   Color _getLevelColor(BuildContext context) {
     switch (entry.level) {
@@ -355,7 +365,7 @@ class LogEntryWidget extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: Theme.of(context).dividerColor.withOpacity(0.3),
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
               ),
             ),
           ),
@@ -378,9 +388,9 @@ class LogEntryWidget extends StatelessWidget {
                 width: 70,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: color.withOpacity(0.3)),
+                  border: Border.all(color: color.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   entry.level.name.toUpperCase(),

@@ -54,9 +54,9 @@ class ToolErrorParser {
 
   /// Format a parsed error for display
   static String formatForDisplay(ParsedToolError error) {
-    final buffer = StringBuffer();
-    buffer.writeln('Error: ${error.errorName}');
-    buffer.writeln(error.message);
+    final buffer = StringBuffer()
+      ..writeln('Error: ${error.errorName}')
+      ..writeln(error.message);
     if (error.context != null) {
       buffer.writeln('\nContext: ${error.context}');
     }
@@ -80,7 +80,8 @@ class ToolErrorParser {
   }
 
   // Regex patterns for parsing
-  static final _toolUseErrorRegExp = '''<tool_use_error>
+  static final _toolUseErrorRegExp = '''
+<tool_use_error>
 (?:<error_type>(.*?)</error_type>)?
 (?:<body>(.*?)</body>)?
 </tool_use_error>''';
@@ -99,6 +100,15 @@ class ToolErrorParser {
 
 /// Parsed tool error information
 class ParsedToolError {
+
+  ParsedToolError({
+    required this.rawMessage,
+    required this.errorType,
+    required this.errorName,
+    required this.message,
+    this.suggestion,
+    this.context,
+  });
   /// The original raw error message
   final String rawMessage;
 
@@ -116,15 +126,6 @@ class ParsedToolError {
 
   /// Optional context information
   final String? context;
-
-  ParsedToolError({
-    required this.rawMessage,
-    required this.errorType,
-    required this.errorName,
-    required this.message,
-    this.suggestion,
-    this.context,
-  });
 
   @override
   String toString() {

@@ -3,11 +3,6 @@ import 'package:go_router/go_router.dart';
 
 /// A selectable AI profile entry.
 class _AiProfile {
-  final String id;
-  final String name;
-  final String description;
-  final IconData icon;
-  final Color color;
 
   const _AiProfile({
     required this.id,
@@ -16,6 +11,11 @@ class _AiProfile {
     required this.icon,
     required this.color,
   });
+  final String id;
+  final String name;
+  final String description;
+  final IconData icon;
+  final Color color;
 }
 
 /// Screen for selecting an AI profile (Claude, Gemini, OpenAI).
@@ -28,7 +28,7 @@ class PickProfileScreen extends StatelessWidget {
     _AiProfile(
       id: 'claude',
       name: 'Claude',
-      description: 'Anthropic\'s Claude — balanced, safe, '
+      description: "Anthropic's Claude — balanced, safe, "
           'and capable AI assistant',
       icon: Icons.auto_awesome,
       color: Color(0xFFD97757),
@@ -36,7 +36,7 @@ class PickProfileScreen extends StatelessWidget {
     _AiProfile(
       id: 'gemini',
       name: 'Gemini',
-      description: 'Google\'s Gemini — multimodal AI '
+      description: "Google's Gemini — multimodal AI "
           'with strong reasoning',
       icon: Icons.diamond_outlined,
       color: Color(0xFF4285F4),
@@ -82,13 +82,13 @@ class PickProfileScreen extends StatelessWidget {
 }
 
 class _ProfileCard extends StatelessWidget {
-  final _AiProfile profile;
-  final VoidCallback onTap;
 
   const _ProfileCard({
     required this.profile,
     required this.onTap,
   });
+  final _AiProfile profile;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +107,7 @@ class _ProfileCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: profile.color.withOpacity(0.12),
+                  color: profile.color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(

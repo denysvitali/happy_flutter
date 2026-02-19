@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 /// Characters that stop the active word search
 const List<String> _stopCharacters = [
@@ -21,6 +20,15 @@ const List<String> _stopCharacters = [
 
 /// Represents the active word at the cursor position
 final class ActiveWord {
+
+  const ActiveWord({
+    required this.word,
+    required this.activeWord,
+    required this.offset,
+    required this.length,
+    required this.activeLength,
+    required this.endOffset,
+  });
   /// The complete word from prefix to end (e.g., "@username")
   final String word;
 
@@ -38,26 +46,17 @@ final class ActiveWord {
 
   /// Position where the word ends (offset + length)
   final int endOffset;
-
-  const ActiveWord({
-    required this.word,
-    required this.activeWord,
-    required this.offset,
-    required this.length,
-    required this.activeLength,
-    required this.endOffset,
-  });
 }
 
 /// Result of applying a suggestion
 final class ApplySuggestionResult {
-  final String text;
-  final int cursorPosition;
 
   const ApplySuggestionResult({
     required this.text,
     required this.cursorPosition,
   });
+  final String text;
+  final int cursorPosition;
 }
 
 /// Finds the starting position of the active word at the cursor
@@ -91,7 +90,7 @@ int _findActiveWordStart(
     // Check if this is a prefix character at word boundary
     else if (prefixes.contains(char) &&
         (startIndex == 0 || content[startIndex - 1] == ' ')) {
-      // For @ prefix, continue searching backwards to include the entire file path
+      // For @ prefix, continue searching backwards to include
       if (char == '@') {
         foundPrefix = true;
         prefixIndex = startIndex;
@@ -131,7 +130,9 @@ int _findActiveWordEnd(
 
   // Check if this is a file path (starts with @ and may contain /)
   var isFilePath = false;
-  if (wordStartPos != null && wordStartPos >= 0 && wordStartPos < content.length) {
+  if (wordStartPos != null &&
+      wordStartPos >= 0 &&
+      wordStartPos < content.length) {
     isFilePath = content[wordStartPos] == '@';
   }
 
@@ -154,13 +155,13 @@ int _findActiveWordEnd(
   return endIndex;
 }
 
-/// Finds the active word at the cursor position that starts with one of the given prefixes.
+/// Finds the active word at the cursor position that starts
 ///
 /// [content] The full text content
 /// [selection] The current cursor position/selection
 /// [prefixes] Array of prefix characters to look for (e.g., ['@', ':', '/'])
 ///
-/// Returns an [ActiveWord] containing word details, or null if no prefixed word is found at cursor position.
+/// Returns an [ActiveWord] containing word details, or null if no
 ActiveWord? findActiveWord(
   String content,
   TextSelection selection, [
@@ -230,7 +231,7 @@ String getActiveWordQuery(String activeWord) {
   return '';
 }
 
-/// Applies a suggestion by replacing the active word with the provided suggestion text.
+/// Applies a suggestion by replacing the active word with the
 ///
 /// [content] The full text content
 /// [selection] The current cursor position/selection
@@ -238,7 +239,7 @@ String getActiveWordQuery(String activeWord) {
 /// [prefixes] Array of prefix characters to look for (e.g., ['@', ':', '/'])
 /// [addSpace] Whether to add a space after the suggestion (default: true)
 ///
-/// Returns An [ApplySuggestionResult] containing the new text and cursor position
+/// Returns An [ApplySuggestionResult] containing the new text
 ApplySuggestionResult applySuggestion(
   String content,
   TextSelection selection,
@@ -287,9 +288,20 @@ ApplySuggestionResult applySuggestion(
 
 /// A file autocomplete widget that displays file/folder suggestions when typing @file.
 ///
-/// This widget wraps the chat input and shows a suggestion overlay when the user types
-/// @ followed by a file path query. It integrates with the existing autocomplete infrastructure.
+/// This widget wraps the chat input and shows a suggestion
+/// @ followed by a file path query. It integrates with the
 class FileAutocomplete extends StatefulWidget {
+
+  const FileAutocomplete({
+    required this.controller,
+    required this.focusNode,
+    required this.fetchSuggestions,
+    required this.onSelect,
+    required this.child,
+    super.key,
+    this.maxOverlayHeight = 240,
+    this.itemHeight = 48,
+  });
   /// The text editing controller for the input field
   final TextEditingController controller;
 
@@ -310,17 +322,6 @@ class FileAutocomplete extends StatefulWidget {
 
   /// Height of each suggestion item
   final double itemHeight;
-
-  const FileAutocomplete({
-    super.key,
-    required this.controller,
-    required this.focusNode,
-    required this.fetchSuggestions,
-    required this.onSelect,
-    required this.child,
-    this.maxOverlayHeight = 240,
-    this.itemHeight = 48,
-  });
 
   @override
   State<FileAutocomplete> createState() => _FileAutocompleteState();
@@ -507,7 +508,9 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
                               const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               ),
                               const SizedBox(width: 8),
                               Text(
@@ -531,7 +534,8 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
                               itemCount: _suggestions.length,
                               separatorBuilder: (context, index) => Divider(
                                 height: 1,
-                                color: theme.dividerColor.withOpacity(0.5),
+                                color: theme.dividerColor
+                                    .withValues(alpha: 0.5),
                               ),
                               itemBuilder: (context, index) {
                                 final suggestion = _suggestions[index];
@@ -559,15 +563,15 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
 
 /// Represents a file or folder suggestion
 final class FileSuggestion {
-  final String label;
-  final String path;
-  final FileSuggestionType type;
 
   const FileSuggestion({
     required this.label,
     required this.path,
     this.type = FileSuggestionType.file,
   });
+  final String label;
+  final String path;
+  final FileSuggestionType type;
 
   @override
   bool operator ==(Object other) {
@@ -585,15 +589,15 @@ final class FileSuggestion {
 enum FileSuggestionType { file, folder }
 
 class _FileSuggestionItem extends StatelessWidget {
-  final FileSuggestion suggestion;
-  final bool isSelected;
-  final VoidCallback onTap;
 
   const _FileSuggestionItem({
     required this.suggestion,
     required this.isSelected,
     required this.onTap,
   });
+  final FileSuggestion suggestion;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -601,7 +605,7 @@ class _FileSuggestionItem extends StatelessWidget {
 
     return Material(
       color: isSelected
-          ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+          ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
           : Colors.transparent,
       child: InkWell(
         onTap: onTap,
@@ -661,7 +665,7 @@ class _FileSuggestionItem extends StatelessWidget {
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(iconData, size: 18, color: iconColor),
@@ -676,7 +680,7 @@ class _FileSuggestionItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(

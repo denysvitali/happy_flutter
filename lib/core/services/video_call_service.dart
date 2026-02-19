@@ -68,15 +68,15 @@ class VideoCallService {
 
 /// Represents an active video call session
 class VideoCallSession {
-  final String roomId;
-  final String participantId;
-  final List<VideoCallParticipant> participants;
 
   VideoCallSession({
     required this.roomId,
     required this.participantId,
     required this.participants,
   });
+  final String roomId;
+  final String participantId;
+  final List<VideoCallParticipant> participants;
 
   /// Check if session is active
   bool get isActive => true;
@@ -84,13 +84,6 @@ class VideoCallSession {
 
 /// Represents a participant in a video call
 class VideoCallParticipant {
-  final String id;
-  final String name;
-  final bool isLocal;
-  final bool isAudioEnabled;
-  final bool isVideoEnabled;
-  final bool isScreenSharing;
-  final VideoQuality quality;
 
   VideoCallParticipant({
     required this.id,
@@ -101,6 +94,13 @@ class VideoCallParticipant {
     required this.isScreenSharing,
     required this.quality,
   });
+  final String id;
+  final String name;
+  final bool isLocal;
+  final bool isAudioEnabled;
+  final bool isVideoEnabled;
+  final bool isScreenSharing;
+  final VideoQuality quality;
 }
 
 /// Video quality levels

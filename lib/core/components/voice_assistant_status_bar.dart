@@ -1,25 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../i18n/app_localizations.dart';
-import '../../core/providers/app_providers.dart';
+
 import '../../core/api/websocket_client.dart';
+import '../../core/providers/app_providers.dart';
+import '../i18n/app_localizations.dart';
 import 'status_dot.dart';
 
 /// Voice assistant status bar for sidebar variant.
 ///
 /// Matches the React Native VoiceAssistantStatusBar.tsx behavior.
 class VoiceAssistantStatusBar extends ConsumerWidget {
-  /// Variant of the status bar - 'full' for mobile, 'sidebar' for tablet
-  final String variant;
-
-  /// Optional background color override
-  final Color? backgroundColor;
 
   const VoiceAssistantStatusBar({
     super.key,
     this.variant = 'sidebar',
     this.backgroundColor,
   });
+  /// Variant of the status bar - 'full' for mobile, 'sidebar' for tablet
+  final String variant;
+
+  /// Optional background color override
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -180,11 +181,6 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
 }
 
 class _StatusInfo {
-  final Color color;
-  final Color backgroundColor;
-  final bool isPulsing;
-  final String text;
-  final Color textColor;
 
   _StatusInfo({
     required this.color,
@@ -193,4 +189,9 @@ class _StatusInfo {
     required this.text,
     required this.textColor,
   });
+  final Color color;
+  final Color backgroundColor;
+  final bool isPulsing;
+  final String text;
+  final Color textColor;
 }

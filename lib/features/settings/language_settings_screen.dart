@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,7 +21,8 @@ class LanguageSettingsScreen extends ConsumerStatefulWidget {
       _LanguageSettingsScreenState();
 }
 
-class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen> {
+class _LanguageSettingsScreenState
+    extends ConsumerState<LanguageSettingsScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   String _searchQuery = '';
@@ -60,22 +62,29 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
 
     // Current selection
     final currentSelection =
-        preferredLanguage?.isEmpty ?? true ? autoLanguageCode : preferredLanguage;
+        preferredLanguage?.isEmpty ?? true
+            ? autoLanguageCode
+            : preferredLanguage;
 
-    Future<void> _handleLanguageChange(String newLanguage) async {
+    Future<void> handleLanguageChange(String newLanguage) async {
       if (newLanguage == currentSelection) {
         return; // No change
       }
+
+      // Capture context-dependent objects before async gap
+      final router = GoRouter.of(context);
 
       // Show confirmation dialog
       final confirmed = await _showRestartDialog(context, l10n);
       if (confirmed && mounted) {
         final newPreference =
             newLanguage == autoLanguageCode ? '' : newLanguage;
-        ref
-            .read(settingsNotifierProvider.notifier)
-            .updateSetting('preferredLanguage', newPreference);
-        context.pop();
+        unawaited(
+          ref
+              .read(settingsNotifierProvider.notifier)
+              .updateSetting('preferredLanguage', newPreference),
+        );
+        router.pop();
       }
     }
 
@@ -105,7 +114,9 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
                 hintText: l10n.searchLanguages,
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
-                fillColor: Theme.of(context).colorScheme.surfaceVariant,
+                fillColor: Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -125,9 +136,11 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
                   context: context,
                   code: autoLanguageCode,
                   title: l10n.settingsLanguageAutomatic,
-                  subtitle: '${l10n.settingsLanguageAutomaticSubtitle} ($detectedLanguageName)',
+                  subtitle:
+                      '${l10n.settingsLanguageAutomaticSubtitle}'
+                      ' ($detectedLanguageName)',
                   isSelected: currentSelection == autoLanguageCode,
-                  onTap: () => _handleLanguageChange(autoLanguageCode),
+                  onTap: () => handleLanguageChange(autoLanguageCode),
                 ),
                 const SizedBox(height: 8),
                 const Divider(),
@@ -160,7 +173,7 @@ class _LanguageSettingsScreenState extends ConsumerState<LanguageSettingsScreen>
                               ? '${info.englishName} (${info.region})'
                               : info.englishName,
                           isSelected: currentSelection == code,
-                          onTap: () => _handleLanguageChange(code),
+                          onTap: () => handleLanguageChange(code),
                         ),
                         const SizedBox(height: 8),
                       ],

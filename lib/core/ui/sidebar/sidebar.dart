@@ -17,23 +17,6 @@ enum SidebarVariant {
 
 /// Collapsible sidebar with connection status indicator
 class Sidebar extends StatefulWidget {
-  final Widget child;
-  final ConnectionStatus connectionStatus;
-  final String statusText;
-  final Color? statusColor;
-  final bool isPulsing;
-  final bool isCollapsed;
-  final double width;
-  final SidebarVariant variant;
-  final VoidCallback? onNewSession;
-  final VoidCallback? onSettings;
-  final VoidCallback? onInbox;
-  final int? inboxBadgeCount;
-  final bool showInboxBadge;
-  final bool showZenButton;
-  final Widget? headerLeading;
-  final List<Widget>? headerActions;
-  final Widget? floatingActionButton;
 
   const Sidebar({
     required this.child,
@@ -55,6 +38,23 @@ class Sidebar extends StatefulWidget {
     this.floatingActionButton,
     super.key,
   });
+  final Widget child;
+  final ConnectionStatus connectionStatus;
+  final String statusText;
+  final Color? statusColor;
+  final bool isPulsing;
+  final bool isCollapsed;
+  final double width;
+  final SidebarVariant variant;
+  final VoidCallback? onNewSession;
+  final VoidCallback? onSettings;
+  final VoidCallback? onInbox;
+  final int? inboxBadgeCount;
+  final bool showInboxBadge;
+  final bool showZenButton;
+  final Widget? headerLeading;
+  final List<Widget>? headerActions;
+  final Widget? floatingActionButton;
 
   @override
   State<Sidebar> createState() => _SidebarState();
@@ -71,8 +71,14 @@ class _SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    _widthAnimation = Tween<double>(begin: widget.width, end: widget.width * 0.4)
-        .animate(CurvedAnimation(parent: _collapseController, curve: Curves.easeInOut));
+    _widthAnimation =
+        Tween<double>(begin: widget.width, end: widget.width * 0.4)
+            .animate(
+              CurvedAnimation(
+                parent: _collapseController,
+                curve: Curves.easeInOut,
+              ),
+            );
   }
 
   @override
@@ -107,14 +113,15 @@ class _SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
             color: colorScheme.surface,
             border: Border(
               right: BorderSide(
-                color: theme.dividerColor.withOpacity(0.3),
+                color: theme.dividerColor.withValues(alpha: 0.3),
               ),
             ),
           ),
           child: Column(
             children: [
               _buildHeader(theme),
-              if (widget.variant == SidebarVariant.sidebar) _buildConnectionStatus(theme),
+              if (widget.variant == SidebarVariant.sidebar)
+                _buildConnectionStatus(theme),
               Expanded(child: widget.child),
             ],
           ),
@@ -130,7 +137,7 @@ class _SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: theme.dividerColor.withOpacity(0.3),
+            color: theme.dividerColor.withValues(alpha: 0.3),
           ),
         ),
       ),
@@ -212,21 +219,22 @@ class _SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
 
 /// Status dot with optional pulsing animation
 class _StatusDot extends StatefulWidget {
-  final Color color;
-  final bool isPulsing;
-  final double size;
 
   const _StatusDot({
     required this.color,
     this.isPulsing = false,
     this.size = 6,
   });
+  final Color color;
+  final bool isPulsing;
+  final double size;
 
   @override
   State<_StatusDot> createState() => __StatusDotState();
 }
 
-class __StatusDotState extends State<_StatusDot> with SingleTickerProviderStateMixin {
+class __StatusDotState extends State<_StatusDot>
+    with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _scaleAnimation;
 
@@ -291,22 +299,21 @@ class __StatusDotState extends State<_StatusDot> with SingleTickerProviderStateM
 
 /// Sidebar navigation item
 class SidebarNavItem extends StatelessWidget {
+
+  const SidebarNavItem({
+    required this.icon,
+    required this.label,
+    required this.onTap, this.isActive = false,
+    this.badgeCount,
+    this.hasIndicator = false,
+    super.key,
+  });
   final IconData icon;
   final String label;
   final bool isActive;
   final VoidCallback onTap;
   final int? badgeCount;
   final bool hasIndicator;
-
-  const SidebarNavItem({
-    required this.icon,
-    required this.label,
-    this.isActive = false,
-    required this.onTap,
-    this.badgeCount,
-    this.hasIndicator = false,
-    super.key,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -327,7 +334,9 @@ class SidebarNavItem extends StatelessWidget {
                   Icon(
                     icon,
                     size: 24,
-                    color: isActive ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                    color: isActive
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
                   ),
                   if (hasIndicator)
                     Positioned(
@@ -347,7 +356,10 @@ class SidebarNavItem extends StatelessWidget {
                       top: -4,
                       right: -4,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: colorScheme.error,
                           borderRadius: BorderRadius.circular(8),
@@ -368,7 +380,9 @@ class SidebarNavItem extends StatelessWidget {
                 child: Text(
                   label,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: isActive ? colorScheme.primary : colorScheme.onSurface,
+                    color: isActive
+                        ? colorScheme.primary
+                        : colorScheme.onSurface,
                     fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),

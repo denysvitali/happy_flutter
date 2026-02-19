@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 
 /// Represents a syntax token with its text, type, and nesting level.
 class SyntaxToken {
+
+  const SyntaxToken({
+    required this.text,
+    required this.type,
+    this.nestLevel = 0,
+  });
   /// The raw text of this token.
   final String text;
 
@@ -10,12 +16,6 @@ class SyntaxToken {
 
   /// Bracket nesting depth (used for rainbow brackets).
   final int nestLevel;
-
-  const SyntaxToken({
-    required this.text,
-    required this.type,
-    this.nestLevel = 0,
-  });
 
   @override
   bool operator ==(Object other) =>
@@ -114,9 +114,9 @@ class SyntaxTokenizer {
     final nestingMap = _calculateBracketNesting(code);
 
     final lines = code.split('\n');
-    int globalOffset = 0;
+    var globalOffset = 0;
 
-    for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    for (var lineIndex = 0; lineIndex < lines.length; lineIndex++) {
       final line = lines[lineIndex];
 
       if (lineIndex > 0) {
@@ -149,7 +149,7 @@ class SyntaxTokenizer {
       // Sort tokens by position and remove overlaps.
       lineTokens.sort((a, b) => a.start - b.start);
       final filteredTokens = <_LineToken>[];
-      int lastEnd = 0;
+      var lastEnd = 0;
       for (final token in lineTokens) {
         if (token.start >= lastEnd) {
           filteredTokens.add(token);
@@ -158,7 +158,7 @@ class SyntaxTokenizer {
       }
 
       // Add tokens with proper nesting levels.
-      int currentIndex = 0;
+      var currentIndex = 0;
       for (final token in filteredTokens) {
         if (token.start > currentIndex) {
           final beforeText = line.substring(currentIndex, token.start);
@@ -350,7 +350,7 @@ class SyntaxTokenizer {
     final nestingMap = <int, int>{};
     final stack = <_BracketInfo>[];
 
-    for (int i = 0; i < code.length; i++) {
+    for (var i = 0; i < code.length; i++) {
       final char = code[i];
 
       if (openBrackets.contains(char)) {
@@ -371,10 +371,6 @@ class SyntaxTokenizer {
 }
 
 class _LineToken {
-  final int start;
-  final int end;
-  final SyntaxTokenType type;
-  final String text;
 
   _LineToken({
     required this.start,
@@ -382,13 +378,13 @@ class _LineToken {
     required this.type,
     required this.text,
   });
+  final int start;
+  final int end;
+  final SyntaxTokenType type;
+  final String text;
 }
 
 class _TokenPattern {
-  final RegExp regex;
-  final SyntaxTokenType type;
-  final int? captureGroup;
-  final bool multiline;
 
   _TokenPattern(
     this.regex,
@@ -396,13 +392,17 @@ class _TokenPattern {
     this.captureGroup,
     this.multiline = false,
   });
+  final RegExp regex;
+  final SyntaxTokenType type;
+  final int? captureGroup;
+  final bool multiline;
 }
 
 class _BracketInfo {
-  final String char;
-  final int pos;
 
   _BracketInfo({required this.char, required this.pos});
+  final String char;
+  final int pos;
 }
 
 /// Syntax color palettes for light and dark themes.
@@ -543,6 +543,15 @@ class SyntaxColors {
 
 /// Widget that displays syntax-highlighted code using [RichText].
 class SyntaxHighlighter extends StatelessWidget {
+
+  const SyntaxHighlighter({
+    required this.code, super.key,
+    this.language,
+    this.isDarkMode = false,
+    this.fontSize = 14,
+    this.lineHeight = 20,
+    this.keywordFontWeight = FontWeight.w600,
+  });
   /// Raw source code.
   final String code;
 
@@ -560,16 +569,6 @@ class SyntaxHighlighter extends StatelessWidget {
 
   /// Font weight applied to keywords and control-flow tokens.
   final FontWeight? keywordFontWeight;
-
-  const SyntaxHighlighter({
-    super.key,
-    required this.code,
-    this.language,
-    this.isDarkMode = false,
-    this.fontSize = 14,
-    this.lineHeight = 20,
-    this.keywordFontWeight = FontWeight.w600,
-  });
 
   @override
   Widget build(BuildContext context) {

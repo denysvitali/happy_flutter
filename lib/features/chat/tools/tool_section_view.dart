@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 
 /// Section container for displaying tool content with an optional title.
 class ToolSectionView extends StatelessWidget {
+
+  const ToolSectionView({
+    super.key,
+    this.title,
+    this.fullWidth = false,
+    this.children = const [],
+    this.child,
+  });
   /// Optional title for the section.
   final String? title;
 
@@ -13,14 +21,6 @@ class ToolSectionView extends StatelessWidget {
 
   /// Optional single child (alternative to children).
   final Widget? child;
-
-  const ToolSectionView({
-    super.key,
-    this.title,
-    this.fullWidth = false,
-    this.children = const [],
-    this.child,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -52,10 +52,10 @@ class ToolSectionView extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  final String title;
-  final bool fullWidth;
 
   const _SectionHeader({required this.title, required this.fullWidth});
+  final String title;
+  final bool fullWidth;
 
   @override
   Widget build(BuildContext context) {

@@ -5,9 +5,9 @@ import '../models/usage.dart';
 /// Service for usage statistics and costs (/v1/usage/*)
 /// Based on React Native's apiUsage.ts
 class UsageService {
-  static final UsageService _instance = UsageService._();
   factory UsageService() => _instance;
   UsageService._();
+  static final UsageService _instance = UsageService._();
 
   final _apiClient = ApiClient();
 
@@ -83,8 +83,8 @@ class UsageService {
 
 /// Exception for usage operations
 class UsageException implements Exception {
-  final String message;
   UsageException(this.message);
+  final String message;
 
   @override
   String toString() => 'UsageException: $message';

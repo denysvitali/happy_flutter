@@ -22,7 +22,9 @@ class FeaturesSettingsScreen extends ConsumerWidget {
             context: context,
             title: 'Experimental Features',
             subtitle:
-                settings.experiments ? 'Enabled' : 'Disabled - Try new features',
+                settings.experiments
+                    ? 'Enabled'
+                    : 'Disabled - Try new features',
             value: settings.experiments,
             onChanged: (value) {
               ref

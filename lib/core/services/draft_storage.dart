@@ -3,9 +3,9 @@ import 'mmkv_storage.dart';
 
 /// Service for managing draft message persistence
 class DraftStorage {
-  final MMKVStorage _storage;
 
   DraftStorage({MMKVStorage? storage}) : _storage = storage ?? MMKVStorage();
+  final MMKVStorage _storage;
 
   /// Get a draft for a session
   Future<String?> getDraft(String sessionId) async {
@@ -41,17 +41,17 @@ class DraftStorage {
 
 /// Auto-save mechanism for drafts with debouncing
 class DraftAutoSave {
-  String sessionId;
-  void Function(String draft) onSave;
-  Timer? _debounceTimer;
-  String _pendingDraft = '';
-  Duration debounceDuration;
 
   DraftAutoSave({
     required this.sessionId,
     required this.onSave,
     this.debounceDuration = const Duration(milliseconds: 500),
   });
+  String sessionId;
+  void Function(String draft) onSave;
+  Timer? _debounceTimer;
+  String _pendingDraft = '';
+  Duration debounceDuration;
 
   /// Update the draft content
   void update(String draft) {

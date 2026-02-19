@@ -7,13 +7,13 @@ import '../tool_section_view.dart';
 /// preview of the first 10 lines with a "Show full content" toggle
 /// for longer files.
 class WriteView extends StatefulWidget {
+
+  const WriteView({required this.tool, super.key, this.metadata});
   /// The tool call data.
   final Map<String, dynamic> tool;
 
   /// Optional metadata.
   final Map<String, dynamic>? metadata;
-
-  const WriteView({super.key, required this.tool, this.metadata});
 
   @override
   State<WriteView> createState() => _WriteViewState();
@@ -194,9 +194,9 @@ class _WriteViewState extends State<WriteView> {
 
 /// File path header with a green "Created" badge.
 class _WritePathHeader extends StatelessWidget {
-  final String filePath;
 
   const _WritePathHeader({required this.filePath});
+  final String filePath;
 
   @override
   Widget build(BuildContext context) {
@@ -311,15 +311,15 @@ class _WritePathHeader extends StatelessWidget {
 
 /// Renders code lines with line numbers.
 class _LineNumberedCode extends StatelessWidget {
-  final List<String> lines;
-  final int startLine;
-  final ThemeData theme;
 
   const _LineNumberedCode({
     required this.lines,
     required this.startLine,
     required this.theme,
   });
+  final List<String> lines;
+  final int startLine;
+  final ThemeData theme;
 
   @override
   Widget build(BuildContext context) {

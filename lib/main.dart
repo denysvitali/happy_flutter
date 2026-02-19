@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert' show base64;
 import 'dart:io' show Platform, SecurityContext;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_user_certificates_android/flutter_user_certificates_android.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_user_certificates_android/flutter_user_certificates_android.dart';
 import 'package:go_router/go_router.dart';
+
 import 'core/api/api_client.dart';
 import 'core/i18n/app_localizations.dart';
 import 'core/i18n/supported_locales.dart';
@@ -15,51 +17,51 @@ import 'core/providers/app_providers.dart';
 import 'core/services/server_config.dart';
 import 'core/services/storage_service.dart' as storage;
 import 'core/utils/theme_helper.dart';
+import 'features/artifacts/artifact_detail_screen.dart';
+// Agent 3 — artifacts screens
+import 'features/artifacts/artifacts_list_screen.dart';
+import 'features/artifacts/edit_artifact_screen.dart';
+import 'features/artifacts/new_artifact_screen.dart';
 import 'features/auth/auth_screen.dart';
-import 'features/sessions/sessions_screen.dart';
 import 'features/chat/chat_screen.dart';
-import 'features/settings/settings_screen.dart';
-import 'features/settings/account_screen.dart';
-import 'features/settings/theme_settings_screen.dart';
-import 'features/settings/language_settings_screen.dart';
-import 'features/settings/voice_settings_screen.dart';
-import 'features/settings/features_settings_screen.dart';
-import 'features/settings/profiles_screen.dart';
-import 'features/settings/usage_screen.dart';
-import 'features/settings/developer_screen.dart';
-import 'features/settings/changelog_screen.dart';
-import 'features/dev/dev_logs_screen.dart';
-import 'features/inbox/inbox_screen.dart';
-import 'features/inbox/friends_search_screen.dart';
+import 'features/chat/message_detail_screen.dart';
+import 'features/chat/session_file_viewer_screen.dart';
+import 'features/chat/session_files_screen.dart';
+import 'features/chat/session_info_screen.dart';
 // Agent 1 — session enhancement screens
 import 'features/chat/session_recent_screen.dart';
-import 'features/chat/session_info_screen.dart';
-import 'features/chat/session_files_screen.dart';
-import 'features/chat/session_file_viewer_screen.dart';
-import 'features/chat/message_detail_screen.dart';
+import 'features/dev/dev_logs_screen.dart';
+import 'features/inbox/friends_screen.dart';
+import 'features/inbox/friends_search_screen.dart';
+import 'features/inbox/inbox_screen.dart';
+import 'features/machine/machine_detail_screen.dart';
 // Agent 2 — new session + machine/user screens
 import 'features/sessions/new_session_screen.dart';
 import 'features/sessions/pick_machine_screen.dart';
 import 'features/sessions/pick_path_screen.dart';
 import 'features/sessions/pick_profile_screen.dart';
-import 'features/machine/machine_detail_screen.dart';
+import 'features/sessions/sessions_screen.dart';
+import 'features/settings/account_screen.dart';
+import 'features/settings/changelog_screen.dart';
+import 'features/settings/claude_connect_screen.dart';
+import 'features/settings/developer_screen.dart';
+import 'features/settings/features_settings_screen.dart';
+import 'features/settings/language_settings_screen.dart';
+import 'features/settings/profiles_screen.dart';
+import 'features/settings/server_settings_screen.dart';
+import 'features/settings/settings_screen.dart';
+import 'features/settings/theme_settings_screen.dart';
+import 'features/settings/usage_screen.dart';
+import 'features/settings/voice_language_settings_screen.dart';
+import 'features/settings/voice_settings_screen.dart';
+// Agent 5 — terminal + additional settings screens
+import 'features/terminal/terminal_connect_screen.dart';
+import 'features/terminal/terminal_screen.dart';
 import 'features/user/user_profile_screen.dart';
-// Agent 3 — artifacts screens
-import 'features/artifacts/artifacts_list_screen.dart';
-import 'features/artifacts/artifact_detail_screen.dart';
-import 'features/artifacts/new_artifact_screen.dart';
-import 'features/artifacts/edit_artifact_screen.dart';
 // Agent 4 — zen + friends screens
 import 'features/zen/zen_home_screen.dart';
 import 'features/zen/zen_new_screen.dart';
 import 'features/zen/zen_view_screen.dart';
-import 'features/inbox/friends_screen.dart';
-// Agent 5 — terminal + additional settings screens
-import 'features/terminal/terminal_connect_screen.dart';
-import 'features/terminal/terminal_screen.dart';
-import 'features/settings/server_settings_screen.dart';
-import 'features/settings/claude_connect_screen.dart';
-import 'features/settings/voice_language_settings_screen.dart';
 
 // Deep link handler for receiving happy:// URLs
 const _deepLinkChannel = MethodChannel('com.example.happy_flutter/deep_links');
@@ -112,9 +114,9 @@ Future<String?> _getInitialDeepLink() async {
 }
 
 class HappyApp extends ConsumerStatefulWidget {
-  final String? initialDeepLink;
 
   const HappyApp({super.key, this.initialDeepLink});
+  final String? initialDeepLink;
 
   @override
   ConsumerState<HappyApp> createState() => _HappyAppState();
@@ -151,7 +153,9 @@ class _HappyAppState extends ConsumerState<HappyApp>
 
   void _processInitialDeepLink() {
     if (widget.initialDeepLink != null) {
-      ref.read(authStateNotifierProvider.notifier).handleDeepLink(widget.initialDeepLink!);
+      ref.read(
+        authStateNotifierProvider.notifier,
+      ).handleDeepLink(widget.initialDeepLink!);
     }
   }
 
@@ -163,8 +167,9 @@ class _HappyAppState extends ConsumerState<HappyApp>
 
   void _applyThemeFromSettings() {
     final settings = ref.read(settingsNotifierProvider);
-    final themeMode = AppThemeMode.fromString(settings.themeMode);
-    themeMode.applySystemChromeWithContext(ref.context);
+    AppThemeMode.fromString(settings.themeMode).applySystemChromeWithContext(
+      ref.context,
+    );
   }
 
   GoRouter _buildRouter() {
@@ -175,8 +180,8 @@ class _HappyAppState extends ConsumerState<HappyApp>
           path: '/',
           name: 'auth',
           builder: (context, state) => AuthGate(
-            child: SessionsScreen(),
             initialDeepLink: widget.initialDeepLink,
+            child: SessionsScreen(),
           ),
         ),
         GoRoute(
@@ -498,7 +503,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Re-apply theme when app resumes (helps with theme changes while app was in background)
+    // Re-apply theme when app resumes (helps with theme changes
     if (state == AppLifecycleState.resumed) {
       _applyThemeFromSettings();
     }

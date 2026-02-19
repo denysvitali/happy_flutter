@@ -4,8 +4,7 @@ import 'avatar.dart';
 /// Pixelated-style avatar with blocky appearance
 class AvatarPixelated extends BaseAvatar {
   const AvatarPixelated({
-    super.key,
-    required super.id,
+    required super.id, super.key,
     super.size = 48,
   });
 
@@ -22,7 +21,7 @@ class AvatarPixelated extends BaseAvatar {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         shape: BoxShape.rectangle,
         borderRadius: BorderRadius.circular(4),
       ),

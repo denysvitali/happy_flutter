@@ -156,9 +156,11 @@ class AccountScreen extends ConsumerWidget {
   }
 
   void _showBackupKeyDialog(BuildContext context) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       final key = await AuthService().generateBackupKey();
-      showDialog(
+      if (!context.mounted) return;
+      unawaited(showDialog(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Backup Key'),
@@ -166,7 +168,8 @@ class AccountScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Save this key in a safe place. You can use it to restore your account.',
+                'Save this key in a safe place. You can use it'
+                ' to restore your account.',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 16),
@@ -205,23 +208,24 @@ class AccountScreen extends ConsumerWidget {
             ),
           ],
         ),
-      );
+      ));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
   }
 
   void _copyBackupKey(BuildContext context) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       final key = await AuthService().generateBackupKey();
       await Clipboard.setData(ClipboardData(text: key));
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('Backup key copied to clipboard')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
@@ -230,9 +234,9 @@ class AccountScreen extends ConsumerWidget {
 
 /// Service tile for connected services
 class ServiceTile extends StatelessWidget {
-  final ConnectedServiceInfo service;
 
-  const ServiceTile({super.key, required this.service});
+  const ServiceTile({required this.service, super.key});
+  final ConnectedServiceInfo service;
 
   @override
   Widget build(BuildContext context) {
@@ -408,7 +412,8 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
             SizedBox(
               height: 48,
               child: OutlinedButton(
-                onPressed: _isLoading ? null : () => _pasteFromClipboard(context),
+                onPressed:
+                    _isLoading ? null : () => _pasteFromClipboard(context),
                 child: const Text('Paste from Clipboard'),
               ),
             ),
@@ -448,7 +453,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
     try {
       await AuthService().restoreAccount(_controller.text.trim());
       if (mounted) {
-        ref.read(authStateNotifierProvider.notifier).checkAuth();
+        unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
         if (mounted) {
           context.pop();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -523,7 +528,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
         _isPolling = true;
       });
 
-      _pollForApproval();
+      unawaited(_pollForApproval());
     } catch (e) {
       setState(() {
         _error = 'Failed to start device linking: $e';
@@ -571,7 +576,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
     try {
       await AuthService().waitForLinkingApproval(_linkingResult!.linkingId);
       if (mounted) {
-        ref.read(authStateNotifierProvider.notifier).checkAuth();
+        unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Device linked successfully!')),
@@ -636,8 +641,10 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                       onPressed: _showQR ? null : () => _toggleMode(),
                       style: ButtonStyle(
                         backgroundColor: _showQR
-                            ? MaterialStateProperty.all<Color>(
-                                Theme.of(context).colorScheme.primary.withOpacity(0.1))
+                            ? WidgetStateProperty.all<Color>(
+                                Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.1))
                             : null,
                       ),
                       child: Padding(
@@ -659,8 +666,10 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                       onPressed: !_showQR ? null : () => _toggleMode(),
                       style: ButtonStyle(
                         backgroundColor: !_showQR
-                            ? MaterialStateProperty.all<Color>(
-                                Theme.of(context).colorScheme.primary.withOpacity(0.1))
+                            ? WidgetStateProperty.all<Color>(
+                                Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.1))
                             : null,
                       ),
                       child: Padding(
@@ -695,7 +704,10 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                       Expanded(
                         child: Text(
                           _error!,
-                          style: TextStyle(color: Colors.red[700], fontSize: 12),
+                          style: TextStyle(
+                            color: Colors.red[700],
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                       IconButton(
@@ -855,6 +867,7 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
   }
 
   Future<void> _unlinkDevice(DeviceInfo device) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -880,9 +893,9 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
 
     final success = await AuthService().unlinkDevice(device.id);
     if (success) {
-      _loadDevices();
+      unawaited(_loadDevices());
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('Failed to unlink device')),
       );
     }
@@ -934,14 +947,12 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
 
 /// Device tile widget
 class DeviceTile extends StatelessWidget {
-  final DeviceInfo device;
-  final VoidCallback onUnlink;
 
   const DeviceTile({
-    super.key,
-    required this.device,
-    required this.onUnlink,
+    required this.device, required this.onUnlink, super.key,
   });
+  final DeviceInfo device;
+  final VoidCallback onUnlink;
 
   @override
   Widget build(BuildContext context) {
@@ -1013,10 +1024,10 @@ class DeviceTile extends StatelessWidget {
 
 /// Settings section wrapper
 class SettingsSection extends StatelessWidget {
+
+  const SettingsSection({required this.children, super.key, this.title});
   final String? title;
   final List<Widget> children;
-
-  const SettingsSection({super.key, this.title, required this.children});
 
   @override
   Widget build(BuildContext context) {

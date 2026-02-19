@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../i18n/app_localizations.dart';
+
+import '../../core/api/websocket_client.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/api/websocket_client.dart';
+import '../i18n/app_localizations.dart';
 import 'status_dot.dart';
 import 'voice_assistant_status_bar.dart';
 
@@ -14,21 +15,21 @@ import 'voice_assistant_status_bar.dart';
 /// - Header with logo and connection status
 /// - Dynamic width calculation (min 250, max 360, 30% of window)
 /// - Status dot with pulsing animation for connecting state
-/// - Navigation icons: experiments (if enabled), inbox (badge), settings, new session
+/// - Navigation icons: experiments (if enabled), inbox (badge),
 /// - Voice assistant status bar (conditionally shown)
 /// - Content area for session list
 class SidebarView extends ConsumerStatefulWidget {
-  /// Callback when new session is requested
-  final VoidCallback? onNewSession;
-
-  /// Content widget for the session list area
-  final Widget? content;
 
   const SidebarView({
     super.key,
     this.onNewSession,
     this.content,
   });
+  /// Callback when new session is requested
+  final VoidCallback? onNewSession;
+
+  /// Content widget for the session list area
+  final Widget? content;
 
   @override
   ConsumerState<SidebarView> createState() => _SidebarViewState();
@@ -98,7 +99,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
   double _calculateSidebarWidth(double windowWidth, bool experimentsEnabled) {
     final rawWidth = (windowWidth * 0.3).floorToDouble();
     if (experimentsEnabled) {
-      // With experiments icon: threshold 408px > max 360px -> always use max(250, calc)
+      // With experiments icon: threshold 408px > max 360px
       return rawWidth.clamp(250, 360);
     }
     // Without experiments: threshold 328px -> left-justify below ~340px
@@ -171,7 +172,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
               ),
             ),
 
-            // Left-justified title (when experiments enabled or sidebar is narrow)
+            // Left-justified title (when experiments enabled
             if (shouldLeftJustify)
               Padding(
                 padding: const EdgeInsets.only(left: 8),
@@ -244,7 +245,8 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                 _buildNavIcon(
                   context,
                   icon: Icons.add,
-                  onTap: widget.onNewSession ?? () => _showNewSessionDialog(context),
+                  onTap: widget.onNewSession ??
+                      () => _showNewSessionDialog(context),
                   tintColor: headerTintColor,
                   size: 28,
                 ),
@@ -438,9 +440,9 @@ class _DefaultSessionContent extends ConsumerWidget {
 }
 
 class _SessionListItem extends StatelessWidget {
-  final Session session;
 
   const _SessionListItem({required this.session});
+  final Session session;
 
   @override
   Widget build(BuildContext context) {
@@ -528,13 +530,13 @@ class _SessionListItem extends StatelessWidget {
 }
 
 class _ConnectionInfo {
-  final Color color;
-  final bool isPulsing;
-  final String text;
 
   _ConnectionInfo({
     required this.color,
     required this.isPulsing,
     required this.text,
   });
+  final Color color;
+  final bool isPulsing;
+  final String text;
 }

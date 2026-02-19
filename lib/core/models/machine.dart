@@ -1,17 +1,5 @@
 /// Machine metadata schema
 class MachineMetadata {
-  final String host;
-  final String platform;
-  final String happyCliVersion;
-  final String happyHomeDir;
-  final String homeDir;
-  final String? username;
-  final String? arch;
-  final String? displayName;
-  final String? daemonLastKnownStatus;
-  final int? daemonLastKnownPid;
-  final int? shutdownRequestedAt;
-  final String? shutdownSource;
 
   MachineMetadata({
     required this.host,
@@ -44,6 +32,18 @@ class MachineMetadata {
       shutdownSource: json['shutdownSource'] as String?,
     );
   }
+  final String host;
+  final String platform;
+  final String happyCliVersion;
+  final String happyHomeDir;
+  final String homeDir;
+  final String? username;
+  final String? arch;
+  final String? displayName;
+  final String? daemonLastKnownStatus;
+  final int? daemonLastKnownPid;
+  final int? shutdownRequestedAt;
+  final String? shutdownSource;
 
   Map<String, dynamic> toJson() {
     return {
@@ -65,16 +65,6 @@ class MachineMetadata {
 
 /// Machine model
 class Machine {
-  final String id;
-  final int seq;
-  final int createdAt;
-  final int updatedAt;
-  final bool active;
-  final int activeAt;
-  final MachineMetadata? metadata;
-  final int metadataVersion;
-  final dynamic daemonState;
-  final int daemonStateVersion;
 
   Machine({
     required this.id,
@@ -83,10 +73,10 @@ class Machine {
     required this.updatedAt,
     required this.active,
     required this.activeAt,
-    this.metadata,
     required this.metadataVersion,
-    this.daemonState,
     required this.daemonStateVersion,
+    this.metadata,
+    this.daemonState,
   });
 
   factory Machine.fromJson(Map<String, dynamic> json) {
@@ -105,6 +95,16 @@ class Machine {
       daemonStateVersion: json['daemonStateVersion'] as int,
     );
   }
+  final String id;
+  final int seq;
+  final int createdAt;
+  final int updatedAt;
+  final bool active;
+  final int activeAt;
+  final MachineMetadata? metadata;
+  final int metadataVersion;
+  final dynamic daemonState;
+  final int daemonStateVersion;
 
   Map<String, dynamic> toJson() {
     return {
@@ -124,31 +124,14 @@ class Machine {
 
 /// Git status model
 class GitStatus {
-  final String? branch;
-  final bool isDirty;
-  final int modifiedCount;
-  final int untrackedCount;
-  final int stagedCount;
-  final int lastUpdatedAt;
-  int stagedLinesAdded = 0;
-  int stagedLinesRemoved = 0;
-  int unstagedLinesAdded = 0;
-  int unstagedLinesRemoved = 0;
-  int linesAdded = 0;
-  int linesRemoved = 0;
-  int linesChanged = 0;
-  final String? upstreamBranch;
-  final int? aheadCount;
-  final int? behindCount;
-  final int? stashCount;
 
   GitStatus({
-    this.branch,
     required this.isDirty,
     required this.modifiedCount,
     required this.untrackedCount,
     required this.stagedCount,
     required this.lastUpdatedAt,
+    this.branch,
     this.stagedLinesAdded = 0,
     this.stagedLinesRemoved = 0,
     this.unstagedLinesAdded = 0,
@@ -183,6 +166,23 @@ class GitStatus {
       stashCount: json['stashCount'] as int?,
     );
   }
+  final String? branch;
+  final bool isDirty;
+  final int modifiedCount;
+  final int untrackedCount;
+  final int stagedCount;
+  final int lastUpdatedAt;
+  int stagedLinesAdded = 0;
+  int stagedLinesRemoved = 0;
+  int unstagedLinesAdded = 0;
+  int unstagedLinesRemoved = 0;
+  int linesAdded = 0;
+  int linesRemoved = 0;
+  int linesChanged = 0;
+  final String? upstreamBranch;
+  final int? aheadCount;
+  final int? behindCount;
+  final int? stashCount;
 
   Map<String, dynamic> toJson() {
     return {

@@ -1,35 +1,35 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr/qr.dart';
+
 import '../../core/api/api_client.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
-import '../../core/services/auth_service.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/services/server_config.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/utils/backup_key_utils.dart';
 
 /// Custom round button widget similar to happy project's RoundButton
 class RoundButton extends StatelessWidget {
-  final String title;
-  final VoidCallback? onPressed;
-  final bool isPrimary;
-  final bool isLoading;
-  final double height;
 
   const RoundButton({
-    super.key,
-    required this.title,
+    required this.title, super.key,
     this.onPressed,
     this.isPrimary = true,
     this.isLoading = false,
     this.height = 48,
   });
+  final String title;
+  final VoidCallback? onPressed;
+  final bool isPrimary;
+  final bool isLoading;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -78,10 +78,10 @@ class RoundButton extends StatelessWidget {
 
 /// QR Code widget using the qr package
 class QRCodeDisplay extends StatelessWidget {
+
+  const QRCodeDisplay({required this.data, super.key, this.size = 250});
   final String data;
   final double size;
-
-  const QRCodeDisplay({super.key, required this.data, this.size = 250});
 
   @override
   Widget build(BuildContext context) {
@@ -101,10 +101,10 @@ class QRCodeDisplay extends StatelessWidget {
 }
 
 class QRCodePainter extends CustomPainter {
-  final String data;
-  final double size;
 
   QRCodePainter({required this.data, required this.size});
+  final String data;
+  final double size;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -112,15 +112,14 @@ class QRCodePainter extends CustomPainter {
       ..color = Colors.black
       ..style = PaintingStyle.fill;
 
-    final qrCode = QrCode(8, QrErrorCorrectLevel.L);
-    qrCode.addData(data);
+    final qrCode = QrCode(8, QrErrorCorrectLevel.L)..addData(data);
     final qrImage = QrImage(qrCode);
 
     final moduleCount = qrImage.moduleCount;
     final cellSize = size.width / moduleCount;
 
-    for (int row = 0; row < moduleCount; row++) {
-      for (int col = 0; col < moduleCount; col++) {
+    for (var row = 0; row < moduleCount; row++) {
+      for (var col = 0; col < moduleCount; col++) {
         if (qrImage.isDark(row, col)) {
           canvas.drawRect(
             Rect.fromLTWH(col * cellSize, row * cellSize, cellSize, cellSize),
@@ -139,9 +138,9 @@ class QRCodePainter extends CustomPainter {
 
 /// Authentication screen with landing page pattern
 class AuthScreen extends ConsumerStatefulWidget {
-  final String? initialDeepLink;
 
   const AuthScreen({super.key, this.initialDeepLink});
+  final String? initialDeepLink;
 
   @override
   ConsumerState<AuthScreen> createState() => _AuthScreenState();
@@ -215,7 +214,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   Future<void> _checkServerError() async {
-    final error = await getLastServerUrlError();
+    final error = getLastServerUrlError();
     if (mounted && error != null) {
       setState(() {
         _serverError = error;
@@ -234,7 +233,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       await AuthService().createAccount();
       debugPrint('Account created successfully');
       if (mounted) {
-        ref.read(authStateNotifierProvider.notifier).checkAuth();
+        unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
       }
     } catch (e) {
       debugPrint('Create account error: $e');
@@ -256,7 +255,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   Future<void> _showSecretKeyDialog() async {
     final controller = TextEditingController();
     String? errorText;
-    bool isSubmitting = false;
+    var isSubmitting = false;
 
     await showDialog<void>(
       context: context,
@@ -329,7 +328,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       if (normalized == null) {
                         setDialogState(() {
                           errorText =
-                              'Invalid key. Use backup key (11 groups), base64, base64url, or 64-char hex.';
+                              'Invalid key. Use backup key'
+                              ' (11 groups), base64, base64url,'
+                              ' or 64-char hex.';
                         });
                         return;
                       }
@@ -345,7 +346,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           return;
                         }
                         Navigator.of(this.context).pop();
-                        ref.read(authStateNotifierProvider.notifier).checkAuth();
+                        unawaited(
+                          ref
+                              .read(authStateNotifierProvider.notifier)
+                              .checkAuth(),
+                        );
                       } catch (e) {
                         if (!mounted) {
                           return;
@@ -410,7 +415,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       });
 
       // Start polling for approval
-      _pollForApproval(publicKey);
+      unawaited(_pollForApproval(publicKey));
     } catch (e) {
       setState(() {
         _error = _formatErrorMessage(e, context);
@@ -459,7 +464,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
     final b64 = noWhitespace.replaceAll('-', '+').replaceAll('_', '/');
     final remainder = b64.length % 4;
-    final padded = remainder == 0 ? b64 : b64.padRight(b64.length + (4 - remainder), '=');
+    final padded = remainder == 0
+        ? b64
+        : b64.padRight(b64.length + (4 - remainder), '=');
     try {
       final bytes = base64Decode(padded);
       if (bytes.length == 32) {
@@ -475,7 +482,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   Uint8List? _decodeHex(String hex) {
     try {
       final bytes = <int>[];
-      for (int i = 0; i < hex.length; i += 2) {
+      for (var i = 0; i < hex.length; i += 2) {
         bytes.add(int.parse(hex.substring(i, i + 2), radix: 16));
       }
       return Uint8List.fromList(bytes);
@@ -489,7 +496,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       await AuthService().waitForAuthApproval(publicKey);
 
       if (mounted) {
-        ref.read(authStateNotifierProvider.notifier).checkAuth();
+        unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
       }
     } catch (e) {
       if (mounted) {
@@ -507,7 +514,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     String? errorText;
     String? detailedError;
     String? errorType;
-    bool isVerifying = false;
+    var isVerifying = false;
 
     final currentUrl = getServerUrl();
     controller.text = currentUrl;
@@ -515,7 +522,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       showGeneralDialog(
         context: context,
         barrierDismissible: true,
-        barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+        barrierLabel:
+            MaterialLocalizations.of(context).modalBarrierDismissLabel,
         barrierColor: Colors.black54,
         transitionDuration: const Duration(milliseconds: 300),
         transitionBuilder: (context, animation, secondaryAnimation, child) {
@@ -527,7 +535,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               CurvedAnimation(parent: animation, curve: Curves.easeOut),
             ),
             child: FadeTransition(
-              opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+              opacity: CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOut,
+              ),
               child: child,
             ),
           );
@@ -535,8 +546,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         pageBuilder: (context, animation, secondaryAnimation) {
           return StatefulBuilder(
             builder: (context, setDialogState) => Dialog(
-              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 40,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -595,7 +611,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               keyboardType: TextInputType.url,
                               autofillHints: const [AutofillHints.url],
                               onChanged: (_) {
-                                if (errorText != null || detailedError != null) {
+                                if (errorText != null ||
+                                    detailedError != null) {
                                   setDialogState(() {
                                     errorText = null;
                                     detailedError = null;
@@ -644,7 +661,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                             ),
                                             decoration: BoxDecoration(
                                               color: Colors.red[100],
-                                              borderRadius: BorderRadius.circular(4),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                             ),
                                             child: Text(
                                               errorType!,
@@ -673,12 +691,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                         TextButton.icon(
                                           onPressed: () {
                                             Clipboard.setData(
-                                              ClipboardData(text: detailedError!),
+                                              ClipboardData(
+                                                  text: detailedError!,
+                                              ),
                                             );
                                             ScaffoldMessenger.of(context)
                                                 .showSnackBar(
                                               const SnackBar(
-                                                content: Text('Error details copied'),
+                                                content:
+                                                    Text(
+                                                      'Error details copied',
+                                                    ),
                                                 duration: Duration(seconds: 2),
                                               ),
                                             );
@@ -689,7 +712,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                           ),
                                           label: Text(
                                             context.l10n.commonCopy,
-                                            style: const TextStyle(fontSize: 12),
+                                            style:
+                                                const TextStyle(fontSize: 12),
                                           ),
                                           style: TextButton.styleFrom(
                                             foregroundColor: Colors.red[700],
@@ -714,9 +738,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   const SizedBox(height: 20),
                   // Actions
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.5),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -734,12 +764,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text(context.l10n.settingsServerResetSuccess),
+                                  content:
+                                      Text(
+                                        context.l10n.settingsServerResetSuccess,
+                                      ),
                                   duration: const Duration(seconds: 3),
                                 ),
                               );
                             },
-                            child: Text(context.l10n.settingsServerResetToDefault),
+                            child:
+                                Text(context.l10n.settingsServerResetToDefault),
                           ),
                         ],
                         const SizedBox(width: 12),
@@ -784,13 +818,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
                                   // Save the URL
                                   setServerUrl(url);
-                                  ApiClient().refreshServerUrl();
+                                  unawaited(ApiClient().refreshServerUrl());
 
                                   if (context.mounted) {
                                     Navigator.pop(context);
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text('Server URL saved and applied.'),
+                                        content:
+                                            Text(
+                                              'Server URL saved and applied.',
+                                            ),
                                         duration: Duration(seconds: 3),
                                       ),
                                     );
@@ -820,7 +857,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     if (_showQRScreen) {
       return _buildQRScreen(context, isLandscape);
@@ -1443,11 +1481,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       ),
                     ],
                     if (_isPolling && _publicKey != null)
-                      QRCodeDisplay(
-                        data: 'happy:///account?'
-                            '${base64Url.encode(_publicKey!).replaceAll('=', '')}',
-                        size: 250,
-                      )
+                      Builder(builder: (context) {
+                        final pubKey = base64Url
+                            .encode(_publicKey!)
+                            .replaceAll('=', '');
+                        return QRCodeDisplay(
+                          data: 'happy:///account?$pubKey',
+                          size: 250,
+                        );
+                      })
                     else if (_isPolling)
                       Container(
                         width: 250,
@@ -1514,10 +1556,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
 /// Authentication gate widget
 class AuthGate extends ConsumerWidget {
+
+  const AuthGate({required this.child, super.key, this.initialDeepLink});
   final Widget child;
   final String? initialDeepLink;
-
-  const AuthGate({super.key, required this.child, this.initialDeepLink});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1525,7 +1567,9 @@ class AuthGate extends ConsumerWidget {
 
     if (initialDeepLink != null && authState == AuthState.authenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(authStateNotifierProvider.notifier).handleDeepLink(initialDeepLink!);
+        ref
+            .read(authStateNotifierProvider.notifier)
+            .handleDeepLink(initialDeepLink!);
       });
     }
 

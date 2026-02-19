@@ -1,28 +1,20 @@
 /// Artifact models for encrypted content storage
 /// Matches React Native implementation in ../happy/sources/sync/artifactTypes.ts
+library;
 
 /// Encrypted artifact from API (matches React Native Artifact interface)
 class Artifact {
-  final String id;
-  final String header; // Base64 encoded encrypted JSON { "title": string | null }
-  final int headerVersion;
-  final String? body; // Base64 encoded encrypted JSON { "body": string | null } - only in full fetch
-  final int? bodyVersion; // Only in full fetch
-  final String dataEncryptionKey; // Base64 encoded encryption key (encrypted with user key)
-  final int seq;
-  final int createdAt;
-  final int updatedAt;
 
   Artifact({
     required this.id,
     required this.header,
     required this.headerVersion,
-    this.body,
-    this.bodyVersion,
     required this.dataEncryptionKey,
     required this.seq,
     required this.createdAt,
     required this.updatedAt,
+    this.body,
+    this.bodyVersion,
   });
 
   factory Artifact.fromJson(Map<String, dynamic> json) {
@@ -38,6 +30,15 @@ class Artifact {
       updatedAt: json['updatedAt'] as int,
     );
   }
+  final String id;
+  final String header; // Base64 encoded encrypted JSON
+  final int headerVersion;
+  final String? body; // Base64 encoded encrypted JSON
+  final int? bodyVersion; // Only in full fetch
+  final String dataEncryptionKey; // Base64 encoded encryption key
+  final int seq;
+  final int createdAt;
+  final int updatedAt;
 
   Map<String, dynamic> toJson() {
     return {
@@ -56,9 +57,6 @@ class Artifact {
 
 /// Decrypted artifact header (matches React Native ArtifactHeader interface)
 class ArtifactHeader {
-  final String? title;
-  final List<String>? sessions; // Optional array of session IDs linked to this artifact
-  final bool? draft; // Optional draft flag - hides artifact from visible list when true
 
   ArtifactHeader({
     this.title,
@@ -75,6 +73,9 @@ class ArtifactHeader {
       draft: json['draft'] as bool?,
     );
   }
+  final String? title;
+  final List<String>? sessions; // Optional array of session IDs
+  final bool? draft;
 
   Map<String, dynamic> toJson() {
     return {
@@ -87,7 +88,6 @@ class ArtifactHeader {
 
 /// Decrypted artifact body (matches React Native ArtifactBody interface)
 class ArtifactBody {
-  final String? body;
 
   ArtifactBody({this.body});
 
@@ -96,6 +96,7 @@ class ArtifactBody {
       body: json['body'] as String?,
     );
   }
+  final String? body;
 
   Map<String, dynamic> toJson() {
     return {
@@ -105,30 +106,19 @@ class ArtifactBody {
 }
 
 /// Decrypted artifact for UI (matches React Native DecryptedArtifact interface)
-class DecryptedArtifact {
-  final String id;
-  final String? title;
-  final List<String>? sessions; // Optional array of session IDs linked to this artifact
-  final bool? draft; // Optional draft flag - hides artifact from visible list when true
-  final String? body; // Only loaded when viewing full artifact
-  final int headerVersion;
-  final int? bodyVersion;
-  final int seq;
-  final int createdAt;
-  final int updatedAt;
-  final bool isDecrypted; // Whether decryption was successful
+class DecryptedArtifact { // Whether decryption was successful
 
   DecryptedArtifact({
     required this.id,
+    required this.headerVersion,
+    required this.seq,
+    required this.createdAt,
+    required this.updatedAt,
     this.title,
     this.sessions,
     this.draft,
     this.body,
-    required this.headerVersion,
     this.bodyVersion,
-    required this.seq,
-    required this.createdAt,
-    required this.updatedAt,
     this.isDecrypted = true,
   });
 
@@ -150,23 +140,7 @@ class DecryptedArtifact {
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'sessions': sessions,
-      'draft': draft,
-      'body': body,
-      'headerVersion': headerVersion,
-      'bodyVersion': bodyVersion,
-      'seq': seq,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
-      'isDecrypted': isDecrypted,
-    };
-  }
-
-  /// Create a decrypted artifact from encrypted artifact and its decrypted parts
+  /// Create a decrypted artifact from encrypted artifact
   factory DecryptedArtifact.fromArtifact(
     Artifact artifact,
     ArtifactHeader header, [
@@ -185,6 +159,33 @@ class DecryptedArtifact {
       updatedAt: artifact.updatedAt,
       isDecrypted: true,
     );
+  }
+  final String id;
+  final String? title;
+  final List<String>? sessions; // Optional array of session IDs
+  final bool? draft; // Optional draft flag - hides artifact from list
+  final String? body; // Only loaded when viewing full artifact
+  final int headerVersion;
+  final int? bodyVersion;
+  final int seq;
+  final int createdAt;
+  final int updatedAt;
+  final bool isDecrypted;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'sessions': sessions,
+      'draft': draft,
+      'body': body,
+      'headerVersion': headerVersion,
+      'bodyVersion': bodyVersion,
+      'seq': seq,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+      'isDecrypted': isDecrypted,
+    };
   }
 
   DecryptedArtifact copyWith({
@@ -216,12 +217,9 @@ class DecryptedArtifact {
   }
 }
 
-/// Request to create a new artifact (matches React Native ArtifactCreateRequest)
+/// Request to create a new artifact
+/// (matches React Native ArtifactCreateRequest)
 class ArtifactCreateRequest {
-  final String id; // UUID generated client-side
-  final String header; // Base64 encoded encrypted header
-  final String body; // Base64 encoded encrypted body
-  final String dataEncryptionKey; // Base64 encoded encryption key (encrypted with user key)
 
   ArtifactCreateRequest({
     required this.id,
@@ -229,6 +227,10 @@ class ArtifactCreateRequest {
     required this.body,
     required this.dataEncryptionKey,
   });
+  final String id; // UUID generated client-side
+  final String header; // Base64 encoded encrypted header
+  final String body; // Base64 encoded encrypted body
+  final String dataEncryptionKey;
 
   Map<String, dynamic> toJson() {
     return {
@@ -240,12 +242,8 @@ class ArtifactCreateRequest {
   }
 }
 
-/// Request to update an existing artifact (matches React Native ArtifactUpdateRequest)
+/// Request to update an existing artifact
 class ArtifactUpdateRequest {
-  final String? header; // Base64 encoded encrypted header
-  final int? expectedHeaderVersion;
-  final String? body; // Base64 encoded encrypted body
-  final int? expectedBodyVersion;
 
   ArtifactUpdateRequest({
     this.header,
@@ -253,6 +251,10 @@ class ArtifactUpdateRequest {
     this.body,
     this.expectedBodyVersion,
   });
+  final String? header; // Base64 encoded encrypted header
+  final int? expectedHeaderVersion;
+  final String? body; // Base64 encoded encrypted body
+  final int? expectedBodyVersion;
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -270,14 +272,6 @@ class ArtifactUpdateRequest {
 
 /// Response from update operation (matches React Native ArtifactUpdateResponse)
 class ArtifactUpdateResponse {
-  final bool success;
-  final int? headerVersion;
-  final int? bodyVersion;
-  final String? error;
-  final int? currentHeaderVersion;
-  final int? currentBodyVersion;
-  final String? currentHeader;
-  final String? currentBody;
 
   ArtifactUpdateResponse({
     required this.success,
@@ -303,6 +297,14 @@ class ArtifactUpdateResponse {
       currentBody: json['currentBody'] as String?,
     );
   }
+  final bool success;
+  final int? headerVersion;
+  final int? bodyVersion;
+  final String? error;
+  final int? currentHeaderVersion;
+  final int? currentBodyVersion;
+  final String? currentHeader;
+  final String? currentBody;
 
   Map<String, dynamic> toJson() {
     return {
@@ -320,20 +322,14 @@ class ArtifactUpdateResponse {
 
 /// Artifact folder for organization
 class ArtifactFolder {
-  final String id;
-  final String sessionId;
-  final String? parentId;
-  final String name;
-  final int createdAt;
-  final int updatedAt;
 
   ArtifactFolder({
     required this.id,
     required this.sessionId,
-    this.parentId,
     required this.name,
     required this.createdAt,
     required this.updatedAt,
+    this.parentId,
   });
 
   factory ArtifactFolder.fromJson(Map<String, dynamic> json) {
@@ -346,6 +342,12 @@ class ArtifactFolder {
       updatedAt: json['updatedAt'] as int,
     );
   }
+  final String id;
+  final String sessionId;
+  final String? parentId;
+  final String name;
+  final int createdAt;
+  final int updatedAt;
 
   Map<String, dynamic> toJson() {
     return {

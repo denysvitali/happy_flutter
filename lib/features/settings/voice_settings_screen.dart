@@ -202,8 +202,7 @@ class _VoiceLanguageSelectionScreenState
   }
 
   void _selectLanguage(VoiceLanguage language) {
-    final notifier = ref.read(settingsNotifierProvider.notifier);
-    notifier.updateSetting(
+    ref.read(settingsNotifierProvider.notifier).updateSetting(
       'voiceAssistantLanguage',
       language.code.isEmpty ? null : language.code,
     );

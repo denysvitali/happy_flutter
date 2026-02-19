@@ -1,6 +1,6 @@
 /// Data classes for markdown blocks and spans.
 ///
-/// Represents the parsed markdown structure with type-safe block and span models.
+/// Represents the parsed markdown structure with type-safe
 library;
 
 import 'package:meta/meta.dart';
@@ -8,6 +8,12 @@ import 'package:meta/meta.dart';
 /// Represents inline text styling within a block.
 @immutable
 class MarkdownSpan {
+
+  const MarkdownSpan({
+    required this.styles,
+    required this.text,
+    this.url,
+  });
   /// Text styles applied to this span.
   final List<MarkdownTextStyle> styles;
 
@@ -16,12 +22,6 @@ class MarkdownSpan {
 
   /// Optional URL if this span is a link.
   final String? url;
-
-  const MarkdownSpan({
-    required this.styles,
-    required this.text,
-    this.url,
-  });
 
   @override
   bool operator ==(Object other) {
@@ -51,40 +51,40 @@ sealed class MarkdownBlock {
 
 /// Plain text block.
 class TextBlock extends MarkdownBlock {
-  final List<MarkdownSpan> content;
 
   const TextBlock({required this.content});
+  final List<MarkdownSpan> content;
 }
 
 /// Header block (H1-H6).
 class HeaderBlock extends MarkdownBlock {
-  final int level;
-  final List<MarkdownSpan> content;
 
   const HeaderBlock({required this.level, required this.content});
+  final int level;
+  final List<MarkdownSpan> content;
 }
 
 /// Unordered list block.
 class ListBlock extends MarkdownBlock {
-  final List<List<MarkdownSpan>> items;
 
   const ListBlock({required this.items});
+  final List<List<MarkdownSpan>> items;
 }
 
 /// Numbered list block.
 class NumberedListBlock extends MarkdownBlock {
-  final List<NumberedItem> items;
 
   const NumberedListBlock({required this.items});
+  final List<NumberedItem> items;
 }
 
 /// A numbered list item with its number and content.
 @immutable
 class NumberedItem {
-  final int number;
-  final List<MarkdownSpan> spans;
 
   const NumberedItem({required this.number, required this.spans});
+  final int number;
+  final List<MarkdownSpan> spans;
 
   @override
   bool operator ==(Object other) {
@@ -99,17 +99,17 @@ class NumberedItem {
 
 /// Code block with optional language specification.
 class CodeBlock extends MarkdownBlock {
+
+  const CodeBlock({required this.content, this.language});
   final String? language;
   final String content;
-
-  const CodeBlock({this.language, required this.content});
 }
 
 /// Mermaid diagram block.
 class MermaidBlock extends MarkdownBlock {
-  final String content;
 
   const MermaidBlock({required this.content});
+  final String content;
 }
 
 /// Horizontal rule separator.
@@ -119,15 +119,15 @@ class HorizontalRuleBlock extends MarkdownBlock {
 
 /// Options block for interactive choices.
 class OptionsBlock extends MarkdownBlock {
-  final List<String> items;
 
   const OptionsBlock({required this.items});
+  final List<String> items;
 }
 
 /// Table block with headers and rows.
 class TableBlock extends MarkdownBlock {
-  final List<String> headers;
-  final List<List<String>> rows;
 
   const TableBlock({required this.headers, required this.rows});
+  final List<String> headers;
+  final List<List<String>> rows;
 }

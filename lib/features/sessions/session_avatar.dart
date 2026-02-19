@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../core/ui/avatars/avatar_brutalist.dart';
 import '../../core/ui/avatars/avatar_gradient.dart';
 import '../../core/ui/avatars/avatar_pixelated.dart';
-import '../../core/ui/avatars/avatar_brutalist.dart';
 
 /// Avatar style options for session avatars.
 enum AvatarStyle {
@@ -22,6 +23,18 @@ enum AiFlavor {
 ///
 /// Matches the React Native Avatar.tsx implementation.
 class SessionAvatar extends StatelessWidget {
+
+  const SessionAvatar({
+    required this.id, super.key,
+    this.imageUrl,
+    this.thumbhash,
+    this.flavor,
+    this.style,
+    this.size = 48,
+    this.showFlavorIcon = true,
+    this.square = false,
+    this.monochrome = false,
+  });
   /// The unique ID used to generate consistent avatar colors and selection.
   final String id;
 
@@ -49,19 +62,6 @@ class SessionAvatar extends StatelessWidget {
   /// Whether to render in monochrome mode.
   final bool monochrome;
 
-  const SessionAvatar({
-    super.key,
-    required this.id,
-    this.imageUrl,
-    this.thumbhash,
-    this.flavor,
-    this.style,
-    this.size = 48,
-    this.showFlavorIcon = true,
-    this.square = false,
-    this.monochrome = false,
-  });
-
   @override
   Widget build(BuildContext context) {
     // Render custom image if provided
@@ -84,13 +84,19 @@ class SessionAvatar extends StatelessWidget {
             : (effectiveSize * 0.35).round();
 
     final avatarWidget = ClipRRect(
-      borderRadius: square ? BorderRadius.zero : BorderRadius.circular(size / 2),
+      borderRadius: square ? BorderRadius.zero : BorderRadius.circular(
+        size / 2,
+      ),
       child: Image.network(
         imageUrl!,
         width: size,
         height: size,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _buildFallbackAvatar(context),
+        errorBuilder: (
+          context,
+          error,
+          stackTrace,
+        ) => _buildFallbackAvatar(context),
       ),
     );
 
@@ -121,7 +127,7 @@ class SessionAvatar extends StatelessWidget {
             : (effectiveSize * 0.35).round();
 
     // Determine which avatar style to use
-    final AvatarStyle usedStyle = style ?? _getStyleFromHash();
+    final usedStyle = style ?? _getStyleFromHash();
 
     final Widget avatarWidget = switch (usedStyle) {
       AvatarStyle.gradient => AvatarGradient(id: id, size: size),
@@ -158,7 +164,7 @@ class SessionAvatar extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.15),
+                color: Colors.black.withValues(alpha: 0.15),
                 offset: const Offset(0, 1),
                 blurRadius: 2,
                 spreadRadius: 0,

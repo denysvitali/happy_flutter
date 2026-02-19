@@ -6,10 +6,10 @@ import 'api_client.dart';
 /// Handles GitHub OAuth and profile operations
 /// Based on React Native's apiGithub.ts
 class GitHubApi {
-  final ApiClient _client;
 
   GitHubApi({ApiClient? client})
       : _client = client ?? ApiClient();
+  final ApiClient _client;
 
   /// Get GitHub OAuth parameters from the server
   /// Returns the OAuth URL to initiate the GitHub connection flow
@@ -129,10 +129,10 @@ class GitHubApi {
 
 /// Exception thrown by GitHub API operations
 class GitHubApiException implements Exception {
-  final String message;
-  final int? statusCode;
 
   const GitHubApiException(this.message, {this.statusCode});
+  final String message;
+  final int? statusCode;
 
   @override
   String toString() => 'GitHubApiException: $message';
@@ -151,7 +151,6 @@ class GitHubApiException implements Exception {
 
 /// GitHub OAuth parameters
 class GitHubOAuthParams {
-  final String url;
 
   const GitHubOAuthParams({required this.url});
 
@@ -160,6 +159,7 @@ class GitHubOAuthParams {
       url: json['url'] as String,
     );
   }
+  final String url;
 
   Map<String, dynamic> toJson() {
     return {'url': url};
@@ -171,9 +171,6 @@ class GitHubOAuthParams {
 
 /// Account profile information
 class AccountProfile {
-  final String id;
-  final int timestamp;
-  final GitHubProfileInfo? github;
 
   const AccountProfile({
     required this.id,
@@ -192,6 +189,9 @@ class AccountProfile {
           : null,
     );
   }
+  final String id;
+  final int timestamp;
+  final GitHubProfileInfo? github;
 
   Map<String, dynamic> toJson() {
     return {
@@ -208,11 +208,6 @@ class AccountProfile {
 
 /// GitHub profile information
 class GitHubProfileInfo {
-  final int id;
-  final String login;
-  final String name;
-  final String avatarUrl;
-  final String? email;
 
   const GitHubProfileInfo({
     required this.id,
@@ -231,6 +226,11 @@ class GitHubProfileInfo {
       email: json['email'] as String?,
     );
   }
+  final int id;
+  final String login;
+  final String name;
+  final String avatarUrl;
+  final String? email;
 
   Map<String, dynamic> toJson() {
     return {

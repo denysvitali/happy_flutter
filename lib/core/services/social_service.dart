@@ -190,7 +190,7 @@ class SocialService {
 
     FeedType type;
     FeedBody body;
-    String userId = raw['userId'] as String? ?? 'system';
+    var userId = raw['userId'] as String? ?? 'system';
 
     switch (kind) {
       case 'friend_request':

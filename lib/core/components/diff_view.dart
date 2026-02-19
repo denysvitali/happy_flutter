@@ -1,7 +1,14 @@
 import 'dart:math' as math;
 
-/// Represents a single token in an inline diff for highlighting changes within a line.
+/// Represents a single token in an inline diff for highlighting
+/// changes within a line.
 class DiffToken {
+
+  DiffToken({
+    required this.value,
+    this.added = false,
+    this.removed = false,
+  });
   /// The text content of this token
   final String value;
 
@@ -10,12 +17,6 @@ class DiffToken {
 
   /// Whether this token was removed from the old text
   final bool removed;
-
-  DiffToken({
-    required this.value,
-    this.added = false,
-    this.removed = false,
-  });
 
   @override
   bool operator ==(Object other) {
@@ -32,6 +33,14 @@ class DiffToken {
 
 /// Represents a single line in the diff output.
 class DiffLine {
+
+  DiffLine({
+    required this.type,
+    required this.content,
+    this.oldLineNumber,
+    this.newLineNumber,
+    this.tokens,
+  });
   /// Type of line: add, remove, or context (normal)
   final DiffLineType type;
 
@@ -46,14 +55,6 @@ class DiffLine {
 
   /// Optional tokens for inline highlighting within this line
   final List<DiffToken>? tokens;
-
-  DiffLine({
-    required this.type,
-    required this.content,
-    this.oldLineNumber,
-    this.newLineNumber,
-    this.tokens,
-  });
 
   @override
   bool operator ==(Object other) {
@@ -78,6 +79,14 @@ enum DiffLineType {
 
 /// Represents a hunk (a contiguous section of changes) in the diff.
 class DiffHunk {
+
+  DiffHunk({
+    required this.oldStart,
+    required this.oldLines,
+    required this.newStart,
+    required this.newLines,
+    required this.lines,
+  });
   /// Starting line number in the old file
   final int oldStart;
 
@@ -92,14 +101,6 @@ class DiffHunk {
 
   /// The lines in this hunk
   final List<DiffLine> lines;
-
-  DiffHunk({
-    required this.oldStart,
-    required this.oldLines,
-    required this.newStart,
-    required this.newLines,
-    required this.lines,
-  });
 
   @override
   bool operator ==(Object other) {
@@ -118,35 +119,35 @@ class DiffHunk {
 
 /// The result of parsing a diff.
 class DiffResult {
-  /// All hunks in the diff
-  final List<DiffHunk> hunks;
-
-  /// Statistics about the diff
-  final DiffStats stats;
 
   DiffResult({
     required this.hunks,
     required this.stats,
   });
+  /// All hunks in the diff
+  final List<DiffHunk> hunks;
+
+  /// Statistics about the diff
+  final DiffStats stats;
 }
 
 /// Statistics about a diff.
 class DiffStats {
-  /// Number of lines added
-  final int additions;
-
-  /// Number of lines removed
-  final int deletions;
 
   DiffStats({
     required this.additions,
     required this.deletions,
   });
+  /// Number of lines added
+  final int additions;
+
+  /// Number of lines removed
+  final int deletions;
 }
 
 /// Parser for unified diff format.
 ///
-/// Parses git diff output and similar unified diff formats into structured data.
+/// Parses git diff output and similar unified diff formats into
 class DiffParser {
   /// Regular expression for hunk header lines.
   ///
@@ -170,15 +171,15 @@ class DiffParser {
   /// Returns a [DiffResult] containing hunks and statistics
   static DiffResult parse(String diffText) {
     final hunks = <DiffHunk>[];
-    int additions = 0;
-    int deletions = 0;
-    int oldLineNum = 0;
-    int newLineNum = 0;
+    var additions = 0;
+    var deletions = 0;
+    var oldLineNum = 0;
+    var newLineNum = 0;
 
     final lines = diffText.split('\n');
 
     // Skip file headers and find hunk headers
-    int i = 0;
+    var i = 0;
 
     // Skip to first hunk header
     while (i < lines.length && !_hunkHeaderRegex.hasMatch(lines[i])) {
@@ -191,9 +192,13 @@ class DiffParser {
       final hunkMatch = _hunkHeaderRegex.firstMatch(line);
       if (hunkMatch != null) {
         final hunkOldStart = int.parse(hunkMatch.group(1)!);
-        final hunkOldLines = hunkMatch.group(2)!.isEmpty ? 1 : int.parse(hunkMatch.group(2)!);
+        final hunkOldLines = hunkMatch.group(2)!.isEmpty
+            ? 1
+            : int.parse(hunkMatch.group(2)!);
         final hunkNewStart = int.parse(hunkMatch.group(3)!);
-        final hunkNewLines = hunkMatch.group(4)!.isEmpty ? 1 : int.parse(hunkMatch.group(4)!);
+        final hunkNewLines = hunkMatch.group(4)!.isEmpty
+            ? 1
+            : int.parse(hunkMatch.group(4)!);
 
         oldLineNum = hunkOldStart;
         newLineNum = hunkNewStart;
@@ -230,14 +235,16 @@ class DiffParser {
             deletions++;
           } else if (diffLine.startsWith(' ') || diffLine.isEmpty) {
             // Context line
-            final content = diffLine.startsWith(' ') ? diffLine.substring(1) : diffLine;
+            final content = diffLine.startsWith(' ')
+                ? diffLine.substring(1)
+                : diffLine;
             hunkLines.add(DiffLine(
               type: DiffLineType.normal,
               content: content,
               oldLineNumber: oldLineNum++,
               newLineNumber: newLineNum++,
             ));
-          } else if (diffLine.startsWith('\\')) {
+          } else if (diffLine.startsWith(r'\')) {
             // No newline at end of file - skip
           }
 
@@ -285,31 +292,31 @@ class DiffParser {
     return _calculateUnifiedDiff(oldLines, newLines, contextLines);
   }
 
-  /// Calculate unified diff with inline highlighting between two lists of lines.
+  /// Calculate unified diff with inline highlighting between
   static DiffResult _calculateUnifiedDiff(
     List<String> oldLines,
     List<String> newLines,
     int contextLines,
   ) {
     final allLines = <DiffLine>[];
-    int oldLineNum = 1;
-    int newLineNum = 1;
-    int additions = 0;
-    int deletions = 0;
+    var oldLineNum = 1;
+    var newLineNum = 1;
+    var additions = 0;
+    var deletions = 0;
 
     // Find matching and non-matching lines
     final changes = <_Change>[];
 
-    for (int i = 0; i < oldLines.length; i++) {
+    for (var i = 0; i < oldLines.length; i++) {
       changes.add(_Change(line: oldLines[i], oldIndex: i, isRemoval: true));
     }
-    for (int i = 0; i < newLines.length; i++) {
+    for (var i = 0; i < newLines.length; i++) {
       changes.add(_Change(line: newLines[i], newIndex: i, isRemoval: false));
     }
 
     // Simple line-by-line comparison with context
-    int oldIdx = 0;
-    int newIdx = 0;
+    var oldIdx = 0;
+    var newIdx = 0;
 
     while (oldIdx < oldLines.length || newIdx < newLines.length) {
       final oldLine = oldIdx < oldLines.length ? oldLines[oldIdx] : null;
@@ -348,7 +355,9 @@ class DiffParser {
         final bestOldMatch = _findBestMatch(newLine, oldLines, oldIdx);
         final bestNewMatch = _findBestMatch(oldLine, newLines, newIdx);
 
-        if (bestOldMatch != -1 && (bestNewMatch == -1 || (bestOldMatch - oldIdx) <= (newIdx - bestNewMatch))) {
+        if (bestOldMatch != -1 &&
+            (bestNewMatch == -1 ||
+                (bestOldMatch - oldIdx) <= (newIdx - bestNewMatch))) {
           // Found a better match in old lines
           // Add context lines before the change
           for (int j = math.max(0, oldIdx - contextLines); j < oldIdx; j++) {
@@ -361,7 +370,7 @@ class DiffParser {
           }
 
           // Add removed lines
-          for (int j = oldIdx; j <= bestOldMatch; j++) {
+          for (var j = oldIdx; j <= bestOldMatch; j++) {
             final tokens = _calculateInlineDiff(oldLines[j], newLines[newIdx]);
             allLines.add(DiffLine(
               type: DiffLineType.remove,
@@ -373,8 +382,11 @@ class DiffParser {
           }
 
           // Add added lines
-          for (int j = newIdx; j <= bestNewMatch; j++) {
-            final tokens = _calculateInlineDiff(oldLines[bestOldMatch], newLines[j]);
+          for (var j = newIdx; j <= bestNewMatch; j++) {
+            final tokens = _calculateInlineDiff(
+              oldLines[bestOldMatch],
+              newLines[j],
+            );
             allLines.add(DiffLine(
               type: DiffLineType.add,
               content: newLines[j],
@@ -431,11 +443,11 @@ class DiffParser {
   ) {
     if (startIndex >= candidates.length) return -1;
 
-    int bestIndex = -1;
+    var bestIndex = -1;
     double bestScore = 0;
     const threshold = 0.5;
 
-    for (int i = startIndex; i < candidates.length; i++) {
+    for (var i = startIndex; i < candidates.length; i++) {
       final score = _calculateSimilarity(target, candidates[i]);
       if (score > bestScore && score > threshold) {
         bestScore = score;
@@ -457,10 +469,10 @@ class DiffParser {
 
     if (maxLen == 0) return 1.0;
 
-    int matches = 0;
+    var matches = 0;
     final minLen = math.min(chars1.length, chars2.length);
 
-    for (int i = 0; i < minLen; i++) {
+    for (var i = 0; i < minLen; i++) {
       if (chars1[i] == chars2[i]) matches++;
     }
 
@@ -481,7 +493,7 @@ class DiffParser {
     final buffer = StringBuffer();
     var inWhitespace = true;
 
-    for (int i = 0; i < text.length; i++) {
+    for (var i = 0; i < text.length; i++) {
       final char = text[i];
       final isWhitespace = char == ' ' || char == '\t';
 
@@ -508,18 +520,23 @@ class DiffParser {
   }
 
   /// Perform word-level diff.
-  static List<DiffToken> _wordDiff(List<String> oldWords, List<String> newWords) {
+  static List<DiffToken> _wordDiff(
+    List<String> oldWords,
+    List<String> newWords,
+  ) {
     final tokens = <DiffToken>[];
 
     // Simple LCS-based diff
     final lcs = _computeLCS(oldWords, newWords);
 
-    int oldIdx = 0;
-    int newIdx = 0;
-    int lcsIdx = 0;
+    var oldIdx = 0;
+    var newIdx = 0;
+    var lcsIdx = 0;
 
     while (oldIdx < oldWords.length || newIdx < newWords.length) {
-      if (lcsIdx < lcs.length && oldIdx < oldWords.length && newIdx < newWords.length) {
+      if (lcsIdx < lcs.length &&
+          oldIdx < oldWords.length &&
+          newIdx < newWords.length) {
         // Check if we're at a common subsequence element
         final lcsElement = lcs[lcsIdx];
         final oldLcsIdx = oldWords.indexOf(lcsElement, oldIdx);
@@ -527,11 +544,11 @@ class DiffParser {
 
         if (oldLcsIdx == newLcsIdx && oldLcsIdx != -1 && newLcsIdx != -1) {
           // Add removed words
-          for (int i = oldIdx; i < oldLcsIdx; i++) {
+          for (var i = oldIdx; i < oldLcsIdx; i++) {
             tokens.add(DiffToken(value: oldWords[i], removed: true));
           }
           // Add added words
-          for (int i = newIdx; i < newLcsIdx; i++) {
+          for (var i = newIdx; i < newLcsIdx; i++) {
             tokens.add(DiffToken(value: newWords[i], added: true));
           }
           // Add common word
@@ -539,15 +556,16 @@ class DiffParser {
           oldIdx = oldLcsIdx + 1;
           newIdx = newLcsIdx + 1;
           lcsIdx++;
-        } else if (oldLcsIdx != -1 && (newLcsIdx == -1 || oldLcsIdx <= newLcsIdx)) {
+        } else if (oldLcsIdx != -1 &&
+            (newLcsIdx == -1 || oldLcsIdx <= newLcsIdx)) {
           // Add removed words up to LCS match
-          for (int i = oldIdx; i < oldLcsIdx; i++) {
+          for (var i = oldIdx; i < oldLcsIdx; i++) {
             tokens.add(DiffToken(value: oldWords[i], removed: true));
           }
           oldIdx = oldLcsIdx;
         } else if (newLcsIdx != -1) {
           // Add added words up to LCS match
-          for (int i = newIdx; i < newLcsIdx; i++) {
+          for (var i = newIdx; i < newLcsIdx; i++) {
             tokens.add(DiffToken(value: newWords[i], added: true));
           }
           newIdx = newLcsIdx;
@@ -556,10 +574,10 @@ class DiffParser {
         }
       } else {
         // Add remaining words
-        for (int i = oldIdx; i < oldWords.length; i++) {
+        for (var i = oldIdx; i < oldWords.length; i++) {
           tokens.add(DiffToken(value: oldWords[i], removed: true));
         }
-        for (int i = newIdx; i < newWords.length; i++) {
+        for (var i = newIdx; i < newWords.length; i++) {
           tokens.add(DiffToken(value: newWords[i], added: true));
         }
         break;
@@ -577,7 +595,8 @@ class DiffParser {
         currentBuffer = token.value;
         currentAdded = token.added;
         currentRemoved = token.removed;
-      } else if (token.added == currentAdded && token.removed == currentRemoved) {
+      } else if (token.added == currentAdded &&
+          token.removed == currentRemoved) {
         currentBuffer += token.value;
       } else {
         merged.add(DiffToken(
@@ -610,8 +629,8 @@ class DiffParser {
     // Create DP table
     final dp = List.generate(m + 1, (_) => List<int>.filled(n + 1, 0));
 
-    for (int i = 1; i <= m; i++) {
-      for (int j = 1; j <= n; j++) {
+    for (var i = 1; i <= m; i++) {
+      for (var j = 1; j <= n; j++) {
         if (a[i - 1] == b[j - 1]) {
           dp[i][j] = dp[i - 1][j - 1] + 1;
         } else {
@@ -622,8 +641,8 @@ class DiffParser {
 
     // Backtrack to find LCS
     final lcs = <String>[];
-    int i = m;
-    int j = n;
+    var i = m;
+    var j = n;
 
     while (i > 0 && j > 0) {
       if (a[i - 1] == b[j - 1]) {
@@ -667,10 +686,10 @@ class DiffParser {
     }
 
     // Group changes into hunks with context
-    List<DiffLine> currentHunk = [];
-    int lastIncludedIndex = -1;
+    var currentHunk = <DiffLine>[];
+    var lastIncludedIndex = -1;
 
-    for (int i = 0; i < changes.length; i++) {
+    for (var i = 0; i < changes.length; i++) {
       final changeIndex = changes[i].key;
 
       final startContext = math.max(0, changeIndex - contextLines);
@@ -720,15 +739,14 @@ class DiffParser {
 
 /// Internal class for tracking changes.
 class _Change {
+
+  _Change({
+    required this.line,
+    required this.isRemoval, this.oldIndex,
+    this.newIndex,
+  });
   final String line;
   final int? oldIndex;
   final int? newIndex;
   final bool isRemoval;
-
-  _Change({
-    required this.line,
-    this.oldIndex,
-    this.newIndex,
-    required this.isRemoval,
-  });
 }

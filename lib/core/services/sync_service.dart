@@ -1,40 +1,40 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
-import '../api/socket_io_client.dart';
+import 'package:flutter/foundation.dart';
+
 import '../api/api_client.dart';
 import '../api/kv_api.dart';
 import '../api/push_api.dart';
-import '../models/auth.dart';
-import '../encryption/encryption_manager.dart';
+import '../api/socket_io_client.dart';
 import '../encryption/artifact_encryption.dart';
-import '../services/server_config.dart';
 import '../encryption/base64.dart';
 import '../encryption/encryption_cache.dart';
+import '../encryption/encryption_manager.dart';
 import '../models/api_update.dart';
-import '../models/session.dart';
-import '../models/machine.dart';
-import '../models/settings.dart';
-import '../models/profile.dart';
 import '../models/artifact.dart';
-import '../models/friend.dart';
+import '../models/auth.dart';
 import '../models/feed.dart';
-import '../models/todo.dart';
+import '../models/friend.dart';
+import '../models/machine.dart';
+import '../models/profile.dart';
 import '../models/purchases.dart';
+import '../models/session.dart';
+import '../models/settings.dart';
+import '../models/todo.dart';
+import '../services/server_config.dart';
 import '../utils/invalidate_sync.dart';
 import '../utils/parse_token.dart';
 
 // Global singleton instance
 class Sync {
-  static final Sync _instance = Sync._();
   factory Sync() => _instance;
   Sync._();
+  static final Sync _instance = Sync._();
 
   // Constants
-  static const int SESSION_READY_TIMEOUT_MS = 10000;
+  static const int sessionReadyTimeoutMs = 10000;
   static const String _appendSystemPrompt = '''
 # Options
 
@@ -146,7 +146,10 @@ what you have, you must use the options mode.
       );
 
   /// Initialize sync with credentials and encryption
-  Future<void> create(AuthCredentials credentials, Encryption encryption) async {
+  Future<void> create(
+    AuthCredentials credentials,
+    Encryption encryption,
+  ) async {
     if (isInitialized) {
       debugPrint('Sync already initialized');
       return;
@@ -167,7 +170,10 @@ what you have, you must use the options mode.
   }
 
   /// Restore sync state from disk (app restart)
-  Future<void> restore(AuthCredentials credentials, Encryption encryption) async {
+  Future<void> restore(
+    AuthCredentials credentials,
+    Encryption encryption,
+  ) async {
     if (isInitialized) {
       debugPrint('Sync already initialized');
       return;
@@ -242,20 +248,19 @@ what you have, you must use the options mode.
 
   /// Subscribe to socket updates
   void subscribeToUpdates() {
-    socketIoClient.onMessage('update', handleUpdate);
-    socketIoClient.onMessage('ephemeral', handleEphemeralUpdate);
-
-    socketIoClient.onReconnected(() {
-      debugPrint('Socket reconnected');
-      _invalidateAllSyncs();
-      for (final sync in messagesSync.values) {
-        sync.invalidate();
-      }
-    });
-
-    socketIoClient.onStatusChange((status) {
-      _connectionStatus = status;
-    });
+    socketIoClient
+      ..onMessage('update', handleUpdate)
+      ..onMessage('ephemeral', handleEphemeralUpdate)
+      ..onReconnected(() {
+        debugPrint('Socket reconnected');
+        _invalidateAllSyncs();
+        for (final sync in messagesSync.values) {
+          sync.invalidate();
+        }
+      })
+      ..onStatusChange((status) {
+        _connectionStatus = status;
+      });
   }
 
   /// Handle incoming updates
@@ -405,7 +410,7 @@ what you have, you must use the options mode.
     if (changes is List &&
         changes.any((change) =>
             change is Map<String, dynamic> &&
-            (change['key'] as String?)?.startsWith('todo.') == true)) {
+            ((change['key'] as String?)?.startsWith('todo.') ?? false))) {
       todosSync.invalidate();
       debugPrint('KV batch update received (todos)');
       return;
@@ -476,7 +481,8 @@ what you have, you must use the options mode.
           final dataEncryptionKey = session['dataEncryptionKey'] as String?;
 
           if (dataEncryptionKey != null) {
-            final decryptedKey = await encryption.decryptEncryptionKey(dataEncryptionKey);
+            final decryptedKey =
+                await encryption.decryptEncryptionKey(dataEncryptionKey);
             if (decryptedKey != null) {
               sessionKeys[sessionId] = decryptedKey;
               _sessionDataKeys[sessionId] = decryptedKey;
@@ -518,7 +524,9 @@ what you have, you must use the options mode.
                 activeAt: session['activeAt'] as int,
                 metadata: metadata != null ? Metadata.fromJson(metadata) : null,
                 metadataVersion: session['metadataVersion'] as int,
-                agentState: agentState.isNotEmpty ? AgentState.fromJson(agentState) : null,
+                agentState: agentState.isNotEmpty
+                    ? AgentState.fromJson(agentState)
+                    : null,
                 agentStateVersion: session['agentStateVersion'] as int,
                 thinking: false,
                 thinkingAt: null,
@@ -537,7 +545,8 @@ what you have, you must use the options mode.
           ..addEntries(
             decryptedSessions.map((session) => MapEntry(session.id, session)),
           );
-        debugPrint('Fetched and decrypted ${decryptedSessions.length} sessions');
+        debugPrint(
+            'Fetched and decrypted ${decryptedSessions.length} sessions');
       } else {
         debugPrint('Failed to fetch sessions: ${response.statusCode}');
       }
@@ -564,7 +573,8 @@ what you have, you must use the options mode.
           final dataEncryptionKey = machine['dataEncryptionKey'] as String?;
 
           if (dataEncryptionKey != null) {
-            final decryptedKey = await encryption.decryptEncryptionKey(dataEncryptionKey);
+            final decryptedKey =
+                await encryption.decryptEncryptionKey(dataEncryptionKey);
             if (decryptedKey != null) {
               machineKeys[machineId] = decryptedKey;
               _machineDataKeys[machineId] = decryptedKey;
@@ -601,7 +611,9 @@ what you have, you must use the options mode.
                 updatedAt: machine['updatedAt'] as int,
                 active: machine['active'] as bool,
                 activeAt: machine['activeAt'] as int,
-                metadata: metadata != null ? MachineMetadata.fromJson(metadata) : null,
+                metadata: metadata != null
+                    ? MachineMetadata.fromJson(metadata)
+                    : null,
                 metadataVersion: machine['metadataVersion'] as int,
                 daemonState: daemonState,
                 daemonStateVersion: machine['daemonStateVersion'] as int,
@@ -619,7 +631,8 @@ what you have, you must use the options mode.
           ..addEntries(
             decryptedMachines.map((machine) => MapEntry(machine.id, machine)),
           );
-        debugPrint('Fetched and decrypted ${decryptedMachines.length} machines');
+        debugPrint(
+            'Fetched and decrypted ${decryptedMachines.length} machines');
       } else {
         debugPrint('Failed to fetch machines: ${response.statusCode}');
       }
@@ -660,7 +673,8 @@ what you have, you must use the options mode.
           if (decryptedKey != null) {
             _artifactDataKeys[artifact.id] = decryptedKey;
             final artifactEncryption = ArtifactEncryption(decryptedKey);
-            final header = await artifactEncryption.decryptHeader(artifact.header);
+            final header =
+                await artifactEncryption.decryptHeader(artifact.header);
             final body = artifact.body != null
                 ? await artifactEncryption.decryptBody(artifact.body!)
                 : null;
@@ -838,8 +852,8 @@ what you have, you must use the options mode.
   ) {
     final now = DateTime.now().millisecondsSinceEpoch;
     final todosById = <String, TodoItem>{};
-    List<String> undoneOrder = <String>[];
-    List<String> doneOrder = <String>[];
+    var undoneOrder = <String>[];
+    var doneOrder = <String>[];
 
     for (final entry in decryptedByKey.entries) {
       final key = entry.key;
@@ -938,7 +952,7 @@ what you have, you must use the options mode.
     final status = _mapTodoStatus(rawStatus, raw['done']);
 
     final linkedSessions = raw['linkedSessions'];
-    String? sessionId = raw['sessionId'] as String?;
+    var sessionId = raw['sessionId'] as String?;
     if ((sessionId == null || sessionId.isEmpty) &&
         linkedSessions is Map<String, dynamic> &&
         linkedSessions.isNotEmpty) {
@@ -1045,7 +1059,9 @@ what you have, you must use the options mode.
 
   List<FriendRequest> _deriveFriendRequests(List<UserProfile> profiles) {
     return profiles
-        .where((profile) => profile.status == RelationshipStatus.pendingIncoming)
+        .where(
+            (profile) => profile.status == RelationshipStatus.pendingIncoming,
+        )
         .map((profile) => FriendRequest(
               id: 'friend-request-${profile.id}',
               fromUserId: profile.id,
@@ -1075,7 +1091,7 @@ what you have, you must use the options mode.
 
     FeedType type;
     FeedBody body;
-    String userId = raw['userId'] as String? ?? 'system';
+    var userId = raw['userId'] as String? ?? 'system';
 
     switch (kind) {
       case 'friend_request':
@@ -1186,11 +1202,13 @@ what you have, you must use the options mode.
               as Map<String, dynamic>?;
           if (decrypted != null) {
             _settingsSnapshot = Settings.fromJson(decrypted);
-            _settingsVersion = _asInt(data['settingsVersion']) ?? _settingsVersion;
+            _settingsVersion =
+                _asInt(data['settingsVersion']) ?? _settingsVersion;
           }
         } else {
           _settingsSnapshot = Settings();
-          _settingsVersion = _asInt(data['settingsVersion']) ?? _settingsVersion;
+          _settingsVersion =
+              _asInt(data['settingsVersion']) ?? _settingsVersion;
         }
       } else {
         debugPrint('Failed to fetch settings: ${response.statusCode}');
@@ -1626,7 +1644,8 @@ what you have, you must use the options mode.
             continue;
           }
           receivedMessages.add(decrypted.id);
-          final (msgs, results) = _processDecryptedMessage(decrypted, sessionId);
+          final (msgs, results) =
+              _processDecryptedMessage(decrypted, sessionId);
           mappedMessages.addAll(msgs);
           toolResults.addAll(results);
         }
@@ -1647,7 +1666,10 @@ what you have, you must use the options mode.
   }
 
   /// Wait for agent to be ready
-  Future<bool> waitForAgentReady(String sessionId, [int timeoutMs = SESSION_READY_TIMEOUT_MS]) async {
+  Future<bool> waitForAgentReady(
+    String sessionId, [
+    int timeoutMs = sessionReadyTimeoutMs,
+  ]) async {
     final timeoutAt = DateTime.now().millisecondsSinceEpoch + timeoutMs;
     while (DateTime.now().millisecondsSinceEpoch < timeoutAt) {
       final session = _sessions[sessionId];
@@ -1841,7 +1863,7 @@ what you have, you must use the options mode.
       if (agentContentList is! List) return ([], []);
 
       final results = <Map<String, dynamic>>[];
-      int i = 0;
+      var i = 0;
       for (final c in agentContentList) {
         if (c is! Map<String, dynamic>) {
           i++;
@@ -2271,14 +2293,14 @@ what you have, you must use the options mode.
     if (existing.isEmpty) return;
 
     // Build a lookup from toolUseId → message index
-    bool changed = false;
+    var changed = false;
     final updated = List<Map<String, dynamic>>.from(existing);
 
     for (final result in toolResults) {
       final toolUseId = result['toolUseId'] as String?;
       if (toolUseId == null) continue;
 
-      for (int i = 0; i < updated.length; i++) {
+      for (var i = 0; i < updated.length; i++) {
         final msg = updated[i];
         if (msg['kind'] == 'tool-call' && msg['toolUseId'] == toolUseId) {
           final isError = result['isError'] == true;
@@ -2373,9 +2395,10 @@ what you have, you must use the options mode.
 
   /// Shutdown sync engine and clear volatile state.
   Future<void> shutdown() async {
-    socketIoClient.offMessage('update');
-    socketIoClient.offMessage('ephemeral');
-    socketIoClient.disconnect();
+    socketIoClient
+      ..offMessage('update')
+      ..offMessage('ephemeral')
+      ..disconnect();
 
     for (final sync in messagesSync.values) {
       sync.dispose();
@@ -2432,7 +2455,8 @@ Future<void> syncCreate(AuthCredentials credentials) async {
 
   final secretKey = Base64Utils.decode(credentials.secret, Encoding.base64url);
   if (secretKey.length != 32) {
-    throw StateError('Invalid secret key length: ${secretKey.length}, expected 32');
+    throw StateError(
+        'Invalid secret key length: ${secretKey.length}, expected 32');
   }
 
   final encryption = await Encryption.create(secretKey);
@@ -2448,7 +2472,8 @@ Future<void> syncRestore(AuthCredentials credentials) async {
 
   final secretKey = Base64Utils.decode(credentials.secret, Encoding.base64url);
   if (secretKey.length != 32) {
-    throw StateError('Invalid secret key length: ${secretKey.length}, expected 32');
+    throw StateError(
+        'Invalid secret key length: ${secretKey.length}, expected 32');
   }
 
   final encryption = await Encryption.create(secretKey);

@@ -5,7 +5,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart' show kDebugMode, FlutterError, debugPrint;
 import 'logger_service.dart';
 
-/// Remote logger that monkey-patches console methods for AI debugging in debug builds.
+/// Remote logger that monkey-patches console methods for AI
 ///
 /// In debug mode, captures all console output (print, debugPrint, log, etc.)
 /// and routes it through the logging system for persistence and debugging.
@@ -18,9 +18,9 @@ import 'logger_service.dart';
 ///
 /// Note: This only runs in debug mode to avoid performance overhead in release.
 class RemoteLogger {
-  static final RemoteLogger _instance = RemoteLogger._();
   factory RemoteLogger() => _instance;
   RemoteLogger._();
+  static final RemoteLogger _instance = RemoteLogger._();
 
   bool _installed = false;
 
@@ -119,9 +119,7 @@ class RemoteLogger {
   ///
   /// Returns a ReceivePort that should be passed to the Isolate
   ReceivePort createIsolateCapture(String isolateName) {
-    final port = ReceivePort();
-
-    port.listen((message) {
+    final port = ReceivePort()..listen((message) {
       if (message is LogMessage) {
         logger.log(
           '[${message.level}] ${message.message}',
@@ -150,12 +148,11 @@ class RemoteLogger {
   /// Export logs in a format suitable for sharing
   String exportForSharing() {
     final logs = logger.getLogs();
-    final buffer = StringBuffer();
-
-    buffer.writeln('=== Application Logs ===');
-    buffer.writeln('Generated: ${DateTime.now().toIso8601String()}');
-    buffer.writeln('Total entries: ${logs.length}');
-    buffer.writeln('');
+    final buffer = StringBuffer()
+      ..writeln('=== Application Logs ===')
+      ..writeln('Generated: ${DateTime.now().toIso8601String()}')
+      ..writeln('Total entries: ${logs.length}')
+      ..writeln('');
 
     for (final log in logs) {
       buffer.writeln(log.toFormattedString());
@@ -172,11 +169,6 @@ class RemoteLogger {
 
 /// Message sent between isolates for log capture
 class LogMessage {
-  final String message;
-  final LogLevel level;
-  final LogLevel logLevel;
-  final dynamic error;
-  final StackTrace? stackTrace;
 
   LogMessage({
     required this.message,
@@ -185,13 +177,18 @@ class LogMessage {
     this.error,
     this.stackTrace,
   });
+  final String message;
+  final LogLevel level;
+  final LogLevel logLevel;
+  final dynamic error;
+  final StackTrace? stackTrace;
 }
 
 /// Background isolate logger that sends logs to main isolate
 class BackgroundIsolateLogger {
-  final SendPort _sendPort;
 
   BackgroundIsolateLogger(this._sendPort);
+  final SendPort _sendPort;
 
   /// Log a message from background isolate
   void log(String message, {LogLevel level = LogLevel.info}) {
@@ -282,15 +279,15 @@ extension RemoteLoggerIsolate on RemoteLogger {
 }
 
 class _IsolateArgs<T> {
-  final SendPort sendPort;
-  final Future<T> Function(BackgroundIsolateLogger bgLogger) function;
-  final Completer<T> completer;
 
   _IsolateArgs({
     required this.sendPort,
     required this.function,
     required this.completer,
   });
+  final SendPort sendPort;
+  final Future<T> Function(BackgroundIsolateLogger bgLogger) function;
+  final Completer<T> completer;
 }
 
 /// Auto-install helper for main()

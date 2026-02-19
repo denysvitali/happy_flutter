@@ -4,8 +4,11 @@ import 'package:convert/convert.dart';
 /// Hex encoding/decoding utilities
 class HexUtils {
   /// Decode hex string to bytes
-  static Uint8List decode(String hexString, [HexFormat format = HexFormat.normal]) {
-    String encoded = hexString;
+  static Uint8List decode(
+    String hexString, [
+    HexFormat format = HexFormat.normal,
+  ]) {
+    var encoded = hexString;
 
     if (format == HexFormat.mac) {
       encoded = hexString.replaceAll(':', '');
@@ -15,7 +18,10 @@ class HexUtils {
   }
 
   /// Encode bytes to hex string
-  static String encode(Uint8List buffer, [HexFormat format = HexFormat.normal]) {
+  static String encode(
+    Uint8List buffer, [
+    HexFormat format = HexFormat.normal,
+  ]) {
     final encoded = hex.encode(buffer);
 
     if (format == HexFormat.mac) {

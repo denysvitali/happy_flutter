@@ -17,6 +17,21 @@ import 'package:flutter/material.dart';
 /// )
 /// ```
 class ShimmerView extends StatefulWidget {
+
+  const ShimmerView({
+    required this.child,
+    this.colors = const [
+      Color(0xFFE0E0E0),
+      Color(0xFFF0F0F0),
+      Color(0xFFF8F8F8),
+      Color(0xFFF0F0F0),
+      Color(0xFFE0E0E0),
+    ],
+    this.shimmerWidthPercent = 80,
+    this.duration = const Duration(milliseconds: 1500),
+    this.enabled = true,
+    super.key,
+  });
   /// The child widget to display with shimmer effect
   final Widget child;
 
@@ -39,21 +54,6 @@ class ShimmerView extends StatefulWidget {
   ///
   /// Default: true
   final bool enabled;
-
-  const ShimmerView({
-    required this.child,
-    this.colors = const [
-      Color(0xFFE0E0E0),
-      Color(0xFFF0F0F0),
-      Color(0xFFF8F8F8),
-      Color(0xFFF0F0F0),
-      Color(0xFFE0E0E0),
-    ],
-    this.shimmerWidthPercent = 80,
-    this.duration = const Duration(milliseconds: 1500),
-    this.enabled = true,
-    super.key,
-  });
 
   @override
   State<ShimmerView> createState() => _ShimmerViewState();
@@ -133,20 +133,21 @@ class _ShimmerViewState extends State<ShimmerView>
 
 /// Custom gradient transform for shimmer effect
 class _ShimmerGradientTransform extends GradientTransform {
-  final Animation<double> animation;
-  final double widthPercent;
-  final double boundsWidth;
 
   const _ShimmerGradientTransform({
     required this.animation,
     required this.widthPercent,
     required this.boundsWidth,
   });
+  final Animation<double> animation;
+  final double widthPercent;
+  final double boundsWidth;
 
   @override
   Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
     final shimmerWidth = bounds.width * (widthPercent / 100);
-    final start = -shimmerWidth + (bounds.width + shimmerWidth) * animation.value;
+    final start = -shimmerWidth +
+        (bounds.width + shimmerWidth) * animation.value;
     final clampedStart = start.clamp(-shimmerWidth, bounds.width);
 
     return Matrix4.translationValues(clampedStart - bounds.left, 0, 0);

@@ -1,13 +1,6 @@
 /// User profile model
 /// Matches React Native schema from sources/sync/profile.ts
 class Profile {
-  final String id;
-  final int timestamp;
-  final String? firstName;
-  final String? lastName;
-  final ImageRef? avatar;
-  final GitHubProfile? github;
-  final List<String> connectedServices;
 
   const Profile({
     required this.id,
@@ -18,6 +11,32 @@ class Profile {
     this.github,
     this.connectedServices = const [],
   });
+
+  factory Profile.fromJson(Map<String, dynamic> json) {
+    return Profile(
+      id: json['id'] as String,
+      timestamp: json['timestamp'] as int? ?? 0,
+      firstName: json['firstName'] as String?,
+      lastName: json['lastName'] as String?,
+      avatar: json['avatar'] != null
+          ? ImageRef.fromJson(json['avatar'] as Map<String, dynamic>)
+          : null,
+      github: json['github'] != null
+          ? GitHubProfile.fromJson(json['github'] as Map<String, dynamic>)
+          : null,
+      connectedServices: (json['connectedServices'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+    );
+  }
+  final String id;
+  final int timestamp;
+  final String? firstName;
+  final String? lastName;
+  final ImageRef? avatar;
+  final GitHubProfile? github;
+  final List<String> connectedServices;
 
   /// Display name - prefers name over github
   String? get displayName {
@@ -55,25 +74,6 @@ class Profile {
     );
   }
 
-  factory Profile.fromJson(Map<String, dynamic> json) {
-    return Profile(
-      id: json['id'] as String,
-      timestamp: json['timestamp'] as int? ?? 0,
-      firstName: json['firstName'] as String?,
-      lastName: json['lastName'] as String?,
-      avatar: json['avatar'] != null
-          ? ImageRef.fromJson(json['avatar'] as Map<String, dynamic>)
-          : null,
-      github: json['github'] != null
-          ? GitHubProfile.fromJson(json['github'] as Map<String, dynamic>)
-          : null,
-      connectedServices: (json['connectedServices'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          [],
-    );
-  }
-
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -95,21 +95,16 @@ class Profile {
       try {
         return Profile.fromJson(profile);
       } catch (_) {
-        return const Profile(id: '');
+        return Profile.defaults;
       }
     }
-    return const Profile(id: '');
+    return Profile.defaults;
   }
 }
 
 /// Image reference for avatars
 /// Matches React Native schema from sources/sync/profile.ts
 class ImageRef {
-  final int width;
-  final int height;
-  final String thumbhash;
-  final String path;
-  final String url;
 
   const ImageRef({
     required this.width,
@@ -128,6 +123,11 @@ class ImageRef {
       url: json['url'] as String,
     );
   }
+  final int width;
+  final int height;
+  final String thumbhash;
+  final String path;
+  final String url;
 
   Map<String, dynamic> toJson() {
     return {
@@ -159,12 +159,6 @@ class ImageRef {
 /// GitHub profile information
 /// Matches React Native schema from sources/sync/profile.ts
 class GitHubProfile {
-  final int id;
-  final String login;
-  final String name;
-  final String avatarUrl;
-  final String? email;
-  final String? bio;
 
   const GitHubProfile({
     required this.id,
@@ -185,6 +179,12 @@ class GitHubProfile {
       bio: json['bio'] as String?,
     );
   }
+  final int id;
+  final String login;
+  final String name;
+  final String avatarUrl;
+  final String? email;
+  final String? bio;
 
   Map<String, dynamic> toJson() {
     return {
@@ -229,21 +229,14 @@ enum ConnectedService {
   gemini('Gemini', 'https://gemini.google.com'),
   openai('OpenAI', 'https://openai.com');
 
+  const ConnectedService(this.displayName, this.websiteUrl);
+
   final String displayName;
   final String websiteUrl;
-
-  const ConnectedService(this.displayName, this.websiteUrl);
 }
 
 /// Represents a connected third-party service
 class ConnectedServiceInfo {
-  final ConnectedService service;
-  final String? accountId;
-  final String? accountName;
-  final String? accountEmail;
-  final String? avatarUrl;
-  final bool isConnected;
-  final DateTime? connectedAt;
 
   ConnectedServiceInfo({
     required this.service,
@@ -270,6 +263,13 @@ class ConnectedServiceInfo {
           : null,
     );
   }
+  final ConnectedService service;
+  final String? accountId;
+  final String? accountName;
+  final String? accountEmail;
+  final String? avatarUrl;
+  final bool isConnected;
+  final DateTime? connectedAt;
 
   Map<String, dynamic> toJson() {
     return {
@@ -294,11 +294,6 @@ class ConnectedServiceInfo {
 
 /// Device information for linking
 class DeviceInfo {
-  final String id;
-  final String name;
-  final String platform;
-  final DateTime lastActive;
-  final bool isCurrentDevice;
 
   DeviceInfo({
     required this.id,
@@ -317,6 +312,11 @@ class DeviceInfo {
       isCurrentDevice: json['is_current_device'] as bool? ?? false,
     );
   }
+  final String id;
+  final String name;
+  final String platform;
+  final DateTime lastActive;
+  final bool isCurrentDevice;
 
   Map<String, dynamic> toJson() {
     return {
@@ -350,9 +350,6 @@ class DeviceInfo {
 
 /// Account backup information
 class AccountBackupInfo {
-  final bool hasBackup;
-  final DateTime? lastBackupAt;
-  final String? backupDeviceId;
 
   AccountBackupInfo({
     this.hasBackup = false,
@@ -369,6 +366,9 @@ class AccountBackupInfo {
       backupDeviceId: json['backup_device_id'] as String?,
     );
   }
+  final bool hasBackup;
+  final DateTime? lastBackupAt;
+  final String? backupDeviceId;
 
   Map<String, dynamic> toJson() {
     return {

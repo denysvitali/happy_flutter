@@ -19,6 +19,16 @@ enum SessionState {
 
 /// Status information for session display.
 class SessionStatus {
+
+  const SessionStatus({
+    required this.state,
+    required this.isConnected,
+    required this.statusText,
+    required this.shouldShowStatus,
+    required this.statusColor,
+    required this.statusDotColor,
+    this.isPulsing = false,
+  });
   /// The current state of the session.
   final SessionState state;
 
@@ -39,23 +49,14 @@ class SessionStatus {
 
   /// Whether the status indicator should pulse/animate.
   final bool isPulsing;
-
-  const SessionStatus({
-    required this.state,
-    required this.isConnected,
-    required this.statusText,
-    required this.shouldShowStatus,
-    required this.statusColor,
-    required this.statusDotColor,
-    this.isPulsing = false,
-  });
 }
 
 /// Gets the current status of a session based on presence and thinking status.
 SessionStatus getSessionStatus(Session session) {
   final isOnline = session.presence == 'online';
   final hasPermissions =
-      session.agentState?.requests != null && session.agentState!.requests!.isNotEmpty;
+      session.agentState?.requests != null &&
+      session.agentState!.requests!.isNotEmpty;
 
   if (!isOnline) {
     return SessionStatus(

@@ -1,10 +1,10 @@
 
 /// Cache entry with access time tracking
 class CacheEntry<T> {
-  final T data;
-  int accessTime;
 
   CacheEntry(this.data, this.accessTime);
+  final T data;
+  int accessTime;
 }
 
 /// In-memory cache for decrypted data to avoid expensive re-decryption
@@ -92,7 +92,10 @@ class EncryptionCache {
   }
 
   /// Get cached machine metadata
-  Map<String, dynamic>? getCachedMachineMetadata(String machineId, int version) {
+  Map<String, dynamic>? getCachedMachineMetadata(
+    String machineId,
+    int version,
+  ) {
     final key = '$machineId:$version';
     final entry = _machineMetadataCache[key];
     if (entry != null) {
@@ -194,7 +197,7 @@ class EncryptionCache {
 
     String? oldestKey;
     // JavaScript-compatible MAX_SAFE_INTEGER (2^53 - 1)
-    int oldestTime = 9007199254740991;
+    var oldestTime = 9007199254740991;
 
     for (final entry in cache.entries) {
       if (entry.value.accessTime < oldestTime) {
@@ -211,29 +214,13 @@ class EncryptionCache {
 
 /// Decrypted message model
 class DecryptedMessage {
-  final String id;
-  final int seq;
-  final String? localId;
-  final dynamic content;
-  final DateTime createdAt;
 
   DecryptedMessage({
     required this.id,
     required this.seq,
-    this.localId,
+    required this.createdAt, this.localId,
     this.content,
-    required this.createdAt,
   });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'seq': seq,
-      'localId': localId,
-      'content': content,
-      'createdAt': createdAt.toIso8601String(),
-    };
-  }
 
   factory DecryptedMessage.fromJson(Map<String, dynamic> json) {
     return DecryptedMessage(
@@ -243,5 +230,20 @@ class DecryptedMessage {
       content: json['content'],
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
+  }
+  final String id;
+  final int seq;
+  final String? localId;
+  final dynamic content;
+  final DateTime createdAt;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'seq': seq,
+      'localId': localId,
+      'content': content,
+      'createdAt': createdAt.toIso8601String(),
+    };
   }
 }

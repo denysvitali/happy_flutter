@@ -3,18 +3,14 @@ import '../../../../core/services/sync_service.dart';
 
 /// Question option model.
 class QuestionOption {
-  final String label;
-  final String description;
 
   QuestionOption({required this.label, required this.description});
+  final String label;
+  final String description;
 }
 
 /// Question model.
 class Question {
-  final String question;
-  final String header;
-  final List<QuestionOption> options;
-  final bool multiSelect;
 
   Question({
     required this.question,
@@ -22,10 +18,20 @@ class Question {
     required this.options,
     required this.multiSelect,
   });
+  final String question;
+  final String header;
+  final List<QuestionOption> options;
+  final bool multiSelect;
 }
 
 /// View for displaying AskUserQuestion tool with interactive options.
 class AskUserQuestionView extends StatefulWidget {
+
+  const AskUserQuestionView({
+    required this.tool, super.key,
+    this.metadata,
+    this.sessionId,
+  });
   /// The tool data.
   final Map<String, dynamic> tool;
 
@@ -34,13 +40,6 @@ class AskUserQuestionView extends StatefulWidget {
 
   /// The session ID for sending responses.
   final String? sessionId;
-
-  const AskUserQuestionView({
-    super.key,
-    required this.tool,
-    this.metadata,
-    this.sessionId,
-  });
 
   @override
   State<AskUserQuestionView> createState() =>
@@ -551,11 +550,6 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
 }
 
 class _QuestionSection extends StatelessWidget {
-  final Question question;
-  final int questionIndex;
-  final Set<int> selectedOptions;
-  final bool isInteractive;
-  final ValueChanged<int> onToggle;
 
   const _QuestionSection({
     required this.question,
@@ -564,6 +558,11 @@ class _QuestionSection extends StatelessWidget {
     required this.isInteractive,
     required this.onToggle,
   });
+  final Question question;
+  final int questionIndex;
+  final Set<int> selectedOptions;
+  final bool isInteractive;
+  final ValueChanged<int> onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -675,11 +674,6 @@ class _QuestionSection extends StatelessWidget {
 }
 
 class _OptionChip extends StatefulWidget {
-  final QuestionOption option;
-  final bool isSelected;
-  final bool isMultiSelect;
-  final bool isInteractive;
-  final VoidCallback onTap;
 
   const _OptionChip({
     required this.option,
@@ -688,6 +682,11 @@ class _OptionChip extends StatefulWidget {
     required this.isInteractive,
     required this.onTap,
   });
+  final QuestionOption option;
+  final bool isSelected;
+  final bool isMultiSelect;
+  final bool isInteractive;
+  final VoidCallback onTap;
 
   @override
   State<_OptionChip> createState() =>

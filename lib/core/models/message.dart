@@ -1,17 +1,10 @@
 /// API message schema
 class ApiMessage {
-  final String id;
-  final int seq;
-  final String? localId;
-  final ApiMessageContent content;
-  final int createdAt;
 
   ApiMessage(
       {required this.id,
       required this.seq,
-      this.localId,
-      required this.content,
-      required this.createdAt});
+      required this.content, required this.createdAt, this.localId});
 
   factory ApiMessage.fromJson(Map<String, dynamic> json) {
     return ApiMessage(
@@ -23,6 +16,11 @@ class ApiMessage {
       createdAt: json['createdAt'] as int,
     );
   }
+  final String id;
+  final int seq;
+  final String? localId;
+  final ApiMessageContent content;
+  final int createdAt;
 
   Map<String, dynamic> toJson() {
     return {
@@ -36,14 +34,14 @@ class ApiMessage {
 }
 
 class ApiMessageContent {
-  final String t;
-  final String c;
 
   ApiMessageContent({required this.t, required this.c});
 
   factory ApiMessageContent.fromJson(Map<String, dynamic> json) {
     return ApiMessageContent(t: json['t'] as String, c: json['c'] as String);
   }
+  final String t;
+  final String c;
 
   Map<String, dynamic> toJson() {
     return {'t': t, 'c': c};
@@ -52,21 +50,11 @@ class ApiMessageContent {
 
 /// Tool call information
 class ToolCall {
-  final String name;
-  final String state;
-  final dynamic input;
-  final int createdAt;
-  final int? startedAt;
-  final int? completedAt;
-  final String? description;
-  final dynamic result;
-  final Permission? permission;
 
   ToolCall({
     required this.name,
     required this.state,
-    this.input,
-    required this.createdAt,
+    required this.createdAt, this.input,
     this.startedAt,
     this.completedAt,
     this.description,
@@ -89,16 +77,18 @@ class ToolCall {
           : null,
     );
   }
+  final String name;
+  final String state;
+  final dynamic input;
+  final int createdAt;
+  final int? startedAt;
+  final int? completedAt;
+  final String? description;
+  final dynamic result;
+  final Permission? permission;
 }
 
 class Permission {
-  final String id;
-  final String status;
-  final String? reason;
-  final String? mode;
-  final List<String>? allowedTools;
-  final String? decision;
-  final int? date;
 
   Permission(
       {required this.id,
@@ -122,18 +112,17 @@ class Permission {
       date: json['date'] as int?,
     );
   }
+  final String id;
+  final String status;
+  final String? reason;
+  final String? mode;
+  final List<String>? allowedTools;
+  final String? decision;
+  final int? date;
 }
 
 /// Message metadata
 class MessageMeta {
-  final String? role;
-  final String? cwd;
-  final String? sessionId;
-  final String? version;
-  final String? gitBranch;
-  final String? slug;
-  final String? requestId;
-  final int? timestamp;
 
   MessageMeta(
       {this.role,
@@ -157,6 +146,14 @@ class MessageMeta {
       timestamp: json['timestamp'] as int?,
     );
   }
+  final String? role;
+  final String? cwd;
+  final String? sessionId;
+  final String? version;
+  final String? gitBranch;
+  final String? slug;
+  final String? requestId;
+  final int? timestamp;
 }
 
 /// Agent event types - using sealed class pattern with implementations
@@ -179,18 +176,18 @@ sealed class AgentEvent {
 }
 
 class SwitchEvent implements AgentEvent {
-  final String mode;
   SwitchEvent({required this.mode});
+  final String mode;
 }
 
 class MessageEvent implements AgentEvent {
-  final String message;
   MessageEvent({required this.message});
+  final String message;
 }
 
 class LimitReached implements AgentEvent {
-  final int endsAt;
   LimitReached({required this.endsAt});
+  final int endsAt;
 }
 
 class ReadyEvent implements AgentEvent {

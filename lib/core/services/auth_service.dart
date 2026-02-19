@@ -1,22 +1,24 @@
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:ed25519_edwards/ed25519_edwards.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:sodium/sodium.dart' show SecureKey;
+
 import '../api/api_client.dart';
 import '../encryption/crypto_box.dart';
 import '../models/auth.dart';
 import '../models/profile.dart';
+import '../utils/backup_key_utils.dart';
 import 'encryption_service.dart';
 import 'storage_service.dart';
-import '../utils/backup_key_utils.dart';
 
 /// Authentication service handling QR-based authentication flow
 class AuthService {
-  static final AuthService _instance = AuthService._();
   factory AuthService() => _instance;
   AuthService._();
+  static final AuthService _instance = AuthService._();
 
   final _apiClient = ApiClient();
   final _encryption = EncryptionService();
@@ -378,7 +380,9 @@ class AuthService {
         final services = data['services'] as List<dynamic>?;
         if (services != null) {
           return services
-              .map((s) => ConnectedServiceInfo.fromJson(s as Map<String, dynamic>))
+              .map(
+                (s) => ConnectedServiceInfo.fromJson(s as Map<String, dynamic>),
+              )
               .toList();
         }
       }
@@ -425,7 +429,9 @@ Timestamp: ${DateTime.now().toIso8601String()}
 ''';
       debugPrint(errorMessage);
 
-      throw AuthException('Failed to start device linking: ${e.response?.statusCode}');
+      throw AuthException(
+        'Failed to start device linking: ${e.response?.statusCode}',
+      );
     }
   }
 
@@ -652,8 +658,8 @@ Timestamp: ${DateTime.now().toIso8601String()}
 
   /// Parse a happy:// URL and extract the public key
   /// Supports formats:
-  /// - happy://terminal?<base64_public_key>
-  /// - happy:///account?<base64_public_key>
+  /// - `happy://terminal?<base64_public_key>`
+  /// - `happy:///account?<base64_public_key>`
   static Uint8List? parseAuthUrl(String url) {
     try {
       if (!url.startsWith('happy://')) {
@@ -722,18 +728,18 @@ Timestamp: ${DateTime.now().toIso8601String()}
 }
 
 class DeviceLinkingResult {
-  final String linkingId;
-  final Uint8List publicKey;
-  final Uint8List secret;
 
   DeviceLinkingResult({
     required this.linkingId,
     required this.publicKey,
     required this.secret,
   });
+  final String linkingId;
+  final Uint8List publicKey;
+  final Uint8List secret;
 
   /// Get the QR code data for this linking
-  /// Format: happy:///account?<base64url_public_key>
+  /// Format: `happy:///account?<base64url_public_key>`
   String getQRData() {
     final base64Key = base64Encode(publicKey);
     final base64UrlKey = base64Key
@@ -745,8 +751,8 @@ class DeviceLinkingResult {
 }
 
 class _KeyPair {
-  final Uint8List privateKey;
-  final Uint8List publicKey;
 
   _KeyPair({required this.privateKey, required this.publicKey});
+  final Uint8List privateKey;
+  final Uint8List publicKey;
 }

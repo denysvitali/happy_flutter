@@ -1,14 +1,14 @@
 /// Parses error messages that contain `<tool_use_error>` tags.
 ///
 /// Example:
-/// Input: "<tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_error>"
-/// Output: { isToolUseError: true, errorMessage: "File has not been read yet. Read it first before writing to it." }
+/// Input: `"<tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_error>"`
+/// Output: { isToolUseError: true, errorMessage: "File has not been
 class ToolErrorParser {
   /// Parses a tool use error from a message string.
   ///
   /// Returns a [ToolErrorParseResult] containing:
   /// - [isToolUseError]: Whether the message contains a `<tool_use_error>` tag
-  /// - [errorMessage]: The extracted error message (without tags), or null if not found
+  /// - [errorMessage]: The extracted error message (without tags),
   static ToolErrorParseResult parse(String? message) {
     if (message == null) {
       return const ToolErrorParseResult(
@@ -41,7 +41,7 @@ class ToolErrorParser {
   /// Checks if the message is a cancellation error.
   ///
   /// Handles various cancellation error formats:
-  /// - <tool_use_error>...</tool_use_error>
+  /// - `<tool_use_error>...</tool_use_error>`
   /// - Error: [Request interrupted by user for tool use]
   /// - Request interrupted
   /// - User cancelled
@@ -94,16 +94,16 @@ class ToolErrorParser {
 
 /// Result of parsing a tool use error.
 class ToolErrorParseResult {
-  /// Whether the message contains a `<tool_use_error>` tag.
-  final bool isToolUseError;
-
-  /// The extracted error message (without tags), or null if not found.
-  final String? errorMessage;
 
   const ToolErrorParseResult({
     required this.isToolUseError,
     required this.errorMessage,
   });
+  /// Whether the message contains a `<tool_use_error>` tag.
+  final bool isToolUseError;
+
+  /// The extracted error message (without tags), or null if not found.
+  final String? errorMessage;
 
   /// Returns the display message - either the extracted error or the original.
   String get displayMessage {

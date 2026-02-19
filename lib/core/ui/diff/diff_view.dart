@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-import 'diff_types.dart';
+
 import 'calculate_diff.dart';
+import 'diff_types.dart';
 
 /// Diff view widget for displaying code differences
 class DiffView extends StatefulWidget {
-  final String oldText;
-  final String newText;
-  final DiffViewConfig config;
-  final String? oldTitle;
-  final String? newTitle;
 
   const DiffView({
     required this.oldText,
@@ -18,6 +14,11 @@ class DiffView extends StatefulWidget {
     this.newTitle,
     super.key,
   });
+  final String oldText;
+  final String newText;
+  final DiffViewConfig config;
+  final String? oldTitle;
+  final String? newTitle;
 
   @override
   State<DiffView> createState() => _DiffViewState();
@@ -138,7 +139,8 @@ class _DiffViewState extends State<DiffView> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: colors.hunkHeaderBg,
       child: Text(
-        '@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@',
+        '@@ -${hunk.oldStart},${hunk.oldLines}'
+            ' +${hunk.newStart},${hunk.newLines} @@',
         style: theme.textTheme.bodySmall?.copyWith(
           color: colors.hunkHeaderText,
           fontFamily: 'monospace',
@@ -229,7 +231,9 @@ class _DiffViewState extends State<DiffView> {
         ? '\u00b7' * leadingSpaces.group(0)!.length
         : '';
     final mainContent =
-        leadingSpaces != null ? formatted.substring(leadingSpaces.group(0)!.length) : formatted;
+        leadingSpaces != null ? formatted.substring(
+          leadingSpaces.group(0)!.length,
+        ) : formatted;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -299,10 +303,6 @@ class _DiffViewState extends State<DiffView> {
 
 /// Simplified inline diff viewer
 class InlineDiffView extends StatelessWidget {
-  final String oldText;
-  final String newText;
-  final DiffTheme theme;
-  final TextStyle? textStyle;
 
   const InlineDiffView({
     required this.oldText,
@@ -311,6 +311,10 @@ class InlineDiffView extends StatelessWidget {
     this.textStyle,
     super.key,
   });
+  final String oldText;
+  final String newText;
+  final DiffTheme theme;
+  final TextStyle? textStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -363,9 +367,6 @@ class InlineDiffView extends StatelessWidget {
 
 /// Diff stats widget
 class DiffStatsView extends StatelessWidget {
-  final DiffStats stats;
-  final DiffTheme theme;
-  final bool showTotal;
 
   const DiffStatsView({
     required this.stats,
@@ -373,6 +374,9 @@ class DiffStatsView extends StatelessWidget {
     this.showTotal = true,
     super.key,
   });
+  final DiffStats stats;
+  final DiffTheme theme;
+  final bool showTotal;
 
   @override
   Widget build(BuildContext context) {

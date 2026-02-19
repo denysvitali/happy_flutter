@@ -1,13 +1,14 @@
-import 'package:native_dio_adapter/native_dio_adapter.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:native_dio_adapter/native_dio_adapter.dart';
+
 import '../services/server_config.dart';
 
 /// Custom Dio client with user CA certificate support and proper error handling
 class ApiClient {
-  static final ApiClient _instance = ApiClient._();
   factory ApiClient() => _instance;
   ApiClient._();
+  static final ApiClient _instance = ApiClient._();
 
   Dio? _dio;
   String? _authToken;
@@ -62,7 +63,7 @@ class ApiClient {
   /// Refresh the server URL without restarting the app
   /// Call this after changing the server URL in settings
   Future<void> refreshServerUrl() async {
-    final newUrl = await getServerUrl();
+    final newUrl = getServerUrl();
     if (newUrl != _cachedServerUrl) {
       _cachedServerUrl = newUrl;
       _dio?.close(force: true);
@@ -76,7 +77,8 @@ class ApiClient {
   String? getCurrentServerUrl() => _cachedServerUrl;
 
   /// Configure HTTP client with Cronet engine
-  /// Cronet respects Android's network_security_config.xml and user-installed CA certificates
+  /// Cronet respects Android's network_security_config.xml and
+  /// user-installed CA certificates
   Future<void> _configureHttpClient() async {
     try {
       // Use NativeAdapter which uses Cronet on Android (cupertino_http on iOS/macOS)
@@ -84,7 +86,9 @@ class ApiClient {
       // and user-installed CA certificates in the Android trust store
       final nativeAdapter = NativeAdapter();
       _dio!.httpClientAdapter = nativeAdapter;
-      debugPrint('Native HTTP adapter configured for platform-specific CA support');
+      debugPrint(
+        'Native HTTP adapter configured for platform-specific CA support',
+      );
     } catch (e) {
       debugPrint('Error configuring HTTP client: $e');
     }

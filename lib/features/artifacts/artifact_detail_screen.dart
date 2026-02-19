@@ -7,7 +7,7 @@ import '../../core/providers/app_providers.dart';
 
 /// Screen showing detail view for a single artifact.
 class ArtifactDetailScreen extends ConsumerWidget {
-  const ArtifactDetailScreen({super.key, required this.artifactId});
+  const ArtifactDetailScreen({required this.artifactId, super.key});
 
   final String artifactId;
 
@@ -101,7 +101,7 @@ class ArtifactDetailScreen extends ConsumerWidget {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       ref
           .read(artifactsNotifierProvider.notifier)
           .removeArtifact(artifact.id);

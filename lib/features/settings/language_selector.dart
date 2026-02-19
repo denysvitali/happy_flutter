@@ -9,13 +9,13 @@ import '../../core/providers/app_providers.dart';
 ///
 /// Allows users to select their preferred language from the supported locales.
 class LanguageSelector extends ConsumerWidget {
-  /// Whether to show a full settings screen or just the selector.
-  final bool isFullScreen;
 
   const LanguageSelector({
     super.key,
     this.isFullScreen = false,
   });
+  /// Whether to show a full settings screen or just the selector.
+  final bool isFullScreen;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -36,7 +36,7 @@ class LanguageSelector extends ConsumerWidget {
               title: Text(l10n.settingsLanguageAutomatic),
               subtitle: Text(l10n.settingsLanguageAutomaticSubtitle),
               leading: const Icon(Icons.auto_awesome),
-              selected: (settings.preferredLanguage?.isEmpty ?? true),
+              selected: settings.preferredLanguage?.isEmpty ?? true,
               selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
               onTap: () {
                 ref.read(settingsNotifierProvider.notifier).updateSetting(
@@ -48,36 +48,41 @@ class LanguageSelector extends ConsumerWidget {
             ),
             const Divider(),
             // Supported languages
-            ...supportedLocales.map(
-              (locale) => ListTile(
-                title: Text(getLocaleNativeDisplayName(locale)),
-                leading: Radio<Locale>(
-                  value: locale,
-                  groupValue: currentLocale,
-                  onChanged: (Locale? value) {
-                    if (value != null) {
-                      final localeString = value.scriptCode != null
-                          ? '${value.languageCode}_${value.scriptCode}'
-                          : value.languageCode;
-                      ref
-                          .read(settingsNotifierProvider.notifier)
-                          .updateSetting('locale', localeString);
-                      context.pop();
-                    }
-                  },
-                ),
-                selected: _isSameLocale(currentLocale, locale),
-                selectedTileColor:
-                    Theme.of(context).colorScheme.primaryContainer,
-                onTap: () {
-                  final localeString = locale.scriptCode != null
-                      ? '${locale.languageCode}_${locale.scriptCode}'
-                      : locale.languageCode;
+            RadioGroup<Locale>(
+              groupValue: currentLocale,
+              onChanged: (Locale? value) {
+                if (value != null) {
+                  final localeString = value.scriptCode != null
+                      ? '${value.languageCode}_${value.scriptCode}'
+                      : value.languageCode;
                   ref
                       .read(settingsNotifierProvider.notifier)
                       .updateSetting('locale', localeString);
                   context.pop();
-                },
+                }
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ...supportedLocales.map(
+                    (locale) => ListTile(
+                      title: Text(getLocaleNativeDisplayName(locale)),
+                      leading: Radio<Locale>(value: locale),
+                      selected: _isSameLocale(currentLocale, locale),
+                      selectedTileColor:
+                          Theme.of(context).colorScheme.primaryContainer,
+                      onTap: () {
+                        final localeString = locale.scriptCode != null
+                            ? '${locale.languageCode}_${locale.scriptCode}'
+                            : locale.languageCode;
+                        ref
+                            .read(settingsNotifierProvider.notifier)
+                            .updateSetting('locale', localeString);
+                        context.pop();
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -114,37 +119,37 @@ class LanguageSelector extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Automatic detection
-            RadioListTile<String>(
-              title: Text(l10n.settingsLanguageAutomatic),
-              subtitle: Text(l10n.settingsLanguageAutomaticSubtitle),
-              value: '',
-              groupValue: ref.read(settingsNotifierProvider).locale,
+            RadioGroup<String>(
+              groupValue: ref.read(settingsNotifierProvider).locale ?? '',
               onChanged: (value) {
                 ref
                     .read(settingsNotifierProvider.notifier)
                     .updateSetting('locale', value ?? '');
                 context.pop();
               },
-            ),
-            const Divider(),
-            // Supported languages
-            ...supportedLocales.map(
-              (locale) {
-                final localeString = locale.scriptCode != null
-                    ? '${locale.languageCode}_${locale.scriptCode}'
-                    : locale.languageCode;
-                return RadioListTile<String>(
-                  title: Text(getLocaleNativeDisplayName(locale)),
-                  value: localeString,
-                  groupValue: ref.read(settingsNotifierProvider).preferredLanguage,
-                  onChanged: (value) {
-                    ref
-                        .read(settingsNotifierProvider.notifier)
-                        .updateSetting('locale', value ?? '');
-                    context.pop();
-                  },
-                );
-              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<String>(
+                    title: Text(l10n.settingsLanguageAutomatic),
+                    subtitle: Text(l10n.settingsLanguageAutomaticSubtitle),
+                    value: '',
+                  ),
+                  const Divider(),
+                  // Supported languages
+                  ...supportedLocales.map(
+                    (locale) {
+                      final localeString = locale.scriptCode != null
+                          ? '${locale.languageCode}_${locale.scriptCode}'
+                          : locale.languageCode;
+                      return RadioListTile<String>(
+                        title: Text(getLocaleNativeDisplayName(locale)),
+                        value: localeString,
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ],
         ),

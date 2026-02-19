@@ -1,13 +1,12 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 /// Certificate provider for user-added CA certificates on Android
-/// This allows the app to trust certificates installed in the Android system trust store
+/// This allows the app to trust certificates installed in the
 class CertificateProvider {
-  static final CertificateProvider _instance = CertificateProvider._();
   factory CertificateProvider() => _instance;
   CertificateProvider._();
+  static final CertificateProvider _instance = CertificateProvider._();
 
   /// Check if user certificates are available
   /// On Android, this checks for user-added CAs in the system trust store

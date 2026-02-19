@@ -3,17 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../core/api/websocket_client.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/api/websocket_client.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
-import '../../core/utils/session_utils.dart';
 import '../../core/utils/session_status.dart';
-import 'session_avatar.dart';
+import '../../core/utils/session_utils.dart';
 import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
+import 'session_avatar.dart';
 
 /// Sessions list screen with date grouping and enhanced status display.
 class SessionsScreen extends ConsumerStatefulWidget {
@@ -182,7 +183,7 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
     }
 
     // Trigger stagger animation once on first non-empty render.
-    final bool triggerStagger = !_animationTriggered;
+    final triggerStagger = !_animationTriggered;
     if (!_animationTriggered) {
       _animationTriggered = true;
     }
@@ -218,7 +219,7 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
     }
 
     // Build the flat list of items with their stagger indices.
-    int staggerIndex = 0;
+    var staggerIndex = 0;
 
     final children = <Widget>[];
 
@@ -300,10 +301,10 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
       localize: localizeDateGroup,
     );
 
-    int itemIndex = startIndex;
+    var itemIndex = startIndex;
     final widgets = <Widget>[];
 
-    for (int i = 0; i < groupedItems.length; i++) {
+    for (var i = 0; i < groupedItems.length; i++) {
       final item = groupedItems[i];
       switch (item) {
         case SessionHistoryDateHeader(:final date):
@@ -348,15 +349,15 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
 /// Each card slides up from 24px below its final position, with an
 /// opacity fade, delayed by [index] * 50ms.
 class _StaggeredSlideIn extends StatefulWidget {
-  final int index;
-  final bool animate;
-  final Widget child;
 
   const _StaggeredSlideIn({
     required this.index,
     required this.animate,
     required this.child,
   });
+  final int index;
+  final bool animate;
+  final Widget child;
 
   @override
   State<_StaggeredSlideIn> createState() => _StaggeredSlideInState();
@@ -413,10 +414,10 @@ class _StaggeredSlideInState extends State<_StaggeredSlideIn>
 
 /// Fade-in for non-card elements (headers).
 class _FadeInSection extends StatefulWidget {
-  final Duration delay;
-  final Widget child;
 
   const _FadeInSection({required this.delay, required this.child});
+  final Duration delay;
+  final Widget child;
 
   @override
   State<_FadeInSection> createState() => _FadeInSectionState();
@@ -457,8 +458,8 @@ class _FadeInSectionState extends State<_FadeInSection>
 
 /// Path header for grouping sessions.
 class _PathHeader extends StatelessWidget {
-  final String path;
   const _PathHeader({required this.path});
+  final String path;
 
   @override
   Widget build(BuildContext context) {
@@ -480,9 +481,9 @@ class _PathHeader extends StatelessWidget {
 
 /// Section header for active / archived sessions.
 class _SectionHeader extends StatelessWidget {
-  final String title;
 
   const _SectionHeader({required this.title});
+  final String title;
 
   @override
   Widget build(BuildContext context) {
@@ -503,9 +504,9 @@ class _SectionHeader extends StatelessWidget {
 
 /// Date header widget for grouped sessions.
 class _DateHeaderWidget extends StatelessWidget {
-  final String date;
 
   const _DateHeaderWidget({required this.date});
+  final String date;
 
   @override
   Widget build(BuildContext context) {
@@ -530,6 +531,12 @@ class _DateHeaderWidget extends StatelessWidget {
 ///
 /// Matches React Native's StatusDot component implementation.
 class StatusDot extends StatefulWidget {
+
+  const StatusDot({
+    required this.color, super.key,
+    this.isPulsing = false,
+    this.size = 6,
+  });
   /// The dot color.
   final Color color;
 
@@ -538,13 +545,6 @@ class StatusDot extends StatefulWidget {
 
   /// Diameter of the dot in logical pixels.
   final double size;
-
-  const StatusDot({
-    super.key,
-    required this.color,
-    this.isPulsing = false,
-    this.size = 6,
-  });
 
   @override
   State<StatusDot> createState() => _StatusDotState();
@@ -603,7 +603,7 @@ class _StatusDotState extends State<StatusDot>
           width: widget.size,
           height: widget.size,
           decoration: BoxDecoration(
-            color: widget.color.withOpacity(opacity),
+            color: widget.color.withValues(alpha: opacity),
             shape: BoxShape.circle,
           ),
         );
@@ -614,17 +614,16 @@ class _StatusDotState extends State<StatusDot>
 
 /// Active session card with a pulsing green glow border.
 class ActiveSessionCard extends StatefulWidget {
+
+  const ActiveSessionCard({
+    required this.session, super.key,
+    this.onTap,
+  });
   /// The session to display.
   final Session session;
 
   /// Callback when the card is tapped.
   final VoidCallback? onTap;
-
-  const ActiveSessionCard({
-    super.key,
-    required this.session,
-    this.onTap,
-  });
 
   @override
   State<ActiveSessionCard> createState() => _ActiveSessionCardState();
@@ -678,7 +677,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(
-              color: Colors.green.withOpacity(borderOpacity),
+              color: Colors.green.withValues(alpha: borderOpacity),
               width: 1.5,
             ),
           ),
@@ -689,7 +688,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.green.withOpacity(glowOpacity),
+                  color: Colors.green.withValues(alpha: glowOpacity),
                   blurRadius: blurRadius,
                   spreadRadius: spreadRadius,
                 ),
@@ -712,7 +711,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.green.withOpacity(
+                            color: Colors.green.withValues(alpha: 
                               0.4 + 0.3 * t,
                             ),
                             blurRadius: 6 + 4 * t,
@@ -838,6 +837,15 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
 ///
 /// Matches React Native's CompactSessionRow implementation.
 class SessionCard extends StatelessWidget {
+
+  const SessionCard({
+    required this.session, super.key,
+    this.onTap,
+    this.isFirst = false,
+    this.isLast = false,
+    this.isSingle = false,
+    this.showDateHeader = false,
+  });
   /// The session to display.
   final Session session;
 
@@ -855,16 +863,6 @@ class SessionCard extends StatelessWidget {
 
   /// Whether to show a date header above the card.
   final bool showDateHeader;
-
-  const SessionCard({
-    super.key,
-    required this.session,
-    this.onTap,
-    this.isFirst = false,
-    this.isLast = false,
-    this.isSingle = false,
-    this.showDateHeader = false,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -1061,7 +1059,7 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final iconColor =
-        theme.colorScheme.onSurfaceVariant.withOpacity(0.4);
+        theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4);
     final glowColor = theme.colorScheme.primary;
 
     return Center(
@@ -1087,7 +1085,7 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
                           boxShadow: [
                             BoxShadow(
                               color: glowColor
-                                  .withOpacity(_fadeIn.value * 0.35),
+                                  .withValues(alpha: _fadeIn.value * 0.35),
                               blurRadius: 32,
                               spreadRadius: 8,
                             ),
@@ -1157,10 +1155,10 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
 ///
 /// Shows a pulsing indicator while connecting.
 class ConnectionStatusBadge extends StatefulWidget {
+
+  const ConnectionStatusBadge({required this.status, super.key});
   /// The current connection status.
   final ConnectionStatus status;
-
-  const ConnectionStatusBadge({super.key, required this.status});
 
   @override
   State<ConnectionStatusBadge> createState() =>
@@ -1236,7 +1234,7 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
                     child: Icon(
                       Icons.circle,
                       size: 12,
-                      color: color.withOpacity(opacity),
+                      color: color.withValues(alpha: opacity),
                     ),
                   );
                 },
@@ -1281,7 +1279,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
             DropdownButtonFormField<String>(
               decoration:
                   InputDecoration(labelText: l10n.sessionMachine),
-              value: _selectedMachine,
+              initialValue: _selectedMachine,
               isExpanded: true,
               selectedItemBuilder: (context) => [
                 Text(
@@ -1412,6 +1410,11 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       return;
     }
 
+    // Capture context-dependent objects before async gap
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final router = GoRouter.of(context);
+
     setState(() => _isCreating = true);
     final sessionId = await sync.createSession(
       machineId: machineId,
@@ -1423,14 +1426,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
 
     if (sessionId == null || sessionId.isEmpty) {
       setState(() => _isCreating = false);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Failed to start session')),
       );
       return;
     }
 
     ref.read(sessionsNotifierProvider.notifier).loadFromSync();
-    Navigator.pop(context);
-    context.push('/chat/$sessionId');
+    navigator.pop();
+    unawaited(router.push('/chat/$sessionId'));
   }
 }

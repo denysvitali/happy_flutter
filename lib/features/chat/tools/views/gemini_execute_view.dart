@@ -4,17 +4,16 @@ import '../tool_section_view.dart';
 
 /// View for displaying Gemini execute tool (lowercase 'execute').
 class GeminiExecuteView extends StatefulWidget {
+
+  const GeminiExecuteView({
+    required this.tool, super.key,
+    this.metadata,
+  });
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
   /// Optional metadata for path resolution.
   final Map<String, dynamic>? metadata;
-
-  const GeminiExecuteView({
-    super.key,
-    required this.tool,
-    this.metadata,
-  });
 
   @override
   State<GeminiExecuteView> createState() => _GeminiExecuteViewState();
@@ -155,15 +154,15 @@ class _GeminiExecuteViewState extends State<GeminiExecuteView> {
 // ---------------------------------------------------------------------------
 
 class _TerminalCommandBar extends StatelessWidget {
-  final String command;
-  final String? cwd;
-  final String? description;
 
   const _TerminalCommandBar({
     required this.command,
     this.cwd,
     this.description,
   });
+  final String command;
+  final String? cwd;
+  final String? description;
 
   @override
   Widget build(BuildContext context) {
@@ -321,12 +320,6 @@ class _TerminalCommandBar extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _TerminalOutputSection extends StatelessWidget {
-  final String label;
-  final String output;
-  final bool isError;
-  final bool expanded;
-  final int maxLines;
-  final VoidCallback onToggleExpand;
 
   const _TerminalOutputSection({
     required this.label,
@@ -336,6 +329,12 @@ class _TerminalOutputSection extends StatelessWidget {
     required this.maxLines,
     required this.onToggleExpand,
   });
+  final String label;
+  final String output;
+  final bool isError;
+  final bool expanded;
+  final int maxLines;
+  final VoidCallback onToggleExpand;
 
   @override
   Widget build(BuildContext context) {
@@ -445,9 +444,9 @@ class _TerminalOutputSection extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ExitCodeBadge extends StatelessWidget {
-  final int exitCode;
 
   const _ExitCodeBadge({required this.exitCode});
+  final int exitCode;
 
   @override
   Widget build(BuildContext context) {
@@ -503,10 +502,6 @@ class _ExitCodeBadge extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ShowMoreButton extends StatelessWidget {
-  final bool expanded;
-  final int hiddenCount;
-  final VoidCallback onToggle;
-  final Color borderColor;
 
   const _ShowMoreButton({
     required this.expanded,
@@ -514,6 +509,10 @@ class _ShowMoreButton extends StatelessWidget {
     required this.onToggle,
     required this.borderColor,
   });
+  final bool expanded;
+  final int hiddenCount;
+  final VoidCallback onToggle;
+  final Color borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -562,10 +561,10 @@ class _ShowMoreButton extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _CopyButton extends StatefulWidget {
-  final String text;
-  final double iconSize;
 
   const _CopyButton({required this.text, this.iconSize = 14});
+  final String text;
+  final double iconSize;
 
   @override
   State<_CopyButton> createState() => _CopyButtonState();

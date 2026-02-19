@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import '../tool_section_view.dart';
 
-/// Todo list item model.
+/// Task list item model.
 class TodoItem {
-  final String content;
-  final String status;
-  final String? priority;
-  final String? id;
 
   TodoItem({
     required this.content,
@@ -14,6 +10,10 @@ class TodoItem {
     this.priority,
     this.id,
   });
+  final String content;
+  final String status;
+  final String? priority;
+  final String? id;
 
   bool get isCompleted => status == 'completed';
   bool get isInProgress => status == 'in_progress';
@@ -22,10 +22,10 @@ class TodoItem {
 
 /// View for displaying TodoWrite tool todo lists.
 class TodoView extends StatefulWidget {
+
+  const TodoView({required this.tool, super.key, this.metadata});
   final Map<String, dynamic> tool;
   final Map<String, dynamic>? metadata;
-
-  const TodoView({super.key, required this.tool, this.metadata});
 
   @override
   State<TodoView> createState() => _TodoViewState();
@@ -64,7 +64,7 @@ class _TodoViewState extends State<TodoView> {
     final result =
         rawResult is Map<String, dynamic> ? rawResult : null;
 
-    List<TodoItem> todos = _parseTodos(input['todos']);
+    var todos = _parseTodos(input['todos']);
     if (todos.isEmpty && result != null) {
       final newTodos = result['newTodos'] as List?;
       if (newTodos != null) {
@@ -121,7 +121,7 @@ class _TodoViewState extends State<TodoView> {
               total: total,
             ),
           ),
-          // Todo items
+          // Task items
           ..._todos.map(
             (todo) => AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
@@ -188,7 +188,7 @@ class _CountSummary extends StatelessWidget {
 
 /// A single todo row with status icon and text.
 class _TodoRow extends StatelessWidget {
-  const _TodoRow({super.key, required this.todo});
+  const _TodoRow({required this.todo, super.key});
 
   final TodoItem todo;
 
@@ -223,9 +223,9 @@ class _TodoRow extends StatelessWidget {
       );
     }
 
-    final TextDecoration? decoration =
+    final decoration =
         todo.isCompleted ? TextDecoration.lineThrough : null;
-    final Color textColor = todo.isCompleted
+    final textColor = todo.isCompleted
         ? theme.colorScheme.onSurface.withAlpha(102)
         : theme.colorScheme.onSurface;
 

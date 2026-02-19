@@ -3,13 +3,13 @@ import '../tool_section_view.dart';
 
 /// View for displaying WebFetch tool results.
 class WebFetchView extends StatefulWidget {
+
+  const WebFetchView({required this.tool, super.key, this.metadata});
   /// The tool data map containing input, result, and state.
   final Map<String, dynamic> tool;
 
   /// Optional metadata associated with this tool invocation.
   final Map<String, dynamic>? metadata;
-
-  const WebFetchView({super.key, required this.tool, this.metadata});
 
   @override
   State<WebFetchView> createState() => _WebFetchViewState();
@@ -139,10 +139,10 @@ class _WebFetchViewState extends State<WebFetchView> {
 
 /// Styled chip showing the URL and a globe icon.
 class _UrlChip extends StatelessWidget {
-  final String url;
-  final String state;
 
   const _UrlChip({required this.url, required this.state});
+  final String url;
+  final String state;
 
   Color _stateColor(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -229,9 +229,9 @@ class _UrlChip extends StatelessWidget {
 
 /// Displays the optional user prompt.
 class _PromptBadge extends StatelessWidget {
-  final String prompt;
 
   const _PromptBadge({required this.prompt});
+  final String prompt;
 
   @override
   Widget build(BuildContext context) {
@@ -276,15 +276,15 @@ class _PromptBadge extends StatelessWidget {
 
 /// Displays the fetched content with a preview and "View full" button.
 class _ResultSection extends StatelessWidget {
-  final String state;
-  final dynamic result;
-  final void Function(String content) onViewFull;
 
   const _ResultSection({
     required this.state,
     required this.result,
     required this.onViewFull,
   });
+  final String state;
+  final dynamic result;
+  final void Function(String content) onViewFull;
 
   String _extractContent() {
     if (result is String) return result as String;
@@ -412,9 +412,9 @@ class _ResultSection extends StatelessWidget {
 
 /// Error state banner.
 class _ErrorBanner extends StatelessWidget {
-  final String message;
 
   const _ErrorBanner({required this.message});
+  final String message;
 
   @override
   Widget build(BuildContext context) {

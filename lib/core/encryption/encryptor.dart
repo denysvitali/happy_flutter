@@ -1,26 +1,27 @@
-import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:sodium/sodium.dart';
-import 'crypto_secret_box.dart';
-import 'crypto_box.dart';
-import 'text.dart';
+
 import 'aes_gcm.dart';
+import 'crypto_box.dart';
+import 'crypto_secret_box.dart';
+import 'text.dart';
 
-/// Encryptor interface
-abstract class Encryptor {
+/// Encryptor and Decryptor interface
+abstract interface class Encryptor {
   Future<List<Uint8List>> encrypt(List<dynamic> data);
-}
-
-/// Decryptor interface
-abstract class Decryptor {
   Future<List<dynamic>> decrypt(List<Uint8List> data);
 }
 
+/// Alias for Encryptor (combined interface)
+typedef Decryptor = Encryptor;
+
 /// NaCl Secret Box encryption (symmetric)
-class SecretBoxEncryption implements Encryptor, Decryptor {
-  final Uint8List _secretKey;
+class SecretBoxEncryption implements Encryptor {
 
   SecretBoxEncryption(this._secretKey);
+  final Uint8List _secretKey;
 
   @override
   Future<List<Uint8List>> encrypt(List<dynamic> data) async {
@@ -44,21 +45,21 @@ class SecretBoxEncryption implements Encryptor, Decryptor {
 }
 
 /// NaCl Box encryption (public key)
-class BoxEncryption implements Encryptor, Decryptor {
-  late final SecureKey _privateKey;
-  late final Uint8List _publicKey;
+class BoxEncryption implements Encryptor {
+
+  /// Legacy synchronous constructor - not supported, use create() instead
+  factory BoxEncryption(Uint8List seed) {
+    throw UnimplementedError('Use BoxEncryption.create(seed) instead');
+  }
 
   BoxEncryption._(this._privateKey, this._publicKey);
+  late final SecureKey _privateKey;
+  late final Uint8List _publicKey;
 
   /// Factory constructor that initializes async
   static Future<BoxEncryption> create(Uint8List seed) async {
     final keypair = await CryptoBox.keypairFromSeed(seed);
     return BoxEncryption._(keypair.secretKey, keypair.publicKey);
-  }
-
-  /// Legacy synchronous constructor - not supported, use create() instead
-  factory BoxEncryption(Uint8List seed) {
-    throw UnimplementedError('Use BoxEncryption.create(seed) instead');
   }
 
   @override
@@ -96,10 +97,10 @@ class BoxEncryption implements Encryptor, Decryptor {
 ///
 /// Compatible with React Native's `rn-encryption` library.
 /// Format: [1-byte version (0)][12-byte IV][ciphertext][16-byte auth tag]
-class AES256Encryption implements Encryptor, Decryptor {
-  final Uint8List _secretKey;
+class AES256Encryption implements Encryptor {
 
   AES256Encryption(this._secretKey);
+  final Uint8List _secretKey;
 
   @override
   Future<List<Uint8List>> encrypt(List<dynamic> data) async {
@@ -126,7 +127,10 @@ class AES256Encryption implements Encryptor, Decryptor {
           continue;
         }
         // Strip version byte and decrypt
-        final decrypted = await AesGcmEncryption.decrypt(item.sublist(1), _secretKey);
+        final decrypted = await AesGcmEncryption.decrypt(
+          item.sublist(1),
+          _secretKey,
+        );
         results.add(decrypted);
       } catch (e) {
         results.add(null);

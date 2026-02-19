@@ -20,6 +20,13 @@ import '../utils/tool_error_parser.dart';
 /// )
 /// ```
 class ErrorBoundary extends ConsumerStatefulWidget {
+
+  const ErrorBoundary({
+    required this.child, super.key,
+    this.onError,
+    this.fallbackBuilder,
+    this.errorBuilder,
+  });
   /// The child widget to wrap
   final Widget child;
 
@@ -31,14 +38,6 @@ class ErrorBoundary extends ConsumerStatefulWidget {
 
   /// Optional custom error display
   final Widget Function(Object error, StackTrace stack)? errorBuilder;
-
-  const ErrorBoundary({
-    super.key,
-    required this.child,
-    this.onError,
-    this.fallbackBuilder,
-    this.errorBuilder,
-  });
 
   @override
   ConsumerState<ErrorBoundary> createState() => _ErrorBoundaryState();
@@ -116,10 +115,6 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
 
 /// Default error display widget
 class _DefaultErrorWidget extends StatelessWidget {
-  final Object? error;
-  final StackTrace? stackTrace;
-  final ParsedToolError? toolError;
-  final VoidCallback onRetry;
 
   const _DefaultErrorWidget({
     required this.error,
@@ -127,6 +122,10 @@ class _DefaultErrorWidget extends StatelessWidget {
     required this.toolError,
     required this.onRetry,
   });
+  final Object? error;
+  final StackTrace? stackTrace;
+  final ParsedToolError? toolError;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -166,7 +165,7 @@ class _DefaultErrorWidget extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceVariant,
+                  color: theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -216,7 +215,7 @@ class _DefaultErrorWidget extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceVariant,
+                      color: theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: SelectableText(
@@ -340,14 +339,13 @@ class ErrorSnackbarManager {
 
 /// Widget that displays errors in a snackbar when they occur
 class ErrorSnackbarBoundary extends StatelessWidget {
-  final Widget child;
-  final void Function(Object, StackTrace)? onError;
 
   const ErrorSnackbarBoundary({
-    super.key,
-    required this.child,
+    required this.child, super.key,
     this.onError,
   });
+  final Widget child;
+  final void Function(Object, StackTrace)? onError;
 
   @override
   Widget build(BuildContext context) {
@@ -380,27 +378,23 @@ class ErrorSnackbarBoundary extends StatelessWidget {
 
 /// Notification for errors that should be shown as snackbars
 class ErrorNotification extends Notification {
+
+  ErrorNotification({
+    required this.message,
+    required this.error, required this.stackTrace, this.title,
+  });
   final String message;
   final String? title;
   final Object error;
   final StackTrace stackTrace;
-
-  ErrorNotification({
-    required this.message,
-    this.title,
-    required this.error,
-    required this.stackTrace,
-  });
 }
 
 /// Extension to easily dispatch error notifications
 extension ErrorNotificationExtension on BuildContext {
-  /// Dispatch an error notification that will be caught by ErrorSnackbarBoundary
+  /// Dispatch an error notification that will be caught by
   void notifyError(
     String message, {
-    String? title,
-    required Object error,
-    required StackTrace stackTrace,
+    required Object error, required StackTrace stackTrace, String? title,
   }) {
     ErrorNotification(
       message: message,

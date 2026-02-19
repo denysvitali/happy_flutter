@@ -2,17 +2,16 @@ import 'package:flutter/material.dart';
 
 /// Status icons for tool execution states.
 class ToolStatusIndicator extends StatelessWidget {
+
+  const ToolStatusIndicator({
+    required this.state, super.key,
+    this.size = 20,
+  });
   /// The current state of the tool.
   final ToolState state;
 
   /// Size of the indicator icon.
   final double size;
-
-  const ToolStatusIndicator({
-    super.key,
-    required this.state,
-    this.size = 20,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -48,9 +47,9 @@ enum ToolState { pending, running, completed, error }
 
 /// A pulsing animated indicator for the running state.
 class _PulsingRunningIndicator extends StatefulWidget {
-  final double size;
 
   const _PulsingRunningIndicator({required this.size});
+  final double size;
 
   @override
   State<_PulsingRunningIndicator> createState() =>
@@ -137,6 +136,12 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
 
 /// A simpler status indicator that shows just the appropriate icon.
 class StatusIcon extends StatelessWidget {
+
+  const StatusIcon({
+    required this.state, super.key,
+    this.size = 22,
+    this.color,
+  });
   /// The tool state to display.
   final ToolState state;
 
@@ -145,13 +150,6 @@ class StatusIcon extends StatelessWidget {
 
   /// Optional custom color override.
   final Color? color;
-
-  const StatusIcon({
-    super.key,
-    required this.state,
-    this.size = 22,
-    this.color,
-  });
 
   @override
   Widget build(BuildContext context) {

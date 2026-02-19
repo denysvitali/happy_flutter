@@ -1,13 +1,9 @@
-import 'encryptor.dart';
-import 'encryption_cache.dart';
 import 'base64.dart';
+import 'encryption_cache.dart';
+import 'encryptor.dart';
 
 /// Session-specific encryption management
 class SessionEncryption {
-  final String _sessionId;
-  final Encryptor _encryptor;
-  final Decryptor _decryptor;
-  final EncryptionCache _cache;
 
   SessionEncryption({
     required String sessionId,
@@ -18,6 +14,10 @@ class SessionEncryption {
         _encryptor = encryptor,
         _decryptor = decryptor,
         _cache = cache;
+  final String _sessionId;
+  final Encryptor _encryptor;
+  final Decryptor _decryptor;
+  final EncryptionCache _cache;
 
   /// Batch decrypt messages
   Future<List<DecryptedMessage?>> decryptMessages(
@@ -26,7 +26,7 @@ class SessionEncryption {
     final results = List<DecryptedMessage?>.filled(messages.length, null);
     final toDecrypt = <({int index, Map<String, dynamic> message})>[];
 
-    for (int i = 0; i < messages.length; i++) {
+    for (var i = 0; i < messages.length; i++) {
       final message = messages[i];
       if (message.isEmpty) {
         results[i] = null;
@@ -72,7 +72,7 @@ class SessionEncryption {
 
       final decrypted = await _decryptor.decrypt(encrypted);
 
-      for (int i = 0; i < toDecrypt.length; i++) {
+      for (var i = 0; i < toDecrypt.length; i++) {
         final decryptedData = decrypted[i];
         final item = toDecrypt[i];
 

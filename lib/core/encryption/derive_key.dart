@@ -4,10 +4,10 @@ import 'text.dart';
 
 /// Key tree state for hierarchical key derivation
 class KeyTreeState {
-  final Uint8List key;
-  final Uint8List chainCode;
 
   KeyTreeState(this.key, this.chainCode);
+  final Uint8List key;
+  final Uint8List chainCode;
 }
 
 /// Key derivation utilities using BIP32-like structure
@@ -24,7 +24,10 @@ class DeriveKey {
   }
 
   /// Derive child key from chain code
-  static Future<KeyTreeState> deriveChild(Uint8List chainCode, String index) async {
+  static Future<KeyTreeState> deriveChild(
+    Uint8List chainCode,
+    String index,
+  ) async {
     // Prepare data: prepend 0x00 for separator
     final data = Uint8List(1 + index.length);
     data[0] = 0x00;
@@ -45,7 +48,7 @@ class DeriveKey {
     String usage,
     List<String> path,
   ) async {
-    KeyTreeState state = await deriveRoot(master, usage);
+    var state = await deriveRoot(master, usage);
 
     for (final index in path) {
       state = await deriveChild(state.chainCode, index);

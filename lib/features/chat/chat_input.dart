@@ -101,10 +101,10 @@ const _kSwitchAnim = Duration(milliseconds: 180);
 class ChatInput extends ConsumerStatefulWidget {
   /// Creates a [ChatInput].
   const ChatInput({
-    super.key,
     required this.sessionId,
     required this.controller,
     required this.onSend,
+    super.key,
     this.isSending = false,
     this.permissionMode,
     this.onPermissionModeChanged,
@@ -178,6 +178,9 @@ class ChatInput extends ConsumerStatefulWidget {
 
 class _ChatInputState extends ConsumerState<ChatInput>
     with TickerProviderStateMixin {
+
+  _ChatInputState()
+    : _draftAutoSave = DraftAutoSave(sessionId: '', onSave: (_) {});
   final FocusNode _focusNode = FocusNode();
   final AutocompleteController _autocompleteController =
       AutocompleteController();
@@ -189,9 +192,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   late final AnimationController _sendScaleController;
   late final Animation<double> _sendScale;
-
-  _ChatInputState()
-    : _draftAutoSave = DraftAutoSave(sessionId: '', onSave: (_) {});
 
   @override
   void initState() {
@@ -369,9 +369,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
     _focusNode.requestFocus();
   }
 
-  void _handleKeyPress(RawKeyEvent event) {
+  void _handleKeyPress(KeyEvent event) {
     if (!_showAutocomplete) return;
-    if (event is! RawKeyDownEvent) return;
+    if (event is! KeyDownEvent) return;
 
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
       _autocompleteController.moveSelectionUp();
@@ -447,7 +447,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
                 end: Alignment.bottomCenter,
                 colors: [
                   theme.scaffoldBackgroundColor,
-                  theme.scaffoldBackgroundColor.withOpacity(0),
+                  theme.scaffoldBackgroundColor.withValues(alpha: 0),
                 ],
               ),
             ),
@@ -460,7 +460,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
             color: theme.scaffoldBackgroundColor,
             border: Border(
               top: BorderSide(
-                color: theme.dividerColor.withOpacity(0.6),
+                color: theme.dividerColor.withValues(alpha: 0.6),
               ),
             ),
           ),
@@ -501,23 +501,23 @@ class _ChatInputState extends ConsumerState<ChatInput>
               boxShadow: _isFocused
                   ? [
                       BoxShadow(
-                        color: cs.primary.withOpacity(0.12),
+                        color: cs.primary.withValues(alpha: 0.12),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
                     ]
                   : const [],
             ),
-            child: RawKeyboardListener(
+            child: KeyboardListener(
               focusNode: FocusNode(skipTraversal: true),
-              onKey: _handleKeyPress,
+              onKeyEvent: _handleKeyPress,
               child: TextField(
                 controller: widget.controller,
                 focusNode: _focusNode,
                 decoration: InputDecoration(
                   hintText: 'Message\u2026  \u2318\u23ce to send',
                   hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant.withOpacity(0.5),
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                     fontSize: 14,
                   ),
                   border: InputBorder.none,
@@ -560,11 +560,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
             shape: BoxShape.circle,
             color: canSend
                 ? cs.primary
-                : cs.onSurface.withOpacity(0.12),
+                : cs.onSurface.withValues(alpha: 0.12),
             boxShadow: canSend
                 ? [
                     BoxShadow(
-                      color: cs.primary.withOpacity(0.30),
+                      color: cs.primary.withValues(alpha: 0.30),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -590,7 +590,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
                     size: 20,
                     color: canSend
                         ? cs.onPrimary
-                        : cs.onSurface.withOpacity(0.38),
+                        : cs.onSurface.withValues(alpha: 0.38),
                   ),
           ),
         ),
@@ -610,10 +610,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withOpacity(0.7),
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: cs.outlineVariant.withOpacity(0.4),
+          color: cs.outlineVariant.withValues(alpha: 0.4),
         ),
       ),
       child: Row(
@@ -657,7 +657,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    Widget inner = Row(
+    final Widget inner = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 13, color: cs.onSurfaceVariant),
@@ -708,7 +708,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       child: Text(
         '/',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: cs.onSurfaceVariant.withOpacity(0.4),
+          color: cs.onSurfaceVariant.withValues(alpha: 0.4),
         ),
       ),
     );
@@ -752,7 +752,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         : cs.primary;
     final chipFg = isDefault ? cs.onSurfaceVariant : cs.onPrimary;
     final chipBorder =
-        isDefault ? cs.outlineVariant.withOpacity(0.7) : cs.primary;
+        isDefault ? cs.outlineVariant.withValues(alpha: 0.7) : cs.primary;
 
     return GestureDetector(
       onTap: () => _showModelPicker(context),
@@ -770,7 +770,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
               ? const []
               : [
                   BoxShadow(
-                    color: cs.primary.withOpacity(0.25),
+                    color: cs.primary.withValues(alpha: 0.25),
                     blurRadius: 6,
                     offset: const Offset(0, 1),
                   ),
@@ -801,7 +801,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
             Icon(
               Icons.keyboard_arrow_down_rounded,
               size: 13,
-              color: chipFg.withOpacity(0.7),
+              color: chipFg.withValues(alpha: 0.7),
             ),
           ],
         ),
@@ -881,7 +881,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
           vertical: 12,
         ),
         color: isSelected
-            ? cs.primaryContainer.withOpacity(0.35)
+            ? cs.primaryContainer.withValues(alpha: 0.35)
             : Colors.transparent,
         child: Row(
           children: [

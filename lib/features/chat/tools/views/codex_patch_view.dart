@@ -4,6 +4,15 @@ import '../tool_section_view.dart';
 
 /// File change model for CodexPatch results.
 class FileChange {
+
+  /// Creates a [FileChange].
+  FileChange({
+    required this.path,
+    required this.hasAdd,
+    required this.hasModify,
+    required this.hasDelete,
+    required this.changeData,
+  });
   /// The full file path.
   final String path;
 
@@ -18,15 +27,6 @@ class FileChange {
 
   /// The raw change data for detailed display.
   final Map<String, dynamic> changeData;
-
-  /// Creates a [FileChange].
-  FileChange({
-    required this.path,
-    required this.hasAdd,
-    required this.hasModify,
-    required this.hasDelete,
-    required this.changeData,
-  });
 
   /// Directory portion of the path.
   String get dir {
@@ -52,17 +52,16 @@ class FileChange {
 
 /// View for displaying CodexPatch tool with file changes summary.
 class CodexPatchView extends StatelessWidget {
+
+  const CodexPatchView({
+    required this.tool, super.key,
+    this.metadata,
+  });
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
   /// Optional metadata for path resolution.
   final Map<String, dynamic>? metadata;
-
-  const CodexPatchView({
-    super.key,
-    required this.tool,
-    this.metadata,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -120,13 +119,13 @@ class CodexPatchView extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _PatchHeaderBar extends StatelessWidget {
-  final int fileCount;
-  final bool? autoApproved;
 
   const _PatchHeaderBar({
     required this.fileCount,
     this.autoApproved,
   });
+  final int fileCount;
+  final bool? autoApproved;
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +162,7 @@ class _PatchHeaderBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          if (autoApproved == true)
+          if (autoApproved ?? false)
             Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: 7,
@@ -208,9 +207,9 @@ class _PatchHeaderBar extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _PatchFileList extends StatefulWidget {
-  final List<FileChange> changes;
 
   const _PatchFileList({required this.changes});
+  final List<FileChange> changes;
 
   @override
   State<_PatchFileList> createState() => _PatchFileListState();
@@ -252,15 +251,15 @@ class _PatchFileListState extends State<_PatchFileList> {
 // ---------------------------------------------------------------------------
 
 class _FileChangeRow extends StatelessWidget {
-  final FileChange change;
-  final bool isExpanded;
-  final VoidCallback onToggle;
 
   const _FileChangeRow({
     required this.change,
     required this.isExpanded,
     required this.onToggle,
   });
+  final FileChange change;
+  final bool isExpanded;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -359,9 +358,9 @@ class _FileChangeRow extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _OperationChip extends StatelessWidget {
-  final String label;
 
   const _OperationChip({required this.label});
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -390,9 +389,9 @@ class _OperationChip extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _FileChangeDetail extends StatelessWidget {
-  final Map<String, dynamic> changeData;
 
   const _FileChangeDetail({required this.changeData});
+  final Map<String, dynamic> changeData;
 
   @override
   Widget build(BuildContext context) {
@@ -450,15 +449,15 @@ class _FileChangeDetail extends StatelessWidget {
 }
 
 class _DetailSection extends StatelessWidget {
-  final String heading;
-  final String content;
-  final Color color;
 
   const _DetailSection({
     required this.heading,
     required this.content,
     required this.color,
   });
+  final String heading;
+  final String content;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -523,10 +522,10 @@ class _DetailSection extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _CopyButton extends StatefulWidget {
-  final String text;
-  final double iconSize;
 
   const _CopyButton({required this.text, this.iconSize = 14});
+  final String text;
+  final double iconSize;
 
   @override
   State<_CopyButton> createState() => _CopyButtonState();

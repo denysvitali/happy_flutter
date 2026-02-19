@@ -2,9 +2,9 @@ import 'dart:typed_data';
 
 /// Simple key storage placeholder
 class EncryptionKeys {
-  static final EncryptionKeys _instance = EncryptionKeys._();
   factory EncryptionKeys() => _instance;
   EncryptionKeys._();
+  static final EncryptionKeys _instance = EncryptionKeys._();
 
   final _sessionKeys = <String, Uint8List?>{};
   final _machineKeys = <String, Uint8List?>{};

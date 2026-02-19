@@ -1,6 +1,7 @@
-import 'dart:typed_data';
-import 'dart:math';
 import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+
 import '../encryption/encryption_manager.dart';
 
 /// Encryption service wrapper for backward compatibility
@@ -14,7 +15,9 @@ class EncryptionService {
   /// Get the underlying Encryption instance
   Encryption get encryption {
     if (_encryption == null) {
-      throw StateError('EncryptionService not initialized. Call initialize() first.');
+      throw StateError(
+        'EncryptionService not initialized. Call initialize() first.',
+      );
     }
     return _encryption!;
   }
@@ -41,7 +44,7 @@ class EncryptionService {
   Uint8List randomBytes(int length) {
     final random = Random.secure();
     final bytes = Uint8List(length);
-    for (int i = 0; i < length; i++) {
+    for (var i = 0; i < length; i++) {
       bytes[i] = random.nextInt(256);
     }
     return bytes;

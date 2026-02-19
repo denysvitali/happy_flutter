@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../tool_section_view.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+
+import '../tool_section_view.dart';
 
 /// View for displaying CodexBash tool (parsed bash commands).
 class CodexBashView extends StatelessWidget {
+
+  const CodexBashView({
+    required this.tool, super.key,
+    this.metadata,
+  });
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
   /// Optional metadata for path resolution.
   final Map<String, dynamic>? metadata;
-
-  const CodexBashView({
-    super.key,
-    required this.tool,
-    this.metadata,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +27,7 @@ class CodexBashView extends StatelessWidget {
     final cwd = input['cwd'] as String?;
     final parsedCmd = input['parsed_cmd'] as List?;
 
-    String operationType = 'bash';
+    var operationType = 'bash';
     String? fileName;
     String? commandStr;
 
@@ -196,12 +196,6 @@ class CodexBashView extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _FileOperationBar extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String label;
-  final String dir;
-  final String filename;
-  final String? detail;
 
   const _FileOperationBar({
     required this.icon,
@@ -211,6 +205,12 @@ class _FileOperationBar extends StatelessWidget {
     required this.filename,
     this.detail,
   });
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String dir;
+  final String filename;
+  final String? detail;
 
   @override
   Widget build(BuildContext context) {
@@ -330,12 +330,6 @@ class _FileOperationBar extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _CodexCommandView extends StatefulWidget {
-  final String command;
-  final String? cwd;
-  final String? stdout;
-  final String? stderr;
-  final int? exitCode;
-  final String? error;
 
   const _CodexCommandView({
     required this.command,
@@ -345,6 +339,12 @@ class _CodexCommandView extends StatefulWidget {
     this.exitCode,
     this.error,
   });
+  final String command;
+  final String? cwd;
+  final String? stdout;
+  final String? stderr;
+  final int? exitCode;
+  final String? error;
 
   @override
   State<_CodexCommandView> createState() => _CodexCommandViewState();
@@ -407,10 +407,10 @@ class _CodexCommandViewState extends State<_CodexCommandView> {
 // ---------------------------------------------------------------------------
 
 class _TerminalCommandBar extends StatelessWidget {
-  final String command;
-  final String? cwd;
 
   const _TerminalCommandBar({required this.command, this.cwd});
+  final String command;
+  final String? cwd;
 
   @override
   Widget build(BuildContext context) {
@@ -525,12 +525,6 @@ class _TerminalCommandBar extends StatelessWidget {
 }
 
 class _TerminalOutputSection extends StatelessWidget {
-  final String label;
-  final String output;
-  final bool isError;
-  final bool expanded;
-  final int maxLines;
-  final VoidCallback onToggleExpand;
 
   const _TerminalOutputSection({
     required this.label,
@@ -540,6 +534,12 @@ class _TerminalOutputSection extends StatelessWidget {
     required this.maxLines,
     required this.onToggleExpand,
   });
+  final String label;
+  final String output;
+  final bool isError;
+  final bool expanded;
+  final int maxLines;
+  final VoidCallback onToggleExpand;
 
   @override
   Widget build(BuildContext context) {
@@ -645,9 +645,9 @@ class _TerminalOutputSection extends StatelessWidget {
 }
 
 class _ExitCodeBadge extends StatelessWidget {
-  final int exitCode;
 
   const _ExitCodeBadge({required this.exitCode});
+  final int exitCode;
 
   @override
   Widget build(BuildContext context) {
@@ -699,10 +699,6 @@ class _ExitCodeBadge extends StatelessWidget {
 }
 
 class _ShowMoreButton extends StatelessWidget {
-  final bool expanded;
-  final int hiddenCount;
-  final VoidCallback onToggle;
-  final Color borderColor;
 
   const _ShowMoreButton({
     required this.expanded,
@@ -710,6 +706,10 @@ class _ShowMoreButton extends StatelessWidget {
     required this.onToggle,
     required this.borderColor,
   });
+  final bool expanded;
+  final int hiddenCount;
+  final VoidCallback onToggle;
+  final Color borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -754,10 +754,10 @@ class _ShowMoreButton extends StatelessWidget {
 }
 
 class _CopyButton extends StatefulWidget {
-  final String text;
-  final double iconSize;
 
   const _CopyButton({required this.text, this.iconSize = 14});
+  final String text;
+  final double iconSize;
 
   @override
   State<_CopyButton> createState() => _CopyButtonState();

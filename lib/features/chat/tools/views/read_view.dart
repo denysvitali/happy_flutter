@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../tool_section_view.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+
+import '../tool_section_view.dart';
 
 /// View for displaying Read tool file content preview.
 class ReadView extends StatelessWidget {
+
+  const ReadView({required this.tool, super.key, this.metadata});
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
   /// Optional metadata for path resolution.
   final Map<String, dynamic>? metadata;
-
-  const ReadView({super.key, required this.tool, this.metadata});
 
   @override
   Widget build(BuildContext context) {
@@ -72,12 +73,6 @@ class ReadView extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ReadViewContent extends StatefulWidget {
-  final String resolvedPath;
-  final String extension;
-  final int? limit;
-  final int? offset;
-  final int? totalLines;
-  final String? content;
 
   const _ReadViewContent({
     required this.resolvedPath,
@@ -87,6 +82,12 @@ class _ReadViewContent extends StatefulWidget {
     this.totalLines,
     this.content,
   });
+  final String resolvedPath;
+  final String extension;
+  final int? limit;
+  final int? offset;
+  final int? totalLines;
+  final String? content;
 
   @override
   State<_ReadViewContent> createState() => _ReadViewContentState();
@@ -157,15 +158,15 @@ class _ReadViewContentState extends State<_ReadViewContent> {
 // ---------------------------------------------------------------------------
 
 class _FileHeader extends StatelessWidget {
-  final String resolvedPath;
-  final String extension;
-  final String? content;
 
   const _FileHeader({
     required this.resolvedPath,
     required this.extension,
     this.content,
   });
+  final String resolvedPath;
+  final String extension;
+  final String? content;
 
   @override
   Widget build(BuildContext context) {
@@ -261,9 +262,9 @@ class _FileHeader extends StatelessWidget {
 }
 
 class _FileIcon extends StatelessWidget {
-  final String extension;
 
   const _FileIcon({required this.extension});
+  final String extension;
 
   @override
   Widget build(BuildContext context) {
@@ -354,11 +355,11 @@ class _FileIcon extends StatelessWidget {
 }
 
 class _MetaRow extends StatelessWidget {
+
+  const _MetaRow({this.offset, this.limit, this.totalLines});
   final int? offset;
   final int? limit;
   final int? totalLines;
-
-  const _MetaRow({this.offset, this.limit, this.totalLines});
 
   @override
   Widget build(BuildContext context) {
@@ -391,9 +392,9 @@ class _MetaRow extends StatelessWidget {
 }
 
 class _MetaChip extends StatelessWidget {
-  final String label;
 
   const _MetaChip(this.label);
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -417,11 +418,6 @@ class _MetaChip extends StatelessWidget {
 }
 
 class _ContentBlock extends StatelessWidget {
-  final String content;
-  final int? offset;
-  final bool expanded;
-  final int maxLines;
-  final VoidCallback onToggleExpand;
 
   const _ContentBlock({
     required this.content,
@@ -430,6 +426,11 @@ class _ContentBlock extends StatelessWidget {
     required this.maxLines,
     required this.onToggleExpand,
   });
+  final String content;
+  final int? offset;
+  final bool expanded;
+  final int maxLines;
+  final VoidCallback onToggleExpand;
 
   @override
   Widget build(BuildContext context) {
@@ -492,10 +493,10 @@ class _ContentBlock extends StatelessWidget {
 }
 
 class _LineNumbers extends StatelessWidget {
-  final int count;
-  final int startLine;
 
   const _LineNumbers({required this.count, required this.startLine});
+  final int count;
+  final int startLine;
 
   @override
   Widget build(BuildContext context) {
@@ -519,15 +520,15 @@ class _LineNumbers extends StatelessWidget {
 }
 
 class _ShowMoreButton extends StatelessWidget {
-  final bool expanded;
-  final int hiddenCount;
-  final VoidCallback onToggle;
 
   const _ShowMoreButton({
     required this.expanded,
     required this.hiddenCount,
     required this.onToggle,
   });
+  final bool expanded;
+  final int hiddenCount;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -572,10 +573,10 @@ class _ShowMoreButton extends StatelessWidget {
 }
 
 class _CopyButton extends StatefulWidget {
-  final String text;
-  final double iconSize;
 
   const _CopyButton({required this.text, this.iconSize = 14});
+  final String text;
+  final double iconSize;
 
   @override
   State<_CopyButton> createState() => _CopyButtonState();

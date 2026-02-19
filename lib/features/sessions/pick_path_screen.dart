@@ -9,9 +9,9 @@ import '../../core/providers/app_providers.dart';
 /// and suggest recent paths used in sessions for that machine.
 /// Pops with the entered path string when confirmed.
 class PickPathScreen extends ConsumerStatefulWidget {
-  final String? machineId;
 
   const PickPathScreen({super.key, this.machineId});
+  final String? machineId;
 
   @override
   ConsumerState<PickPathScreen> createState() => _PickPathScreenState();
@@ -200,10 +200,6 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
 }
 
 class _PathTile extends StatelessWidget {
-  final String path;
-  final bool selected;
-  final bool showDivider;
-  final VoidCallback onTap;
 
   const _PathTile({
     required this.path,
@@ -211,6 +207,10 @@ class _PathTile extends StatelessWidget {
     required this.showDivider,
     required this.onTap,
   });
+  final String path;
+  final bool selected;
+  final bool showDivider;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +221,7 @@ class _PathTile extends StatelessWidget {
           onTap: onTap,
           child: Container(
             color: selected
-                ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+                ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
                 : null,
             padding: const EdgeInsets.symmetric(
               horizontal: 16,

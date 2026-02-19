@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../tool_section_view.dart';
-import 'package:happy_flutter/core/ui/diff/diff_view.dart';
 import 'package:happy_flutter/core/ui/diff/diff_types.dart';
+import 'package:happy_flutter/core/ui/diff/diff_view.dart';
+
+import '../tool_section_view.dart';
 
 /// View for displaying CodexDiff tool with proper unified diff rendering.
 class CodexDiffView extends StatelessWidget {
+
+  const CodexDiffView({
+    required this.tool, super.key,
+    this.metadata,
+  });
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
   /// Optional metadata for path resolution.
   final Map<String, dynamic>? metadata;
-
-  const CodexDiffView({
-    super.key,
-    required this.tool,
-    this.metadata,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +66,7 @@ class CodexDiffView extends StatelessWidget {
           final content = line.substring(1);
           oldLines.add(content);
           newLines.add(content);
-        } else if (line == '\\ No newline at end of file') {
+        } else if (line == r'\ No newline at end of file') {
           continue;
         } else if (line.isEmpty) {
           oldLines.add('');
@@ -89,10 +89,6 @@ class CodexDiffView extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ParsedDiff {
-  final String oldText;
-  final String newText;
-  final String? fileName;
-  final String rawDiff;
 
   const _ParsedDiff({
     required this.oldText,
@@ -100,6 +96,10 @@ class _ParsedDiff {
     required this.rawDiff,
     this.fileName,
   });
+  final String oldText;
+  final String newText;
+  final String? fileName;
+  final String rawDiff;
 }
 
 // ---------------------------------------------------------------------------
@@ -107,9 +107,9 @@ class _ParsedDiff {
 // ---------------------------------------------------------------------------
 
 class _DiffContainer extends StatefulWidget {
-  final _ParsedDiff parsed;
 
   const _DiffContainer({required this.parsed});
+  final _ParsedDiff parsed;
 
   @override
   State<_DiffContainer> createState() => _DiffContainerState();
@@ -187,19 +187,19 @@ class _DiffContainerState extends State<_DiffContainer> {
 // ---------------------------------------------------------------------------
 
 class _DiffHeaderBar extends StatelessWidget {
+
+  const _DiffHeaderBar({
+    required this.rawDiff,
+    required this.oldCount,
+    required this.newCount,
+    this.dir,
+    this.filename,
+  });
   final String? dir;
   final String? filename;
   final String rawDiff;
   final int oldCount;
   final int newCount;
-
-  const _DiffHeaderBar({
-    this.dir,
-    this.filename,
-    required this.rawDiff,
-    required this.oldCount,
-    required this.newCount,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -272,10 +272,10 @@ class _DiffHeaderBar extends StatelessWidget {
 }
 
 class _StatBadge extends StatelessWidget {
-  final String label;
-  final Color color;
 
   const _StatBadge({required this.label, required this.color});
+  final String label;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -296,15 +296,15 @@ class _StatBadge extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ExpandToggle extends StatelessWidget {
-  final bool expanded;
-  final int totalLines;
-  final VoidCallback onToggle;
 
   const _ExpandToggle({
     required this.expanded,
     required this.totalLines,
     required this.onToggle,
   });
+  final bool expanded;
+  final int totalLines;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -352,13 +352,13 @@ class _ExpandToggle extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _DiffBody extends StatelessWidget {
-  final String oldText;
-  final String newText;
 
   const _DiffBody({
     required this.oldText,
     required this.newText,
   });
+  final String oldText;
+  final String newText;
 
   @override
   Widget build(BuildContext context) {
@@ -403,10 +403,10 @@ class _DiffBody extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _CopyButton extends StatefulWidget {
-  final String text;
-  final double iconSize;
 
   const _CopyButton({required this.text, this.iconSize = 14});
+  final String text;
+  final double iconSize;
 
   @override
   State<_CopyButton> createState() => _CopyButtonState();

@@ -1,12 +1,21 @@
 /// Exponential backoff utility for retry logic with jitter
 ///
-/// Provides both the original ExponentialBackoff class and React Native-compatible
+/// Provides both the original ExponentialBackoff class and
 /// backoff functions with exponential delay and retry capabilities.
+library;
 
 import 'dart:async';
 import 'dart:math';
 
 class ExponentialBackoff {
+
+  ExponentialBackoff({
+    required this.minDelayMs,
+    required this.maxDelayMs,
+    this.maxAttempts,
+    this.factor = 2.0,
+    this.jitter = 0.2,
+  }) : _currentDelayMs = minDelayMs;
   /// Minimum delay in milliseconds
   final int minDelayMs;
 
@@ -24,14 +33,6 @@ class ExponentialBackoff {
 
   int _attempts = 0;
   int _currentDelayMs;
-
-  ExponentialBackoff({
-    required this.minDelayMs,
-    required this.maxDelayMs,
-    this.maxAttempts,
-    this.factor = 2.0,
-    this.jitter = 0.2,
-  }) : _currentDelayMs = minDelayMs;
 
   /// Get current delay in milliseconds
   int get currentDelayMs => _currentDelayMs;
@@ -120,6 +121,13 @@ typedef BackoffErrorHandler = void Function(dynamic error, int failureCount);
 
 /// Options for creating a backoff function
 class BackoffOptions {
+
+  const BackoffOptions({
+    this.onError,
+    this.minDelay = 250,
+    this.maxDelay = 1000,
+    this.maxFailureCount = 50,
+  });
   /// Optional callback called on each error
   final BackoffErrorHandler? onError;
 
@@ -131,13 +139,6 @@ class BackoffOptions {
 
   /// Maximum number of failures before giving up (default: 50)
   final int maxFailureCount;
-
-  const BackoffOptions({
-    this.onError,
-    this.minDelay = 250,
-    this.maxDelay = 1000,
-    this.maxFailureCount = 50,
-  });
 }
 
 /// Type for a backoff-wrapped function

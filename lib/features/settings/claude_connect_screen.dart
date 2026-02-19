@@ -91,7 +91,7 @@ class _ClaudeConnectScreenState
                     child: const Row(
                       children: [
                         Text(
-                          '\$ ',
+                          r'$ ',
                           style: TextStyle(
                             fontFamily: 'monospace',
                             fontSize: 14,

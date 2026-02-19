@@ -748,8 +748,12 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       'execute': (t, m, _) => GeminiExecuteView(tool: t, metadata: m),
       'CodexPatch': (t, m, _) => CodexPatchView(tool: t, metadata: m),
       'CodexDiff': (t, m, _) => CodexDiffView(tool: t, metadata: m),
-      'Task': (t, m, msgs) =>
-          TaskView(tool: t, metadata: m, messages: msgs),
+      'Task': (t, m, msgs) => TaskView(
+            tool: t,
+            metadata: m,
+            messages: msgs,
+            onNavigate: () => widget.onPress?.call(),
+          ),
       'TodoWrite': (t, m, _) => TodoView(tool: t, metadata: m),
       'WebFetch': (t, m, _) => WebFetchView(tool: t, metadata: m),
       'WebSearch': (t, m, _) => WebSearchView(tool: t, metadata: m),

@@ -102,7 +102,7 @@ class _ToolDetailView extends StatelessWidget {
     final knownTool = KnownTools.get(toolName);
     final isTask = toolName == 'Task';
 
-    String toolTitle = toolName;
+    var toolTitle = toolName;
     if (knownTool != null) {
       if (knownTool.title is String) {
         toolTitle = knownTool.title;
@@ -250,7 +250,7 @@ class _ChildToolItem extends StatelessWidget {
     );
 
     final knownTool = KnownTools.get(toolName);
-    String title = toolName;
+    var title = toolName;
     if (knownTool?.extractDescription != null) {
       title =
           knownTool!.extractDescription!(tool, null) ?? toolName;

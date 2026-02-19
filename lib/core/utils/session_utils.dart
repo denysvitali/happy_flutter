@@ -47,10 +47,11 @@ Map<DateGroup, List<Session>> groupSessionsByDateCategory(
   }
 
   // Remove empty groups and sort sessions within each group (newest first)
-  groups.removeWhere((_, sessions) => sessions.isEmpty);
-  groups.forEach((_, sessions) {
-    sessions.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-  });
+  groups
+    ..removeWhere((_, sessions) => sessions.isEmpty)
+    ..forEach((_, sessions) {
+      sessions.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    });
 
   return groups;
 }
@@ -70,13 +71,13 @@ sealed class SessionHistoryItem {
 }
 
 class SessionHistoryDateHeader extends SessionHistoryItem {
-  final String date;
   const SessionHistoryDateHeader(this.date);
+  final String date;
 }
 
 class SessionHistorySession extends SessionHistoryItem {
-  final Session session;
   const SessionHistorySession(this.session);
+  final Session session;
 }
 
 /// Creates a flat list of [SessionHistoryItem] from date-grouped sessions.
@@ -132,14 +133,14 @@ List<SessionHistoryItem> groupSessionsByDate(
 
   final grouped = groupSessionsByDateCategory(sessions);
 
-  final defaultLocalize = (DateGroup group) {
+  String defaultLocalize(DateGroup group) {
     return switch (group) {
       DateGroup.today => 'Today',
       DateGroup.yesterday => 'Yesterday',
       DateGroup.lastSevenDays => 'Last 7 Days',
       DateGroup.older => 'Older',
     };
-  };
+  }
 
   return createSessionHistoryList(
     grouped,
@@ -165,7 +166,7 @@ String getSessionName(Session session) {
 }
 
 /// Generates a deterministic avatar ID from machine ID and path.
-/// This ensures the same machine + path combination always gets the same avatar.
+/// This ensures the same machine + path combination always gets
 String getSessionAvatarId(Session session) {
   if (session.metadata?.machineId != null && session.metadata?.path != null) {
     // Combine machine ID and path for a unique, deterministic avatar

@@ -1,6 +1,7 @@
-import 'dart:typed_data';
-import 'dart:io';
 import 'dart:ffi';
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sodium/sodium.dart';
 
@@ -41,7 +42,9 @@ class CryptoBox {
       } else if (Platform.isWindows) {
         return DynamicLibrary.open('libsodium.dll');
       }
-      throw UnsupportedError('Unsupported platform for sodium: ${Platform.operatingSystem}');
+      throw UnsupportedError(
+        'Unsupported platform for sodium: ${Platform.operatingSystem}',
+      );
     }
     _sodium = await SodiumInit.init(loader);
     return _sodium!;
@@ -103,13 +106,13 @@ class CryptoBox {
       CryptoBoxConstants.publicKeyBytes +
           CryptoBoxConstants.nonceBytes +
           encrypted.length,
-    );
-    result.setAll(0, ephemeralKeyPair.publicKey);
-    result.setAll(CryptoBoxConstants.publicKeyBytes, nonce);
-    result.setAll(
-      CryptoBoxConstants.publicKeyBytes + CryptoBoxConstants.nonceBytes,
-      encrypted,
-    );
+    )
+      ..setAll(0, ephemeralKeyPair.publicKey)
+      ..setAll(CryptoBoxConstants.publicKeyBytes, nonce)
+      ..setAll(
+        CryptoBoxConstants.publicKeyBytes + CryptoBoxConstants.nonceBytes,
+        encrypted,
+      );
 
     return result;
   }
@@ -123,14 +126,14 @@ class CryptoBox {
     if (kIsWeb) {
       // Extract bytes from SecureKey for web
       final recipientSecretKeyBytes = recipientSecretKey.extractBytes();
-      return await WebCryptoBox.decrypt(
+      return WebCryptoBox.decrypt(
         encryptedBundle,
         recipientSecretKeyBytes,
       );
     }
 
     try {
-      // Extract components: ephemeral public key (32 bytes) + nonce (24 bytes) + encrypted data
+      // Extract components: ephemeral public key (32 bytes)
       final ephemeralPublicKey = encryptedBundle.sublist(
         0,
         CryptoBoxConstants.publicKeyBytes,
@@ -162,13 +165,13 @@ class CryptoBox {
 
 /// KeyPair for box encryption
 class KeyPair {
-  final Uint8List publicKey;
-  final SecureKey privateKey;
-  final SecureKey secretKey;
 
   KeyPair({
     required this.privateKey,
     required this.publicKey,
     required this.secretKey,
   });
+  final Uint8List publicKey;
+  final SecureKey privateKey;
+  final SecureKey secretKey;
 }

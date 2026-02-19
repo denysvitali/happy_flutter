@@ -1,7 +1,9 @@
-import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sodium/sodium.dart';
+
 import 'web_crypto.dart' if (dart.library.html) 'web_crypto_web.dart';
 
 /// CryptoSecretBox encryption using libsodium (crypto_secretbox_easy)
@@ -17,15 +19,16 @@ class CryptoSecretBox {
     // Use sodium_libs which provides built-in libsodium for Flutter
     // The package exports a helper that loads the native library
     _sodium = await SodiumInit.init(
-      // sodium_libs automatically provides the DynamicLibrary for Flutter platforms
-      () => throw UnimplementedError('sodium_libs should provide DynamicLibrary'),
+      // sodium_libs automatically provides the DynamicLibrary
+      () => throw UnimplementedError(
+          'sodium_libs should provide DynamicLibrary'),
     );
     return _sodium!;
   }
 
   static Future<Uint8List> encrypt(dynamic data, Uint8List secretKey) async {
     if (kIsWeb) {
-      return await WebCryptoSecretBox.encrypt(data, secretKey);
+      return WebCryptoSecretBox.encrypt(data, secretKey);
     }
 
     final sodium = await _sodiumInstance;
@@ -51,16 +54,19 @@ class CryptoSecretBox {
     secureKey.dispose();
 
     // Bundle format: nonce + encrypted data
-    final result = Uint8List(nonce.length + encrypted.length);
-    result.setAll(0, nonce);
-    result.setAll(nonce.length, encrypted);
+    final result = Uint8List(nonce.length + encrypted.length)
+      ..setAll(0, nonce)
+      ..setAll(nonce.length, encrypted);
 
     return result;
   }
 
-  static Future<dynamic> decrypt(Uint8List encryptedData, Uint8List secretKey) async {
+  static Future<dynamic> decrypt(
+    Uint8List encryptedData,
+    Uint8List secretKey,
+  ) async {
     if (kIsWeb) {
-      return await WebCryptoSecretBox.decrypt(encryptedData, secretKey);
+      return WebCryptoSecretBox.decrypt(encryptedData, secretKey);
     }
 
     try {

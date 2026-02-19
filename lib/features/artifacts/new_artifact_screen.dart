@@ -42,14 +42,14 @@ class _NewArtifactScreenState
       return;
     }
 
-    // TODO: Encrypt title and content, generate a data encryption key,
+    // TODO(dev): Encrypt title and content, generate a data encryption key,
     // build an ArtifactCreateRequest, and submit via the API client.
     // Once the artifact is created and added to the provider, navigate
     // to the new artifact's detail screen with context.go('/artifacts/<id>').
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'TODO: Artifact creation with encryption not yet implemented.',
+          'TODO(dev): Artifact creation with encryption not yet implemented.',
         ),
       ),
     );

@@ -2,11 +2,18 @@
 ///
 /// Provides custom debounce with optional reducer and advanced debounce
 /// with cancel, reset, and flush methods.
+library;
 
 import 'dart:async';
 
 /// Options for debounce functions.
 class DebounceOptions<T> {
+
+  const DebounceOptions({
+    required this.delay,
+    this.immediateCount = 2,
+    this.reducer,
+  });
   /// The delay before the function is called
   final Duration delay;
 
@@ -15,15 +22,9 @@ class DebounceOptions<T> {
 
   /// Optional reducer function to combine pending arguments
   final T Function(T previous, T current)? reducer;
-
-  const DebounceOptions({
-    required this.delay,
-    this.immediateCount = 2,
-    this.reducer,
-  });
 }
 
-/// Creates a custom debounce function with immediate calls and optional reducer.
+/// Creates a custom debounce function with immediate calls
 ///
 /// The first [immediateCount] calls execute immediately without debouncing.
 /// After that, calls are debounced with the specified delay. If a reducer
@@ -86,14 +87,6 @@ void Function(T args) createCustomDebounce<T>(
 ///
 /// Provides full control over the debounced function lifecycle.
 class AdvancedDebounce<T> {
-  final Duration delay;
-  final int immediateCount;
-  final T Function(T previous, T current)? reducer;
-  final void Function(T args) _fn;
-
-  int _callCount = 0;
-  Timer? _timeoutId;
-  T? _pendingArgs;
 
   AdvancedDebounce(
     void Function(T args) fn,
@@ -102,6 +95,14 @@ class AdvancedDebounce<T> {
         delay = options.delay,
         immediateCount = options.immediateCount,
         reducer = options.reducer;
+  final Duration delay;
+  final int immediateCount;
+  final T Function(T previous, T current)? reducer;
+  final void Function(T args) _fn;
+
+  int _callCount = 0;
+  Timer? _timeoutId;
+  T? _pendingArgs;
 
   /// The debounced function
   void call(T args) {
@@ -114,7 +115,7 @@ class AdvancedDebounce<T> {
 
     // After immediate calls, apply debouncing
     if (_pendingArgs != null && reducer != null) {
-      _pendingArgs = reducer!(_pendingArgs!, args);
+      _pendingArgs = reducer!(_pendingArgs as T, args);
     } else {
       _pendingArgs = args;
     }
@@ -127,7 +128,7 @@ class AdvancedDebounce<T> {
     // Set new timeout
     _timeoutId = Timer(delay, () {
       if (_pendingArgs != null) {
-        _fn(_pendingArgs!);
+        _fn(_pendingArgs as T);
         _pendingArgs = null;
       }
       _timeoutId = null;
@@ -154,7 +155,7 @@ class AdvancedDebounce<T> {
       _timeoutId = null;
     }
     if (_pendingArgs != null) {
-      _fn(_pendingArgs!);
+      _fn(_pendingArgs as T);
       _pendingArgs = null;
     }
   }
@@ -166,7 +167,12 @@ class AdvancedDebounce<T> {
 /// Creates an advanced debounce with cancel, reset, and flush methods.
 ///
 /// Returns an [AdvancedDebounce] instance with a `debounced` method.
-({void Function(T args) debounced, void Function() cancel, void Function() reset, void Function() flush})
+({
+  void Function(T args) debounced,
+  void Function() cancel,
+  void Function() reset,
+  void Function() flush,
+})
     createAdvancedDebounce<T>(
   void Function(T args) fn,
   DebounceOptions<T> options,

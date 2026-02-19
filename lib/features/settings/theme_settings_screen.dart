@@ -71,8 +71,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
         .updateSetting('themeMode', themeMode);
 
     // Apply system UI chrome style immediately
-    final mode = AppThemeMode.fromString(themeMode);
-    mode.applySystemChromeWithContext(context);
+    AppThemeMode.fromString(themeMode).applySystemChromeWithContext(context);
 
     // Show feedback
     final l10n = AppLocalizations.of(context);
@@ -110,7 +109,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: isSelected
                       ? colorScheme.primaryContainer
-                      : colorScheme.surfaceVariant,
+                      : colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -133,7 +132,9 @@ class ThemeSettingsScreen extends ConsumerWidget {
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                     ),
                   ],
@@ -147,7 +148,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
               else
                 Icon(
                   Icons.chevron_right,
-                  color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
               const SizedBox(width: 8),
             ],
@@ -259,7 +260,8 @@ class ThemeSettingsScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Based on your device\'s ${isDark ? 'dark' : 'light'} appearance setting.',
+          "Based on your device's"
+          " ${isDark ? 'dark' : 'light'} appearance setting.",
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),

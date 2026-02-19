@@ -12,11 +12,11 @@ List<MarkdownBlock> parseMarkdown(String markdown) {
 }
 
 class _MarkdownParser {
+
+  _MarkdownParser(this.markdown) : lines = markdown.split('\n');
   final String markdown;
   final List<String> lines;
   int index = 0;
-
-  _MarkdownParser(this.markdown) : lines = markdown.split('\n');
 
   List<MarkdownBlock> parse() {
     final blocks = <MarkdownBlock>[];
@@ -38,7 +38,7 @@ class _MarkdownParser {
     final trimmed = line.trim();
 
     // Headers H1-H6
-    for (int i = 1; i <= 6; i++) {
+    for (var i = 1; i <= 6; i++) {
       if (trimmed.startsWith('${'#' * i} ')) {
         index++;
         return HeaderBlock(
@@ -95,7 +95,9 @@ class _MarkdownParser {
   static final _numberedListRegex = RegExp(r'^(\d+)\.\s');
 
   MarkdownBlock _parseCodeBlock(String firstLine) {
-    final language = firstLine.length > 3 ? firstLine.substring(3).trim() : null;
+    final language = firstLine.length > 3 ? firstLine.substring(
+      3,
+    ).trim() : null;
     index++;
 
     final content = <String>[];
@@ -191,11 +193,12 @@ class _MarkdownParser {
 
   TableBlock? _parseTable(List<String> allLines, int startIndex) {
     final tableLines = <String>[];
+    var idx = startIndex;
 
     // Collect consecutive lines with pipe characters
-    while (startIndex < allLines.length && allLines[startIndex].contains('|')) {
-      tableLines.add(allLines[startIndex]);
-      startIndex++;
+    while (idx < allLines.length && allLines[idx].contains('|')) {
+      tableLines.add(allLines[idx]);
+      idx++;
     }
 
     if (tableLines.length < 2) return null;
@@ -219,7 +222,7 @@ class _MarkdownParser {
 
     // Parse rows
     final rows = <List<String>>[];
-    for (int i = 2; i < tableLines.length; i++) {
+    for (var i = 2; i < tableLines.length; i++) {
       final rowLine = tableLines[i].trim();
       if (rowLine.startsWith('|')) {
         final rowCells = rowLine
@@ -244,7 +247,7 @@ class _MarkdownParser {
     final spans = <MarkdownSpan>[];
     final pattern = _spanPattern;
     final matches = pattern.allMatches(text);
-    int lastIndex = 0;
+    var lastIndex = 0;
 
     for (final match in matches) {
       // Plain text before the match

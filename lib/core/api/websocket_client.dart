@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status_codes;
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../core/models/api_update.dart';
 import '../utils/backoff.dart';
@@ -63,10 +64,10 @@ class _SocketPacket {
 
 /// Represents a decoded Socket.io message
 class _SocketMessage {
-  final String event;
-  final dynamic data;
 
   _SocketMessage({required this.event, required this.data});
+  final String event;
+  final dynamic data;
 }
 
 /// WebSocket connection state
@@ -80,9 +81,9 @@ enum ConnectionStatus {
 /// WebSocket client using Socket.io protocol
 /// Matches React Native's apiSocket.ts behavior
 class WebSocketClient {
-  static final WebSocketClient _instance = WebSocketClient._();
   factory WebSocketClient() => _instance;
   WebSocketClient._();
+  static final WebSocketClient _instance = WebSocketClient._();
 
   WebSocketChannel? _channel;
   ConnectionStatus _status = ConnectionStatus.disconnected;

@@ -14,9 +14,9 @@ import 'widgets/permission_mode_selector.dart';
 
 /// Chat screen for a session
 class ChatScreen extends ConsumerStatefulWidget {
-  final String sessionId;
 
-  const ChatScreen({super.key, required this.sessionId});
+  const ChatScreen({required this.sessionId, super.key});
+  final String sessionId;
 
   @override
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
@@ -127,7 +127,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return false;
     }
 
-    for (int i = 0; i < a.length; i++) {
+    for (var i = 0; i < a.length; i++) {
       if (a[i]['id'] != b[i]['id']) {
         return false;
       }
@@ -170,7 +170,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final isThinking = _session?.thinking == true;
+    final isThinking = _session?.thinking ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -303,7 +303,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (session == null) return '';
 
     final hasRequests =
-        session.agentState?.requests?.isNotEmpty == true;
+        session.agentState?.requests?.isNotEmpty ?? false;
     if (hasRequests) return 'Permission required';
 
     if (session.thinking) {
@@ -334,7 +334,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final session = _session;
     if (session == null) return Colors.grey;
 
-    if (session.agentState?.requests?.isNotEmpty == true) {
+    if (session.agentState?.requests?.isNotEmpty ?? false) {
       return Colors.orange;
     }
     if (session.thinking) return Colors.blue;
@@ -353,7 +353,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final path = _formatRelativePath(_session?.metadata?.path);
     final statusText = _getStatusText();
     final statusColor = _getStatusColor();
-    final isThinking = _session?.thinking == true;
+    final isThinking = _session?.thinking ?? false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -694,10 +694,10 @@ class _TypingIndicatorState extends State<_TypingIndicator>
 
 /// A single dot used by [_TypingIndicator].
 class _Dot extends StatelessWidget {
-  final double offset;
-  final Color color;
 
   const _Dot({required this.offset, required this.color});
+  final double offset;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -717,10 +717,10 @@ class _Dot extends StatelessWidget {
 
 /// Pulsing status dot indicator
 class _StatusDot extends StatefulWidget {
-  final Color color;
-  final bool pulsing;
 
   const _StatusDot({required this.color, this.pulsing = false});
+  final Color color;
+  final bool pulsing;
 
   @override
   State<_StatusDot> createState() => _StatusDotState();
@@ -750,8 +750,9 @@ class _StatusDotState extends State<_StatusDot>
     if (widget.pulsing && !_controller.isAnimating) {
       _controller.repeat(reverse: true);
     } else if (!widget.pulsing && _controller.isAnimating) {
-      _controller.stop();
-      _controller.value = 1.0;
+      _controller
+        ..stop()
+        ..value = 1.0;
     }
   }
 

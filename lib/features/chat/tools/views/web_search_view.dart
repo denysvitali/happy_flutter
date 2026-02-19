@@ -3,6 +3,9 @@ import '../tool_section_view.dart';
 
 /// Search result item model.
 class SearchResult {
+
+  /// Creates a [SearchResult].
+  SearchResult({required this.title, required this.url, this.snippet});
   /// The title of the search result.
   final String title;
 
@@ -11,20 +14,17 @@ class SearchResult {
 
   /// An optional short description / snippet.
   final String? snippet;
-
-  /// Creates a [SearchResult].
-  SearchResult({required this.title, required this.url, this.snippet});
 }
 
 /// View for displaying WebSearch tool results.
 class WebSearchView extends StatefulWidget {
+
+  const WebSearchView({required this.tool, super.key, this.metadata});
   /// The tool data map containing input, result, and state.
   final Map<String, dynamic> tool;
 
   /// Optional metadata associated with this tool invocation.
   final Map<String, dynamic>? metadata;
-
-  const WebSearchView({super.key, required this.tool, this.metadata});
 
   @override
   State<WebSearchView> createState() => _WebSearchViewState();
@@ -196,10 +196,10 @@ class _WebSearchViewState extends State<WebSearchView> {
 
 /// Styled search bar showing the query.
 class _SearchBar extends StatelessWidget {
-  final String query;
-  final String state;
 
   const _SearchBar({required this.query, required this.state});
+  final String query;
+  final String state;
 
   @override
   Widget build(BuildContext context) {
@@ -274,10 +274,10 @@ class _GoogleDotsIcon extends StatelessWidget {
 }
 
 class _Dot extends StatelessWidget {
-  final double size;
-  final Color color;
 
   const _Dot({required this.size, required this.color});
+  final double size;
+  final Color color;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -289,9 +289,9 @@ class _Dot extends StatelessWidget {
 
 /// A single search result card with title, URL chip, and snippet.
 class _ResultCard extends StatelessWidget {
-  final SearchResult searchResult;
 
   const _ResultCard({required this.searchResult});
+  final SearchResult searchResult;
 
   /// Returns the domain portion of a URL for compact display.
   String _domain(String url) {
@@ -437,9 +437,9 @@ class _LoadingIndicator extends StatelessWidget {
 
 /// Error state banner.
 class _ErrorBanner extends StatelessWidget {
-  final String? message;
 
   const _ErrorBanner({this.message});
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -467,7 +467,7 @@ class _ErrorBanner extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                message?.isNotEmpty == true
+                message?.isNotEmpty ?? false
                     ? message!
                     : 'Search failed. Please try again.',
                 style: TextStyle(

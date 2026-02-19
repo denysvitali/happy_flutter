@@ -2,6 +2,18 @@ import 'package:flutter/material.dart';
 
 /// Permission request UI with Allow, Allow All, and Deny buttons.
 class PermissionFooter extends StatelessWidget {
+
+  const PermissionFooter({
+    required this.permission,
+    required this.sessionId,
+    required this.toolName,
+    super.key,
+    this.toolInput,
+    this.onAllow,
+    this.onDeny,
+    this.onAllowAllEdits,
+    this.onAllowForSession,
+  });
   /// The permission data.
   final Map<String, dynamic> permission;
 
@@ -25,18 +37,6 @@ class PermissionFooter extends StatelessWidget {
 
   /// Callback when permission is allowed for the session.
   final VoidCallback? onAllowForSession;
-
-  const PermissionFooter({
-    super.key,
-    required this.permission,
-    required this.sessionId,
-    required this.toolName,
-    this.toolInput,
-    this.onAllow,
-    this.onDeny,
-    this.onAllowAllEdits,
-    this.onAllowForSession,
-  });
 
   String _actionDescription() {
     if (toolInput == null) return 'run $toolName';
@@ -195,16 +195,6 @@ class PermissionFooter extends StatelessWidget {
 }
 
 class _ActionButtons extends StatelessWidget {
-  final bool isPending;
-  final bool isEditTool;
-  final bool isApproved;
-  final bool isDenied;
-  final bool isApprovedViaAllEdits;
-  final bool isApprovedForSession;
-  final VoidCallback? onAllow;
-  final VoidCallback? onDeny;
-  final VoidCallback? onAllowAllEdits;
-  final VoidCallback? onAllowForSession;
 
   const _ActionButtons({
     required this.isPending,
@@ -218,6 +208,16 @@ class _ActionButtons extends StatelessWidget {
     this.onAllowAllEdits,
     this.onAllowForSession,
   });
+  final bool isPending;
+  final bool isEditTool;
+  final bool isApproved;
+  final bool isDenied;
+  final bool isApprovedViaAllEdits;
+  final bool isApprovedForSession;
+  final VoidCallback? onAllow;
+  final VoidCallback? onDeny;
+  final VoidCallback? onAllowAllEdits;
+  final VoidCallback? onAllowForSession;
 
   @override
   Widget build(BuildContext context) {
@@ -295,13 +295,13 @@ class _ActionButtons extends StatelessWidget {
 }
 
 class _SecondaryButton extends StatelessWidget {
-  final String label;
-  final VoidCallback? onPressed;
 
   const _SecondaryButton({
     required this.label,
     this.onPressed,
   });
+  final String label;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -330,6 +330,12 @@ class _SecondaryButton extends StatelessWidget {
 
 /// A simpler permission button row for quick actions.
 class PermissionButtons extends StatelessWidget {
+
+  const PermissionButtons({
+    required this.status, super.key,
+    this.onAllow,
+    this.onDeny,
+  });
   /// The permission status.
   final String status;
 
@@ -338,13 +344,6 @@ class PermissionButtons extends StatelessWidget {
 
   /// Callback for deny action.
   final VoidCallback? onDeny;
-
-  const PermissionButtons({
-    super.key,
-    required this.status,
-    this.onAllow,
-    this.onDeny,
-  });
 
   @override
   Widget build(BuildContext context) {

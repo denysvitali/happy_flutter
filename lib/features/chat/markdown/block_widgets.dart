@@ -4,28 +4,28 @@
 /// with support for text selection and proper styling.
 library;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'markdown_models.dart';
+
 import '../syntax_highlighter.dart';
+import 'markdown_models.dart';
 
 /// A widget that displays text with inline formatting.
 ///
 /// Supports bold, italic, semibold, and inline code styles.
 /// Text is selectable for copying on long-press.
 class TextBlockWidget extends StatelessWidget {
-  final List<MarkdownSpan> content;
-  final bool isFirst;
-  final bool isLast;
 
   const TextBlockWidget({
-    super.key,
-    required this.content,
+    required this.content, super.key,
     this.isFirst = false,
     this.isLast = false,
   });
+  final List<MarkdownSpan> content;
+  final bool isFirst;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +60,9 @@ class TextBlockWidget extends StatelessWidget {
           : span.styles.contains(MarkdownTextStyle.semibold)
               ? FontWeight.w600
               : null,
-      fontFamily: span.styles.contains(MarkdownTextStyle.code) ? 'monospace' : null,
+      fontFamily: span.styles.contains(MarkdownTextStyle.code)
+          ? 'monospace'
+          : null,
       backgroundColor: span.styles.contains(MarkdownTextStyle.code)
           ? Colors.black12
           : null,
@@ -89,18 +91,16 @@ class TextBlockWidget extends StatelessWidget {
 ///
 /// Headers are rendered with decreasing font sizes from H1 to H6.
 class HeaderBlockWidget extends StatelessWidget {
+
+  const HeaderBlockWidget({
+    required this.level, required this.content, super.key,
+    this.isFirst = false,
+    this.isLast = false,
+  });
   final int level;
   final List<MarkdownSpan> content;
   final bool isFirst;
   final bool isLast;
-
-  const HeaderBlockWidget({
-    super.key,
-    required this.level,
-    required this.content,
-    this.isFirst = false,
-    this.isLast = false,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -163,16 +163,15 @@ class HeaderBlockWidget extends StatelessWidget {
 
 /// A widget that displays an unordered (bulleted) list.
 class ListBlockWidget extends StatelessWidget {
-  final List<List<MarkdownSpan>> items;
-  final bool isFirst;
-  final bool isLast;
 
   const ListBlockWidget({
-    super.key,
-    required this.items,
+    required this.items, super.key,
     this.isFirst = false,
     this.isLast = false,
   });
+  final List<List<MarkdownSpan>> items;
+  final bool isFirst;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
@@ -227,7 +226,9 @@ class ListBlockWidget extends StatelessWidget {
         fontWeight: span.styles.contains(MarkdownTextStyle.bold)
             ? FontWeight.bold
             : null,
-        fontFamily: span.styles.contains(MarkdownTextStyle.code) ? 'monospace' : null,
+        fontFamily: span.styles.contains(MarkdownTextStyle.code)
+            ? 'monospace'
+            : null,
         backgroundColor: span.styles.contains(MarkdownTextStyle.code)
             ? Colors.black12
             : null,
@@ -238,16 +239,15 @@ class ListBlockWidget extends StatelessWidget {
 
 /// A widget that displays a numbered list.
 class NumberedListBlockWidget extends StatelessWidget {
-  final List<NumberedItem> items;
-  final bool isFirst;
-  final bool isLast;
 
   const NumberedListBlockWidget({
-    super.key,
-    required this.items,
+    required this.items, super.key,
     this.isFirst = false,
     this.isLast = false,
   });
+  final List<NumberedItem> items;
+  final bool isFirst;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
@@ -302,7 +302,9 @@ class NumberedListBlockWidget extends StatelessWidget {
         fontWeight: span.styles.contains(MarkdownTextStyle.bold)
             ? FontWeight.bold
             : null,
-        fontFamily: span.styles.contains(MarkdownTextStyle.code) ? 'monospace' : null,
+        fontFamily: span.styles.contains(MarkdownTextStyle.code)
+            ? 'monospace'
+            : null,
         backgroundColor: span.styles.contains(MarkdownTextStyle.code)
             ? Colors.black12
             : null,
@@ -320,18 +322,17 @@ class NumberedListBlockWidget extends StatelessWidget {
 /// - Language badge display
 /// - Text selection support
 class CodeBlockWidget extends StatefulWidget {
-  final String content;
-  final String? language;
-  final bool isFirst;
-  final bool isLast;
 
   const CodeBlockWidget({
-    super.key,
-    required this.content,
+    required this.content, super.key,
     this.language,
     this.isFirst = false,
     this.isLast = false,
   });
+  final String content;
+  final String? language;
+  final bool isFirst;
+  final bool isLast;
 
   @override
   State<CodeBlockWidget> createState() => _CodeBlockWidgetState();
@@ -514,18 +515,17 @@ class HorizontalRuleBlockWidget extends StatelessWidget {
 
 /// A widget that displays an options block for interactive choices.
 class OptionsBlockWidget extends StatelessWidget {
-  final List<String> items;
-  final bool isFirst;
-  final bool isLast;
-  final void Function(String option)? onOptionPress;
 
   const OptionsBlockWidget({
-    super.key,
-    required this.items,
+    required this.items, super.key,
     this.isFirst = false,
     this.isLast = false,
     this.onOptionPress,
   });
+  final List<String> items;
+  final bool isFirst;
+  final bool isLast;
+  final void Function(String option)? onOptionPress;
 
   @override
   Widget build(BuildContext context) {
@@ -584,24 +584,24 @@ class OptionsBlockWidget extends StatelessWidget {
 
 /// A widget that displays a table with headers and data rows.
 class TableBlockWidget extends StatelessWidget {
+
+  const TableBlockWidget({
+    required this.headers, required this.rows, super.key,
+    this.isFirst = false,
+    this.isLast = false,
+  });
   final List<String> headers;
   final List<List<String>> rows;
   final bool isFirst;
   final bool isLast;
 
-  const TableBlockWidget({
-    super.key,
-    required this.headers,
-    required this.rows,
-    this.isFirst = false,
-    this.isLast = false,
-  });
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final columnCount = headers.length;
-    final minWidth = columnCount > 0 ? (300 / columnCount).floor().toDouble() : 100.0;
+    final minWidth = columnCount > 0
+        ? (300 / columnCount).floor().toDouble()
+        : 100.0;
     final safeMinWidth = minWidth < 100.0 ? 100.0 : minWidth;
 
     return SingleChildScrollView(
@@ -619,7 +619,7 @@ class TableBlockWidget extends StatelessWidget {
             // Header row
             Container(
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceVariant,
+                color: theme.colorScheme.surfaceContainerHighest,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(7),
                   topRight: Radius.circular(7),
@@ -662,7 +662,8 @@ class TableBlockWidget extends StatelessWidget {
                 child: Row(
                   children: headers.asMap().entries.map((cellEntry) {
                     final cellIndex = cellEntry.key;
-                    final cellText = row.length > cellIndex ? row[cellIndex] : '';
+                    final cellText =
+                        row.length > cellIndex ? row[cellIndex] : '';
 
                     return Container(
                       width: safeMinWidth,
@@ -682,7 +683,7 @@ class TableBlockWidget extends StatelessWidget {
                   }).toList(),
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),

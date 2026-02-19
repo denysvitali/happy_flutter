@@ -8,13 +8,13 @@ import 'package:happy_flutter/core/components/diff_view_widget.dart'
 /// highlighting for removed/added lines, collapsed by default for
 /// large diffs.
 class EditView extends StatefulWidget {
+
+  const EditView({required this.tool, super.key, this.metadata});
   /// The tool call data.
   final Map<String, dynamic> tool;
 
   /// Optional metadata.
   final Map<String, dynamic>? metadata;
-
-  const EditView({super.key, required this.tool, this.metadata});
 
   @override
   State<EditView> createState() => _EditViewState();
@@ -107,9 +107,9 @@ class _EditViewState extends State<EditView> {
 
 /// Displays a file path as a prominent pill-style label with a file icon.
 class _FilePathHeader extends StatelessWidget {
-  final String filePath;
 
   const _FilePathHeader({required this.filePath});
+  final String filePath;
 
   @override
   Widget build(BuildContext context) {
@@ -181,6 +181,12 @@ class _FilePathHeader extends StatelessWidget {
 /// Wraps [dw.DiffView] with the legacy parameter names used by
 /// earlier views in this package.
 class DiffView extends StatelessWidget {
+
+  const DiffView({
+    required this.oldText, required this.newText, super.key,
+    this.showLineNumbers = true,
+    this.showPlusMinus = true,
+  });
   /// Old text content.
   final String oldText;
 
@@ -192,14 +198,6 @@ class DiffView extends StatelessWidget {
 
   /// Whether to show +/- prefix symbols.
   final bool showPlusMinus;
-
-  const DiffView({
-    super.key,
-    required this.oldText,
-    required this.newText,
-    this.showLineNumbers = true,
-    this.showPlusMinus = true,
-  });
 
   @override
   Widget build(BuildContext context) {

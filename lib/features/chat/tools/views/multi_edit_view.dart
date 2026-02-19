@@ -8,13 +8,13 @@ import '../tool_section_view.dart';
 /// Shows a summary header "X edits in filename", then each edit as a
 /// numbered, collapsible diff card.
 class MultiEditView extends StatelessWidget {
+
+  const MultiEditView({required this.tool, super.key, this.metadata});
   /// The tool call data.
   final Map<String, dynamic> tool;
 
   /// Optional metadata.
   final Map<String, dynamic>? metadata;
-
-  const MultiEditView({super.key, required this.tool, this.metadata});
 
   @override
   Widget build(BuildContext context) {
@@ -101,13 +101,13 @@ class MultiEditView extends StatelessWidget {
 
 /// Summary header showing the total edit count and the target file.
 class _MultiEditHeader extends StatelessWidget {
-  final int editCount;
-  final String filePath;
 
   const _MultiEditHeader({
     required this.editCount,
     required this.filePath,
   });
+  final int editCount;
+  final String filePath;
 
   @override
   Widget build(BuildContext context) {
@@ -210,10 +210,6 @@ class _MultiEditHeader extends StatelessWidget {
 
 /// A numbered, collapsible diff card for a single edit.
 class _EditCard extends StatefulWidget {
-  final int number;
-  final String oldString;
-  final String newString;
-  final bool replaceAll;
 
   const _EditCard({
     required this.number,
@@ -221,6 +217,10 @@ class _EditCard extends StatefulWidget {
     required this.newString,
     required this.replaceAll,
   });
+  final int number;
+  final String oldString;
+  final String newString;
+  final bool replaceAll;
 
   @override
   State<_EditCard> createState() => _EditCardState();

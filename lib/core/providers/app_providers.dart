@@ -1,17 +1,18 @@
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:riverpod/riverpod.dart';
-import '../models/session.dart';
-import '../models/machine.dart';
-import '../models/settings.dart';
-import '../models/auth.dart';
-import '../models/profile.dart';
-import '../models/friend.dart';
-import '../models/artifact.dart';
-import '../models/feed.dart';
-import '../models/todo.dart';
-import '../api/websocket_client.dart' show ConnectionStatus;
-import '../api/socket_io_client.dart' as socket_io;
+
 import '../api/api_client.dart';
+import '../api/socket_io_client.dart' as socket_io;
+import '../api/websocket_client.dart' show ConnectionStatus;
+import '../models/artifact.dart';
+import '../models/auth.dart';
+import '../models/feed.dart';
+import '../models/friend.dart';
+import '../models/machine.dart';
+import '../models/profile.dart';
+import '../models/session.dart';
+import '../models/settings.dart';
+import '../models/todo.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
@@ -109,9 +110,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   }
 
   void removeSession(String id) {
-    final newState = Map<String, Session>.from(state);
-    newState.remove(id);
-    state = newState;
+    state = Map<String, Session>.from(state)..remove(id);
   }
 
   void setSessions(List<Session> sessions) {
@@ -385,9 +384,7 @@ class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
   }
 
   void clearGitStatus(String sessionId) {
-    final newState = Map<String, GitStatus>.from(state);
-    newState.remove(sessionId);
-    state = newState;
+    state = Map<String, GitStatus>.from(state)..remove(sessionId);
   }
 
   void clearAll() {
@@ -418,9 +415,7 @@ class ArtifactsNotifier extends Notifier<Map<String, Artifact>> {
   }
 
   void removeArtifact(String id) {
-    final newState = Map<String, Artifact>.from(state);
-    newState.remove(id);
-    state = newState;
+    state = Map<String, Artifact>.from(state)..remove(id);
   }
 
   void setArtifacts(List<Artifact> artifacts) {
@@ -515,10 +510,10 @@ class FriendsNotifier extends Notifier<FriendsState> {
 }
 
 class FriendsState {
-  final List<UserProfile> friends;
-  final List<FriendRequest> pendingRequests;
 
   FriendsState({this.friends = const [], this.pendingRequests = const []});
+  final List<UserProfile> friends;
+  final List<FriendRequest> pendingRequests;
 
   FriendsState copyWith({
     List<UserProfile>? friends,
@@ -619,10 +614,10 @@ class FeedNotifier extends Notifier<FeedState> {
 }
 
 class FeedState {
-  final List<FeedItem> items;
-  final List<AppNotification> notifications;
 
   FeedState({this.items = const [], this.notifications = const []});
+  final List<FeedItem> items;
+  final List<AppNotification> notifications;
 
   FeedState copyWith({
     List<FeedItem>? items,
@@ -639,7 +634,7 @@ class FeedState {
       notifications.where((n) => !n.dismissed && !n.read).length;
 }
 
-/// Todo list provider
+/// Task list provider
 final todoStateNotifierProvider =
     NotifierProvider<TodoStateNotifier, TodoListState>(() {
       return TodoStateNotifier();
@@ -730,9 +725,9 @@ class TodoStateNotifier extends Notifier<TodoListState> {
   }
 
   void clearSessionTodos(String sessionId) {
-    final newLists = Map<String, TodoList>.from(state.lists);
-    newLists.remove(sessionId);
-    state = state.copyWith(lists: newLists);
+    state = state.copyWith(
+      lists: Map<String, TodoList>.from(state.lists)..remove(sessionId),
+    );
   }
 
   void clear() {
@@ -741,9 +736,9 @@ class TodoStateNotifier extends Notifier<TodoListState> {
 }
 
 class TodoListState {
-  final Map<String, TodoList> lists;
 
   TodoListState({this.lists = const {}});
+  final Map<String, TodoList> lists;
 
   TodoListState copyWith({Map<String, TodoList>? lists}) {
     return TodoListState(lists: lists ?? this.lists);

@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 /// Timer widget that updates every second to show elapsed time.
 class ElapsedTimeWidget extends StatefulWidget {
+
+  const ElapsedTimeWidget({required this.startTime, super.key, this.style});
   /// The start timestamp in milliseconds since epoch.
   final int? startTime;
 
   /// Text style for the elapsed time display.
   final TextStyle? style;
-
-  const ElapsedTimeWidget({super.key, required this.startTime, this.style});
 
   @override
   State<ElapsedTimeWidget> createState() => _ElapsedTimeWidgetState();
@@ -63,17 +63,15 @@ class _ElapsedTimeWidgetState extends State<ElapsedTimeWidget> {
 
 /// Hook-style widget that updates every second.
 class ElapsedTime extends StatelessWidget {
+
+  const ElapsedTime({
+    required this.startTime, required this.builder, super.key,
+  });
   /// The start timestamp in milliseconds since epoch.
   final int? startTime;
 
   /// Callback to build the elapsed time widget.
   final Widget Function(BuildContext context, int elapsedSeconds) builder;
-
-  const ElapsedTime({
-    super.key,
-    required this.startTime,
-    required this.builder,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -85,10 +83,10 @@ class ElapsedTime extends StatelessWidget {
 }
 
 class _ElapsedTimeBuilder extends StatefulWidget {
-  final int? startTime;
-  final Widget Function(BuildContext context, int elapsedSeconds) builder;
 
   const _ElapsedTimeBuilder({required this.startTime, required this.builder});
+  final int? startTime;
+  final Widget Function(BuildContext context, int elapsedSeconds) builder;
 
   @override
   State<_ElapsedTimeBuilder> createState() => _ElapsedTimeBuilderState();

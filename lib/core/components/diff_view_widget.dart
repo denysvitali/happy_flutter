@@ -3,28 +3,6 @@ import 'diff_view.dart';
 
 /// Diff view colors for theming.
 class DiffViewColors {
-  /// Background colors
-  final Color addedBg;
-  final Color removedBg;
-  final Color contextBg;
-  final Color hunkHeaderBg;
-  final Color lineNumberBg;
-
-  /// Text colors
-  final Color addedText;
-  final Color removedText;
-  final Color contextText;
-  final Color hunkHeaderText;
-  final Color lineNumberText;
-
-  /// Inline highlight colors
-  final Color inlineAddedBg;
-  final Color inlineAddedText;
-  final Color inlineRemovedBg;
-  final Color inlineRemovedText;
-
-  /// Other colors
-  final Color leadingSpaceDot;
 
   DiffViewColors({
     required this.addedBg,
@@ -57,9 +35,9 @@ class DiffViewColors {
       contextText: const Color(0xFF24292F),
       hunkHeaderText: const Color(0xFF656D76),
       lineNumberText: const Color(0xFF6E7781),
-      inlineAddedBg: const Color(0xFF4AC26B4D),
+      inlineAddedBg: const Color(0x4AC26B4D),
       inlineAddedText: const Color(0xFF1A7F37),
-      inlineRemovedBg: const Color(0xFFFFA39E4D),
+      inlineRemovedBg: const Color(0xFFA39E4D),
       inlineRemovedText: const Color(0xFFCF222E),
       leadingSpaceDot: const Color(0xFFD4D4D4),
     );
@@ -78,17 +56,48 @@ class DiffViewColors {
       contextText: const Color(0xFFC9D1D9),
       hunkHeaderText: const Color(0xFF8B949E),
       lineNumberText: const Color(0xFF6E7681),
-      inlineAddedBg: const Color(0xFF4AC26B33),
+      inlineAddedBg: const Color(0x4AC26B33),
       inlineAddedText: const Color(0xFF4AC26B),
-      inlineRemovedBg: const Color(0xFFFFA39E33),
+      inlineRemovedBg: const Color(0xFFA39E33),
       inlineRemovedText: const Color(0xFFFF7B72),
       leadingSpaceDot: const Color(0xFF4A4A4A),
     );
   }
+  /// Background colors
+  final Color addedBg;
+  final Color removedBg;
+  final Color contextBg;
+  final Color hunkHeaderBg;
+  final Color lineNumberBg;
+
+  /// Text colors
+  final Color addedText;
+  final Color removedText;
+  final Color contextText;
+  final Color hunkHeaderText;
+  final Color lineNumberText;
+
+  /// Inline highlight colors
+  final Color inlineAddedBg;
+  final Color inlineAddedText;
+  final Color inlineRemovedBg;
+  final Color inlineRemovedText;
+
+  /// Other colors
+  final Color leadingSpaceDot;
 }
 
 /// Configuration for diff view styling.
 class DiffViewConfig {
+
+  DiffViewConfig({
+    this.fontSize = 13,
+    this.lineHeight = 20,
+    this.linePaddingHorizontal = 8,
+    this.hunkHeaderPadding = 8,
+    this.lineNumberWidth = 40,
+    this.useMonospaceFont = true,
+  });
   /// Font size for diff content
   final double fontSize;
 
@@ -106,21 +115,26 @@ class DiffViewConfig {
 
   /// Whether to use monospace font
   final bool useMonospaceFont;
-
-  DiffViewConfig({
-    this.fontSize = 13,
-    this.lineHeight = 20,
-    this.linePaddingHorizontal = 8,
-    this.hunkHeaderPadding = 8,
-    this.lineNumberWidth = 40,
-    this.useMonospaceFont = true,
-  });
 }
 
 /// A Flutter widget for displaying git diffs with syntax highlighting.
 ///
 /// Matches the behavior of the React Native DiffView.tsx component.
 class DiffView extends StatefulWidget {
+
+  const DiffView({
+    required this.oldText, required this.newText, super.key,
+    this.contextLines = 3,
+    this.showLineNumbers = true,
+    this.showPlusMinusSymbols = true,
+    this.wrapLines = false,
+    this.colors,
+    this.config,
+    this.oldTitle,
+    this.newTitle,
+    this.maxHeight,
+    this.backgroundColor,
+  });
   /// The old/original text
   final String oldText;
 
@@ -156,22 +170,6 @@ class DiffView extends StatefulWidget {
 
   /// Background color override
   final Color? backgroundColor;
-
-  const DiffView({
-    super.key,
-    required this.oldText,
-    required this.newText,
-    this.contextLines = 3,
-    this.showLineNumbers = true,
-    this.showPlusMinusSymbols = true,
-    this.wrapLines = false,
-    this.colors,
-    this.config,
-    this.oldTitle,
-    this.newTitle,
-    this.maxHeight,
-    this.backgroundColor,
-  });
 
   @override
   State<DiffView> createState() => _DiffViewState();
@@ -252,7 +250,7 @@ class _DiffViewState extends State<DiffView> {
   List<Widget> _buildDiffContent() {
     final lines = <Widget>[];
 
-    for (int hunkIndex = 0;
+    for (var hunkIndex = 0;
         hunkIndex < _diffResult.hunks.length;
         hunkIndex++) {
       final hunk = _diffResult.hunks[hunkIndex];
@@ -263,7 +261,7 @@ class _DiffViewState extends State<DiffView> {
       }
 
       // Add lines in this hunk
-      for (int lineIndex = 0; lineIndex < hunk.lines.length; lineIndex++) {
+      for (var lineIndex = 0; lineIndex < hunk.lines.length; lineIndex++) {
         lines.add(_buildDiffLine(hunk.lines[lineIndex]));
       }
     }
@@ -273,7 +271,8 @@ class _DiffViewState extends State<DiffView> {
 
   Widget _buildHunkHeader(DiffHunk hunk) {
     final headerText =
-        '@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@';
+        '@@ -${hunk.oldStart},${hunk.oldLines}'
+            ' +${hunk.newStart},${hunk.newLines} @@';
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -386,9 +385,9 @@ class _DiffViewState extends State<DiffView> {
     Color baseColor,
   ) {
     final spans = <InlineSpan>[];
-    bool processedLeadingSpaces = false;
+    var processedLeadingSpaces = false;
 
-    for (int i = 0; i < tokens.length; i++) {
+    for (var i = 0; i < tokens.length; i++) {
       final token = tokens[i];
 
       // Process leading spaces in the first token only
@@ -503,13 +502,19 @@ extension DiffResultExtension on DiffResult {
 
   /// Get the list of added lines
   List<DiffLine> get addedLines =>
-      hunks.expand((h) => h.lines).where((l) => l.type == DiffLineType.add).toList();
+      hunks.expand(
+        (h) => h.lines,
+      ).where((l) => l.type == DiffLineType.add).toList();
 
   /// Get the list of removed lines
   List<DiffLine> get removedLines =>
-      hunks.expand((h) => h.lines).where((l) => l.type == DiffLineType.remove).toList();
+      hunks.expand(
+        (h) => h.lines,
+      ).where((l) => l.type == DiffLineType.remove).toList();
 
   /// Get the list of context lines
   List<DiffLine> get contextLines =>
-      hunks.expand((h) => h.lines).where((l) => l.type == DiffLineType.normal).toList();
+      hunks.expand(
+        (h) => h.lines,
+      ).where((l) => l.type == DiffLineType.normal).toList();
 }

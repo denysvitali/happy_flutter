@@ -1,42 +1,5 @@
 /// Settings model matching the original Zod schema
 class Settings {
-  int schemaVersion = 2;
-  String themeMode = 'system';
-  bool viewInline = false;
-  String? inferenceOpenAIKey;
-  bool expandTodos = true;
-  bool showLineNumbers = true;
-  bool showLineNumbersInToolViews = false;
-  bool wrapLinesInDiffs = false;
-  bool analyticsOptOut = false;
-  bool experiments = false;
-  bool markdownCopyV2 = false;
-  bool useEnhancedSessionWizard = false;
-  bool alwaysShowContextSize = false;
-  bool agentInputEnterToSend = true;
-  bool developerModeEnabled = false;
-  String avatarStyle = 'brutalist';
-  bool showFlavorIcons = false;
-  bool compactSessionView = false;
-  bool hideInactiveSessions = false;
-  bool reviewPromptAnswered = false;
-  bool? reviewPromptLikedApp;
-  String? voiceAssistantLanguage;
-  String? preferredLanguage;
-  /// Alias for preferredLanguage to maintain compatibility with locale-based access
-  String get locale => preferredLanguage ?? '';
-  set locale(String value) {
-    preferredLanguage = value.isEmpty ? null : value;
-  }
-  List<RecentMachinePath> recentMachinePaths = [];
-  String? lastUsedAgent;
-  String? lastUsedPermissionMode;
-  String? lastUsedModelMode;
-  List<AIBackendProfile> profiles = [];
-  String? lastUsedProfile;
-  List<String> favoriteDirectories = ['~/src', '~/Desktop', '~/Documents'];
-  List<String> favoriteMachines = [];
-  DismissedCLIWarnings dismissedCLIWarnings = DismissedCLIWarnings();
 
   Settings();
 
@@ -93,6 +56,43 @@ class Settings {
               json['dismissedCLIWarnings'] as Map<String, dynamic>)
           : DismissedCLIWarnings();
   }
+  int schemaVersion = 2;
+  String themeMode = 'system';
+  bool viewInline = false;
+  String? inferenceOpenAIKey;
+  bool expandTodos = true;
+  bool showLineNumbers = true;
+  bool showLineNumbersInToolViews = false;
+  bool wrapLinesInDiffs = false;
+  bool analyticsOptOut = false;
+  bool experiments = false;
+  bool markdownCopyV2 = false;
+  bool useEnhancedSessionWizard = false;
+  bool alwaysShowContextSize = false;
+  bool agentInputEnterToSend = true;
+  bool developerModeEnabled = false;
+  String avatarStyle = 'brutalist';
+  bool showFlavorIcons = false;
+  bool compactSessionView = false;
+  bool hideInactiveSessions = false;
+  bool reviewPromptAnswered = false;
+  bool? reviewPromptLikedApp;
+  String? voiceAssistantLanguage;
+  String? preferredLanguage;
+  /// Alias for preferredLanguage to maintain compatibility
+  String get locale => preferredLanguage ?? '';
+  set locale(String value) {
+    preferredLanguage = value.isEmpty ? null : value;
+  }
+  List<RecentMachinePath> recentMachinePaths = [];
+  String? lastUsedAgent;
+  String? lastUsedPermissionMode;
+  String? lastUsedModelMode;
+  List<AIBackendProfile> profiles = [];
+  String? lastUsedProfile;
+  List<String> favoriteDirectories = ['~/src', '~/Desktop', '~/Documents'];
+  List<String> favoriteMachines = [];
+  DismissedCLIWarnings dismissedCLIWarnings = DismissedCLIWarnings();
 
   Map<String, dynamic> toJson() {
     return {
@@ -133,8 +133,6 @@ class Settings {
 }
 
 class RecentMachinePath {
-  final String machineId;
-  final String path;
 
   RecentMachinePath({required this.machineId, required this.path});
 
@@ -144,6 +142,8 @@ class RecentMachinePath {
       path: json['path'] as String,
     );
   }
+  final String machineId;
+  final String path;
 
   Map<String, dynamic> toJson() {
     return {'machineId': machineId, 'path': path};
@@ -151,8 +151,6 @@ class RecentMachinePath {
 }
 
 class DismissedCLIWarnings {
-  Map<String, PerMachineWarnings> perMachine = {};
-  GlobalWarnings global = GlobalWarnings();
 
   DismissedCLIWarnings();
 
@@ -167,6 +165,8 @@ class DismissedCLIWarnings {
           ? GlobalWarnings.fromJson(json['global'] as Map<String, dynamic>)
           : GlobalWarnings();
   }
+  Map<String, PerMachineWarnings> perMachine = {};
+  GlobalWarnings global = GlobalWarnings();
 
   Map<String, dynamic> toJson() {
     return {
@@ -177,9 +177,6 @@ class DismissedCLIWarnings {
 }
 
 class PerMachineWarnings {
-  bool? claude;
-  bool? codex;
-  bool? gemini;
 
   PerMachineWarnings({this.claude, this.codex, this.gemini});
 
@@ -190,6 +187,9 @@ class PerMachineWarnings {
       gemini: json['gemini'] as bool?,
     );
   }
+  bool? claude;
+  bool? codex;
+  bool? gemini;
 
   Map<String, dynamic> toJson() {
     return {'claude': claude, 'codex': codex, 'gemini': gemini};
@@ -197,9 +197,6 @@ class PerMachineWarnings {
 }
 
 class GlobalWarnings {
-  bool? claude;
-  bool? codex;
-  bool? gemini;
 
   GlobalWarnings({this.claude, this.codex, this.gemini});
 
@@ -210,6 +207,9 @@ class GlobalWarnings {
       gemini: json['gemini'] as bool?,
     );
   }
+  bool? claude;
+  bool? codex;
+  bool? gemini;
 
   Map<String, dynamic> toJson() {
     return {'claude': claude, 'codex': codex, 'gemini': gemini};
@@ -218,24 +218,6 @@ class GlobalWarnings {
 
 /// AI backend profile for environment configuration
 class AIBackendProfile {
-  final String id;
-  final String name;
-  final String? description;
-  final AnthropicConfig? anthropicConfig;
-  final OpenAIConfig? openaiConfig;
-  final AzureOpenAIConfig? azureOpenAIConfig;
-  final TogetherAIConfig? togetherAIConfig;
-  final TmuxConfig? tmuxConfig;
-  final String? startupBashScript;
-  List<EnvironmentVariable> environmentVariables = [];
-  final String? defaultSessionType;
-  final String? defaultPermissionMode;
-  final String? defaultModelMode;
-  ProfileCompatibility compatibility = ProfileCompatibility();
-  bool isBuiltIn = false;
-  int createdAt = 0;
-  int updatedAt = 0;
-  String version = '1.0.0';
 
   AIBackendProfile({
     required this.id,
@@ -301,6 +283,24 @@ class AIBackendProfile {
       version: json['version'] as String? ?? '1.0.0',
     );
   }
+  final String id;
+  final String name;
+  final String? description;
+  final AnthropicConfig? anthropicConfig;
+  final OpenAIConfig? openaiConfig;
+  final AzureOpenAIConfig? azureOpenAIConfig;
+  final TogetherAIConfig? togetherAIConfig;
+  final TmuxConfig? tmuxConfig;
+  final String? startupBashScript;
+  List<EnvironmentVariable> environmentVariables = [];
+  final String? defaultSessionType;
+  final String? defaultPermissionMode;
+  final String? defaultModelMode;
+  ProfileCompatibility compatibility = ProfileCompatibility();
+  bool isBuiltIn = false;
+  int createdAt = 0;
+  int updatedAt = 0;
+  String version = '1.0.0';
 
   Map<String, dynamic> toJson() {
     return {
@@ -358,7 +358,8 @@ class AIBackendProfile {
       startupBashScript: startupBashScript ?? this.startupBashScript,
       environmentVariables: environmentVariables ?? this.environmentVariables,
       defaultSessionType: defaultSessionType ?? this.defaultSessionType,
-      defaultPermissionMode: defaultPermissionMode ?? this.defaultPermissionMode,
+      defaultPermissionMode:
+          defaultPermissionMode ?? this.defaultPermissionMode,
       defaultModelMode: defaultModelMode ?? this.defaultModelMode,
       compatibility: compatibility ?? this.compatibility,
       isBuiltIn: isBuiltIn ?? this.isBuiltIn,
@@ -370,9 +371,6 @@ class AIBackendProfile {
 }
 
 class AnthropicConfig {
-  final String? baseUrl;
-  final String? authToken;
-  final String? model;
 
   AnthropicConfig({this.baseUrl, this.authToken, this.model});
 
@@ -383,6 +381,9 @@ class AnthropicConfig {
       model: json['model'] as String?,
     );
   }
+  final String? baseUrl;
+  final String? authToken;
+  final String? model;
 
   Map<String, dynamic> toJson() {
     return {'baseUrl': baseUrl, 'authToken': authToken, 'model': model};
@@ -390,9 +391,6 @@ class AnthropicConfig {
 }
 
 class OpenAIConfig {
-  final String? apiKey;
-  final String? baseUrl;
-  final String? model;
 
   OpenAIConfig({this.apiKey, this.baseUrl, this.model});
 
@@ -403,6 +401,9 @@ class OpenAIConfig {
       model: json['model'] as String?,
     );
   }
+  final String? apiKey;
+  final String? baseUrl;
+  final String? model;
 
   Map<String, dynamic> toJson() {
     return {'apiKey': apiKey, 'baseUrl': baseUrl, 'model': model};
@@ -410,10 +411,6 @@ class OpenAIConfig {
 }
 
 class AzureOpenAIConfig {
-  final String? apiKey;
-  final String? endpoint;
-  final String? apiVersion;
-  final String? deploymentName;
 
   AzureOpenAIConfig(
       {this.apiKey, this.endpoint, this.apiVersion, this.deploymentName});
@@ -426,6 +423,10 @@ class AzureOpenAIConfig {
       deploymentName: json['deploymentName'] as String?,
     );
   }
+  final String? apiKey;
+  final String? endpoint;
+  final String? apiVersion;
+  final String? deploymentName;
 
   Map<String, dynamic> toJson() {
     return {
@@ -438,8 +439,6 @@ class AzureOpenAIConfig {
 }
 
 class TogetherAIConfig {
-  final String? apiKey;
-  final String? model;
 
   TogetherAIConfig({this.apiKey, this.model});
 
@@ -449,6 +448,8 @@ class TogetherAIConfig {
       model: json['model'] as String?,
     );
   }
+  final String? apiKey;
+  final String? model;
 
   Map<String, dynamic> toJson() {
     return {'apiKey': apiKey, 'model': model};
@@ -456,9 +457,6 @@ class TogetherAIConfig {
 }
 
 class TmuxConfig {
-  final String? sessionName;
-  final String? tmpDir;
-  final bool? updateEnvironment;
 
   TmuxConfig({this.sessionName, this.tmpDir, this.updateEnvironment});
 
@@ -469,6 +467,9 @@ class TmuxConfig {
       updateEnvironment: json['updateEnvironment'] as bool?,
     );
   }
+  final String? sessionName;
+  final String? tmpDir;
+  final bool? updateEnvironment;
 
   Map<String, dynamic> toJson() {
     return {
@@ -480,8 +481,6 @@ class TmuxConfig {
 }
 
 class EnvironmentVariable {
-  final String name;
-  final String value;
 
   EnvironmentVariable({required this.name, required this.value});
 
@@ -491,6 +490,8 @@ class EnvironmentVariable {
       value: json['value'] as String,
     );
   }
+  final String name;
+  final String value;
 
   Map<String, dynamic> toJson() {
     return {'name': name, 'value': value};
@@ -498,9 +499,6 @@ class EnvironmentVariable {
 }
 
 class ProfileCompatibility {
-  final bool claude;
-  final bool codex;
-  final bool gemini;
 
   const ProfileCompatibility(
       {this.claude = true, this.codex = true, this.gemini = true});
@@ -512,6 +510,9 @@ class ProfileCompatibility {
       gemini: json['gemini'] as bool? ?? true,
     );
   }
+  final bool claude;
+  final bool codex;
+  final bool gemini;
 
   Map<String, dynamic> toJson() {
     return {'claude': claude, 'codex': codex, 'gemini': gemini};

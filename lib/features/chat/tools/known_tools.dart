@@ -9,6 +9,18 @@ import 'package:happy_flutter/core/utils/path_utils.dart';
 /// - [minimal]: Whether to show minimal representation
 /// - Various optional extractors for subtitle, description, and status
 class ToolDefinition {
+
+  const ToolDefinition({
+    required this.icon,
+    this.title,
+    this.minimal = false,
+    this.hideDefaultError = false,
+    this.isMutable = false,
+    this.noStatus = false,
+    this.extractSubtitle,
+    this.extractDescription,
+    this.extractStatus,
+  });
   /// Icon factory function that takes size and color parameters.
   final Widget Function(double size, Color color) icon;
 
@@ -47,18 +59,6 @@ class ToolDefinition {
     Map<String, dynamic>? metadata,
   )?
   extractStatus;
-
-  const ToolDefinition({
-    required this.icon,
-    this.title,
-    this.minimal = false,
-    this.hideDefaultError = false,
-    this.isMutable = false,
-    this.noStatus = false,
-    this.extractSubtitle,
-    this.extractDescription,
-    this.extractStatus,
-  });
 
   /// Create a copy with additional properties.
   ToolDefinition copyWith({bool? noStatus}) {
@@ -540,7 +540,7 @@ class KnownTools {
         final path = tool['input']?['notebook_path'] as String?;
         if (path != null) {
           final mode = tool['input']?['edit_mode'] as String? ?? 'replace';
-          return '${mode} in ${path.split('/').lastOrNull ?? path}';
+          return '$mode in ${path.split('/').lastOrNull ?? path}';
         }
         return null;
       },

@@ -9,9 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'block_widgets.dart';
 import 'markdown_models.dart';
 import 'markdown_parser.dart';
-import 'block_widgets.dart';
 import 'mermaid_renderer.dart';
 
 /// Callback type for when an option is pressed in an options block.
@@ -30,17 +30,16 @@ typedef OptionPressedCallback = void Function(String option);
 /// - Interactive options blocks
 /// - Text selection via long-press
 class MarkdownView extends StatefulWidget {
+
+  const MarkdownView({
+    required this.markdown, super.key,
+    this.onOptionPress,
+  });
   /// The raw markdown text to render.
   final String markdown;
 
   /// Optional callback when an option in an options block is pressed.
   final OptionPressedCallback? onOptionPress;
-
-  const MarkdownView({
-    super.key,
-    required this.markdown,
-    this.onOptionPress,
-  });
 
   @override
   State<MarkdownView> createState() => _MarkdownViewState();
@@ -48,7 +47,7 @@ class MarkdownView extends StatefulWidget {
 
 class _MarkdownViewState extends State<MarkdownView> {
   List<MarkdownBlock>? _blocks;
-  bool _showCopyOverlay = false;
+  final bool _showCopyOverlay = false;
 
   @override
   void initState() {
@@ -166,31 +165,30 @@ class _MarkdownViewState extends State<MarkdownView> {
 
   void _handleLongPress() {
     // Show a snackbar with copy option
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    scaffoldMessenger.hideCurrentSnackBar();
-
-    scaffoldMessenger.showSnackBar(
-      SnackBar(
-        content: const Text('Copy text'),
-        action: SnackBarAction(
-          label: 'Copy',
-          onPressed: () => _copyText(),
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('Copy text'),
+          action: SnackBarAction(
+            label: 'Copy',
+            onPressed: () => _copyText(),
+          ),
         ),
-      ),
-    );
+      );
   }
 
   void _copyText() async {
     await Clipboard.setData(ClipboardData(text: widget.markdown));
     if (mounted) {
-      final scaffoldMessenger = ScaffoldMessenger.of(context);
-      scaffoldMessenger.hideCurrentSnackBar();
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Text copied to clipboard'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Text copied to clipboard'),
+            duration: Duration(seconds: 2),
+          ),
+        );
     }
   }
 }
@@ -200,10 +198,10 @@ class _MarkdownViewState extends State<MarkdownView> {
 /// This is a convenience widget that renders markdown without
 /// additional styling wrapper.
 class SimpleMarkdownView extends StatelessWidget {
+
+  const SimpleMarkdownView({required this.markdown, super.key});
   /// The markdown text to render.
   final String markdown;
-
-  const SimpleMarkdownView({super.key, required this.markdown});
 
   @override
   Widget build(BuildContext context) {
@@ -286,7 +284,7 @@ class SimpleMarkdownView extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           margin: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceVariant,
+            color: theme.colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(8),
           ),
           child: SingleChildScrollView(
@@ -359,7 +357,10 @@ class SimpleMarkdownView extends StatelessWidget {
                     : fontWeight,
             fontSize: fontSize ?? 16,
             color: theme.colorScheme.onSurface,
-            fontFamily: span.styles.contains(MarkdownTextStyle.code) ? 'monospace' : null,
+            fontFamily:
+                span.styles.contains(MarkdownTextStyle.code)
+                    ? 'monospace'
+                    : null,
             backgroundColor: span.styles.contains(MarkdownTextStyle.code)
                 ? Colors.black12
                 : null,
@@ -383,9 +384,15 @@ class SimpleMarkdownView extends StatelessWidget {
     );
   }
 
-  Widget _buildTable(List<String> headers, List<List<String>> rows, ThemeData theme) {
+  Widget _buildTable(
+    List<String> headers,
+    List<List<String>> rows,
+    ThemeData theme,
+  ) {
     final columnCount = headers.length;
-    final minWidth = columnCount > 0 ? (300 / columnCount).floor().toDouble() : 100.0;
+    final minWidth = columnCount > 0
+        ? (300 / columnCount).floor().toDouble()
+        : 100.0;
     final safeMinWidth = minWidth < 100.0 ? 100.0 : minWidth;
 
     return SingleChildScrollView(
@@ -402,14 +409,18 @@ class SimpleMarkdownView extends StatelessWidget {
             // Header
             Container(
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceVariant,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(7)),
               ),
               child: Row(
                 children: headers.map((header) {
                   return Container(
                     width: safeMinWidth,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     child: Text(
                       header,
                       style: TextStyle(
@@ -439,11 +450,15 @@ class SimpleMarkdownView extends StatelessWidget {
                 child: Row(
                   children: headers.asMap().entries.map((cellEntry) {
                     final cellIndex = cellEntry.key;
-                    final cellText = row.length > cellIndex ? row[cellIndex] : '';
+                    final cellText =
+                        row.length > cellIndex ? row[cellIndex] : '';
 
                     return Container(
                       width: safeMinWidth,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       child: Text(
                         cellText,
                         style: TextStyle(
@@ -455,7 +470,7 @@ class SimpleMarkdownView extends StatelessWidget {
                   }).toList(),
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),

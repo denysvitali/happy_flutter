@@ -1,18 +1,14 @@
 /// Language constants for the Happy app
-/// This file contains all supported languages, their metadata, and configuration
+/// This file contains all supported languages, their metadata,
 ///
 /// When adding a new language:
 /// 1. Add the language metadata to allLanguages map
 /// 2. Add regional variants to the regionalVariants map if applicable
 /// 3. Add translations if available
+library;
 
 /// Language metadata interface
 class LanguageInfo {
-  final String code;
-  final String nativeName;
-  final String englishName;
-  final String? region;
-  final bool isElevenLabsSupported;
 
   const LanguageInfo({
     required this.code,
@@ -21,6 +17,11 @@ class LanguageInfo {
     this.region,
     this.isElevenLabsSupported = true,
   });
+  final String code;
+  final String nativeName;
+  final String englishName;
+  final String? region;
+  final bool isElevenLabsSupported;
 
   /// Display name with region if available
   String get displayName {
@@ -36,15 +37,15 @@ class LanguageInfo {
 
 /// Regional variant of a language
 class RegionalVariant {
-  final String code;
-  final String region;
-  final String nativeName;
 
   const RegionalVariant({
     required this.code,
     required this.region,
     required this.nativeName,
   });
+  final String code;
+  final String region;
+  final String nativeName;
 }
 
 /// All supported languages with their native and English names (45+ languages)
@@ -401,7 +402,8 @@ String getDeviceLanguageCode(String localeString) {
   final countryCode = parts.length > 1 ? parts[1].toUpperCase() : '';
 
   // Try exact match first
-  final exactCode = countryCode.isNotEmpty ? '$languageCode-$countryCode' : languageCode;
+  final exactCode =
+      countryCode.isNotEmpty ? '$languageCode-$countryCode' : languageCode;
   if (allLanguages.containsKey(exactCode)) {
     return exactCode;
   }

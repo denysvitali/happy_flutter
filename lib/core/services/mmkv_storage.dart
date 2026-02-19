@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mmkv/mmkv.dart';
-import '../models/settings.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/profile.dart' as models;
+import '../models/settings.dart';
 
 /// Storage keys for MMKV
 class _StorageKeys {
@@ -17,9 +19,9 @@ class _StorageKeys {
 
 /// MMKV-based storage wrapper with migration from SharedPreferences
 class MMKVStorage {
-  static final MMKVStorage _instance = MMKVStorage._();
-  MMKVStorage._();
   factory MMKVStorage() => _instance;
+  MMKVStorage._();
+  static final MMKVStorage _instance = MMKVStorage._();
 
   MMKV? _mmkv;
   bool _initialized = false;
@@ -185,10 +187,12 @@ class MMKVStorage {
     try {
       final draftsJson = _mmkv?.decodeString(_StorageKeys.sessionDrafts);
       if (draftsJson != null) {
-        final drafts = jsonDecode(draftsJson) as Map<String, dynamic>;
-        drafts.remove(sessionId);
+        final drafts = (jsonDecode(draftsJson) as Map<String, dynamic>)
+          ..remove(sessionId);
         _mmkv?.encodeString(
-            _StorageKeys.sessionDrafts, jsonEncode(drafts));
+          _StorageKeys.sessionDrafts,
+          jsonEncode(drafts),
+        );
       }
     } catch (e) {
       debugPrint('MMKV: Failed to remove session draft: $e');
@@ -235,7 +239,9 @@ class MMKVStorage {
     }
 
     try {
-      final modesJson = _mmkv?.decodeString(_StorageKeys.sessionPermissionModes);
+      final modesJson = _mmkv?.decodeString(
+        _StorageKeys.sessionPermissionModes,
+      );
       if (modesJson != null) {
         final modes = jsonDecode(modesJson) as Map<String, dynamic>;
         return modes[sessionId] as String?;
@@ -255,7 +261,9 @@ class MMKVStorage {
     }
 
     try {
-      final modesJson = _mmkv?.decodeString(_StorageKeys.sessionPermissionModes);
+      final modesJson = _mmkv?.decodeString(
+        _StorageKeys.sessionPermissionModes,
+      );
       final modes = modesJson != null
           ? jsonDecode(modesJson) as Map<String, dynamic>
           : <String, dynamic>{};
@@ -275,12 +283,16 @@ class MMKVStorage {
     }
 
     try {
-      final modesJson = _mmkv?.decodeString(_StorageKeys.sessionPermissionModes);
+      final modesJson = _mmkv?.decodeString(
+        _StorageKeys.sessionPermissionModes,
+      );
       if (modesJson != null) {
-        final modes = jsonDecode(modesJson) as Map<String, dynamic>;
-        modes.remove(sessionId);
+        final modes = (jsonDecode(modesJson) as Map<String, dynamic>)
+          ..remove(sessionId);
         _mmkv?.encodeString(
-            _StorageKeys.sessionPermissionModes, jsonEncode(modes));
+          _StorageKeys.sessionPermissionModes,
+          jsonEncode(modes),
+        );
       }
     } catch (e) {
       debugPrint('MMKV: Failed to remove session permission mode: $e');
@@ -294,7 +306,9 @@ class MMKVStorage {
     }
 
     try {
-      final modesJson = _mmkv?.decodeString(_StorageKeys.sessionPermissionModes);
+      final modesJson = _mmkv?.decodeString(
+        _StorageKeys.sessionPermissionModes,
+      );
       if (modesJson != null) {
         final modes = jsonDecode(modesJson) as Map<String, dynamic>;
         return modes.map<String, String>(
@@ -345,9 +359,9 @@ class MMKVStorage {
 /// Server configuration storage using separate MMKV instance
 /// This persists across logouts and is separate from user data
 class ServerConfigStorage {
-  static final ServerConfigStorage _instance = ServerConfigStorage._();
-  ServerConfigStorage._();
   factory ServerConfigStorage() => _instance;
+  ServerConfigStorage._();
+  static final ServerConfigStorage _instance = ServerConfigStorage._();
 
   MMKV? _mmkv;
   bool _initialized = false;
@@ -475,9 +489,9 @@ class ServerConfigStorage {
 
 /// Profile storage using MMKV
 class ProfileStorage {
-  static final ProfileStorage _instance = ProfileStorage._();
-  ProfileStorage._();
   factory ProfileStorage() => _instance;
+  ProfileStorage._();
+  static final ProfileStorage _instance = ProfileStorage._();
 
   final _storage = MMKVStorage();
 
@@ -504,7 +518,7 @@ class ProfileStorage {
       debugPrint('ProfileStorage: Failed to load profile: $e');
     }
 
-    return const models.Profile(id: '');
+    return models.Profile.defaults;
   }
 
   /// Save profile to storage

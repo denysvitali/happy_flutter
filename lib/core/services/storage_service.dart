@@ -8,10 +8,10 @@ import 'mmkv_storage.dart';
 
 /// Secure storage for authentication credentials
 class TokenStorage {
-  static final TokenStorage _instance = TokenStorage._();
-  TokenStorage._();
 
   factory TokenStorage() => _instance;
+  TokenStorage._();
+  static final TokenStorage _instance = TokenStorage._();
 
   static const String _authKey = 'auth_credentials';
 
@@ -73,10 +73,10 @@ class TokenStorage {
 
 /// Settings storage with persistence using MMKV
 class SettingsStorage {
-  static final SettingsStorage _instance = SettingsStorage._();
-  SettingsStorage._();
 
   factory SettingsStorage() => _instance;
+  SettingsStorage._();
+  static final SettingsStorage _instance = SettingsStorage._();
 
   final _storage = MMKVStorage();
 
@@ -111,10 +111,10 @@ class SettingsStorage {
 
 /// Session drafts storage with MMKV
 class SessionDraftsStorage {
-  static final SessionDraftsStorage _instance = SessionDraftsStorage._();
-  SessionDraftsStorage._();
 
   factory SessionDraftsStorage() => _instance;
+  SessionDraftsStorage._();
+  static final SessionDraftsStorage _instance = SessionDraftsStorage._();
 
   final _storage = MMKVStorage();
 
@@ -146,11 +146,11 @@ class SessionDraftsStorage {
 
 /// Session permission modes storage with MMKV
 class SessionPermissionModesStorage {
-  static final SessionPermissionModesStorage _instance =
-      SessionPermissionModesStorage._();
-  SessionPermissionModesStorage._();
 
   factory SessionPermissionModesStorage() => _instance;
+  SessionPermissionModesStorage._();
+  static final SessionPermissionModesStorage _instance =
+      SessionPermissionModesStorage._();
 
   final _storage = MMKVStorage();
 
@@ -182,10 +182,10 @@ class SessionPermissionModesStorage {
 
 /// Combined storage for app data
 class Storage {
-  static final Storage _instance = Storage._();
-  Storage._();
 
   factory Storage() => _instance;
+  Storage._();
+  static final Storage _instance = Storage._();
 
   final tokenStorage = TokenStorage();
   final settingsStorage = SettingsStorage();
@@ -207,11 +207,11 @@ class Storage {
     await sessionPermissionModesStorage.clearAllPermissionModes();
     await profileStorage.clearProfile();
     unawaited(MMKVStorage().clearAll());
-    // Note: ServerConfigStorage is NOT cleared here as it persists across logouts
+    // Note: ServerConfigStorage is NOT cleared here as it
   }
 
   /// Clear server config separately (typically not called during logout)
   Future<void> clearServerConfig() async {
-    ServerConfigStorage().clearAll();
+    unawaited(ServerConfigStorage().clearAll());
   }
 }

@@ -1,20 +1,21 @@
-import 'dart:typed_data';
 import 'dart:math';
-import 'encryptor.dart';
+import 'dart:typed_data';
+
 import 'base64.dart';
+import 'encryptor.dart';
 
 /// Artifact-specific encryption management
 class ArtifactEncryption {
-  final AES256Encryption _encryptor;
 
   ArtifactEncryption(Uint8List dataEncryptionKey)
       : _encryptor = AES256Encryption(dataEncryptionKey);
+  final AES256Encryption _encryptor;
 
   /// Generate a new data encryption key for an artifact
   static Uint8List generateDataEncryptionKey() {
     final random = Random.secure();
     final key = Uint8List(32); // 256 bits for AES-256
-    for (int i = 0; i < 32; i++) {
+    for (var i = 0; i < 32; i++) {
       key[i] = random.nextInt(256);
     }
     return key;
@@ -29,7 +30,10 @@ class ArtifactEncryption {
   /// Decrypt artifact header
   Future<Map<String, dynamic>?> decryptHeader(String encryptedHeader) async {
     try {
-      final encryptedData = Base64Utils.decode(encryptedHeader, Encoding.base64);
+      final encryptedData = Base64Utils.decode(
+        encryptedHeader,
+        Encoding.base64,
+      );
       final decrypted = await _encryptor.decrypt([encryptedData]);
       if (decrypted[0] == null) {
         return null;

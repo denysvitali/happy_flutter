@@ -2,8 +2,16 @@ import 'package:flutter/material.dart';
 
 /// Status dot widget with optional pulsing animation.
 ///
-/// Matches the React Native StatusDot.tsx behavior for connection status indicators.
+/// Matches the React Native StatusDot.tsx behavior for connection
+/// status indicators.
 class StatusDot extends StatefulWidget {
+
+  const StatusDot({
+    required this.color, super.key,
+    this.isPulsing = false,
+    this.size = 6,
+    this.margin,
+  });
   /// The color of the status dot
   final Color color;
 
@@ -15,14 +23,6 @@ class StatusDot extends StatefulWidget {
 
   /// Optional margin around the dot
   final EdgeInsets? margin;
-
-  const StatusDot({
-    super.key,
-    required this.color,
-    this.isPulsing = false,
-    this.size = 6,
-    this.margin,
-  });
 
   @override
   State<StatusDot> createState() => _StatusDotState();
@@ -80,7 +80,7 @@ class _StatusDotState extends State<StatusDot>
           width: widget.size,
           height: widget.size,
           decoration: BoxDecoration(
-            color: widget.color.withOpacity(
+            color: widget.color.withValues(alpha: 
               widget.isPulsing ? 0.3 + _animation.value * 0.7 : 1.0,
             ),
             shape: BoxShape.circle,

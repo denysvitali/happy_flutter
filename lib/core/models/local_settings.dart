@@ -1,12 +1,6 @@
 /// LocalSettings model
 /// Device-specific settings that should NOT be synced across devices
 class LocalSettings {
-  final bool debugMode;
-  final bool devModeEnabled;
-  final bool commandPaletteEnabled;
-  final String themePreference; // 'light', 'dark', or 'adaptive'
-  final bool markdownCopyV2;
-  final Map<String, String> acknowledgedCliVersions;
 
   const LocalSettings({
     this.debugMode = false,
@@ -16,25 +10,6 @@ class LocalSettings {
     this.markdownCopyV2 = false,
     this.acknowledgedCliVersions = const {},
   });
-
-  LocalSettings copyWith({
-    bool? debugMode,
-    bool? devModeEnabled,
-    bool? commandPaletteEnabled,
-    String? themePreference,
-    bool? markdownCopyV2,
-    Map<String, String>? acknowledgedCliVersions,
-  }) {
-    return LocalSettings(
-      debugMode: debugMode ?? this.debugMode,
-      devModeEnabled: devModeEnabled ?? this.devModeEnabled,
-      commandPaletteEnabled: commandPaletteEnabled ?? this.commandPaletteEnabled,
-      themePreference: themePreference ?? this.themePreference,
-      markdownCopyV2: markdownCopyV2 ?? this.markdownCopyV2,
-      acknowledgedCliVersions:
-          acknowledgedCliVersions ?? this.acknowledgedCliVersions,
-    );
-  }
 
   factory LocalSettings.fromJson(Map<String, dynamic> json) {
     return LocalSettings(
@@ -48,6 +23,32 @@ class LocalSettings {
                 (k, v) => MapEntry(k, v as String),
               ) ??
               {},
+    );
+  }
+  final bool debugMode;
+  final bool devModeEnabled;
+  final bool commandPaletteEnabled;
+  final String themePreference; // 'light', 'dark', or 'adaptive'
+  final bool markdownCopyV2;
+  final Map<String, String> acknowledgedCliVersions;
+
+  LocalSettings copyWith({
+    bool? debugMode,
+    bool? devModeEnabled,
+    bool? commandPaletteEnabled,
+    String? themePreference,
+    bool? markdownCopyV2,
+    Map<String, String>? acknowledgedCliVersions,
+  }) {
+    return LocalSettings(
+      debugMode: debugMode ?? this.debugMode,
+      devModeEnabled: devModeEnabled ?? this.devModeEnabled,
+      commandPaletteEnabled:
+          commandPaletteEnabled ?? this.commandPaletteEnabled,
+      themePreference: themePreference ?? this.themePreference,
+      markdownCopyV2: markdownCopyV2 ?? this.markdownCopyV2,
+      acknowledgedCliVersions:
+          acknowledgedCliVersions ?? this.acknowledgedCliVersions,
     );
   }
 
@@ -70,6 +71,6 @@ class LocalSettings {
     if (settings is Map<String, dynamic>) {
       return LocalSettings.fromJson(settings);
     }
-    return const LocalSettings();
+    return LocalSettings.defaults;
   }
 }

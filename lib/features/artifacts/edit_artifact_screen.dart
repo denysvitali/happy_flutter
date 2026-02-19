@@ -9,7 +9,7 @@ import '../../core/providers/app_providers.dart';
 /// Title and content fields are displayed for editing, but the actual
 /// encryption and API update are out of scope — see TODO below.
 class EditArtifactScreen extends ConsumerStatefulWidget {
-  const EditArtifactScreen({super.key, required this.artifactId});
+  const EditArtifactScreen({required this.artifactId, super.key});
 
   final String artifactId;
 
@@ -46,14 +46,14 @@ class _EditArtifactScreenState
       return;
     }
 
-    // TODO: Encrypt updated title and content using the artifact's
+    // TODO(dev): Encrypt updated title and content using the artifact's
     // existing dataEncryptionKey, build an ArtifactUpdateRequest with
     // expectedHeaderVersion / expectedBodyVersion, submit via API client,
     // update the provider with the response, then navigate back.
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'TODO: Artifact update with encryption not yet implemented.',
+          'TODO(dev): Artifact update with encryption not yet implemented.',
         ),
       ),
     );

@@ -62,10 +62,10 @@ class WebCryptoSecretBox {
 
 /// Web crypto key pair stub
 class WebCryptoKeyPair {
-  final Uint8List publicKey;
-  final Uint8List privateKey;
 
   WebCryptoKeyPair({required this.publicKey, required this.privateKey});
+  final Uint8List publicKey;
+  final Uint8List privateKey;
 }
 
 /// AES-GCM encryption stub for web

@@ -4,13 +4,13 @@ import '../tool_section_view.dart';
 
 /// View for displaying Bash tool command and output.
 class BashView extends StatelessWidget {
+
+  const BashView({required this.tool, super.key, this.metadata});
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
   /// Optional metadata for path resolution.
   final Map<String, dynamic>? metadata;
-
-  const BashView({super.key, required this.tool, this.metadata});
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +72,16 @@ class BashView extends StatelessWidget {
 
 /// Command view showing the command being executed and its output.
 class CommandView extends StatefulWidget {
+
+  const CommandView({
+    required this.command, super.key,
+    this.description,
+    this.stdout,
+    this.stderr,
+    this.exitCode,
+    this.error,
+    this.hideEmptyOutput = true,
+  });
   /// The shell command string.
   final String command;
 
@@ -92,17 +102,6 @@ class CommandView extends StatefulWidget {
 
   /// Whether to hide sections when output is empty.
   final bool hideEmptyOutput;
-
-  const CommandView({
-    super.key,
-    required this.command,
-    this.description,
-    this.stdout,
-    this.stderr,
-    this.exitCode,
-    this.error,
-    this.hideEmptyOutput = true,
-  });
 
   @override
   State<CommandView> createState() => _CommandViewState();
@@ -183,13 +182,13 @@ class _CommandViewState extends State<CommandView> {
 // ---------------------------------------------------------------------------
 
 class _TerminalCommandBar extends StatelessWidget {
-  final String command;
-  final String? description;
 
   const _TerminalCommandBar({
     required this.command,
     this.description,
   });
+  final String command;
+  final String? description;
 
   @override
   Widget build(BuildContext context) {
@@ -289,12 +288,6 @@ class _TerminalCommandBar extends StatelessWidget {
 }
 
 class _TerminalOutputSection extends StatelessWidget {
-  final String label;
-  final String output;
-  final bool isError;
-  final bool expanded;
-  final int maxLines;
-  final VoidCallback onToggleExpand;
 
   const _TerminalOutputSection({
     required this.label,
@@ -304,6 +297,12 @@ class _TerminalOutputSection extends StatelessWidget {
     required this.maxLines,
     required this.onToggleExpand,
   });
+  final String label;
+  final String output;
+  final bool isError;
+  final bool expanded;
+  final int maxLines;
+  final VoidCallback onToggleExpand;
 
   @override
   Widget build(BuildContext context) {
@@ -408,9 +407,9 @@ class _TerminalOutputSection extends StatelessWidget {
 }
 
 class _ExitCodeBadge extends StatelessWidget {
-  final int exitCode;
 
   const _ExitCodeBadge({required this.exitCode});
+  final int exitCode;
 
   @override
   Widget build(BuildContext context) {
@@ -466,10 +465,6 @@ class _ExitCodeBadge extends StatelessWidget {
 }
 
 class _ShowMoreButton extends StatelessWidget {
-  final bool expanded;
-  final int hiddenCount;
-  final VoidCallback onToggle;
-  final Color borderColor;
 
   const _ShowMoreButton({
     required this.expanded,
@@ -477,6 +472,10 @@ class _ShowMoreButton extends StatelessWidget {
     required this.onToggle,
     required this.borderColor,
   });
+  final bool expanded;
+  final int hiddenCount;
+  final VoidCallback onToggle;
+  final Color borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -521,10 +520,10 @@ class _ShowMoreButton extends StatelessWidget {
 }
 
 class _CopyButton extends StatefulWidget {
-  final String text;
-  final double iconSize;
 
   const _CopyButton({required this.text, this.iconSize = 14});
+  final String text;
+  final double iconSize;
 
   @override
   State<_CopyButton> createState() => _CopyButtonState();

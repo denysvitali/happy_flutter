@@ -2,6 +2,7 @@
 ///
 /// Provides functions to resolve paths relative to a root and to expand
 /// home directory references.
+library;
 
 import 'package:path/path.dart' as path_lib;
 
@@ -9,18 +10,18 @@ typedef MetadataPath = String;
 
 /// Metadata structure containing a root path for path resolution.
 class Metadata {
-  final String path;
 
   const Metadata({required this.path});
+  final String path;
 }
 
 /// Resolves a path relative to the root path from metadata.
 ///
-/// ALL paths are treated as relative to the metadata root, regardless of their format.
+/// ALL paths are treated as relative to the metadata root,
 /// If metadata is not provided, returns the original path.
 ///
-/// [path] - The path to resolve (always treated as relative to the metadata root)
-/// [metadata] - Optional metadata containing the root path (can be Map or Metadata)
+/// [path] - The path to resolve (always treated as relative to
+/// [metadata] - Optional metadata containing the root path
 ///
 /// Returns the resolved absolute path
 String resolvePath(String path, dynamic metadata) {
@@ -42,9 +43,9 @@ String resolvePath(String path, dynamic metadata) {
 
   if (pathLower.startsWith(normalizedRoot)) {
     final remainder = path.substring(metadataPath.length);
-    if (remainder.isEmpty || remainder.startsWith('/') || remainder.startsWith('\\')) {
+    if (remainder.isEmpty || remainder.startsWith('/') || remainder.startsWith(r'\')) {
       var out = remainder;
-      if (out.startsWith('/') || out.startsWith('\\')) {
+      if (out.startsWith('/') || out.startsWith(r'\')) {
         out = out.substring(1);
       }
       if (out.isEmpty) {
@@ -56,7 +57,7 @@ String resolvePath(String path, dynamic metadata) {
   return path;
 }
 
-/// Resolves paths starting with ~ to absolute paths using the provided home directory.
+/// Resolves paths starting with ~ to absolute paths using the
 ///
 /// Non-tilde paths are returned unchanged.
 ///
@@ -78,7 +79,7 @@ String resolveAbsolutePath(String path, {String? homeDir}) {
   // Handle exact ~ (home directory)
   if (path == '~') {
     // Remove trailing separator for consistency
-    return homeDir.endsWith('/') || homeDir.endsWith('\\')
+    return homeDir.endsWith('/') || homeDir.endsWith(r'\')
         ? homeDir.substring(0, homeDir.length - 1)
         : homeDir;
   }
@@ -88,9 +89,9 @@ String resolveAbsolutePath(String path, {String? homeDir}) {
     final relativePart = path.substring(2); // Remove '~/'
     // Detect path separator based on homeDir - prefer the last separator found
     final hasBackslash =
-        homeDir.lastIndexOf('\\') > homeDir.lastIndexOf('/');
-    final separator = hasBackslash ? '\\' : '/';
-    final normalizedHome = homeDir.endsWith('/') || homeDir.endsWith('\\')
+        homeDir.lastIndexOf(r'\') > homeDir.lastIndexOf('/');
+    final separator = hasBackslash ? r'\' : '/';
+    final normalizedHome = homeDir.endsWith('/') || homeDir.endsWith(r'\')
         ? homeDir.substring(0, homeDir.length - 1)
         : homeDir;
     return normalizedHome + separator + relativePart;

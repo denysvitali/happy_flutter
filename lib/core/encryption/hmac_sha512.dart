@@ -10,7 +10,7 @@ class HmacSha512 {
   /// Compute HMAC-SHA512
   static Future<Uint8List> compute(Uint8List key, Uint8List data) async {
     // Prepare key
-    Uint8List actualKey = key;
+    var actualKey = key;
     if (key.length > _blockSize) {
       // If key is longer than block size, hash it
       final keyHash = sha512.convert(key).bytes;
@@ -18,28 +18,28 @@ class HmacSha512 {
     }
 
     // Pad key to block size
-    final paddedKey = Uint8List(_blockSize);
-    paddedKey.setAll(0, actualKey);
+    final paddedKey = Uint8List(_blockSize)..setAll(0, actualKey);
 
     // Create inner and outer padded keys
     final innerKey = Uint8List(_blockSize);
     final outerKey = Uint8List(_blockSize);
 
-    for (int i = 0; i < _blockSize; i++) {
+    for (var i = 0; i < _blockSize; i++) {
       innerKey[i] = paddedKey[i] ^ _ipad;
       outerKey[i] = paddedKey[i] ^ _opad;
     }
 
     // Inner hash: SHA512(innerKey || data)
-    final innerData = Uint8List(_blockSize + data.length);
-    innerData.setAll(0, innerKey);
-    innerData.setAll(_blockSize, data);
+    final innerData = Uint8List(_blockSize + data.length)
+      ..setAll(0, innerKey)
+      ..setAll(_blockSize, data);
     final innerHash = sha512.convert(innerData).bytes;
 
     // Outer hash: SHA512(outerKey || innerHash)
-    final outerData = Uint8List(_blockSize + 64); // 64 bytes for SHA512 hash
-    outerData.setAll(0, outerKey);
-    outerData.setAll(_blockSize, innerHash);
+    // 64 bytes for SHA512 hash
+    final outerData = Uint8List(_blockSize + 64)
+      ..setAll(0, outerKey)
+      ..setAll(_blockSize, innerHash);
     final finalHash = sha512.convert(outerData).bytes;
 
     return Uint8List.fromList(finalHash);

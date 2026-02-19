@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:math';
 
-/// A utility class for managing async operations with invalidation and exponential backoff
+/// A utility class for managing async operations with invalidation
 class InvalidateSync {
+
+  InvalidateSync(this._action);
   final Future<void> Function() _action;
   Completer<void>? _currentOperation;
   bool _invalidated = false;
@@ -14,8 +16,6 @@ class InvalidateSync {
   static const int baseDelayMs = 1000;
   static const int maxDelayMs = 5000;
   static const int maxRetries = 5;
-
-  InvalidateSync(this._action);
 
   /// Invalidate the current operation and schedule a retry
   void invalidate() {

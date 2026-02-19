@@ -4,9 +4,9 @@ import '../api/api_client.dart';
 /// Service for push notification token registration (/v1/push-tokens)
 /// Based on React Native's apiPush.ts
 class PushService {
-  static final PushService _instance = PushService._();
   factory PushService() => _instance;
   PushService._();
+  static final PushService _instance = PushService._();
 
   final _apiClient = ApiClient();
 
@@ -35,8 +35,8 @@ class PushService {
 
 /// Exception for push notification operations
 class PushException implements Exception {
-  final String message;
   PushException(this.message);
+  final String message;
 
   @override
   String toString() => 'PushException: $message';

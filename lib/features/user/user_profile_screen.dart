@@ -10,9 +10,9 @@ import '../../core/services/social_service.dart';
 /// (with initials fallback), name, friend status, and appropriate
 /// action buttons.
 class UserProfileScreen extends ConsumerStatefulWidget {
-  final String userId;
 
-  const UserProfileScreen({super.key, required this.userId});
+  const UserProfileScreen({required this.userId, super.key});
+  final String userId;
 
   @override
   ConsumerState<UserProfileScreen> createState() =>
@@ -249,7 +249,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             vertical: 6,
           ),
           decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.1),
+            color: Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
           ),
           child: const Row(
@@ -275,7 +275,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             vertical: 6,
           ),
           decoration: BoxDecoration(
-            color: Colors.orange.withOpacity(0.1),
+            color: Colors.orange.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
           ),
           child: const Row(
@@ -305,7 +305,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             vertical: 6,
           ),
           decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.1),
+            color: Colors.blue.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
           ),
           child: const Row(

@@ -3,10 +3,10 @@ import '../utils/tool_error_parser.dart';
 
 /// Error display for tool use errors.
 class ToolError extends StatelessWidget {
+
+  const ToolError({required this.message, super.key});
   /// The error message to display.
   final String message;
-
-  const ToolError({super.key, required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -56,10 +56,10 @@ class ToolError extends StatelessWidget {
 
 /// A compact error display for tool results.
 class ToolResultError extends StatelessWidget {
+
+  const ToolResultError({required this.message, super.key});
   /// The error message.
   final String message;
-
-  const ToolResultError({super.key, required this.message});
 
   @override
   Widget build(BuildContext context) {

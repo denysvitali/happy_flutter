@@ -1,23 +1,15 @@
 /// Friend and social relationship models
+library;
 
 /// User profile for friends/social features
 class UserProfile {
-  final String id;
-  final String? name;
-  final String? email;
-  final String? avatarUrl;
-  final RelationshipStatus status;
-  final int? lastSeenAt;
-  final int createdAt;
 
   UserProfile({
     required this.id,
-    this.name,
+    required this.status, required this.createdAt, this.name,
     this.email,
     this.avatarUrl,
-    required this.status,
     this.lastSeenAt,
-    required this.createdAt,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -26,11 +18,20 @@ class UserProfile {
       name: json['name'] as String?,
       email: json['email'] as String?,
       avatarUrl: json['avatarUrl'] as String?,
-      status: RelationshipStatus.fromString(json['status'] as String? ?? 'none'),
+      status: RelationshipStatus.fromString(
+        json['status'] as String? ?? 'none',
+      ),
       lastSeenAt: json['lastSeenAt'] as int?,
       createdAt: json['createdAt'] as int,
     );
   }
+  final String id;
+  final String? name;
+  final String? email;
+  final String? avatarUrl;
+  final RelationshipStatus status;
+  final int? lastSeenAt;
+  final int createdAt;
 
   Map<String, dynamic> toJson() {
     return {
@@ -115,23 +116,16 @@ enum RelationshipStatus {
 }
 
 /// Friend request model
-class FriendRequest {
-  final String id;
-  final String fromUserId;
-  final String fromUserName;
-  final String? fromUserAvatarUrl;
-  final String toUserId;
-  final int createdAt;
-  final String status; // 'pending', 'accepted', 'rejected'
+class FriendRequest { // 'pending', 'accepted', 'rejected'
 
   FriendRequest({
     required this.id,
     required this.fromUserId,
     required this.fromUserName,
-    this.fromUserAvatarUrl,
     required this.toUserId,
     required this.createdAt,
     required this.status,
+    this.fromUserAvatarUrl,
   });
 
   factory FriendRequest.fromJson(Map<String, dynamic> json) {
@@ -145,6 +139,13 @@ class FriendRequest {
       status: json['status'] as String,
     );
   }
+  final String id;
+  final String fromUserId;
+  final String fromUserName;
+  final String? fromUserAvatarUrl;
+  final String toUserId;
+  final int createdAt;
+  final String status;
 
   Map<String, dynamic> toJson() {
     return {

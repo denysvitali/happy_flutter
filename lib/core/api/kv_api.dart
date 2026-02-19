@@ -1,15 +1,16 @@
 import 'dart:async';
-import 'api_client.dart';
+
 import '../models/kv.dart';
+import 'api_client.dart';
 
 /// KV Store API client
 /// Provides key-value storage operations
 /// Based on React Native's apiKv.ts
 class KvApi {
-  final ApiClient _client;
 
   KvApi({ApiClient? client})
       : _client = client ?? ApiClient();
+  final ApiClient _client;
 
   /// Get a single value by key
   /// Returns null if key doesn't exist (404)
@@ -194,10 +195,10 @@ class KvApi {
 
 /// Exception thrown by KV API operations
 class KvApiException implements Exception {
-  final String message;
-  final int? statusCode;
 
   const KvApiException(this.message, {this.statusCode});
+  final String message;
+  final int? statusCode;
 
   @override
   String toString() => 'KvApiException: $message';

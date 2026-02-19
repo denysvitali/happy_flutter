@@ -51,9 +51,6 @@ String? getLastServerUrlError() {
 
 /// Server URL verification result with diagnostic details
 class ServerUrlVerificationResult {
-  final bool isValid;
-  final String? errorMessage;
-  final String? errorType;
 
   const ServerUrlVerificationResult({
     required this.isValid,
@@ -73,14 +70,17 @@ class ServerUrlVerificationResult {
       errorType: type ?? 'Unknown',
     );
   }
+  final bool isValid;
+  final String? errorMessage;
+  final String? errorType;
 }
 
 /// Server URL validation result
 class ServerUrlValidation {
-  final bool valid;
-  final String? error;
 
   const ServerUrlValidation({required this.valid, this.error});
+  final bool valid;
+  final String? error;
 }
 
 /// Validate a server URL

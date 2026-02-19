@@ -6,10 +6,10 @@ import 'api_client.dart';
 /// Handles push notification token registration
 /// Based on React Native's apiPush.ts
 class PushApi {
-  final ApiClient _client;
 
   PushApi({ApiClient? client})
       : _client = client ?? ApiClient();
+  final ApiClient _client;
 
   /// Register a push notification token with the server
   /// Used for receiving push notifications on the device
@@ -87,10 +87,10 @@ class PushApi {
 
 /// Exception thrown by Push API operations
 class PushApiException implements Exception {
-  final String message;
-  final int? statusCode;
 
   const PushApiException(this.message, {this.statusCode});
+  final String message;
+  final int? statusCode;
 
   @override
   String toString() => 'PushApiException: $message';

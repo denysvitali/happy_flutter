@@ -191,11 +191,6 @@ extension PermissionModeExtension on PermissionMode {
 
 /// Permission mode selector dropdown widget
 class PermissionModeSelector extends ConsumerStatefulWidget {
-  final PermissionMode? selectedMode;
-  final ValueChanged<PermissionMode>? onModeChanged;
-  final bool enabled;
-  final double? width;
-  final List<PermissionMode>? availableModes;
 
   const PermissionModeSelector({
     super.key,
@@ -205,6 +200,11 @@ class PermissionModeSelector extends ConsumerStatefulWidget {
     this.width,
     this.availableModes,
   });
+  final PermissionMode? selectedMode;
+  final ValueChanged<PermissionMode>? onModeChanged;
+  final bool enabled;
+  final double? width;
+  final List<PermissionMode>? availableModes;
 
   @override
   ConsumerState<PermissionModeSelector> createState() =>
@@ -314,7 +314,9 @@ class _PermissionModeSelectorState
                 Icon(
                   mode.icon,
                   size: 20,
-                  color: isSelected ? mode.color : Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: isSelected ? mode.color : Theme.of(
+                    context,
+                  ).colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 12),
                 // Mode name and description
@@ -336,7 +338,9 @@ class _PermissionModeSelectorState
                       Text(
                         mode.description,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                       ),
                     ],
@@ -400,13 +404,13 @@ class _PermissionModeSelectorState
         decoration: BoxDecoration(
           border: Border.all(
             color: widget.enabled
-                ? currentMode.color.withOpacity(0.5)
+                ? currentMode.color.withValues(alpha: 0.5)
                 : Theme.of(context).disabledColor,
           ),
           borderRadius: BorderRadius.circular(20),
           color: widget.enabled
-              ? currentMode.color.withOpacity(0.1)
-              : Theme.of(context).disabledColor.withOpacity(0.1),
+              ? currentMode.color.withValues(alpha: 0.1)
+              : Theme.of(context).disabledColor.withValues(alpha: 0.1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -448,18 +452,17 @@ class _PermissionModeSelectorState
 
 /// Compact permission mode badge for display (color-coded)
 class PermissionModeBadge extends StatelessWidget {
-  final PermissionMode mode;
-  final double fontSize;
-  final bool showIcon;
-  final EdgeInsetsGeometry? padding;
 
   const PermissionModeBadge({
-    super.key,
-    required this.mode,
+    required this.mode, super.key,
     this.fontSize = 11,
     this.showIcon = false,
     this.padding,
   });
+  final PermissionMode mode;
+  final double fontSize;
+  final bool showIcon;
+  final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
@@ -467,10 +470,10 @@ class PermissionModeBadge extends StatelessWidget {
       padding: padding ??
           const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: mode.color.withOpacity(0.15),
+        color: mode.color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: mode.color.withOpacity(0.3),
+          color: mode.color.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -501,47 +504,47 @@ class PermissionModeBadge extends StatelessWidget {
 /// Large permission mode selector for settings overlay
 /// Shows all available modes as radio list tiles
 class PermissionModeSettingsList extends StatelessWidget {
+
+  const PermissionModeSettingsList({
+    required this.onModeChanged, super.key,
+    this.selectedMode,
+    this.availableModes,
+  });
   final PermissionMode? selectedMode;
   final ValueChanged<PermissionMode> onModeChanged;
   final List<PermissionMode>? availableModes;
-
-  const PermissionModeSettingsList({
-    super.key,
-    this.selectedMode,
-    required this.onModeChanged,
-    this.availableModes,
-  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final modes = availableModes ?? PermissionMode.values;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section header
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            'Permission Mode',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
+    return RadioGroup<PermissionMode>(
+      groupValue: selectedMode,
+      onChanged: (value) {
+        if (value != null) {
+          onModeChanged(value);
+        }
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
+              'Permission Mode',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-        ),
-        // Mode options
-        ...modes.map(
-          (mode) => RadioListTile<PermissionMode>(
-            value: mode,
-            groupValue: selectedMode,
-            onChanged: (value) {
-              if (value != null) {
-                onModeChanged(value);
-              }
-            },
+          // Mode options
+          ...modes.map(
+            (mode) => RadioListTile<PermissionMode>(
+              value: mode,
             title: Row(
               children: [
                 Icon(
@@ -555,7 +558,9 @@ class PermissionModeSettingsList extends StatelessWidget {
                   style: TextStyle(
                     color: selectedMode == mode ? mode.color : null,
                     fontWeight:
-                        selectedMode == mode ? FontWeight.w600 : FontWeight.w400,
+                        selectedMode == mode
+                            ? FontWeight.w600
+                            : FontWeight.w400,
                   ),
                 ),
               ],
@@ -564,7 +569,8 @@ class PermissionModeSettingsList extends StatelessWidget {
             activeColor: mode.color,
           ),
         ),
-      ],
+          ],
+        ),
     );
   }
 }

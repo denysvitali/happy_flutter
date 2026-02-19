@@ -10,15 +10,6 @@ enum AppTab {
 
 /// Bottom/app tab bar widget
 class TabBar extends StatefulWidget {
-  final AppTab activeTab;
-  final void Function(AppTab tab) onTabPress;
-  final int? inboxBadgeCount;
-  final bool showInboxBadge;
-  final double height;
-  final Color? backgroundColor;
-  final Color? selectedItemColor;
-  final Color? unselectedItemColor;
-  final Color? indicatorColor;
 
   const TabBar({
     required this.activeTab,
@@ -32,6 +23,15 @@ class TabBar extends StatefulWidget {
     this.indicatorColor,
     super.key,
   });
+  final AppTab activeTab;
+  final void Function(AppTab tab) onTabPress;
+  final int? inboxBadgeCount;
+  final bool showInboxBadge;
+  final double height;
+  final Color? backgroundColor;
+  final Color? selectedItemColor;
+  final Color? unselectedItemColor;
+  final Color? indicatorColor;
 
   @override
   State<TabBar> createState() => _TabBarState();
@@ -73,7 +73,8 @@ class _TabBarState extends State<TabBar> {
 
     final backgroundColor = widget.backgroundColor ?? colorScheme.surface;
     final selectedColor = widget.selectedItemColor ?? colorScheme.primary;
-    final unselectedColor = widget.unselectedItemColor ?? colorScheme.onSurfaceVariant;
+    final unselectedColor =
+        widget.unselectedItemColor ?? colorScheme.onSurfaceVariant;
     final indicatorColor = widget.indicatorColor ?? colorScheme.primary;
 
     return Container(
@@ -81,7 +82,7 @@ class _TabBarState extends State<TabBar> {
         color: backgroundColor,
         border: Border(
           top: BorderSide(
-            color: theme.dividerColor.withOpacity(0.3),
+            color: theme.dividerColor.withValues(alpha: 0.3),
           ),
         ),
       ),
@@ -146,7 +147,9 @@ class _TabBarState extends State<TabBar> {
                           style: theme.textTheme.labelSmall?.copyWith(
                             fontSize: 10,
                             color: isActive ? selectedColor : unselectedColor,
-                            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                            fontWeight: isActive
+                                ? FontWeight.w600
+                                : FontWeight.normal,
                           ),
                         ),
                       ],
@@ -199,10 +202,6 @@ class _TabBarState extends State<TabBar> {
 /// Tab information data class
 @immutable
 class AppTabInfo {
-  final AppTab key;
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
 
   const AppTabInfo({
     required this.key,
@@ -210,15 +209,14 @@ class AppTabInfo {
     required this.activeIcon,
     required this.label,
   });
+  final AppTab key;
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
 }
 
 /// Compact tab bar for tablets
 class CompactTabBar extends StatelessWidget {
-  final AppTab activeTab;
-  final void Function(AppTab tab) onTabPress;
-  final double iconSize;
-  final Color? selectedColor;
-  final Color? unselectedColor;
 
   const CompactTabBar({
     required this.activeTab,
@@ -228,6 +226,11 @@ class CompactTabBar extends StatelessWidget {
     this.unselectedColor,
     super.key,
   });
+  final AppTab activeTab;
+  final void Function(AppTab tab) onTabPress;
+  final double iconSize;
+  final Color? selectedColor;
+  final Color? unselectedColor;
 
   @override
   Widget build(BuildContext context) {
@@ -235,7 +238,8 @@ class CompactTabBar extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final l10n = context.l10n;
     final selectedColor = this.selectedColor ?? colorScheme.primary;
-    final unselectedColor = this.unselectedColor ?? colorScheme.onSurfaceVariant;
+    final unselectedColor =
+        this.unselectedColor ?? colorScheme.onSurfaceVariant;
 
     final tabs = [
       const AppTabInfo(
@@ -289,12 +293,6 @@ class CompactTabBar extends StatelessWidget {
 
 /// Segment control style tab bar
 class SegmentTabBar extends StatefulWidget {
-  final List<String> tabs;
-  final int selectedIndex;
-  final void Function(int index) onTabPress;
-  final EdgeInsetsGeometry padding;
-  final TextStyle? selectedTextStyle;
-  final TextStyle? unselectedTextStyle;
 
   const SegmentTabBar({
     required this.tabs,
@@ -305,6 +303,12 @@ class SegmentTabBar extends StatefulWidget {
     this.unselectedTextStyle,
     super.key,
   });
+  final List<String> tabs;
+  final int selectedIndex;
+  final void Function(int index) onTabPress;
+  final EdgeInsetsGeometry padding;
+  final TextStyle? selectedTextStyle;
+  final TextStyle? unselectedTextStyle;
 
   @override
   State<SegmentTabBar> createState() => _SegmentTabBarState();
@@ -319,7 +323,7 @@ class _SegmentTabBarState extends State<SegmentTabBar> {
     return Container(
       padding: widget.padding,
       decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant.withOpacity(0.5),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -338,7 +342,7 @@ class _SegmentTabBarState extends State<SegmentTabBar> {
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 4,
                           offset: const Offset(0, 1),
                         ),

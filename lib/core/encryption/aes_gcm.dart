@@ -1,8 +1,10 @@
-import 'dart:typed_data';
-import 'dart:math';
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:math';
+import 'dart:typed_data';
+
 import 'package:cryptography/cryptography.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import 'base64.dart';
 import 'web_crypto.dart' if (dart.library.html) 'web_crypto_web.dart';
 
@@ -34,7 +36,7 @@ class AesGcmEncryption {
   ///
   /// Output format: [12-byte IV][ciphertext + 16-byte auth tag]
   ///
-  /// Returns a Base64-encoded string for storage (compatible with rn-encryption).
+  /// Returns a Base64-encoded string for storage
   static Future<String> encryptToBase64(
     dynamic data,
     Uint8List secretKey,
@@ -54,7 +56,7 @@ class AesGcmEncryption {
       // Use Web Crypto API for web platform
       final jsonData = jsonEncode(data);
       final dataBytes = utf8.encode(jsonData);
-      return await WebAesGcm.encrypt(dataBytes, secretKey);
+      return WebAesGcm.encrypt(dataBytes, secretKey);
     }
 
     if (secretKey.length != keySize) {
@@ -88,10 +90,10 @@ class AesGcmEncryption {
     final macBytes = secretBox.mac.bytes;
     final result = Uint8List(
       nonce.length + cipherText.length + macBytes.length,
-    );
-    result.setAll(0, nonce);
-    result.setAll(nonce.length, cipherText);
-    result.setAll(nonce.length + cipherText.length, macBytes);
+    )
+      ..setAll(0, nonce)
+      ..setAll(nonce.length, cipherText)
+      ..setAll(nonce.length + cipherText.length, macBytes);
 
     return result;
   }
@@ -104,14 +106,14 @@ class AesGcmEncryption {
     Uint8List secretKey,
   ) async {
     final encrypted = Base64Utils.decode(base64Data);
-    return await decrypt(encrypted, secretKey);
+    return decrypt(encrypted, secretKey);
   }
 
   /// Decrypt true AES-256-GCM encrypted data.
   ///
   /// Input format: [12-byte IV][ciphertext with auth tag]
   ///
-  /// Returns the decrypted data (decoded from JSON), or null if decryption fails.
+  /// Returns the decrypted data (decoded from JSON), or null if
   static Future<dynamic> decrypt(
     Uint8List encryptedData,
     Uint8List secretKey,
@@ -170,7 +172,7 @@ class AesGcmEncryption {
   static Uint8List _generateNonce() {
     final random = Random.secure();
     final nonce = Uint8List(nonceSize);
-    for (int i = 0; i < nonceSize; i++) {
+    for (var i = 0; i < nonceSize; i++) {
       nonce[i] = random.nextInt(256);
     }
     return nonce;

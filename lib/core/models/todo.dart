@@ -1,6 +1,7 @@
-/// Todo list models with drag-and-drop support
+/// Task list models with drag-and-drop support
+library;
 
-/// Todo item state
+/// Task item state
 enum TodoState {
   pending,
   inProgress,
@@ -50,20 +51,8 @@ enum TodoState {
   bool get isTerminal => this == completed || this == canceled;
 }
 
-/// Todo item with ordering
+/// Task item with ordering
 class TodoItem {
-  final String id;
-  final String content;
-  final TodoState status;
-  final String priority; // 'low', 'medium', 'high', 'critical'
-  final int order;
-  final String? parentId;
-  final List<String> dependencies;
-  final int? dueAt;
-  final int createdAt;
-  final int updatedAt;
-  final String? sessionId;
-  final int? completedAt;
 
   TodoItem({
     required this.id,
@@ -71,11 +60,9 @@ class TodoItem {
     required this.status,
     required this.priority,
     required this.order,
-    this.parentId,
+    required this.createdAt, required this.updatedAt, this.parentId,
     this.dependencies = const [],
     this.dueAt,
-    required this.createdAt,
-    required this.updatedAt,
     this.sessionId,
     this.completedAt,
   });
@@ -99,6 +86,18 @@ class TodoItem {
       completedAt: json['completedAt'] as int?,
     );
   }
+  final String id;
+  final String content;
+  final TodoState status;
+  final String priority; // 'low', 'medium', 'high', 'critical'
+  final int order;
+  final String? parentId;
+  final List<String> dependencies;
+  final int? dueAt;
+  final int createdAt;
+  final int updatedAt;
+  final String? sessionId;
+  final int? completedAt;
 
   Map<String, dynamic> toJson() {
     return {
@@ -148,16 +147,11 @@ class TodoItem {
   }
 }
 
-/// Todo list grouping by session
+/// Task list grouping by session
 class TodoList {
-  final String? sessionId;
-  final List<TodoItem> items;
-  final int updatedAt;
 
   TodoList({
-    this.sessionId,
-    required this.items,
-    required this.updatedAt,
+    required this.items, required this.updatedAt, this.sessionId,
   });
 
   factory TodoList.fromJson(Map<String, dynamic> json) {
@@ -170,6 +164,9 @@ class TodoList {
       updatedAt: json['updatedAt'] as int,
     );
   }
+  final String? sessionId;
+  final List<TodoItem> items;
+  final int updatedAt;
 
   Map<String, dynamic> toJson() {
     return {
@@ -181,8 +178,8 @@ class TodoList {
 
   /// Get items sorted by order
   List<TodoItem> get sortedItems {
-    final sorted = List<TodoItem>.from(items);
-    sorted.sort((a, b) => a.order.compareTo(b.order));
+    final sorted = List<TodoItem>.from(items)
+      ..sort((a, b) => a.order.compareTo(b.order));
     return sorted;
   }
 
@@ -220,15 +217,15 @@ class TodoList {
 
 /// Reorder operation for drag-and-drop
 class TodoReorder {
-  final String todoId;
-  final int newOrder;
-  final String? newParentId;
 
   TodoReorder({
     required this.todoId,
     required this.newOrder,
     this.newParentId,
   });
+  final String todoId;
+  final int newOrder;
+  final String? newParentId;
 
   Map<String, dynamic> toJson() {
     return {

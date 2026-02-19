@@ -27,7 +27,7 @@ String hexEncode(Uint8List data) {
 Uint8List hexDecode(String input) {
   final cleanInput = input.replaceAll(RegExp(r'[^0-9a-fA-F]'), '');
   final bytes = <int>[];
-  for (int i = 0; i < cleanInput.length; i += 2) {
+  for (var i = 0; i < cleanInput.length; i += 2) {
     bytes.add(int.parse(cleanInput.substring(i, i + 2), radix: 16));
   }
   return Uint8List.fromList(bytes);
@@ -35,7 +35,12 @@ Uint8List hexDecode(String input) {
 
 /// UUID generation - simple version
 String generateUUID() {
-  return '${_generateHex(8)}-${_generateHex(4)}-${_generateHex(4)}-${_generateHex(4)}-${_generateHex(12)}';
+  final a = _generateHex(8);
+  final b = _generateHex(4);
+  final c = _generateHex(4);
+  final d = _generateHex(4);
+  final e = _generateHex(12);
+  return '$a-$b-$c-$d-$e';
 }
 
 String _generateHex(int length) {
@@ -125,11 +130,11 @@ String prettyJson(dynamic json) {
 
 /// Rate limiter
 class RateLimiter {
+
+  RateLimiter({required this.window, required this.maxRequests});
   final Duration window;
   final int maxRequests;
   final _timestamps = <int>[];
-
-  RateLimiter({required this.window, required this.maxRequests});
 
   bool tryAcquire() {
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -151,10 +156,10 @@ class RateLimiter {
 
 /// Debouncer
 class Debouncer {
-  final Duration delay;
-  Timer? _timer;
 
   Debouncer({required this.delay});
+  final Duration delay;
+  Timer? _timer;
 
   void run(void Function() action) {
     _timer?.cancel();
@@ -169,10 +174,10 @@ class Debouncer {
 
 /// Throttler
 class Throttler {
-  final Duration interval;
-  int _lastRun = 0;
 
   Throttler({required this.interval});
+  final Duration interval;
+  int _lastRun = 0;
 
   bool tryRun(void Function() action) {
     final now = DateTime.now().millisecondsSinceEpoch;

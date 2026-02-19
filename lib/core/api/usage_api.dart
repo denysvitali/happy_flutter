@@ -1,15 +1,16 @@
 import 'dart:async';
-import 'api_client.dart';
+
 import '../models/usage.dart';
+import 'api_client.dart';
 
 /// Usage Statistics API client
 /// Handles API usage tracking, token usage, and cost statistics
 /// Based on React Native's apiUsage.ts
 class UsageApi {
-  final ApiClient _client;
 
   UsageApi({ApiClient? client})
       : _client = client ?? ApiClient();
+  final ApiClient _client;
 
   /// Query usage data from the server
   /// Returns usage data points filtered by the provided parameters
@@ -137,10 +138,10 @@ class UsageApi {
 
 /// Exception thrown by Usage API operations
 class UsageApiException implements Exception {
-  final String message;
-  final int? statusCode;
 
   const UsageApiException(this.message, {this.statusCode});
+  final String message;
+  final int? statusCode;
 
   @override
   String toString() => 'UsageApiException: $message';
@@ -159,15 +160,15 @@ class UsageApiException implements Exception {
 
 /// Usage summary with raw data and calculated totals
 class UsageSummary {
-  final List<UsageDataPoint> usage;
-  final UsageTotals totals;
-  final UsagePeriod period;
 
   const UsageSummary({
     required this.usage,
     required this.totals,
     required this.period,
   });
+  final List<UsageDataPoint> usage;
+  final UsageTotals totals;
+  final UsagePeriod period;
 
   /// Get the most recent data point
   UsageDataPoint? get mostRecent {

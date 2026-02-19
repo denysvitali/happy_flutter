@@ -1,16 +1,17 @@
 /// Diff token for inline highlighting
+library;
 import 'package:flutter/material.dart';
 
 class DiffToken {
-  final String value;
-  final bool added;
-  final bool removed;
 
   const DiffToken({
     required this.value,
     this.added = false,
     this.removed = false,
   });
+  final String value;
+  final bool added;
+  final bool removed;
 
   @override
   bool operator ==(Object other) {
@@ -34,11 +35,6 @@ enum DiffLineType {
 
 /// Single line in a diff
 class DiffLine {
-  final DiffLineType type;
-  final String content;
-  final int? oldLineNumber;
-  final int? newLineNumber;
-  final List<DiffToken>? tokens;
 
   const DiffLine({
     required this.type,
@@ -47,6 +43,11 @@ class DiffLine {
     this.newLineNumber,
     this.tokens,
   });
+  final DiffLineType type;
+  final String content;
+  final int? oldLineNumber;
+  final int? newLineNumber;
+  final List<DiffToken>? tokens;
 
   @override
   bool operator ==(Object other) {
@@ -65,16 +66,17 @@ class DiffLine {
   }
 
   @override
-  int get hashCode => Object.hash(type, content, oldLineNumber, newLineNumber, tokens);
+  int get hashCode => Object.hash(
+    type,
+    content,
+    oldLineNumber,
+    newLineNumber,
+    tokens,
+  );
 }
 
 /// Diff hunk containing related changes
 class DiffHunk {
-  final int oldStart;
-  final int oldLines;
-  final int newStart;
-  final int newLines;
-  final List<DiffLine> lines;
 
   const DiffHunk({
     required this.oldStart,
@@ -83,6 +85,11 @@ class DiffHunk {
     required this.newLines,
     required this.lines,
   });
+  final int oldStart;
+  final int oldLines;
+  final int newStart;
+  final int newLines;
+  final List<DiffLine> lines;
 
   @override
   bool operator ==(Object other) {
@@ -106,13 +113,13 @@ class DiffHunk {
 
 /// Complete diff result
 class DiffResult {
-  final List<DiffHunk> hunks;
-  final DiffStats stats;
 
   const DiffResult({
     required this.hunks,
     required this.stats,
   });
+  final List<DiffHunk> hunks;
+  final DiffStats stats;
 
   @override
   bool operator ==(Object other) {
@@ -132,13 +139,13 @@ class DiffResult {
 
 /// Diff statistics
 class DiffStats {
-  final int additions;
-  final int deletions;
 
   const DiffStats({
     required this.additions,
     required this.deletions,
   });
+  final int additions;
+  final int deletions;
 
   int get totalChanges => additions + deletions;
 
@@ -156,13 +163,6 @@ class DiffStats {
 
 /// Diff view configuration
 class DiffViewConfig {
-  final int contextLines;
-  final bool showLineNumbers;
-  final bool showPlusMinusSymbols;
-  final bool showDiffStats;
-  final bool wrapLines;
-  final double fontScaleX;
-  final DiffTheme theme;
 
   const DiffViewConfig({
     this.contextLines = 3,
@@ -173,6 +173,13 @@ class DiffViewConfig {
     this.fontScaleX = 1,
     this.theme = const DiffTheme(),
   });
+  final int contextLines;
+  final bool showLineNumbers;
+  final bool showPlusMinusSymbols;
+  final bool showDiffStats;
+  final bool wrapLines;
+  final double fontScaleX;
+  final DiffTheme theme;
 
   DiffViewConfig copyWith({
     int? contextLines,
@@ -197,21 +204,6 @@ class DiffViewConfig {
 
 /// Diff theme colors
 class DiffTheme {
-  final Color addedBg;
-  final Color addedText;
-  final Color removedBg;
-  final Color removedText;
-  final Color contextBg;
-  final Color contextText;
-  final Color lineNumberBg;
-  final Color lineNumberText;
-  final Color hunkHeaderBg;
-  final Color hunkHeaderText;
-  final Color inlineAddedBg;
-  final Color inlineAddedText;
-  final Color inlineRemovedBg;
-  final Color inlineRemovedText;
-  final Color leadingSpaceDot;
 
   const DiffTheme({
     this.addedBg = const Color(0xFFDAF8E5),
@@ -230,6 +222,21 @@ class DiffTheme {
     this.inlineRemovedText = const Color(0xFFCF222E),
     this.leadingSpaceDot = const Color(0xFFD0D7DE),
   });
+  final Color addedBg;
+  final Color addedText;
+  final Color removedBg;
+  final Color removedText;
+  final Color contextBg;
+  final Color contextText;
+  final Color lineNumberBg;
+  final Color lineNumberText;
+  final Color hunkHeaderBg;
+  final Color hunkHeaderText;
+  final Color inlineAddedBg;
+  final Color inlineAddedText;
+  final Color inlineRemovedBg;
+  final Color inlineRemovedText;
+  final Color leadingSpaceDot;
 
   DiffTheme copyWith({
     Color? addedBg,

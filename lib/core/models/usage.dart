@@ -1,12 +1,9 @@
 /// Usage statistics models for /v1/usage endpoints
 /// Based on React Native's apiUsage.ts
+library;
 
 /// A single usage data point
 class UsageDataPoint {
-  final int timestamp;
-  final Map<String, int> tokens;
-  final Map<String, double> cost;
-  final int reportCount;
 
   UsageDataPoint({
     required this.timestamp,
@@ -27,6 +24,10 @@ class UsageDataPoint {
       reportCount: json['reportCount'] as int,
     );
   }
+  final int timestamp;
+  final Map<String, int> tokens;
+  final Map<String, double> cost;
+  final int reportCount;
 
   Map<String, dynamic> toJson() {
     return {
@@ -40,7 +41,6 @@ class UsageDataPoint {
 
 /// Response for usage query
 class UsageResponse {
-  final List<UsageDataPoint> usage;
 
   UsageResponse({required this.usage});
 
@@ -50,6 +50,7 @@ class UsageResponse {
         .toList();
     return UsageResponse(usage: usage);
   }
+  final List<UsageDataPoint> usage;
 
   Map<String, dynamic> toJson() {
     return {
@@ -60,10 +61,6 @@ class UsageResponse {
 
 /// Usage query parameters
 class UsageQueryParams {
-  final String? sessionId;
-  final int? startTime; // Unix timestamp in seconds
-  final int? endTime; // Unix timestamp in seconds
-  final UsageGroupBy? groupBy;
 
   UsageQueryParams({
     this.sessionId,
@@ -71,6 +68,10 @@ class UsageQueryParams {
     this.endTime,
     this.groupBy,
   });
+  final String? sessionId;
+  final int? startTime; // Unix timestamp in seconds
+  final int? endTime; // Unix timestamp in seconds
+  final UsageGroupBy? groupBy;
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -90,10 +91,6 @@ enum UsageGroupBy {
 
 /// Aggregated totals from usage data
 class UsageTotals {
-  final int totalTokens;
-  final double totalCost;
-  final Map<String, int> tokensByModel;
-  final Map<String, double> costByModel;
 
   UsageTotals({
     required this.totalTokens,
@@ -130,6 +127,10 @@ class UsageTotals {
       costByModel: costByModel,
     );
   }
+  final int totalTokens;
+  final double totalCost;
+  final Map<String, int> tokensByModel;
+  final Map<String, double> costByModel;
 }
 
 /// Time period for quick usage queries

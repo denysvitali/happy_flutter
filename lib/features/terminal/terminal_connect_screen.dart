@@ -107,7 +107,7 @@ class _TerminalConnectScreenState
               else
                 Card(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedMachineId,
+                    initialValue: _selectedMachineId,
                     decoration: const InputDecoration(
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(

@@ -2,19 +2,18 @@ import 'package:flutter/material.dart';
 
 /// Represents a single autocomplete suggestion
 class AutocompleteSuggestion {
+
+  AutocompleteSuggestion({
+    required this.id,
+    required this.label,
+    required this.type, this.description,
+    this.icon,
+  });
   final String id;
   final String label;
   final String? description;
   final IconData? icon;
   final SuggestionType type;
-
-  AutocompleteSuggestion({
-    required this.id,
-    required this.label,
-    this.description,
-    this.icon,
-    required this.type,
-  });
 }
 
 /// Types of autocomplete suggestions
@@ -22,22 +21,20 @@ enum SuggestionType { file, folder, command }
 
 /// Autocomplete overlay widget for @file mentions and /commands
 class AutocompleteOverlay extends StatefulWidget {
+
+  const AutocompleteOverlay({
+    required this.suggestions, required this.onSelect, super.key,
+    this.selectedIndex = -1,
+    this.itemHeight = 48,
+    this.maxHeight = 240,
+    this.padding,
+  });
   final List<AutocompleteSuggestion> suggestions;
   final int selectedIndex;
   final ValueChanged<int> onSelect;
   final double itemHeight;
   final double maxHeight;
   final EdgeInsets? padding;
-
-  const AutocompleteOverlay({
-    super.key,
-    required this.suggestions,
-    this.selectedIndex = -1,
-    required this.onSelect,
-    this.itemHeight = 48,
-    this.maxHeight = 240,
-    this.padding,
-  });
 
   @override
   State<AutocompleteOverlay> createState() => _AutocompleteOverlayState();
@@ -98,7 +95,7 @@ class _AutocompleteOverlayState extends State<AutocompleteOverlay> {
               itemCount: widget.suggestions.length,
               separatorBuilder: (context, index) => Divider(
                 height: 1,
-                color: theme.dividerColor.withOpacity(0.5),
+                color: theme.dividerColor.withValues(alpha: 0.5),
               ),
               itemBuilder: (context, index) {
                 final suggestion = widget.suggestions[index];
@@ -119,15 +116,15 @@ class _AutocompleteOverlayState extends State<AutocompleteOverlay> {
 }
 
 class _SuggestionItem extends StatelessWidget {
-  final AutocompleteSuggestion suggestion;
-  final bool isSelected;
-  final VoidCallback onTap;
 
   const _SuggestionItem({
     required this.suggestion,
     required this.isSelected,
     required this.onTap,
   });
+  final AutocompleteSuggestion suggestion;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -135,7 +132,7 @@ class _SuggestionItem extends StatelessWidget {
 
     return Material(
       color: isSelected
-          ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+          ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
           : Colors.transparent,
       child: InkWell(
         onTap: onTap,
@@ -196,7 +193,7 @@ class _SuggestionItem extends StatelessWidget {
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(iconData, size: 18, color: iconColor),
@@ -222,7 +219,7 @@ class _SuggestionItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -292,10 +289,11 @@ class AutocompleteController {
     _selectedIndex = (_selectedIndex + 1) % _suggestions.length;
   }
 
-  void selectCurrent() {
+  AutocompleteSuggestion? selectCurrent() {
     if (_selectedIndex >= 0 && _selectedIndex < _suggestions.length) {
-      _suggestions[_selectedIndex];
+      return _suggestions[_selectedIndex];
     }
+    return null;
   }
 
   AutocompleteSuggestion? get selectedSuggestion {

@@ -1,16 +1,26 @@
 import 'dart:typed_data';
+
 import 'package:uuid/uuid.dart';
-import 'derive_key.dart';
-import 'encryptor.dart';
-import 'encryption_cache.dart';
-import 'session_encryption.dart';
-import 'machine_encryption.dart';
+
 import 'base64.dart';
-import 'hex.dart';
 import 'crypto_box.dart';
+import 'derive_key.dart';
+import 'encryption_cache.dart';
+import 'encryptor.dart';
+import 'hex.dart';
+import 'machine_encryption.dart';
+import 'session_encryption.dart';
 
 /// Main encryption manager
 class Encryption {
+
+  Encryption._({
+    required this.anonId,
+    required Uint8List masterSecret,
+    required KeyPair contentKeyPair,
+  })  : _contentKeyPair = contentKeyPair,
+        _legacyEncryption = SecretBoxEncryption(masterSecret),
+        contentDataKey = contentKeyPair.publicKey;
   static final Uuid _uuid = const Uuid();
 
   /// Create encryption instance from master secret
@@ -51,14 +61,6 @@ class Encryption {
   final Map<String, SessionEncryption> _sessionEncryptions = {};
   final Map<String, MachineEncryption> _machineEncryptions = {};
 
-  Encryption._({
-    required this.anonId,
-    required Uint8List masterSecret,
-    required KeyPair contentKeyPair,
-  })  : _contentKeyPair = contentKeyPair,
-        _legacyEncryption = SecretBoxEncryption(masterSecret),
-        contentDataKey = contentKeyPair.publicKey;
-
   /// Core encryption opening
   Future<dynamic> openEncryption(Uint8List? dataEncryptionKey) async {
     if (dataEncryptionKey == null) {
@@ -84,7 +86,7 @@ class Encryption {
       final encryptorDecryptor = await openEncryption(dataKey);
 
       // Create and cache session encryption
-      if (encryptorDecryptor is Encryptor && encryptorDecryptor is Decryptor) {
+      if (encryptorDecryptor is Encryptor) {
         // ignore: unnecessary_cast
         final enc = encryptorDecryptor as Encryptor;
         // ignore: unnecessary_cast
@@ -128,7 +130,7 @@ class Encryption {
       final encryptorDecryptor = await openEncryption(dataKey);
 
       // Create and cache machine encryption
-      if (encryptorDecryptor is Encryptor && encryptorDecryptor is Decryptor) {
+      if (encryptorDecryptor is Encryptor) {
         // ignore: unnecessary_cast
         final enc = encryptorDecryptor as Encryptor;
         // ignore: unnecessary_cast
@@ -159,7 +161,7 @@ class Encryption {
     try {
       final encryptedData = Base64Utils.decode(encrypted, Encoding.base64);
       final decrypted = await _legacyEncryption.decrypt([encryptedData]);
-      return decrypted[0] ?? null;
+      return decrypted[0];
     } catch (e) {
       return null;
     }

@@ -44,7 +44,10 @@ DiffResult calculateUnifiedDiff(
 
         if (pendingRemovals.isNotEmpty) {
           // Find best matching removal
-          final removalIndex = _findBestMatch(line, pendingRemovals.map((r) => r.line).toList());
+          final removalIndex = _findBestMatch(
+              line,
+              pendingRemovals.map((r) => r.line).toList(),
+          );
           if (removalIndex != -1) {
             final removal = pendingRemovals[removalIndex];
             pendingRemovals.removeAt(removalIndex);
@@ -103,28 +106,28 @@ DiffResult calculateUnifiedDiff(
 
 /// Internal class to track pending removals
 class _PendingRemoval {
-  final String line;
-  final int lineNum;
-  final int index;
 
   _PendingRemoval({
     required this.line,
     required this.lineNum,
     required this.index,
   });
+  final String line;
+  final int lineNum;
+  final int index;
 }
 
 /// Simple line-level diff result
 class _LineChange {
-  final List<String> lines;
-  final bool added;
-  final bool removed;
 
   _LineChange({
     required this.lines,
     required this.added,
     required this.removed,
   });
+  final List<String> lines;
+  final bool added;
+  final bool removed;
 }
 
 /// Calculate line-level differences (simplified algorithm)
@@ -168,7 +171,8 @@ List<_LineChange> _diffLines(List<String> oldLines, List<String> newLines) {
       final matchForward = _findBestMatchForward(newLines, j, oldLines[i]);
       final matchBackward = _findBestMatchBackward(oldLines, i, newLines[j]);
 
-      if (matchForward != -1 && (matchBackward == -1 || matchForward <= matchBackward)) {
+      if (matchForward != -1 &&
+          (matchBackward == -1 || matchForward <= matchBackward)) {
         // Lines were added
         changes.add(_LineChange(
           lines: newLines.sublist(j, matchForward),
@@ -186,16 +190,17 @@ List<_LineChange> _diffLines(List<String> oldLines, List<String> newLines) {
         i = matchBackward;
       } else {
         // Modified line
-        changes.add(_LineChange(
-          lines: [oldLines[i]],
-          added: false,
-          removed: true,
-        ));
-        changes.add(_LineChange(
-          lines: [newLines[j]],
-          added: true,
-          removed: false,
-        ));
+        changes
+          ..add(_LineChange(
+            lines: [oldLines[i]],
+            added: false,
+            removed: true,
+          ))
+          ..add(_LineChange(
+            lines: [newLines[j]],
+            added: true,
+            removed: false,
+          ));
         i++;
         j++;
       }
@@ -294,11 +299,15 @@ void _diffWords(
 
       for (var k = 1; k < 5; k++) {
         if (foundI == -1 && i + k < oldWords.length &&
-            newWords.any((w) => _calculateSimilarity(oldWords[i + k], w) > 0.5)) {
+            newWords.any(
+                (w) => _calculateSimilarity(oldWords[i + k], w) > 0.5,
+            )) {
           foundI = i + k;
         }
         if (foundJ == -1 && j + k < newWords.length &&
-            oldWords.any((w) => _calculateSimilarity(newWords[j + k], w) > 0.5)) {
+            oldWords.any(
+                (w) => _calculateSimilarity(newWords[j + k], w) > 0.5,
+            )) {
           foundJ = j + k;
         }
       }
@@ -421,7 +430,8 @@ List<DiffHunk> _createHunks(List<DiffLine> lines, int contextLines) {
 
   for (var i = 0; i < changes.length; i++) {
     final change = changes[i];
-    final startContext = (change.index - contextLines).clamp(0, lines.length - 1);
+    final startContext =
+        (change.index - contextLines).clamp(0, lines.length - 1);
     final endContext =
         (change.index + contextLines).clamp(0, lines.length - 1);
 
@@ -435,7 +445,8 @@ List<DiffHunk> _createHunks(List<DiffLine> lines, int contextLines) {
 
     // Check if we should start a new hunk
     final nextChange = i + 1 < changes.length ? changes[i + 1] : null;
-    if (nextChange != null && nextChange.index - endContext > contextLines * 2) {
+    if (nextChange != null &&
+        nextChange.index - endContext > contextLines * 2) {
       if (currentHunk.isNotEmpty) {
         hunks.add(_buildHunk(currentHunk));
         currentHunk = [];
@@ -453,13 +464,13 @@ List<DiffHunk> _createHunks(List<DiffLine> lines, int contextLines) {
 
 /// Diff line with index
 class DiffLineWithIndex {
-  final DiffLine line;
-  final int index;
 
   DiffLineWithIndex({
     required this.line,
     required this.index,
   });
+  final DiffLine line;
+  final int index;
 }
 
 /// Build a hunk from current lines

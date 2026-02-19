@@ -20,8 +20,8 @@
 /// ```
 library;
 
+export 'block_widgets.dart';
 export 'markdown_models.dart';
 export 'markdown_parser.dart';
 export 'markdown_view.dart';
-export 'block_widgets.dart';
 export 'mermaid_renderer.dart';

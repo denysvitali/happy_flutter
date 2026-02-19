@@ -2,6 +2,7 @@
 ///
 /// Provides functions for stripping markdown, generating message previews,
 /// and detecting assistant messages.
+library;
 
 import 'utils.dart';
 
@@ -15,16 +16,16 @@ String stripMarkdown(String text) {
       // Remove headers
       .replaceAll(RegExp(r'^#{1,6}\s+'), '')
       // Remove bold and italic
-      .replaceAll(RegExp(r'\*\*([^*]+)\*\*'), '\$1')
-      .replaceAll(RegExp(r'\*([^*]+)\*'), '\$1')
-      .replaceAll(RegExp(r'__([^_]+)__'), '\$1')
-      .replaceAll(RegExp(r'_([^_]+)_'), '\$1')
+      .replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1')
+      .replaceAll(RegExp(r'\*([^*]+)\*'), r'$1')
+      .replaceAll(RegExp(r'__([^_]+)__'), r'$1')
+      .replaceAll(RegExp(r'_([^_]+)_'), r'$1')
       // Remove inline code
-      .replaceAll(RegExp(r'`([^`]+)`'), '\$1')
+      .replaceAll(RegExp(r'`([^`]+)`'), r'$1')
       // Remove code blocks
       .replaceAll(RegExp(r'```[\s\S]*?```'), '[code]')
       // Remove links
-      .replaceAll(RegExp(r'\[([^\]]+)\]\([^)]+\)'), '\$1')
+      .replaceAll(RegExp(r'\[([^\]]+)\]\([^)]+\)'), r'$1')
       // Remove horizontal rules
       .replaceAll(RegExp(r'^---+$'), '')
       // Remove list markers
@@ -81,9 +82,6 @@ enum MessageContentType {
 
 /// Simple message content structure.
 class MessageContent {
-  final String type;
-  final String? text;
-  final List<String>? tools;
 
   MessageContent({required this.type, this.text, this.tools});
 
@@ -94,12 +92,13 @@ class MessageContent {
       tools: (json['tools'] as List<dynamic>?)?.cast<String>(),
     );
   }
+  final String type;
+  final String? text;
+  final List<String>? tools;
 }
 
 /// Simple message structure for preview.
 class Message {
-  final String role; // 'user' or 'agent'
-  final MessageContent? content;
 
   Message({required this.role, this.content});
 
@@ -111,6 +110,8 @@ class Message {
           : null,
     );
   }
+  final String role; // 'user' or 'agent'
+  final MessageContent? content;
 }
 
 /// Get a readable preview of a message.

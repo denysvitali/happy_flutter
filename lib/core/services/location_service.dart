@@ -11,17 +11,17 @@ class LocationService {
 
   /// Check if location services are enabled on the device
   Future<bool> get isLocationServiceEnabled async {
-    return await _geolocator.isLocationServiceEnabled();
+    return _geolocator.isLocationServiceEnabled();
   }
 
   /// Check current location permission status
   Future<LocationPermission> get permissionStatus async {
-    return await _geolocator.checkPermission();
+    return _geolocator.checkPermission();
   }
 
   /// Request location permission from user
   Future<LocationPermission> requestPermission() async {
-    return await _geolocator.requestPermission();
+    return _geolocator.requestPermission();
   }
 
   /// Get current location position.
@@ -134,13 +134,6 @@ class LocationService {
 
 /// Wrapper class for position data
 class LocationPosition {
-  final double latitude;
-  final double longitude;
-  final double accuracy;
-  final double altitude;
-  final double heading;
-  final double speed;
-  final DateTime? timestamp;
 
   LocationPosition({
     required this.latitude,
@@ -151,17 +144,6 @@ class LocationPosition {
     required this.speed,
     required this.timestamp,
   });
-
-  /// Convert to JSON for storage/transmission
-  Map<String, dynamic> toJson() => {
-        'latitude': latitude,
-        'longitude': longitude,
-        'accuracy': accuracy,
-        'altitude': altitude,
-        'heading': heading,
-        'speed': speed,
-        'timestamp': timestamp?.toIso8601String(),
-      };
 
   /// Create from JSON
   factory LocationPosition.fromJson(Map<String, dynamic> json) {
@@ -177,4 +159,22 @@ class LocationPosition {
           : null,
     );
   }
+  final double latitude;
+  final double longitude;
+  final double accuracy;
+  final double altitude;
+  final double heading;
+  final double speed;
+  final DateTime? timestamp;
+
+  /// Convert to JSON for storage/transmission
+  Map<String, dynamic> toJson() => {
+        'latitude': latitude,
+        'longitude': longitude,
+        'accuracy': accuracy,
+        'altitude': altitude,
+        'heading': heading,
+        'speed': speed,
+        'timestamp': timestamp?.toIso8601String(),
+      };
 }

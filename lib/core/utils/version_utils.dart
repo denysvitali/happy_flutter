@@ -15,7 +15,7 @@ const String minimumCliVersion = '0.10.0';
 ///
 /// Returns -1 if version1 < version2, 0 if equal, 1 if version1 > version2
 int compareVersions(String version1, String version2) {
-  // Handle pre-release versions by stripping suffix (e.g., "0.10.0-1" -> "0.10.0")
+  // Handle pre-release versions by stripping suffix
   String cleanVersion(String v) => v.split('-')[0];
 
   final v1Parts = cleanVersion(version1).split('.').map(int.tryParse).toList();
@@ -43,10 +43,13 @@ int compareVersions(String version1, String version2) {
 /// Check if a version meets the minimum requirement.
 ///
 /// [version] - Version to check
-/// [minimumVersion] - Minimum required version (defaults to [minimumCliVersion])
+/// [minimumVersion] - Minimum required version
 ///
 /// Returns true if version >= minimumVersion
-bool isVersionSupported(String? version, [String minimumVersion = minimumCliVersion]) {
+bool isVersionSupported(
+  String? version, [
+  String minimumVersion = minimumCliVersion,
+]) {
   if (version == null) return false;
 
   try {
@@ -59,11 +62,15 @@ bool isVersionSupported(String? version, [String minimumVersion = minimumCliVers
 
 /// Parsed version components.
 class ParsedVersion {
+
+  const ParsedVersion({
+    required this.major,
+    required this.minor,
+    required this.patch,
+  });
   final int major;
   final int minor;
   final int patch;
-
-  const ParsedVersion({required this.major, required this.minor, required this.patch});
 
   @override
   String toString() => '$major.$minor.$patch';
@@ -108,7 +115,7 @@ ParsedVersion? parseVersion(String version) {
   }
 }
 
-/// Check if a version is a pre-release (has suffix like "-beta", "-alpha", etc.)
+/// Check if a version is a pre-release (has suffix like "-beta",
 bool isPreRelease(String version) {
   return version.contains('-');
 }

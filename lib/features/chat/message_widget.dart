@@ -85,10 +85,16 @@ class _MessageWidgetState extends State<MessageWidget>
           messages: widget.messages,
           sessionId: widget.sessionId,
           onPress: (widget.sessionId != null && messageId != null)
-              ? () => context.push(
-                    '/chat/${widget.sessionId}/message/$messageId',
-                    extra: widget.messageData,
-                  )
+              ? () {
+                  final isTask =
+                      widget.messageData['name'] == 'Task';
+                  final route = isTask
+                      ? '/chat/${widget.sessionId}'
+                            '/agent/$messageId'
+                      : '/chat/${widget.sessionId}'
+                            '/message/$messageId';
+                  context.push(route, extra: widget.messageData);
+                }
               : null,
         ),
       );

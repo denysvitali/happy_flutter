@@ -8,7 +8,8 @@ import 'dart:async';
 /// AsyncLock - A mutex implementation for Dart async operations.
 ///
 /// Allows only one operation to proceed at a time within [inLock].
-/// Uses a permit-based system where acquiring a permit blocks until one is available.
+/// Uses a permit-based system where acquiring a permit blocks until
+/// one is available.
 ///
 /// Example:
 /// ```dart
@@ -60,7 +61,8 @@ class AsyncLock {
         'permits should never be > 0 when there is someone waiting.',
       );
     } else if (_permits == 1 && _promiseResolverQueue.isNotEmpty) {
-      // If there is someone else waiting, immediately consume the permit that was released
+      // If there is someone else waiting, immediately consume the
+      // permit that was released
       // at the beginning of this function and let the waiting function resume.
       _permits -= 1;
 
@@ -88,12 +90,12 @@ class AsyncLock {
 /// It's easier to understand but may have different performance characteristics
 /// for high-contention scenarios.
 class SimpleAsyncLock {
-  Future<void>? _currentLock;
-  final _completer = Completer<void>();
 
   SimpleAsyncLock() {
     _currentLock = _completer.future;
   }
+  Future<void>? _currentLock;
+  final _completer = Completer<void>();
 
   /// Execute a function with exclusive access.
   Future<T> withLock<T>(Future<T> Function() func) async {

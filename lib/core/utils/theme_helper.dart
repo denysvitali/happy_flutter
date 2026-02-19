@@ -8,10 +8,10 @@ enum AppThemeMode {
   light('light', 'Always light'),
   dark('dark', 'Always dark');
 
+  const AppThemeMode(this.value, this.description);
+
   final String value;
   final String description;
-
-  const AppThemeMode(this.value, this.description);
 
   /// Parse a string value to AppThemeMode
   static AppThemeMode fromString(String value) {

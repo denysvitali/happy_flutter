@@ -90,9 +90,9 @@ class PickMachineScreen extends ConsumerWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  final String title;
 
   const _SectionHeader({required this.title});
+  final String title;
 
   @override
   Widget build(BuildContext context) {
@@ -112,15 +112,15 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _MachineListTile extends StatelessWidget {
-  final Machine machine;
-  final bool showRecentIcon;
-  final VoidCallback onTap;
 
   const _MachineListTile({
     required this.machine,
     required this.showRecentIcon,
     required this.onTap,
   });
+  final Machine machine;
+  final bool showRecentIcon;
+  final VoidCallback onTap;
 
   bool get _isOnline {
     final now = DateTime.now().millisecondsSinceEpoch;

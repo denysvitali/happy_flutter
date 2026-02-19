@@ -5,9 +5,9 @@ import '../models/kv.dart';
 /// Service for key-value store operations (/v1/kv/*)
 /// Based on React Native's apiKv.ts
 class KvService {
-  static final KvService _instance = KvService._();
   factory KvService() => _instance;
   KvService._();
+  static final KvService _instance = KvService._();
 
   final _apiClient = ApiClient();
 
@@ -70,7 +70,9 @@ class KvService {
       );
 
       if (!_apiClient.isSuccess(response)) {
-        throw KvException('Failed to bulk get KV values: ${response.statusCode}');
+        throw KvException(
+          'Failed to bulk get KV values: ${response.statusCode}',
+        );
       }
 
       return KvBulkGetResponse.fromJson(response.data as Map<String, dynamic>);
@@ -168,8 +170,8 @@ class KvService {
 
 /// Exception for KV operations
 class KvException implements Exception {
-  final String message;
   KvException(this.message);
+  final String message;
 
   @override
   String toString() => 'KvException: $message';
@@ -177,13 +179,16 @@ class KvException implements Exception {
 
 /// Exception for version mismatch errors
 class VersionMismatchException extends KvException {
-  final String key;
-  final int currentVersion;
-  final String reason;
 
   VersionMismatchException({
     required this.key,
     required this.currentVersion,
     required this.reason,
-  }) : super('Version mismatch for key "$key": $reason (current version: $currentVersion)');
+  }) : super(
+        'Version mismatch for key"$key": $reason'
+        ' (current version: $currentVersion)',
+      );
+  final String key;
+  final int currentVersion;
+  final String reason;
 }

@@ -1,25 +1,17 @@
 /// Activity feed and notification models
+library;
 
 /// Activity feed item
 class FeedItem {
-  final String id;
-  final String userId;
-  final String? userName;
-  final String? userAvatarUrl;
-  final FeedType type;
-  final FeedBody body;
-  final int createdAt;
-  final bool read;
-  final String? sessionId;
 
   FeedItem({
     required this.id,
     required this.userId,
-    this.userName,
-    this.userAvatarUrl,
     required this.type,
     required this.body,
     required this.createdAt,
+    this.userName,
+    this.userAvatarUrl,
     this.read = false,
     this.sessionId,
   });
@@ -37,6 +29,15 @@ class FeedItem {
       sessionId: json['sessionId'] as String?,
     );
   }
+  final String id;
+  final String userId;
+  final String? userName;
+  final String? userAvatarUrl;
+  final FeedType type;
+  final FeedBody body;
+  final int createdAt;
+  final bool read;
+  final String? sessionId;
 
   Map<String, dynamic> toJson() {
     return {
@@ -155,10 +156,6 @@ enum FeedType {
 
 /// Feed body content based on type
 class FeedBody {
-  final String title;
-  final String? message;
-  final String? linkUrl;
-  final Map<String, dynamic>? extra;
 
   FeedBody({
     required this.title,
@@ -175,6 +172,10 @@ class FeedBody {
       extra: json['extra'] as Map<String, dynamic>?,
     );
   }
+  final String title;
+  final String? message;
+  final String? linkUrl;
+  final Map<String, dynamic>? extra;
 
   Map<String, dynamic> toJson() {
     return {
@@ -188,22 +189,13 @@ class FeedBody {
 
 /// App notification
 class AppNotification {
-  final String id;
-  final NotificationType type;
-  final String title;
-  final String? body;
-  final Map<String, dynamic>? data;
-  final int createdAt;
-  bool dismissed;
-  int? readAt;
 
   AppNotification({
     required this.id,
     required this.type,
     required this.title,
-    this.body,
+    required this.createdAt, this.body,
     this.data,
-    required this.createdAt,
     this.dismissed = false,
     this.readAt,
   });
@@ -220,6 +212,14 @@ class AppNotification {
       readAt: json['readAt'] as int?,
     );
   }
+  final String id;
+  final NotificationType type;
+  final String title;
+  final String? body;
+  final Map<String, dynamic>? data;
+  final int createdAt;
+  bool dismissed;
+  int? readAt;
 
   Map<String, dynamic> toJson() {
     return {

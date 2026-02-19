@@ -28,10 +28,6 @@ int _avatarHashCode(String str) {
 
 /// AvatarBrutalist - Uses abstract/bauhaus/brutalist style images with color pairs
 class AvatarBrutalist extends StatelessWidget {
-  final String id;
-  final double size;
-  final bool square;
-  final bool monochrome;
 
   const AvatarBrutalist({
     required this.id,
@@ -40,6 +36,10 @@ class AvatarBrutalist extends StatelessWidget {
     this.monochrome = false,
     super.key,
   });
+  final String id;
+  final double size;
+  final bool square;
+  final bool monochrome;
 
   static const _abstractImages = [
     'assets/images/brutalist/Abstract 1.png',
@@ -470,7 +470,11 @@ class AvatarBrutalist extends StatelessWidget {
     'assets/images/brutalist/Brutalism 118.png',
   ];
 
-  static final _allImages = [..._abstractImages, ..._bauhausImages, ..._brutalismImages];
+  static final _allImages = [
+    ..._abstractImages,
+    ..._bauhausImages,
+    ..._brutalismImages,
+  ];
 
   static const _colorPairs = [
     _ColorPair(tint: Color(0xFFFFA617), background: Color(0xFF0056B3)),
@@ -521,18 +525,14 @@ class AvatarBrutalist extends StatelessWidget {
 }
 
 class _ColorPair {
-  final Color tint;
-  final Color background;
 
   const _ColorPair({required this.tint, required this.background});
+  final Color tint;
+  final Color background;
 }
 
 /// AvatarGradient - Uses gradient images for avatar
 class AvatarGradient extends StatelessWidget {
-  final String id;
-  final double size;
-  final bool square;
-  final bool monochrome;
 
   const AvatarGradient({
     required this.id,
@@ -541,6 +541,10 @@ class AvatarGradient extends StatelessWidget {
     this.monochrome = false,
     super.key,
   });
+  final String id;
+  final double size;
+  final bool square;
+  final bool monochrome;
 
   static const _gradientImages = [
     'assets/images/gradients/01.png',
@@ -679,6 +683,14 @@ class AvatarGradient extends StatelessWidget {
 
 /// AvatarSkia - 8x8 pixel grid with generative colors
 class AvatarSkia extends StatelessWidget {
+
+  const AvatarSkia({
+    required this.id,
+    this.size = 48,
+    this.square = false,
+    this.monochrome = false,
+    super.key,
+  });
   final String id;
   final double size;
   final bool square;
@@ -698,14 +710,6 @@ class AvatarSkia extends StatelessWidget {
     '#979797',
     '#bbbbbb',
   ];
-
-  const AvatarSkia({
-    required this.id,
-    this.size = 48,
-    this.square = false,
-    this.monochrome = false,
-    super.key,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -732,10 +736,6 @@ class AvatarSkia extends StatelessWidget {
 }
 
 class _PixelGridPainter extends CustomPainter {
-  final String id;
-  final int hash;
-  final List<String> palette;
-  final bool monochrome;
 
   _PixelGridPainter({
     required this.id,
@@ -743,6 +743,10 @@ class _PixelGridPainter extends CustomPainter {
     required this.palette,
     required this.monochrome,
   });
+  final String id;
+  final int hash;
+  final List<String> palette;
+  final bool monochrome;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -797,9 +801,6 @@ class _PixelGridPainter extends CustomPainter {
 
 /// Flavor icon overlay widget for AI assistant avatars
 class FlavorIconOverlay extends StatelessWidget {
-  final FlavorIcon flavor;
-  final double avatarSize;
-  final bool showBackground;
 
   const FlavorIconOverlay({
     required this.flavor,
@@ -807,6 +808,9 @@ class FlavorIconOverlay extends StatelessWidget {
     this.showBackground = true,
     super.key,
   });
+  final FlavorIcon flavor;
+  final double avatarSize;
+  final bool showBackground;
 
   String get _iconPath {
     switch (flavor) {
@@ -864,15 +868,6 @@ class FlavorIconOverlay extends StatelessWidget {
 
 /// Main Avatar widget with support for all styles and image override
 class Avatar extends StatelessWidget {
-  final String id;
-  final double size;
-  final bool square;
-  final bool monochrome;
-  final FlavorIcon? flavor;
-  final String? imageUrl;
-  final String? thumbhash;
-  final AvatarStyle style;
-  final bool showFlavorIcon;
 
   const Avatar({
     required this.id,
@@ -886,6 +881,15 @@ class Avatar extends StatelessWidget {
     this.showFlavorIcon = false,
     super.key,
   });
+  final String id;
+  final double size;
+  final bool square;
+  final bool monochrome;
+  final FlavorIcon? flavor;
+  final String? imageUrl;
+  final String? thumbhash;
+  final AvatarStyle style;
+  final bool showFlavorIcon;
 
   @override
   Widget build(BuildContext context) {

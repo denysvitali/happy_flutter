@@ -6,10 +6,10 @@ import '../../core/models/api_update.dart';
 
 /// Represents a decoded Socket.io message
 class SocketMessage {
-  final String event;
-  final dynamic data;
 
   SocketMessage({required this.event, required this.data});
+  final String event;
+  final dynamic data;
 }
 
 /// WebSocket connection state
@@ -23,9 +23,9 @@ enum ConnectionStatus {
 /// Socket.io compatible WebSocket client
 /// Matches React Native's apiSocket.ts behavior
 class SocketIoClient {
-  static final SocketIoClient _instance = SocketIoClient._();
   factory SocketIoClient() => _instance;
   SocketIoClient._();
+  static final SocketIoClient _instance = SocketIoClient._();
 
   sio.Socket? _socket;
   ConnectionStatus _status = ConnectionStatus.disconnected;
@@ -108,10 +108,10 @@ class SocketIoClient {
 
     _socket!.onAny((event, data) {
       _messageController.add(
-        SocketMessage(event: event as String, data: data),
+        SocketMessage(event: event, data: data),
       );
 
-      final handler = _messageHandlers[event as String];
+      final handler = _messageHandlers[event];
       if (handler != null) handler(data);
 
       if (event == 'update' && data is Map<String, dynamic>) {

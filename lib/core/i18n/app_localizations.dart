@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
 /// Stub AppLocalizations class for CI compatibility
-/// TODO: Replace with proper generated localizations
+/// Replace with proper generated localizations (pending implementation)
 /// v2 - force re-analysis
 class AppLocalizations {
-  final Locale locale;
 
   AppLocalizations(this.locale);
+  final Locale locale;
 
   /// Get the AppLocalizations instance for the given context.
   /// Always returns a non-null instance.
   static AppLocalizations of(BuildContext context) {
-    final AppLocalizations? localizations = Localizations.of<AppLocalizations>(
+    final localizations = Localizations.of<AppLocalizations>(
       context,
       AppLocalizations,
     );
@@ -51,7 +51,8 @@ class AppLocalizations {
   String get authConnect => 'Connect';
   String get authConnecting => 'Connecting...';
   String get authInvalidQR => 'Invalid QR code';
-  String get authConnectionError => 'Connection failed. Please check your server URL and try again.';
+  String get authConnectionError =>
+      'Connection failed. Please check your server URL and try again.';
   String get authServerConnectionError => 'Cannot connect to server';
 
   // Sessions
@@ -111,7 +112,8 @@ class AppLocalizations {
   String get chatChat => 'Chat';
   String get chatChatLoading => 'Loading...';
   String get chatDeleteSession => 'Delete Session';
-  String get chatDeleteSessionConfirm => 'Are you sure you want to delete this session?';
+  String get chatDeleteSessionConfirm =>
+      'Are you sure you want to delete this session?';
   String get chatFailedToSend => 'Failed to send message';
   String get chatSendMessageToBegin => 'Send a message to begin';
   String get chatSessionSettings => 'Session Settings';

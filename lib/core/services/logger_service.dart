@@ -10,6 +10,14 @@ enum LogLevel {
 
 /// A single log entry
 class LogEntry {
+
+  LogEntry({
+    required this.timestamp,
+    required this.level,
+    required this.message,
+    this.error,
+    this.stackTrace,
+  });
   /// Timestamp when the log was created
   final DateTime timestamp;
 
@@ -24,14 +32,6 @@ class LogEntry {
 
   /// Optional stack trace
   final StackTrace? stackTrace;
-
-  LogEntry({
-    required this.timestamp,
-    required this.level,
-    required this.message,
-    this.error,
-    this.stackTrace,
-  });
 
   /// Convert to a formatted string for display/export
   String toFormattedString() {
@@ -54,14 +54,14 @@ class LogEntry {
   String toString() => toFormattedString();
 }
 
-/// Logger service with circular buffer (5000 entry limit), listeners, and log levels.
+/// Logger service with circular buffer (5000 entry limit),
 ///
 /// Maintains an in-memory buffer of log entries and notifies listeners when new
 /// entries are added. All logs are also written to the console in debug builds.
 class LoggerService {
-  static final LoggerService _instance = LoggerService._();
   factory LoggerService() => _instance;
   LoggerService._();
+  static final LoggerService _instance = LoggerService._();
 
   static const int _maxLogs = 5000;
 

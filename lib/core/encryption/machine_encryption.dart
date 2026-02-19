@@ -1,13 +1,9 @@
-import 'encryptor.dart';
-import 'encryption_cache.dart';
 import 'base64.dart';
+import 'encryption_cache.dart';
+import 'encryptor.dart';
 
 /// Machine-specific encryption management
 class MachineEncryption {
-  final String _machineId;
-  final Encryptor _encryptor;
-  final Decryptor _decryptor;
-  final EncryptionCache _cache;
 
   MachineEncryption({
     required String machineId,
@@ -18,6 +14,10 @@ class MachineEncryption {
         _encryptor = encryptor,
         _decryptor = decryptor,
         _cache = cache;
+  final String _machineId;
+  final Encryptor _encryptor;
+  final Decryptor _decryptor;
+  final EncryptionCache _cache;
 
   /// Encrypt machine metadata
   Future<String> encryptMetadata(Map<String, dynamic> metadata) async {
@@ -77,7 +77,7 @@ class MachineEncryption {
     try {
       final encryptedData = Base64Utils.decode(encrypted, Encoding.base64);
       final decrypted = await _decryptor.decrypt([encryptedData]);
-      final result = decrypted[0] ?? null;
+      final result = decrypted[0];
 
       // Cache result (including null)
       _cache.setCachedDaemonState(_machineId, version, result);
@@ -100,7 +100,7 @@ class MachineEncryption {
     try {
       final encryptedData = Base64Utils.decode(encrypted, Encoding.base64);
       final decrypted = await _decryptor.decrypt([encryptedData]);
-      return decrypted[0] ?? null;
+      return decrypted[0];
     } catch (e) {
       return null;
     }

@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
-import '../tool_section_view.dart';
-import 'package:happy_flutter/core/utils/path_utils.dart';
-import 'package:happy_flutter/core/ui/diff/diff_view.dart';
 import 'package:happy_flutter/core/ui/diff/diff_types.dart';
+import 'package:happy_flutter/core/ui/diff/diff_view.dart';
+import 'package:happy_flutter/core/utils/path_utils.dart';
+
+import '../tool_section_view.dart';
 
 /// View for displaying Gemini edit tool (lowercase 'edit').
 class GeminiEditView extends StatefulWidget {
+
+  const GeminiEditView({
+    required this.tool, super.key,
+    this.metadata,
+  });
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
   /// Optional metadata for path resolution.
   final Map<String, dynamic>? metadata;
-
-  const GeminiEditView({
-    super.key,
-    required this.tool,
-    this.metadata,
-  });
 
   @override
   State<GeminiEditView> createState() => _GeminiEditViewState();
@@ -144,10 +144,6 @@ class _GeminiEditViewState extends State<GeminiEditView> {
 // ---------------------------------------------------------------------------
 
 class _EditHeaderBar extends StatelessWidget {
-  final String resolvedPath;
-  final bool hasContent;
-  final int oldLines;
-  final int newLines;
 
   const _EditHeaderBar({
     required this.resolvedPath,
@@ -155,6 +151,10 @@ class _EditHeaderBar extends StatelessWidget {
     required this.oldLines,
     required this.newLines,
   });
+  final String resolvedPath;
+  final bool hasContent;
+  final int oldLines;
+  final int newLines;
 
   @override
   Widget build(BuildContext context) {
@@ -246,15 +246,15 @@ class _EditHeaderBar extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ExpandToggle extends StatelessWidget {
-  final bool expanded;
-  final int totalLines;
-  final VoidCallback onToggle;
 
   const _ExpandToggle({
     required this.expanded,
     required this.totalLines,
     required this.onToggle,
   });
+  final bool expanded;
+  final int totalLines;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -302,13 +302,13 @@ class _ExpandToggle extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _EditDiffBody extends StatelessWidget {
-  final String oldText;
-  final String newText;
 
   const _EditDiffBody({
     required this.oldText,
     required this.newText,
   });
+  final String oldText;
+  final String newText;
 
   @override
   Widget build(BuildContext context) {

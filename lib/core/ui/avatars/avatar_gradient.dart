@@ -4,8 +4,7 @@ import 'avatar.dart';
 /// Gradient-style avatar with colorful background
 class AvatarGradient extends BaseAvatar {
   const AvatarGradient({
-    super.key,
-    required super.id,
+    required super.id, super.key,
     super.size = 48,
   });
 

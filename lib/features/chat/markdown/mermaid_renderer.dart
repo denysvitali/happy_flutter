@@ -12,9 +12,9 @@ import 'package:webview_flutter/webview_flutter.dart';
 /// Uses WebView on all platforms for consistent rendering.
 /// The mermaid.js library is loaded from CDN.
 class MermaidBlockWidget extends StatefulWidget {
-  final String content;
 
-  const MermaidBlockWidget({super.key, required this.content});
+  const MermaidBlockWidget({required this.content, super.key});
+  final String content;
 
   @override
   State<MermaidBlockWidget> createState() => _MermaidBlockWidgetState();
@@ -76,7 +76,9 @@ class _MermaidBlockWidgetState extends State<MermaidBlockWidget> {
     if (_controller == null) return;
 
     final theme = Theme.of(context);
-    final backgroundColor = _colorToHex(theme.colorScheme.surfaceVariant);
+    final backgroundColor = _colorToHex(
+      theme.colorScheme.surfaceContainerHighest,
+    );
     final textColor = _colorToHex(theme.colorScheme.onSurfaceVariant);
     final errorColor = _colorToHex(theme.colorScheme.error);
 
@@ -203,7 +205,7 @@ class _MermaidBlockWidgetState extends State<MermaidBlockWidget> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -236,7 +238,7 @@ class _MermaidBlockWidgetState extends State<MermaidBlockWidget> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -295,7 +297,8 @@ class _MermaidBlockWidgetState extends State<MermaidBlockWidget> {
   }
 
   String _colorToHex(Color color) {
-    final hex = '#${color.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+    final argb = color.toARGB32().toRadixString(16).padLeft(8, '0');
+    final hex = '#${argb.substring(2)}';
     return hex;
   }
 }

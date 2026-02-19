@@ -1,23 +1,11 @@
 /// Purchases model
 /// Tracks active subscriptions and entitlements
 class Purchases {
-  final List<String> activeSubscriptions;
-  final Map<String, bool> entitlements;
 
   const Purchases({
     this.activeSubscriptions = const [],
     this.entitlements = const {},
   });
-
-  Purchases copyWith({
-    List<String>? activeSubscriptions,
-    Map<String, bool>? entitlements,
-  }) {
-    return Purchases(
-      activeSubscriptions: activeSubscriptions ?? this.activeSubscriptions,
-      entitlements: entitlements ?? this.entitlements,
-    );
-  }
 
   factory Purchases.fromJson(Map<String, dynamic> json) {
     return Purchases(
@@ -30,6 +18,18 @@ class Purchases {
             (k, v) => MapEntry(k, v as bool),
           ) ??
           {},
+    );
+  }
+  final List<String> activeSubscriptions;
+  final Map<String, bool> entitlements;
+
+  Purchases copyWith({
+    List<String>? activeSubscriptions,
+    Map<String, bool>? entitlements,
+  }) {
+    return Purchases(
+      activeSubscriptions: activeSubscriptions ?? this.activeSubscriptions,
+      entitlements: entitlements ?? this.entitlements,
     );
   }
 
@@ -48,7 +48,7 @@ class Purchases {
     if (purchases is Map<String, dynamic>) {
       return Purchases.fromJson(purchases);
     }
-    return const Purchases();
+    return Purchases.defaults;
   }
 
   /// Check if a specific entitlement is active

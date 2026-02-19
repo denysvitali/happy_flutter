@@ -3,17 +3,16 @@ import '../tool_section_view.dart';
 
 /// View for displaying ExitPlanMode tool (proposal summary).
 class ExitPlanToolView extends StatelessWidget {
+
+  const ExitPlanToolView({
+    required this.tool, super.key,
+    this.metadata,
+  });
   /// The tool data.
   final Map<String, dynamic> tool;
 
   /// Optional metadata.
   final Map<String, dynamic>? metadata;
-
-  const ExitPlanToolView({
-    super.key,
-    required this.tool,
-    this.metadata,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -33,13 +32,13 @@ class ExitPlanToolView extends StatelessWidget {
 }
 
 class _PlanCard extends StatelessWidget {
-  final String plan;
-  final bool isCompleted;
 
   const _PlanCard({
     required this.plan,
     required this.isCompleted,
   });
+  final String plan;
+  final bool isCompleted;
 
   @override
   Widget build(BuildContext context) {

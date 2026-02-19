@@ -1,18 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/app_providers.dart';
 
 /// A voice language option displayed in the list.
 class _VoiceLanguageOption {
-  final String code;
-  final String name;
-  final String nativeName;
 
   const _VoiceLanguageOption({
     required this.code,
     required this.name,
     required this.nativeName,
   });
+  final String code;
+  final String name;
+  final String nativeName;
 }
 
 /// Hardcoded set of supported voice languages.
@@ -144,9 +145,12 @@ class _VoiceLanguageSettingsScreenState
   Future<void> _selectLanguage(_VoiceLanguageOption lang) async {
     await ref
         .read(settingsNotifierProvider.notifier)
-        .updateSetting('voiceAssistantLanguage', lang.code.isEmpty ? null : lang.code);
+        .updateSetting(
+          'voiceAssistantLanguage',
+          lang.code.isEmpty ? null : lang.code,
+        );
     if (mounted) {
-      Navigator.of(context).maybePop();
+      unawaited(Navigator.of(context).maybePop());
     }
   }
 

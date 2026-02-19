@@ -1,8 +1,5 @@
 /// Authentication credentials stored securely
 class AuthCredentials {
-  final String token;
-  final String secret;
-
   const AuthCredentials({required this.token, required this.secret});
 
   factory AuthCredentials.fromJson(Map<String, dynamic> json) {
@@ -11,6 +8,9 @@ class AuthCredentials {
       secret: json['secret'] as String,
     );
   }
+
+  final String token;
+  final String secret;
 
   Map<String, dynamic> toJson() {
     return {'token': token, 'secret': secret};
@@ -27,17 +27,19 @@ enum AuthState {
 
 /// Base class for authentication exceptions
 class AuthException implements Exception {
-  final String message;
   const AuthException(this.message);
+
+  final String message;
 
   @override
   String toString() => 'AuthException: $message';
 }
 
 /// Authentication error types
-sealed class AuthError {
-  final String? message;
+sealed class AuthError implements Exception {
   AuthError(this.message);
+
+  final String? message;
 
   String get messageText => message ?? 'Unknown error';
 }
@@ -60,29 +62,33 @@ class UnknownError extends AuthError {
 
 /// Server error (5xx)
 class ServerError implements Exception {
-  final String message;
-  final int? statusCode;
-
   const ServerError(
     this.message, {
     this.statusCode,
   });
 
+  final String message;
+  final int? statusCode;
+
   @override
-  String toString() => 'ServerError: $message${statusCode != null ? ' (status: $statusCode)' : ''}';
+  String toString() {
+    final status =
+        statusCode != null ? ' (status: $statusCode)' : '';
+    return 'ServerError: $message$status';
+  }
 }
 
 /// Auth forbidden error (403)
 class AuthForbiddenError implements Exception {
-  final String message;
-  final String? serverResponse;
-  final String? diagnosticInfo;
-
   const AuthForbiddenError(
     this.message, {
     this.serverResponse,
     this.diagnosticInfo,
   });
+
+  final String message;
+  final String? serverResponse;
+  final String? diagnosticInfo;
 
   @override
   String toString() {
@@ -99,29 +105,33 @@ class AuthForbiddenError implements Exception {
 
 /// Auth request error (4xx)
 class AuthRequestError implements Exception {
-  final String message;
-  final int? statusCode;
-  final String? serverResponse;
-
   const AuthRequestError(
     this.message, {
     this.statusCode,
     this.serverResponse,
   });
 
+  final String message;
+  final int? statusCode;
+  final String? serverResponse;
+
   @override
-  String toString() => 'AuthRequestError: $message${statusCode != null ? ' (status: $statusCode)' : ''}';
+  String toString() {
+    final status =
+        statusCode != null ? ' (status: $statusCode)' : '';
+    return 'AuthRequestError: $message$status';
+  }
 }
 
 /// SSL/TLS error
 class SSLError implements Exception {
-  final String message;
-  final String? certificateInfo;
-
   const SSLError(
     this.message, {
     this.certificateInfo,
   });
+
+  final String message;
+  final String? certificateInfo;
 
   @override
   String toString() {

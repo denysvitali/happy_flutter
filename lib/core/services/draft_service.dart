@@ -8,12 +8,12 @@ import 'mmkv_storage.dart';
 /// Provides draft persistence keyed by sessionId using MMKV storage with
 /// debounced auto-save to reduce storage operations.
 class DraftService {
-  /// Singleton instance
-  static final DraftService _instance = DraftService._();
-  DraftService._();
 
   /// Get the singleton instance
   factory DraftService() => _instance;
+  DraftService._();
+  /// Singleton instance
+  static final DraftService _instance = DraftService._();
 
   final DraftStorage _storage = DraftStorage();
 
@@ -78,14 +78,6 @@ class DraftService {
 /// autoSave.dispose();
 /// ```
 class DraftAutoSaveController {
-  /// The sessionId this controller is associated with
-  String sessionId;
-
-  /// Callback invoked when a draft should be saved
-  final void Function(String draft) onSave;
-
-  /// The underlying DraftAutoSave instance
-  final DraftAutoSave _autoSave;
 
   /// Create a new controller with the given sessionId and save callback.
   ///
@@ -99,6 +91,14 @@ class DraftAutoSaveController {
          onSave: onSave,
          debounceDuration: debounceDuration,
        );
+  /// The sessionId this controller is associated with
+  String sessionId;
+
+  /// Callback invoked when a draft should be saved
+  final void Function(String draft) onSave;
+
+  /// The underlying DraftAutoSave instance
+  final DraftAutoSave _autoSave;
 
   /// Update the draft content with debouncing.
   ///

@@ -9,9 +9,9 @@ import '../../core/providers/app_providers.dart';
 /// Shows machine info (name, host, OS, version) and lists sessions
 /// connected to this machine.
 class MachineDetailScreen extends ConsumerWidget {
-  final String machineId;
 
-  const MachineDetailScreen({super.key, required this.machineId});
+  const MachineDetailScreen({required this.machineId, super.key});
+  final String machineId;
 
   bool _isMachineOnline(int activeAt) {
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -254,13 +254,13 @@ class MachineDetailScreen extends ConsumerWidget {
 }
 
 class _SectionCard extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
 
   const _SectionCard({
     required this.title,
     required this.children,
   });
+  final String title;
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
@@ -289,10 +289,6 @@ class _SectionCard extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  final String label;
-  final String? value;
-  final bool mono;
-  final Color? valueColor;
 
   const _InfoRow({
     required this.label,
@@ -300,6 +296,10 @@ class _InfoRow extends StatelessWidget {
     this.mono = false,
     this.valueColor,
   });
+  final String label;
+  final String? value;
+  final bool mono;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
@@ -342,11 +342,6 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _SessionTile extends StatelessWidget {
-  final Session session;
-  final String name;
-  final String subtitle;
-  final bool showDivider;
-  final VoidCallback onTap;
 
   const _SessionTile({
     required this.session,
@@ -355,6 +350,11 @@ class _SessionTile extends StatelessWidget {
     required this.showDivider,
     required this.onTap,
   });
+  final Session session;
+  final String name;
+  final String subtitle;
+  final bool showDivider;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {

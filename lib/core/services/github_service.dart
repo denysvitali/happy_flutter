@@ -3,22 +3,17 @@ import '../api/api_client.dart';
 
 /// GitHub OAuth parameters from server
 class GitHubOAuthParams {
-  final String url;
 
   GitHubOAuthParams({required this.url});
 
   factory GitHubOAuthParams.fromJson(Map<String, dynamic> json) {
     return GitHubOAuthParams(url: json['url'] as String);
   }
+  final String url;
 }
 
 /// GitHub profile data
 class GitHubProfile {
-  final int id;
-  final String login;
-  final String name;
-  final String avatarUrl;
-  final String? email;
 
   GitHubProfile({
     required this.id,
@@ -37,13 +32,15 @@ class GitHubProfile {
       email: json['email'] as String?,
     );
   }
+  final int id;
+  final String login;
+  final String name;
+  final String avatarUrl;
+  final String? email;
 }
 
 /// Account profile including GitHub connection status
 class AccountProfile {
-  final String id;
-  final int timestamp;
-  final GitHubProfile? github;
 
   AccountProfile({
     required this.id,
@@ -60,14 +57,17 @@ class AccountProfile {
           : null,
     );
   }
+  final String id;
+  final int timestamp;
+  final GitHubProfile? github;
 }
 
 /// Service for GitHub OAuth and account profile (/v1/connect/github/*, /v1/account/*)
 /// Based on React Native's apiGithub.ts
 class GitHubService {
-  static final GitHubService _instance = GitHubService._();
   factory GitHubService() => _instance;
   GitHubService._();
+  static final GitHubService _instance = GitHubService._();
 
   final _apiClient = ApiClient();
 
@@ -138,8 +138,8 @@ class GitHubService {
 
 /// Exception for GitHub operations
 class GitHubException implements Exception {
-  final String message;
   GitHubException(this.message);
+  final String message;
 
   @override
   String toString() => 'GitHubException: $message';

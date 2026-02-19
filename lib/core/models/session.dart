@@ -1,25 +1,11 @@
 /// Session metadata from storage types
+library;
 import 'package:happy_flutter/core/models/todo.dart' show TodoItem;
 
 class Metadata {
-  final String? path;
-  final String host;
-  final String? version;
-  final String? name;
-  final String? os;
-  final Summary? summary;
-  final String? machineId;
-  final String? claudeSessionId;
-  final List<String>? tools;
-  final List<String>? slashCommands;
-  final String? homeDir;
-  final String? happyHomeDir;
-  final int? hostPid;
-  final String? flavor;
 
   Metadata({
-    this.path,
-    required this.host,
+    required this.host, this.path,
     this.version,
     this.name,
     this.os,
@@ -57,6 +43,20 @@ class Metadata {
       flavor: json['flavor'] as String?,
     );
   }
+  final String? path;
+  final String host;
+  final String? version;
+  final String? name;
+  final String? os;
+  final Summary? summary;
+  final String? machineId;
+  final String? claudeSessionId;
+  final List<String>? tools;
+  final List<String>? slashCommands;
+  final String? homeDir;
+  final String? happyHomeDir;
+  final int? hostPid;
+  final String? flavor;
 
   Map<String, dynamic> toJson() {
     return {
@@ -79,8 +79,6 @@ class Metadata {
 }
 
 class Summary {
-  final String text;
-  final int updatedAt;
 
   Summary({required this.text, required this.updatedAt});
 
@@ -90,6 +88,8 @@ class Summary {
       updatedAt: json['updatedAt'] as int,
     );
   }
+  final String text;
+  final int updatedAt;
 
   Map<String, dynamic> toJson() {
     return {'text': text, 'updatedAt': updatedAt};
@@ -98,9 +98,6 @@ class Summary {
 
 /// Agent state for a session
 class AgentState {
-  final bool? controlledByUser;
-  final Map<String, RequestInfo>? requests;
-  final Map<String, CompletedRequestInfo>? completedRequests;
 
   AgentState({this.controlledByUser, this.requests, this.completedRequests});
 
@@ -117,6 +114,9 @@ class AgentState {
       ),
     );
   }
+  final bool? controlledByUser;
+  final Map<String, RequestInfo>? requests;
+  final Map<String, CompletedRequestInfo>? completedRequests;
 
   Map<String, dynamic> toJson() {
     return {
@@ -142,9 +142,6 @@ class AgentState {
 }
 
 class RequestInfo {
-  final String tool;
-  final dynamic arguments;
-  final int? createdAt;
 
   RequestInfo({required this.tool, this.arguments, this.createdAt});
 
@@ -155,25 +152,18 @@ class RequestInfo {
       createdAt: json['createdAt'] as int?,
     );
   }
-}
-
-class CompletedRequestInfo {
   final String tool;
   final dynamic arguments;
   final int? createdAt;
-  final int? completedAt;
-  final String status;
-  final String? reason;
-  final String? mode;
-  final List<String>? allowedTools;
-  final String? decision;
+}
+
+class CompletedRequestInfo {
 
   CompletedRequestInfo({
     required this.tool,
-    this.arguments,
+    required this.status, this.arguments,
     this.createdAt,
     this.completedAt,
-    required this.status,
     this.reason,
     this.mode,
     this.allowedTools,
@@ -195,28 +185,19 @@ class CompletedRequestInfo {
       decision: json['decision'] as String?,
     );
   }
+  final String tool;
+  final dynamic arguments;
+  final int? createdAt;
+  final int? completedAt;
+  final String status;
+  final String? reason;
+  final String? mode;
+  final List<String>? allowedTools;
+  final String? decision;
 }
 
 /// Main Session model
 class Session {
-  final String id;
-  final int seq;
-  final int createdAt;
-  final int updatedAt;
-  final bool active;
-  final int activeAt;
-  final Metadata? metadata;
-  final int metadataVersion;
-  final AgentState? agentState;
-  final int agentStateVersion;
-  final bool thinking;
-  final int? thinkingAt;
-  final String presence;
-  final List<TodoItem>? todos;
-  final String? draft;
-  final String? permissionMode;
-  final String? modelMode;
-  final UsageData? latestUsage;
 
   Session({
     required this.id,
@@ -225,13 +206,13 @@ class Session {
     required this.updatedAt,
     required this.active,
     required this.activeAt,
-    this.metadata,
     required this.metadataVersion,
-    this.agentState,
     required this.agentStateVersion,
     required this.thinking,
-    this.thinkingAt,
     required this.presence,
+    this.metadata,
+    this.agentState,
+    this.thinkingAt,
     this.todos,
     this.draft,
     this.permissionMode,
@@ -269,6 +250,24 @@ class Session {
           : null,
     );
   }
+  final String id;
+  final int seq;
+  final int createdAt;
+  final int updatedAt;
+  final bool active;
+  final int activeAt;
+  final Metadata? metadata;
+  final int metadataVersion;
+  final AgentState? agentState;
+  final int agentStateVersion;
+  final bool thinking;
+  final int? thinkingAt;
+  final String presence;
+  final List<TodoItem>? todos;
+  final String? draft;
+  final String? permissionMode;
+  final String? modelMode;
+  final UsageData? latestUsage;
 
   Map<String, dynamic> toJson() {
     return {
@@ -337,12 +336,6 @@ class Session {
 }
 
 class UsageData {
-  final int inputTokens;
-  final int outputTokens;
-  final int cacheCreation;
-  final int cacheRead;
-  final int contextSize;
-  final int timestamp;
 
   UsageData({
     required this.inputTokens,
@@ -363,6 +356,12 @@ class UsageData {
       timestamp: json['timestamp'] as int,
     );
   }
+  final int inputTokens;
+  final int outputTokens;
+  final int cacheCreation;
+  final int cacheRead;
+  final int contextSize;
+  final int timestamp;
 
   Map<String, dynamic> toJson() {
     return {

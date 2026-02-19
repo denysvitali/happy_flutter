@@ -4,10 +4,10 @@ import '../api/api_client.dart';
 /// Service for connecting/disconnecting third-party services (/v1/connect/*)
 /// Based on React Native's apiServices.ts
 class ConnectedServicesService {
-  static final ConnectedServicesService _instance =
-      ConnectedServicesService._();
   factory ConnectedServicesService() => _instance;
   ConnectedServicesService._();
+  static final ConnectedServicesService _instance =
+      ConnectedServicesService._();
 
   final _apiClient = ApiClient();
 
@@ -54,7 +54,9 @@ class ConnectedServicesService {
 
       final data = response.data as Map<String, dynamic>;
       if (data['success'] != true) {
-        throw ConnectedServicesException('Failed to disconnect $service account');
+        throw ConnectedServicesException(
+          'Failed to disconnect $service account',
+        );
       }
     } on DioException catch (e) {
       throw ConnectedServicesException(
@@ -65,8 +67,8 @@ class ConnectedServicesService {
 
 /// Exception for connected services operations
 class ConnectedServicesException implements Exception {
-  final String message;
   ConnectedServicesException(this.message);
+  final String message;
 
   @override
   String toString() => 'ConnectedServicesException: $message';

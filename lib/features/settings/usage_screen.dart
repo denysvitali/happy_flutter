@@ -177,7 +177,7 @@ class UsageScreen extends ConsumerWidget {
           ListTile(
             title: const Text('Token Context Window'),
             subtitle: const Text('Maximum context tokens'),
-            trailing: Text('${_formatNumber(usage.maxContextTokens)}'),
+            trailing: Text(_formatNumber(usage.maxContextTokens)),
           ),
         ],
       ),
@@ -199,11 +199,11 @@ class UsageScreen extends ConsumerWidget {
 }
 
 class _UsageItem {
+
+  _UsageItem({required this.label, required this.value, this.limit});
   final String label;
   final num value;
   final int? limit;
-
-  _UsageItem({required this.label, required this.value, this.limit});
 }
 
 class _MockUsageData {

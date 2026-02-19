@@ -5,9 +5,9 @@ enum DeviceType {
   phone('phone'),
   tablet('tablet');
 
-  final String value;
-
   const DeviceType(this.value);
+
+  final String value;
 
   /// Parse a string value to DeviceType
   static DeviceType fromString(String value) {
@@ -30,15 +30,15 @@ enum PlatformType {
 
 /// Result type for device dimension calculations.
 class DeviceDimensions {
-  final double widthInches;
-  final double heightInches;
-  final double diagonalInches;
 
   const DeviceDimensions({
     required this.widthInches,
     required this.heightInches,
     required this.diagonalInches,
   });
+  final double widthInches;
+  final double heightInches;
+  final double diagonalInches;
 
   @override
   String toString() {
@@ -67,17 +67,17 @@ class DeviceDimensions {
 /// [heightPoints] - Logical height in points (what Flutter MediaQuery returns)
 /// [pointsPerInch] - Points per inch (default: 160 for Android, 163 for iOS)
 ///
-/// Returns a [DeviceDimensions] with width, height, and diagonal dimensions in inches.
+/// Returns a [DeviceDimensions] with width, height, and diagonal
 DeviceDimensions getDeviceDimensions({
   required double widthPoints,
   required double heightPoints,
   double pointsPerInch = 160,
 }) {
-  // Flutter MediaQuery sizes are in logical pixels (points), not physical pixels
+  // Flutter MediaQuery sizes are in logical pixels (points),
   // Points are density-independent units
   // On iOS: 1 point = 1/163 inch (Retina displays)
   // On Android: 1 point = 1/160 inch (dp/dip)
-  // pixelDensity from MediaQuery.devicePixelRatio is the scale factor (e.g., 2x, 3x)
+  // pixelDensity from MediaQuery.devicePixelRatio is the scale factor
   // but it doesn't affect the inch calculation since we're already in points
 
   final widthInches = widthPoints / pointsPerInch;
@@ -153,7 +153,7 @@ bool isPhone({
 ///
 /// [diagonalInches] - Screen diagonal in inches
 /// [isPad] - Whether the device is an iPad (true for iOS iPads)
-/// [tabletThresholdInches] - Threshold for non-iOS tablet detection (default: 9 inches)
+/// [tabletThresholdInches] - Threshold for non-iOS tablet detection
 bool getIsTablet({
   required double diagonalInches,
   required bool isPad,
@@ -201,7 +201,8 @@ double getHeaderHeight({
     case PlatformType.android:
       // Android: use device type detection
       if (deviceType == DeviceType.phone) {
-        return isLandscape ? 48 : 56; // Material Design: 48dp landscape, 56dp portrait
+        // Material Design: 48dp landscape, 56dp portrait
+        return isLandscape ? 48 : 56;
       }
       return 64; // Tablet: 64dp
 

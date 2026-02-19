@@ -49,18 +49,24 @@ class WebCryptoSecretBox {
     dynamic data,
     Uint8List secretKey,
   ) async {
-    throw UnsupportedError('WebCryptoSecretBox is only supported on web platform');
+    throw UnsupportedError(
+      'WebCryptoSecretBox is only supported on web platform',
+    );
   }
 
   static Future<dynamic> decrypt(
     Uint8List encryptedData,
     Uint8List secretKey,
   ) async {
-    throw UnsupportedError('WebCryptoSecretBox is only supported on web platform');
+    throw UnsupportedError(
+      'WebCryptoSecretBox is only supported on web platform',
+    );
   }
 
   static Uint8List randomNonce() {
-    throw UnsupportedError('WebCryptoSecretBox is only supported on web platform');
+    throw UnsupportedError(
+      'WebCryptoSecretBox is only supported on web platform',
+    );
   }
 }
 
@@ -91,8 +97,8 @@ class WebAesGcm {
 
 /// Web crypto key pair for asymmetric encryption
 class WebCryptoKeyPair {
-  final Uint8List publicKey;
-  final Uint8List privateKey;
 
   WebCryptoKeyPair({required this.publicKey, required this.privateKey});
+  final Uint8List publicKey;
+  final Uint8List privateKey;
 }

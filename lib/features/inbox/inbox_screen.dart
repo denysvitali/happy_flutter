@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -214,7 +215,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       await _runFriendAction(
         () => _socialService.removeFriend(friend.id),
         'Friend removed',
@@ -226,7 +227,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     if (!mounted) {
       return;
     }
-    context.push('/friends/search');
+    unawaited(context.push('/friends/search'));
   }
 }
 
@@ -309,10 +310,12 @@ class _Section extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.35),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.35,
+        ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.35),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
         ),
       ),
       child: Column(

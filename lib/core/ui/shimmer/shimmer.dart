@@ -2,11 +2,6 @@ import 'package:flutter/material.dart';
 
 /// Animated shimmer gradient loading effect
 class Shimmer extends StatefulWidget {
-  final Widget child;
-  final List<Color> colors;
-  final double shimmerWidthPercent;
-  final Duration duration;
-  final bool enabled;
 
   const Shimmer({
     required this.child,
@@ -22,6 +17,11 @@ class Shimmer extends StatefulWidget {
     this.enabled = true,
     super.key,
   });
+  final Widget child;
+  final List<Color> colors;
+  final double shimmerWidthPercent;
+  final Duration duration;
+  final bool enabled;
 
   @override
   State<Shimmer> createState() => _ShimmerState();
@@ -100,20 +100,21 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
 
 /// Custom gradient transform for shimmer effect
 class _ShimmerGradientTransform extends GradientTransform {
-  final Animation<double> animation;
-  final double widthPercent;
-  final double boundsWidth;
 
   const _ShimmerGradientTransform({
     required this.animation,
     required this.widthPercent,
     required this.boundsWidth,
   });
+  final Animation<double> animation;
+  final double widthPercent;
+  final double boundsWidth;
 
   @override
   Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
     final shimmerWidth = bounds.width * (widthPercent / 100);
-    final start = -shimmerWidth + (bounds.width + shimmerWidth) * animation.value;
+    final start =
+        -shimmerWidth + (bounds.width + shimmerWidth) * animation.value;
 
     // Clamp values to bounds
     final clampedStart = start.clamp(-shimmerWidth, bounds.width);
@@ -144,7 +145,8 @@ class ShimmerStyles {
   static Widget card({
     required double height,
     double? width,
-    BorderRadiusGeometry borderRadius = const BorderRadius.all(Radius.circular(12)),
+    BorderRadiusGeometry borderRadius =
+        const BorderRadius.all(Radius.circular(12)),
   }) {
     return Shimmer(
       child: Container(
@@ -162,7 +164,8 @@ class ShimmerStyles {
   static Widget textLine({
     double height = 16,
     double width = double.infinity,
-    BorderRadiusGeometry borderRadius = const BorderRadius.all(Radius.circular(4)),
+    BorderRadiusGeometry borderRadius =
+        const BorderRadius.all(Radius.circular(4)),
   }) {
     return Shimmer(
       child: Container(
@@ -203,7 +206,9 @@ class ShimmerStyles {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: List.generate(lines, (index) {
           return Padding(
-            padding: index > 0 ? EdgeInsets.only(top: spacing) : EdgeInsets.zero,
+            padding: index > 0
+                ? EdgeInsets.only(top: spacing)
+                : EdgeInsets.zero,
             child: Container(
               height: lineHeight,
               width: index == lines - 1 ? width * 0.6 : width,
@@ -221,9 +226,6 @@ class ShimmerStyles {
 
 /// Loading shimmer placeholder for images
 class ShimmerImagePlaceholder extends StatelessWidget {
-  final double width;
-  final double height;
-  final BorderRadiusGeometry borderRadius;
 
   const ShimmerImagePlaceholder({
     required this.width,
@@ -231,6 +233,9 @@ class ShimmerImagePlaceholder extends StatelessWidget {
     this.borderRadius = const BorderRadius.all(Radius.circular(8)),
     super.key,
   });
+  final double width;
+  final double height;
+  final BorderRadiusGeometry borderRadius;
 
   @override
   Widget build(BuildContext context) {
@@ -249,20 +254,21 @@ class ShimmerImagePlaceholder extends StatelessWidget {
 
 /// Pulse loading indicator
 class ShimmerPulse extends StatefulWidget {
-  final double size;
-  final Color color;
 
   const ShimmerPulse({
     this.size = 48,
     this.color = const Color(0xFFE0E0E0),
     super.key,
   });
+  final double size;
+  final Color color;
 
   @override
   State<ShimmerPulse> createState() => _ShimmerPulseState();
 }
 
-class _ShimmerPulseState extends State<ShimmerPulse> with SingleTickerProviderStateMixin {
+class _ShimmerPulseState extends State<ShimmerPulse>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override

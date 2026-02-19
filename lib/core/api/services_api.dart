@@ -6,10 +6,10 @@ import 'api_client.dart';
 /// Handles connecting/disconnecting third-party services (Claude, GitHub, Gemini, OpenAI)
 /// Based on React Native's apiServices.ts
 class ServicesApi {
-  final ApiClient _client;
 
   ServicesApi({ApiClient? client})
       : _client = client ?? ApiClient();
+  final ApiClient _client;
 
   /// Connect a service to the user's account
   /// Used after OAuth flow completion or direct token registration
@@ -153,10 +153,10 @@ class ServicesApi {
 
 /// Exception thrown by Services API operations
 class ServicesApiException implements Exception {
-  final String message;
-  final int? statusCode;
 
   const ServicesApiException(this.message, {this.statusCode});
+  final String message;
+  final int? statusCode;
 
   @override
   String toString() => 'ServicesApiException: $message';

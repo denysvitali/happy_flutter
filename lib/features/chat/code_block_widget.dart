@@ -24,6 +24,16 @@ class _MochaColors {
 /// Widget for displaying a code block with syntax highlighting, copy button,
 /// line numbers, and language header.
 class CodeBlockWidget extends StatefulWidget {
+
+  const CodeBlockWidget({
+    required this.code, super.key,
+    this.language,
+    this.fileName,
+    this.showLineNumbers = true,
+    this.isDarkMode = true,
+    this.fontSize = 13,
+    this.maxVisibleLines = 12,
+  });
   /// The source code to display.
   final String code;
 
@@ -44,17 +54,6 @@ class CodeBlockWidget extends StatefulWidget {
 
   /// Maximum number of visible lines before scrolling.
   final int maxVisibleLines;
-
-  const CodeBlockWidget({
-    super.key,
-    required this.code,
-    this.language,
-    this.fileName,
-    this.showLineNumbers = true,
-    this.isDarkMode = true,
-    this.fontSize = 13,
-    this.maxVisibleLines = 12,
-  });
 
   @override
   State<CodeBlockWidget> createState() => _CodeBlockWidgetState();
@@ -105,12 +104,10 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
             copied: _copied,
             onCopy: _copyToClipboard,
           ),
-          _needsVerticalScroll
-              ? SizedBox(
+          if (_needsVerticalScroll) SizedBox(
                   height: _maxHeight,
                   child: _buildScrollableCode(isDark),
-                )
-              : _buildScrollableCode(isDark),
+                ) else _buildScrollableCode(isDark),
         ],
       ),
     );
@@ -171,11 +168,6 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
 
 /// Header bar showing language name, optional filename, and copy button.
 class _CodeHeader extends StatelessWidget {
-  final String? language;
-  final String? fileName;
-  final bool isDark;
-  final bool copied;
-  final VoidCallback onCopy;
 
   const _CodeHeader({
     required this.language,
@@ -184,6 +176,11 @@ class _CodeHeader extends StatelessWidget {
     required this.copied,
     required this.onCopy,
   });
+  final String? language;
+  final String? fileName;
+  final bool isDark;
+  final bool copied;
+  final VoidCallback onCopy;
 
   @override
   Widget build(BuildContext context) {
@@ -278,15 +275,15 @@ class _CodeHeader extends StatelessWidget {
 
 /// Animated copy button with "Copied!" feedback.
 class _CopyButton extends StatelessWidget {
-  final bool copied;
-  final bool isDark;
-  final VoidCallback onTap;
 
   const _CopyButton({
     required this.copied,
     required this.isDark,
     required this.onTap,
   });
+  final bool copied;
+  final bool isDark;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -332,10 +329,6 @@ class _CopyButton extends StatelessWidget {
 
 /// Left column displaying line numbers.
 class _LineNumbers extends StatelessWidget {
-  final int lineCount;
-  final double fontSize;
-  final double lineHeight;
-  final bool isDark;
 
   const _LineNumbers({
     required this.lineCount,
@@ -343,6 +336,10 @@ class _LineNumbers extends StatelessWidget {
     required this.lineHeight,
     required this.isDark,
   });
+  final int lineCount;
+  final double fontSize;
+  final double lineHeight;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
