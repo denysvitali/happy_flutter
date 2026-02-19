@@ -170,6 +170,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final isThinking = _session?.thinking == true;
 
     return Scaffold(
       appBar: AppBar(
@@ -186,13 +187,54 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Expanded(
             child: Stack(
               children: [
-                // Messages list
-                if (_isLoadingMessages)
-                  Center(child: Text(l10n.chatChatLoading))
-                else if (_messages.isEmpty)
-                  const _EmptyChatView()
-                else
-                  _buildMessageList(),
+                // Messages list with AnimatedSwitcher for loading state
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: _isLoadingMessages
+                      ? const Center(
+                          key: ValueKey('loading'),
+                          child: CircularProgressIndicator(),
+                        )
+                      : _messages.isEmpty
+                          ? const _EmptyChatView(key: ValueKey('empty'))
+                          : _buildMessageList(),
+                ),
+                // Typing indicator overlay at the bottom of the messages area
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    transitionBuilder: (child, animation) =>
+                        FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 0.3),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          ),
+                        ),
+                    child: isThinking && !_isLoadingMessages
+                        ? const Align(
+                            key: ValueKey('typing'),
+                            alignment: Alignment.bottomLeft,
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                left: 12,
+                                right: 12,
+                                bottom: 8,
+                              ),
+                              child: _TypingIndicator(),
+                            ),
+                          )
+                        : const SizedBox.shrink(
+                            key: ValueKey('no-typing'),
+                          ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -544,6 +586,135 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 }
 
+/// Animated typing indicator showing three bouncing dots in a speech bubble.
+///
+/// Each dot animates sequentially with a staggered delay, translating
+/// upward by 4 logical pixels and back, creating a wave effect.
+class _TypingIndicator extends StatefulWidget {
+  const _TypingIndicator();
+
+  @override
+  State<_TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<_TypingIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _dot1;
+  late Animation<double> _dot2;
+  late Animation<double> _dot3;
+
+  @override
+  void initState() {
+    super.initState();
+    // Total cycle: 900 ms — each dot occupies a 300 ms window,
+    // staggered by 150 ms so they overlap slightly for a smooth wave.
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 900),
+      vsync: this,
+    )..repeat();
+
+    _dot1 = _buildDotAnimation(0.0, 0.33);
+    _dot2 = _buildDotAnimation(0.22, 0.55);
+    _dot3 = _buildDotAnimation(0.44, 0.77);
+  }
+
+  /// Builds a bounce animation for a single dot within [start]..[end]
+  /// of the controller's 0..1 range. Outside that interval the dot
+  /// sits at rest (offset 0).
+  Animation<double> _buildDotAnimation(double start, double end) {
+    return TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0, end: -4)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -4, end: 0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 50,
+      ),
+    ]).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Interval(start, end, curve: Curves.linear),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    // Use the same surface-variant color as bot message bubbles.
+    final bubbleColor = colorScheme.surfaceContainerHighest;
+    final dotColor = colorScheme.onSurfaceVariant;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: bubbleColor,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(18),
+          topRight: Radius.circular(18),
+          bottomLeft: Radius.circular(4),
+          bottomRight: Radius.circular(18),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _Dot(offset: _dot1.value, color: dotColor),
+              const SizedBox(width: 4),
+              _Dot(offset: _dot2.value, color: dotColor),
+              const SizedBox(width: 4),
+              _Dot(offset: _dot3.value, color: dotColor),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// A single dot used by [_TypingIndicator].
+class _Dot extends StatelessWidget {
+  final double offset;
+  final Color color;
+
+  const _Dot({required this.offset, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.translate(
+      offset: Offset(0, offset),
+      child: Container(
+        width: 7,
+        height: 7,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
+}
+
 /// Pulsing status dot indicator
 class _StatusDot extends StatefulWidget {
   final Color color;
@@ -612,7 +783,7 @@ class _StatusDotState extends State<_StatusDot>
 
 /// Empty chat view
 class _EmptyChatView extends StatelessWidget {
-  const _EmptyChatView();
+  const _EmptyChatView({super.key});
 
   @override
   Widget build(BuildContext context) {
