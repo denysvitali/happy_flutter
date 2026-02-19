@@ -1390,6 +1390,7 @@ what you have, you must use the options mode.
     String text, {
     String? displayText,
     String? permissionMode,
+    String? modelMode,
   }) async {
     final sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
@@ -1407,7 +1408,8 @@ what you have, you must use the options mode.
         permissionMode ?? session.permissionMode ?? 'default';
     final flavor = session.metadata?.flavor;
     final isGemini = flavor == 'gemini';
-    final modelMode = session.modelMode ??
+    final effectiveModelMode = modelMode ??
+        session.modelMode ??
         (isGemini ? 'gemini-2.5-pro' : 'default');
     final localId = encryption.generateId();
     final sentFrom = switch (defaultTargetPlatform) {
@@ -1416,7 +1418,7 @@ what you have, you must use the options mode.
       TargetPlatform.macOS => 'mac',
       _ => 'web',
     };
-    final model = isGemini && modelMode != 'default' ? modelMode : null;
+    final model = effectiveModelMode != 'default' ? effectiveModelMode : null;
 
     final rawRecord = <String, dynamic>{
       'role': 'user',

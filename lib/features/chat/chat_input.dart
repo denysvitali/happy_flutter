@@ -52,6 +52,31 @@ const List<SlashCommand> _slashCommands = [
   ),
 ];
 
+/// Model options for Claude sessions
+enum ClaudeModel {
+  defaultModel,
+  sonnet,
+  opus;
+
+  String get label => switch (this) {
+    ClaudeModel.defaultModel => 'Default',
+    ClaudeModel.sonnet => 'Sonnet',
+    ClaudeModel.opus => 'Opus',
+  };
+
+  String get modeString => switch (this) {
+    ClaudeModel.defaultModel => 'default',
+    ClaudeModel.sonnet => 'sonnet',
+    ClaudeModel.opus => 'opus',
+  };
+
+  static ClaudeModel fromString(String? value) => switch (value) {
+    'sonnet' => ClaudeModel.sonnet,
+    'opus' => ClaudeModel.opus,
+    _ => ClaudeModel.defaultModel,
+  };
+}
+
 /// Enhanced chat input widget with autocomplete and draft persistence
 class ChatInput extends ConsumerStatefulWidget {
   final String sessionId;
@@ -60,6 +85,8 @@ class ChatInput extends ConsumerStatefulWidget {
   final bool isSending;
   final perm.PermissionMode? permissionMode;
   final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
+  final ClaudeModel? modelMode;
+  final ValueChanged<ClaudeModel>? onModelModeChanged;
   final List<AutocompleteSuggestion> fileSuggestions;
   final String? machineName;
   final String? currentPath;
@@ -78,6 +105,8 @@ class ChatInput extends ConsumerStatefulWidget {
     this.isSending = false,
     this.permissionMode,
     this.onPermissionModeChanged,
+    this.modelMode,
+    this.onModelModeChanged,
     this.fileSuggestions = const [],
     this.machineName,
     this.currentPath,
@@ -466,7 +495,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
           // Permission mode selector
@@ -475,11 +504,113 @@ class _ChatInputState extends ConsumerState<ChatInput> {
               selectedMode: widget.permissionMode,
               onModeChanged: widget.onPermissionModeChanged,
             ),
+          // Model selector
+          if (widget.onModelModeChanged != null) ...[
+            const SizedBox(width: 6),
+            _buildModelSelector(context, theme),
+          ],
           const Spacer(),
           // Context window remaining
           if (widget.contextSize != null && widget.contextSize! > 0)
             _buildContextIndicator(theme),
         ],
+      ),
+    );
+  }
+
+  Widget _buildModelSelector(BuildContext context, ThemeData theme) {
+    final model = widget.modelMode ?? ClaudeModel.defaultModel;
+    final isDefault = model == ClaudeModel.defaultModel;
+
+    return GestureDetector(
+      onTap: () => _showModelPicker(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: isDefault
+              ? theme.colorScheme.surfaceVariant
+              : theme.colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.auto_awesome_outlined,
+              size: 12,
+              color: isDefault
+                  ? theme.colorScheme.onSurfaceVariant
+                  : theme.colorScheme.onPrimaryContainer,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              model.label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 11,
+                color: isDefault
+                    ? theme.colorScheme.onSurfaceVariant
+                    : theme.colorScheme.onPrimaryContainer,
+                fontWeight: isDefault ? FontWeight.normal : FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showModelPicker(BuildContext context) {
+    final theme = Theme.of(context);
+    final current = widget.modelMode ?? ClaudeModel.defaultModel;
+
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Text(
+                  'Model',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              for (final model in ClaudeModel.values)
+                ListTile(
+                  dense: true,
+                  leading: Icon(
+                    model == ClaudeModel.opus
+                        ? Icons.diamond_outlined
+                        : model == ClaudeModel.sonnet
+                            ? Icons.auto_awesome_outlined
+                            : Icons.smart_toy_outlined,
+                    size: 20,
+                    color: model == current
+                        ? theme.colorScheme.primary
+                        : null,
+                  ),
+                  title: Text(model.label),
+                  trailing: model == current
+                      ? Icon(
+                          Icons.check,
+                          size: 18,
+                          color: theme.colorScheme.primary,
+                        )
+                      : null,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    widget.onModelModeChanged?.call(model);
+                  },
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

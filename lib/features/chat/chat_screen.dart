@@ -31,6 +31,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isLoadingMessages = true;
   bool _isSubscribed = false;
   PermissionMode _permissionMode = PermissionMode.readOnly;
+  ClaudeModel _modelMode = ClaudeModel.defaultModel;
   Session? _session;
   List<Map<String, dynamic>> _messages = <Map<String, dynamic>>[];
   static const int _pageSize = 50;
@@ -202,6 +203,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             isSending: _isSending,
             permissionMode: _permissionMode,
             onPermissionModeChanged: _onPermissionModeChanged,
+            modelMode: _modelMode,
+            onModelModeChanged: _onModelModeChanged,
             contextSize: sync.sessionUsage[widget.sessionId]
                 ?['contextSize'] as int?,
           ),
@@ -213,6 +216,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _onPermissionModeChanged(PermissionMode mode) {
     setState(() => _permissionMode = mode);
     DraftStorage().savePermissionMode(widget.sessionId, mode.toModeString());
+  }
+
+  void _onModelModeChanged(ClaudeModel model) {
+    setState(() => _modelMode = model);
   }
 
   Machine? _getMachine() {
@@ -451,6 +458,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         text,
         displayText: text,
         permissionMode: _permissionMode.toModeString(),
+        modelMode: _modelMode.modeString,
       );
       _refreshFromSync();
     } catch (e) {
