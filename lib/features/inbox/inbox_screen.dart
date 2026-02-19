@@ -87,11 +87,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 20),
         children: [
           _InboxHeader(onFindFriends: _showFindFriendsSheet),
           if (feedState.items.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             _Section(
               title: 'Updates',
               child: Column(
@@ -102,7 +102,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             ),
           ],
           if (incoming.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             _Section(
               title: 'Pending Requests',
               child: Column(
@@ -130,7 +130,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             ),
           ],
           if (requested.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             _Section(
               title: 'Sent Requests',
               child: Column(
@@ -158,7 +158,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             ),
           ],
           if (friends.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             _Section(
               title: 'My Friends',
               child: Column(
@@ -291,7 +291,7 @@ class _InboxEmptyState extends StatelessWidget {
           height: 72,
           decoration: BoxDecoration(
             color: cs.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Icon(
             Icons.inbox_outlined,
@@ -343,7 +343,6 @@ class _InboxEmptyView extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
         children: [
           _InboxHeader(onFindFriends: onFindFriends),
-          const SizedBox(height: 48),
           Center(
             child: _InboxEmptyState(onFindFriends: onFindFriends),
           ),
@@ -378,7 +377,7 @@ class _Section extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
             child: Text(
               title,
               style: theme.textTheme.titleSmall?.copyWith(
@@ -386,10 +385,7 @@ class _Section extends StatelessWidget {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-            child: child,
-          ),
+          child,
         ],
       ),
     );

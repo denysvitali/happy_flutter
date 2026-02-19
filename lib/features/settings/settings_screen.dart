@@ -33,11 +33,11 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
-          vertical: AppSpacing.lg,
+          vertical: AppSpacing.md,
         ),
         children: [
           _ProfileHeader(profile: profile),
-          const SizedBox(height: AppSpacing.xxl),
+          const SizedBox(height: AppSpacing.lg),
           _buildAppearanceSection(context, settings, ref),
           const SizedBox(height: AppSpacing.sm),
           _buildBehaviorSection(context, settings, ref),
@@ -797,8 +797,8 @@ class _ProfileHeader extends StatelessWidget {
           ),
         ),
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xxl,
-          vertical: AppSpacing.xxl,
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.lg,
         ),
         child: Column(
           children: [
@@ -818,7 +818,7 @@ class _ProfileHeader extends StatelessWidget {
                     )
                   : null,
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               displayName,
               style: theme.textTheme.headlineSmall,
@@ -936,11 +936,11 @@ class _SettingsRow extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: SizedBox(
-        height: subtitle != null ? null : 56,
+        height: subtitle != null ? null : 48,
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
-            vertical: AppSpacing.md,
+            vertical: AppSpacing.sm,
           ),
           child: Row(
             children: [
@@ -1013,7 +1013,7 @@ class _SettingsToggleRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
+          vertical: AppSpacing.sm,
         ),
         child: Row(
           children: [
@@ -1136,7 +1136,7 @@ class _AccountSection extends ConsumerWidget {
           foregroundColor: errorRed,
           side: const BorderSide(color: errorRed),
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xxl,
+            horizontal: AppSpacing.lg,
             vertical: AppSpacing.md,
           ),
           shape: RoundedRectangleBorder(
@@ -1224,9 +1224,26 @@ class SettingsSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.md),
             side: BorderSide(color: cs.outlineVariant),
           ),
-          child: Column(children: children),
+          child: Column(children: _intersperse(children)),
         ),
       ],
     );
+  }
+
+  /// Inserts a slim divider between children (but not before/after).
+  List<Widget> _intersperse(List<Widget> items) {
+    if (items.length <= 1) return items;
+    final result = <Widget>[];
+    for (var i = 0; i < items.length; i++) {
+      result.add(items[i]);
+      if (i < items.length - 1) {
+        result.add(const Divider(
+          height: 1,
+          indent: 56,
+          endIndent: 0,
+        ));
+      }
+    }
+    return result;
   }
 }

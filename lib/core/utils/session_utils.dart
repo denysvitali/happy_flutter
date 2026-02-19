@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:intl/intl.dart';
 
+import '../models/machine.dart';
 import '../models/session.dart';
 
 /// Date grouping categories for session history
@@ -303,4 +306,135 @@ String formatTimestamp(int timestamp, {bool relative = false}) {
   final nowYear = DateTime.now().year;
   final formatter = DateFormat(nowYear == date.year ? 'MMM d' : 'MMM d, yyyy');
   return formatter.format(date);
+}
+
+// ─── Folder grouping ─────────────────────────────────────────────────────────
+
+/// A discriminated union of items in a folder-grouped inactive session list.
+sealed class SessionFolderItem {
+  const SessionFolderItem();
+}
+
+/// Header for a folder group (machine + path).
+class SessionFolderHeader extends SessionFolderItem {
+  const SessionFolderHeader({
+    required this.displayPath,
+    required this.machineName,
+    required this.sessionCount,
+    required this.folderKey,
+  });
+
+  /// The path to display (with ~ substitution for home directory).
+  final String displayPath;
+
+  /// The display name of the machine.
+  final String machineName;
+
+  /// Number of sessions in this folder group.
+  final int sessionCount;
+
+  /// The unique key for this folder group ('machineId:path').
+  final String folderKey;
+}
+
+/// An individual session entry within a folder group.
+class SessionFolderEntry extends SessionFolderItem {
+  const SessionFolderEntry({
+    required this.session,
+    required this.isFirst,
+    required this.isLast,
+    required this.isSingle,
+  });
+
+  /// The session.
+  final Session session;
+
+  /// Whether this is the first session in the folder group.
+  final bool isFirst;
+
+  /// Whether this is the last session in the folder group.
+  final bool isLast;
+
+  /// Whether this is the only session in the folder group.
+  final bool isSingle;
+}
+
+/// Groups inactive sessions by their working directory path and machine.
+///
+/// Returns a flat list of [SessionFolderItem] where each folder group starts
+/// with a [SessionFolderHeader] followed by [SessionFolderEntry] items.
+/// Groups are sorted by the most recently updated session descending.
+List<SessionFolderItem> groupSessionsByFolder(
+  List<Session> sessions,
+  Map<String, Machine> machines,
+) {
+  if (sessions.isEmpty) return [];
+
+  // Group by (machineId:path) key, preserving insertion order.
+  final groups = <String, List<Session>>{};
+  for (final s in sessions) {
+    final machineId = s.metadata?.machineId ?? '';
+    final path = s.metadata?.path ?? '';
+    final key = '$machineId:$path';
+    groups.putIfAbsent(key, () => []).add(s);
+  }
+
+  // Sort groups by most recently updated session descending.
+  final sortedKeys = groups.keys.toList()
+    ..sort((a, b) {
+      final aLatest = groups[a]!
+          .map((s) => s.updatedAt)
+          .reduce(math.max);
+      final bLatest = groups[b]!
+          .map((s) => s.updatedAt)
+          .reduce(math.max);
+      return bLatest.compareTo(aLatest);
+    });
+
+  // Sort sessions within each group by updatedAt descending.
+  for (final key in sortedKeys) {
+    groups[key]!.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+  }
+
+  final items = <SessionFolderItem>[];
+  for (final key in sortedKeys) {
+    final groupSessions = groups[key]!;
+    final first = groupSessions.first;
+    final machineId = first.metadata?.machineId ?? '';
+    final machine = machines[machineId];
+    final machineName = machine?.metadata?.displayName ??
+        machine?.metadata?.host ??
+        first.metadata?.host ??
+        'Unknown';
+
+    // Display path: substitute ~ for homeDir.
+    final rawPath = first.metadata?.path ?? '';
+    final homeDir = first.metadata?.homeDir ?? '';
+    final displayPath = homeDir.isNotEmpty && rawPath.startsWith(homeDir)
+        ? '~${rawPath.substring(homeDir.length)}'
+        : rawPath.isEmpty
+            ? 'Unknown'
+            : rawPath;
+
+    items.add(
+      SessionFolderHeader(
+        displayPath: displayPath,
+        machineName: machineName,
+        sessionCount: groupSessions.length,
+        folderKey: key,
+      ),
+    );
+
+    for (var i = 0; i < groupSessions.length; i++) {
+      items.add(
+        SessionFolderEntry(
+          session: groupSessions[i],
+          isFirst: i == 0,
+          isLast: i == groupSessions.length - 1,
+          isSingle: groupSessions.length == 1,
+        ),
+      );
+    }
+  }
+  return items;
 }

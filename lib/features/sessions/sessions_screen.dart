@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/websocket_client.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
@@ -158,6 +159,7 @@ class _SessionsListContentState
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final sessions = ref.watch(sessionsNotifierProvider);
+    final machines = ref.watch(machinesNotifierProvider);
     final settings = ref.watch(settingsNotifierProvider);
     final sessionList = sessions.values.toList();
 
@@ -171,16 +173,6 @@ class _SessionsListContentState
     final inactiveSessions =
         sessionList.where((s) => !isSessionActive(s)).toList()
           ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-
-    // Create localized date group headers.
-    String localizeDateGroup(DateGroup group) {
-      return switch (group) {
-        DateGroup.today => l10n.dateGroupToday,
-        DateGroup.yesterday => l10n.dateGroupYesterday,
-        DateGroup.lastSevenDays => l10n.dateGroupLastSevenDays,
-        DateGroup.older => l10n.dateGroupOlder,
-      };
-    }
 
     if (sessionList.isEmpty && !_hasLoaded) {
       return const Center(child: CircularProgressIndicator());
@@ -207,7 +199,7 @@ class _SessionsListContentState
         context,
         activeSessions,
         inactiveSessions,
-        localizeDateGroup,
+        machines,
         triggerStagger: triggerStagger,
         compactMode: settings.compactSessionView,
         hideInactive: settings.hideInactiveSessions,
@@ -219,7 +211,7 @@ class _SessionsListContentState
     BuildContext context,
     List<Session> activeSessions,
     List<Session> inactiveSessions,
-    String Function(DateGroup) localizeDateGroup, {
+    Map<String, Machine> machines, {
     required bool triggerStagger,
     required bool compactMode,
     required bool hideInactive,
@@ -249,16 +241,14 @@ class _SessionsListContentState
 
       for (final entry in (activeByPath.entries.toList()
           ..sort((a, b) => a.key.compareTo(b.key)))) {
-        if (activeByPath.length > 1) {
-          children.add(
-            _FadeInSection(
-              delay: Duration(
-                milliseconds: _kStaggerStep * staggerIndex,
-              ),
-              child: _PathHeader(path: entry.key),
+        children.add(
+          _FadeInSection(
+            delay: Duration(
+              milliseconds: _kStaggerStep * staggerIndex,
             ),
-          );
-        }
+            child: _PathHeader(path: entry.key),
+          ),
+        );
         for (final session in entry.value) {
           final capturedIndex = staggerIndex;
           final card = compactMode
@@ -300,7 +290,7 @@ class _SessionsListContentState
       final archivedItems = _buildArchivedItems(
         context,
         inactiveSessions,
-        localizeDateGroup,
+        machines,
         startIndex: staggerIndex,
         animate: triggerStagger,
       );
@@ -308,7 +298,7 @@ class _SessionsListContentState
     }
 
     return ListView(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.only(top: 4, bottom: 16),
       children: children,
     );
   }
@@ -316,38 +306,40 @@ class _SessionsListContentState
   List<Widget> _buildArchivedItems(
     BuildContext context,
     List<Session> sessions,
-    String Function(DateGroup) localizeDateGroup, {
+    Map<String, Machine> machines, {
     required int startIndex,
     required bool animate,
   }) {
-    final groupedItems = groupSessionsByDate(
-      sessions,
-      localize: localizeDateGroup,
-    );
+    final folderItems = groupSessionsByFolder(sessions, machines);
 
     var itemIndex = startIndex;
     final widgets = <Widget>[];
 
-    for (var i = 0; i < groupedItems.length; i++) {
-      final item = groupedItems[i];
+    for (final item in folderItems) {
       switch (item) {
-        case SessionHistoryDateHeader(:final date):
+        case SessionFolderHeader(
+          :final displayPath,
+          :final machineName,
+          :final sessionCount,
+        ):
           widgets.add(
             _FadeInSection(
               delay: Duration(
                 milliseconds: _kStaggerStep * itemIndex,
               ),
-              child: _DateSectionHeader(date: date),
+              child: _FolderSectionHeader(
+                displayPath: displayPath,
+                machineName: machineName,
+                sessionCount: sessionCount,
+              ),
             ),
           );
-        case SessionHistorySession(:final session):
-          final prevItem = i > 0 ? groupedItems[i - 1] : null;
-          final nextItem =
-              i < groupedItems.length - 1 ? groupedItems[i + 1] : null;
-          final isFirst = prevItem is SessionHistoryDateHeader;
-          final isLast =
-              nextItem is SessionHistoryDateHeader || nextItem == null;
-          final isSingle = isFirst && isLast;
+        case SessionFolderEntry(
+          :final session,
+          :final isFirst,
+          :final isLast,
+          :final isSingle,
+        ):
           final capturedIndex = itemIndex;
           widgets.add(
             _StaggeredSlideIn(
@@ -679,7 +671,7 @@ class _PathHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       child: Text(
         path,
         style: theme.textTheme.labelSmall?.copyWith(
@@ -702,7 +694,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
       child: Text(
         title,
         style: theme.textTheme.titleSmall?.copyWith(
@@ -728,7 +720,7 @@ class _DateSectionHeader extends StatelessWidget {
         theme.colorScheme.outlineVariant.withValues(alpha: 0.6);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
       child: Row(
         children: [
           Text(
@@ -749,6 +741,92 @@ class _DateSectionHeader extends StatelessWidget {
                   colors: [dividerColor, Colors.transparent],
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Folder section header for grouping inactive sessions by directory + machine.
+///
+/// Shows the folder path (monospace) with the machine name on the right,
+/// and a session count label. Styled more subdued than [_PathHeader] since
+/// these are archived sessions.
+class _FolderSectionHeader extends StatelessWidget {
+  const _FolderSectionHeader({
+    required this.displayPath,
+    required this.machineName,
+    required this.sessionCount,
+  });
+
+  /// The folder path to display (with ~ substitution).
+  final String displayPath;
+
+  /// The machine display name.
+  final String machineName;
+
+  /// Number of sessions in this folder group.
+  final int sessionCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final mutedColor = cs.onSurfaceVariant.withValues(alpha: 0.7);
+    final badgeColor = cs.onSurfaceVariant.withValues(alpha: 0.08);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  displayPath,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: mutedColor,
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: badgeColor,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  machineName,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            sessionCount == 1
+                ? '1 session'
+                : '$sessionCount sessions',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: cs.onSurfaceVariant.withValues(alpha: 0.45),
+              fontSize: 10,
             ),
           ),
         ],
@@ -1031,45 +1109,40 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
       animation: _glowAnimation,
       builder: (context, child) {
         final t = _glowAnimation.value;
-        final glowOpacity = 0.10 + 0.30 * t;
-        final borderOpacity = 0.30 + 0.40 * t;
+        final glowOpacity = 0.04 + 0.08 * t;
+        final borderOpacity = 0.20 + 0.20 * t;
 
         return Container(
           margin: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 4,
+            horizontal: 4,
+            vertical: 2,
           ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            // Subtle primary-tinted background overlay.
-            color: cs.surface,
-            // Gradient border via a gradient BoxDecoration trick:
-            // outer container has gradient, inner has surface color.
+            color: cs.primary.withValues(alpha: 0.04),
+            border: Border.all(
+              color: cs.primary.withValues(alpha: borderOpacity),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
                 color: cs.primary.withValues(alpha: glowOpacity),
-                blurRadius: 14 * t + 4,
-                spreadRadius: 2 * t,
+                blurRadius: 6 * t + 2,
+                spreadRadius: 0,
               ),
             ],
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              color: cs.primary.withValues(alpha: 0.04),
-              border: Border.all(
-                color: cs.primary.withValues(alpha: borderOpacity),
-                width: 1.5,
-              ),
-            ),
-            child: Material(
+          child: Material(
               color: Colors.transparent,
               borderRadius: BorderRadius.circular(14),
               child: InkWell(
                 onTap: widget.onTap,
                 borderRadius: BorderRadius.circular(14),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -1118,18 +1191,14 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                             ),
-                            const SizedBox(height: 8),
-                            Visibility(
-                              visible: sessionStatus.shouldShowStatus,
-                              maintainSize: true,
-                              maintainAnimation: true,
-                              maintainState: true,
-                              child: _StatusPill(
+                            if (sessionStatus.shouldShowStatus) ...[
+                              const SizedBox(height: 8),
+                              _StatusPill(
                                 color: Color(sessionStatus.statusColor),
                                 text: sessionStatus.statusText,
                                 isPulsing: sessionStatus.isPulsing,
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
@@ -1165,7 +1234,6 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
                     ],
                   ),
                 ),
-              ),
             ),
           ),
         );
@@ -1232,7 +1300,7 @@ class CompactActiveSessionCard extends StatelessWidget {
     final todoProgress = _getTodoProgress(session.todos);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         color: cs.primary.withValues(alpha: 0.04),
@@ -1399,8 +1467,8 @@ class SessionCard extends StatelessWidget {
         borderRadius: borderRadius,
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 12,
+            horizontal: 12,
+            vertical: 8,
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -1447,18 +1515,14 @@ class SessionCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
-                    const SizedBox(height: 6),
-                    Visibility(
-                      visible: sessionStatus.shouldShowStatus,
-                      maintainSize: true,
-                      maintainAnimation: true,
-                      maintainState: true,
-                      child: _StatusPill(
+                    if (sessionStatus.shouldShowStatus) ...[
+                      const SizedBox(height: 6),
+                      _StatusPill(
                         color: Color(sessionStatus.statusColor),
                         text: sessionStatus.statusText,
                         isPulsing: sessionStatus.isPulsing,
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -1549,7 +1613,7 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

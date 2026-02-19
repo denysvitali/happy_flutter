@@ -147,7 +147,7 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
@@ -253,7 +253,7 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
           decoration: BoxDecoration(
             color:
                 theme.colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: primary.withAlpha(borderAlpha),
               width: 1.5,
@@ -280,7 +280,7 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
           // Questions
           Padding(
             padding: const EdgeInsets.fromLTRB(
-                16, 16, 16, 16),
+                12, 12, 12, 12),
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start,
@@ -330,7 +330,7 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
       width: double.infinity,
       padding: const EdgeInsets.symmetric(
         horizontal: 16,
-        vertical: 13,
+        vertical: 12,
       ),
       decoration: BoxDecoration(
         color: primary.withAlpha(18),
@@ -443,8 +443,8 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
         ),
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 12,
+            horizontal: 16,
+            vertical: 8,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
@@ -570,8 +570,8 @@ class _QuestionSection extends StatelessWidget {
 
     return Container(
       margin: EdgeInsets.only(
-        bottom: 16,
-        top: questionIndex > 0 ? 8 : 0,
+        bottom: 10,
+        top: questionIndex > 0 ? 4 : 0,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

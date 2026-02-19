@@ -39,12 +39,10 @@ class TextBlockWidget extends StatelessWidget {
           ),
         );
 
-    return SelectionArea(
-      child: RichText(
-        text: TextSpan(
-          style: baseStyle,
-          children: content.map(_buildSpan).toList(),
-        ),
+    return RichText(
+      text: TextSpan(
+        style: baseStyle,
+        children: content.map(_buildSpan).toList(),
       ),
     );
   }
@@ -123,17 +121,15 @@ class HeaderBlockWidget extends StatelessWidget {
     };
 
     final inheritedColor = DefaultTextStyle.of(context).style.color;
-    return SelectionArea(
-      child: RichText(
-        text: TextSpan(
-          style: baseStyle.copyWith(
-            fontSize: fontSize.toDouble(),
-            fontWeight: fontWeight,
-            height: 1.3,
-            color: inheritedColor ?? theme.colorScheme.onSurface,
-          ),
-          children: content.map(_buildSpan).toList(),
+    return RichText(
+      text: TextSpan(
+        style: baseStyle.copyWith(
+          fontSize: fontSize.toDouble(),
+          fontWeight: fontWeight,
+          height: 1.3,
+          color: inheritedColor ?? theme.colorScheme.onSurface,
         ),
+        children: content.map(_buildSpan).toList(),
       ),
     );
   }
@@ -201,16 +197,14 @@ class ListBlockWidget extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: SelectionArea(
-                child: RichText(
-                  text: TextSpan(
-                    style: DefaultTextStyle.of(context).style.copyWith(
-                          fontSize: 16,
-                          height: 1.5,
-                          color: textColor,
-                        ),
-                    children: item.map(_buildSpan).toList(),
-                  ),
+              child: RichText(
+                text: TextSpan(
+                  style: DefaultTextStyle.of(context).style.copyWith(
+                        fontSize: 16,
+                        height: 1.5,
+                        color: textColor,
+                      ),
+                  children: item.map(_buildSpan).toList(),
                 ),
               ),
             ),
@@ -279,16 +273,14 @@ class NumberedListBlockWidget extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: SelectionArea(
-                child: RichText(
-                  text: TextSpan(
-                    style: DefaultTextStyle.of(context).style.copyWith(
-                          fontSize: 16,
-                          height: 1.5,
-                          color: textColor,
-                        ),
-                    children: item.spans.map(_buildSpan).toList(),
-                  ),
+              child: RichText(
+                text: TextSpan(
+                  style: DefaultTextStyle.of(context).style.copyWith(
+                        fontSize: 16,
+                        height: 1.5,
+                        color: textColor,
+                      ),
+                  children: item.spans.map(_buildSpan).toList(),
                 ),
               ),
             ),

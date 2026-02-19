@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../tool_section_view.dart';
-import 'bash_view.dart' show FilePillChip;
 
 /// View for displaying Write tool content.
 ///
@@ -47,10 +46,6 @@ class _WriteViewState extends State<WriteView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── File path pill chip ────────────────────────────
-          FilePillChip(path: filePath),
-          const SizedBox(height: 6),
-
           // ── Created badge + original path header ──────────
           _WritePathHeader(filePath: filePath),
           const SizedBox(height: 8),
@@ -111,7 +106,7 @@ class _WriteViewState extends State<WriteView> {
                 // Code content
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(8),
                   child: _LineNumberedCode(
                     lines: visibleLines,
                     startLine: 1,
@@ -246,8 +241,8 @@ class _WritePathHeader extends StatelessWidget {
         // Created badge
         Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: 7,
-            vertical: 3,
+            horizontal: 6,
+            vertical: 4,
           ),
           decoration: BoxDecoration(
             color: const Color(0xFF1A7F37).withValues(alpha: 0.12),
@@ -283,7 +278,7 @@ class _WritePathHeader extends StatelessWidget {
         Flexible(
           child: Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: 10,
+              horizontal: 8,
               vertical: 6,
             ),
             decoration: BoxDecoration(
@@ -363,7 +358,7 @@ class _LineNumberedCode extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: List.generate(lines.length, (i) {
             return Padding(
-              padding: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.only(right: 8),
               child: Text(
                 '${startLine + i}',
                 style: theme.textTheme.bodySmall?.copyWith(

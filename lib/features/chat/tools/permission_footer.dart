@@ -178,7 +178,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
         children: [
           // Header row
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: Row(
               children: [
                 Icon(
@@ -234,7 +234,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
               color: warningBorder.withValues(alpha: 0.25),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
               child: _loading
                   ? const SizedBox(
                       height: 16,
@@ -314,7 +314,7 @@ class _ActionButtons extends StatelessWidget {
               foregroundColor: theme.colorScheme.onPrimary,
               padding: const EdgeInsets.symmetric(
                 horizontal: 10,
-                vertical: 9,
+                vertical: 8,
               ),
               textStyle: theme.textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w600,
@@ -357,7 +357,7 @@ class _ActionButtons extends StatelessWidget {
             ),
             padding: const EdgeInsets.symmetric(
               horizontal: 10,
-              vertical: 9,
+              vertical: 8,
             ),
             textStyle: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w500,
@@ -406,7 +406,7 @@ class _CodexActionButtons extends StatelessWidget {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(
                 horizontal: 10,
-                vertical: 9,
+                vertical: 8,
               ),
               textStyle: theme.textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w600,
@@ -442,7 +442,7 @@ class _CodexActionButtons extends StatelessWidget {
             ),
             padding: const EdgeInsets.symmetric(
               horizontal: 10,
-              vertical: 9,
+              vertical: 8,
             ),
             textStyle: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w500,
@@ -478,7 +478,7 @@ class _SecondaryButton extends StatelessWidget {
           color: theme.colorScheme.primary.withValues(alpha: 0.4),
           width: 1,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         textStyle: theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w500,
         ),

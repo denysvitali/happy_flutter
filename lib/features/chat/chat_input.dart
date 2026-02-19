@@ -219,8 +219,8 @@ class _ModelSelector extends StatelessWidget {
       child: AnimatedContainer(
         duration: _kBorderAnim,
         padding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 5,
+          horizontal: 8,
+          vertical: 4,
         ),
         decoration: BoxDecoration(
           color: chipBg,
@@ -466,8 +466,8 @@ Widget _buildModelTile(
     child: AnimatedContainer(
       duration: _kBorderAnim,
       padding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 12,
+        horizontal: 16,
+        vertical: 10,
       ),
       color: isSelected
           ? cs.primaryContainer.withValues(alpha: 0.35)
@@ -917,7 +917,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final cs = theme.colorScheme;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
       decoration: BoxDecoration(
         color: cs.surface,
         border: Border(
@@ -938,7 +938,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         children: [
           // Card-like text area
           _buildCardInputArea(context),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           // Toolbar below card
           _InputToolbar(
             permissionMode: widget.permissionMode,
@@ -998,7 +998,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         children: [
           Expanded(child: _buildTextField(context)),
           Padding(
-            padding: const EdgeInsets.fromLTRB(0, 8, 8, 8),
+            padding: const EdgeInsets.fromLTRB(0, 6, 6, 6),
             child: _SendButton(
               isSending: widget.isSending,
               isSendDisabled:
@@ -1041,7 +1041,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+          contentPadding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
         ),
         style: theme.textTheme.bodyMedium?.copyWith(
           fontSize: 15,

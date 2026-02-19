@@ -119,8 +119,8 @@ class _PlanCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 11,
+        horizontal: 12,
+        vertical: 8,
       ),
       decoration: BoxDecoration(
         color: accentColor.withAlpha(16),
@@ -234,7 +234,7 @@ class _PlanCard extends StatelessWidget {
         plan.isEmpty ? '(no plan provided)' : plan;
 
     return Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -243,7 +243,7 @@ class _PlanCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: 12,
-              vertical: 10,
+              vertical: 8,
             ),
             decoration: BoxDecoration(
               color: accentColor.withAlpha(8),
@@ -286,7 +286,7 @@ class _PlanCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -309,7 +309,7 @@ class _PlanCard extends StatelessWidget {
                           theme.colorScheme.onTertiary,
                       padding:
                           const EdgeInsets.symmetric(
-                        vertical: 10,
+                        vertical: 8,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius:
@@ -340,7 +340,7 @@ class _PlanCard extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
-                      vertical: 10,
+                      vertical: 8,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius:
@@ -364,7 +364,7 @@ class _PlanCard extends StatelessWidget {
                         accentColor.withAlpha(200),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
-                      vertical: 10,
+                      vertical: 8,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius:
@@ -499,7 +499,7 @@ class _ModeButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: 16,
-          vertical: 14,
+          vertical: 10,
         ),
         decoration: BoxDecoration(
           color: accentColor.withAlpha(12),
@@ -512,8 +512,8 @@ class _ModeButton extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 38,
-              height: 38,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: accentColor.withAlpha(20),
                 borderRadius: BorderRadius.circular(10),

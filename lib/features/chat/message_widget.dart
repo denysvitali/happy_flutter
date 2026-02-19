@@ -144,10 +144,10 @@ class _UserBubble extends StatelessWidget {
       alignment: Alignment.centerRight,
       child: Padding(
         padding: const EdgeInsets.only(
-          left: 56,
-          right: 12,
-          top: 2,
-          bottom: 6,
+          left: 48,
+          right: 10,
+          top: 1,
+          bottom: 4,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -156,8 +156,8 @@ class _UserBubble extends StatelessWidget {
             Flexible(
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
+                  horizontal: 12,
+                  vertical: 8,
                 ),
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.85,
@@ -223,10 +223,10 @@ class _BotMessage extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(
-        left: 12,
-        right: 12,
-        top: 2,
-        bottom: 6,
+        left: 10,
+        right: 10,
+        top: 1,
+        bottom: 4,
       ),
       child: SelectionArea(
         child: DefaultTextStyle.merge(
@@ -288,7 +288,7 @@ class _AgentEventWidget extends StatelessWidget {
     final label = _eventLabel(event);
     if (label == null) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Center(
         child: Text(
           label,

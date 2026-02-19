@@ -86,8 +86,19 @@ Future<void> main() async {
       options.dsn =
           'https://34d0c1a2feec3a101164ba74383fc87e@o4506225548853248.ingest.us.sentry.io/4510613188378624';
       options.sendDefaultPii = true;
+      options.tracesSampleRate = kReleaseMode ? 0.2 : 1.0;
+      options.release = 'happy_flutter@1.0.0+1';
+      options.environment =
+          kReleaseMode ? 'production' : 'debug';
     },
     appRunner: () async {
+      // TODO: Remove after confirming Sentry receives events.
+      if (kDebugMode) {
+        await Sentry.captureException(
+          Exception('Sentry connectivity test — safe to ignore'),
+          stackTrace: StackTrace.current,
+        );
+      }
       WidgetsFlutterBinding.ensureInitialized();
 
       if (!kIsWeb && Platform.isAndroid) {
@@ -192,6 +203,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
   GoRouter _buildRouter() {
     return GoRouter(
       initialLocation: '/',
+      observers: [SentryNavigatorObserver()],
       routes: [
         GoRoute(
           path: '/',

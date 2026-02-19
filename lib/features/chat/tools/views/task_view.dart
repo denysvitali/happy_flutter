@@ -63,7 +63,7 @@ class TaskView extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 4),
         padding: const EdgeInsets.symmetric(
           horizontal: 12,
-          vertical: 10,
+          vertical: 8,
         ),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerLow,

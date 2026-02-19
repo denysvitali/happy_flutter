@@ -27,7 +27,6 @@ class ToolSectionView extends StatelessWidget {
     final effectiveChildren = child != null ? [child!] : children;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -37,13 +36,10 @@ class ToolSectionView extends StatelessWidget {
           if (fullWidth)
             ...effectiveChildren
           else
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: effectiveChildren,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: effectiveChildren,
             ),
         ],
       ),
@@ -66,8 +62,8 @@ class _SectionHeader extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(
         bottom: 6,
-        left: fullWidth ? 0 : 12,
-        right: fullWidth ? 0 : 12,
+        left: fullWidth ? 0 : 8,
+        right: fullWidth ? 0 : 8,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

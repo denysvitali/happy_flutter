@@ -468,7 +468,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return ListView.builder(
       controller: _scrollController,
       reverse: true,
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.only(top: 6, bottom: 80),
       itemCount: visibleMessages.length + (hasMore ? 1 : 0),
       findChildIndexCallback: (key) {
         if (key is! ValueKey<String>) return null;
@@ -847,8 +847,8 @@ class _ScrollToBottomPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(100),
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
+            horizontal: 10,
+            vertical: 4,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -890,7 +890,7 @@ class _PermissionRequiredBanner extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        height: 40,
+        height: 36,
         width: double.infinity,
         decoration: const BoxDecoration(
           color: Color(0xFFFFF3CD),
@@ -1076,7 +1076,7 @@ class _TypingIndicatorState extends State<_TypingIndicator>
     final dotColor = colorScheme.onSurfaceVariant;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: bubbleColor,
         borderRadius: const BorderRadius.only(

@@ -204,13 +204,12 @@ class _FriendsTab extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(32),
           children: [
-            const SizedBox(height: 60),
             Icon(
               Icons.people_outline,
               size: 64,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             Text(
               context.l10n.friendsEmptyTitle,
               textAlign: TextAlign.center,
@@ -232,7 +231,7 @@ class _FriendsTab extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 80),
         itemCount: friends.length,
         itemBuilder: (context, index) {
           final friend = friends[index];
@@ -263,7 +262,7 @@ class _FriendTile extends StatelessWidget {
     final name = friend.name ?? friend.id;
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 4),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
@@ -319,13 +318,12 @@ class _RequestsTab extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(32),
           children: [
-            const SizedBox(height: 60),
             Icon(
               Icons.inbox_outlined,
               size: 64,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             Text(
               context.l10n.friendsNoRequests,
               textAlign: TextAlign.center,
@@ -339,7 +337,7 @@ class _RequestsTab extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 80),
         itemCount: requests.length,
         itemBuilder: (context, index) {
           final req = requests[index];
@@ -373,7 +371,7 @@ class _RequestTile extends StatelessWidget {
     final l10n = context.l10n;
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 4),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(

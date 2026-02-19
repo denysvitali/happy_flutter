@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'block_widgets.dart';
@@ -47,7 +46,6 @@ class MarkdownView extends StatefulWidget {
 
 class _MarkdownViewState extends State<MarkdownView> {
   late List<MarkdownBlock> _blocks;
-  final bool _showCopyOverlay = false;
 
   @override
   void initState() {
@@ -67,20 +65,17 @@ class _MarkdownViewState extends State<MarkdownView> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onLongPress: _showCopyOverlay ? null : _handleLongPress,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: _blocks.asMap().entries.map((entry) {
-          final index = entry.key;
-          final block = entry.value;
-          final isFirst = index == 0;
-          final isLast = index == _blocks.length - 1;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: _blocks.asMap().entries.map((entry) {
+        final index = entry.key;
+        final block = entry.value;
+        final isFirst = index == 0;
+        final isLast = index == _blocks.length - 1;
 
-          return _buildBlock(block, isFirst, isLast);
-        }).toList(),
-      ),
+        return _buildBlock(block, isFirst, isLast);
+      }).toList(),
     );
   }
 
@@ -155,34 +150,6 @@ class _MarkdownViewState extends State<MarkdownView> {
     }
   }
 
-  void _handleLongPress() {
-    // Show a snackbar with copy option
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: const Text('Copy text'),
-          action: SnackBarAction(
-            label: 'Copy',
-            onPressed: () => _copyText(),
-          ),
-        ),
-      );
-  }
-
-  void _copyText() async {
-    await Clipboard.setData(ClipboardData(text: widget.markdown));
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            content: Text('Text copied to clipboard'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-    }
-  }
 }
 
 /// A simpler markdown view widget for basic text rendering.
@@ -300,12 +267,14 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
           ),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: SelectableText(
-              content,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 14,
-                color: theme.colorScheme.onSurfaceVariant,
+            child: RichText(
+              text: TextSpan(
+                text: content,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 14,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ),

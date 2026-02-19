@@ -579,7 +579,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
               bottom: sideBorder,
             ),
           ),
-          margin: const EdgeInsets.symmetric(vertical: 4),
+          margin: const EdgeInsets.symmetric(vertical: 2),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -675,7 +675,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
 
     if (specificView != null) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -696,7 +696,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
 
     // Default fallback content
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -858,26 +858,14 @@ class _ToolHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final baseColor = theme.colorScheme.surfaceContainerHighest;
-    final gradientTop = Color.lerp(
-      baseColor,
-      theme.colorScheme.surface,
-      0.25,
-    )!;
-
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [gradientTop, baseColor],
-        ),
-        borderRadius: const BorderRadius.only(
+      decoration: const BoxDecoration(
+        borderRadius: BorderRadius.only(
           topLeft: Radius.circular(8),
           topRight: Radius.circular(8),
         ),
       ),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Row(
         children: [
           SizedBox(
@@ -934,21 +922,18 @@ class _ToolHeader extends StatelessWidget {
             ),
           ),
           // Status badge pill
-          if (!hasPermissionRequest)
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: _ToolStatusBadge(state: state),
-            ),
+          if (!hasPermissionRequest) ...[
+            const SizedBox(width: 6),
+            _ToolStatusBadge(state: state),
+          ],
           // Elapsed time while running
-          if (state == ToolState.running && createdAt != null)
-            Padding(
-              padding: const EdgeInsets.only(left: 6),
-              child: _ToolDuration(startTime: createdAt!),
-            ),
+          if (state == ToolState.running && createdAt != null) ...[
+            const SizedBox(width: 6),
+            _ToolDuration(startTime: createdAt!),
+          ],
           // Status icon / check flash
-          Padding(
-            padding: const EdgeInsets.only(left: 8),
-            child: AnimatedSwitcher(
+          const SizedBox(width: 6),
+          AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               transitionBuilder: (child, animation) => ScaleTransition(
                 scale: animation,
@@ -972,13 +957,11 @@ class _ToolHeader extends StatelessWidget {
                       : const SizedBox.shrink(
                           key: ValueKey('empty'),
                         )),
-            ),
           ),
           // Expand/collapse chevron
-          if (hasContent)
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: RotationTransition(
+          if (hasContent) ...[
+            const SizedBox(width: 6),
+            RotationTransition(
                 turns: chevronAnim,
                 child: Icon(
                   Icons.expand_more,
@@ -986,16 +969,16 @@ class _ToolHeader extends StatelessWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-            ),
-        ],
+          ],
       ),
     );
   }
 }
 
-/// Compact status pill showing Running / Done / Error / Pending.
+/// Compact status pill showing Running / ✓ / ✕ / Pending.
 ///
-/// 20px tall pill with 0.15-opacity background and matching text colour.
+/// 20px tall pill with 0.15-opacity background and matching colour.
+/// Completed and error states show an icon; others show text.
 class _ToolStatusBadge extends StatelessWidget {
   const _ToolStatusBadge({required this.state});
 
@@ -1005,11 +988,32 @@ class _ToolStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = _statusBadgeBg(state);
-    final label = _statusBadgeLabel(state);
+
+    final Widget child;
+    if (state == ToolState.completed) {
+      child = Icon(Icons.check, size: 12, color: bg);
+    } else if (state == ToolState.error) {
+      child = Icon(Icons.close, size: 12, color: bg);
+    } else {
+      child = Text(
+        _statusBadgeLabel(state),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: bg,
+          letterSpacing: 0.2,
+        ),
+      );
+    }
 
     return Container(
       height: 20,
-      padding: const EdgeInsets.symmetric(horizontal: 7),
+      width: (state == ToolState.completed || state == ToolState.error)
+          ? 20
+          : null,
+      padding: (state == ToolState.completed || state == ToolState.error)
+          ? EdgeInsets.zero
+          : const EdgeInsets.symmetric(horizontal: 7),
       decoration: BoxDecoration(
         color: bg.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(10),
@@ -1019,15 +1023,7 @@ class _ToolStatusBadge extends StatelessWidget {
         ),
       ),
       alignment: Alignment.center,
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: bg,
-          letterSpacing: 0.2,
-        ),
-      ),
+      child: child,
     );
   }
 }
@@ -1058,7 +1054,7 @@ class _ToolOutputContainer extends StatelessWidget {
 
     return Container(
       constraints: const BoxConstraints(maxHeight: 300),
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(6),
@@ -1142,7 +1138,7 @@ class ToolViewMinimal extends StatelessWidget {
     final title = KnownTools.titleFor(toolName, tool, metadata);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         children: [
           icon,
