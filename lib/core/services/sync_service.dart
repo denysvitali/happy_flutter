@@ -427,8 +427,27 @@ what you have, you must use the options mode.
       return;
     }
 
-    final sessionId = data['sid'] as String?;
+    final type = data['type'] as String?;
+    // Activity events use 'id'; fall back to 'sid' for other shapes.
+    final sessionId =
+        data['id'] as String? ?? data['sid'] as String?;
     if (sessionId == null) {
+      return;
+    }
+
+    if (type == 'activity') {
+      final session = _sessions[sessionId];
+      if (session != null) {
+        final thinking = data['thinking'] as bool? ?? false;
+        final activeAt = data['activeAt'] as int?;
+        _sessions[sessionId] = session.copyWith(
+          thinking: thinking,
+          thinkingAt: thinking
+              ? (activeAt ?? DateTime.now().millisecondsSinceEpoch)
+              : null,
+          presence: 'online',
+        );
+      }
       return;
     }
 

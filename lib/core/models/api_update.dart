@@ -92,9 +92,10 @@ class ApiUpdate {
   ApiUpdate({required this.type, required this.data});
 
   factory ApiUpdate.fromJson(Map<String, dynamic> json) {
+    final body = json['body'] as Map<String, dynamic>;
     return ApiUpdate(
-      type: json['t'] as String,
-      data: json,
+      type: body['t'] as String,
+      data: body,
     );
   }
 }
