@@ -46,7 +46,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   PermissionMode _permissionMode = PermissionMode.readOnly;
   ClaudeModel _modelMode = ClaudeModel.defaultModel;
   Session? _session;
-  List<Map<String, dynamic>> _messages = <Map<String, dynamic>>[];
+  List<Map<String, dynamic>> _messages = const [];
   static const int _pageSize = 50;
   int _visibleCount = _pageSize;
 
@@ -107,8 +107,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _refreshFromSync({bool markLoaded = false}) {
     final latestSession = sync.sessions[widget.sessionId];
-    final latestMessages =
-        sync.sessionMessages[widget.sessionId] ?? <Map<String, dynamic>>[];
+    final latestMessages = sync.messagesForSession(widget.sessionId);
 
     final sessionChanged = latestSession != _session;
     final messagesChanged = !_sameMessages(latestMessages, _messages);
@@ -121,7 +120,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
     setState(() {
       _session = latestSession;
-      _messages = List<Map<String, dynamic>>.from(latestMessages);
+      _messages = latestMessages;
       if (markLoaded) {
         _isLoadingMessages = false;
       }
@@ -136,18 +135,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     List<Map<String, dynamic>> a,
     List<Map<String, dynamic>> b,
   ) {
-    if (a.length != b.length) {
-      return false;
-    }
-
-    for (var i = 0; i < a.length; i++) {
-      if (a[i]['id'] != b[i]['id']) {
-        return false;
-      }
-      if (a[i]['seq'] != b[i]['seq']) {
-        return false;
-      }
-    }
+    if (a.length != b.length) return false;
+    if (a.isEmpty) return true;
+    // Check first and last message identity as a fast heuristic.
+    // Messages are append-only and ordered, so this catches new arrivals
+    // and seq updates (streaming content changes).
+    final lastA = a[a.length - 1];
+    final lastB = b[b.length - 1];
+    if (lastA['id'] != lastB['id']) return false;
+    if (lastA['seq'] != lastB['seq']) return false;
+    final firstA = a[0];
+    final firstB = b[0];
+    if (firstA['id'] != firstB['id']) return false;
     return true;
   }
 

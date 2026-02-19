@@ -145,6 +145,10 @@ what you have, you must use the options mode.
         ),
       );
 
+  /// Returns the messages for a single session without copying all sessions.
+  List<Map<String, dynamic>> messagesForSession(String sessionId) =>
+      List.unmodifiable(_sessionMessages[sessionId] ?? const []);
+
   /// Initialize sync with credentials and encryption
   Future<void> create(
     AuthCredentials credentials,
@@ -2292,28 +2296,34 @@ what you have, you must use the options mode.
         _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
     if (existing.isEmpty) return;
 
-    // Build a lookup from toolUseId → message index
+    // Build a lookup from toolUseId → index (O(n))
+    final toolUseIdToIndex = <String, int>{};
+    for (var i = 0; i < existing.length; i++) {
+      final msg = existing[i];
+      if (msg['kind'] == 'tool-call') {
+        final id = msg['toolUseId'] as String?;
+        if (id != null) toolUseIdToIndex[id] = i;
+      }
+    }
+
     var changed = false;
     final updated = List<Map<String, dynamic>>.from(existing);
 
     for (final result in toolResults) {
       final toolUseId = result['toolUseId'] as String?;
       if (toolUseId == null) continue;
+      final idx = toolUseIdToIndex[toolUseId];
+      if (idx == null) continue;
 
-      for (var i = 0; i < updated.length; i++) {
-        final msg = updated[i];
-        if (msg['kind'] == 'tool-call' && msg['toolUseId'] == toolUseId) {
-          final isError = result['isError'] == true;
-          updated[i] = {
-            ...msg,
-            'state': isError ? 'error' : 'completed',
-            'result': result['result'],
-            'completedAt': result['createdAt'],
-          };
-          changed = true;
-          break;
-        }
-      }
+      final msg = updated[idx];
+      final isError = result['isError'] == true;
+      updated[idx] = {
+        ...msg,
+        'state': isError ? 'error' : 'completed',
+        'result': result['result'],
+        'completedAt': result['createdAt'],
+      };
+      changed = true;
     }
 
     if (changed) {
@@ -2390,7 +2400,10 @@ what you have, you must use the options mode.
         }
         return (a['seq'] as int? ?? 0).compareTo(b['seq'] as int? ?? 0);
       });
-    _sessionMessages[sessionId] = sorted;
+    const maxMessages = 3000;
+    _sessionMessages[sessionId] = sorted.length > maxMessages
+        ? sorted.sublist(sorted.length - maxMessages)
+        : sorted;
   }
 
   /// Shutdown sync engine and clear volatile state.

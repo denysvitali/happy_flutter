@@ -46,45 +46,37 @@ class MarkdownView extends StatefulWidget {
 }
 
 class _MarkdownViewState extends State<MarkdownView> {
-  List<MarkdownBlock>? _blocks;
+  late List<MarkdownBlock> _blocks;
   final bool _showCopyOverlay = false;
 
   @override
   void initState() {
     super.initState();
-    _parseMarkdown();
+    _blocks = parseMarkdown(widget.markdown);
   }
 
   @override
   void didUpdateWidget(MarkdownView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.markdown != widget.markdown) {
-      _parseMarkdown();
+      setState(() {
+        _blocks = parseMarkdown(widget.markdown);
+      });
     }
-  }
-
-  void _parseMarkdown() {
-    setState(() {
-      _blocks = parseMarkdown(widget.markdown);
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_blocks == null) {
-      return const SizedBox.shrink();
-    }
-
     return GestureDetector(
       onLongPress: _showCopyOverlay ? null : _handleLongPress,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
-        children: _blocks!.asMap().entries.map((entry) {
+        children: _blocks.asMap().entries.map((entry) {
           final index = entry.key;
           final block = entry.value;
           final isFirst = index == 0;
-          final isLast = index == _blocks!.length - 1;
+          final isLast = index == _blocks.length - 1;
 
           return _buildBlock(block, isFirst, isLast);
         }).toList(),
@@ -197,25 +189,44 @@ class _MarkdownViewState extends State<MarkdownView> {
 ///
 /// This is a convenience widget that renders markdown without
 /// additional styling wrapper.
-class SimpleMarkdownView extends StatelessWidget {
+class SimpleMarkdownView extends StatefulWidget {
 
   const SimpleMarkdownView({required this.markdown, super.key});
   /// The markdown text to render.
   final String markdown;
 
   @override
-  Widget build(BuildContext context) {
-    final blocks = parseMarkdown(markdown);
+  State<SimpleMarkdownView> createState() => _SimpleMarkdownViewState();
+}
 
+class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
+  late List<MarkdownBlock> _blocks;
+
+  @override
+  void initState() {
+    super.initState();
+    _blocks = parseMarkdown(widget.markdown);
+  }
+
+  @override
+  void didUpdateWidget(SimpleMarkdownView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.markdown != widget.markdown) {
+      _blocks = parseMarkdown(widget.markdown);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return SelectionArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
-        children: blocks.asMap().entries.map((entry) {
+        children: _blocks.asMap().entries.map((entry) {
           final index = entry.key;
           final block = entry.value;
           final isFirst = index == 0;
-          final isLast = index == blocks.length - 1;
+          final isLast = index == _blocks.length - 1;
 
           return _buildBlock(block, isFirst, isLast, context);
         }).toList(),
