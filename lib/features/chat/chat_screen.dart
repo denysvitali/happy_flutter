@@ -432,9 +432,38 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           metadata: _session?.metadata?.toJson(),
           messages: _messages,
           sessionId: widget.sessionId,
+          onOptionPress: _onOptionPress,
         );
       },
     );
+  }
+
+  Future<void> _onOptionPress(String option) async {
+    if (_isSending) return;
+    setState(() => _isSending = true);
+    try {
+      if (!sync.isInitialized) {
+        throw StateError('Sync is not initialized');
+      }
+      await sync.sendMessage(
+        widget.sessionId,
+        option,
+        displayText: option,
+        permissionMode: _permissionMode.toModeString(),
+        modelMode: _modelMode.modeString,
+      );
+      _refreshFromSync();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${context.l10n.chatFailedToSend}: $e'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
   }
 
   Future<void> _sendMessage() async {
