@@ -28,6 +28,11 @@ final class SlashCommand {
 /// Available slash commands
 const List<SlashCommand> _slashCommands = [
   SlashCommand(
+    command: 'clear',
+    description: 'Clear conversation history',
+    icon: Icons.delete_sweep_outlined,
+  ),
+  SlashCommand(
     command: 'test',
     description: 'Run tests',
     icon: Icons.check_circle_outline,

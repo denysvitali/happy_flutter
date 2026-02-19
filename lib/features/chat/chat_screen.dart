@@ -310,21 +310,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     setState(() => _modelMode = model);
   }
 
-  void _onPlanAccepted(String permissionMode) {
-    final parsed = PermissionModeExtension.fromString(permissionMode);
-    if (parsed != null) {
-      _onPermissionModeChanged(parsed);
-    }
-  }
-
-  void _onPlanDiscarded() {
-    // Nothing to do — user can type a new message.
-  }
-
-  void _onPlanChangesProposed() {
-    // Nothing to do — user can just type.
-  }
-
   Future<void> _stopSession() async {
     if (!sync.isInitialized) return;
     try {
@@ -581,6 +566,40 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isSending) return;
+
+    // /clear resets the conversation context on the server and collapses
+    // the local message window so the UI feels instantly cleared.
+    if (text == '/clear') {
+      _controller.clear();
+      unawaited(DraftStorage().removeDraft(widget.sessionId));
+      setState(() {
+        _isSending = true;
+        _visibleCount = _pageSize;
+        _autoScroll = true;
+      });
+      try {
+        if (!sync.isInitialized) {
+          throw StateError('Sync is not initialized');
+        }
+        await sync.sendMessage(
+          widget.sessionId,
+          text,
+          permissionMode: _permissionMode.toModeString(),
+          modelMode: _modelMode.modeString,
+        );
+        _refreshFromSync();
+        _scrollToBottom();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to clear: $e')),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isSending = false);
+      }
+      return;
+    }
 
     setState(() {
       _isSending = true;
