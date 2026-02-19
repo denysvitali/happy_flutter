@@ -470,6 +470,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       reverse: true,
       padding: const EdgeInsets.symmetric(vertical: 12),
       itemCount: visibleMessages.length + (hasMore ? 1 : 0),
+      findChildIndexCallback: (key) {
+        if (key is! ValueKey<String>) return null;
+        final msgKey = key.value;
+        for (var i = 0; i < visibleMessages.length; i++) {
+          final m = visibleMessages[i];
+          final k =
+              m['id'] as String? ?? m['toolUseId'] as String?;
+          if (k != null && k == msgKey) {
+            return visibleMessages.length - 1 - i;
+          }
+        }
+        return null;
+      },
       itemBuilder: (context, index) {
         // Reversed: index 0 = last message (bottom)
         final reversedIndex = visibleMessages.length - 1 - index;
