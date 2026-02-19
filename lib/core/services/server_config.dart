@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:native_dio_adapter/native_dio_adapter.dart';
 import 'mmkv_storage.dart';
 
 const String defaultServerUrl = 'https://api.cluster-fluster.com';
@@ -102,6 +101,13 @@ ServerUrlValidation validateServerUrl(String url) {
         error: 'Server URL must use HTTP or HTTPS protocol',
       );
     }
+    if (uri.host.isEmpty) {
+      return const ServerUrlValidation(
+        valid: false,
+        error: 'Server URL must include a hostname'
+            ' (e.g. https://example.com)',
+      );
+    }
     return const ServerUrlValidation(valid: true);
   } catch (e) {
     return ServerUrlValidation(
@@ -124,17 +130,16 @@ Future<ServerUrlVerificationResult> verifyServerUrl(String url) async {
   }
 
   try {
-    // Use NativeAdapter on supported native platforms so certificate trust
-    // behavior matches the main API client.
+    // Use plain Dart IO so SecurityContext.defaultContext (populated with
+    // user-installed CA certificates in main()) is respected.
     final dio = Dio();
-    if (!kIsWeb) {
-      dio.httpClientAdapter = NativeAdapter();
-    }
     dio.options.connectTimeout = const Duration(seconds: 10);
     dio.options.receiveTimeout = const Duration(seconds: 10);
+    // Don't throw on 4xx/5xx so we can inspect the status ourselves.
+    dio.options.validateStatus = (status) => true;
 
     final uri = Uri.parse(url);
-    final configUri = uri.resolve('/v1/config');
+    final configUri = uri.resolve('/health');
 
     final response = await dio.get(configUri.toString());
 

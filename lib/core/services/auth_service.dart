@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:ed25519_edwards/ed25519_edwards.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:sodium/sodium.dart' show SecureKey;
 import '../api/api_client.dart';
 import '../encryption/crypto_box.dart';
 import '../models/auth.dart';
@@ -20,11 +21,15 @@ class AuthService {
   final _apiClient = ApiClient();
   final _encryption = EncryptionService();
 
+  // Pending secret keys for in-progress auth flows (NaCl box, X25519)
+  SecureKey? _pendingQRSecretKey;
+  SecureKey? _pendingLinkingSecretKey;
+
   /// Start QR authentication
   /// Returns the public key to display in QR code
   Future<Uint8List> startQRAuth() async {
-    final seed = _encryption.randomBytes(32);
-    final keypair = await _generateKeypair(seed);
+    final keypair = await CryptoBox.generateKeypair();
+    _pendingQRSecretKey = keypair.secretKey;
 
     await _apiClient.post(
       '/v1/auth/account/request',
@@ -161,7 +166,13 @@ class AuthService {
             final token = data['token'] as String;
             final encryptedResponse = data['response'] as String;
 
-            final secret = await _decryptAuthSecret(encryptedResponse);
+            final secretKey = _pendingQRSecretKey;
+            final secret = secretKey == null
+                ? null
+                : await CryptoBox.decrypt(
+                    base64Decode(encryptedResponse),
+                    secretKey,
+                  );
 
             if (secret != null) {
               await _encryption.initialize(secret);
@@ -381,7 +392,8 @@ class AuthService {
   /// Start device linking process
   Future<DeviceLinkingResult> startDeviceLinking() async {
     final seed = _encryption.randomBytes(32);
-    final keypair = await _generateKeypair(seed);
+    final keypair = await CryptoBox.keypairFromSeed(seed);
+    _pendingLinkingSecretKey = keypair.secretKey;
     final serverUrl = _apiClient.getCurrentServerUrl();
     final encodedPublicKey = base64Encode(keypair.publicKey);
 
@@ -463,7 +475,13 @@ Timestamp: ${DateTime.now().toIso8601String()}
             final token = data['token'] as String;
             final encryptedResponse = data['response'] as String;
 
-            final secret = await _decryptAuthSecret(encryptedResponse);
+            final secretKey = _pendingLinkingSecretKey;
+            final secret = secretKey == null
+                ? null
+                : await CryptoBox.decrypt(
+                    base64Decode(encryptedResponse),
+                    secretKey,
+                  );
 
             if (secret != null) {
               await _encryption.initialize(secret);
@@ -571,17 +589,6 @@ Timestamp: ${DateTime.now().toIso8601String()}
       privateKey: Uint8List.fromList(privateKey.bytes),
       publicKey: Uint8List.fromList(publicKey.bytes),
     );
-  }
-
-  /// Decrypt authentication secret
-  Future<Uint8List?> _decryptAuthSecret(String encryptedBase64) async {
-    try {
-      final encrypted = base64Decode(encryptedBase64);
-      return _encryption.decryptSecretBox(encrypted);
-    } catch (e) {
-      debugPrint('Failed to decrypt auth secret: $e');
-      return null;
-    }
   }
 
   /// Extract error message from response data
@@ -697,13 +704,9 @@ Timestamp: ${DateTime.now().toIso8601String()}
     }
 
     final secret = base64Decode(credentials.secret);
-    // Use NaCl keypair for box encryption (not Ed25519)
-    final keypair = await CryptoBox.keypairFromSeed(secret);
-
     final encryptedResponse = await CryptoBox.encrypt(
       secret,
       requesterPublicKey,
-      keypair.secretKey,
     );
 
     final response = await _apiClient.post(

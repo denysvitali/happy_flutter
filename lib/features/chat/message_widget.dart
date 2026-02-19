@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'markdown/markdown.dart';
 import 'tools/tools.dart';
@@ -29,44 +30,110 @@ class MessageWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final kind = messageData['kind'] as String? ?? 'unknown';
+
+    // Agent events render as a centered system-style message
+    if (kind == 'agent-event') {
+      return _AgentEventWidget(event: messageData['event']);
+    }
+
     final content = messageData['content'] ?? messageData['text'] ?? '';
     final text = content is String ? content : content.toString();
 
-    return Align(
-      alignment: isFromCurrentUser
-          ? Alignment.centerRight
-          : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isFromCurrentUser
-              ? theme.primaryColor
-              : theme.colorScheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(12),
+    // Tool calls render without bubble styling
+    if (kind == 'tool-call') {
+      final messageId = messageData['id'] as String?;
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: ToolView(
+          tool: messageData,
+          metadata: metadata,
+          messages: messages,
+          sessionId: sessionId,
+          onPress: (sessionId != null && messageId != null)
+              ? () => context.push(
+                    '/chat/$sessionId/message/$messageId',
+                    extra: messageData,
+                  )
+              : null,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (kind == 'tool-call')
-              ToolView(
-                tool: messageData,
-                metadata: metadata,
-                messages: messages,
-                sessionId: sessionId,
-              )
-            else
-              SelectionArea(
-                child: MarkdownView(
-                  markdown: text,
-                  onOptionPress: onOptionPress,
-                ),
-              ),
-          ],
+      );
+    }
+
+    // User messages: right-aligned with bubble
+    if (isFromCurrentUser) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.85,
+          ),
+          decoration: BoxDecoration(
+            color: theme.primaryColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: SelectionArea(
+            child: MarkdownView(
+              markdown: text,
+              onOptionPress: onOptionPress,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Agent messages: left-aligned, no bubble
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: SelectionArea(
+        child: MarkdownView(
+          markdown: text,
+          onOptionPress: onOptionPress,
         ),
       ),
     );
+  }
+}
+
+class _AgentEventWidget extends StatelessWidget {
+  final dynamic event;
+
+  const _AgentEventWidget({required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final label = _eventLabel(event);
+    if (label == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Center(
+        child: Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  String? _eventLabel(dynamic event) {
+    if (event is! Map<String, dynamic>) return null;
+    final type = event['type'] as String?;
+    switch (type) {
+      case 'switch':
+        final mode = event['mode'] as String?;
+        return mode != null ? 'Switched to $mode mode' : 'Mode switched';
+      case 'message':
+        return event['message'] as String?;
+      case 'limit-reached':
+        return 'Usage limit reached';
+      default:
+        return null;
+    }
   }
 }
 

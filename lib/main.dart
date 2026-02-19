@@ -1,6 +1,11 @@
 import 'dart:async';
+import 'dart:convert' show base64;
+import 'dart:io' show Platform, SecurityContext;
+import 'dart:typed_data' show Uint8List;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_user_certificates_android/flutter_user_certificates_android.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -61,8 +66,31 @@ import 'features/settings/voice_language_settings_screen.dart';
 // Deep link handler for receiving happy:// URLs
 const _deepLinkChannel = MethodChannel('com.example.happy_flutter/deep_links');
 
+/// Converts a DER-encoded certificate to PEM format.
+Uint8List _derToPem(Uint8List der) {
+  final b64 = base64.encode(der);
+  final buf = StringBuffer()
+    ..writeln('-----BEGIN CERTIFICATE-----');
+  for (var i = 0; i < b64.length; i += 64) {
+    buf.writeln(b64.substring(i, i + 64 < b64.length ? i + 64 : b64.length));
+  }
+  buf.write('-----END CERTIFICATE-----');
+  return Uint8List.fromList(buf.toString().codeUnits);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (!kIsWeb && Platform.isAndroid) {
+    final certs =
+        await FlutterUserCertificatesAndroid().getUserCertificates();
+    for (final derBytes in (certs ?? {}).values) {
+      // Android KeyStore returns DER; Dart's SecurityContext needs PEM.
+      final pem = _derToPem(derBytes);
+      SecurityContext.defaultContext
+          .setTrustedCertificatesBytes(pem);
+    }
+  }
 
   await storage.Storage().initialize();
 
@@ -294,8 +322,13 @@ class _HappyAppState extends ConsumerState<HappyApp>
           builder: (context, state) {
             final sid = state.pathParameters['sessionId']!;
             final mid = state.pathParameters['messageId']!;
+            final extra = state.extra as Map<String, dynamic>?;
             return AuthGate(
-              child: MessageDetailScreen(sessionId: sid, messageId: mid),
+              child: MessageDetailScreen(
+                sessionId: sid,
+                messageId: mid,
+                messageData: extra,
+              ),
             );
           },
         ),

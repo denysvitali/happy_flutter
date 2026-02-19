@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/aes_gcm.dart';
@@ -415,6 +416,52 @@ void main() {
       });
     });
 
+    group('React Native Cross-Platform Compatibility', () {
+      test('encrypted output has correct [nonce][ciphertext][tag] layout',
+          () async {
+        final secretKey = _generateKey();
+        final data = 'test';
+        // "test" → JSON '"test"' → 6 UTF-8 bytes
+        const plaintextLen = 6;
+
+        final encrypted = await AesGcmEncryption.encrypt(data, secretKey);
+
+        // Total length must be nonce(12) + plaintext(6) + tag(16) = 34
+        expect(
+          encrypted.length,
+          AesGcmEncryption.nonceSize + plaintextLen + AesGcmEncryption.authTagSize,
+        );
+      });
+
+      test('auth tag is verified: tampered tag returns null', () async {
+        final secretKey = _generateKey();
+        final data = {'path': '~/Documents/project'};
+
+        final encrypted = await AesGcmEncryption.encrypt(data, secretKey);
+
+        // Flip the last byte (inside the 16-byte auth tag)
+        final tampered = Uint8List.fromList(encrypted);
+        tampered[tampered.length - 1] ^= 0xFF;
+
+        final result = await AesGcmEncryption.decrypt(tampered, secretKey);
+        expect(result, isNull);
+      });
+
+      test('roundtrip preserves session metadata format', () async {
+        final secretKey = _generateKey();
+        // Typical session metadata as sent by the server
+        final metadata = {
+          'path': '~/Documents/project',
+          'summary': 'Working on Flutter app',
+        };
+
+        final encrypted = await AesGcmEncryption.encrypt(metadata, secretKey);
+        final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
+
+        expect(decrypted, equals(metadata));
+      });
+    });
+
     group('Edge Cases', () {
       test('encryption works with byte value 255', () async {
         final secretKey = _generateKey();
@@ -478,11 +525,12 @@ void main() {
   });
 }
 
-/// Helper function to generate a test key
+/// Helper function to generate a random test key
 Uint8List _generateKey() {
+  final random = Random.secure();
   final key = Uint8List(32);
   for (int i = 0; i < 32; i++) {
-    key[i] = i;
+    key[i] = random.nextInt(256);
   }
   return key;
 }

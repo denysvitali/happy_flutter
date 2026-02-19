@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/sync_service.dart';
@@ -31,6 +33,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   PermissionMode _permissionMode = PermissionMode.readOnly;
   Session? _session;
   List<Map<String, dynamic>> _messages = <Map<String, dynamic>>[];
+  static const int _pageSize = 50;
+  int _visibleCount = _pageSize;
 
   @override
   void initState() {
@@ -138,8 +142,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (!mounted || !_scrollController.hasClients) {
         return;
       }
+      // With reverse: true, position 0 is the bottom
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        0,
         duration: const Duration(milliseconds: 160),
         curve: Curves.easeOut,
       );
@@ -147,11 +152,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >
+    // With reverse: true, scrolling "up" means approaching maxScrollExtent
+    if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
-      // Load more messages
-      // _loadMoreMessages();
+      _loadMore();
     }
+  }
+
+  void _loadMore() {
+    if (_visibleCount >= _messages.length) return;
+    setState(() {
+      _visibleCount = (_visibleCount + _pageSize).clamp(0, _messages.length);
+    });
   }
 
   @override
@@ -160,17 +172,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.chatChat),
-            if (_session != null)
-              Text(
-                _session?.metadata?.path ?? 'Unknown',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-          ],
-        ),
+        title: _buildAppBarTitle(l10n),
         actions: [
           IconButton(
             icon: const Icon(Icons.more_vert),
@@ -189,21 +191,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 else if (_messages.isEmpty)
                   const _EmptyChatView()
                 else
-                  ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final message = _messages[index];
-                      return MessageWidget(
-                        messageData: message,
-                        isFromCurrentUser: message['role'] == 'user',
-                        metadata: _session?.metadata?.toJson(),
-                        messages: _messages,
-                        sessionId: widget.sessionId,
-                      );
-                    },
-                  ),
+                  _buildMessageList(),
               ],
             ),
           ),
@@ -214,10 +202,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             isSending: _isSending,
             permissionMode: _permissionMode,
             onPermissionModeChanged: _onPermissionModeChanged,
-            showSettingsButton: true,
-            // machineName: session?.metadata?.name,
-            // currentPath: session?.metadata?.path,
-            onSettingsPressed: _showPermissionModeSettings,
+            contextSize: sync.sessionUsage[widget.sessionId]
+                ?['contextSize'] as int?,
           ),
         ],
       ),
@@ -229,8 +215,142 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     DraftStorage().savePermissionMode(widget.sessionId, mode.toModeString());
   }
 
-  void _showPermissionModeSettings() {
-    // The settings overlay is built into ChatInput
+  Machine? _getMachine() {
+    final machineId = _session?.metadata?.machineId;
+    if (machineId == null) return null;
+    return sync.machines[machineId];
+  }
+
+  String _getSessionTitle() {
+    final summary = _session?.metadata?.summary?.text;
+    if (summary != null && summary.isNotEmpty) return summary;
+    final path = _session?.metadata?.path;
+    if (path != null && path.isNotEmpty) {
+      return path.split('/').last;
+    }
+    return 'Chat';
+  }
+
+  String _formatRelativePath(String? path) {
+    if (path == null || path.isEmpty) return '';
+    final homeDir = _session?.metadata?.homeDir;
+    if (homeDir != null && path.startsWith(homeDir)) {
+      return '~${path.substring(homeDir.length)}';
+    }
+    return path;
+  }
+
+  static const _thinkingMessages = [
+    'Vibing...',
+    'Thinking deeply...',
+    'Crafting a response...',
+    'Working on it...',
+    'In the zone...',
+    'Pondering...',
+  ];
+
+  String _getStatusText() {
+    final session = _session;
+    if (session == null) return '';
+
+    final hasRequests =
+        session.agentState?.requests?.isNotEmpty == true;
+    if (hasRequests) return 'Permission required';
+
+    if (session.thinking) {
+      final idx = Random(
+        session.thinkingAt ?? DateTime.now().millisecondsSinceEpoch,
+      ).nextInt(_thinkingMessages.length);
+      return _thinkingMessages[idx];
+    }
+
+    if (session.presence == 'online') return 'Online';
+
+    // Offline — show "Last seen" based on updatedAt
+    final lastSeen = DateTime.fromMillisecondsSinceEpoch(
+      session.updatedAt,
+    );
+    final diff = DateTime.now().difference(lastSeen);
+    if (diff.inMinutes < 1) return 'Last seen just now';
+    if (diff.inMinutes < 60) {
+      return 'Last seen ${diff.inMinutes}m ago';
+    }
+    if (diff.inHours < 24) {
+      return 'Last seen ${diff.inHours}h ago';
+    }
+    return 'Last seen ${diff.inDays}d ago';
+  }
+
+  Color _getStatusColor() {
+    final session = _session;
+    if (session == null) return Colors.grey;
+
+    if (session.agentState?.requests?.isNotEmpty == true) {
+      return Colors.orange;
+    }
+    if (session.thinking) return Colors.blue;
+    if (session.presence == 'online') return Colors.green;
+    return Colors.grey;
+  }
+
+  Widget _buildAppBarTitle(AppLocalizations l10n) {
+    if (_session == null) {
+      return Text(l10n.chatChat);
+    }
+
+    final machine = _getMachine();
+    final machineName =
+        machine?.metadata?.displayName ?? machine?.metadata?.host;
+    final path = _formatRelativePath(_session?.metadata?.path);
+    final statusText = _getStatusText();
+    final statusColor = _getStatusColor();
+    final isThinking = _session?.thinking == true;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _getSessionTitle(),
+          style: const TextStyle(fontSize: 16),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 2),
+        if (path.isNotEmpty)
+          Text(
+            path,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[500],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        Row(
+          children: [
+            _StatusDot(
+              color: statusColor,
+              pulsing: isThinking,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                [
+                  statusText,
+                  if (machineName != null) machineName,
+                ].join('  ·  '),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[500],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   void _showSessionMenu(BuildContext context) {
@@ -263,6 +383,53 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  Widget _buildMessageList() {
+    // Only render the last _visibleCount messages
+    final totalCount = _messages.length;
+    final startIndex =
+        (totalCount - _visibleCount).clamp(0, totalCount);
+    final visibleMessages = _messages.sublist(startIndex);
+    final hasMore = startIndex > 0;
+
+    return ListView.builder(
+      controller: _scrollController,
+      reverse: true,
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      itemCount: visibleMessages.length + (hasMore ? 1 : 0),
+      itemBuilder: (context, index) {
+        // Reversed: index 0 = last message (bottom)
+        final reversedIndex = visibleMessages.length - 1 - index;
+
+        // "Load more" at the top (last index in reversed list)
+        if (hasMore && index == visibleMessages.length) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+
+        final message = visibleMessages[reversedIndex];
+        final messageKey = message['id'] as String? ??
+            message['toolUseId'] as String? ??
+            'msg-$reversedIndex';
+        return MessageWidget(
+          key: ValueKey(messageKey),
+          messageData: message,
+          isFromCurrentUser: message['role'] == 'user',
+          metadata: _session?.metadata?.toJson(),
+          messages: _messages,
+          sessionId: widget.sessionId,
+        );
+      },
+    );
+  }
+
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isSending) return;
@@ -272,10 +439,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _controller.clear();
     });
 
-    // Clear draft after sending
-    await DraftStorage().removeDraft(widget.sessionId);
-
     try {
+      // Clear draft after sending
+      unawaited(DraftStorage().removeDraft(widget.sessionId));
+
       if (!sync.isInitialized) {
         throw StateError('Sync is not initialized');
       }
@@ -285,19 +452,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         displayText: text,
         permissionMode: _permissionMode.toModeString(),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 120));
       _refreshFromSync();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('${context.l10n.chatFailedToSend}: ${e.toString()}')));
+        ).showSnackBar(SnackBar(
+          content: Text(
+            '${context.l10n.chatFailedToSend}: $e',
+          ),
+        ));
         _controller.text = text;
       }
-    }
-
-    if (mounted) {
-      setState(() => _isSending = false);
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
     }
   }
 
@@ -333,6 +503,72 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Pulsing status dot indicator
+class _StatusDot extends StatefulWidget {
+  final Color color;
+  final bool pulsing;
+
+  const _StatusDot({required this.color, this.pulsing = false});
+
+  @override
+  State<_StatusDot> createState() => _StatusDotState();
+}
+
+class _StatusDotState extends State<_StatusDot>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    if (widget.pulsing) _controller.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(_StatusDot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.pulsing && !_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    } else if (!widget.pulsing && _controller.isAnimating) {
+      _controller.stop();
+      _controller.value = 1.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: widget.color.withValues(
+              alpha: widget.pulsing ? _animation.value : 1.0,
+            ),
+          ),
+        );
+      },
     );
   }
 }

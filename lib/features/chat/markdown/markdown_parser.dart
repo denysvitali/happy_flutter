@@ -70,8 +70,8 @@ class _MarkdownParser {
       return _parseNumberedList(numberedMatch);
     }
 
-    // Unordered list
-    if (trimmed.startsWith('- ')) {
+    // Unordered list (- or * prefix)
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
       return _parseListBlock();
     }
 
@@ -181,7 +181,7 @@ class _MarkdownParser {
 
     while (index < lines.length) {
       final nextLine = lines[index].trim();
-      if (!nextLine.startsWith('- ')) break;
+      if (!nextLine.startsWith('- ') && !nextLine.startsWith('* ')) break;
       allItems.add(_parseSpans(nextLine.substring(2), isHeader: false));
       index++;
     }
@@ -278,7 +278,7 @@ class _MarkdownParser {
       }
       // Link: [text](url) or incomplete link [text]
       else if (match.group(5) != null) {
-        final linkText = match.group(5)!;
+        final linkText = match.group(6)!;
         final url = match.group(7);
         spans.add(MarkdownSpan(
           styles: const [],

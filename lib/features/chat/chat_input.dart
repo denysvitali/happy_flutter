@@ -61,15 +61,14 @@ class ChatInput extends ConsumerStatefulWidget {
   final perm.PermissionMode? permissionMode;
   final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
   final List<AutocompleteSuggestion> fileSuggestions;
-  final bool showSettingsButton;
   final String? machineName;
   final String? currentPath;
-  final VoidCallback? onSettingsPressed;
   final VoidCallback? onMachinePressed;
   final VoidCallback? onPathPressed;
   final String? profileId;
   final VoidCallback? onProfilePressed;
   final bool isSendDisabled;
+  final int? contextSize;
 
   const ChatInput({
     super.key,
@@ -80,15 +79,14 @@ class ChatInput extends ConsumerStatefulWidget {
     this.permissionMode,
     this.onPermissionModeChanged,
     this.fileSuggestions = const [],
-    this.showSettingsButton = true,
     this.machineName,
     this.currentPath,
-    this.onSettingsPressed,
     this.onMachinePressed,
     this.onPathPressed,
     this.profileId,
     this.onProfilePressed,
     this.isSendDisabled = false,
+    this.contextSize,
   });
 
   @override
@@ -103,7 +101,6 @@ class _ChatInputState extends ConsumerState<ChatInput> {
 
   String _previousText = '';
   bool _showAutocomplete = false;
-  bool _showSettings = false;
 
   _ChatInputState()
     : _draftAutoSave = DraftAutoSave(sessionId: '', onSave: (_) {}) {
@@ -233,8 +230,6 @@ class _ChatInputState extends ConsumerState<ChatInput> {
 
   void _onFocusChanged() {
     if (!_focusNode.hasFocus) {
-      setState(() => _showSettings = false);
-      // Save draft when losing focus
       _draftAutoSave.saveNow();
     }
   }
@@ -300,9 +295,6 @@ class _ChatInputState extends ConsumerState<ChatInput> {
         if (widget.machineName != null || widget.currentPath != null)
           _buildContextInfoBar(context),
 
-        // Settings overlay
-        if (_showSettings) _buildSettingsOverlay(context),
-
         // Autocomplete overlay
         if (_showAutocomplete)
           Positioned(
@@ -337,16 +329,6 @@ class _ChatInputState extends ConsumerState<ChatInput> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  // Settings button
-                  if (widget.showSettingsButton)
-                    IconButton(
-                      icon: const Icon(Icons.settings),
-                      onPressed: () {
-                        setState(() => _showSettings = !_showSettings);
-                        widget.onSettingsPressed?.call();
-                      },
-                    ),
-
                   // Expanded text field
                   Expanded(
                     child: RawKeyboardListener(
@@ -356,8 +338,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                         controller: widget.controller,
                         focusNode: _focusNode,
                         decoration: InputDecoration(
-                          hintText:
-                              'Type a message... (@ for files, / for commands)',
+                          hintText: 'Type a message...',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(24),
                             borderSide: BorderSide.none,
@@ -495,73 +476,54 @@ class _ChatInputState extends ConsumerState<ChatInput> {
               onModeChanged: widget.onPermissionModeChanged,
             ),
           const Spacer(),
-          // Character count or other status info
-          if (widget.controller.text.isNotEmpty)
-            Text(
-              '${widget.controller.text.length} chars',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+          // Context window remaining
+          if (widget.contextSize != null && widget.contextSize! > 0)
+            _buildContextIndicator(theme),
         ],
       ),
     );
   }
 
-  Widget _buildSettingsOverlay(BuildContext context) {
-    final theme = Theme.of(context);
+  Widget _buildContextIndicator(ThemeData theme) {
+    const maxContext = 190000;
+    final used = widget.contextSize ?? 0;
+    final percentUsed = (used / maxContext * 100).clamp(0.0, 100.0);
+    final percentRemaining = (100 - percentUsed).round();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Material(
-        elevation: 8,
-        borderRadius: BorderRadius.circular(12),
-        color: theme.colorScheme.surface,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Permission mode section title
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                child: Text(
-                  'Permission Mode',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              // Permission mode options
-              ...perm.PermissionMode.values.map(
-                (mode) => ListTile(
-                  leading: Radio<perm.PermissionMode>(
-                    value: mode,
-                    groupValue: widget.permissionMode,
-                    onChanged: widget.onPermissionModeChanged != null
-                        ? (value) {
-                            widget.onPermissionModeChanged!(
-                              value as perm.PermissionMode,
-                            );
-                          }
-                        : null,
-                  ),
-                  title: Text(mode.displayName),
-                  subtitle: Text(mode.description),
-                  onTap: widget.onPermissionModeChanged != null
-                      ? () => widget.onPermissionModeChanged!(mode)
-                      : null,
-                ),
-              ),
-            ],
+    Color color;
+    if (percentRemaining <= 5) {
+      color = theme.colorScheme.error;
+    } else if (percentRemaining <= 15) {
+      color = Colors.orange;
+    } else {
+      color = theme.colorScheme.onSurfaceVariant;
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 32,
+          height: 4,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: percentUsed / 100,
+              backgroundColor:
+                  theme.colorScheme.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
           ),
         ),
-      ),
+        const SizedBox(width: 4),
+        Text(
+          '$percentRemaining%',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: color,
+            fontSize: 11,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -83,11 +83,15 @@ class AesGcmEncryption {
     );
 
     // Combine: nonce + ciphertext + auth tag
-    // Note: secretBox.cipherText already contains the auth tag appended
+    // secretBox.cipherText is ciphertext only; mac.bytes is the 16-byte tag
     final cipherText = secretBox.cipherText;
-    final result = Uint8List(nonce.length + cipherText.length);
+    final macBytes = secretBox.mac.bytes;
+    final result = Uint8List(
+      nonce.length + cipherText.length + macBytes.length,
+    );
     result.setAll(0, nonce);
     result.setAll(nonce.length, cipherText);
+    result.setAll(nonce.length + cipherText.length, macBytes);
 
     return result;
   }
@@ -131,21 +135,23 @@ class AesGcmEncryption {
         throw ArgumentError('Encrypted data is too short');
       }
 
-      // Extract components
+      // Extract nonce (first 12 bytes), ciphertext, and auth tag (last 16)
       final nonce = encryptedData.sublist(0, nonceSize);
-      final ciphertextWithTag = encryptedData.sublist(nonceSize);
+      final ciphertext = encryptedData.sublist(
+        nonceSize,
+        encryptedData.length - authTagSize,
+      );
+      final authTagBytes = encryptedData.sublist(
+        encryptedData.length - authTagSize,
+      );
+      final mac = Mac(authTagBytes);
 
       // Create cipher and SecretKey from bytes
       final cipher = AesGcm.with256bits();
       final secretKeyObj = await cipher.newSecretKeyFromBytes(secretKey);
 
-      // Decrypt using AES-256-GCM
-      // The SecretBox expects ciphertext with auth tag already appended
-      final secretBox = SecretBox(
-        ciphertextWithTag,
-        nonce: nonce,
-        mac: Mac.empty, // MAC is embedded in the ciphertext for GCM
-      );
+      // Decrypt using AES-256-GCM with proper MAC verification
+      final secretBox = SecretBox(ciphertext, nonce: nonce, mac: mac);
 
       final decrypted = await cipher.decrypt(
         secretBox,

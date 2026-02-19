@@ -119,7 +119,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 }
 
 /// Sessions list content widget
-class _SessionsListContent extends ConsumerWidget {
+class _SessionsListContent extends ConsumerStatefulWidget {
   const _SessionsListContent();
 
   static void showNewSessionDialog(BuildContext context) {
@@ -130,10 +130,24 @@ class _SessionsListContent extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SessionsListContent> createState() =>
+      _SessionsListContentState();
+}
+
+class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
+  bool _hasLoaded = false;
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final sessions = ref.watch(sessionsNotifierProvider);
     final sessionList = sessions.values.toList();
+
+    // Mark as loaded once we get any data or sync is initialized
+    if (sessionList.isNotEmpty || sync.isInitialized) {
+      _hasLoaded = true;
+    }
+
     final activeSessions = sessionList.where(isSessionActive).toList();
     final inactiveSessions =
         sessionList.where((s) => !isSessionActive(s)).toList();
@@ -148,120 +162,130 @@ class _SessionsListContent extends ConsumerWidget {
       };
     }
 
+    if (sessionList.isEmpty && !_hasLoaded) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return sessionList.isEmpty
         ? const EmptySessionsView()
         : RefreshIndicator(
-            onRefresh: () => _refreshSessions(ref),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(8),
-              itemCount: _calculateItemCount(
-                activeSessions,
-                inactiveSessions,
-                localizeDateGroup,
-              ),
-              itemBuilder: (context, index) {
-                return _buildListItem(
-                  context,
-                  ref,
-                  index,
-                  activeSessions,
-                  inactiveSessions,
-                  localizeDateGroup,
-                );
-              },
+            onRefresh: () async {
+              await ref
+                  .read(sessionsNotifierProvider.notifier)
+                  .refreshFromSync();
+            },
+            child: _buildSessionsList(
+              context,
+              activeSessions,
+              inactiveSessions,
+              localizeDateGroup,
             ),
           );
   }
 
-  Future<void> _refreshSessions(WidgetRef ref) async {
-    await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
-  }
-
-  int _calculateItemCount(
+  Widget _buildSessionsList(
+    BuildContext context,
     List<Session> activeSessions,
     List<Session> inactiveSessions,
     String Function(DateGroup) localizeDateGroup,
   ) {
-    int count = 0;
-    if (activeSessions.isNotEmpty) {
-      count += 1; // Active section header
-      count += activeSessions.length;
+    // Group active sessions by path
+    final activeByPath = <String, List<Session>>{};
+    for (final s in activeSessions) {
+      final path = s.metadata?.path ?? 'Unknown';
+      activeByPath.putIfAbsent(path, () => []).add(s);
     }
-    if (inactiveSessions.isNotEmpty) {
-      count += 1; // History section header
-      final groupedItems =
-          groupSessionsByDate(inactiveSessions, localize: localizeDateGroup);
-      count += groupedItems.length;
-    }
-    return count;
+
+    return ListView(
+      padding: const EdgeInsets.all(8),
+      children: [
+        // Active sessions grouped by path
+        if (activeSessions.isNotEmpty) ...[
+          _SectionHeader(title: context.l10n.sessionActiveSessions),
+          for (final entry in activeByPath.entries) ...[
+            if (activeByPath.length > 1)
+              _PathHeader(path: entry.key),
+            for (final session in entry.value)
+              ActiveSessionCard(
+                session: session,
+                onTap: () => context.push('/chat/${session.id}'),
+              ),
+          ],
+        ],
+
+        // Archived sessions as a flat section
+        if (inactiveSessions.isNotEmpty) ...[
+          _SectionHeader(
+            title: '${context.l10n.sessionHistory}'
+                ' (${inactiveSessions.length})',
+          ),
+          ..._buildArchivedItems(
+            context,
+            inactiveSessions,
+            localizeDateGroup,
+          ),
+        ],
+      ],
+    );
   }
 
-  Widget _buildListItem(
+  List<Widget> _buildArchivedItems(
     BuildContext context,
-    WidgetRef ref,
-    int index,
-    List<Session> activeSessions,
-    List<Session> inactiveSessions,
+    List<Session> sessions,
     String Function(DateGroup) localizeDateGroup,
   ) {
-    int currentIndex = 0;
+    final groupedItems = groupSessionsByDate(
+      sessions,
+      localize: localizeDateGroup,
+    );
 
-    if (activeSessions.isNotEmpty) {
-      if (index == 0) {
-        return _SectionHeader(title: context.l10n.sessionActiveSessions);
+    return groupedItems.asMap().entries.map((entry) {
+      final index = entry.key;
+      final item = entry.value;
+      switch (item) {
+        case SessionHistoryDateHeader(:final date):
+          return _DateHeaderWidget(date: date);
+        case SessionHistorySession(:final session):
+          final prevItem = index > 0 ? groupedItems[index - 1] : null;
+          final nextItem = index < groupedItems.length - 1
+              ? groupedItems[index + 1]
+              : null;
+          final isFirst = prevItem is SessionHistoryDateHeader;
+          final isLast =
+              nextItem is SessionHistoryDateHeader || nextItem == null;
+          final isSingle = isFirst && isLast;
+          return SessionCard(
+            session: session,
+            onTap: () => context.push('/chat/${session.id}'),
+            isFirst: isFirst,
+            isLast: isLast,
+            isSingle: isSingle,
+          );
       }
-      currentIndex = 1;
-      if (index < 1 + activeSessions.length) {
-        final sessionIndex = index - currentIndex;
-        return ActiveSessionCard(
-          session: activeSessions[sessionIndex],
-          onTap: () => context.push('/chat/${activeSessions[sessionIndex].id}'),
-        );
-      }
-      currentIndex += activeSessions.length;
-    }
-
-    // History section header
-    if (inactiveSessions.isNotEmpty && index == currentIndex) {
-      return _SectionHeader(title: context.l10n.sessionHistory);
-    }
-    currentIndex += 1;
-
-    final groupedItems =
-        groupSessionsByDate(inactiveSessions, localize: localizeDateGroup);
-    if (index >= currentIndex && index < currentIndex + groupedItems.length) {
-      final itemIndex = index - currentIndex;
-      final item = groupedItems[itemIndex];
-      return _buildGroupedItem(context, item, groupedItems, itemIndex);
-    }
-
-    return const SizedBox.shrink();
+    }).toList();
   }
+}
 
-  Widget _buildGroupedItem(
-    BuildContext context,
-    SessionHistoryItem item,
-    List<SessionHistoryItem> allItems,
-    int index,
-  ) {
-    switch (item) {
-      case SessionHistoryDateHeader(:final date):
-        return _DateHeaderWidget(date: date);
-      case SessionHistorySession(:final session):
-        final prevItem = index > 0 ? allItems[index - 1] : null;
-        final nextItem =
-            index < allItems.length - 1 ? allItems[index + 1] : null;
-        final isFirst = prevItem is SessionHistoryDateHeader;
-        final isLast = nextItem is SessionHistoryDateHeader || nextItem == null;
-        final isSingle = isFirst && isLast;
-        return SessionCard(
-          session: session,
-          onTap: () => context.push('/chat/${session.id}'),
-          isFirst: isFirst,
-          isLast: isLast,
-          isSingle: isSingle,
-        );
-    }
+/// Path header for grouping sessions.
+class _PathHeader extends StatelessWidget {
+  final String path;
+  const _PathHeader({required this.path});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Text(
+        path,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontFamily: 'monospace',
+          fontSize: 12,
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
   }
 }
 
@@ -820,7 +844,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final machines = ref.watch(machinesNotifierProvider).values.toList();
+    final machines = ref.watch(machinesNotifierProvider).values
+        .where((m) => m.active)
+        .toList();
 
     return AlertDialog(
       title: Text(l10n.newSessionTitle),
@@ -833,6 +859,21 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
             DropdownButtonFormField<String>(
               decoration: InputDecoration(labelText: l10n.sessionMachine),
               value: _selectedMachine,
+              isExpanded: true,
+              selectedItemBuilder: (context) => [
+                Text(
+                  l10n.sessionSelectMachine,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                ...machines.map(
+                  (machine) => Text(
+                    machine.metadata?.displayName ??
+                        machine.metadata?.host ??
+                        machine.id,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
               items: [
                 DropdownMenuItem(
                   value: null,
@@ -840,7 +881,19 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 ),
                 ...machines.map((machine) => DropdownMenuItem(
                       value: machine.id,
-                      child: Text(machine.metadata?.displayName ?? machine.id),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.computer, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              machine.metadata?.displayName ?? machine.metadata?.host ?? machine.id,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     )),
               ],
               onChanged: (value) {
@@ -850,15 +903,43 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               },
             ),
           const SizedBox(height: 16),
-          TextFormField(
-            decoration: InputDecoration(
-              labelText: l10n.sessionPath,
-              hintText: l10n.sessionPathHint,
-            ),
-            onChanged: (value) {
-              setState(() {
-                _selectedPath = value;
-              });
+          Autocomplete<String>(
+            optionsBuilder: (textEditingValue) {
+              if (_selectedMachine == null) return const [];
+              final sessions =
+                  ref.read(sessionsNotifierProvider);
+              final paths = sessions.values
+                  .where((s) =>
+                      s.metadata?.machineId ==
+                      _selectedMachine)
+                  .map((s) => s.metadata?.path)
+                  .whereType<String>()
+                  .toSet()
+                  .toList();
+              if (textEditingValue.text.isEmpty) {
+                return paths;
+              }
+              return paths.where((p) => p
+                  .toLowerCase()
+                  .contains(
+                      textEditingValue.text.toLowerCase()));
+            },
+            onSelected: (value) {
+              setState(() => _selectedPath = value);
+            },
+            fieldViewBuilder: (context, controller,
+                focusNode, onFieldSubmitted) {
+              return TextFormField(
+                controller: controller,
+                focusNode: focusNode,
+                decoration: InputDecoration(
+                  labelText: l10n.sessionPath,
+                  hintText: l10n.sessionPathHint,
+                ),
+                onChanged: (value) {
+                  setState(() => _selectedPath = value);
+                },
+              );
             },
           ),
         ],

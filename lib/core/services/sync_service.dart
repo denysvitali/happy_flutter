@@ -112,6 +112,7 @@ what you have, you must use the options mode.
   final List<FeedItem> _feedItems = <FeedItem>[];
   final List<DecryptedArtifact> _artifacts = <DecryptedArtifact>[];
   final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
+  final Map<String, Map<String, dynamic>> _sessionUsage = {};
   Settings _settingsSnapshot = Settings();
   int _settingsVersion = 0;
   Purchases _purchases = Purchases.defaults;
@@ -124,6 +125,9 @@ what you have, you must use the options mode.
   List<FriendRequest> get friendRequests => List.unmodifiable(_friendRequests);
   List<FeedItem> get feedItems => List.unmodifiable(_feedItems);
   List<DecryptedArtifact> get artifacts => List.unmodifiable(_artifacts);
+  /// Get usage data for a session (contextSize, inputTokens, outputTokens).
+  Map<String, Map<String, dynamic>> get sessionUsage =>
+      Map.unmodifiable(_sessionUsage);
   Settings get settingsSnapshot => _settingsSnapshot;
   int get settingsVersion => _settingsVersion;
   Purchases get purchases => _purchases;
@@ -1389,14 +1393,14 @@ what you have, you must use the options mode.
   }) async {
     final sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
-      debugPrint('Session encryption not initialized for $sessionId');
-      return;
+      throw StateError(
+        'Session encryption not initialized for $sessionId',
+      );
     }
 
     final session = _sessions[sessionId];
     if (session == null) {
-      debugPrint('Session $sessionId not loaded');
-      return;
+      throw StateError('Session $sessionId not loaded');
     }
 
     final effectivePermissionMode =
@@ -1467,6 +1471,42 @@ what you have, you must use the options mode.
         'permissionMode': effectivePermissionMode,
       },
     );
+  }
+
+  /// RPC call for sessions - uses session-specific encryption.
+  Future<dynamic> sessionRPC(
+    String sessionId,
+    String method,
+    Map<String, dynamic> params,
+  ) async {
+    final sessionEncryption = encryption.getSessionEncryption(sessionId);
+    if (sessionEncryption == null) {
+      throw StateError(
+        'Session encryption not found for $sessionId',
+      );
+    }
+
+    final encrypted = await sessionEncryption.encryptRaw(params);
+    final result = await socketIoClient.emitWithAck('rpc-call', {
+      'method': '$sessionId:$method',
+      'params': encrypted,
+    });
+
+    if (result is Map && result['ok'] == true) {
+      final decrypted = await sessionEncryption.decryptRaw(
+        result['result'] as String,
+      );
+      return decrypted;
+    }
+    throw StateError('RPC call failed');
+  }
+
+  /// Allow a permission request for a session.
+  Future<void> sessionAllow(String sessionId, String permissionId) async {
+    await sessionRPC(sessionId, 'permission', {
+      'id': permissionId,
+      'approved': true,
+    });
   }
 
   /// Apply settings delta
@@ -1544,18 +1584,24 @@ what you have, you must use the options mode.
         );
 
         final mappedMessages = <Map<String, dynamic>>[];
+        final toolResults = <Map<String, dynamic>>[];
         for (final decrypted in decryptedMessages) {
           if (decrypted == null || decrypted.content == null) {
             continue;
           }
           receivedMessages.add(decrypted.id);
-          final mapped = _mapDecryptedSessionMessage(decrypted);
-          mappedMessages.add(mapped);
+          final (msgs, results) = _processDecryptedMessage(decrypted, sessionId);
+          mappedMessages.addAll(msgs);
+          toolResults.addAll(results);
         }
 
         if (mappedMessages.isNotEmpty) {
           _upsertSessionMessages(sessionId, mappedMessages);
         }
+        if (toolResults.isNotEmpty) {
+          _applyToolResults(sessionId, toolResults);
+        }
+        _groupSidechainMessages(sessionId);
       } else {
         debugPrint('Failed to fetch messages: ${response.statusCode}');
       }
@@ -1577,64 +1623,668 @@ what you have, you must use the options mode.
     return false;
   }
 
-  Map<String, dynamic> _mapDecryptedSessionMessage(DecryptedMessage message) {
+  /// Process a decrypted message into display messages and tool results.
+  /// Test helper for [_processDecryptedMessage].
+  @visibleForTesting
+  (List<Map<String, dynamic>>, List<Map<String, dynamic>>)
+  testProcessDecryptedMessage({
+    required String id,
+    required int seq,
+    required String sessionId,
+    required Map<String, dynamic> content,
+    String? localId,
+    int? createdAtMs,
+  }) {
+    return _processDecryptedMessage(
+      DecryptedMessage(
+        id: id,
+        seq: seq,
+        localId: localId,
+        content: content,
+        createdAt: DateTime.fromMillisecondsSinceEpoch(
+          createdAtMs ?? DateTime.now().millisecondsSinceEpoch,
+        ),
+      ),
+      sessionId,
+    );
+  }
+
+  ///
+  /// Returns a tuple of (displayMessages, toolResults).
+  /// Display messages are added to the session message list.
+  /// Tool results are used to update existing tool-call message states.
+  (List<Map<String, dynamic>>, List<Map<String, dynamic>>)
+  _processDecryptedMessage(DecryptedMessage message, String sessionId) {
     final createdAt = message.createdAt.millisecondsSinceEpoch;
     final content = message.content;
-    if (content is Map<String, dynamic>) {
-      final role = content['role'] as String?;
-      final nestedContent = content['content'];
-      if (nestedContent is Map<String, dynamic>) {
-        final type = nestedContent['type'] as String?;
-        if (type == 'text') {
-          return {
+
+    if (content is! Map<String, dynamic>) {
+      // Fallback for non-map content
+      return (
+        [
+          {
             'id': message.id,
             'localId': message.localId,
             'seq': message.seq,
             'createdAt': createdAt,
-            'role': role,
             'kind': 'text',
-            'content': nestedContent['text']?.toString() ?? '',
+            'content': content?.toString() ?? '',
             'raw': content,
-          };
-        }
-        if (type == 'tool_use') {
-          return {
+          },
+        ],
+        [],
+      );
+    }
+
+    final role = content['role'] as String?;
+    final nestedContent = content['content'];
+
+    // User messages: {role: 'user', content: {type: 'text', text: '...'}}
+    if (role == 'user') {
+      if (nestedContent is Map<String, dynamic> &&
+          nestedContent['type'] == 'text') {
+        return (
+          [
+            {
+              'id': message.id,
+              'localId': message.localId,
+              'seq': message.seq,
+              'createdAt': createdAt,
+              'role': 'user',
+              'kind': 'text',
+              'content': nestedContent['text']?.toString() ?? '',
+              'raw': content,
+            },
+          ],
+          [],
+        );
+      }
+      // Fallback for non-text user messages
+      return (
+        [
+          {
             'id': message.id,
             'localId': message.localId,
             'seq': message.seq,
             'createdAt': createdAt,
-            'role': role,
-            'kind': 'tool-call',
-            'name': nestedContent['name'],
-            'input': nestedContent['input'],
-            'toolUseId': nestedContent['id'],
-            'content': nestedContent,
+            'role': 'user',
+            'kind': 'text',
+            'content': content.toString(),
             'raw': content,
-          };
+          },
+        ],
+        [],
+      );
+    }
+
+    // Agent messages: {role: 'agent', content: {type: ..., data: ...}}
+    if (role == 'agent') {
+      if (nestedContent is! Map<String, dynamic>) {
+        return ([], []);
+      }
+
+      final contentType = nestedContent['type'] as String?;
+
+      // Output type: Claude/assistant messages
+      if (contentType == 'output') {
+        return _processOutputContent(
+          message,
+          nestedContent,
+          createdAt,
+          content,
+          sessionId,
+        );
+      }
+
+      // Event type: mode switches, limit reached, etc.
+      if (contentType == 'event') {
+        return _processEventContent(
+          message,
+          nestedContent,
+          createdAt,
+          content,
+        );
+      }
+
+      // Codex type: Codex agent messages
+      if (contentType == 'codex') {
+        return _processCodexContent(
+          message,
+          nestedContent,
+          createdAt,
+          content,
+        );
+      }
+
+      // ACP type: unified agent communication protocol
+      if (contentType == 'acp') {
+        return _processAcpContent(message, nestedContent, createdAt, content);
+      }
+    }
+
+    return ([], []);
+  }
+
+  (List<Map<String, dynamic>>, List<Map<String, dynamic>>)
+  _processOutputContent(
+    DecryptedMessage message,
+    Map<String, dynamic> nestedContent,
+    int createdAt,
+    Map<String, dynamic> outerContent,
+    String sessionId,
+  ) {
+    final data = nestedContent['data'];
+    if (data is! Map<String, dynamic>) return ([], []);
+
+    // Skip meta and compact summary messages
+    if (data['isMeta'] == true || data['isCompactSummary'] == true) {
+      return ([], []);
+    }
+
+    // Sidechain metadata for sub-agent grouping
+    final isSidechain = data['isSidechain'] == true;
+    final dataUuid = data['uuid'] as String?;
+    final dataParentUuid = data['parentUuid'] as String?;
+
+    final dataType = data['type'] as String?;
+
+    if (dataType == 'assistant') {
+      // Must have uuid to be displayed
+      if (data['uuid'] == null) return ([], []);
+
+      final agentMsg = data['message'];
+      if (agentMsg is! Map<String, dynamic>) return ([], []);
+
+      // Extract usage data for context window tracking
+      final usageData = agentMsg['usage'] as Map<String, dynamic>?;
+      if (usageData != null) {
+        _updateSessionUsage(sessionId, usageData, createdAt);
+      }
+
+      final agentContentList = agentMsg['content'];
+      if (agentContentList is! List) return ([], []);
+
+      final results = <Map<String, dynamic>>[];
+      int i = 0;
+      for (final c in agentContentList) {
+        if (c is! Map<String, dynamic>) {
+          i++;
+          continue;
+        }
+        final type = c['type'] as String?;
+
+        if (type == 'text') {
+          results.add({
+            'id': '${message.id}_t$i',
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'text',
+            'content': c['text']?.toString() ?? '',
+            'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            if (dataUuid != null) 'uuid': dataUuid,
+            if (dataParentUuid != null)
+              'parentUuid': dataParentUuid,
+          });
+        } else if (type == 'thinking') {
+          results.add({
+            'id': '${message.id}_k$i',
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'text',
+            'isThinking': true,
+            'content': '*Thinking...*\n\n*${c['thinking']}*',
+            'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            if (dataUuid != null) 'uuid': dataUuid,
+            if (dataParentUuid != null)
+              'parentUuid': dataParentUuid,
+          });
+        } else if (type == 'tool_use') {
+          results.add({
+            'id': '${message.id}_u$i',
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': c['name'],
+            'input': c['input'],
+            'toolUseId': c['id'],
+            'state': 'running',
+            'content': c,
+            'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            if (dataUuid != null) 'uuid': dataUuid,
+            if (dataParentUuid != null)
+              'parentUuid': dataParentUuid,
+          });
+        }
+        i++;
+      }
+      return (results, []);
+    }
+
+    if (dataType == 'user') {
+      // Sidechain root: isSidechain=true, message.content is
+      // a string (the prompt sent to the sub-agent). We emit a
+      // hidden marker so _groupSidechainMessages can match it.
+      if (isSidechain) {
+        final msgContent = data['message']?['content'];
+        if (msgContent is String) {
+          return (
+            [
+              {
+                'id': '${message.id}_sc',
+                'seq': message.seq,
+                'createdAt': createdAt,
+                'kind': 'sidechain-root',
+                'isSidechain': true,
+                'prompt': msgContent,
+                if (dataUuid != null) 'uuid': dataUuid,
+                if (dataParentUuid != null)
+                  'parentUuid': dataParentUuid,
+              },
+            ],
+            [],
+          );
         }
       }
 
-      return {
-        'id': message.id,
-        'localId': message.localId,
-        'seq': message.seq,
-        'createdAt': createdAt,
-        'role': role,
-        'kind': 'unknown',
-        'content': content.toString(),
-        'raw': content,
-      };
+      // Tool results - collect them to update existing tool-call states
+      final toolResults = <Map<String, dynamic>>[];
+      final msgContent = data['message']?['content'];
+
+      if (msgContent is List) {
+        for (final c in msgContent) {
+          if (c is Map<String, dynamic> && c['type'] == 'tool_result') {
+            toolResults.add({
+              'toolUseId': c['tool_use_id'],
+              'result': c['content'],
+              'isError': c['is_error'] == true,
+              'createdAt': createdAt,
+              'permissions': c['permissions'],
+              if (isSidechain) 'isSidechain': true,
+              if (dataUuid != null) 'uuid': dataUuid,
+              if (dataParentUuid != null)
+                'parentUuid': dataParentUuid,
+            });
+          }
+        }
+      }
+      return ([], toolResults);
     }
 
-    return {
-      'id': message.id,
-      'localId': message.localId,
-      'seq': message.seq,
-      'createdAt': createdAt,
-      'kind': 'text',
-      'content': content?.toString() ?? '',
-      'raw': content,
-    };
+    // Skip system, result, summary messages
+    return ([], []);
+  }
+
+  (List<Map<String, dynamic>>, List<Map<String, dynamic>>) _processEventContent(
+    DecryptedMessage message,
+    Map<String, dynamic> nestedContent,
+    int createdAt,
+    Map<String, dynamic> outerContent,
+  ) {
+    final data = nestedContent['data'];
+    if (data is! Map<String, dynamic>) return ([], []);
+
+    // Skip ready events
+    if (data['type'] == 'ready') return ([], []);
+
+    return (
+      [
+        {
+          'id': message.id,
+          'localId': message.localId,
+          'seq': message.seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'agent-event',
+          'event': data,
+          'content': '',
+          'raw': outerContent,
+        },
+      ],
+      [],
+    );
+  }
+
+  (List<Map<String, dynamic>>, List<Map<String, dynamic>>) _processCodexContent(
+    DecryptedMessage message,
+    Map<String, dynamic> nestedContent,
+    int createdAt,
+    Map<String, dynamic> outerContent,
+  ) {
+    final data = nestedContent['data'];
+    if (data is! Map<String, dynamic>) return ([], []);
+
+    final dataType = data['type'] as String?;
+
+    if (dataType == 'message' || dataType == 'reasoning') {
+      return (
+        [
+          {
+            'id': message.id,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'text',
+            'content': data['message']?.toString() ?? '',
+            'raw': outerContent,
+          },
+        ],
+        [],
+      );
+    }
+
+    if (dataType == 'tool-call') {
+      return (
+        [
+          {
+            'id': message.id,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': data['name'],
+            'input': data['input'],
+            'toolUseId': data['callId'],
+            'state': 'running',
+            'content': data,
+            'raw': outerContent,
+          },
+        ],
+        [],
+      );
+    }
+
+    if (dataType == 'tool-call-result') {
+      return (
+        [],
+        [
+          {
+            'toolUseId': data['callId'],
+            'result': data['output'],
+            'isError': false,
+            'createdAt': createdAt,
+          },
+        ],
+      );
+    }
+
+    return ([], []);
+  }
+
+  (List<Map<String, dynamic>>, List<Map<String, dynamic>>) _processAcpContent(
+    DecryptedMessage message,
+    Map<String, dynamic> nestedContent,
+    int createdAt,
+    Map<String, dynamic> outerContent,
+  ) {
+    final data = nestedContent['data'];
+    if (data is! Map<String, dynamic>) return ([], []);
+
+    final dataType = data['type'] as String?;
+
+    if (dataType == 'message' || dataType == 'reasoning') {
+      return (
+        [
+          {
+            'id': message.id,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'text',
+            'content': data['message']?.toString() ?? '',
+            'raw': outerContent,
+          },
+        ],
+        [],
+      );
+    }
+
+    if (dataType == 'thinking') {
+      return (
+        [
+          {
+            'id': message.id,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'text',
+            'isThinking': true,
+            'content': '*Thinking...*\n\n*${data['text']}*',
+            'raw': outerContent,
+          },
+        ],
+        [],
+      );
+    }
+
+    if (dataType == 'tool-call') {
+      return (
+        [
+          {
+            'id': message.id,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': data['name'],
+            'input': data['input'],
+            'toolUseId': data['callId'],
+            'state': 'running',
+            'content': data,
+            'raw': outerContent,
+          },
+        ],
+        [],
+      );
+    }
+
+    if (dataType == 'tool-result' || dataType == 'tool-call-result') {
+      return (
+        [],
+        [
+          {
+            'toolUseId': data['callId'],
+            'result': data['output'],
+            'isError': data['isError'] == true,
+            'createdAt': createdAt,
+          },
+        ],
+      );
+    }
+
+    if (dataType == 'file-edit') {
+      return (
+        [
+          {
+            'id': message.id,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'file-edit',
+            'input': {
+              'filePath': data['filePath'],
+              'description': data['description'],
+              'diff': data['diff'],
+              'oldContent': data['oldContent'],
+              'newContent': data['newContent'],
+            },
+            'toolUseId': data['id'],
+            'state': 'running',
+            'content': data,
+            'raw': outerContent,
+          },
+        ],
+        [],
+      );
+    }
+
+    // Skip task lifecycle events (task_started, task_complete, turn_aborted,
+    // token_count, permission-request, etc.)
+    return ([], []);
+  }
+
+  /// Group sidechain messages as children of their parent Task
+  /// tool-call messages and remove them from the main message list.
+  void _groupSidechainMessages(String sessionId) {
+    final messages = _sessionMessages[sessionId];
+    if (messages == null || messages.isEmpty) return;
+
+    // Pass 1: Find Task tool calls → map prompt to task message ID
+    final promptToTaskId = <String, String>{};
+    for (final msg in messages) {
+      if (msg['kind'] == 'tool-call' && msg['name'] == 'Task') {
+        final input = msg['input'] as Map<String, dynamic>?;
+        final prompt = input?['prompt'] as String?;
+        if (prompt != null) {
+          promptToTaskId[prompt] = msg['id'] as String;
+        }
+      }
+    }
+    if (promptToTaskId.isEmpty) return;
+
+    // Pass 2: Match sidechain roots to Tasks, build uuid chain
+    final uuidToSidechainId = <String, String>{};
+    final sidechainChildren =
+        <String, List<Map<String, dynamic>>>{};
+    final sidechainMsgIds = <String>{};
+
+    // First pass: find sidechain roots
+    for (final msg in messages) {
+      if (msg['kind'] == 'sidechain-root') {
+        final prompt = msg['prompt'] as String?;
+        final uuid = msg['uuid'] as String?;
+        if (prompt != null && promptToTaskId.containsKey(prompt)) {
+          final sidechainId = promptToTaskId[prompt]!;
+          if (uuid != null) {
+            uuidToSidechainId[uuid] = sidechainId;
+          }
+          sidechainMsgIds.add(msg['id'] as String);
+        }
+      }
+    }
+
+    if (uuidToSidechainId.isEmpty) return;
+
+    // Second pass: group child sidechain messages
+    for (final msg in messages) {
+      if (msg['isSidechain'] != true) continue;
+      if (msg['kind'] == 'sidechain-root') continue;
+
+      final uuid = msg['uuid'] as String?;
+      final parentUuid = msg['parentUuid'] as String?;
+
+      if (parentUuid != null &&
+          uuidToSidechainId.containsKey(parentUuid)) {
+        final sidechainId = uuidToSidechainId[parentUuid]!;
+        if (uuid != null) {
+          uuidToSidechainId[uuid] = sidechainId;
+        }
+        sidechainChildren
+            .putIfAbsent(sidechainId, () => [])
+            .add(msg);
+        sidechainMsgIds.add(msg['id'] as String);
+      }
+    }
+
+    if (sidechainMsgIds.isEmpty) return;
+
+    // Pass 3: Remove sidechain messages from main list,
+    // attach children to Task tool-call messages
+    final filtered = <Map<String, dynamic>>[];
+    for (final msg in messages) {
+      final msgId = msg['id'] as String;
+      if (sidechainMsgIds.contains(msgId)) continue;
+
+      if (sidechainChildren.containsKey(msgId)) {
+        filtered.add({
+          ...msg,
+          'children': sidechainChildren[msgId],
+        });
+      } else {
+        filtered.add(msg);
+      }
+    }
+
+    _sessionMessages[sessionId] = filtered;
+  }
+
+  /// Apply tool results to existing tool-call messages in a session.
+  void _applyToolResults(
+    String sessionId,
+    List<Map<String, dynamic>> toolResults,
+  ) {
+    if (toolResults.isEmpty) return;
+
+    final existing =
+        _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
+    if (existing.isEmpty) return;
+
+    // Build a lookup from toolUseId → message index
+    bool changed = false;
+    final updated = List<Map<String, dynamic>>.from(existing);
+
+    for (final result in toolResults) {
+      final toolUseId = result['toolUseId'] as String?;
+      if (toolUseId == null) continue;
+
+      for (int i = 0; i < updated.length; i++) {
+        final msg = updated[i];
+        if (msg['kind'] == 'tool-call' && msg['toolUseId'] == toolUseId) {
+          final isError = result['isError'] == true;
+          updated[i] = {
+            ...msg,
+            'state': isError ? 'error' : 'completed',
+            'result': result['result'],
+            'completedAt': result['createdAt'],
+          };
+          changed = true;
+          break;
+        }
+      }
+    }
+
+    if (changed) {
+      _sessionMessages[sessionId] = updated;
+    }
+  }
+
+  void _updateSessionUsage(
+    String sessionId,
+    Map<String, dynamic> usage,
+    int timestamp,
+  ) {
+    final existing = _sessionUsage[sessionId];
+    final existingTs = existing?['timestamp'] as int? ?? 0;
+    if (timestamp > existingTs) {
+      final inputTokens = usage['input_tokens'] as int? ?? 0;
+      final cacheCreation =
+          usage['cache_creation_input_tokens'] as int? ?? 0;
+      final cacheRead = usage['cache_read_input_tokens'] as int? ?? 0;
+      final outputTokens = usage['output_tokens'] as int? ?? 0;
+      _sessionUsage[sessionId] = {
+        'inputTokens': inputTokens,
+        'outputTokens': outputTokens,
+        'cacheCreation': cacheCreation,
+        'cacheRead': cacheRead,
+        'contextSize': cacheCreation + cacheRead + inputTokens,
+        'timestamp': timestamp,
+      };
+    }
   }
 
   void _upsertSessionMessages(
@@ -1645,8 +2295,31 @@ what you have, you must use the options mode.
     final merged = <String, Map<String, dynamic>>{
       for (final message in existing) message['id'] as String: message,
     };
+    // Build a reverse index from localId → assigned id, so incoming server
+    // messages replace the matching optimistic placeholder.
+    final localIdToId = <String, String>{};
+    for (final message in merged.values) {
+      final localId = message['localId'] as String?;
+      if (localId != null && localId != message['id']) {
+        localIdToId[localId] = message['id'] as String;
+      }
+    }
     for (final message in messages) {
       final messageId = message['id'] as String;
+      final localId = message['localId'] as String?;
+      // If this is an incoming server message whose localId matches an
+      // optimistic placeholder, remove the placeholder first.
+      if (localId != null && localId != messageId) {
+        merged.remove(localId);
+      }
+      // Also remove any existing entry that was the optimistic placeholder
+      // for this localId (handles the reverse lookup case).
+      if (localId != null) {
+        final existingId = localIdToId[localId];
+        if (existingId != null && existingId != messageId) {
+          merged.remove(existingId);
+        }
+      }
       merged[messageId] = message;
     }
 

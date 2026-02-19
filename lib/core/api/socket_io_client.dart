@@ -1,65 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:web_socket_channel/status.dart' as status_codes;
+import 'package:socket_io_client/socket_io_client.dart' as sio;
 
 import '../../core/models/api_update.dart';
-import '../utils/backoff.dart';
-
-/// Socket.io packet types
-/// https://socket.io/docs/v4/engine-io-protocol/
-class SocketPacket {
-  /// Ping packet - sent by client to check connection
-  static const int ping = 2;
-
-  /// Pong packet - sent in response to ping
-  static const int pong = 3;
-
-  /// Message packet - used for events
-  static const int message = 4;
-
-  /// Encode a Socket.io event packet
-  /// Format: `4["event",data]`
-  static String encodeEvent(String event, dynamic data) {
-    final payload = jsonEncode([event, data]);
-    return '$message$payload';
-  }
-
-  /// Decode a Socket.io message packet
-  /// Returns null if not a valid message packet
-  static SocketMessage? decode(String raw) {
-    if (raw.isEmpty) {
-      return null;
-    }
-
-    final packetType = raw.codeUnitAt(0);
-    if (packetType != message) {
-      return null;
-    }
-
-    final payload = raw.substring(1);
-    if (payload.isEmpty) {
-      return null;
-    }
-
-    try {
-      final decoded = jsonDecode(payload) as List;
-      if (decoded.length >= 2) {
-        return SocketMessage(
-          event: decoded[0] as String,
-          data: decoded[1],
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Failed to decode Socket.io message: $e');
-      }
-    }
-
-    return null;
-  }
-}
 
 /// Represents a decoded Socket.io message
 class SocketMessage {
@@ -84,17 +27,11 @@ class SocketIoClient {
   factory SocketIoClient() => _instance;
   SocketIoClient._();
 
-  WebSocketChannel? _channel;
+  sio.Socket? _socket;
   ConnectionStatus _status = ConnectionStatus.disconnected;
   String? _serverUrl;
   String? _authToken;
   String? _clientType;
-
-  // Exponential backoff for reconnection
-  ExponentialBackoff? _backoff;
-
-  // Timer for reconnection attempts
-  Timer? _reconnectTimer;
 
   // Stream controllers for events
   final _statusController = StreamController<ConnectionStatus>.broadcast();
@@ -108,9 +45,6 @@ class SocketIoClient {
   final _reconnectedListeners = <void Function()>[];
   final _statusListeners = <void Function(ConnectionStatus)>[];
 
-  // Pending acknowledgements
-  final Map<String, Completer<dynamic>> _pendingAcks = {};
-
   /// Get connection status stream
   Stream<ConnectionStatus> get statusStream => _statusController.stream;
 
@@ -120,184 +54,106 @@ class SocketIoClient {
   /// Get raw message stream
   Stream<SocketMessage> get messageStream => _messageController.stream;
 
-  /// Initialize and connect to WebSocket with Socket.io protocol
+  /// Initialize and connect using the official Socket.IO protocol
   void connect({
     required String serverUrl,
     required String token,
     String clientType = 'user-scoped',
   }) {
-    if (_channel != null && _status == ConnectionStatus.connected) {
-      return;
-    }
+    if (_socket != null && _status == ConnectionStatus.connected) return;
 
     _serverUrl = serverUrl;
     _authToken = token;
     _clientType = clientType;
     _updateStatus(ConnectionStatus.connecting);
 
-    // Initialize exponential backoff for reconnection
-    _backoff = ExponentialBackoff.websocket(
-      minDelayMs: 1000,
-      maxDelayMs: 5000,
+    _socket = sio.io(
+      serverUrl,
+      sio.OptionBuilder()
+          .setPath('/v1/updates')
+          .setAuth({'token': token, 'clientType': clientType})
+          .setTransports(['websocket'])
+          .enableReconnection()
+          .setReconnectionDelay(1000)
+          .setReconnectionDelayMax(5000)
+          .disableAutoConnect()
+          .build(),
     );
 
-    _connectWithBackoff();
+    _setupEventHandlers();
+    _socket!.connect();
   }
 
-  void _connectWithBackoff() {
-    if (_serverUrl == null || _authToken == null) {
-      return;
-    }
-
-    final wsUrl = _buildWebSocketUrl(_serverUrl!);
-    if (kDebugMode) {
-      print('Connecting to WebSocket (Socket.io): $wsUrl');
-    }
-
-    try {
-      _channel = WebSocketChannel.connect(
-        Uri.parse(wsUrl),
-      );
-
-      _channel!.ready.then((_) {
-        _updateStatus(ConnectionStatus.connected);
-        _resetBackoff();
+  void _setupEventHandlers() {
+    _socket!.onConnect((_) {
+      _updateStatus(ConnectionStatus.connected);
+      if (!(_socket?.recovered ?? false)) {
         _notifyReconnected();
-        _startPingTimer();
-      }).catchError((error) {
-        if (kDebugMode) {
-          print('WebSocket connection error: $error');
-        }
-        _handleConnectionError(error);
-      });
+      }
+    });
 
-      _channel!.stream.listen(
-        _handleMessage,
-        onError: (error) {
-          if (kDebugMode) {
-            print('WebSocket stream error: $error');
-          }
-          _updateStatus(ConnectionStatus.error);
-        },
-        onDone: () {
-          if (kDebugMode) {
-            print('WebSocket connection closed');
-          }
-          if (_status == ConnectionStatus.connected) {
-            _updateStatus(ConnectionStatus.disconnected);
-            _scheduleReconnect();
-          }
-        },
+    _socket!.onDisconnect((_) {
+      _updateStatus(ConnectionStatus.disconnected);
+    });
+
+    _socket!.onConnectError((error) {
+      if (kDebugMode) print('Socket.IO connect error: $error');
+      _updateStatus(ConnectionStatus.error);
+    });
+
+    _socket!.onError((error) {
+      if (kDebugMode) print('Socket.IO error: $error');
+      _updateStatus(ConnectionStatus.error);
+    });
+
+    _socket!.onAny((event, data) {
+      _messageController.add(
+        SocketMessage(event: event as String, data: data),
       );
-    } catch (e) {
-      if (kDebugMode) {
-        print('Failed to create WebSocket connection: $e');
-      }
-      _handleConnectionError(e);
-    }
-  }
 
-  void _handleConnectionError(dynamic error) {
-    _updateStatus(ConnectionStatus.error);
-    _scheduleReconnect();
-  }
+      final handler = _messageHandlers[event as String];
+      if (handler != null) handler(data);
 
-  void _scheduleReconnect() {
-    if (_backoff == null || !_backoff!.canRetry) {
-      if (kDebugMode) {
-        print('Max reconnection attempts reached');
-      }
-      return;
-    }
-
-    final delay = _backoff!.next();
-    if (kDebugMode) {
-      print('Reconnection attempt ${_backoff!.attempts} in ${delay}ms');
-    }
-
-    _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(Duration(milliseconds: delay), () {
-      _connectWithBackoff();
-    });
-  }
-
-  void _resetBackoff() {
-    _backoff?.reset();
-    _reconnectTimer?.cancel();
-    _reconnectTimer = null;
-  }
-
-  Timer? _pingTimer;
-
-  void _startPingTimer() {
-    _pingTimer?.cancel();
-    _pingTimer = Timer.periodic(const Duration(seconds: 25), (timer) {
-      if (_status == ConnectionStatus.connected) {
-        _sendPing();
+      if (event == 'update' && data is Map<String, dynamic>) {
+        try {
+          _updateController.add(ApiUpdate.fromJson(data));
+        } catch (e) {
+          if (kDebugMode) print('Failed to parse update: $e');
+        }
       }
     });
   }
 
-  void _sendPing() {
-    if (_channel != null && _status == ConnectionStatus.connected) {
-      _channel!.sink.add('${SocketPacket.ping}');
-    }
-  }
-
-  /// Disconnect from WebSocket
+  /// Disconnect from Socket.IO
   void disconnect() {
-    _pingTimer?.cancel();
-    _pingTimer = null;
-    _reconnectTimer?.cancel();
-    _reconnectTimer = null;
-    _channel?.sink.close(status_codes.goingAway);
-    _channel = null;
-    _resetBackoff();
+    _socket?.disconnect();
+    _socket?.dispose();
+    _socket = null;
     _updateStatus(ConnectionStatus.disconnected);
   }
 
-  /// Send event through Socket.io protocol
-  /// Format: `4["event",data]`
+  /// Emit event through Socket.IO
   void send(String event, dynamic data) {
-    if (_channel == null || _status != ConnectionStatus.connected) {
+    if (_socket == null || _status != ConnectionStatus.connected) {
       throw StateError('WebSocket not connected');
     }
-    final packet = SocketPacket.encodeEvent(event, data);
-    _channel!.sink.add(packet);
+    _socket!.emit(event, data);
   }
 
-  /// Send message and wait for response with acknowledgement
+  /// Emit event and wait for acknowledgement
   Future<dynamic> emitWithAck(
     String event,
     dynamic data, {
     Duration timeout = const Duration(seconds: 30),
   }) async {
-    if (_channel == null || _status != ConnectionStatus.connected) {
+    if (_socket == null || _status != ConnectionStatus.connected) {
       throw StateError('WebSocket not connected');
     }
-
-    final ackId = _generateAckId();
     final completer = Completer<dynamic>();
-
-    _pendingAcks[ackId] = completer;
-
-    // Set timeout
-    Timer(timeout, () {
-      if (!completer.isCompleted) {
-        _pendingAcks.remove(ackId);
-        completer.completeError(TimeoutException('Acknowledgement timeout'));
-      }
+    _socket!.emitWithAck(event, data, ack: (response) {
+      if (!completer.isCompleted) completer.complete(response);
     });
-
-    // Send with ack ID
-    final payload = jsonEncode([event, data, {'ackId': ackId}]);
-    _channel!.sink.add('${SocketPacket.message}$payload');
-
-    return completer.future;
-  }
-
-  String _generateAckId() {
-    return '${DateTime.now().millisecondsSinceEpoch}_${_pendingAcks.length}';
+    return completer.future.timeout(timeout);
   }
 
   /// Register reconnection listener
@@ -326,66 +182,19 @@ class SocketIoClient {
     _messageHandlers.remove(event);
   }
 
-  String _buildWebSocketUrl(String serverUrl) {
-    // Convert http/https to ws/wss
-    final wsProtocol = serverUrl.startsWith('https') ? 'wss' : 'ws';
-    final baseUrl =
-        serverUrl.replaceFirst(RegExp(r'^https?://'), '$wsProtocol://');
-    // Socket.io uses path /v1/updates with token in query
-    return '$baseUrl/v1/updates?token=$_authToken';
-  }
+  /// Update auth token and reconnect if needed
+  void updateToken(String newToken) {
+    if (_authToken != newToken) {
+      _authToken = newToken;
 
-  void _handleMessage(dynamic message) {
-    final rawMessage = message as String;
-
-    // Handle ping/pong
-    if (rawMessage == '${SocketPacket.ping}') {
-      _channel?.sink.add('${SocketPacket.pong}');
-      return;
-    }
-
-    if (rawMessage == '${SocketPacket.pong}') {
-      return;
-    }
-
-    // Decode Socket.io message packet
-    final socketMessage = SocketPacket.decode(rawMessage);
-    if (socketMessage != null) {
-      // Emit to raw message stream
-      _messageController.add(socketMessage);
-
-      // Call registered event handlers
-      final handler = _messageHandlers[socketMessage.event];
-      if (handler != null) {
-        handler(socketMessage.data);
+      if (_socket != null) {
+        disconnect();
+        connect(
+          serverUrl: _serverUrl!,
+          token: newToken,
+          clientType: _clientType ?? 'user-scoped',
+        );
       }
-
-      // Handle acknowledgement responses
-      if (socketMessage.event == 'ack' && socketMessage.data is Map) {
-        final ackData = socketMessage.data as Map<String, dynamic>;
-        final ackId = ackData['ackId'] as String?;
-        if (ackId != null) {
-          final completer = _pendingAcks.remove(ackId);
-          if (completer != null && !completer.isCompleted) {
-            completer.complete(ackData['result']);
-          }
-        }
-      }
-
-      // Handle update events
-      if (socketMessage.event == 'update' &&
-          socketMessage.data is Map<String, dynamic>) {
-        try {
-          final update = ApiUpdate.fromJson(socketMessage.data);
-          _updateController.add(update);
-        } catch (e) {
-          if (kDebugMode) {
-            print('Failed to parse update: $e');
-          }
-        }
-      }
-    } else if (kDebugMode) {
-      print('Unknown Socket.io packet: $rawMessage');
     }
   }
 
@@ -405,29 +214,12 @@ class SocketIoClient {
     }
   }
 
-  /// Update auth token and reconnect if needed
-  void updateToken(String newToken) {
-    if (_authToken != newToken) {
-      _authToken = newToken;
-
-      if (_channel != null) {
-        disconnect();
-        connect(
-          serverUrl: _serverUrl!,
-          token: newToken,
-          clientType: _clientType ?? 'user-scoped',
-        );
-      }
-    }
-  }
-
   /// Dispose resources
   void dispose() {
     disconnect();
     _statusController.close();
     _updateController.close();
     _messageController.close();
-    _pendingAcks.clear();
     _messageHandlers.clear();
   }
 }

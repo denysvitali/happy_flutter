@@ -30,7 +30,8 @@ class TodoView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final input = tool['input'] as Map<String, dynamic>? ?? {};
-    final result = tool['result'] as Map<String, dynamic>?;
+    final rawResult = tool['result'];
+    final result = rawResult is Map<String, dynamic> ? rawResult : null;
 
     // Get todos from input first, then from result
     List<TodoItem> todos = _parseTodos(input['todos']);
@@ -83,28 +84,35 @@ class TodoView extends StatelessWidget {
   Widget _buildTodoItem(BuildContext context, TodoItem todo) {
     final theme = Theme.of(context);
 
-    Color textColor;
-    String icon;
-
+    Color color;
     if (todo.isCompleted) {
-      textColor = const Color(0xFF34C759);
-      icon = '☑';
+      color = const Color(0xFF34C759);
     } else if (todo.isInProgress) {
-      textColor = theme.colorScheme.primary;
-      icon = '☐';
+      color = theme.colorScheme.primary;
     } else {
-      textColor = theme.colorScheme.onSurfaceVariant;
-      icon = '☐';
+      color = theme.colorScheme.onSurfaceVariant;
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 1),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
-            width: 20,
-            child: Text(icon, style: TextStyle(fontSize: 16, color: textColor)),
+            width: 24,
+            height: 24,
+            child: Checkbox(
+              value: todo.isCompleted,
+              onChanged: null,
+              materialTapTargetSize:
+                  MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+              side: BorderSide(color: color, width: 1.5),
+              checkColor: Colors.white,
+              fillColor: WidgetStateProperty.all(
+                todo.isCompleted ? color : Colors.transparent,
+              ),
+            ),
           ),
           const SizedBox(width: 4),
           Expanded(
@@ -113,8 +121,8 @@ class TodoView extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 color: todo.isCompleted
-                    ? textColor.withOpacity(0.7)
-                    : textColor,
+                    ? color.withAlpha(179)
+                    : color,
                 decoration: todo.isCompleted
                     ? TextDecoration.lineThrough
                     : null,

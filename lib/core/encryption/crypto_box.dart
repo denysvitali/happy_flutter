@@ -57,19 +57,11 @@ class CryptoBox {
   /// Generate keypair from seed (libsodium compatible)
   static Future<KeyPair> keypairFromSeed(Uint8List seed) async {
     final sodium = await _sodiumInstance;
-    // sodium v3.4+ API: seedKeyPair takes a SecureKey
-    final seedKey = SecureKey(sodium, CryptoBoxConstants.seedBytes);
-    // Copy seed data into the SecureKey
-    final seedKeyCopy = SecureKey.fromList(sodium, seed);
-    seedKeyCopy.dispose(); // Dispose the temporary key
-
+    final seedKey = SecureKey.fromList(sodium, seed);
     final keypair = sodium.crypto.box.seedKeyPair(seedKey);
-
-    // Extract public key bytes (secretKey remains as SecureKey)
-    final publicKeyBytes = keypair.publicKey;
-
+    seedKey.dispose();
     return KeyPair(
-      publicKey: publicKeyBytes,
+      publicKey: keypair.publicKey,
       privateKey: keypair.secretKey,
       secretKey: keypair.secretKey,
     );
@@ -89,38 +81,28 @@ class CryptoBox {
 
   /// Encrypt data using public key (crypto_box_easy)
   /// Compatible with React Native's sodium.crypto_box_easy()
+  /// Uses an ephemeral keypair so no sender secret key is needed.
   static Future<Uint8List> encrypt(
     Uint8List data,
     Uint8List recipientPublicKey,
-    SecureKey senderSecretKey,
   ) async {
-    if (kIsWeb) {
-      // Extract bytes from SecureKey for web
-      final senderSecretKeyBytes = senderSecretKey.extractBytes();
-      return await WebCryptoBox.encrypt(
-        data,
-        recipientPublicKey,
-        senderSecretKeyBytes,
-      );
-    }
-
     final sodium = await _sodiumInstance;
     final ephemeralKeyPair = await generateKeypair();
     final nonce = await randomNonce();
 
-    // Encrypt using libsodium crypto_box_easy
+    // Encrypt using libsodium crypto_box_easy with the ephemeral key
     final encrypted = sodium.crypto.box.easy(
       message: data,
       nonce: nonce,
       publicKey: recipientPublicKey,
-      secretKey: senderSecretKey,
+      secretKey: ephemeralKeyPair.secretKey,
     );
 
-    // Bundle format: ephemeral public key (32 bytes) + nonce (24 bytes) + encrypted data
+    // Bundle: ephemeral public key (32 bytes) + nonce (24 bytes) + ciphertext
     final result = Uint8List(
       CryptoBoxConstants.publicKeyBytes +
-      CryptoBoxConstants.nonceBytes +
-      encrypted.length,
+          CryptoBoxConstants.nonceBytes +
+          encrypted.length,
     );
     result.setAll(0, ephemeralKeyPair.publicKey);
     result.setAll(CryptoBoxConstants.publicKeyBytes, nonce);

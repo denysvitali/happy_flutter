@@ -172,6 +172,7 @@ class ToolView extends StatelessWidget {
         children: [
           // Header
           GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: onPress,
             child: Container(
               padding: const EdgeInsets.all(12),
@@ -617,7 +618,14 @@ class ToolView extends StatelessWidget {
     Map<String, dynamic>? metadata,
     List<Map<String, dynamic>>? messages,
   ) {
-    return AskUserQuestionView(tool: tool, metadata: metadata, sessionId: parent.sessionId);
+    final toolUseId = tool['toolUseId'] as String? ??
+        tool['id'] as String?;
+    return AskUserQuestionView(
+      key: toolUseId != null ? ValueKey('ask-$toolUseId') : null,
+      tool: tool,
+      metadata: metadata,
+      sessionId: parent.sessionId,
+    );
   }
 
   Widget _buildNotebookReadView(

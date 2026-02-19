@@ -1290,7 +1290,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 ],
                 if (_isPolling && _publicKey != null)
                   QRCodeDisplay(
-                    data: _publicKey != null ? base64Encode(_publicKey!) : '',
+                    data: 'happy:///account?'
+                        '${base64Url.encode(_publicKey!).replaceAll('=', '')}',
                     size: 250,
                   )
                 else if (_isPolling)
@@ -1443,7 +1444,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     ],
                     if (_isPolling && _publicKey != null)
                       QRCodeDisplay(
-                        data: _publicKey != null ? base64Encode(_publicKey!) : '',
+                        data: 'happy:///account?'
+                            '${base64Url.encode(_publicKey!).replaceAll('=', '')}',
                         size: 250,
                       )
                     else if (_isPolling)

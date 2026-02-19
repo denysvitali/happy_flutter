@@ -230,24 +230,42 @@ class _PermissionModeSelectorState
     final offset = renderBox.localToGlobal(Offset.zero);
     final size = renderBox.size;
 
+    final screenHeight = MediaQuery.of(context).size.height;
+    final dropdownWidth = widget.width ?? 280;
+    final modes = _getAvailableModes();
+    // Estimate dropdown height: ~56px per item + padding
+    final estimatedHeight = modes.length * 56.0 + 8;
+
+    // Check if there's enough space below; if not, open above
+    final spaceBelow = screenHeight - (offset.dy + size.height + 4);
+    final openAbove = spaceBelow < estimatedHeight;
+
     _overlayEntry = OverlayEntry(
       builder: (context) => GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: _hideDropdown,
         child: Stack(
           children: [
-            // Backdrop
             Positioned.fill(child: Container(color: Colors.transparent)),
-            // Dropdown panel
             Positioned(
               left: offset.dx,
-              top: offset.dy + size.height + 4,
-              width: widget.width ?? 280,
+              bottom: openAbove
+                  ? screenHeight - offset.dy + 4
+                  : null,
+              top: openAbove ? null : offset.dy + size.height + 4,
+              width: dropdownWidth,
               child: Material(
                 elevation: 8,
                 borderRadius: BorderRadius.circular(12),
                 color: Theme.of(context).colorScheme.surface,
-                child: _buildDropdownItems(context),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: openAbove
+                        ? offset.dy - 8
+                        : spaceBelow - 8,
+                  ),
+                  child: _buildDropdownItems(context),
+                ),
               ),
             ),
           ],

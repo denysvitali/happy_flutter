@@ -66,7 +66,7 @@ class BoxEncryption implements Encryptor, Decryptor {
     final results = <Uint8List>[];
     for (final item in data) {
       final jsonBytes = TextUtils.encodeUtf8(jsonEncode(item));
-      final encrypted = await CryptoBox.encrypt(jsonBytes, _publicKey, _privateKey);
+      final encrypted = await CryptoBox.encrypt(jsonBytes, _publicKey);
       results.add(encrypted);
     }
     return results;

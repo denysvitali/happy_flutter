@@ -183,7 +183,7 @@ class Encryption {
   /// Encrypt data encryption key
   Future<Uint8List> encryptEncryptionKey(Uint8List key) async {
     // Use public key for encryption (encrypt TO ourselves)
-    final encrypted = await CryptoBox.encrypt(key, _contentKeyPair.publicKey, _contentKeyPair.secretKey);
+    final encrypted = await CryptoBox.encrypt(key, _contentKeyPair.publicKey);
     final result = Uint8List(encrypted.length + 1);
     result[0] = 0; // Version byte
     result.setAll(1, encrypted);
