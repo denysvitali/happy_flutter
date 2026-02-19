@@ -29,11 +29,7 @@ void main() {
         userId: 'user-1',
         userName: 'John Doe',
         userAvatarUrl: 'https://example.com/avatar1.png',
-        type: FeedType.sessionInvite,
-        body: FeedBody(
-          title: 'Session Invite',
-          message: 'You are invited to a session',
-        ),
+        body: FeedBody(kind: 'session_invite'),
         createdAt: 1234567890,
       );
 
@@ -41,7 +37,7 @@ void main() {
 
       final state = container.read(feedNotifierProvider);
       expect(state.items, hasLength(1));
-      expect(state.items.first.type, FeedType.sessionInvite);
+      expect(state.items.first.body.kind, 'session_invite');
     });
 
     test('should add feed items in reverse chronological order', () {
@@ -50,16 +46,14 @@ void main() {
       final item1 = FeedItem(
         id: 'feed-1',
         userId: 'user-1',
-        type: FeedType.friendRequest,
-        body: FeedBody(title: 'Friend Request'),
+        body: FeedBody(kind: 'friend_request'),
         createdAt: 1234567890,
       );
 
       final item2 = FeedItem(
         id: 'feed-2',
         userId: 'user-2',
-        type: FeedType.mention,
-        body: FeedBody(title: 'Mention'),
+        body: FeedBody(kind: 'text'),
         createdAt: 1234567900,
       );
 
@@ -79,22 +73,19 @@ void main() {
         FeedItem(
           id: 'feed-1',
           userId: 'user-1',
-          type: FeedType.sessionInvite,
-          body: FeedBody(title: 'Session Invite'),
+          body: FeedBody(kind: 'session_invite'),
           createdAt: 1234567890,
         ),
         FeedItem(
           id: 'feed-2',
           userId: 'user-2',
-          type: FeedType.friendRequest,
-          body: FeedBody(title: 'Friend Request'),
+          body: FeedBody(kind: 'friend_request'),
           createdAt: 1234567891,
         ),
         FeedItem(
           id: 'feed-3',
           userId: 'user-3',
-          type: FeedType.mention,
-          body: FeedBody(title: 'Mention'),
+          body: FeedBody(kind: 'text'),
           createdAt: 1234567892,
         ),
       ];
@@ -111,8 +102,7 @@ void main() {
       final item = FeedItem(
         id: 'feed-1',
         userId: 'user-1',
-        type: FeedType.friendRequest,
-        body: FeedBody(title: 'Friend Request'),
+        body: FeedBody(kind: 'friend_request'),
         createdAt: 1234567890,
         read: false,
       );
@@ -133,16 +123,14 @@ void main() {
         FeedItem(
           id: 'feed-1',
           userId: 'user-1',
-          type: FeedType.friendRequest,
-          body: FeedBody(title: 'Request 1'),
+          body: FeedBody(kind: 'friend_request'),
           createdAt: 1234567890,
           read: false,
         ),
         FeedItem(
           id: 'feed-2',
           userId: 'user-2',
-          type: FeedType.mention,
-          body: FeedBody(title: 'Mention 1'),
+          body: FeedBody(kind: 'text'),
           createdAt: 1234567891,
           read: false,
         ),
@@ -164,16 +152,14 @@ void main() {
       final item1 = FeedItem(
         id: 'feed-1',
         userId: 'user-1',
-        type: FeedType.friendRequest,
-        body: FeedBody(title: 'Request 1'),
+        body: FeedBody(kind: 'friend_request'),
         createdAt: 1234567890,
       );
 
       final item2 = FeedItem(
         id: 'feed-2',
         userId: 'user-2',
-        type: FeedType.mention,
-        body: FeedBody(title: 'Mention 1'),
+        body: FeedBody(kind: 'text'),
         createdAt: 1234567891,
       );
 
@@ -292,24 +278,21 @@ void main() {
         FeedItem(
           id: 'feed-1',
           userId: 'user-1',
-          type: FeedType.friendRequest,
-          body: FeedBody(title: 'Request 1'),
+          body: FeedBody(kind: 'friend_request'),
           createdAt: 1234567890,
           read: true,
         ),
         FeedItem(
           id: 'feed-2',
           userId: 'user-2',
-          type: FeedType.mention,
-          body: FeedBody(title: 'Mention 1'),
+          body: FeedBody(kind: 'text'),
           createdAt: 1234567891,
           read: false,
         ),
         FeedItem(
           id: 'feed-3',
           userId: 'user-3',
-          type: FeedType.sessionInvite,
-          body: FeedBody(title: 'Invite 1'),
+          body: FeedBody(kind: 'session_invite'),
           createdAt: 1234567892,
           read: false,
         ),
@@ -361,8 +344,7 @@ void main() {
       final item = FeedItem(
         id: 'feed-1',
         userId: 'user-1',
-        type: FeedType.friendRequest,
-        body: FeedBody(title: 'Request'),
+        body: FeedBody(kind: 'friend_request'),
         createdAt: 1234567890,
       );
 
@@ -389,64 +371,56 @@ void main() {
       expect(state.notifications, isEmpty);
     });
 
-    test('should handle all feed item types', () {
+    test('should handle multiple feed item kinds', () {
       final notifier = container.read(feedNotifierProvider.notifier);
 
       final items = [
         FeedItem(
           id: 'feed-1',
           userId: 'user-1',
-          type: FeedType.sessionInvite,
-          body: FeedBody(title: 'Session Invite'),
+          body: FeedBody(kind: 'session_invite'),
           createdAt: 1234567890,
         ),
         FeedItem(
           id: 'feed-2',
           userId: 'user-2',
-          type: FeedType.friendRequest,
-          body: FeedBody(title: 'Friend Request'),
+          body: FeedBody(kind: 'friend_request'),
           createdAt: 1234567891,
         ),
         FeedItem(
           id: 'feed-3',
           userId: 'user-3',
-          type: FeedType.friendAccepted,
-          body: FeedBody(title: 'Friend Accepted'),
+          body: FeedBody(kind: 'friend_accepted'),
           createdAt: 1234567892,
         ),
         FeedItem(
           id: 'feed-4',
           userId: 'user-4',
-          type: FeedType.mention,
-          body: FeedBody(title: 'Mention'),
+          body: FeedBody(kind: 'text', text: 'A mention'),
           createdAt: 1234567893,
         ),
         FeedItem(
           id: 'feed-5',
           userId: 'user-5',
-          type: FeedType.reaction,
-          body: FeedBody(title: 'Reaction'),
+          body: FeedBody(kind: 'text', text: 'A reaction'),
           createdAt: 1234567894,
         ),
         FeedItem(
           id: 'feed-6',
           userId: 'user-6',
-          type: FeedType.artifactShared,
-          body: FeedBody(title: 'Artifact Shared'),
+          body: FeedBody(kind: 'text', text: 'Artifact shared'),
           createdAt: 1234567895,
         ),
         FeedItem(
           id: 'feed-7',
           userId: 'user-7',
-          type: FeedType.sessionEnded,
-          body: FeedBody(title: 'Session Ended'),
+          body: FeedBody(kind: 'text', text: 'Session ended'),
           createdAt: 1234567896,
         ),
         FeedItem(
           id: 'feed-8',
           userId: 'user-8',
-          type: FeedType.system,
-          body: FeedBody(title: 'System'),
+          body: FeedBody(kind: 'text', text: 'System message'),
           createdAt: 1234567897,
         ),
       ];
@@ -455,8 +429,6 @@ void main() {
 
       final state = container.read(feedNotifierProvider);
       expect(state.items, hasLength(8));
-      expect(state.items.map((item) => item.type).toSet(),
-        hasLength(8)); // All unique types
     });
 
     test('should handle all notification types', () {

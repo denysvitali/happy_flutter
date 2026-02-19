@@ -26,18 +26,21 @@ void main() {
 
       final friend = UserProfile(
         id: 'user-1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        avatarUrl: 'https://example.com/avatar1.png',
-        status: RelationshipStatus.friends,
-        createdAt: 1234567890,
+        firstName: 'John',
+        lastName: 'Doe',
+        username: 'johndoe',
+        avatar: AvatarRef(
+          path: '/avatars/1.png',
+          url: 'https://example.com/avatar1.png',
+        ),
+        status: RelationshipStatus.friend,
       );
 
       notifier.addFriend(friend);
 
       final state = container.read(friendsNotifierProvider);
       expect(state.friends, hasLength(1));
-      expect(state.friends.first.name, 'John Doe');
+      expect(state.friends.first.firstName, 'John');
     });
 
     test('should set all friends at once', () {
@@ -46,21 +49,21 @@ void main() {
       final friends = [
         UserProfile(
           id: 'user-1',
-          name: 'John Doe',
-          status: RelationshipStatus.friends,
-          createdAt: 1234567890,
+          firstName: 'John',
+          username: 'john',
+          status: RelationshipStatus.friend,
         ),
         UserProfile(
           id: 'user-2',
-          name: 'Jane Smith',
-          status: RelationshipStatus.friends,
-          createdAt: 1234567891,
+          firstName: 'Jane',
+          username: 'jane',
+          status: RelationshipStatus.friend,
         ),
         UserProfile(
           id: 'user-3',
-          name: 'Bob Johnson',
-          status: RelationshipStatus.friends,
-          createdAt: 1234567892,
+          firstName: 'Bob',
+          username: 'bob',
+          status: RelationshipStatus.friend,
         ),
       ];
 
@@ -75,16 +78,16 @@ void main() {
 
       final friend1 = UserProfile(
         id: 'user-1',
-        name: 'John Doe',
-        status: RelationshipStatus.friends,
-        createdAt: 1234567890,
+        firstName: 'John',
+        username: 'john',
+        status: RelationshipStatus.friend,
       );
 
       final friend2 = UserProfile(
         id: 'user-2',
-        name: 'Jane Smith',
-        status: RelationshipStatus.friends,
-        createdAt: 1234567891,
+        firstName: 'Jane',
+        username: 'jane',
+        status: RelationshipStatus.friend,
       );
 
       notifier.addFriend(friend1);
@@ -104,17 +107,17 @@ void main() {
 
       final friend = UserProfile(
         id: 'user-1',
-        name: 'John Doe',
-        status: RelationshipStatus.pendingOutgoing,
-        createdAt: 1234567890,
+        firstName: 'John',
+        username: 'john',
+        status: RelationshipStatus.requested,
       );
 
       notifier.addFriend(friend);
 
-      notifier.updateFriendStatus('user-1', RelationshipStatus.friends);
+      notifier.updateFriendStatus('user-1', RelationshipStatus.friend);
 
       final state = container.read(friendsNotifierProvider);
-      expect(state.friends.first.status, RelationshipStatus.friends);
+      expect(state.friends.first.status, RelationshipStatus.friend);
     });
 
     test('should filter friend list correctly', () {
@@ -123,27 +126,27 @@ void main() {
       final friends = [
         UserProfile(
           id: 'user-1',
-          name: 'Friend 1',
-          status: RelationshipStatus.friends,
-          createdAt: 1234567890,
+          firstName: 'Friend 1',
+          username: 'friend1',
+          status: RelationshipStatus.friend,
         ),
         UserProfile(
           id: 'user-2',
-          name: 'Pending 1',
-          status: RelationshipStatus.pendingOutgoing,
-          createdAt: 1234567891,
+          firstName: 'Pending 1',
+          username: 'pending1',
+          status: RelationshipStatus.requested,
         ),
         UserProfile(
           id: 'user-3',
-          name: 'Friend 2',
-          status: RelationshipStatus.friends,
-          createdAt: 1234567892,
+          firstName: 'Friend 2',
+          username: 'friend2',
+          status: RelationshipStatus.friend,
         ),
         UserProfile(
           id: 'user-4',
-          name: 'Pending 2',
-          status: RelationshipStatus.pendingIncoming,
-          createdAt: 1234567893,
+          firstName: 'Pending 2',
+          username: 'pending2',
+          status: RelationshipStatus.pending,
         ),
       ];
 
@@ -272,9 +275,9 @@ void main() {
 
       final friend = UserProfile(
         id: 'user-1',
-        name: 'John Doe',
-        status: RelationshipStatus.friends,
-        createdAt: 1234567890,
+        firstName: 'John',
+        username: 'john',
+        status: RelationshipStatus.friend,
       );
 
       final request = FriendRequest(
@@ -306,58 +309,57 @@ void main() {
       final friends = [
         UserProfile(
           id: 'user-1',
-          name: 'Friend',
-          status: RelationshipStatus.friends,
-          createdAt: 1234567890,
+          firstName: 'Friend',
+          username: 'friend',
+          status: RelationshipStatus.friend,
         ),
         UserProfile(
           id: 'user-2',
-          name: 'Pending Outgoing',
-          status: RelationshipStatus.pendingOutgoing,
-          createdAt: 1234567891,
+          firstName: 'Requested',
+          username: 'requested',
+          status: RelationshipStatus.requested,
         ),
         UserProfile(
           id: 'user-3',
-          name: 'Pending Incoming',
-          status: RelationshipStatus.pendingIncoming,
-          createdAt: 1234567892,
+          firstName: 'Pending',
+          username: 'pending',
+          status: RelationshipStatus.pending,
         ),
         UserProfile(
           id: 'user-4',
-          name: 'Blocked',
-          status: RelationshipStatus.blocked,
-          createdAt: 1234567893,
+          firstName: 'Rejected',
+          username: 'rejected',
+          status: RelationshipStatus.rejected,
         ),
         UserProfile(
           id: 'user-5',
-          name: 'Blocked By Them',
-          status: RelationshipStatus.blockedByThem,
-          createdAt: 1234567894,
-        ),
-        UserProfile(
-          id: 'user-6',
-          name: 'None',
+          firstName: 'None',
+          username: 'none',
           status: RelationshipStatus.none,
-          createdAt: 1234567895,
         ),
       ];
 
       notifier.setFriends(friends);
 
       final state = container.read(friendsNotifierProvider);
-      expect(state.friends, hasLength(6));
+      expect(state.friends, hasLength(5));
 
       final friend = state.friends.firstWhere((f) => f.id == 'user-1');
       expect(friend.status.isFriend, isTrue);
       expect(friend.status.isPending, isFalse);
-      expect(friend.status.isBlocked, isFalse);
+      expect(friend.status.isRejected, isFalse);
 
-      final pending = state.friends.firstWhere((f) => f.id == 'user-2');
+      final requested = state.friends.firstWhere((f) => f.id == 'user-2');
+      expect(requested.status.isPending, isTrue);
+      expect(requested.status.isFriend, isFalse);
+
+      final pending = state.friends.firstWhere((f) => f.id == 'user-3');
       expect(pending.status.isPending, isTrue);
       expect(pending.status.isFriend, isFalse);
 
-      final blocked = state.friends.firstWhere((f) => f.id == 'user-4');
-      expect(blocked.status.isBlocked, isTrue);
+      final rejected = state.friends.firstWhere((f) => f.id == 'user-4');
+      expect(rejected.status.isRejected, isTrue);
+      expect(rejected.status.isFriend, isFalse);
     });
   });
 }

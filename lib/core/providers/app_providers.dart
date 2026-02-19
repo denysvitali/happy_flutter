@@ -534,7 +534,7 @@ class FriendsState {
   }
 
   List<UserProfile> get friendList =>
-      friends.where((f) => f.status == RelationshipStatus.friends).toList();
+      friends.where((f) => f.status == RelationshipStatus.friend).toList();
 
   List<FriendRequest> get incomingRequests =>
       pendingRequests.where((r) => r.status == 'pending').toList();
