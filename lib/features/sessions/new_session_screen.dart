@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/api/websocket_client.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
@@ -25,10 +26,11 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     super.dispose();
   }
 
-  bool get _canCreate =>
+  bool _canCreate(ConnectionStatus connectionStatus) =>
       _selectedMachine != null &&
       _pathController.text.trim().isNotEmpty &&
-      !_isCreating;
+      !_isCreating &&
+      connectionStatus == ConnectionStatus.connected;
 
   Future<void> _createSession() async {
     final machine = _selectedMachine;
@@ -89,6 +91,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
         .values
         .where((m) => m.active)
         .toList();
+    final connectionStatus = ref.watch(connectionNotifierProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -239,9 +242,27 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           ),
           const SizedBox(height: 32),
 
+          // Connection status hint when not yet connected
+          if (connectionStatus != ConnectionStatus.connected &&
+              connectionStatus != ConnectionStatus.error)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                connectionStatus == ConnectionStatus.connecting
+                    ? 'Connecting to server...'
+                    : 'Not connected to server',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 13,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+
           // Create button
           FilledButton(
-            onPressed: _canCreate ? _createSession : null,
+            onPressed:
+                _canCreate(connectionStatus) ? _createSession : null,
             child: _isCreating
                 ? const SizedBox(
                     width: 20,
