@@ -15,6 +15,7 @@ class _StorageKeys {
   static const String sessionPermissionModes = 'session-permission-modes';
   static const String profile = 'profile';
   static const String migrationComplete = 'mmkv-migration-complete';
+  static const String sessionLastSeq = 'session-last-seq';
 }
 
 /// MMKV-based storage wrapper with migration from SharedPreferences
@@ -331,6 +332,44 @@ class MMKVStorage {
       _mmkv?.removeValue(_StorageKeys.sessionPermissionModes);
     } catch (e) {
       debugPrint('MMKV: Failed to clear session permission modes: $e');
+    }
+  }
+
+  /// Get all persisted session last-seq cursors (synchronous — MMKV is sync)
+  Map<String, int> getSessionLastSeq() {
+    if (!_initialized) return {};
+    try {
+      final json = _mmkv?.decodeString(_StorageKeys.sessionLastSeq);
+      if (json != null) {
+        final decoded = jsonDecode(json) as Map<String, dynamic>;
+        return decoded.map((k, v) => MapEntry(k, v as int));
+      }
+    } catch (e) {
+      debugPrint('MMKV: Failed to get session last seq: $e');
+    }
+    return {};
+  }
+
+  /// Persist all session last-seq cursors (synchronous)
+  void saveSessionLastSeq(Map<String, int> seqs) {
+    if (!_initialized) return;
+    try {
+      _mmkv?.encodeString(
+        _StorageKeys.sessionLastSeq,
+        jsonEncode(seqs),
+      );
+    } catch (e) {
+      debugPrint('MMKV: Failed to save session last seq: $e');
+    }
+  }
+
+  /// Clear all session last-seq cursors
+  void clearSessionLastSeq() {
+    if (!_initialized) return;
+    try {
+      _mmkv?.removeValue(_StorageKeys.sessionLastSeq);
+    } catch (e) {
+      debugPrint('MMKV: Failed to clear session last seq: $e');
     }
   }
 

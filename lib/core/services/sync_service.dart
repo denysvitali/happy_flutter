@@ -23,6 +23,7 @@ import '../models/purchases.dart';
 import '../models/session.dart';
 import '../models/settings.dart';
 import '../models/todo.dart';
+import '../services/mmkv_storage.dart';
 import '../services/server_config.dart';
 import '../utils/invalidate_sync.dart';
 import '../utils/parse_token.dart';
@@ -194,6 +195,11 @@ what you have, you must use the options mode.
 
   /// Internal initialization
   Future<void> _init() async {
+    // Restore persisted message cursors
+    _sessionLastSeq
+      ..clear()
+      ..addAll(MMKVStorage().getSessionLastSeq());
+
     // Initialize sync managers
     sessionsSync = InvalidateSync(fetchSessions);
     settingsSync = InvalidateSync(syncSettings);
@@ -339,6 +345,7 @@ what you have, you must use the options mode.
     if (sessionId != null) {
       messagesSync.remove(sessionId)?.dispose();
       _sessionLastSeq.remove(sessionId);
+      MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
       _sessionMessages.remove(sessionId);
       _todoLists.remove(sessionId);
       _sessions.remove(sessionId);
@@ -471,95 +478,117 @@ what you have, you must use the options mode.
 
     try {
       final apiClient = ApiClient();
-      
-      final response = await apiClient.get('/v1/sessions');
-      
-      if (apiClient.isSuccess(response)) {
-        final data = response.data;
-        final sessions = data['sessions'] as List;
+      final allSessions = <dynamic>[];
+      String? cursor;
 
-        // Initialize session encryptions
-        final sessionKeys = <String, Uint8List?>{};
-        for (final session in sessions) {
-          final sessionId = session['id'] as String;
-          final dataEncryptionKey = session['dataEncryptionKey'] as String?;
+      while (true) {
+        final response = await apiClient.get(
+          '/v2/sessions',
+          queryParameters: {
+            'limit': 50,
+            if (cursor != null) 'cursor': cursor,
+          },
+        );
 
-          if (dataEncryptionKey != null) {
-            final decryptedKey =
-                await encryption.decryptEncryptionKey(dataEncryptionKey);
-            if (decryptedKey != null) {
-              sessionKeys[sessionId] = decryptedKey;
-              _sessionDataKeys[sessionId] = decryptedKey;
-            }
-          } else {
-            sessionKeys[sessionId] = null;
-          }
+        if (!apiClient.isSuccess(response)) {
+          debugPrint('Failed to fetch sessions: ${response.statusCode}');
+          break;
         }
 
-        await encryption.initializeSessions(sessionKeys);
+        final data = response.data as Map<String, dynamic>;
+        final page = data['sessions'] as List? ?? [];
+        allSessions.addAll(page);
 
-        // Decrypt sessions
-        final decryptedSessions = <Session>[];
-        for (final session in sessions) {
-          final sessionId = session['id'] as String;
-          final sessionEncryption = encryption.getSessionEncryption(sessionId);
-
-          if (sessionEncryption != null) {
-            try {
-              // Decrypt metadata
-              final metadata = await sessionEncryption.decryptMetadata(
-                session['metadataVersion'] as int,
-                session['metadata'] as String,
-              );
-
-              // Decrypt agent state
-              final agentState = await sessionEncryption.decryptAgentState(
-                session['agentStateVersion'] as int,
-                session['agentState'] as String?,
-              );
-
-              // Create session object
-              final processedSession = Session(
-                id: sessionId,
-                seq: session['seq'] as int,
-                createdAt: session['createdAt'] as int,
-                updatedAt: session['updatedAt'] as int,
-                active: session['active'] as bool,
-                activeAt: session['activeAt'] as int,
-                metadata: metadata != null ? Metadata.fromJson(metadata) : null,
-                metadataVersion: session['metadataVersion'] as int,
-                agentState: agentState.isNotEmpty
-                    ? AgentState.fromJson(agentState)
-                    : null,
-                agentStateVersion: session['agentStateVersion'] as int,
-                thinking: false,
-                thinkingAt: null,
-                presence: 'online',
-              );
-
-              decryptedSessions.add(processedSession);
-            } catch (error) {
-              debugPrint('Failed to decrypt session $sessionId: $error');
-            }
-          }
-        }
-
-        _sessions
-          ..clear()
-          ..addEntries(
-            decryptedSessions.map((session) => MapEntry(session.id, session)),
-          );
-
-        // Re-apply permission data now that agentState is fresh.
-        for (final sessionId in _sessionMessages.keys) {
-          _applyPermissionRequests(sessionId);
-        }
-
-        debugPrint(
-            'Fetched and decrypted ${decryptedSessions.length} sessions');
-      } else {
-        debugPrint('Failed to fetch sessions: ${response.statusCode}');
+        final hasNext = data['hasNext'] as bool? ?? false;
+        if (!hasNext) break;
+        cursor = data['nextCursor'] as String?;
+        if (cursor == null) break;
       }
+
+      if (allSessions.isEmpty && cursor == null) {
+        // First request failed entirely — nothing to process
+        return;
+      }
+
+      // Initialize session encryptions
+      final sessionKeys = <String, Uint8List?>{};
+      for (final session in allSessions) {
+        final sessionId = session['id'] as String;
+        final dataEncryptionKey = session['dataEncryptionKey'] as String?;
+
+        if (dataEncryptionKey != null) {
+          final decryptedKey =
+              await encryption.decryptEncryptionKey(dataEncryptionKey);
+          if (decryptedKey != null) {
+            sessionKeys[sessionId] = decryptedKey;
+            _sessionDataKeys[sessionId] = decryptedKey;
+          }
+        } else {
+          sessionKeys[sessionId] = null;
+        }
+      }
+
+      await encryption.initializeSessions(sessionKeys);
+
+      // Decrypt sessions
+      final decryptedSessions = <Session>[];
+      for (final session in allSessions) {
+        final sessionId = session['id'] as String;
+        final sessionEncryption = encryption.getSessionEncryption(sessionId);
+
+        if (sessionEncryption != null) {
+          try {
+            // Decrypt metadata
+            final metadata = await sessionEncryption.decryptMetadata(
+              session['metadataVersion'] as int,
+              session['metadata'] as String,
+            );
+
+            // Decrypt agent state
+            final agentState = await sessionEncryption.decryptAgentState(
+              session['agentStateVersion'] as int,
+              session['agentState'] as String?,
+            );
+
+            // Create session object
+            final processedSession = Session(
+              id: sessionId,
+              seq: session['seq'] as int,
+              createdAt: session['createdAt'] as int,
+              updatedAt: session['updatedAt'] as int,
+              active: session['active'] as bool,
+              activeAt: session['activeAt'] as int,
+              metadata:
+                  metadata != null ? Metadata.fromJson(metadata) : null,
+              metadataVersion: session['metadataVersion'] as int,
+              agentState: agentState.isNotEmpty
+                  ? AgentState.fromJson(agentState)
+                  : null,
+              agentStateVersion: session['agentStateVersion'] as int,
+              thinking: false,
+              thinkingAt: null,
+              presence: 'online',
+            );
+
+            decryptedSessions.add(processedSession);
+          } catch (error) {
+            debugPrint('Failed to decrypt session $sessionId: $error');
+          }
+        }
+      }
+
+      _sessions
+        ..clear()
+        ..addEntries(
+          decryptedSessions.map((session) => MapEntry(session.id, session)),
+        );
+
+      // Re-apply permission data now that agentState is fresh.
+      for (final sessionId in _sessionMessages.keys) {
+        _applyPermissionRequests(sessionId);
+      }
+
+      debugPrint('Fetched and decrypted ${decryptedSessions.length} sessions');
     } catch (error) {
       debugPrint('Error fetching sessions: $error');
     }
@@ -1614,17 +1643,57 @@ what you have, you must use the options mode.
     }
 
     final apiClient = ApiClient();
-    await apiClient.post(
-      '/v3/sessions/$sessionId/messages',
-      data: {
-        'messages': [
-          {
-            'content': encryptedRawRecord,
-            'localId': localId,
-          },
-        ],
-      },
-    );
+    var sent = false;
+    try {
+      final response = await apiClient.post(
+        '/v3/sessions/$sessionId/messages',
+        data: {
+          'messages': [
+            {
+              'content': encryptedRawRecord,
+              'localId': localId,
+            },
+          ],
+        },
+      );
+
+      if (apiClient.isSuccess(response)) {
+        sent = true;
+        final data = response.data as Map<String, dynamic>?;
+        final serverMessages = (data?['messages'] as List<dynamic>? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        if (serverMessages.isNotEmpty) {
+          final serverMsg = serverMessages.first;
+          _upsertSessionMessages(sessionId, [
+            {
+              'id': serverMsg['id'] as String,
+              'localId': localId,
+              'seq': serverMsg['seq'] as int,
+              'createdAt': serverMsg['createdAt'] as int,
+              'role': 'user',
+              'kind': 'text',
+              'content': text,
+              'raw': rawRecord,
+            },
+          ]);
+        }
+      } else {
+        throw StateError(
+          'Failed to send message: ${response.statusCode}',
+        );
+      }
+    } finally {
+      if (!sent) _removeOptimisticMessage(sessionId, localId);
+    }
+  }
+
+  void _removeOptimisticMessage(String sessionId, String localId) {
+    final msgs = _sessionMessages[sessionId];
+    if (msgs != null) {
+      _sessionMessages[sessionId] =
+          msgs.where((m) => m['id'] != localId).toList();
+    }
   }
 
   /// RPC call for machines - uses machine-specific encryption.
@@ -1804,6 +1873,7 @@ what you have, you must use the options mode.
         _groupSidechainMessages(sessionId);
         _applyPermissionRequests(sessionId);
         _sessionLastSeq[sessionId] = afterSeq;
+        MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
         if (!hasMore) break;
       }
     } catch (error) {
@@ -2677,6 +2747,7 @@ what you have, you must use the options mode.
     }
     messagesSync.clear();
     _sessionLastSeq.clear();
+    MMKVStorage().clearSessionLastSeq();
 
     sessionsSync.dispose();
     settingsSync.dispose();
