@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/websocket_client.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
+import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
@@ -156,6 +157,7 @@ class _SessionsListContentState
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final sessions = ref.watch(sessionsNotifierProvider);
+    final settings = ref.watch(settingsNotifierProvider);
     final sessionList = sessions.values.toList();
 
     // Mark as loaded once we get any data or sync is initialized.
@@ -206,6 +208,8 @@ class _SessionsListContentState
         inactiveSessions,
         localizeDateGroup,
         triggerStagger: triggerStagger,
+        compactMode: settings.compactSessionView,
+        hideInactive: settings.hideInactiveSessions,
       ),
     );
   }
@@ -216,6 +220,8 @@ class _SessionsListContentState
     List<Session> inactiveSessions,
     String Function(DateGroup) localizeDateGroup, {
     required bool triggerStagger,
+    required bool compactMode,
+    required bool hideInactive,
   }) {
     // Group active sessions by path.
     final activeByPath = <String, List<Session>>{};
@@ -254,13 +260,22 @@ class _SessionsListContentState
         }
         for (final session in entry.value) {
           final capturedIndex = staggerIndex;
+          final card = compactMode
+              ? CompactActiveSessionCard(
+                  session: session,
+                  onTap: () => context.push('/chat/${session.id}'),
+                )
+              : ActiveSessionCard(
+                  session: session,
+                  onTap: () => context.push('/chat/${session.id}'),
+                );
           children.add(
             _StaggeredSlideIn(
               index: capturedIndex,
               animate: triggerStagger,
-              child: ActiveSessionCard(
+              child: _DismissibleActiveSession(
                 session: session,
-                onTap: () => context.push('/chat/${session.id}'),
+                child: card,
               ),
             ),
           );
@@ -269,8 +284,8 @@ class _SessionsListContentState
       }
     }
 
-    // Archived sessions section.
-    if (inactiveSessions.isNotEmpty) {
+    // Archived sessions section — hidden when hideInactive is true.
+    if (inactiveSessions.isNotEmpty && !hideInactive) {
       children.add(
         _FadeInSection(
           delay: Duration(milliseconds: _kStaggerStep * staggerIndex),
@@ -337,12 +352,15 @@ class _SessionsListContentState
             _StaggeredSlideIn(
               index: capturedIndex,
               animate: animate,
-              child: SessionCard(
+              child: _DismissibleInactiveSession(
                 session: session,
-                onTap: () => context.push('/chat/${session.id}'),
-                isFirst: isFirst,
-                isLast: isLast,
-                isSingle: isSingle,
+                child: SessionCard(
+                  session: session,
+                  onTap: () => context.push('/chat/${session.id}'),
+                  isFirst: isFirst,
+                  isLast: isLast,
+                  isSingle: isSingle,
+                ),
               ),
             ),
           );
@@ -351,6 +369,188 @@ class _SessionsListContentState
     }
 
     return widgets;
+  }
+}
+
+// ─── Dismissible wrappers ────────────────────────────────────────────────────
+
+/// Dismissible wrapper for active sessions (swipe left → archive).
+class _DismissibleActiveSession extends ConsumerWidget {
+  const _DismissibleActiveSession({
+    required this.session,
+    required this.child,
+  });
+
+  final Session session;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Dismissible(
+      key: ValueKey('active-${session.id}'),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) => _confirmArchive(context, ref),
+      // Keep item visible after dismiss (data refresh handles removal).
+      onDismissed: (_) {},
+      background: Container(
+        alignment: Alignment.centerRight,
+        color: Colors.red,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.archive_outlined, color: Colors.white, size: 22),
+            SizedBox(height: 4),
+            Text(
+              'Archive',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+      child: child,
+    );
+  }
+
+  Future<bool> _confirmArchive(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Archive Session'),
+        content: const Text(
+          'This will stop the running session. Are you sure?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Archive'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return false;
+
+    try {
+      await sync.sessionRPC(session.id, 'killSession', {});
+      await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
+      return true;
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to archive session: $e'),
+          ),
+        );
+      }
+      return false;
+    }
+  }
+}
+
+/// Dismissible wrapper for inactive sessions (swipe left → delete).
+class _DismissibleInactiveSession extends ConsumerWidget {
+  const _DismissibleInactiveSession({
+    required this.session,
+    required this.child,
+  });
+
+  final Session session;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Dismissible(
+      key: ValueKey('inactive-${session.id}'),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) => _confirmDelete(context, ref),
+      onDismissed: (_) {},
+      background: Container(
+        alignment: Alignment.centerRight,
+        color: Colors.red,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delete_outline, color: Colors.white, size: 22),
+            SizedBox(height: 4),
+            Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+      child: child,
+    );
+  }
+
+  Future<bool> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Session'),
+        content: const Text(
+          'This will permanently delete the session and all its messages.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return false;
+
+    try {
+      final success = await sync.deleteSession(session.id);
+      if (success) {
+        await ref
+            .read(sessionsNotifierProvider.notifier)
+            .refreshFromSync();
+        return true;
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete session')),
+          );
+        }
+        return false;
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete session: $e')),
+        );
+      }
+      return false;
+    }
   }
 }
 
@@ -687,6 +887,88 @@ class _StatusDotState extends State<StatusDot>
   }
 }
 
+// ─── Badge helpers ───────────────────────────────────────────────────────────
+
+/// Draft icon overlay badge shown on avatar bottom-right corner.
+class _DraftBadge extends StatelessWidget {
+  const _DraftBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Positioned(
+      bottom: 0,
+      right: 0,
+      child: Container(
+        width: 16,
+        height: 16,
+        decoration: BoxDecoration(
+          color: cs.surface.withValues(alpha: 0.85),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          Icons.drive_file_rename_outline,
+          size: 10,
+          color: cs.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
+
+/// Task progress badge shown near the timestamp/status area.
+class _TodoProgressBadge extends StatelessWidget {
+  const _TodoProgressBadge({
+    required this.completed,
+    required this.total,
+  });
+
+  final int completed;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.lightbulb_outline,
+            size: 10,
+            color: cs.onSurfaceVariant,
+          ),
+          const SizedBox(width: 2),
+          Text(
+            '$completed/$total',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Computes todo progress, returning (completed, total) or null if
+/// todos are empty or all completed.
+({int completed, int total})? _getTodoProgress(List<TodoItem>? todos) {
+  if (todos == null || todos.isEmpty) return null;
+  final total = todos.length;
+  final completed =
+      todos.where((t) => t.status == TodoState.completed).length;
+  if (completed >= total) return null;
+  return (completed: completed, total: total);
+}
+
 // ─── Active session card ─────────────────────────────────────────────────────
 
 /// Active session card with a gradient border and primary-tinted background.
@@ -740,6 +1022,9 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
     final sessionName = getSessionName(widget.session);
     final sessionSubtitle = getSessionSubtitle(widget.session);
     final sessionFlavor = widget.session.metadata?.flavor;
+    final hasDraft = widget.session.draft != null &&
+        widget.session.draft!.isNotEmpty;
+    final todoProgress = _getTodoProgress(widget.session.todos);
 
     return AnimatedBuilder(
       animation: _glowAnimation,
@@ -790,13 +1075,19 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
                       // Pulsing green active indicator.
                       _ActiveIndicatorDot(t: t, primary: cs.primary),
                       const SizedBox(width: 12),
-                      // Avatar with Hero animation.
+                      // Avatar with Hero + optional draft badge.
                       Hero(
                         tag: 'session-avatar-${widget.session.id}',
-                        child: SessionAvatar(
-                          id: avatarId,
-                          flavor: sessionFlavor,
-                          size: 48,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            SessionAvatar(
+                              id: avatarId,
+                              flavor: sessionFlavor,
+                              size: 48,
+                            ),
+                            if (hasDraft) const _DraftBadge(),
+                          ],
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -857,6 +1148,13 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
                             isPulsing: sessionStatus.isPulsing,
                             size: 8,
                           ),
+                          if (todoProgress != null) ...[
+                            const SizedBox(height: 4),
+                            _TodoProgressBadge(
+                              completed: todoProgress.completed,
+                              total: todoProgress.total,
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -892,6 +1190,126 @@ class _ActiveIndicatorDot extends StatelessWidget {
             spreadRadius: 1,
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Compact active session card ─────────────────────────────────────────────
+
+/// Compact active session row (~56px height, no glow/pulse border,
+/// status dot inline left of title, smaller 36px avatar).
+///
+/// Shown when [Settings.compactSessionView] is enabled.
+class CompactActiveSessionCard extends StatelessWidget {
+  const CompactActiveSessionCard({
+    required this.session,
+    super.key,
+    this.onTap,
+  });
+
+  /// The session to display.
+  final Session session;
+
+  /// Callback when tapped.
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final sessionStatus = getSessionStatus(session);
+    final avatarId = getSessionAvatarId(session);
+    final sessionName = getSessionName(session);
+    final sessionFlavor = session.metadata?.flavor;
+    final hasDraft =
+        session.draft != null && session.draft!.isNotEmpty;
+    final todoProgress = _getTodoProgress(session.todos);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: cs.primary.withValues(alpha: 0.04),
+        border: Border.all(
+          color: cs.primary.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: SizedBox(
+            height: 56,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  // Small avatar with optional draft badge.
+                  Hero(
+                    tag: 'session-avatar-${session.id}',
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        SessionAvatar(
+                          id: avatarId,
+                          flavor: sessionFlavor,
+                          size: 36,
+                        ),
+                        if (hasDraft) const _DraftBadge(),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Inline status dot left of title.
+                  StatusDot(
+                    color: Color(sessionStatus.statusDotColor),
+                    isPulsing: sessionStatus.isPulsing,
+                    size: 7,
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      sessionName,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: cs.onSurface,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        formatTimestamp(
+                          session.updatedAt,
+                          relative: true,
+                        ),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
+                      ),
+                      if (todoProgress != null) ...[
+                        const SizedBox(height: 2),
+                        _TodoProgressBadge(
+                          completed: todoProgress.completed,
+                          total: todoProgress.total,
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -940,6 +1358,9 @@ class SessionCard extends StatelessWidget {
     final sessionName = getSessionName(session);
     final sessionSubtitle = getSessionSubtitle(session);
     final sessionFlavor = session.metadata?.flavor;
+    final hasDraft =
+        session.draft != null && session.draft!.isNotEmpty;
+    final todoProgress = _getTodoProgress(session.todos);
 
     // Determine card border-radius based on position within group.
     BorderRadius borderRadius;
@@ -979,14 +1400,21 @@ class SessionCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Avatar with Hero animation, monochrome when disconnected.
+              // Avatar with Hero animation, monochrome when disconnected,
+              // and optional draft badge.
               Hero(
                 tag: 'session-avatar-${session.id}',
-                child: SessionAvatar(
-                  id: avatarId,
-                  flavor: sessionFlavor,
-                  size: 44,
-                  monochrome: !sessionStatus.isConnected,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    SessionAvatar(
+                      id: avatarId,
+                      flavor: sessionFlavor,
+                      size: 44,
+                      monochrome: !sessionStatus.isConnected,
+                    ),
+                    if (hasDraft) const _DraftBadge(),
+                  ],
                 ),
               ),
               const SizedBox(width: 14),
@@ -1026,7 +1454,7 @@ class SessionCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              // Right side: timestamp and status dot.
+              // Right side: timestamp, status dot, optional todo badge.
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -1045,6 +1473,13 @@ class SessionCard extends StatelessWidget {
                     isPulsing: sessionStatus.isPulsing,
                     size: 7,
                   ),
+                  if (todoProgress != null) ...[
+                    const SizedBox(height: 4),
+                    _TodoProgressBadge(
+                      completed: todoProgress.completed,
+                      total: todoProgress.total,
+                    ),
+                  ],
                 ],
               ),
             ],
