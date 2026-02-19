@@ -1371,61 +1371,58 @@ what you have, you must use the options mode.
   }
 
   /// Create a session on a target machine/path and return the new session ID.
-  /// Create a session on a target machine/path and return the new session ID.
   ///
   /// Sends a `spawn-happy-session` RPC to the machine daemon, which starts a
   /// new Claude Code agent in [path].  If the directory does not yet exist the
   /// daemon returns a `requestToApproveDirectoryCreation` result; passing
   /// [approvedNewDirectoryCreation] = true tells it to create the directory.
-  Future<String?> createSession({
+  ///
+  /// Throws a [StateError] with a human-readable message on failure.
+  Future<String> createSession({
     required String machineId,
     required String path,
     bool approvedNewDirectoryCreation = false,
   }) async {
     if (!isInitialized) {
-      return null;
+      throw StateError('Sync is not initialized');
     }
 
-    try {
-      final result = await machineRPC(
-        machineId,
-        'spawn-happy-session',
-        <String, dynamic>{
-          'type': 'spawn-in-directory',
-          'directory': path,
-          'approvedNewDirectoryCreation': approvedNewDirectoryCreation,
-        },
+    final result = await machineRPC(
+      machineId,
+      'spawn-happy-session',
+      <String, dynamic>{
+        'type': 'spawn-in-directory',
+        'directory': path,
+        'approvedNewDirectoryCreation': approvedNewDirectoryCreation,
+      },
+    );
+
+    if (result is! Map) {
+      throw StateError('Unexpected response from machine');
+    }
+
+    final resultType = result['type'] as String?;
+
+    if (resultType == 'success') {
+      final sessionId = result['sessionId'] as String?;
+      if (sessionId == null || sessionId.isEmpty) {
+        throw StateError('Machine returned empty session ID');
+      }
+      await refreshSessions();
+      return sessionId;
+    }
+
+    if (resultType == 'requestToApproveDirectoryCreation') {
+      return createSession(
+        machineId: machineId,
+        path: path,
+        approvedNewDirectoryCreation: true,
       );
-
-      if (result is! Map) {
-        debugPrint('Unexpected spawn result: $result');
-        return null;
-      }
-
-      final resultType = result['type'] as String?;
-
-      if (resultType == 'success') {
-        final sessionId = result['sessionId'] as String?;
-        await refreshSessions();
-        return sessionId;
-      }
-
-      if (resultType == 'requestToApproveDirectoryCreation') {
-        // Re-invoke with approval so the directory is created automatically.
-        return createSession(
-          machineId: machineId,
-          path: path,
-          approvedNewDirectoryCreation: true,
-        );
-      }
-
-      final errorMsg = result['errorMessage'] as String? ?? 'unknown error';
-      debugPrint('Failed to spawn session: $errorMsg');
-      return null;
-    } catch (error) {
-      debugPrint('Failed to create session: $error');
-      return null;
     }
+
+    final errorMsg =
+        result['errorMessage'] as String? ?? 'unknown error';
+    throw StateError(errorMsg);
   }
 
   /// Send message to session

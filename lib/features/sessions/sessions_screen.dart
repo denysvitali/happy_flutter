@@ -45,6 +45,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       const Duration(milliseconds: 700),
       (_) {
         ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+        ref.read(machinesNotifierProvider.notifier).loadFromSync();
         ref.read(friendsNotifierProvider.notifier).loadFromSync();
         ref.read(feedNotifierProvider.notifier).loadFromSync();
       },
@@ -1737,6 +1738,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   String? _selectedPath;
   String? _selectedMachine;
   bool _isCreating = false;
+  String? _createError;
 
   @override
   Widget build(BuildContext context) {
@@ -1852,11 +1854,24 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                   hintText: l10n.sessionPathHint,
                 ),
                 onChanged: (value) {
-                  setState(() => _selectedPath = value);
+                  setState(() {
+                    _selectedPath = value;
+                    _createError = null;
+                  });
                 },
               );
             },
           ),
+          if (_createError != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _createError!,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+                fontSize: 13,
+              ),
+            ),
+          ],
         ],
       ),
       actions: [
@@ -1866,7 +1881,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         ),
         ElevatedButton(
           onPressed: !_isCreating &&
-                  _selectedPath != null &&
+                  (_selectedPath?.isNotEmpty ?? false) &&
                   _selectedMachine != null
               ? () => _createSession(context)
               : null,
@@ -1885,34 +1900,31 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   Future<void> _createSession(BuildContext context) async {
     final machineId = _selectedMachine;
     final path = _selectedPath?.trim();
-    if (machineId == null || path == null || path.isEmpty) {
-      return;
-    }
+    if (machineId == null || path == null || path.isEmpty) return;
 
-    // Capture context-dependent objects before async gap
-    final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final router = GoRouter.of(context);
 
-    setState(() => _isCreating = true);
-    final sessionId = await sync.createSession(
-      machineId: machineId,
-      path: path,
-    );
-    if (!mounted) {
-      return;
-    }
+    setState(() {
+      _isCreating = true;
+      _createError = null;
+    });
 
-    if (sessionId == null || sessionId.isEmpty) {
-      setState(() => _isCreating = false);
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Failed to start session')),
+    try {
+      final sessionId = await sync.createSession(
+        machineId: machineId,
+        path: path,
       );
-      return;
+      if (!mounted) return;
+      ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+      navigator.pop();
+      unawaited(router.push('/chat/$sessionId'));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isCreating = false;
+        _createError = e.toString().replaceFirst('Bad state: ', '');
+      });
     }
-
-    ref.read(sessionsNotifierProvider.notifier).loadFromSync();
-    navigator.pop();
-    unawaited(router.push('/chat/$sessionId'));
   }
 }
