@@ -222,14 +222,20 @@ String getSessionSubtitle(Session session) {
   return 'Unknown';
 }
 
-/// Checks if a session is currently online based on the active flag.
+/// Checks if a session is currently online based on the real-time presence
+/// field.
 bool isSessionOnline(Session session) {
-  return session.active;
+  return session.presence == 'online';
 }
 
 /// Checks if a session should be shown in the active sessions group.
+///
+/// Uses the real-time [Session.presence] field (set via WebSocket) rather
+/// than the persisted [Session.active] flag.  The persisted flag can lag
+/// — a process that has died still has [active] = true until the next
+/// server sync, while [presence] drops to 'offline' immediately.
 bool isSessionActive(Session session) {
-  return session.active;
+  return session.presence == 'online';
 }
 
 /// Formats OS platform string into a more readable format.

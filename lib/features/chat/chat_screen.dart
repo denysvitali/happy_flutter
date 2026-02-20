@@ -30,6 +30,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isSending = false;
   bool _isLoadingMessages = true;
 
+  /// Whether [_doInitialLoad] has already been called (or is in progress).
+  /// Guards against double-invocation when the data-change listener fires
+  /// before [_initializeSyncBackedChat] had a chance to call it directly.
+  bool _didStartInitialLoad = false;
+
   /// Number of messages in `_messages` the last time `_refreshFromSync` was
   /// called.  Used to detect how many older messages were prepended by a
   /// server fetch so that `_visibleCount` can be bumped by the same amount,
@@ -98,16 +103,41 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           if (mounted) _refreshFromSync();
         });
     _dataSyncSubscription = sync.onDataChanged.listen((_) {
-      if (mounted) _refreshFromSync();
+      if (!mounted) return;
+      // If sync wasn't ready when the screen opened, seize the first data
+      // change as the signal that it is now initialized and trigger the
+      // initial load then instead.
+      if (!_didStartInitialLoad && sync.isInitialized) {
+        _doInitialLoad();
+      } else {
+        _refreshFromSync();
+      }
     });
 
     if (!sync.isInitialized) {
+      // Sync not ready yet (e.g. deep-link opened the chat before auth
+      // finished). _dataSyncSubscription will call _doInitialLoad() on the
+      // first data-change event once sync is up.
       return;
     }
 
-    // Trigger initial session subscription and wait for messages to load.
+    await _doInitialLoad();
+  }
+
+  /// Triggers the one-time initial fetch for this session and clears the
+  /// loading spinner once it completes (successfully or not).
+  Future<void> _doInitialLoad() async {
+    if (_didStartInitialLoad) return;
+    _didStartInitialLoad = true;
+
     sync.onSessionVisible(widget.sessionId);
-    await sync.messagesSync[widget.sessionId]?.awaitQueue();
+    try {
+      await sync.messagesSync[widget.sessionId]?.awaitQueue();
+    } catch (_) {
+      // Fetch failed (e.g. encryption not yet set up, network error).
+      // Fall through so we still clear the spinner and show whatever
+      // messages are available locally.
+    }
     if (mounted) {
       _refreshFromSync(markLoaded: true);
     }
