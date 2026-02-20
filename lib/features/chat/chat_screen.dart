@@ -476,6 +476,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ?['contextSize'] as int?,
             isPermissionPending:
                 _session?.agentState?.requests?.isNotEmpty ?? false,
+            isSessionOnline: _session?.isPresenceOnline ?? false,
+            onAbort: _abortSession,
           ),
         ],
       ),
@@ -491,13 +493,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     setState(() => _modelMode = model);
   }
 
+  static const _abortReason =
+      "The user doesn't want to proceed with this tool use. "
+      'The tool use was rejected (eg. if it was a file edit, the '
+      'new_string was NOT written to the file). STOP what you are '
+      'doing and wait for the user to tell you how to proceed.';
+
   Future<void> _stopSession() async {
     if (!sync.isInitialized) return;
     try {
-      await sync.sessionRPC(widget.sessionId, 'interrupt', {});
+      await sync.sessionRPC(
+        widget.sessionId,
+        'abort',
+        {'reason': _abortReason},
+      );
     } catch (e) {
       debugPrint('Stop session failed: $e');
     }
+  }
+
+  Future<void> _abortSession() async {
+    if (!sync.isInitialized) return;
+    await sync.sessionRPC(
+      widget.sessionId,
+      'abort',
+      {'reason': _abortReason},
+    );
   }
 
   void _showSessionMenu(BuildContext context) {

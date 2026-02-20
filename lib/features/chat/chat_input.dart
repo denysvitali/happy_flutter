@@ -106,6 +106,62 @@ const _kSwitchAnim = Duration(milliseconds: 180);
 // Private sub-widgets
 // ---------------------------------------------------------------------------
 
+/// Abort button shown in the input toolbar when the session is online.
+///
+/// Shows a stop icon at rest and a spinner while the abort RPC is
+/// in-flight.  Hidden during permission-request state.
+class _AbortButton extends StatelessWidget {
+  const _AbortButton({
+    required this.isAborting,
+    this.onTap,
+  });
+
+  final bool isAborting;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return GestureDetector(
+      onTap: isAborting ? null : onTap,
+      child: AnimatedContainer(
+        duration: _kBorderAnim,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 6,
+        ),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: cs.outlineVariant.withValues(alpha: 0.7),
+          ),
+        ),
+        child: AnimatedSwitcher(
+          duration: _kSwitchAnim,
+          child: isAborting
+              ? SizedBox(
+                  key: const ValueKey('abort-spinner'),
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: cs.onSurfaceVariant,
+                  ),
+                )
+              : Icon(
+                  key: const ValueKey('abort-icon'),
+                  Icons.stop_rounded,
+                  size: 16,
+                  color: cs.onSurfaceVariant,
+                ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Send / stop button with animated icon crossfade and scale spring.
 class _SendButton extends StatelessWidget {
   /// Creates a [_SendButton].
@@ -337,8 +393,8 @@ class _ContextSizeIndicator extends StatelessWidget {
   }
 }
 
-/// Toolbar row containing permission selector, model selector, and
-/// context indicator.
+/// Toolbar row containing permission selector, model selector, abort
+/// button, and context indicator.
 class _InputToolbar extends StatelessWidget {
   /// Creates an [_InputToolbar].
   const _InputToolbar({
@@ -347,6 +403,9 @@ class _InputToolbar extends StatelessWidget {
     this.onPermissionModeChanged,
     this.modelMode,
     this.contextSize,
+    this.showAbort = false,
+    this.isAborting = false,
+    this.onAbort,
   });
 
   /// Active permission mode (null = server default).
@@ -363,6 +422,15 @@ class _InputToolbar extends StatelessWidget {
 
   /// Current context token usage, or null if unknown.
   final int? contextSize;
+
+  /// Whether to show the abort button.
+  final bool showAbort;
+
+  /// Whether an abort RPC is in-flight (shows spinner).
+  final bool isAborting;
+
+  /// Called when the abort button is tapped.
+  final VoidCallback? onAbort;
 
   @override
   Widget build(BuildContext context) {
@@ -381,6 +449,11 @@ class _InputToolbar extends StatelessWidget {
           onTap: onShowModelPicker,
         ),
         const Spacer(),
+        if (showAbort) ...[
+          _AbortButton(isAborting: isAborting, onTap: onAbort),
+          if (contextSize != null && contextSize! > 0)
+            const SizedBox(width: 6),
+        ],
         if (contextSize != null && contextSize! > 0)
           _ContextSizeIndicator(contextSize: contextSize!),
       ],
@@ -596,6 +669,8 @@ class ChatInput extends ConsumerStatefulWidget {
     this.isSendDisabled = false,
     this.contextSize,
     this.isPermissionPending = false,
+    this.isSessionOnline = false,
+    this.onAbort,
   });
 
   /// Stable identifier for the current session (used for draft storage).
@@ -653,6 +728,14 @@ class ChatInput extends ConsumerStatefulWidget {
   /// decision from the user.
   final bool isPermissionPending;
 
+  /// Whether the session CLI is currently connected (presence == 'online').
+  /// Controls visibility of the abort button in the toolbar.
+  final bool isSessionOnline;
+
+  /// Called when the user taps the abort button.  Must return a [Future]
+  /// so the button can show a spinner until the RPC completes.
+  final Future<void> Function()? onAbort;
+
   @override
   ConsumerState<ChatInput> createState() => _ChatInputState();
 }
@@ -670,6 +753,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   String _previousText = '';
   bool _showAutocomplete = false;
   bool _isFocused = false;
+  bool _isAborting = false;
 
   late final AnimationController _sendScaleController;
   late final Animation<double> _sendScale;
@@ -882,6 +966,25 @@ class _ChatInputState extends ConsumerState<ChatInput>
     widget.onSend();
   }
 
+  Future<void> _onAbortTap() async {
+    if (_isAborting || widget.onAbort == null) return;
+    setState(() => _isAborting = true);
+    final start = DateTime.now();
+    try {
+      await widget.onAbort!();
+    } catch (_) {
+      // Ignore — the caller logs errors.
+    } finally {
+      // Enforce a minimum 300 ms loading time so the spinner is visible.
+      final elapsed = DateTime.now().difference(start);
+      const minDuration = Duration(milliseconds: 300);
+      if (elapsed < minDuration) {
+        await Future<void>.delayed(minDuration - elapsed);
+      }
+      if (mounted) setState(() => _isAborting = false);
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Build
   // ---------------------------------------------------------------------------
@@ -948,6 +1051,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
                 ? _showModelPicker(context)
                 : null,
             contextSize: widget.contextSize,
+            showAbort: widget.isSessionOnline &&
+                !widget.isPermissionPending,
+            isAborting: _isAborting,
+            onAbort: _onAbortTap,
           ),
         ],
       ),
