@@ -82,5 +82,6 @@ flutter:
   assets:
     - assets/
     - assets/images/
+    - google_fonts/
 
   generate: true

@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+// google_fonts runtime fetching is disabled in flutter_test_config.dart;
+// bundled fonts from google_fonts/ are used instead.
 import 'package:happy_flutter/core/api/websocket_client.dart'
     show ConnectionStatus;
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
@@ -13,8 +15,7 @@ import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
-// ThemeHelper uses google_fonts which requires bundled assets in tests.
-// We build equivalent themes without google_fonts for golden rendering.
+import 'package:happy_flutter/core/utils/theme_helper.dart';
 import 'package:happy_flutter/features/chat/message_widget.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 import 'package:happy_flutter/features/chat/widgets/permission_mode_selector.dart';
@@ -108,21 +109,11 @@ class _StubTodoStateNotifier extends TodoStateNotifier {
   Future<void> refreshFromSync() async {}
 }
 
-// ─── Test themes (no google_fonts — uses system fonts) ───────────────────────
+// ─── Test themes (real app themes — fonts loaded via flutter_test_config) ─────
 
-ThemeData _testLightTheme() => ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.light,
-      colorSchemeSeed: const Color(0xFF2563EB),
-      scaffoldBackgroundColor: const Color(0xFFF8FAFF),
-    );
+ThemeData _testLightTheme() => ThemeHelper.buildLightTheme();
 
-ThemeData _testDarkTheme() => ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      colorSchemeSeed: const Color(0xFF2563EB),
-      scaffoldBackgroundColor: const Color(0xFF0F1117),
-    );
+ThemeData _testDarkTheme() => ThemeHelper.buildDarkTheme();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
