@@ -332,7 +332,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     ? '${session.id.substring(0, 8)}...'
                         '${session.id.substring(session.id.length - 8)}'
                     : session.id,
-                onTap: () => _copyToClipboard(context, session.id),
+                onTap: () => _copyToClipboard(session.id),
               ),
               const Divider(height: 1, indent: 52),
               _InfoRow(

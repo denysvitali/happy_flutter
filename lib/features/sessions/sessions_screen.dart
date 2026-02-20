@@ -166,6 +166,14 @@ class _SessionsListContentState
     final hideInactive = ref.watch(
       settingsNotifierProvider.select((s) => s.hideInactiveSessions),
     );
+    final showFlavorIcons = ref.watch(
+      settingsNotifierProvider.select((s) => s.showFlavorIcons),
+    );
+    final avatarStyle = ref.watch(
+      settingsNotifierProvider.select(
+        (s) => _parseAvatarStyle(s.avatarStyle),
+      ),
+    );
     final sessionList = sessions.values.toList();
 
     // Mark as loaded once we get any data or sync is initialized.
@@ -206,10 +214,10 @@ class _SessionsListContentState
         inactiveSessions,
         machines,
         triggerStagger: triggerStagger,
-        compactMode: settings.compactSessionView,
-        hideInactive: settings.hideInactiveSessions,
-        showFlavorIcons: settings.showFlavorIcons,
-        avatarStyle: _parseAvatarStyle(settings.avatarStyle),
+        compactMode: compactMode,
+        hideInactive: hideInactive,
+        showFlavorIcons: showFlavorIcons,
+        avatarStyle: avatarStyle,
       ),
     );
   }

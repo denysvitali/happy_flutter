@@ -5,7 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 
 import 'block_widgets.dart';
 import 'markdown_models.dart';
@@ -64,7 +64,9 @@ class _MarkdownViewState extends State<MarkdownView> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return GestureDetector(
+      onLongPress: _handleLongPress,
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: _blocks.asMap().entries.map((entry) {
@@ -75,6 +77,7 @@ class _MarkdownViewState extends State<MarkdownView> {
 
         return _buildBlock(block, isFirst, isLast);
       }).toList(),
+      ),
     );
   }
 
