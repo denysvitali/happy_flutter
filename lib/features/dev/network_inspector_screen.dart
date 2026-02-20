@@ -37,28 +37,32 @@ class _NetworkInspectorScreenState
   }
 
   String _buildCopyText() {
-    final buf = StringBuffer();
-    buf.writeln('=== HTTP Request Log ===');
-    buf.writeln(
-      'Generated: ${DateTime.now().toIso8601String()}',
-    );
-    buf.writeln(
-      'Total: ${_entries.length} requests  '
-      '↑ ${HttpRequestEntry.formatBytes(httpRequestLogger.totalRequestBytes)}  '
-      '↓ ${HttpRequestEntry.formatBytes(httpRequestLogger.totalResponseBytes)}',
-    );
-    buf.writeln();
-    buf.writeln(
-      '${'#'.padRight(5)}'
-      '${'TIMESTAMP'.padRight(28)}'
-      '${'METHOD'.padRight(8)}'
-      '${'STATUS'.padRight(8)}'
-      '${'↑ REQ'.padLeft(9)}'
-      '${'↓ RES'.padLeft(9)}'
-      '${'DUR'.padLeft(8)}'
-      '  PATH',
-    );
-    buf.writeln('-' * 90);
+    final buf = StringBuffer()
+      ..writeln('=== HTTP Request Log ===')
+      ..writeln(
+        'Generated: ${DateTime.now().toIso8601String()}',
+      )
+      ..writeln(
+        'Total: ${_entries.length} requests  '
+        '↑ ${HttpRequestEntry.formatBytes(
+          httpRequestLogger.totalRequestBytes,
+        )}  '
+        '↓ ${HttpRequestEntry.formatBytes(
+          httpRequestLogger.totalResponseBytes,
+        )}',
+      )
+      ..writeln()
+      ..writeln(
+        '${'#'.padRight(5)}'
+        '${'TIMESTAMP'.padRight(28)}'
+        '${'METHOD'.padRight(8)}'
+        '${'STATUS'.padRight(8)}'
+        '${'↑ REQ'.padLeft(9)}'
+        '${'↓ RES'.padLeft(9)}'
+        '${'DUR'.padLeft(8)}'
+        '  PATH',
+      )
+      ..writeln('-' * 90);
     for (final e in _entries) {
       final num = e.id.toString().padRight(5);
       final ts = e.timestamp.toIso8601String().padRight(28);
