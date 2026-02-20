@@ -3,10 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-
 import 'base64.dart';
-import 'web_crypto.dart' if (dart.library.html) 'web_crypto_web.dart';
 
 /// True AES-256-GCM encryption implementation.
 ///
@@ -52,13 +49,6 @@ class AesGcmEncryption {
   /// The authentication tag is automatically appended to the ciphertext
   /// by the GCM mode, so we don't need to handle it separately.
   static Future<Uint8List> encrypt(dynamic data, Uint8List secretKey) async {
-    if (kIsWeb) {
-      // Use Web Crypto API for web platform
-      final jsonData = jsonEncode(data);
-      final dataBytes = utf8.encode(jsonData);
-      return WebAesGcm.encrypt(dataBytes, secretKey);
-    }
-
     if (secretKey.length != keySize) {
       throw ArgumentError(
         'Key must be $keySize bytes (256 bits), got ${secretKey.length}',
@@ -88,9 +78,7 @@ class AesGcmEncryption {
     // secretBox.cipherText is ciphertext only; mac.bytes is the 16-byte tag
     final cipherText = secretBox.cipherText;
     final macBytes = secretBox.mac.bytes;
-    final result = Uint8List(
-      nonce.length + cipherText.length + macBytes.length,
-    )
+    final result = Uint8List(nonce.length + cipherText.length + macBytes.length)
       ..setAll(0, nonce)
       ..setAll(nonce.length, cipherText)
       ..setAll(nonce.length + cipherText.length, macBytes);
@@ -118,14 +106,6 @@ class AesGcmEncryption {
     Uint8List encryptedData,
     Uint8List secretKey,
   ) async {
-    if (kIsWeb) {
-      // Use Web Crypto API for web platform
-      final decrypted = await WebAesGcm.decrypt(encryptedData, secretKey);
-      if (decrypted == null) return null;
-      final jsonString = utf8.decode(decrypted);
-      return jsonDecode(jsonString);
-    }
-
     try {
       if (secretKey.length != keySize) {
         throw ArgumentError(
