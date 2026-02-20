@@ -3,12 +3,13 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:native_dio_adapter/native_dio_adapter.dart';
 import 'package:sentry_dio/sentry_dio.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../services/http_request_logger.dart';
 import '../services/server_config.dart';
+import 'native_adapter_helper.dart'
+    if (dart.library.js_interop) 'native_adapter_helper_web.dart';
 
 /// Custom Dio client with user CA certificate support and proper error handling
 class ApiClient {
@@ -180,7 +181,7 @@ class ApiClient {
       // Use NativeAdapter which uses Cronet on Android (cupertino_http on iOS/macOS)
       // This automatically respects Android's network_security_config.xml
       // and user-installed CA certificates in the Android trust store
-      final nativeAdapter = NativeAdapter();
+      final nativeAdapter = createNativeAdapter();
       _dio!.httpClientAdapter = nativeAdapter;
       debugPrint(
         'Native HTTP adapter configured for platform-specific CA support',

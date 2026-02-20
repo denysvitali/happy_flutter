@@ -1,5 +1,7 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
+
+import '../../platform_io.dart'
+    if (dart.library.js_interop) '../../platform_stub.dart';
 
 /// Certificate provider for user-added CA certificates on Android
 /// This allows the app to trust certificates installed in the
@@ -11,7 +13,7 @@ class CertificateProvider {
   /// Check if user certificates are available
   /// On Android, this checks for user-added CAs in the system trust store
   bool hasUserCertificates() {
-    if (!kIsWeb && Platform.isAndroid) {
+    if (!kIsWeb && isAndroid) {
       return _checkAndroidUserCertificatesSync();
     }
     return false;
@@ -20,7 +22,7 @@ class CertificateProvider {
   /// Get user CA certificates as bytes
   /// Returns null if no user certificates are available
   Future<Uint8List?> getUserCertificates() {
-    if (!kIsWeb && Platform.isAndroid) {
+    if (!kIsWeb && isAndroid) {
       return _getAndroidUserCertificates();
     }
     return Future.value(null);

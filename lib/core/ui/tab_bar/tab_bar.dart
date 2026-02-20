@@ -1,6 +1,8 @@
-import 'dart:io' show Platform;
-
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+
+import '../../../platform_io.dart'
+    if (dart.library.js_interop) '../../../platform_stub.dart';
 import '../../i18n/app_localizations.dart';
 
 /// Tab type for the app
@@ -278,7 +280,7 @@ class _TabBarState extends State<TabBar> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = context.l10n;
-    final isIOS = Platform.isIOS;
+    final onIOS = !kIsWeb && isIOS;
 
     final bgColor =
         widget.backgroundColor ?? colorScheme.surface;
@@ -293,7 +295,7 @@ class _TabBarState extends State<TabBar> {
           ),
         ),
         // Frosted glass elevation on iOS; clean card on Android
-        boxShadow: isIOS
+        boxShadow: onIOS
             ? [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.06),

@@ -1,12 +1,9 @@
 import 'dart:convert';
-import 'dart:ffi';
-import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sodium/sodium.dart';
 
-import 'web_crypto.dart' if (dart.library.html) 'web_crypto_web.dart';
+import 'sodium_loader.dart';
 
 /// CryptoSecretBox encryption using libsodium (crypto_secretbox_easy)
 /// Compatible with React Native's @more-tech/react-native-libsodium
@@ -18,36 +15,14 @@ class CryptoSecretBox {
   /// Initialize sodium (lazy initialization)
   static Future<Sodium> get _sodiumInstance async {
     if (_sodium != null) return _sodium!;
-
-    if (kIsWeb) {
-      throw UnsupportedError('Sodium is not supported on web platform');
-    }
-
-    // Load the platform-specific libsodium dynamic library.
-    DynamicLibrary loader() {
-      if (Platform.isAndroid) {
-        return DynamicLibrary.open('libsodium.so');
-      } else if (Platform.isIOS || Platform.isMacOS) {
-        return DynamicLibrary.open('libsodium.dylib');
-      } else if (Platform.isLinux) {
-        return DynamicLibrary.open('libsodium.so');
-      } else if (Platform.isWindows) {
-        return DynamicLibrary.open('libsodium.dll');
-      }
-      throw UnsupportedError(
-        'Unsupported platform for sodium: ${Platform.operatingSystem}',
-      );
-    }
-
-    _sodium = await SodiumInit.init(loader);
+    _sodium = await loadSodium();
     return _sodium!;
   }
 
-  static Future<Uint8List> encrypt(dynamic data, Uint8List secretKey) async {
-    if (kIsWeb) {
-      return WebCryptoSecretBox.encrypt(data, secretKey);
-    }
-
+  static Future<Uint8List> encrypt(
+    dynamic data,
+    Uint8List secretKey,
+  ) async {
     final sodium = await _sodiumInstance;
     final nonce = sodium.randombytes.buf(_nonceSize);
     final jsonData = jsonEncode(data);
@@ -82,10 +57,6 @@ class CryptoSecretBox {
     Uint8List encryptedData,
     Uint8List secretKey,
   ) async {
-    if (kIsWeb) {
-      return WebCryptoSecretBox.decrypt(encryptedData, secretKey);
-    }
-
     try {
       if (encryptedData.length < _nonceSize + 16) {
         return null;
@@ -119,5 +90,4 @@ class CryptoSecretBox {
       return null;
     }
   }
-
 }
