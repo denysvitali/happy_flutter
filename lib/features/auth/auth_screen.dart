@@ -398,6 +398,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       return '${l10n.authServerError} ($statusCode)\n${e.message}';
     } else if (e is SSLError) {
       return '${l10n.authCertificateError}\n${e.message}';
+    } else if (e is ExpiredError) {
+      return e.messageText;
+    } else if (e is AuthError) {
+      return e.messageText;
     } else if (e is AuthException) {
       return e.message;
     }
@@ -532,19 +536,24 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       );
     } else {
       body = SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xxl),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(height: AppSpacing.xxl),
-                ...notices,
-                header,
-                const SizedBox(height: AppSpacing.xxxl + AppSpacing.lg),
-                SizedBox(width: 280, child: buttons),
-                const SizedBox(height: AppSpacing.xxl),
-              ],
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xxl),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: AppSpacing.xxl),
+                    ...notices,
+                    header,
+                    const SizedBox(height: AppSpacing.xxxl + AppSpacing.lg),
+                    SizedBox(width: 280, child: buttons),
+                    const SizedBox(height: AppSpacing.xxl),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -684,20 +693,25 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     return Scaffold(
       appBar: appBar,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xxl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: AppSpacing.lg),
-                instructions,
-                const SizedBox(height: AppSpacing.xxxl),
-                qrSection,
-                const SizedBox(height: AppSpacing.xxl),
-                SizedBox(width: 280, child: actions),
-                const SizedBox(height: AppSpacing.xxl),
-              ],
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xxl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: AppSpacing.lg),
+                    instructions,
+                    const SizedBox(height: AppSpacing.xxxl),
+                    qrSection,
+                    const SizedBox(height: AppSpacing.xxl),
+                    SizedBox(width: 280, child: actions),
+                    const SizedBox(height: AppSpacing.xxl),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
