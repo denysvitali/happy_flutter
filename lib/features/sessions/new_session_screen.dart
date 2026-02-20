@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -55,7 +57,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
       );
       if (!mounted) return;
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
-      context.go('/chat/$sessionId');
+      unawaited(context.push('/chat/$sessionId'));
     } catch (e) {
       if (!mounted) return;
       setState(() => _isCreating = false);

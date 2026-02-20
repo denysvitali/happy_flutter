@@ -265,9 +265,11 @@ class _SessionsListContentState
           final capturedIndex = staggerIndex;
           final card = CompactActiveSessionCard(
             session: session,
-            onTap: () => context.goNamed(
-              'chat',
-              pathParameters: {'sessionId': session.id},
+            onTap: () => unawaited(
+              context.pushNamed(
+                'chat',
+                pathParameters: {'sessionId': session.id},
+              ),
             ),
             showFlavorIcon: showFlavorIcons,
             avatarStyle: avatarStyle,
@@ -365,9 +367,11 @@ class _SessionsListContentState
                 session: session,
                 child: SessionCard(
                   session: session,
-                  onTap: () => context.goNamed(
-                    'chat',
-                    pathParameters: {'sessionId': session.id},
+                  onTap: () => unawaited(
+                    context.pushNamed(
+                      'chat',
+                      pathParameters: {'sessionId': session.id},
+                    ),
                   ),
                   isFirst: isFirst,
                   isLast: isLast,
@@ -2001,9 +2005,11 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       if (!mounted) return;
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       navigator.pop();
-      router.goNamed(
-        'chat',
-        pathParameters: {'sessionId': sessionId},
+      unawaited(
+        router.pushNamed(
+          'chat',
+          pathParameters: {'sessionId': sessionId},
+        ),
       );
     } catch (e) {
       if (!mounted) return;
