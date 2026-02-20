@@ -318,7 +318,7 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
     return RichText(
       text: TextSpan(
         style: TextStyle(
-          fontSize: fontSize ?? 15,
+          fontSize: fontSize ?? 14,
           fontWeight: fontWeight,
           height: 1.5,
           color: theme.colorScheme.onSurface,
@@ -333,7 +333,7 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
                 : span.styles.contains(MarkdownTextStyle.semibold)
                     ? FontWeight.w600
                     : fontWeight,
-            fontSize: fontSize ?? 15,
+            fontSize: fontSize ?? 14,
             color: theme.colorScheme.onSurface,
             fontFamily:
                 span.styles.contains(MarkdownTextStyle.code)
@@ -371,90 +371,110 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
     ThemeData theme,
   ) {
     final columnCount = headers.length;
-    final minWidth = columnCount > 0
-        ? (300 / columnCount).floor().toDouble()
-        : 100.0;
-    final safeMinWidth = minWidth < 100.0 ? 100.0 : minWidth;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Container(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(7)),
-              ),
-              child: Row(
-                children: headers.map((header) {
-                  return Container(
-                    width: safeMinWidth,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    child: Text(
-                      header,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-            // Rows
-            ...rows.asMap().entries.map((entry) {
-              final rowIndex = entry.key;
-              final row = entry.value;
-              final isLastRow = rowIndex == rows.length - 1;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final available = constraints.maxWidth;
+        final colWidth = columnCount > 0
+            ? (available / columnCount).clamp(72.0, double.infinity)
+            : available;
+        final tableWidth = colWidth * columnCount;
+        final needsScroll = tableWidth > available + 0.5;
 
-              return Container(
+        final tableContent = Container(
+          width: tableWidth,
+          decoration: BoxDecoration(
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Container(
                 decoration: BoxDecoration(
-                  border: Border(
-                    bottom: isLastRow
-                        ? BorderSide.none
-                        : BorderSide(color: theme.colorScheme.outlineVariant),
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(7),
                   ),
                 ),
                 child: Row(
-                  children: headers.asMap().entries.map((cellEntry) {
-                    final cellIndex = cellEntry.key;
-                    final cellText =
-                        row.length > cellIndex ? row[cellIndex] : '';
-
-                    return Container(
-                      width: safeMinWidth,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      child: Text(
-                        cellText,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: theme.colorScheme.onSurface,
+                  children: headers.map((header) {
+                    return SizedBox(
+                      width: colWidth,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
+                        child: Text(
+                          header,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     );
                   }).toList(),
                 ),
-              );
-            }),
-          ],
-        ),
-      ),
+              ),
+              // Rows
+              ...rows.asMap().entries.map((entry) {
+                final rowIndex = entry.key;
+                final row = entry.value;
+                final isLastRow = rowIndex == rows.length - 1;
+
+                return Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: isLastRow
+                          ? BorderSide.none
+                          : BorderSide(
+                              color: theme.colorScheme.outlineVariant,
+                            ),
+                    ),
+                  ),
+                  child: Row(
+                    children: headers.asMap().entries.map((cellEntry) {
+                      final cellIndex = cellEntry.key;
+                      final cellText =
+                          row.length > cellIndex ? row[cellIndex] : '';
+
+                      return SizedBox(
+                        width: colWidth,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          child: Text(
+                            cellText,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+
+        if (needsScroll) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: tableContent,
+          );
+        }
+        return tableContent;
+      },
     );
   }
 }

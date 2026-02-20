@@ -57,7 +57,7 @@ class _TextBlockWidgetState extends State<TextBlockWidget> {
     final inheritedColor = DefaultTextStyle.of(context).style.color;
     final baseStyle = DefaultTextStyle.of(context).style.merge(
           TextStyle(
-            fontSize: 15,
+            fontSize: 14,
             height: 1.45,
             color: inheritedColor ?? cs.onSurface,
           ),
@@ -238,7 +238,7 @@ class _ListBlockWidgetState extends State<ListBlockWidget> {
               child: Text(
                 '•',
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 14,
                   height: 1.45,
                   color: textColor,
                 ),
@@ -248,7 +248,7 @@ class _ListBlockWidgetState extends State<ListBlockWidget> {
               child: RichText(
                 text: TextSpan(
                   style: DefaultTextStyle.of(context).style.copyWith(
-                        fontSize: 15,
+                        fontSize: 14,
                         height: 1.45,
                         color: textColor,
                       ),
@@ -657,95 +657,115 @@ class TableBlockWidget extends StatelessWidget {
     final theme = Theme.of(context);
     final inheritedColor = DefaultTextStyle.of(context).style.color;
     final columnCount = headers.length;
-    final minWidth = columnCount > 0
-        ? (300 / columnCount).floor().toDouble()
-        : 100.0;
-    final safeMinWidth = minWidth < 100.0 ? 100.0 : minWidth;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header row
-            Container(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(7),
-                  topRight: Radius.circular(7),
-                ),
-              ),
-              child: Row(
-                children: headers.map((header) {
-                  return Container(
-                    width: safeMinWidth,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    child: Text(
-                      header,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-            // Data rows
-            ...rows.asMap().entries.map((entry) {
-              final rowIndex = entry.key;
-              final row = entry.value;
-              final isLastRow = rowIndex == rows.length - 1;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Distribute columns evenly across available width; min 72px each.
+        final available = constraints.maxWidth;
+        final colWidth = columnCount > 0
+            ? (available / columnCount).clamp(72.0, double.infinity)
+            : available;
+        final tableWidth = colWidth * columnCount;
+        final needsScroll = tableWidth > available + 0.5;
 
-              return Container(
+        final tableContent = Container(
+          width: tableWidth,
+          decoration: BoxDecoration(
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header row
+              Container(
                 decoration: BoxDecoration(
-                  border: Border(
-                    bottom: isLastRow
-                        ? BorderSide.none
-                        : BorderSide(color: theme.colorScheme.outlineVariant),
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(7),
+                    topRight: Radius.circular(7),
                   ),
                 ),
                 child: Row(
-                  children: headers.asMap().entries.map((cellEntry) {
-                    final cellIndex = cellEntry.key;
-                    final cellText =
-                        row.length > cellIndex ? row[cellIndex] : '';
-
-                    return Container(
-                      width: safeMinWidth,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      child: Text(
-                        cellText,
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 1.4,
-                          color: inheritedColor ??
-                              theme.colorScheme.onSurface,
+                  children: headers.map((header) {
+                    return SizedBox(
+                      width: colWidth,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
+                        child: Text(
+                          header,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     );
                   }).toList(),
                 ),
-              );
-            }),
-          ],
-        ),
-      ),
+              ),
+              // Data rows
+              ...rows.asMap().entries.map((entry) {
+                final rowIndex = entry.key;
+                final row = entry.value;
+                final isLastRow = rowIndex == rows.length - 1;
+
+                return Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: isLastRow
+                          ? BorderSide.none
+                          : BorderSide(
+                              color: theme.colorScheme.outlineVariant,
+                            ),
+                    ),
+                  ),
+                  child: Row(
+                    children: headers.asMap().entries.map((cellEntry) {
+                      final cellIndex = cellEntry.key;
+                      final cellText =
+                          row.length > cellIndex ? row[cellIndex] : '';
+
+                      return SizedBox(
+                        width: colWidth,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          child: Text(
+                            cellText,
+                            style: TextStyle(
+                              fontSize: 13,
+                              height: 1.4,
+                              color: inheritedColor ??
+                                  theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+
+        if (needsScroll) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: tableContent,
+          );
+        }
+        return tableContent;
+      },
     );
   }
 }
