@@ -153,6 +153,10 @@ class _SessionsListContentState
   bool _hasLoaded = false;
   // Track list key to trigger stagger animation on first load.
   bool _animationTriggered = false;
+  // Collapsed path groups for active sessions.
+  final Set<String> _collapsedActivePaths = {};
+  // Collapsed folder groups for archived sessions.
+  final Set<String> _collapsedFolderKeys = {};
 
   @override
   Widget build(BuildContext context) {
@@ -253,38 +257,54 @@ class _SessionsListContentState
 
       for (final entry in (activeByPath.entries.toList()
           ..sort((a, b) => a.key.compareTo(b.key)))) {
+        final pathKey = entry.key;
+        final isPathCollapsed =
+            _collapsedActivePaths.contains(pathKey);
         children.add(
           _FadeInSection(
             delay: Duration(
               milliseconds: _kStaggerStep * staggerIndex,
             ),
-            child: _PathHeader(path: entry.key),
+            child: _PathHeader(
+              path: pathKey,
+              sessionCount: entry.value.length,
+              isCollapsed: isPathCollapsed,
+              onToggle: () => setState(() {
+                if (isPathCollapsed) {
+                  _collapsedActivePaths.remove(pathKey);
+                } else {
+                  _collapsedActivePaths.add(pathKey);
+                }
+              }),
+            ),
           ),
         );
-        for (final session in entry.value) {
-          final capturedIndex = staggerIndex;
-          final card = CompactActiveSessionCard(
-            session: session,
-            onTap: () => unawaited(
-              context.pushNamed(
-                'chat',
-                pathParameters: {'sessionId': session.id},
+        if (!isPathCollapsed) {
+          for (final session in entry.value) {
+            final capturedIndex = staggerIndex;
+            final card = CompactActiveSessionCard(
+              session: session,
+              onTap: () => unawaited(
+                context.pushNamed(
+                  'chat',
+                  pathParameters: {'sessionId': session.id},
+                ),
               ),
-            ),
-            showFlavorIcon: showFlavorIcons,
-            avatarStyle: avatarStyle,
-          );
-          children.add(
-            _StaggeredSlideIn(
-              index: capturedIndex,
-              animate: triggerStagger,
-              child: _DismissibleActiveSession(
-                session: session,
-                child: card,
+              showFlavorIcon: showFlavorIcons,
+              avatarStyle: avatarStyle,
+            );
+            children.add(
+              _StaggeredSlideIn(
+                index: capturedIndex,
+                animate: triggerStagger,
+                child: _DismissibleActiveSession(
+                  session: session,
+                  child: card,
+                ),
               ),
-            ),
-          );
-          staggerIndex++;
+            );
+            staggerIndex++;
+          }
         }
       }
     }
@@ -309,6 +329,14 @@ class _SessionsListContentState
         animate: triggerStagger,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
+        collapsedFolderKeys: _collapsedFolderKeys,
+        onToggleFolder: (key) => setState(() {
+          if (_collapsedFolderKeys.contains(key)) {
+            _collapsedFolderKeys.remove(key);
+          } else {
+            _collapsedFolderKeys.add(key);
+          }
+        }),
       );
       children.addAll(archivedItems);
     }
@@ -327,11 +355,14 @@ class _SessionsListContentState
     required bool animate,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
+    required Set<String> collapsedFolderKeys,
+    required void Function(String) onToggleFolder,
   }) {
     final folderItems = groupSessionsByFolder(sessions, machines);
 
     var itemIndex = startIndex;
     final widgets = <Widget>[];
+    String? currentFolderKey;
 
     for (final item in folderItems) {
       switch (item) {
@@ -339,7 +370,10 @@ class _SessionsListContentState
           :final displayPath,
           :final machineName,
           :final sessionCount,
+          :final folderKey,
         ):
+          currentFolderKey = folderKey;
+          final isCollapsed = collapsedFolderKeys.contains(folderKey);
           widgets.add(
             _FadeInSection(
               delay: Duration(
@@ -349,6 +383,8 @@ class _SessionsListContentState
                 displayPath: displayPath,
                 machineName: machineName,
                 sessionCount: sessionCount,
+                isCollapsed: isCollapsed,
+                onToggle: () => onToggleFolder(folderKey),
               ),
             ),
           );
@@ -358,32 +394,36 @@ class _SessionsListContentState
           :final isLast,
           :final isSingle,
         ):
-          final capturedIndex = itemIndex;
-          widgets.add(
-            _StaggeredSlideIn(
-              index: capturedIndex,
-              animate: animate,
-              child: _DismissibleInactiveSession(
-                session: session,
-                child: SessionCard(
+          final collapsed = currentFolderKey != null &&
+              collapsedFolderKeys.contains(currentFolderKey);
+          if (!collapsed) {
+            final capturedIndex = itemIndex;
+            widgets.add(
+              _StaggeredSlideIn(
+                index: capturedIndex,
+                animate: animate,
+                child: _DismissibleInactiveSession(
                   session: session,
-                  onTap: () => unawaited(
-                    context.pushNamed(
-                      'chat',
-                      pathParameters: {'sessionId': session.id},
+                  child: SessionCard(
+                    session: session,
+                    onTap: () => unawaited(
+                      context.pushNamed(
+                        'chat',
+                        pathParameters: {'sessionId': session.id},
+                      ),
                     ),
+                    isFirst: isFirst,
+                    isLast: isLast,
+                    isSingle: isSingle,
+                    compact: true,
+                    showFlavorIcon: showFlavorIcons,
+                    avatarStyle: avatarStyle,
                   ),
-                  isFirst: isFirst,
-                  isLast: isLast,
-                  isSingle: isSingle,
-                  compact: true,
-                  showFlavorIcon: showFlavorIcons,
-                  avatarStyle: avatarStyle,
                 ),
               ),
-            ),
-          );
-          itemIndex++;
+            );
+            itemIndex++;
+          }
       }
     }
 
@@ -689,23 +729,59 @@ class _FadeInSectionState extends State<_FadeInSection>
 // ─── Section / header widgets ─────────────────────────────────────────────────
 
 /// Path header for grouping active sessions by working directory.
+/// Tappable to collapse/expand the group.
 class _PathHeader extends StatelessWidget {
-  const _PathHeader({required this.path});
+  const _PathHeader({
+    required this.path,
+    required this.sessionCount,
+    required this.isCollapsed,
+    required this.onToggle,
+  });
   final String path;
+  final int sessionCount;
+  final bool isCollapsed;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      child: Text(
-        path,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          fontFamily: 'monospace',
-          fontSize: 12,
+    final cs = theme.colorScheme;
+    return InkWell(
+      onTap: onToggle,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                path,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text(
+              '$sessionCount',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(width: 2),
+            AnimatedRotation(
+              turns: isCollapsed ? -0.25 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                Icons.expand_more,
+                size: 16,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
-        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -739,12 +815,14 @@ class _SectionHeader extends StatelessWidget {
 ///
 /// Shows the folder path (monospace) with the machine name on the right,
 /// and a session count label. Styled more subdued than [_PathHeader] since
-/// these are archived sessions.
+/// these are archived sessions. Tappable to collapse/expand the group.
 class _FolderSectionHeader extends StatelessWidget {
   const _FolderSectionHeader({
     required this.displayPath,
     required this.machineName,
     required this.sessionCount,
+    required this.isCollapsed,
+    required this.onToggle,
   });
 
   /// The folder path to display (with ~ substitution).
@@ -756,6 +834,12 @@ class _FolderSectionHeader extends StatelessWidget {
   /// Number of sessions in this folder group.
   final int sessionCount;
 
+  /// Whether the group is currently collapsed.
+  final bool isCollapsed;
+
+  /// Called when the header is tapped.
+  final VoidCallback onToggle;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -763,58 +847,71 @@ class _FolderSectionHeader extends StatelessWidget {
     final mutedColor = cs.onSurfaceVariant.withValues(alpha: 0.7);
     final badgeColor = cs.onSurfaceVariant.withValues(alpha: 0.08);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  displayPath,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: mutedColor,
-                    fontFamily: 'monospace',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+    return InkWell(
+      onTap: onToggle,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    displayPath,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: mutedColor,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 2,
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: badgeColor,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    machineName,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                decoration: BoxDecoration(
-                  color: badgeColor,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  machineName,
-                  style: theme.textTheme.labelSmall?.copyWith(
+                const SizedBox(width: 4),
+                AnimatedRotation(
+                  turns: isCollapsed ? -0.25 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    Icons.expand_more,
+                    size: 16,
                     color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(
-            sessionCount == 1
-                ? '1 session'
-                : '$sessionCount sessions',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onSurfaceVariant.withValues(alpha: 0.45),
-              fontSize: 10,
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 2),
+            Text(
+              sessionCount == 1
+                  ? '1 session'
+                  : '$sessionCount sessions',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.45),
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
