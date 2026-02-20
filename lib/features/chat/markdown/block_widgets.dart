@@ -47,12 +47,6 @@ class _TextBlockWidgetState extends State<TextBlockWidget> {
     super.dispose();
   }
 
-  TapGestureRecognizer _makeRecognizer(VoidCallback onTap) {
-    final r = TapGestureRecognizer()..onTap = onTap;
-    _recognizers.add(r);
-    return r;
-  }
-
   @override
   Widget build(BuildContext context) {
     _disposeRecognizers();
@@ -143,12 +137,6 @@ class _HeaderBlockWidgetState extends State<HeaderBlockWidget> {
   void dispose() {
     _disposeRecognizers();
     super.dispose();
-  }
-
-  TapGestureRecognizer _makeRecognizer(VoidCallback onTap) {
-    final r = TapGestureRecognizer()..onTap = onTap;
-    _recognizers.add(r);
-    return r;
   }
 
   @override
@@ -751,6 +739,7 @@ class InlineLinkWidget extends StatelessWidget {
     required this.text,
     required this.url,
     required this.baseStyle,
+    super.key,
   });
 
   final String text;
