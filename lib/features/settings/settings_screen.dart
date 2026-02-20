@@ -196,15 +196,6 @@ class SettingsScreen extends ConsumerWidget {
           onTap: () => context.push('/settings/language'),
         ),
         _SettingsToggleRow(
-          icon: Icons.view_compact_outlined,
-          title: l10n.settingsCompactSessionView,
-          subtitle: l10n.settingsCompactSessionViewSubtitle,
-          value: settings.compactSessionView,
-          onChanged: (value) => ref
-              .read(settingsNotifierProvider.notifier)
-              .updateSetting('compactSessionView', value),
-        ),
-        _SettingsToggleRow(
           icon: Icons.emoji_emotions_outlined,
           title: l10n.settingsShowFlavorIcons,
           subtitle: l10n.settingsShowFlavorIconsSubtitle,

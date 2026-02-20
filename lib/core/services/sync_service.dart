@@ -137,6 +137,8 @@ what you have, you must use the options mode.
   Purchases _purchases = Purchases.defaults;
   final Map<String, Session> _sessions = <String, Session>{};
   final Map<String, Machine> _machines = <String, Machine>{};
+  // Timers that drop presence back to 'offline' if no activity arrives.
+  final Map<String, Timer> _presenceTimers = {};
   Profile? _profile;
 
   // Change notification streams
@@ -407,6 +409,7 @@ what you have, you must use the options mode.
       _sessionMessages.remove(sessionId);
       _todoLists.remove(sessionId);
       _sessions.remove(sessionId);
+      _presenceTimers.remove(sessionId)?.cancel();
       _sessionDataKeys.remove(sessionId);
       encryption.removeSessionEncryption(sessionId);
     }
@@ -532,6 +535,24 @@ what you have, you must use the options mode.
           presence: 'online',
         );
         _dataChangeController.add(null);
+        // Reset staleness timer — if no further activity arrives within
+        // 60 s, drop presence back to 'offline' so the session stops
+        // appearing in the Active section.
+        _presenceTimers[sessionId]?.cancel();
+        _presenceTimers[sessionId] = Timer(
+          const Duration(seconds: 60),
+          () {
+            _presenceTimers.remove(sessionId);
+            final current = _sessions[sessionId];
+            if (current != null && current.presence == 'online') {
+              _sessions[sessionId] = current.copyWith(
+                presence: 'offline',
+                thinking: false,
+              );
+              _dataChangeController.add(null);
+            }
+          },
+        );
       }
       return;
     }
@@ -656,6 +677,11 @@ what you have, you must use the options mode.
         }
       }
 
+      // Cancel all presence timers — server data takes precedence.
+      for (final timer in _presenceTimers.values) {
+        timer.cancel();
+      }
+      _presenceTimers.clear();
       _sessions
         ..clear()
         ..addEntries(

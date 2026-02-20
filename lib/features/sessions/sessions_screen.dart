@@ -160,9 +160,7 @@ class _SessionsListContentState
     final machines = ref.watch(machinesNotifierProvider);
     // Only watch the specific settings fields that affect session display to
     // avoid re-sorting on every unrelated settings change.
-    final compactMode = ref.watch(
-      settingsNotifierProvider.select((s) => s.compactSessionView),
-    );
+    const compactMode = true;
     final hideInactive = ref.watch(
       settingsNotifierProvider.select((s) => s.hideInactiveSessions),
     );
