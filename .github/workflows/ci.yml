@@ -427,7 +427,7 @@ jobs:
         run: flutter pub run sodium_libs:update_web
 
       - name: Build Web
-        run: flutter build web --release --base-href '/happy_flutter/'
+        run: flutter build web --release --base-href '/'
 
       - name: Upload Web Build
         uses: actions/upload-artifact@v4
