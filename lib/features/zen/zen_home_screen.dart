@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Zen home screen — displays all todo items grouped by status.
 class ZenHomeScreen extends ConsumerStatefulWidget {
@@ -66,7 +68,7 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen> {
           children: [
             Text(context.l10n.zenTitle),
             if (totalCount > 0) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               _TaskCountBadge(
                 completed: completedCount,
                 total: totalCount,
@@ -76,13 +78,29 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen> {
         ),
       ),
       body: allTodos.isEmpty
-          ? _EmptyState(onAddTask: () => context.push('/zen/new'))
+          ? AppEmptyState(
+              icon: Icons.check_circle_outline,
+              title: context.l10n.zenEmptyTitle,
+              subtitle: context.l10n.zenEmptySubtitle,
+              action: FilledButton.icon(
+                onPressed: () => context.push('/zen/new'),
+                icon: const Icon(Icons.add),
+                label: Text(context.l10n.zenNewTask),
+              ),
+            )
           : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                80,
+              ),
               children: [
                 if (activeTodos.isNotEmpty) ...[
-                  _SectionHeader(title: context.l10n.zenSectionActive),
-                  const SizedBox(height: 4),
+                  _SectionHeader(
+                    title: context.l10n.zenSectionActive,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
                   ...activeTodos.map(
                     (item) => _TodoItemCard(
                       item: item,
@@ -97,11 +115,11 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen> {
                   ),
                 ],
                 if (completedTodos.isNotEmpty) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.lg),
                   _SectionHeader(
                     title: context.l10n.zenSectionCompleted,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.xs),
                   ...completedTodos.map(
                     (item) => _TodoItemCard(
                       item: item,
@@ -139,10 +157,13 @@ class _TaskCountBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs / 2,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Text(
         '$completed/$total',
@@ -164,7 +185,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Text(
         title,
         style: theme.textTheme.titleSmall?.copyWith(
@@ -187,28 +208,38 @@ class _TodoItemCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDone = item.status.isTerminal;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-        ),
-      ),
-      child: ListTile(
-        onTap: onTap,
-        leading: _StatusIcon(status: item.status),
-        title: Text(
-          item.content,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            decoration: isDone ? TextDecoration.lineThrough : null,
-            color: isDone ? theme.colorScheme.onSurfaceVariant : null,
+    return Opacity(
+      opacity: isDone ? 0.55 : 1.0,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+        elevation: AppElevation.none,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
           ),
         ),
-        trailing: _PriorityBadge(priority: item.priority),
+        child: ListTile(
+          onTap: onTap,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
+          ),
+          leading: _StatusIcon(status: item.status),
+          title: Text(
+            item.content,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              decoration: isDone ? TextDecoration.lineThrough : null,
+              decorationColor: theme.colorScheme.onSurface,
+              color: isDone
+                  ? theme.colorScheme.onSurfaceVariant
+                  : theme.colorScheme.onSurface,
+            ),
+          ),
+          trailing: _PriorityDot(priority: item.priority),
+        ),
       ),
     );
   }
@@ -247,8 +278,9 @@ class _StatusIcon extends StatelessWidget {
   }
 }
 
-class _PriorityBadge extends StatelessWidget {
-  const _PriorityBadge({required this.priority});
+/// A compact colored dot indicating priority level.
+class _PriorityDot extends StatelessWidget {
+  const _PriorityDot({required this.priority});
 
   final String priority;
 
@@ -267,70 +299,7 @@ class _PriorityBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = _color(priority, theme.colorScheme);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
-      ),
-      child: Text(
-        priority,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onAddTask});
-
-  final VoidCallback onAddTask;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 72,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              context.l10n.zenEmptyTitle,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              context.l10n.zenEmptySubtitle,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: onAddTask,
-              icon: const Icon(Icons.add),
-              label: Text(context.l10n.zenNewTask),
-            ),
-          ],
-        ),
-      ),
-    );
+    final color = _color(priority, Theme.of(context).colorScheme);
+    return AppStatusDot(color: color, size: 10);
   }
 }

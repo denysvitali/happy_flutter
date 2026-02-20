@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../tool_section_view.dart';
 
 /// View for displaying Bash tool command and output.
@@ -39,7 +40,7 @@ class BashView extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _SectionLabel(label: 'COMMAND'),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           CommandView(
             command: command,
             description: description,
@@ -171,7 +172,7 @@ class _CommandViewState extends State<CommandView> {
             widget.exitCode != null &&
             widget.exitCode == 0)
           Padding(
-            padding: const EdgeInsets.only(top: 6),
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: Text(
               'No output',
               style: theme.textTheme.bodySmall?.copyWith(
@@ -207,7 +208,7 @@ class _TerminalCommandBar extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: const Color(0xFF30363D)),
       ),
       child: Column(
@@ -216,12 +217,15 @@ class _TerminalCommandBar extends StatelessWidget {
         children: [
           // Title bar — description (or "bash") + copy button
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm + 2,
+              vertical: AppSpacing.sm - 2,
+            ),
             decoration: const BoxDecoration(
               color: Color(0xFF161B22),
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
+                topLeft: Radius.circular(AppRadius.sm),
+                topRight: Radius.circular(AppRadius.sm),
               ),
               border: Border(
                 bottom: BorderSide(color: Color(0xFF30363D)),
@@ -234,7 +238,7 @@ class _TerminalCommandBar extends StatelessWidget {
                   size: 14,
                   color: Color(0xFF8B949E),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.sm - 2),
                 Expanded(
                   child: Text(
                     label,
@@ -253,11 +257,11 @@ class _TerminalCommandBar extends StatelessWidget {
               ],
             ),
           ),
-          // Command — single line, truncated
+          // Command — single line, truncated with "$" prefix
           Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm + 2,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -271,10 +275,10 @@ class _TerminalCommandBar extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    // Collapse newlines so multi-line commands show on one line
+                    // Collapse newlines so multi-line commands fit one line
                     command.replaceAll('\n', ' '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -330,10 +334,10 @@ class _TerminalOutputSection extends StatelessWidget {
         isError ? const Color(0xFF160B0B) : const Color(0xFF0D1117);
 
     return Container(
-      margin: const EdgeInsets.only(top: 6),
+      margin: const EdgeInsets.only(top: AppSpacing.sm - 2),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: borderColor),
       ),
       child: Column(
@@ -342,12 +346,15 @@ class _TerminalOutputSection extends StatelessWidget {
         children: [
           // Section header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm + 2,
+              vertical: AppSpacing.xs + 1,
+            ),
             decoration: BoxDecoration(
               color: const Color(0xFF161B22),
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
+                topLeft: Radius.circular(AppRadius.sm),
+                topRight: Radius.circular(AppRadius.sm),
               ),
               border: Border(bottom: BorderSide(color: borderColor)),
             ),
@@ -355,7 +362,7 @@ class _TerminalOutputSection extends StatelessWidget {
               children: [
                 if (isError)
                   const Padding(
-                    padding: EdgeInsets.only(right: 5),
+                    padding: EdgeInsets.only(right: AppSpacing.xs + 1),
                     child: Icon(
                       Icons.error_outline,
                       size: 13,
@@ -380,14 +387,14 @@ class _TerminalOutputSection extends StatelessWidget {
                     fontSize: 10,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 _CopyButton(text: output, iconSize: 13),
               ],
             ),
           ),
           // Output text
           Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(AppSpacing.sm + 2),
             child: SelectableText(
               visibleText,
               style: TextStyle(
@@ -432,15 +439,18 @@ class _ExitCodeBadge extends StatelessWidget {
         : const Color(0xFF5A1E1E);
 
     return Padding(
-      padding: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.only(top: AppSpacing.sm - 2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs - 1,
+            ),
             decoration: BoxDecoration(
               color: bgColor,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(AppRadius.xs),
               border: Border.all(color: borderColor),
             ),
             child: Row(
@@ -453,7 +463,7 @@ class _ExitCodeBadge extends StatelessWidget {
                   size: 12,
                   color: color,
                 ),
-                const SizedBox(width: 5),
+                const SizedBox(width: AppSpacing.xs + 1),
                 Text(
                   'exit $exitCode',
                   style: TextStyle(
@@ -491,13 +501,13 @@ class _ShowMoreButton extends StatelessWidget {
       onTap: onToggle,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm - 2),
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: borderColor)),
           color: const Color(0xFF161B22),
           borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(8),
-            bottomRight: Radius.circular(8),
+            bottomLeft: Radius.circular(AppRadius.sm),
+            bottomRight: Radius.circular(AppRadius.sm),
           ),
         ),
         child: Row(
@@ -508,7 +518,7 @@ class _ShowMoreButton extends StatelessWidget {
               size: 14,
               color: const Color(0xFF8B949E),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
             Text(
               expanded
                   ? 'Show less'
@@ -613,10 +623,13 @@ class FilePillChip extends StatelessWidget {
         lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.sm - 2),
         border: Border.all(
           color: cs.outlineVariant.withValues(alpha: 0.6),
           width: 0.5,
@@ -630,7 +643,7 @@ class FilePillChip extends StatelessWidget {
             size: 13,
             color: cs.onSurfaceVariant,
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: AppSpacing.xs + 1),
           Flexible(
             child: RichText(
               overflow: TextOverflow.ellipsis,

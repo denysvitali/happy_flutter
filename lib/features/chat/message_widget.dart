@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/theme/app_tokens.dart';
 import 'markdown/markdown.dart';
 import 'tools/tools.dart';
 
@@ -79,7 +80,10 @@ class _MessageWidgetState extends State<MessageWidget>
     if (kind == 'tool-call') {
       final messageId = widget.messageData['id'] as String?;
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
         child: ToolView(
           tool: widget.messageData,
           metadata: widget.metadata,
@@ -146,9 +150,9 @@ class _UserBubble extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.only(
           left: 48,
-          right: 10,
+          right: AppSpacing.sm,
           top: 1,
-          bottom: 4,
+          bottom: AppSpacing.xs,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -157,8 +161,8 @@ class _UserBubble extends StatelessWidget {
             Flexible(
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
                 ),
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.sizeOf(context).width * 0.85,
@@ -166,18 +170,12 @@ class _UserBubble extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(18),
-                    topRight: Radius.circular(18),
-                    bottomLeft: Radius.circular(18),
-                    bottomRight: Radius.circular(4),
+                    topLeft: Radius.circular(AppRadius.xl),
+                    topRight: Radius.circular(AppRadius.xl),
+                    bottomLeft: Radius.circular(AppRadius.xl),
+                    bottomRight: Radius.circular(AppRadius.xs),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  boxShadow: AppShadow.card,
                 ),
                 child: DefaultTextStyle.merge(
                   style: TextStyle(
@@ -243,10 +241,10 @@ class _BotMessage extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(
-        left: 10,
-        right: 10,
+        left: AppSpacing.sm,
+        right: AppSpacing.sm,
         top: 1,
-        bottom: 4,
+        bottom: AppSpacing.xs,
       ),
       child: SelectionArea(
         contextMenuBuilder: (ctx, selectableRegionState) {
@@ -323,7 +321,10 @@ class _AgentEventWidget extends StatelessWidget {
     final label = _eventLabel(event);
     if (label == null) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       child: Center(
         child: Text(
           label,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../tool_section_view.dart';
 
 /// File item model for Glob results.
@@ -157,7 +158,7 @@ class _GlobViewState extends State<GlobView> {
             children: [
               _PatternBadge(pattern: pattern),
               if (path != null && path.isNotEmpty) ...[
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.xs + 2),
                 _PathChip(path: path),
               ],
             ],
@@ -166,30 +167,10 @@ class _GlobViewState extends State<GlobView> {
           // Summary row
           if (state == 'completed' || files.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.only(top: AppSpacing.sm + 2),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      files.isEmpty
-                          ? 'No files found'
-                          : 'Found ${files.length} '
-                              'file${files.length != 1 ? 's' : ''}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: cs.primary,
-                      ),
-                    ),
-                  ),
+                  _ResultCountChip(count: files.length, cs: cs),
                 ],
               ),
             ),
@@ -197,16 +178,16 @@ class _GlobViewState extends State<GlobView> {
           // File list
           if (visibleFiles.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: Container(
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: cs.outlineVariant.withValues(alpha: 0.5),
                   ),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -226,7 +207,7 @@ class _GlobViewState extends State<GlobView> {
           // Show all / collapse button
           if (files.length > _initialLimit)
             Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.only(top: AppSpacing.xs + 2),
               child: GestureDetector(
                 onTap: () => setState(() => _showAll = !_showAll),
                 child: Row(
@@ -239,7 +220,7 @@ class _GlobViewState extends State<GlobView> {
                       size: 15,
                       color: cs.primary,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AppSpacing.xs),
                     Text(
                       _showAll
                           ? 'Show less'
@@ -310,6 +291,38 @@ class _GlobViewState extends State<GlobView> {
   }
 }
 
+/// Small chip showing the result count.
+class _ResultCountChip extends StatelessWidget {
+  const _ResultCountChip({required this.count, required this.cs});
+
+  final int count;
+  final ColorScheme cs;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 3,
+      ),
+      decoration: BoxDecoration(
+        color: cs.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Text(
+        count == 0
+            ? 'No files found'
+            : '$count file${count != 1 ? 's' : ''} found',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: cs.primary,
+        ),
+      ),
+    );
+  }
+}
+
 /// A styled badge showing the glob pattern.
 class _PatternBadge extends StatelessWidget {
   const _PatternBadge({required this.pattern});
@@ -320,10 +333,13 @@ class _PatternBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm + 2,
+        vertical: 5,
+      ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.xs + 2),
         border: Border.all(
           color: cs.outlineVariant.withValues(alpha: 0.6),
         ),
@@ -336,7 +352,7 @@ class _PatternBadge extends StatelessWidget {
             size: 14,
             color: cs.primary,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xs + 2),
           Text(
             'glob',
             style: TextStyle(
@@ -346,13 +362,13 @@ class _PatternBadge extends StatelessWidget {
               letterSpacing: 0.3,
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xs + 2),
           Container(
             width: 1,
             height: 12,
             color: cs.outlineVariant,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xs + 2),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 200),
             child: SelectableText(
@@ -381,10 +397,13 @@ class _PathChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 5,
+      ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.xs + 2),
         border: Border.all(
           color: cs.outlineVariant.withValues(alpha: 0.6),
         ),
@@ -397,7 +416,7 @@ class _PathChip extends StatelessWidget {
             size: 13,
             color: cs.secondary,
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 160),
             child: Text(
@@ -447,7 +466,7 @@ class _FileRow extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: 10,
+          horizontal: AppSpacing.sm + 2,
           vertical: 7,
         ),
         child: Row(
@@ -458,11 +477,11 @@ class _FileRow extends StatelessWidget {
               height: 28,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(5),
+                borderRadius: BorderRadius.circular(AppRadius.xs + 1),
               ),
               child: Icon(icon, size: 15, color: color),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: AppSpacing.sm + 2),
             // File info
             Expanded(
               child: Column(
@@ -494,12 +513,12 @@ class _FileRow extends StatelessWidget {
             if (ext.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 5,
+                  horizontal: AppSpacing.xs + 1,
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
                 ),
                 child: Text(
                   ext,

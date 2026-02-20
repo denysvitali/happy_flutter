@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 /// Material-style tap target with ripple effect and optional haptic
 /// feedback.
@@ -7,6 +8,9 @@ import 'package:flutter/services.dart';
 /// Wraps [child] in an [InkWell] with the given [borderRadius].
 /// When [haptic] is true (the default), a light impact is triggered
 /// via [HapticFeedback.lightImpact] on each tap.
+///
+/// The splash and highlight animations run at [AppDuration.fast]
+/// (150 ms) for a snappy micro-interaction feel.
 class AppTappable extends StatelessWidget {
   /// Creates a tappable wrapper.
   const AppTappable({
@@ -25,7 +29,7 @@ class AppTappable extends StatelessWidget {
 
   /// The border radius of the ripple.
   ///
-  /// Defaults to `BorderRadius.circular(8)` when null.
+  /// Defaults to `BorderRadius.circular(AppRadius.sm)` when null.
   final BorderRadius? borderRadius;
 
   /// Whether to trigger haptic feedback on tap.
@@ -36,7 +40,7 @@ class AppTappable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius =
-        borderRadius ?? BorderRadius.circular(8);
+        borderRadius ?? BorderRadius.circular(AppRadius.sm);
 
     return InkWell(
       onTap: onTap == null
@@ -46,6 +50,15 @@ class AppTappable extends StatelessWidget {
               onTap!();
             },
       borderRadius: radius,
+      splashColor: Theme.of(context)
+          .colorScheme
+          .primary
+          .withValues(alpha: 0.08),
+      highlightColor: Theme.of(context)
+          .colorScheme
+          .primary
+          .withValues(alpha: 0.04),
+      splashFactory: InkRipple.splashFactory,
       child: child,
     );
   }

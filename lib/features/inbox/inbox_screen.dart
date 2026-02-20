@@ -4,11 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/components/app_empty_state.dart';
+import '../../core/components/app_status_dot.dart';
+import '../../core/components/app_tappable.dart';
+import '../../core/components/avatar.dart';
 import '../../core/models/feed.dart';
 import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/social_service.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_tokens.dart';
 
 class InboxScreen extends ConsumerStatefulWidget {
   const InboxScreen({super.key});
@@ -100,11 +105,16 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 20),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.xl,
+        ),
         children: [
           _InboxHeader(onFindFriends: _showFindFriendsSheet),
           if (feedState.items.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _Section(
               title: 'Updates',
               child: Column(
@@ -115,7 +125,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             ),
           ],
           if (incoming.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _Section(
               title: 'Pending Requests',
               child: Column(
@@ -143,7 +153,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             ),
           ],
           if (requested.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _Section(
               title: 'Sent Requests',
               child: Column(
@@ -152,6 +162,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                       (friend) => _UserRow(
                         title: friend.name ?? friend.id,
                         subtitle: 'Request pending',
+                        userId: friend.id,
                         avatarUrl: friend.avatarUrl,
                         trailing: TextButton(
                           onPressed: _isBusy
@@ -171,7 +182,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             ),
           ],
           if (friends.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _Section(
               title: 'My Friends',
               child: Column(
@@ -180,6 +191,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                       (friend) => _UserRow(
                         title: friend.name ?? friend.id,
                         subtitle: 'Friend',
+                        userId: friend.id,
                         avatarUrl: friend.avatarUrl,
                         trailing: TextButton(
                           onPressed: _isBusy
@@ -267,58 +279,6 @@ class _InboxHeader extends StatelessWidget {
 
 // ── Empty state ────────────────────────────────────────────────────────────
 
-class _InboxEmptyState extends StatelessWidget {
-  const _InboxEmptyState({required this.onFindFriends});
-
-  final VoidCallback onFindFriends;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Icon(
-            Icons.inbox_outlined,
-            size: 36,
-            color: cs.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'Empty Inbox',
-          textAlign: TextAlign.center,
-          style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Connect with friends to start sharing sessions.',
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: cs.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 24),
-        FilledButton.icon(
-          onPressed: onFindFriends,
-          icon: const Icon(Icons.person_search),
-          label: const Text('Find Friends'),
-        ),
-      ],
-    );
-  }
-}
-
 class _InboxEmptyView extends StatelessWidget {
   const _InboxEmptyView({
     required this.onFindFriends,
@@ -333,11 +293,24 @@ class _InboxEmptyView extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xxl,
+          AppSpacing.xxl,
+          AppSpacing.xxl,
+          AppSpacing.xxxl,
+        ),
         children: [
           _InboxHeader(onFindFriends: onFindFriends),
-          Center(
-            child: _InboxEmptyState(onFindFriends: onFindFriends),
+          const SizedBox(height: AppSpacing.xxl),
+          AppEmptyState(
+            icon: Icons.inbox_outlined,
+            title: 'No notifications yet',
+            subtitle: 'Connect with friends to start sharing sessions.',
+            action: FilledButton.icon(
+              onPressed: onFindFriends,
+              icon: const Icon(Icons.person_search),
+              label: const Text('Find Friends'),
+            ),
           ),
         ],
       ),
@@ -361,7 +334,7 @@ class _Section extends StatelessWidget {
         color: theme.colorScheme.surfaceContainerHighest.withValues(
           alpha: 0.35,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
         ),
@@ -370,7 +343,12 @@ class _Section extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.xs,
+            ),
             child: Text(
               title,
               style: theme.textTheme.titleSmall?.copyWith(
@@ -399,32 +377,36 @@ class _FeedCard extends StatelessWidget {
     final cs = theme.colorScheme;
     final isUnread = !item.read;
 
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.symmetric(vertical: 4),
+    return AppTappable(
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.sm,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Avatar
+            // Icon avatar
             Container(
               width: 40,
               height: 40,
               decoration: BoxDecoration(
                 color: cs.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.md),
               ),
               child: Icon(
                 item.body.kind == 'friend_request'
                     ? Icons.person_add_alt_1
                     : Icons.notifications,
-                size: 20,
+                size: AppSpacing.xl,
                 color: cs.onPrimaryContainer,
               ),
             ),
-            const SizedBox(width: 12),
-            // Name + preview
+            const SizedBox(width: AppSpacing.md),
+            // Title + preview
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -433,14 +415,14 @@ class _FeedCard extends StatelessWidget {
                     _bodyTitle(item.body),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: isUnread
-                          ? FontWeight.w700
+                          ? FontWeight.w600
                           : FontWeight.w500,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (item.body.text != null) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppSpacing.xs / 2),
                     Text(
                       item.body.text!,
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -453,14 +435,15 @@ class _FeedCard extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            // Timestamp + unread dot column
+            const SizedBox(width: AppSpacing.sm),
+            // Timestamp + unread indicator column
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   _timeAgo(item.createdAt),
                   style: theme.textTheme.labelSmall?.copyWith(
+                    fontSize: 12,
                     color: isUnread ? cs.primary : cs.onSurfaceVariant,
                     fontWeight: isUnread
                         ? FontWeight.w600
@@ -468,14 +451,11 @@ class _FeedCard extends StatelessWidget {
                   ),
                 ),
                 if (isUnread) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: cs.primary,
-                      shape: BoxShape.circle,
-                    ),
+                  const SizedBox(height: AppSpacing.xs),
+                  AppStatusDot(
+                    color: cs.primary,
+                    size: AppSpacing.sm,
+                    pulse: true,
                   ),
                 ],
               ],
@@ -531,12 +511,14 @@ class _InboxItem extends StatelessWidget {
   const _InboxItem({
     required this.title,
     required this.subtitle,
+    required this.userId,
     required this.avatarUrl,
     required this.trailing,
   });
 
   final String title;
   final String subtitle;
+  final String userId;
   final String? avatarUrl;
   final Widget trailing;
 
@@ -545,31 +527,24 @@ class _InboxItem extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.symmetric(vertical: 4),
+    return AppTappable(
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.sm,
+          AppSpacing.sm,
+        ),
         child: Row(
           children: [
             // 40 px avatar
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: avatarUrl != null
-                  ? ClipOval(
-                      child: Image.network(
-                        avatarUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, _) => _InitialAvatar(
-                          name: title,
-                          size: 40,
-                        ),
-                      ),
-                    )
-                  : _InitialAvatar(name: title, size: 40),
+            Avatar(
+              id: userId,
+              size: 40,
+              imageUrl: avatarUrl,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             // Name + subtitle
             Expanded(
               child: Column(
@@ -583,7 +558,7 @@ class _InboxItem extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: AppSpacing.xs / 2),
                   Text(
                     subtitle,
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -595,40 +570,9 @@ class _InboxItem extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             trailing,
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Fallback avatar displaying the first letter of the name on a
-/// [ColorScheme.primaryContainer] background.
-class _InitialAvatar extends StatelessWidget {
-  const _InitialAvatar({required this.name, required this.size});
-
-  final String name;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: cs.primaryContainer,
-        shape: BoxShape.circle,
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : '?',
-        style: TextStyle(
-          color: cs.onPrimaryContainer,
-          fontWeight: FontWeight.w700,
-          fontSize: size * 0.4,
         ),
       ),
     );
@@ -655,6 +599,7 @@ class _FriendRequestCard extends StatelessWidget {
     return _InboxItem(
       title: request.fromUserName,
       subtitle: 'Wants to connect',
+      userId: request.fromUserId,
       avatarUrl: request.fromUserAvatarUrl,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -663,7 +608,7 @@ class _FriendRequestCard extends StatelessWidget {
             onPressed: disabled ? null : onReject,
             child: const Text('Reject'),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           FilledButton(
             onPressed: disabled ? null : onAccept,
             child: const Text('Accept'),
@@ -680,12 +625,14 @@ class _UserRow extends StatelessWidget {
   const _UserRow({
     required this.title,
     required this.subtitle,
+    required this.userId,
     required this.avatarUrl,
     required this.trailing,
   });
 
   final String title;
   final String subtitle;
+  final String userId;
   final String? avatarUrl;
   final Widget trailing;
 
@@ -694,6 +641,7 @@ class _UserRow extends StatelessWidget {
     return _InboxItem(
       title: title,
       subtitle: subtitle,
+      userId: userId,
       avatarUrl: avatarUrl,
       trailing: trailing,
     );

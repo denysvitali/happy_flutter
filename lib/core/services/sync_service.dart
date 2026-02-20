@@ -400,19 +400,21 @@ what you have, you must use the options mode.
     final sessionId = data['sid'] as String?;
     if (sessionId != null) {
       messagesSync.remove(sessionId)?.dispose();
-      _sessionLastSeq.remove(sessionId);
-      MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
-      _sessionFirstLoadedSeq.remove(sessionId);
-      MMKVStorage().saveSessionFirstLoadedSeq(
-        Map.unmodifiable(_sessionFirstLoadedSeq),
-      );
       _loadingOlderMessages.remove(sessionId);
       _sessionMessages.remove(sessionId);
       _todoLists.remove(sessionId);
       _sessions.remove(sessionId);
       _presenceTimers.remove(sessionId)?.cancel();
       _sessionDataKeys.remove(sessionId);
-      encryption.removeSessionEncryption(sessionId);
+      if (isInitialized) {
+        _sessionLastSeq.remove(sessionId);
+        MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
+        _sessionFirstLoadedSeq.remove(sessionId);
+        MMKVStorage().saveSessionFirstLoadedSeq(
+          Map.unmodifiable(_sessionFirstLoadedSeq),
+        );
+        encryption.removeSessionEncryption(sessionId);
+      }
     }
     sessionsSync.invalidate();
     if (kDebugMode) {

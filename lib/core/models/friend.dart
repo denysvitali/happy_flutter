@@ -14,8 +14,8 @@ class AvatarRef {
 
   factory AvatarRef.fromJson(Map<String, dynamic> json) {
     return AvatarRef(
-      path: json['path'] as String,
-      url: json['url'] as String,
+      path: (json['path'] as String?) ?? '',
+      url: (json['url'] as String?) ?? '',
       width: json['width'] as int?,
       height: json['height'] as int?,
       thumbhash: json['thumbhash'] as String?,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/diff_view_widget.dart'
     as dw show DiffView;
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'bash_view.dart' show FilePillChip;
 
 /// View for displaying Edit tool diffs.
@@ -38,29 +39,46 @@ class _EditViewState extends State<EditView> {
     final newString = input['new_string'] as String? ?? '';
 
     // Estimate line count to decide whether to collapse.
-    final oldLines =
+    final removedLines =
         oldString.isEmpty ? 0 : oldString.split('\n').length;
-    final newLines =
+    final addedLines =
         newString.isEmpty ? 0 : newString.split('\n').length;
-    final totalLines = oldLines + newLines;
+    final totalLines = removedLines + addedLines;
     final isShort = totalLines <= 16;
     final show = isShort || _expanded;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── File path pill chip ─────────────────────────
+          // ── File path pill chip + line count badges ─────
           if (filePath.isNotEmpty) ...[
-            FilePillChip(path: filePath),
-            const SizedBox(height: 8),
+            Row(
+              children: [
+                Flexible(child: FilePillChip(path: filePath)),
+                const SizedBox(width: AppSpacing.sm),
+                if (removedLines > 0)
+                  _LineDeltaBadge(
+                    count: removedLines,
+                    isAddition: false,
+                  ),
+                if (removedLines > 0 && addedLines > 0)
+                  const SizedBox(width: AppSpacing.xs),
+                if (addedLines > 0)
+                  _LineDeltaBadge(
+                    count: addedLines,
+                    isAddition: true,
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
           ],
 
           // ── Diff section label ──────────────────────────
           _EditSectionLabel(label: 'DIFF'),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
 
           // ── Expand/collapse toggle for large diffs ──────
           if (!isShort)
@@ -68,7 +86,10 @@ class _EditViewState extends State<EditView> {
               onTap: () =>
                   setState(() => _expanded = !_expanded),
               child: Padding(
-                padding: const EdgeInsets.only(bottom: 4, left: 2),
+                padding: const EdgeInsets.only(
+                  bottom: AppSpacing.xs,
+                  left: 2,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -79,7 +100,7 @@ class _EditViewState extends State<EditView> {
                       size: 16,
                       color: cs.onSurfaceVariant,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AppSpacing.xs),
                     Text(
                       _expanded
                           ? 'Hide diff'
@@ -96,7 +117,7 @@ class _EditViewState extends State<EditView> {
           // ── Diff ────────────────────────────────────────
           if (show)
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
               child: dw.DiffView(
                 oldText: oldString,
                 newText: newString,
@@ -106,6 +127,50 @@ class _EditViewState extends State<EditView> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Small badge showing +N or -N line delta in green or red.
+class _LineDeltaBadge extends StatelessWidget {
+  const _LineDeltaBadge({
+    required this.count,
+    required this.isAddition,
+  });
+
+  final int count;
+  final bool isAddition;
+
+  static const _addGreen = Color(0xFF1A7F37);
+  static const _removeRed = Color(0xFFCF222E);
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isAddition ? _addGreen : _removeRed;
+    final label = isAddition ? '+$count' : '-$count';
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs + 2,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: color.withValues(alpha: 0.35),
+          width: 0.5,
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color,
+          fontFamily: 'monospace',
+          fontFamilyFallback: const ['Courier New', 'Courier'],
+        ),
       ),
     );
   }

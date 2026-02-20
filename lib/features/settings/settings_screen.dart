@@ -37,35 +37,35 @@ class SettingsScreen extends ConsumerWidget {
         ),
         children: [
           _ProfileHeader(profile: profile),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.xl),
           _buildAppearanceSection(context, settings, ref),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.lg),
           _buildBehaviorSection(context, settings, ref),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.lg),
           _buildVoiceSection(context),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.lg),
           _buildConnectedAccountsSection(context, ref, profile),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.lg),
           _buildAIProfilesSection(context),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.lg),
           _buildUsageSection(context),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.lg),
           _buildFeaturesSection(context),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.lg),
           _buildSocialSection(context),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.lg),
           _buildMachinesSection(context, machines),
-          if (machines.isNotEmpty) const SizedBox(height: AppSpacing.sm),
+          if (machines.isNotEmpty) const SizedBox(height: AppSpacing.lg),
           _buildAccountSection(context),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.lg),
           _buildCertificatesSection(context),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.lg),
           _buildServerSection(context),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.lg),
           _buildDeveloperSection(context, settings),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.lg),
           _buildAboutSection(context),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xl),
           const _AccountSection(),
           const SizedBox(height: AppSpacing.xxxl),
         ],
@@ -357,6 +357,7 @@ class SettingsScreen extends ConsumerWidget {
   ) {
     if (machines.isEmpty) return const SizedBox.shrink();
 
+    final cs = Theme.of(context).colorScheme;
     final machineList = machines.values.toList()
       ..sort((a, b) {
         if (a.active == b.active) {
@@ -380,8 +381,8 @@ class SettingsScreen extends ConsumerWidget {
             return _SettingsRow(
               icon: Icons.computer_outlined,
               iconColor: machine.active
-                  ? Colors.green
-                  : Colors.grey,
+                  ? cs.primary
+                  : cs.onSurface.withValues(alpha: 0.4),
               title: title,
               subtitle: subtitle,
             );
@@ -469,20 +470,16 @@ class SettingsScreen extends ConsumerWidget {
               icon: isCustom ? Icons.edit : Icons.cloud_outlined,
               title: l10n.settingsServerUrl,
               subtitle: url,
-              trailing: isCustom
-                  ? Icon(
-                      Icons.edit,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.primary,
-                    )
-                  : Icon(
-                      Icons.chevron_right,
-                      size: 20,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.3),
-                    ),
+              trailing: Icon(
+                isCustom ? Icons.edit : Icons.chevron_right,
+                size: 20,
+                color: isCustom
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.3),
+              ),
               onTap: () => showServerUrlDialog(context, url),
             );
           },
@@ -850,6 +847,10 @@ class _SettingsSection extends StatelessWidget {
   final String? title;
   final List<Widget> children;
 
+  // Leading padding (16) + icon container width (36) + icon gap (12) = 64.
+  static const double _dividerIndent =
+      AppSpacing.lg + 36 + AppSpacing.md;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -867,9 +868,10 @@ class _SettingsSection extends StatelessWidget {
             child: Text(
               title!.toUpperCase(),
               style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.primary,
+                color: cs.onSurface.withValues(alpha: 0.5),
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.8,
+                fontSize: 12,
               ),
             ),
           ),
@@ -882,7 +884,7 @@ class _SettingsSection extends StatelessWidget {
             ),
           ),
           child: Column(
-            children: _intersperse(children),
+            children: _intersperse(children, cs),
           ),
         ),
       ],
@@ -890,16 +892,18 @@ class _SettingsSection extends StatelessWidget {
   }
 
   /// Inserts a slim divider between children (but not before/after).
-  List<Widget> _intersperse(List<Widget> items) {
+  List<Widget> _intersperse(List<Widget> items, ColorScheme cs) {
     if (items.length <= 1) return items;
     final result = <Widget>[];
     for (var i = 0; i < items.length; i++) {
       result.add(items[i]);
       if (i < items.length - 1) {
-        result.add(const Divider(
+        result.add(Divider(
           height: 1,
-          indent: 56,
+          thickness: 0.5,
+          indent: _dividerIndent,
           endIndent: 0,
+          color: cs.outlineVariant,
         ));
       }
     }
@@ -1192,6 +1196,10 @@ class SettingsSection extends StatelessWidget {
   /// Child widgets rendered inside the section card.
   final List<Widget> children;
 
+  // Leading padding (16) + icon container width (36) + icon gap (12) = 64.
+  static const double _dividerIndent =
+      AppSpacing.lg + 36 + AppSpacing.md;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1209,9 +1217,10 @@ class SettingsSection extends StatelessWidget {
             child: Text(
               title!.toUpperCase(),
               style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.primary,
+                color: cs.onSurface.withValues(alpha: 0.5),
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.8,
+                fontSize: 12,
               ),
             ),
           ),
@@ -1220,23 +1229,25 @@ class SettingsSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.md),
             side: BorderSide(color: cs.outlineVariant),
           ),
-          child: Column(children: _intersperse(children)),
+          child: Column(children: _intersperse(children, cs)),
         ),
       ],
     );
   }
 
   /// Inserts a slim divider between children (but not before/after).
-  List<Widget> _intersperse(List<Widget> items) {
+  List<Widget> _intersperse(List<Widget> items, ColorScheme cs) {
     if (items.length <= 1) return items;
     final result = <Widget>[];
     for (var i = 0; i < items.length; i++) {
       result.add(items[i]);
       if (i < items.length - 1) {
-        result.add(const Divider(
+        result.add(Divider(
           height: 1,
-          indent: 56,
+          thickness: 0.5,
+          indent: _dividerIndent,
           endIndent: 0,
+          color: cs.outlineVariant,
         ));
       }
     }

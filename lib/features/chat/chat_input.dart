@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/draft_storage.dart';
+import '../../core/theme/app_tokens.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/permission_mode_selector.dart' as perm;
 
@@ -125,37 +126,61 @@ class _AbortButton extends StatelessWidget {
 
     return GestureDetector(
       onTap: isAborting ? null : onTap,
-      child: AnimatedContainer(
-        duration: _kBorderAnim,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 6,
+      behavior: HitTestBehavior.opaque,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          minWidth: 44,
+          minHeight: 44,
         ),
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: cs.outlineVariant.withValues(alpha: 0.7),
+        child: Center(
+          child: AnimatedContainer(
+            duration: _kBorderAnim,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs + 2,
+            ),
+            decoration: BoxDecoration(
+              color: cs.errorContainer,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(
+                color: cs.error.withValues(alpha: 0.4),
+              ),
+            ),
+            child: AnimatedSwitcher(
+              duration: _kSwitchAnim,
+              child: isAborting
+                  ? SizedBox(
+                      key: const ValueKey('abort-spinner'),
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: cs.onErrorContainer,
+                      ),
+                    )
+                  : Row(
+                      key: const ValueKey('abort-icon'),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.stop_rounded,
+                          size: 14,
+                          color: cs.onErrorContainer,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          'Stop',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: cs.onErrorContainer,
+                            height: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
           ),
-        ),
-        child: AnimatedSwitcher(
-          duration: _kSwitchAnim,
-          child: isAborting
-              ? SizedBox(
-                  key: const ValueKey('abort-spinner'),
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: cs.onSurfaceVariant,
-                  ),
-                )
-              : Icon(
-                  key: const ValueKey('abort-icon'),
-                  Icons.stop_rounded,
-                  size: 16,
-                  color: cs.onSurfaceVariant,
-                ),
         ),
       ),
     );
@@ -191,14 +216,15 @@ class _SendButton extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: ScaleTransition(
         scale: scaleAnimation,
         child: AnimatedContainer(
           duration: _kBorderAnim,
-          width: 40,
-          height: 40,
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             color: canSend
                 ? cs.primary
                 : cs.surfaceContainerHighest,
@@ -221,7 +247,7 @@ class _SendButton extends StatelessWidget {
             child: isSending
                 ? Padding(
                     key: const ValueKey('spinner'),
-                    padding: const EdgeInsets.all(11),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       color: cs.onSurface.withValues(alpha: 0.6),
@@ -275,12 +301,12 @@ class _ModelSelector extends StatelessWidget {
       child: AnimatedContainer(
         duration: _kBorderAnim,
         padding: const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 4,
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
         ),
         decoration: BoxDecoration(
           color: chipBg,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
           border: Border.all(color: chipBorder),
           boxShadow: isDefault
               ? const []
@@ -443,7 +469,7 @@ class _InputToolbar extends StatelessWidget {
             selectedMode: permissionMode,
             onModeChanged: onPermissionModeChanged,
           ),
-        const SizedBox(width: 6),
+        const SizedBox(width: AppSpacing.xs + 2),
         _ModelSelector(
           model: model,
           onTap: onShowModelPicker,
@@ -452,7 +478,7 @@ class _InputToolbar extends StatelessWidget {
         if (showAbort) ...[
           _AbortButton(isAborting: isAborting, onTap: onAbort),
           if (contextSize != null && contextSize! > 0)
-            const SizedBox(width: 6),
+            const SizedBox(width: AppSpacing.xs + 2),
         ],
         if (contextSize != null && contextSize! > 0)
           _ContextSizeIndicator(contextSize: contextSize!),
@@ -484,26 +510,26 @@ class _FileAutocomplete extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       child: Material(
         color: Colors.transparent,
         child: Container(
           decoration: BoxDecoration(
             color: cs.surface,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
               color: cs.outlineVariant.withValues(alpha: 0.5),
             ),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
+                color: Color(0x14000000), // ~8% black
                 blurRadius: 16,
-                offset: const Offset(0, -4),
+                offset: Offset(0, -4),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             child: AutocompleteOverlay(
               suggestions: suggestions,
               selectedIndex: selectedIndex,
@@ -1020,7 +1046,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final cs = theme.colorScheme;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
       decoration: BoxDecoration(
         color: cs.surface,
         border: Border(
@@ -1028,35 +1053,48 @@ class _ChatInputState extends ConsumerState<ChatInput>
             color: cs.onSurface.withValues(alpha: 0.08),
           ),
         ),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Color(0x0D000000), // ~5% black
             blurRadius: 12,
-            offset: const Offset(0, -2),
+            offset: Offset(0, -2),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Card-like text area
-          _buildCardInputArea(context),
-          const SizedBox(height: 6),
-          // Toolbar below card
-          _InputToolbar(
-            permissionMode: widget.permissionMode,
-            onPermissionModeChanged: widget.onPermissionModeChanged,
-            modelMode: widget.modelMode,
-            onShowModelPicker: () => widget.onModelModeChanged != null
-                ? _showModelPicker(context)
-                : null,
-            contextSize: widget.contextSize,
-            showAbort: widget.isSessionOnline &&
-                !widget.isPermissionPending,
-            isAborting: _isAborting,
-            onAbort: _onAbortTap,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.sm + 2,
+            AppSpacing.sm,
+            AppSpacing.sm + 2,
+            AppSpacing.sm + 2,
           ),
-        ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Card-like text area
+              _buildCardInputArea(context),
+              const SizedBox(height: AppSpacing.xs + 2),
+              // Toolbar below card
+              _InputToolbar(
+                permissionMode: widget.permissionMode,
+                onPermissionModeChanged:
+                    widget.onPermissionModeChanged,
+                modelMode: widget.modelMode,
+                onShowModelPicker: () =>
+                    widget.onModelModeChanged != null
+                        ? _showModelPicker(context)
+                        : null,
+                contextSize: widget.contextSize,
+                showAbort: widget.isSessionOnline &&
+                    !widget.isPermissionPending,
+                isAborting: _isAborting,
+                onAbort: _onAbortTap,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1082,7 +1120,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       curve: Curves.easeInOut,
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: borderColor),
         boxShadow: (!pending && _isFocused)
             ? [
@@ -1105,7 +1143,12 @@ class _ChatInputState extends ConsumerState<ChatInput>
         children: [
           Expanded(child: _buildTextField(context)),
           Padding(
-            padding: const EdgeInsets.fromLTRB(0, 6, 6, 6),
+            padding: const EdgeInsets.fromLTRB(
+              0,
+              AppSpacing.xs + 2,
+              AppSpacing.xs + 2,
+              AppSpacing.xs + 2,
+            ),
             child: _SendButton(
               isSending: widget.isSending,
               isSendDisabled:
@@ -1148,7 +1191,12 @@ class _ChatInputState extends ConsumerState<ChatInput>
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+          contentPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.md + 2,
+            AppSpacing.sm + 2,
+            AppSpacing.sm,
+            AppSpacing.sm + 2,
+          ),
         ),
         style: theme.textTheme.bodyMedium?.copyWith(
           fontSize: 15,
@@ -1179,11 +1227,19 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final cs = theme.colorScheme;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.md,
+        0,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: 3,
+      ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.sm + 2),
         border: Border.all(
           color: cs.outlineVariant.withValues(alpha: 0.4),
         ),
@@ -1259,11 +1315,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
     if (onTap != null) {
       return InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.xs + 2),
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 4,
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
           ),
           child: inner,
         ),

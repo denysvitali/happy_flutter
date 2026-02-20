@@ -23,11 +23,10 @@ void main() {
     test('should add an artifact', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      final artifact = Artifact(
+      final artifact = DecryptedArtifact(
         id: 'artifact-1',
-        header: 'encrypted-header-data',
+        title: 'Test Artifact',
         headerVersion: 1,
-        dataEncryptionKey: 'encrypted-key-data',
         seq: 1,
         createdAt: 1234567890,
         updatedAt: 1234567890,
@@ -43,21 +42,19 @@ void main() {
     test('should add multiple artifacts', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      final artifact1 = Artifact(
+      final artifact1 = DecryptedArtifact(
         id: 'artifact-1',
-        header: 'encrypted-header-1',
+        title: 'Artifact 1',
         headerVersion: 1,
-        dataEncryptionKey: 'encrypted-key-1',
         seq: 1,
         createdAt: 1234567890,
         updatedAt: 1234567890,
       );
 
-      final artifact2 = Artifact(
+      final artifact2 = DecryptedArtifact(
         id: 'artifact-2',
-        header: 'encrypted-header-2',
+        title: 'Artifact 2',
         headerVersion: 1,
-        dataEncryptionKey: 'encrypted-key-2',
         seq: 2,
         createdAt: 1234567891,
         updatedAt: 1234567891,
@@ -74,29 +71,26 @@ void main() {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
       final artifacts = [
-        Artifact(
+        DecryptedArtifact(
           id: 'artifact-1',
-          header: 'encrypted-header-1',
+          title: 'Artifact 1',
           headerVersion: 1,
-          dataEncryptionKey: 'encrypted-key-1',
           seq: 1,
           createdAt: 1234567890,
           updatedAt: 1234567890,
         ),
-        Artifact(
+        DecryptedArtifact(
           id: 'artifact-2',
-          header: 'encrypted-header-2',
+          title: 'Artifact 2',
           headerVersion: 1,
-          dataEncryptionKey: 'encrypted-key-2',
           seq: 2,
           createdAt: 1234567891,
           updatedAt: 1234567891,
         ),
-        Artifact(
+        DecryptedArtifact(
           id: 'artifact-3',
-          header: 'encrypted-header-3',
+          title: 'Artifact 3',
           headerVersion: 1,
-          dataEncryptionKey: 'encrypted-key-3',
           seq: 3,
           createdAt: 1234567892,
           updatedAt: 1234567892,
@@ -115,11 +109,10 @@ void main() {
     test('should update an existing artifact', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      final artifact = Artifact(
+      final artifact = DecryptedArtifact(
         id: 'artifact-1',
-        header: 'original-header',
+        title: 'Original Title',
         headerVersion: 1,
-        dataEncryptionKey: 'encrypted-key',
         seq: 1,
         createdAt: 1234567890,
         updatedAt: 1234567890,
@@ -128,40 +121,34 @@ void main() {
       notifier.addArtifact(artifact);
 
       notifier.updateArtifact('artifact-1', (existing) {
-        return Artifact(
-          id: existing.id,
-          header: 'updated-header',
+        return existing.copyWith(
+          title: 'Updated Title',
           headerVersion: 2,
-          dataEncryptionKey: existing.dataEncryptionKey,
-          seq: existing.seq,
-          createdAt: existing.createdAt,
           updatedAt: 1234567900,
         );
       });
 
       final artifacts = container.read(artifactsNotifierProvider);
-      expect(artifacts['artifact-1']?.header, 'updated-header');
+      expect(artifacts['artifact-1']?.title, 'Updated Title');
       expect(artifacts['artifact-1']?.updatedAt, 1234567900);
     });
 
     test('should remove an artifact', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      final artifact1 = Artifact(
+      final artifact1 = DecryptedArtifact(
         id: 'artifact-1',
-        header: 'encrypted-header-1',
+        title: 'Artifact 1',
         headerVersion: 1,
-        dataEncryptionKey: 'encrypted-key-1',
         seq: 1,
         createdAt: 1234567890,
         updatedAt: 1234567890,
       );
 
-      final artifact2 = Artifact(
+      final artifact2 = DecryptedArtifact(
         id: 'artifact-2',
-        header: 'encrypted-header-2',
+        title: 'Artifact 2',
         headerVersion: 1,
-        dataEncryptionKey: 'encrypted-key-2',
         seq: 2,
         createdAt: 1234567891,
         updatedAt: 1234567891,
@@ -184,29 +171,26 @@ void main() {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
       final artifacts = [
-        Artifact(
+        DecryptedArtifact(
           id: 'artifact-1',
-          header: 'encrypted-header-1',
+          title: 'Artifact 1',
           headerVersion: 1,
-          dataEncryptionKey: 'encrypted-key-1',
           seq: 1,
           createdAt: 1234567890,
           updatedAt: 1234567890,
         ),
-        Artifact(
+        DecryptedArtifact(
           id: 'artifact-2',
-          header: 'encrypted-header-2',
+          title: 'Artifact 2',
           headerVersion: 1,
-          dataEncryptionKey: 'encrypted-key-2',
           seq: 2,
           createdAt: 1234567891,
           updatedAt: 1234567891,
         ),
-        Artifact(
+        DecryptedArtifact(
           id: 'artifact-3',
-          header: 'encrypted-header-3',
+          title: 'Artifact 3',
           headerVersion: 1,
-          dataEncryptionKey: 'encrypted-key-3',
           seq: 3,
           createdAt: 1234567892,
           updatedAt: 1234567892,
@@ -225,13 +209,12 @@ void main() {
     test('should handle artifacts with body', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      final artifactWithBody = Artifact(
+      final artifactWithBody = DecryptedArtifact(
         id: 'artifact-1',
-        header: 'encrypted-header',
-        body: 'encrypted-body-content',
+        title: 'Artifact with body',
+        body: 'decrypted-body-content',
         headerVersion: 1,
         bodyVersion: 1,
-        dataEncryptionKey: 'encrypted-key',
         seq: 1,
         createdAt: 1234567890,
         updatedAt: 1234567890,
@@ -240,18 +223,16 @@ void main() {
       notifier.addArtifact(artifactWithBody);
 
       final artifacts = container.read(artifactsNotifierProvider);
-      expect(artifacts['artifact-1']?.body, 'encrypted-body-content');
+      expect(artifacts['artifact-1']?.body, 'decrypted-body-content');
       expect(artifacts['artifact-1']?.bodyVersion, 1);
     });
 
     test('should handle artifacts without optional fields', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      final artifactWithoutOptional = Artifact(
+      final artifactWithoutOptional = DecryptedArtifact(
         id: 'artifact-1',
-        header: 'encrypted-header',
         headerVersion: 1,
-        dataEncryptionKey: 'encrypted-key',
         seq: 1,
         createdAt: 1234567890,
         updatedAt: 1234567890,

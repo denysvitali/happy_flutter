@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 /// A themed card container with consistent shadow and padding.
 ///
 /// Renders a [Material] surface with:
-/// - 12 px border radius
+/// - [AppRadius.lg] (16 px) border radius
 /// - Subtle border (`onSurface` at 8 % opacity)
-/// - Soft drop-shadow (offset 0,2 – blur 8 – black12)
+/// - Soft drop-shadow via [AppShadow.card]
 /// - White / dark-surface background from [ColorScheme.surface]
 ///
 /// When [onTap] is provided, the card wraps [child] in an [InkWell]
-/// with matching radius and optional haptic feedback.
-class AppCard extends StatelessWidget {
+/// with matching radius, optional haptic feedback, and a smooth
+/// [AnimatedScale] press animation (scales to 0.98 on press).
+class AppCard extends StatefulWidget {
   /// Creates a card.
   const AppCard({
     required this.child,
@@ -27,7 +29,7 @@ class AppCard extends StatelessWidget {
 
   /// Internal padding applied to [child].
   ///
-  /// Defaults to `EdgeInsets.all(16)` when null.
+  /// Defaults to `EdgeInsets.all(AppSpacing.lg)` when null.
   final EdgeInsets? padding;
 
   /// Called when the card is tapped. Adds an InkWell when set.
@@ -41,50 +43,64 @@ class AppCard extends StatelessWidget {
   /// Defaults to true. Has no effect when [onTap] is null.
   final bool haptic;
 
-  static const _radius = BorderRadius.all(Radius.circular(12));
+  static const _radius =
+      BorderRadius.all(Radius.circular(AppRadius.lg));
+
+  @override
+  State<AppCard> createState() => _AppCardState();
+}
+
+class _AppCardState extends State<AppCard> {
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final effectivePadding =
-        padding ?? const EdgeInsets.all(16);
+        widget.padding ?? const EdgeInsets.all(AppSpacing.lg);
 
     final borderColor = cs.onSurface.withValues(alpha: 0.08);
 
     Widget content = Padding(
       padding: effectivePadding,
-      child: child,
+      child: widget.child,
     );
 
-    if (onTap != null) {
+    if (widget.onTap != null) {
       content = InkWell(
         onTap: () {
-          if (haptic) HapticFeedback.lightImpact();
-          onTap!();
+          if (widget.haptic) HapticFeedback.lightImpact();
+          widget.onTap!();
         },
-        borderRadius: _radius,
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) => setState(() => _pressed = false),
+        onTapCancel: () => setState(() => _pressed = false),
+        borderRadius: AppCard._radius,
         child: content,
       );
     }
 
-    return Container(
-      margin: margin,
+    final card = Container(
+      margin: widget.margin,
       decoration: BoxDecoration(
         color: cs.surface,
-        borderRadius: _radius,
+        borderRadius: AppCard._radius,
         border: Border.all(color: borderColor),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            offset: Offset(0, 2),
-            blurRadius: 8,
-          ),
-        ],
+        boxShadow: AppShadow.card,
       ),
       child: ClipRRect(
-        borderRadius: _radius,
+        borderRadius: AppCard._radius,
         child: content,
       ),
+    );
+
+    if (widget.onTap == null) return card;
+
+    return AnimatedScale(
+      scale: _pressed ? 0.98 : 1.0,
+      duration: AppDuration.fast,
+      curve: AppCurve.standard,
+      child: card,
     );
   }
 }

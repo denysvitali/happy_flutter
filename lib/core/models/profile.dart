@@ -43,7 +43,9 @@ class Profile {
     if (firstName != null || lastName != null) {
       return [firstName, lastName].where((s) => s != null).join(' ');
     }
-    return github?.name ?? github?.login;
+    final ghName = github?.name;
+    if (ghName != null && ghName.isNotEmpty) return ghName;
+    return github?.login;
   }
 
   /// Get avatar URL from ImageRef or GitHub
@@ -61,6 +63,7 @@ class Profile {
     String? lastName,
     ImageRef? avatar,
     GitHubProfile? github,
+    bool clearGithub = false,
     List<String>? connectedServices,
   }) {
     return Profile(
@@ -69,7 +72,7 @@ class Profile {
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
       avatar: avatar ?? this.avatar,
-      github: github ?? this.github,
+      github: clearGithub ? null : (github ?? this.github),
       connectedServices: connectedServices ?? this.connectedServices,
     );
   }

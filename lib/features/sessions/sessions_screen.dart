@@ -11,6 +11,7 @@ import '../../core/models/session.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
 import '../../core/utils/session_status.dart';
 import '../../core/utils/session_utils.dart';
@@ -342,7 +343,10 @@ class _SessionsListContentState
     }
 
     return ListView(
-      padding: const EdgeInsets.only(top: 4, bottom: 16),
+      padding: const EdgeInsets.only(
+        top: AppSpacing.xs,
+        bottom: AppSpacing.lg,
+      ),
       children: children,
     );
   }
@@ -454,12 +458,12 @@ class _DismissibleActiveSession extends ConsumerWidget {
       background: Container(
         alignment: Alignment.centerRight,
         color: Colors.red,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
         child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.archive_outlined, color: Colors.white, size: 22),
-            SizedBox(height: 4),
+            SizedBox(height: AppSpacing.xs),
             Text(
               'Archive',
               style: TextStyle(
@@ -539,12 +543,12 @@ class _DismissibleInactiveSession extends ConsumerWidget {
       background: Container(
         alignment: Alignment.centerRight,
         color: Colors.red,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
         child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.delete_outline, color: Colors.white, size: 22),
-            SizedBox(height: 4),
+            SizedBox(height: AppSpacing.xs),
             Text(
               'Delete',
               style: TextStyle(
@@ -748,17 +752,24 @@ class _PathHeader extends StatelessWidget {
     final cs = theme.colorScheme;
     return InkWell(
       onTap: onToggle,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.xs,
+        ),
         child: Row(
           children: [
             Expanded(
               child: Text(
-                path,
+                path.toUpperCase(),
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: cs.onSurfaceVariant,
                   fontFamily: 'monospace',
                   fontSize: 12,
+                  letterSpacing: 0.8,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -796,7 +807,12 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        10,
+        AppSpacing.md,
+        AppSpacing.xs,
+      ),
       child: Text(
         title,
         style: theme.textTheme.titleSmall?.copyWith(
@@ -849,8 +865,14 @@ class _FolderSectionHeader extends StatelessWidget {
 
     return InkWell(
       onTap: onToggle,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 2),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          2,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -858,17 +880,18 @@ class _FolderSectionHeader extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    displayPath,
+                    displayPath.toUpperCase(),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: mutedColor,
                       fontFamily: 'monospace',
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
+                      letterSpacing: 0.8,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 6,
@@ -876,7 +899,7 @@ class _FolderSectionHeader extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: badgeColor,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                   ),
                   child: Text(
                     machineName,
@@ -888,7 +911,7 @@ class _FolderSectionHeader extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xs),
                 AnimatedRotation(
                   turns: isCollapsed ? -0.25 : 0,
                   duration: const Duration(milliseconds: 200),
@@ -1019,8 +1042,8 @@ class _DraftBadge extends StatelessWidget {
       bottom: 0,
       right: 0,
       child: Container(
-        width: 16,
-        height: 16,
+        width: AppSpacing.lg,
+        height: AppSpacing.lg,
         decoration: BoxDecoration(
           color: cs.surface.withValues(alpha: 0.85),
           shape: BoxShape.circle,
@@ -1049,10 +1072,13 @@ class _TodoProgressBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: 2,
+      ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1186,7 +1212,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
+                      horizontal: AppSpacing.md,
                       vertical: 10,
                     ),
                     child: Row(
@@ -1210,7 +1236,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
                             ],
                           ),
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1238,7 +1264,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppSpacing.sm),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
@@ -1352,7 +1378,7 @@ class CompactActiveSessionCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         color: cs.primary.withValues(alpha: 0.04),
         border: Border.all(
           color: cs.primary.withValues(alpha: 0.20),
@@ -1360,11 +1386,11 @@ class CompactActiveSessionCard extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           child: SizedBox(
             height: 56,
             child: Row(
@@ -1376,7 +1402,9 @@ class CompactActiveSessionCard extends StatelessWidget {
                 ),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                    ),
                     child: Row(
                       children: [
                         // Small avatar with optional draft badge.
@@ -1396,7 +1424,7 @@ class CompactActiveSessionCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
                             sessionName,
@@ -1408,7 +1436,7 @@ class CompactActiveSessionCard extends StatelessWidget {
                             maxLines: 1,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppSpacing.sm),
                         Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -1543,13 +1571,13 @@ class SessionCard extends StatelessWidget {
                 width: 3,
                 color: sessionStatus.isConnected
                     ? Color(sessionStatus.statusDotColor)
-                    : const Color(0xFF999999),
+                    : cs.outlineVariant,
               ),
               Expanded(
                 child: Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: compact ? 6 : 8,
+                    horizontal: AppSpacing.md,
+                    vertical: compact ? 6 : AppSpacing.sm,
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -1573,7 +1601,10 @@ class SessionCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      SizedBox(width: compact ? 10 : 14),
+                      SizedBox(
+                        width:
+                            compact ? AppSpacing.sm : AppSpacing.md,
+                      ),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1601,7 +1632,7 @@ class SessionCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppSpacing.sm),
                       // Right side: timestamp, status dot, optional todo.
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
@@ -1620,7 +1651,7 @@ class SessionCard extends StatelessWidget {
                           StatusDot(
                             color: sessionStatus.isConnected
                                 ? Color(sessionStatus.statusDotColor)
-                                : const Color(0xFF999999),
+                                : cs.outlineVariant,
                             isPulsing: sessionStatus.isPulsing,
                             size: 7,
                           ),
@@ -1695,7 +1726,7 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -1719,7 +1750,7 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
                                 alpha: _glow.value * 0.35,
                               ),
                               blurRadius: 32,
-                              spreadRadius: 8,
+                              spreadRadius: AppSpacing.sm,
                             ),
                           ],
                         ),
@@ -1734,7 +1765,7 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
                 );
               },
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
             Text(
               l10n.sessionNoSessionsYet,
               style: theme.textTheme.titleMedium?.copyWith(
@@ -1742,7 +1773,7 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               l10n.emptyMainScreenInstallCli,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -1750,7 +1781,7 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               l10n.emptyMainScreenRunIt,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -1758,7 +1789,7 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               l10n.emptyMainScreenScanQrCode,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -1766,7 +1797,7 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: AppSpacing.xxxl),
             ElevatedButton.icon(
               onPressed: () =>
                   _SessionsListContent.showNewSessionDialog(context),
@@ -1852,7 +1883,7 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
         widget.status == ConnectionStatus.connecting;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       child: Center(
         child: isConnecting
             ? AnimatedBuilder(
@@ -1977,7 +2008,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 });
               },
             ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           Autocomplete<String>(
             optionsBuilder: (textEditingValue) {
               if (_selectedMachine == null) return const [];
@@ -2025,7 +2056,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               );
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(
@@ -2044,7 +2075,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               setState(() => _sessionType = selection.first);
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(
@@ -2066,7 +2097,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
             },
           ),
           if (_createError != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Text(
               _createError!,
               style: TextStyle(
@@ -2090,8 +2121,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               : null,
           child: _isCreating
               ? const SizedBox(
-                  width: 16,
-                  height: 16,
+                  width: AppSpacing.lg,
+                  height: AppSpacing.lg,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : Text(l10n.commonCreate),

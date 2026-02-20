@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/components/components.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Screen for entering or selecting a working directory path.
 ///
@@ -70,50 +72,49 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
           ]
         : <String>[];
 
+    final hasText = _controller.text.trim().isNotEmpty;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Select Path'),
         actions: [
           TextButton(
-            onPressed:
-                _controller.text.trim().isNotEmpty ? _confirm : null,
+            onPressed: hasText ? _confirm : null,
             child: const Text('Confirm'),
           ),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         keyboardDismissBehavior:
             ScrollViewKeyboardDismissBehavior.onDrag,
         children: [
           // Path text input
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 4,
+          AppCard(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.xs,
+            ),
+            child: TextField(
+              controller: _controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText:
+                    'Enter path (e.g. /home/user/projects)',
+                border: InputBorder.none,
+                prefixIcon: Icon(Icons.folder_outlined),
               ),
-              child: TextField(
-                controller: _controller,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText:
-                      'Enter path (e.g. /home/user/projects)',
-                  border: InputBorder.none,
-                  prefixIcon: Icon(Icons.folder_outlined),
-                ),
-                onChanged: (_) => setState(() {}),
-                onSubmitted: (_) => _confirm(),
-              ),
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _confirm(),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
 
           // Recent paths from sessions
           if (recentPaths.isNotEmpty) ...[
-            _buildSectionTitle(context, 'Recent Paths'),
-            const SizedBox(height: 8),
-            Card(
+            const AppSectionHeader(title: 'Recent Paths'),
+            AppCard(
+              padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   for (int i = 0; i < recentPaths.length; i++)
@@ -122,6 +123,7 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
                       selected: _controller.text.trim() ==
                           recentPaths[i],
                       showDivider: i < recentPaths.length - 1,
+                      isLast: i == recentPaths.length - 1,
                       onTap: () {
                         setState(() {
                           _controller.text = recentPaths[i];
@@ -143,9 +145,9 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
           // Suggested paths when no recent history
           if (recentPaths.isEmpty &&
               suggestedPaths.isNotEmpty) ...[
-            _buildSectionTitle(context, 'Suggested Paths'),
-            const SizedBox(height: 8),
-            Card(
+            const AppSectionHeader(title: 'Suggested Paths'),
+            AppCard(
+              padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   for (int i = 0; i < suggestedPaths.length; i++)
@@ -155,6 +157,7 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
                           suggestedPaths[i],
                       showDivider:
                           i < suggestedPaths.length - 1,
+                      isLast: i == suggestedPaths.length - 1,
                       onTap: () {
                         setState(() {
                           _controller.text =
@@ -174,26 +177,15 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
             ),
           ],
 
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _controller.text.trim().isNotEmpty
-                ? _confirm
-                : null,
-            child: const Text('Confirm'),
+          const SizedBox(height: AppSpacing.xxl),
+          SizedBox(
+            height: 48,
+            child: FilledButton(
+              onPressed: hasText ? _confirm : null,
+              child: const Text('Confirm'),
+            ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(BuildContext context, String title) {
-    final theme = Theme.of(context);
-    return Text(
-      title.toUpperCase(),
-      style: theme.textTheme.labelMedium?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.5,
       ),
     );
   }
@@ -205,51 +197,71 @@ class _PathTile extends StatelessWidget {
     required this.path,
     required this.selected,
     required this.showDivider,
+    required this.isLast,
     required this.onTap,
   });
   final String path;
   final bool selected;
   final bool showDivider;
+  final bool isLast;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    // Round only the corners that are at the card edge.
+    final borderRadius = BorderRadius.vertical(
+      top: Radius.zero,
+      bottom: isLast
+          ? const Radius.circular(AppRadius.lg)
+          : Radius.zero,
+    );
+
     return Column(
       children: [
-        InkWell(
+        AppTappable(
           onTap: onTap,
+          borderRadius: borderRadius,
           child: Container(
             color: selected
-                ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+                ? theme.colorScheme.primaryContainer
+                    .withValues(alpha: 0.3)
                 : null,
             padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
             ),
             child: Row(
               children: [
                 Icon(
                   Icons.folder_outlined,
                   size: 18,
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: selected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(
                     path,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontFamily: 'monospace',
+                      color: selected
+                          ? theme.colorScheme.onSurface
+                          : null,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (selected)
+                if (selected) ...[
+                  const SizedBox(width: AppSpacing.sm),
                   Icon(
-                    Icons.check,
+                    Icons.check_rounded,
                     size: 16,
                     color: theme.colorScheme.primary,
                   ),
+                ],
               ],
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../core/theme/app_tokens.dart';
 import 'syntax_highlighter.dart';
 
 // Catppuccin Mocha palette constants
@@ -30,7 +31,7 @@ class CodeBlockWidget extends StatefulWidget {
     this.language,
     this.fileName,
     this.showLineNumbers = true,
-    this.isDarkMode = true,
+    this.isDarkMode,
     this.fontSize = 13,
     this.maxVisibleLines = 12,
   });
@@ -46,8 +47,8 @@ class CodeBlockWidget extends StatefulWidget {
   /// Whether to show line numbers.
   final bool showLineNumbers;
 
-  /// Whether to render in dark mode.
-  final bool isDarkMode;
+  /// Override dark mode. When null, follows the ambient [ThemeData] brightness.
+  final bool? isDarkMode;
 
   /// Font size for code text.
   final double fontSize;
@@ -74,12 +75,13 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
 
   /// Max height before vertical scrolling kicks in.
   double get _maxHeight =>
-      widget.maxVisibleLines * _lineHeight + 24; // 24 for vertical padding
+      widget.maxVisibleLines * _lineHeight +
+      AppSpacing.md * 2; // top + bottom padding
 
   @override
   Widget build(BuildContext context) {
-    final isDark = widget.isDarkMode ||
-        Theme.of(context).brightness == Brightness.dark;
+    final isDark = widget.isDarkMode ??
+        (Theme.of(context).brightness == Brightness.dark);
 
     final bgColor =
         isDark ? _mocha.base : const Color(0xFFF8F8F8);
@@ -89,7 +91,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: borderColor),
       ),
       clipBehavior: Clip.antiAlias,
@@ -117,7 +119,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   Widget _buildScrollableCode(bool isDark) {
     final verticalScroll = SingleChildScrollView(
       scrollDirection: Axis.vertical,
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
       child: _buildCodeRow(isDark),
     );
 
@@ -140,8 +142,8 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
           ),
           Padding(
             padding: EdgeInsets.only(
-              left: widget.showLineNumbers ? 12 : 16,
-              right: 16,
+              left: widget.showLineNumbers ? AppSpacing.md : AppSpacing.lg,
+              right: AppSpacing.lg,
             ),
             child: SyntaxHighlighter(
               code: widget.code,
@@ -200,7 +202,7 @@ class _CodeHeader extends StatelessWidget {
           bottom: BorderSide(color: dividerColor),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: Row(
         children: [
           // Language dot indicator
@@ -295,11 +297,16 @@ class _CopyButton extends StatelessWidget {
       message: copied ? 'Copied!' : 'Copy code',
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
+            duration: AppDuration.fast,
+            switchInCurve: AppCurve.enter,
+            switchOutCurve: AppCurve.exit,
             child: Row(
               key: ValueKey(copied),
               mainAxisSize: MainAxisSize.min,
@@ -349,7 +356,10 @@ class _LineNumbers extends StatelessWidget {
         isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
 
     return Container(
-      padding: const EdgeInsets.only(left: 12, right: 10),
+      padding: const EdgeInsets.only(
+        left: AppSpacing.md,
+        right: AppSpacing.sm + AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
         border: Border(
           right: BorderSide(color: dividerColor),

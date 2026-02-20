@@ -20,6 +20,10 @@ import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
 
+
+// Sentinel for distinguishing 'not provided' from null
+const Object _unset = Object();
+
 /// App state providers
 
 /// Authentication state provider
@@ -375,7 +379,7 @@ class ProfileNotifier extends Notifier<Profile?> {
 
   Future<void> disconnectGitHub() async {
     if (state != null && state!.github != null) {
-      state = state!.copyWith(github: null);
+      state = state!.copyWith(clearGithub: true);
     }
   }
 
@@ -762,15 +766,22 @@ class TodoStateNotifier extends Notifier<TodoListState> {
     String sessionId,
     String todoId,
     int newOrder, {
-    String? newParentId,
+    Object? newParentId = _unset,
   }) {
     final list = state.lists[sessionId];
     if (list != null) {
+      final parentChanged = !identical(newParentId, _unset);
+      final resolvedParentId = parentChanged
+          ? newParentId as String?
+          : null;
       final updatedItems = list.items.map((item) {
         if (item.id == todoId) {
           return item.copyWith(
             order: newOrder,
-            parentId: newParentId ?? item.parentId,
+            clearParentId: parentChanged && resolvedParentId == null,
+            parentId: parentChanged && resolvedParentId != null
+                ? resolvedParentId
+                : null,
             updatedAt: DateTime.now().millisecondsSinceEpoch,
           );
         }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../tool_section_view.dart';
 
 /// View for displaying Write tool content.
@@ -48,16 +49,23 @@ class _WriteViewState extends State<WriteView> {
         children: [
           // ── Created badge + original path header ──────────
           _WritePathHeader(filePath: filePath),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.xs),
+
+          // ── File info chip: lines + size ───────────────────
+          _WriteInfoChip(
+            lineCount: allLines.length,
+            byteCount: content.length,
+          ),
+          const SizedBox(height: AppSpacing.sm),
 
           // ── Content section label + preview ───────────────
           _WriteSectionLabel(label: 'CONTENT'),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
               color: cs.surfaceContainer,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
               border: Border.all(
                 color: cs.outlineVariant,
                 width: 0.5,
@@ -72,8 +80,8 @@ class _WriteViewState extends State<WriteView> {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.xs + 2,
                   ),
                   color: cs.surfaceContainerHighest,
                   child: Row(
@@ -83,7 +91,7 @@ class _WriteViewState extends State<WriteView> {
                         size: 13,
                         color: cs.onSurfaceVariant,
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: AppSpacing.xs + 2),
                       Text(
                         _languageHint(filePath),
                         style: theme.textTheme.labelSmall?.copyWith(
@@ -106,7 +114,7 @@ class _WriteViewState extends State<WriteView> {
                 // Code content
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(AppSpacing.sm),
                   child: _LineNumberedCode(
                     lines: visibleLines,
                     startLine: 1,
@@ -122,8 +130,8 @@ class _WriteViewState extends State<WriteView> {
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
                       ),
                       decoration: BoxDecoration(
                         color: cs.surfaceContainerHighest,
@@ -144,7 +152,7 @@ class _WriteViewState extends State<WriteView> {
                             size: 16,
                             color: cs.primary,
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: AppSpacing.xs),
                           Text(
                             _showFull
                                 ? 'Show less'
@@ -194,6 +202,95 @@ class _WriteViewState extends State<WriteView> {
   }
 }
 
+/// Small muted chip showing line count and approximate file size.
+class _WriteInfoChip extends StatelessWidget {
+  const _WriteInfoChip({
+    required this.lineCount,
+    required this.byteCount,
+  });
+
+  final int lineCount;
+  final int byteCount;
+
+  String _formatSize(int bytes) {
+    if (bytes < 1024) return '${bytes}B';
+    final kb = bytes / 1024;
+    return '${kb.toStringAsFixed(kb < 10 ? 1 : 0)}KB';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _InfoPill(
+          icon: Icons.format_list_numbered,
+          label: '$lineCount line${lineCount != 1 ? 's' : ''}',
+          colorScheme: cs,
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        _InfoPill(
+          icon: Icons.data_usage,
+          label: _formatSize(byteCount),
+          colorScheme: cs,
+        ),
+      ],
+    );
+  }
+}
+
+/// A small muted info pill with an icon and label.
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({
+    required this.icon,
+    required this.label,
+    required this.colorScheme,
+  });
+
+  final IconData icon;
+  final String label;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs + 2,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 10,
+            color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+          ),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Small all-caps section label for write view content blocks.
 class _WriteSectionLabel extends StatelessWidget {
   const _WriteSectionLabel({required this.label});
@@ -239,51 +336,19 @@ class _WritePathHeader extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Created badge
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 6,
-            vertical: 4,
-          ),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A7F37).withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: const Color(0xFF1A7F37).withValues(alpha: 0.4),
-              width: 0.5,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.add_circle_outline,
-                size: 12,
-                color: Color(0xFF1A7F37),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Created',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: const Color(0xFF1A7F37),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
+        _CreatedBadge(),
+        const SizedBox(width: AppSpacing.sm),
 
         // File path pill
         Flexible(
           child: Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 6,
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs + 2,
             ),
             decoration: BoxDecoration(
               color: cs.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(AppRadius.xs + 2),
               border:
                   Border.all(color: cs.outlineVariant, width: 0.5),
             ),
@@ -295,7 +360,7 @@ class _WritePathHeader extends StatelessWidget {
                   size: 14,
                   color: cs.onSurfaceVariant,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.xs + 2),
                 Flexible(
                   child: RichText(
                     overflow: TextOverflow.ellipsis,
@@ -334,6 +399,83 @@ class _WritePathHeader extends StatelessWidget {
   }
 }
 
+/// Animated green "Created" badge with a checkmark.
+class _CreatedBadge extends StatefulWidget {
+  const _CreatedBadge();
+
+  @override
+  State<_CreatedBadge> createState() => _CreatedBadgeState();
+}
+
+class _CreatedBadgeState extends State<_CreatedBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+
+  static const _green = Color(0xFF1A7F37);
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: AppDuration.normal,
+    );
+    _scale = CurvedAnimation(
+      parent: _controller,
+      curve: AppCurve.spring,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ScaleTransition(
+      scale: _scale,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs + 2,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: _green.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
+          border: Border.all(
+            color: _green.withValues(alpha: 0.4),
+            width: 0.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.check_circle_outline,
+              size: 12,
+              color: _green,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              'Created',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: _green,
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Renders code lines with line numbers.
 class _LineNumberedCode extends StatelessWidget {
 
@@ -358,7 +500,7 @@ class _LineNumberedCode extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: List.generate(lines.length, (i) {
             return Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
               child: Text(
                 '${startLine + i}',
                 style: theme.textTheme.bodySmall?.copyWith(

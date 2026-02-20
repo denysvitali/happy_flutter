@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Screen showing detail view for a single artifact.
 class ArtifactDetailScreen extends ConsumerStatefulWidget {
@@ -54,16 +57,18 @@ class _ArtifactDetailScreenState
         appBar: AppBar(title: const Text('Artifact')),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xxxl,
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.error_outline,
-                  size: 64,
+                  size: AppSpacing.xxxl * 2,
                   color: Theme.of(context).colorScheme.error,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.lg),
                 Text(
                   l10n.errorNotFound,
                   style: Theme.of(context).textTheme.bodyLarge,
@@ -76,9 +81,16 @@ class _ArtifactDetailScreenState
       );
     }
 
+    final appBarTitle =
+        (artifact.title?.isNotEmpty ?? false) ? artifact.title! : artifact.id;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Artifact'),
+        title: Text(
+          appBarTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
@@ -98,7 +110,7 @@ class _ArtifactDetailScreenState
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: _ArtifactDetailBody(artifact: artifact),
       ),
     );
@@ -160,27 +172,28 @@ class _ArtifactDetailBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _InfoCard(
-          children: [
-            _InfoRow(label: 'ID', value: artifact.id),
-            const Divider(height: 1),
-            _InfoRow(
+        // Metadata card.
+        _MetadataCard(
+          rows: [
+            _MetaRow(label: 'ID', value: artifact.id, monospace: true),
+            _MetaRow(
               label: 'Created',
               value: _formatDateTime(createdAt),
             ),
-            const Divider(height: 1),
-            _InfoRow(
+            _MetaRow(
               label: 'Updated',
               value: _formatDateTime(updatedAt),
             ),
-            const Divider(height: 1),
-            _InfoRow(
+            _MetaRow(
               label: 'Sequence',
               value: artifact.seq.toString(),
             ),
+            if (artifact.draft ?? false)
+              const _MetaRow(label: 'Status', value: 'Draft'),
           ],
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: AppSpacing.xxl),
+        // Content section label.
         Text(
           'CONTENT',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -188,29 +201,13 @@ class _ArtifactDetailBody extends StatelessWidget {
                 letterSpacing: 1.2,
               ),
         ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color:
-                Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            '[Encrypted content — decryption not yet implemented]',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontStyle: FontStyle.italic,
-                  color:
-                      Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-        ),
+        const SizedBox(height: AppSpacing.sm),
+        _ContentBlock(artifact: artifact),
       ],
     );
   }
 
-  String _formatDateTime(DateTime dt) {
+  static String _formatDateTime(DateTime dt) {
     final y = dt.year;
     final mo = dt.month.toString().padLeft(2, '0');
     final d = dt.day.toString().padLeft(2, '0');
@@ -220,36 +217,55 @@ class _ArtifactDetailBody extends StatelessWidget {
   }
 }
 
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.children});
+// ─── Metadata card ───────────────────────────────────────────────────────────
 
-  final List<Widget> children;
+class _MetadataCard extends StatelessWidget {
+  const _MetadataCard({required this.rows});
+
+  final List<_MetaRow> rows;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
+    final cs = Theme.of(context).colorScheme;
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            rows[i],
+            if (i < rows.length - 1)
+              Divider(
+                height: 1,
+                color: cs.outlineVariant.withValues(alpha: 0.6),
+              ),
+          ],
+        ],
       ),
-      child: Column(children: children),
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
+class _MetaRow extends StatelessWidget {
+  const _MetaRow({
+    required this.label,
+    required this.value,
+    this.monospace = false,
+  });
 
   final String label;
   final String value;
+  final bool monospace;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -257,20 +273,157 @@ class _InfoRow extends StatelessWidget {
             width: 80,
             child: Text(
               label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color:
-                        Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               value,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: monospace
+                  ? theme.textTheme.bodyMedium?.copyWith(
+                      fontFamily: 'monospace',
+                    )
+                  : theme.textTheme.bodyMedium,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Content block ───────────────────────────────────────────────────────────
+
+class _ContentBlock extends StatefulWidget {
+  const _ContentBlock({required this.artifact});
+
+  final DecryptedArtifact artifact;
+
+  @override
+  State<_ContentBlock> createState() => _ContentBlockState();
+}
+
+class _ContentBlockState extends State<_ContentBlock> {
+  bool _copied = false;
+
+  Future<void> _copyToClipboard(String text) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+    setState(() => _copied = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final hasBody = widget.artifact.body?.isNotEmpty ?? false;
+    final bodyText = hasBody
+        ? widget.artifact.body!
+        : '[Encrypted content — decryption not yet implemented]';
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Toolbar row.
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            child: Row(
+              children: [
+                Text(
+                  'text',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+                const Spacer(),
+                if (hasBody)
+                  _CopyButton(
+                    copied: _copied,
+                    onTap: () => _copyToClipboard(bodyText),
+                  ),
+              ],
+            ),
+          ),
+          Divider(
+            height: 1,
+            color: cs.outlineVariant.withValues(alpha: 0.6),
+          ),
+          // Content.
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: SelectableText(
+              bodyText,
+              style: hasBody
+                  ? theme.textTheme.bodyMedium?.copyWith(
+                      fontFamily: 'monospace',
+                      height: 1.6,
+                    )
+                  : theme.textTheme.bodyMedium?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      color: cs.onSurfaceVariant,
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CopyButton extends StatelessWidget {
+  const _CopyButton({required this.copied, required this.onTap});
+
+  final bool copied;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.xs),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              copied ? Icons.check : Icons.copy_outlined,
+              size: AppSpacing.lg,
+              color: copied ? cs.primary : cs.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              copied ? 'Copied' : 'Copy',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: copied ? cs.primary : cs.onSurfaceVariant,
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }

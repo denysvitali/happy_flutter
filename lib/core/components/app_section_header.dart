@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 /// A titled section divider used in lists and settings screens.
 ///
@@ -6,8 +7,8 @@ import 'package:flutter/material.dart';
 /// using the theme primary color. An optional [trailing] widget is
 /// right-aligned on the same row.
 ///
-/// Default padding is 12 px top, 4 px bottom, 16 px horizontal.
-/// Pass [padding] to override.
+/// Default padding: [AppSpacing.lg] horizontal, [AppSpacing.md] top,
+/// [AppSpacing.xs] bottom. Pass [padding] to override.
 class AppSectionHeader extends StatelessWidget {
   /// Creates a section header.
   const AppSectionHeader({
@@ -25,14 +26,20 @@ class AppSectionHeader extends StatelessWidget {
 
   /// Padding around the header row.
   ///
-  /// Defaults to `EdgeInsets.fromLTRB(16, 12, 16, 4)` when null.
+  /// Defaults to `EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md,
+  /// AppSpacing.lg, AppSpacing.xs)` when null.
   final EdgeInsets? padding;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final effectivePadding =
-        padding ?? const EdgeInsets.fromLTRB(16, 12, 16, 4);
+    final effectivePadding = padding ??
+        const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.lg,
+          AppSpacing.xs,
+        );
 
     return Padding(
       padding: effectivePadding,
@@ -50,7 +57,7 @@ class AppSectionHeader extends StatelessWidget {
             ),
           ),
           if (trailing != null) ...[
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             trailing!,
           ],
         ],

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/components/avatar.dart';
 import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/social_service.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Screen for displaying and managing a user's profile and friend status.
 ///
@@ -10,8 +12,8 @@ import '../../core/services/social_service.dart';
 /// (with initials fallback), name, friend status, and appropriate
 /// action buttons.
 class UserProfileScreen extends ConsumerStatefulWidget {
-
   const UserProfileScreen({required this.userId, super.key});
+
   final String userId;
 
   @override
@@ -31,31 +33,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     } catch (_) {
       return null;
     }
-  }
-
-  String _getInitials(UserProfile user) {
-    final name = user.name;
-    if (name == null || name.isEmpty) return '?';
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.length >= 2) {
-      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-    }
-    return name[0].toUpperCase();
-  }
-
-  Color _avatarColor(String userId) {
-    final colors = [
-      const Color(0xFF5C6BC0),
-      const Color(0xFF26A69A),
-      const Color(0xFFEF5350),
-      const Color(0xFFAB47BC),
-      const Color(0xFF42A5F5),
-      const Color(0xFF66BB6A),
-      const Color(0xFFFF7043),
-      const Color(0xFF26C6DA),
-    ];
-    final hash = userId.codeUnits.fold(0, (a, b) => a + b);
-    return colors[hash % colors.length];
   }
 
   Future<void> _addFriend(UserProfile user) async {
@@ -156,20 +133,26 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
               ),
             )
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
                 // Profile header card
                 Card(
+                  elevation: 0,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      vertical: 32,
-                      horizontal: 16,
+                      vertical: AppSpacing.xxxl,
+                      horizontal: AppSpacing.lg,
                     ),
                     child: Column(
                       children: [
-                        // Avatar
-                        _buildAvatar(user, theme),
-                        const SizedBox(height: 16),
+                        // Avatar — 80px for profile context
+                        Avatar(
+                          id: user.id,
+                          size: 80,
+                          imageUrl: user.avatarUrl,
+                          thumbhash: user.avatar?.thumbhash,
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
 
                         // Name
                         if (user.name != null)
@@ -177,25 +160,42 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                             user.name!,
                             style:
                                 theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+
+                        // Username
+                        if (user.username.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: AppSpacing.xs,
+                            ),
+                            child: Text(
+                              '@${user.username}',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color:
+                                    theme.colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
 
                         // Bio
                         if (user.bio != null)
                           Padding(
-                            padding: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.only(
+                              top: AppSpacing.sm,
+                            ),
                             child: Text(
                               user.bio!,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: theme
-                                    .colorScheme.onSurfaceVariant,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color:
+                                    theme.colorScheme.onSurfaceVariant,
                               ),
+                              textAlign: TextAlign.center,
                             ),
                           ),
 
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppSpacing.md),
 
                         // Friend status badge
                         _buildStatusBadge(user, theme),
@@ -203,7 +203,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.lg),
 
                 // Action buttons
                 _buildActionButtons(user, theme),
@@ -212,121 +212,25 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     );
   }
 
-  Widget _buildAvatar(UserProfile user, ThemeData theme) {
-    final avatarUrl = user.avatarUrl;
-    final initials = _getInitials(user);
-    final bgColor = _avatarColor(user.id);
-
-    if (avatarUrl != null && avatarUrl.isNotEmpty) {
-      return CircleAvatar(
-        radius: 45,
-        backgroundImage: NetworkImage(avatarUrl),
-        backgroundColor: bgColor,
-        child: null,
-      );
-    }
-
-    return CircleAvatar(
-      radius: 45,
-      backgroundColor: bgColor,
-      child: Text(
-        initials,
-        style: const TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
-
   Widget _buildStatusBadge(UserProfile user, ThemeData theme) {
     switch (user.status) {
       case RelationshipStatus.friend:
-        return Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.green.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.check_circle, size: 16, color: Colors.green),
-              SizedBox(width: 4),
-              Text(
-                'Friends',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.green,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+        return _StatusBadge(
+          icon: Icons.check_circle,
+          label: 'Friends',
+          color: Colors.green,
         );
       case RelationshipStatus.requested:
-        return Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.orange.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.hourglass_empty,
-                size: 16,
-                color: Colors.orange,
-              ),
-              SizedBox(width: 4),
-              Text(
-                'Request Sent',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.orange,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+        return _StatusBadge(
+          icon: Icons.hourglass_empty,
+          label: 'Request Sent',
+          color: Colors.orange,
         );
       case RelationshipStatus.pending:
-        return Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.blue.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.person_add_outlined,
-                size: 16,
-                color: Colors.blue,
-              ),
-              SizedBox(width: 4),
-              Text(
-                'Wants to Connect',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.blue,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+        return _StatusBadge(
+          icon: Icons.person_add_outlined,
+          label: 'Wants to Connect',
+          color: Colors.blue,
         );
       case RelationshipStatus.rejected:
       case RelationshipStatus.none:
@@ -380,7 +284,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 minimumSize: const Size.fromHeight(48),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
               onPressed: () => _removeFriend(user),
               icon: const Icon(
@@ -410,5 +314,47 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           ),
         );
     }
+  }
+}
+
+/// A small colored pill badge with an icon and label.
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs + 2,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

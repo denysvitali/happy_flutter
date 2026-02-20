@@ -25,7 +25,6 @@ void main() {
     instance.feedSync = InvalidateSync(() async {});
     instance.todosSync = InvalidateSync(() async {});
     instance.messagesSync.clear();
-    instance.sessionReceivedMessages.clear();
   });
 
   group('processDecryptedMessage', () {

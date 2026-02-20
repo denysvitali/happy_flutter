@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api/websocket_client.dart' show ConnectionStatus;
+import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Full screen for creating a new session.
 class NewSessionScreen extends ConsumerStatefulWidget {
@@ -121,124 +123,122 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
         title: Text(l10n.newSessionTitle),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           // Machine selector
-          Text(
-            l10n.sessionMachine,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
+          _FieldLabel(l10n.sessionMachine),
+          const SizedBox(height: AppSpacing.sm),
           if (machines.isEmpty)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  l10n.newSessionNoMachinesFound,
-                  style: TextStyle(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+            AppCard(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Text(
+                l10n.newSessionNoMachinesFound,
+                style: TextStyle(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             )
           else
-            Card(
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: _pickMachine,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.computer_outlined,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _selectedMachine == null
-                            ? Text(
-                                l10n.sessionSelectMachine,
-                                style: TextStyle(
-                                  color:
-                                      theme.colorScheme.onSurfaceVariant,
-                                ),
-                              )
-                            : Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _selectedMachine!.metadata
-                                            ?.displayName ??
-                                        _selectedMachine!.metadata
-                                            ?.host ??
-                                        _selectedMachine!.id,
-                                    style:
-                                        theme.textTheme.bodyMedium,
-                                  ),
-                                  if (_selectedMachine!
-                                          .metadata?.host !=
-                                      null)
-                                    Text(
-                                      _selectedMachine!.metadata!.host,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: theme
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                      ),
-                                    ),
-                                ],
+            AppCard(
+              padding: EdgeInsets.zero,
+              onTap: _pickMachine,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.computer_outlined,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: _selectedMachine == null
+                          ? Text(
+                              l10n.sessionSelectMachine,
+                              style: TextStyle(
+                                color:
+                                    theme.colorScheme.onSurfaceVariant,
                               ),
-                      ),
-                      Icon(
-                        Icons.chevron_right,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ],
-                  ),
+                            )
+                          : Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _selectedMachine!.metadata
+                                          ?.displayName ??
+                                      _selectedMachine!.metadata
+                                          ?.host ??
+                                      _selectedMachine!.id,
+                                  style: theme.textTheme.bodyMedium
+                                      ?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (_selectedMachine!
+                                        .metadata?.host !=
+                                    null)
+                                  Text(
+                                    _selectedMachine!.metadata!.host,
+                                    style: theme.textTheme.bodySmall
+                                        ?.copyWith(
+                                      color: theme
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
                 ),
               ),
             ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.xl),
 
           // Path input
-          Text(
-            l10n.sessionPath,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            clipBehavior: Clip.antiAlias,
+          _FieldLabel(l10n.sessionPath),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            padding: EdgeInsets.zero,
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                  ),
                   child: TextField(
                     controller: _pathController,
                     decoration: InputDecoration(
                       hintText: l10n.sessionPathHint,
                       border: InputBorder.none,
-                      prefixIcon: const Icon(Icons.folder_outlined),
+                      prefixIcon:
+                          const Icon(Icons.folder_outlined),
                     ),
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
-                if (_selectedMachine != null)
-                  InkWell(
+                if (_selectedMachine != null) ...[
+                  Divider(
+                    height: 1,
+                    color: theme.colorScheme.outlineVariant,
+                  ),
+                  AppTappable(
                     onTap: _pickPath,
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(AppRadius.lg),
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.md,
                       ),
                       child: Row(
                         children: [
@@ -247,31 +247,27 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                             size: 18,
                             color: theme.colorScheme.primary,
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: AppSpacing.sm),
                           Text(
                             'Browse paths...',
-                            style: TextStyle(
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(
                               color: theme.colorScheme.primary,
-                              fontSize: 14,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
+                ],
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.xl),
 
           // Session type selector
-          Text(
-            'Type',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
+          _FieldLabel('Type'),
+          const SizedBox(height: AppSpacing.sm),
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(
@@ -290,16 +286,11 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
               setState(() => _sessionType = selection.first);
             },
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.xl),
 
           // Agent selector
-          Text(
-            'Agent',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
+          _FieldLabel('Agent'),
+          const SizedBox(height: AppSpacing.sm),
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(
@@ -320,41 +311,65 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
               setState(() => _selectedAgent = selection.first);
             },
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: AppSpacing.xxxl),
 
           // Connection status hint when not yet connected
           if (connectionStatus != ConnectionStatus.connected &&
               connectionStatus != ConnectionStatus.error)
             Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(
+                bottom: AppSpacing.md,
+              ),
               child: Text(
                 connectionStatus == ConnectionStatus.connecting
                     ? 'Connecting to server...'
                     : 'Not connected to server',
-                style: TextStyle(
+                style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
-                  fontSize: 13,
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
 
           // Create button
-          FilledButton(
-            onPressed:
-                _canCreate(connectionStatus) ? _createSession : null,
-            child: _isCreating
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : Text(l10n.commonCreate),
+          SizedBox(
+            height: 48,
+            child: FilledButton(
+              onPressed:
+                  _canCreate(connectionStatus) ? _createSession : null,
+              child: _isCreating
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(l10n.commonCreate),
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Small uppercased label above a form field.
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Text(
+      text.toUpperCase(),
+      style: theme.textTheme.labelSmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.5,
       ),
     );
   }

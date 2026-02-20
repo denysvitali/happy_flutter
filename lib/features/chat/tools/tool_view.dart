@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../../../core/services/sync_service.dart';
 import '../utils/tool_error_parser.dart';
 import 'elapsed_time.dart';
@@ -591,8 +592,8 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         ),
         if (hasContent)
           AnimatedSize(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
+            duration: AppDuration.normal,
+            curve: AppCurve.standard,
             child: _expanded
                 ? _buildContent(
                     context,
@@ -649,7 +650,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         return Container(
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
             border: Border(
               left: accentBorder,
               top: sideBorder,
@@ -657,7 +658,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
               bottom: sideBorder,
             ),
           ),
-          margin: const EdgeInsets.symmetric(vertical: 2),
+          margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs / 2),
           child: child,
         );
       },
@@ -678,7 +679,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
 
     if (specificView != null) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -699,7 +700,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
 
     // Default fallback content
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -880,11 +881,14 @@ class _ToolHeader extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
+          topLeft: Radius.circular(AppRadius.sm),
+          topRight: Radius.circular(AppRadius.sm),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm + 2,
+        vertical: AppSpacing.sm,
+      ),
       child: Row(
         children: [
           SizedBox(
@@ -895,7 +899,7 @@ class _ToolHeader extends StatelessWidget {
               child: toolIcon,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -942,16 +946,16 @@ class _ToolHeader extends StatelessWidget {
           ),
           // Status badge pill
           if (!hasPermissionRequest) ...[
-            const SizedBox(width: 6),
+            const SizedBox(width: AppSpacing.sm - 2),
             _ToolStatusBadge(state: state),
           ],
           // Elapsed time while running
           if (state == ToolState.running && createdAt != null) ...[
-            const SizedBox(width: 6),
+            const SizedBox(width: AppSpacing.sm - 2),
             _ToolDuration(startTime: createdAt!),
           ],
           // Status icon / check flash
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.sm - 2),
           AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               transitionBuilder: (child, animation) => ScaleTransition(
@@ -979,7 +983,7 @@ class _ToolHeader extends StatelessWidget {
           ),
           // Expand/collapse chevron
           if (hasContent) ...[
-            const SizedBox(width: 6),
+            const SizedBox(width: AppSpacing.sm - 2),
             RotationTransition(
               turns: chevronAnim,
               child: Icon(
@@ -1074,10 +1078,10 @@ class _ToolOutputContainer extends StatelessWidget {
 
     return Container(
       constraints: const BoxConstraints(maxHeight: 300),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.sm - 2),
         border: Border.all(
           color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
         ),
@@ -1158,11 +1162,14 @@ class ToolViewMinimal extends StatelessWidget {
     final title = KnownTools.titleFor(toolName, tool, metadata);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
       child: Row(
         children: [
           icon,
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               title,
@@ -1172,10 +1179,10 @@ class ToolViewMinimal extends StatelessWidget {
           ),
           if (state == 'running' && createdAt != null)
             Padding(
-              padding: const EdgeInsets.only(left: 8),
+              padding: const EdgeInsets.only(left: AppSpacing.sm),
               child: ElapsedTimeWidget(startTime: createdAt),
             ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           ToolStatusIndicator(state: _parseState(state), size: 16),
         ],
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 
 import '../tool_section_view.dart';
@@ -109,19 +110,19 @@ class _ReadViewContentState extends State<_ReadViewContent> {
       children: [
         // File path as pill chip
         FilePillChip(path: widget.resolvedPath),
-        const SizedBox(height: 6),
-        // Original styled header (for copy button + extension badge)
+        const SizedBox(height: AppSpacing.sm - 2),
+        // Styled header (file icon + path + copy button + extension badge)
         _FileHeader(
           resolvedPath: widget.resolvedPath,
           extension: widget.extension,
           content: content,
         ),
-        // Metadata row
+        // Metadata row: line range / limit / total
         if (widget.offset != null ||
             widget.limit != null ||
             widget.totalLines != null)
           Padding(
-            padding: const EdgeInsets.only(top: 6),
+            padding: const EdgeInsets.only(top: AppSpacing.sm - 2),
             child: _MetaRow(
               offset: widget.offset,
               limit: widget.limit,
@@ -130,9 +131,9 @@ class _ReadViewContentState extends State<_ReadViewContent> {
           ),
         // Content section label + preview
         if (content != null && content.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           _ReadSectionLabel(label: 'CONTENT'),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           _ContentBlock(
             content: content,
             offset: widget.offset,
@@ -144,7 +145,7 @@ class _ReadViewContentState extends State<_ReadViewContent> {
         ],
         if (content == null && widget.totalLines != null)
           Padding(
-            padding: const EdgeInsets.only(top: 6),
+            padding: const EdgeInsets.only(top: AppSpacing.sm - 2),
             child: Text(
               'Reading file...',
               style: theme.textTheme.bodySmall?.copyWith(
@@ -203,20 +204,23 @@ class _FileHeader extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: const Color(0xFF30363D)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Title bar
+          // Title bar: file icon + path + copy button
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm + 2,
+              vertical: AppSpacing.sm - 2,
+            ),
             decoration: const BoxDecoration(
               color: Color(0xFF161B22),
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
+                topLeft: Radius.circular(AppRadius.sm),
+                topRight: Radius.circular(AppRadius.sm),
               ),
               border: Border(
                 bottom: BorderSide(color: Color(0xFF30363D)),
@@ -225,7 +229,7 @@ class _FileHeader extends StatelessWidget {
             child: Row(
               children: [
                 _FileIcon(extension: extension),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.sm - 2),
                 Expanded(
                   child: SelectableText(
                     resolvedPath,
@@ -244,8 +248,8 @@ class _FileHeader extends StatelessWidget {
           // Extension / type label row
           Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 5,
+              horizontal: AppSpacing.sm + 2,
+              vertical: AppSpacing.xs + 1,
             ),
             child: Row(
               children: [
@@ -258,15 +262,15 @@ class _FileHeader extends StatelessWidget {
                   ),
                 ),
                 if (extension.isNotEmpty) ...[
-                  const SizedBox(width: 6),
+                  const SizedBox(width: AppSpacing.sm - 2),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
+                      horizontal: AppSpacing.xs + 1,
                       vertical: 1,
                     ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1F2937),
-                      borderRadius: BorderRadius.circular(3),
+                      borderRadius: BorderRadius.circular(AppRadius.xs - 1),
                       border: Border.all(color: const Color(0xFF374151)),
                     ),
                     child: Text(
@@ -403,11 +407,15 @@ class _MetaRow extends StatelessWidget {
         chips.add(_MetaChip('From line ${offset! + 1}'));
       }
       if (limit != null) {
-        if (chips.isNotEmpty) chips.add(const SizedBox(width: 6));
+        if (chips.isNotEmpty) {
+          chips.add(const SizedBox(width: AppSpacing.sm - 2));
+        }
         chips.add(_MetaChip('Limit: $limit'));
       }
       if (totalLines != null) {
-        if (chips.isNotEmpty) chips.add(const SizedBox(width: 6));
+        if (chips.isNotEmpty) {
+          chips.add(const SizedBox(width: AppSpacing.sm - 2));
+        }
         chips.add(_MetaChip('$totalLines lines'));
       }
     }
@@ -427,10 +435,13 @@ class _MetaChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm - 1,
+        vertical: AppSpacing.xs - 1,
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFF1F2937),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(color: const Color(0xFF374151)),
       ),
       child: Text(
@@ -473,7 +484,7 @@ class _ContentBlock extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: const Color(0xFF30363D)),
       ),
       child: Column(
@@ -482,7 +493,7 @@ class _ContentBlock extends StatelessWidget {
         children: [
           // Content with line numbers
           Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(AppSpacing.sm + 2),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -491,7 +502,7 @@ class _ContentBlock extends StatelessWidget {
                   count: visibleLines.length,
                   startLine: startLine,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 // Content column
                 Expanded(
                   child: SelectableText(
@@ -564,13 +575,13 @@ class _ShowMoreButton extends StatelessWidget {
       onTap: onToggle,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm - 2),
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: Color(0xFF30363D))),
           color: Color(0xFF161B22),
           borderRadius: BorderRadius.only(
-            bottomLeft: Radius.circular(8),
-            bottomRight: Radius.circular(8),
+            bottomLeft: Radius.circular(AppRadius.sm),
+            bottomRight: Radius.circular(AppRadius.sm),
           ),
         ),
         child: Row(
@@ -581,7 +592,7 @@ class _ShowMoreButton extends StatelessWidget {
               size: 14,
               color: const Color(0xFF8B949E),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
             Text(
               expanded
                   ? 'Show less'

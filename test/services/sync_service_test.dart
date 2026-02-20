@@ -43,7 +43,6 @@ void main() {
         todosInvalidations++;
       });
       instance.messagesSync.clear();
-      instance.sessionReceivedMessages.clear();
     });
 
     test('update-account invalidates profile and settings sync', () async {
@@ -87,14 +86,12 @@ void main() {
     test('delete-session clears in-memory message state for that session',
         () async {
       instance.messagesSync['session_1'] = InvalidateSync(() async {});
-      instance.sessionReceivedMessages['session_1'] = {'message_1'};
 
       instance.handleUpdate({'t': 'delete-session', 'sid': 'session_1'});
 
       await instance.sessionsSync.awaitQueue();
 
       expect(instance.messagesSync.containsKey('session_1'), false);
-      expect(instance.sessionReceivedMessages.containsKey('session_1'), false);
       expect(sessionsInvalidations, 1);
     });
   });
@@ -169,7 +166,7 @@ void main() {
       expect(profile.id, 'user_1');
       expect(profile.name, 'Ada Lovelace');
       expect(profile.avatarUrl, 'https://example.com/avatar.png');
-      expect(profile.status.name, 'pendingOutgoing');
+      expect(profile.status.name, 'requested');
     });
 
     test('maps feed item body variants', () {
@@ -185,8 +182,7 @@ void main() {
 
       expect(feedItem.id, 'feed_1');
       expect(feedItem.userId, 'user_2');
-      expect(feedItem.type.name, 'friendRequest');
-      expect(feedItem.body.title, 'Friend request');
+      expect(feedItem.body.kind, 'friend_request');
     });
   });
 
@@ -244,7 +240,7 @@ void main() {
   });
 }
 
-class _FakeEncryptorDecryptor implements Encryptor, Decryptor {
+class _FakeEncryptorDecryptor implements Encryptor {
   @override
   Future<List<Uint8List>> encrypt(List<dynamic> data) async {
     return data

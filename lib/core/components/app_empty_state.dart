@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 /// Displays an icon, title, and optional subtitle for empty list states.
 ///
-/// The icon sits inside a soft rounded container (64 x 64 px, radius 16)
+/// The icon sits inside a soft rounded container
+/// ([AppSpacing.xxxl] × [AppSpacing.xxxl], radius [AppRadius.xl])
 /// with a [ColorScheme.surfaceContainerHighest] background. Title uses
 /// [TextTheme.titleMedium]; subtitle uses [TextTheme.bodyMedium] at
 /// 60 % opacity.
@@ -35,25 +37,28 @@ class AppEmptyState extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xxxl,
+          vertical: AppSpacing.xxl,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Icon container.
             Container(
-              width: 64,
-              height: 64,
+              width: AppSpacing.xxxl * 2,
+              height: AppSpacing.xxxl * 2,
               decoration: BoxDecoration(
                 color: cs.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AppRadius.xl),
               ),
               child: Icon(
                 icon,
-                size: 32,
+                size: AppSpacing.xxxl,
                 color: cs.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             // Title.
             Text(
               title,
@@ -62,7 +67,7 @@ class AppEmptyState extends StatelessWidget {
             ),
             // Subtitle.
             if (subtitle != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 subtitle!,
                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -73,7 +78,7 @@ class AppEmptyState extends StatelessWidget {
             ],
             // Action widget.
             if (action != null) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.xxl),
               action!,
             ],
           ],

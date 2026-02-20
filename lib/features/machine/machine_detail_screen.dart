@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/components/app_section_header.dart';
+import '../../core/components/app_status_dot.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Detail screen for a single machine.
 ///
@@ -107,6 +110,7 @@ class _MachineDetailScreenState
         metadata?.host ??
         machine.id;
     final isOnline = _isMachineOnline(machine.activeAt);
+    final statusColor = isOnline ? Colors.green : Colors.grey;
 
     // Sessions for this machine, sorted by most recently updated
     final machineSessions = sessions.values
@@ -135,24 +139,23 @@ class _MachineDetailScreenState
           children: [
             Text(
               machineName,
-              style: const TextStyle(fontSize: 17),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
+            const SizedBox(height: AppSpacing.xs),
             Row(
               children: [
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: isOnline ? Colors.green : Colors.grey,
-                    shape: BoxShape.circle,
-                  ),
+                AppStatusDot(
+                  color: statusColor,
+                  size: 7,
+                  pulse: isOnline,
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xs),
                 Text(
                   isOnline ? 'online' : 'offline',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isOnline ? Colors.green : Colors.grey,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: statusColor,
                   ),
                 ),
               ],
@@ -164,17 +167,27 @@ class _MachineDetailScreenState
         onRefresh: () =>
             ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
           children: [
             // Machine info section
-            _SectionCard(
+            AppSectionHeader(
               title: 'Machine',
+              padding: const EdgeInsets.only(
+                left: AppSpacing.xs,
+                bottom: AppSpacing.sm,
+              ),
+            ),
+            _InfoCard(
               children: [
                 if (metadata?.host != null)
                   _InfoRow(label: 'Host', value: metadata!.host),
                 _InfoRow(
                   label: 'Machine ID',
                   value: widget.machineId,
+                  mono: true,
                 ),
                 if (metadata?.username != null)
                   _InfoRow(
@@ -206,14 +219,21 @@ class _MachineDetailScreenState
                 _InfoRow(
                   label: 'Last Seen',
                   value: _formatTimestamp(machine.activeAt),
+                  isLast: true,
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
 
             // Daemon status section
-            _SectionCard(
+            AppSectionHeader(
               title: 'Daemon',
+              padding: const EdgeInsets.only(
+                left: AppSpacing.xs,
+                bottom: AppSpacing.sm,
+              ),
+            ),
+            _InfoCard(
               children: [
                 _InfoRow(
                   label: 'Status',
@@ -221,27 +241,36 @@ class _MachineDetailScreenState
                   valueColor: isOnline
                       ? Colors.green
                       : Colors.orange,
+                  isLast: metadata?.daemonLastKnownStatus == null &&
+                      metadata?.daemonLastKnownPid == null,
                 ),
                 if (metadata?.daemonLastKnownStatus != null)
                   _InfoRow(
                     label: 'Last Known Status',
                     value: metadata!.daemonLastKnownStatus!,
+                    isLast: metadata.daemonLastKnownPid == null,
                   ),
                 if (metadata?.daemonLastKnownPid != null)
                   _InfoRow(
                     label: 'Last Known PID',
                     value: metadata!.daemonLastKnownPid.toString(),
                     mono: true,
+                    isLast: true,
                   ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
 
             // Sessions section
             if (machineSessions.isNotEmpty) ...[
-              _SectionCard(
-                title:
-                    'Sessions (${machineSessions.length})',
+              AppSectionHeader(
+                title: 'Sessions (${machineSessions.length})',
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.xs,
+                  bottom: AppSpacing.sm,
+                ),
+              ),
+              _InfoCard(
                 children: [
                   for (int i = 0;
                       i < machineSessions.length && i < 5;
@@ -266,20 +295,19 @@ class _MachineDetailScreenState
                   if (machineSessions.length > 5)
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.md,
                       ),
                       child: Text(
                         '+ ${machineSessions.length - 5} more sessions',
-                        style: TextStyle(
-                          fontSize: 13,
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
             ],
           ],
         ),
@@ -288,96 +316,89 @@ class _MachineDetailScreenState
   }
 }
 
-class _SectionCard extends StatelessWidget {
+/// A card container for grouped info rows.
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({required this.children});
 
-  const _SectionCard({
-    required this.title,
-    required this.children,
-  });
-  final String title;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            title.toUpperCase(),
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
-        Card(
-          elevation: 0,
-          child: Column(children: children),
-        ),
-      ],
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      child: Column(children: children),
     );
   }
 }
 
 class _InfoRow extends StatelessWidget {
-
   const _InfoRow({
     required this.label,
     required this.value,
     this.mono = false,
     this.valueColor,
+    this.isLast = false,
   });
+
   final String label;
   final String? value;
   final bool mono;
   final Color? valueColor;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (value == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 12,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
           ),
-          Expanded(
-            child: Text(
-              value!,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontFamily: mono ? 'monospace' : null,
-                fontSize: mono ? 13 : null,
-                color: valueColor,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 120,
+                child: Text(
+                  label,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
               ),
-              textAlign: TextAlign.end,
-              overflow: TextOverflow.ellipsis,
-              maxLines: 2,
-            ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  value!,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontFamily: mono ? 'monospace' : null,
+                    fontSize: mono ? 13 : 14,
+                    color: valueColor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        if (!isLast)
+          Divider(
+            height: 1,
+            indent: AppSpacing.lg,
+            color: theme.colorScheme.outlineVariant,
+          ),
+      ],
     );
   }
 }
 
 class _SessionTile extends StatelessWidget {
-
   const _SessionTile({
     required this.session,
     required this.name,
@@ -385,6 +406,7 @@ class _SessionTile extends StatelessWidget {
     required this.showDivider,
     required this.onTap,
   });
+
   final Session session;
   final String name;
   final String subtitle;
@@ -400,8 +422,8 @@ class _SessionTile extends StatelessWidget {
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
             ),
             child: Row(
               children: [
@@ -420,10 +442,8 @@ class _SessionTile extends StatelessWidget {
                       if (subtitle.isNotEmpty)
                         Text(
                           subtitle,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color:
-                                theme.colorScheme.onSurfaceVariant,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
@@ -443,7 +463,7 @@ class _SessionTile extends StatelessWidget {
         if (showDivider)
           Divider(
             height: 1,
-            indent: 16,
+            indent: AppSpacing.lg,
             color: theme.colorScheme.outlineVariant,
           ),
       ],

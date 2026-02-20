@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/components/components.dart';
 import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Screen for selecting a machine from the list of available machines.
 ///
@@ -52,17 +54,19 @@ class PickMachineScreen extends ConsumerWidget {
           ? Center(
               child: Text(
                 'No machines available',
-                style: TextStyle(
-                  fontSize: 16,
+                style: theme.textTheme.bodyLarge?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             )
           : ListView(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
               children: [
                 if (recentMachines.isNotEmpty) ...[
-                  _SectionHeader(title: 'Recent Machines'),
+                  const AppSectionHeader(title: 'Recent'),
                   ...recentMachines.map(
                     (machine) => _MachineListTile(
                       machine: machine,
@@ -70,11 +74,11 @@ class PickMachineScreen extends ConsumerWidget {
                       onTap: () => context.pop(machine),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                 ],
                 if (otherMachines.isNotEmpty) ...[
                   if (recentMachines.isNotEmpty)
-                    _SectionHeader(title: 'All Machines'),
+                    const AppSectionHeader(title: 'All Machines'),
                   ...otherMachines.map(
                     (machine) => _MachineListTile(
                       machine: machine,
@@ -85,28 +89,6 @@ class PickMachineScreen extends ConsumerWidget {
                 ],
               ],
             ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-
-  const _SectionHeader({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-      child: Text(
-        title.toUpperCase(),
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        ),
-      ),
     );
   }
 }
@@ -137,76 +119,70 @@ class _MachineListTile extends StatelessWidget {
     final host = machine.metadata?.host;
     final isOnline = _isOnline;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      elevation: 0,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
+    return AppCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      onTap: onTap,
+      child: Row(
+        children: [
+          Icon(
+            showRecentIcon
+                ? Icons.history
+                : Icons.computer_outlined,
+            color: theme.colorScheme.onSurfaceVariant,
           ),
-          child: Row(
-            children: [
-              Icon(
-                showRecentIcon
-                    ? Icons.history
-                    : Icons.computer_outlined,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      displayName,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (host != null &&
-                        host != displayName)
-                      Text(
-                        host,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                  ],
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: isOnline
-                          ? Colors.green
-                          : Colors.grey,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
+                if (host != null && host != displayName)
                   Text(
-                    isOnline ? 'online' : 'offline',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isOnline
-                          ? Colors.green
-                          : theme.colorScheme.onSurfaceVariant,
+                    host,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppStatusDot(
+                color: isOnline
+                    ? Colors.green
+                    : theme.colorScheme.outlineVariant,
+                size: 8,
+                pulse: isOnline,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                isOnline ? 'online' : 'offline',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: isOnline
+                      ? Colors.green
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }

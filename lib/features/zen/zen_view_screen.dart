@@ -8,6 +8,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Screen that shows the details of a single Zen todo item.
 class ZenViewScreen extends ConsumerStatefulWidget {
@@ -165,55 +166,86 @@ class _ZenViewBodyState extends ConsumerState<_ZenViewBody> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final item = widget.item;
     final isDone = item.status.isTerminal;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.zenTaskTitle)),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl,
+          AppSpacing.xl,
+          AppSpacing.xl,
+          AppSpacing.xxxl,
+        ),
         children: [
           // Content
           Text(
             item.content,
             style: theme.textTheme.titleLarge?.copyWith(
               decoration: isDone ? TextDecoration.lineThrough : null,
-              color: isDone ? theme.colorScheme.onSurfaceVariant : null,
+              decorationColor: cs.onSurface,
+              color: isDone ? cs.onSurfaceVariant : cs.onSurface,
+              height: 1.4,
             ),
           ),
-          const SizedBox(height: 24),
-          // Meta info
-          _MetaRow(
-            label: l10n.zenPriorityLabel,
-            child: _PriorityChip(priority: item.priority),
-          ),
-          const SizedBox(height: 10),
-          _MetaRow(
-            label: l10n.zenStatusLabel,
-            child: Text(
-              item.status.displayName,
-              style: theme.textTheme.bodyMedium,
+          const SizedBox(height: AppSpacing.xxl),
+          // Meta card
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
             ),
-          ),
-          const SizedBox(height: 10),
-          _MetaRow(
-            label: l10n.zenCreatedLabel,
-            child: Text(
-              _formatDate(item.createdAt),
-              style: theme.textTheme.bodyMedium,
-            ),
-          ),
-          if (item.completedAt != null) ...[
-            const SizedBox(height: 10),
-            _MetaRow(
-              label: l10n.zenCompletedLabel,
-              child: Text(
-                _formatDate(item.completedAt!),
-                style: theme.textTheme.bodyMedium,
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: cs.outlineVariant.withValues(alpha: 0.4),
               ),
             ),
-          ],
-          const SizedBox(height: 32),
+            child: Column(
+              children: [
+                _MetaRow(
+                  label: l10n.zenPriorityLabel,
+                  child: _PriorityChip(priority: item.priority),
+                ),
+                _MetaDivider(),
+                _MetaRow(
+                  label: l10n.zenStatusLabel,
+                  child: Text(
+                    item.status.displayName,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: cs.onSurface,
+                    ),
+                  ),
+                ),
+                _MetaDivider(),
+                _MetaRow(
+                  label: l10n.zenCreatedLabel,
+                  child: Text(
+                    _formatDate(item.createdAt),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: cs.onSurface,
+                    ),
+                  ),
+                ),
+                if (item.completedAt != null) ...[
+                  _MetaDivider(),
+                  _MetaRow(
+                    label: l10n.zenCompletedLabel,
+                    child: Text(
+                      _formatDate(item.completedAt!),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: cs.onSurface,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxxl),
           // Actions
           if (!isDone)
             FilledButton.icon(
@@ -221,19 +253,19 @@ class _ZenViewBodyState extends ConsumerState<_ZenViewBody> {
               icon: const Icon(Icons.check),
               label: Text(l10n.zenMarkDone),
             ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           OutlinedButton.icon(
             onPressed: _isBusy ? null : _delete,
             icon: Icon(
               Icons.delete_outline,
-              color: theme.colorScheme.error,
+              color: cs.error,
             ),
             label: Text(
               l10n.commonDelete,
-              style: TextStyle(color: theme.colorScheme.error),
+              style: TextStyle(color: cs.error),
             ),
             style: OutlinedButton.styleFrom(
-              side: BorderSide(color: theme.colorScheme.error),
+              side: BorderSide(color: cs.error),
             ),
           ),
         ],
@@ -251,6 +283,19 @@ class _ZenViewBodyState extends ConsumerState<_ZenViewBody> {
   }
 }
 
+class _MetaDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Divider(
+      height: 1,
+      thickness: 0.5,
+      color: Theme.of(context).colorScheme.outlineVariant.withValues(
+        alpha: 0.5,
+      ),
+    );
+  }
+}
+
 class _MetaRow extends StatelessWidget {
   const _MetaRow({required this.label, required this.child});
 
@@ -260,20 +305,23 @@ class _MetaRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Row(
-      children: [
-        SizedBox(
-          width: 100,
-          child: Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 96,
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-        ),
-        child,
-      ],
+          Expanded(child: child),
+        ],
+      ),
     );
   }
 }
@@ -301,10 +349,13 @@ class _PriorityChip extends StatelessWidget {
     final theme = Theme.of(context);
     final color = _color(priority, theme.colorScheme);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs / 2,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Text(

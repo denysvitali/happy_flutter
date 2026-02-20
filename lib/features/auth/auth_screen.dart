@@ -8,12 +8,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr/qr.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/components/app_loading_indicator.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/server_config.dart';
 import '../../core/services/storage_service.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../core/utils/backup_key_utils.dart';
 
 // ---------------------------------------------------------------------------
@@ -28,7 +30,7 @@ class RoundButton extends StatelessWidget {
     this.onPressed,
     this.isPrimary = true,
     this.isLoading = false,
-    this.height = 52,
+    this.height = 52.0,
   });
 
   final String title;
@@ -61,19 +63,16 @@ class RoundButton extends StatelessWidget {
                   color: theme.colorScheme.outline,
                 ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
         ),
         child: isLoading
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: isPrimary
-                      ? theme.colorScheme.onPrimary
-                      : theme.colorScheme.primary,
-                ),
+            ? AppLoadingIndicator(
+                size: 20,
+                strokeWidth: 2,
+                color: isPrimary
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.primary,
               )
             : Text(
                 title,
@@ -107,10 +106,10 @@ class QRCodeDisplay extends StatelessWidget {
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: Colors.grey[300]!),
         boxShadow: [
           BoxShadow(
@@ -213,11 +212,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     super.initState();
     _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: AppDuration.slow,
     );
     _fadeAnimation = CurvedAnimation(
       parent: _fadeController,
-      curve: Curves.easeIn,
+      curve: AppCurve.enter,
     );
     _fadeController.forward();
 
@@ -509,9 +508,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       body = SafeArea(
         child: Padding(
           padding: EdgeInsets.only(
-            left: 48,
-            right: 48,
-            bottom: padding.bottom + 24,
+            left: AppSpacing.xxxl + AppSpacing.lg,
+            right: AppSpacing.xxxl + AppSpacing.lg,
+            bottom: padding.bottom + AppSpacing.xxl,
           ),
           child: Row(
             children: [
@@ -522,7 +521,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   children: [
                     ...notices,
                     header,
-                    const SizedBox(height: 32),
+                    const SizedBox(height: AppSpacing.xxxl),
                     SizedBox(width: 280, child: buttons),
                   ],
                 ),
@@ -535,16 +534,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       body = SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.xxl),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.xxl),
                 ...notices,
                 header,
-                const SizedBox(height: 48),
+                const SizedBox(height: AppSpacing.xxxl + AppSpacing.lg),
                 SizedBox(width: 280, child: buttons),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.xxl),
               ],
             ),
           ),
@@ -653,9 +652,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         body: SafeArea(
           child: Padding(
             padding: EdgeInsets.only(
-              left: 48,
-              right: 48,
-              bottom: padding.bottom + 24,
+              left: AppSpacing.xxxl + AppSpacing.lg,
+              right: AppSpacing.xxxl + AppSpacing.lg,
+              bottom: padding.bottom + AppSpacing.xxl,
             ),
             child: Row(
               children: [
@@ -670,7 +669,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       qrSection,
-                      const SizedBox(height: 24),
+                      const SizedBox(height: AppSpacing.xxl),
                       SizedBox(width: 280, child: actions),
                     ],
                   ),
@@ -687,17 +686,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.xxl),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.lg),
                 instructions,
-                const SizedBox(height: 32),
+                const SizedBox(height: AppSpacing.xxxl),
                 qrSection,
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.xxl),
                 SizedBox(width: 280, child: actions),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.xxl),
               ],
             ),
           ),
@@ -818,14 +817,14 @@ class _AuthHeader extends StatelessWidget {
             color: theme.colorScheme.onPrimary,
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: AppSpacing.xxl),
         Text(
           context.l10n.appTitle,
           style: theme.textTheme.headlineLarge?.copyWith(
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: AppSpacing.sm),
         Text(
           context.l10n.appSubtitle,
           style: theme.textTheme.bodyLarge?.copyWith(
@@ -910,13 +909,13 @@ class _AuthButtonGroup extends StatelessWidget {
           isLoading: isLoadingCreate,
           isPrimary: true,
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: AppSpacing.md),
         RoundButton(
           title: l10n.welcomeLinkOrRestoreAccount,
           onPressed: onLinkAccount,
           isPrimary: false,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: AppSpacing.sm),
         RoundButton(
           title: 'Sign In with Secret Key',
           onPressed: onRestoreKey,
@@ -948,27 +947,20 @@ class _StatusBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      margin: const EdgeInsets.only(bottom: AppSpacing.lg),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         border: Border.all(color: color.withValues(alpha: 0.35)),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Row(
         children: [
           if (isLoading)
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: color,
-              ),
-            )
+            AppLoadingIndicator(size: 20, strokeWidth: 2, color: color)
           else if (icon != null)
             Icon(icon, color: color, size: 20),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
               message,
@@ -1070,10 +1062,10 @@ class _QRCodeSection extends StatelessWidget {
           Container(
             width: 250,
             height: 250,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
               border: Border.all(color: Colors.grey[300]!),
               boxShadow: [
                 BoxShadow(
@@ -1084,7 +1076,7 @@ class _QRCodeSection extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Center(child: CircularProgressIndicator()),
+            child: const AppLoadingIndicator(),
           ),
       ],
     );
@@ -1118,12 +1110,12 @@ class _PollingView extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
+              AppLoadingIndicator(
+                size: AppSpacing.lg,
+                strokeWidth: 2,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Text(
                 'Waiting for approval...',
                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -1132,7 +1124,7 @@ class _PollingView extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.xl),
         ],
         RoundButton(
           title: 'Try Again',
@@ -1140,7 +1132,7 @@ class _PollingView extends StatelessWidget {
           isPrimary: false,
           isLoading: isPolling && hasError,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         RoundButton(
           title: 'Back',
           onPressed: onBack,
@@ -1250,7 +1242,7 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
             'Enter backup key (11 groups like XXXXX-XXXXX...),'
             ' base64/base64url, or 64-char hex key.',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           TextField(
             controller: _controller,
             enabled: !_isSubmitting,
@@ -1259,24 +1251,24 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
               hintText: 'Backup key / base64 / hex',
               errorText: _errorText,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
                 borderSide: BorderSide(
                   color: Theme.of(context).colorScheme.primary,
                   width: 2,
                 ),
               ),
               errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
                 borderSide: const BorderSide(color: Colors.red),
               ),
               focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
                 borderSide: const BorderSide(
                   color: Colors.red,
                   width: 2,
@@ -1316,13 +1308,10 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
         FilledButton(
           onPressed: _isSubmitting ? null : _submit,
           child: _isSubmitting
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
+              ? const AppLoadingIndicator(
+                  size: 16,
+                  strokeWidth: 2,
+                  color: Colors.white,
                 )
               : const Text('Sign In'),
         ),
@@ -1428,11 +1417,11 @@ class _ServerUrlDialogState extends State<_ServerUrlDialog> {
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(
-        horizontal: 24,
+        horizontal: AppSpacing.xxl,
         vertical: 40,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1440,7 +1429,12 @@ class _ServerUrlDialogState extends State<_ServerUrlDialog> {
         children: [
           // Header
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl,
+              AppSpacing.xl,
+              AppSpacing.xl,
+              0,
+            ),
             child: Row(
               children: [
                 Icon(
@@ -1448,7 +1442,7 @@ class _ServerUrlDialogState extends State<_ServerUrlDialog> {
                   color: Theme.of(context).colorScheme.primary,
                   size: 28,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(
                     l10n.settingsServerUrl,
@@ -1461,11 +1455,11 @@ class _ServerUrlDialogState extends State<_ServerUrlDialog> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           // URL input + error detail
           Flexible(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -1480,13 +1474,16 @@ class _ServerUrlDialogState extends State<_ServerUrlDialog> {
                         prefixIcon: const Icon(Icons.link_outlined),
                         errorText: _errorText,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.pill),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.pill),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.pill),
                           borderSide: BorderSide(
                             color: Theme.of(context).colorScheme.primary,
                             width: 2,
@@ -1509,26 +1506,26 @@ class _ServerUrlDialogState extends State<_ServerUrlDialog> {
                         setState(() {});
                       },
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.lg),
                     if (_detailedError != null) ...[
                       _ErrorDetailBox(
                         errorType: _errorType,
                         errorMessage: _detailedError!,
                         l10n: l10n,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.md),
                     ],
                   ],
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.xl),
           // Actions
           Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 12,
+              horizontal: AppSpacing.xl,
+              vertical: AppSpacing.md,
             ),
             decoration: BoxDecoration(
               color: Theme.of(context)
@@ -1544,7 +1541,7 @@ class _ServerUrlDialogState extends State<_ServerUrlDialog> {
                   child: Text(l10n.commonCancel),
                 ),
                 if (!isDefault) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   TextButton(
                     onPressed: () {
                       setServerUrl(null);
@@ -1562,17 +1559,14 @@ class _ServerUrlDialogState extends State<_ServerUrlDialog> {
                     child: Text(l10n.settingsServerResetToDefault),
                   ),
                 ],
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 FilledButton(
                   onPressed: _isVerifying ? null : _save,
                   child: _isVerifying
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
+                      ? const AppLoadingIndicator(
+                          size: 16,
+                          strokeWidth: 2,
+                          color: Colors.white,
                         )
                       : Text(l10n.settingsServerSaveVerify),
                 ),
@@ -1603,10 +1597,10 @@ class _ErrorDetailBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: Colors.red[50],
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: Colors.red[200]!),
       ),
       child: Column(
@@ -1615,7 +1609,7 @@ class _ErrorDetailBox extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.error_outline, color: Colors.red[700], size: 18),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   l10n.authConnectionFailed,
@@ -1629,12 +1623,12 @@ class _ErrorDetailBox extends StatelessWidget {
               if (errorType != null)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
+                    horizontal: AppSpacing.sm,
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.red[100],
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                   ),
                   child: Text(
                     errorType!,
@@ -1647,7 +1641,7 @@ class _ErrorDetailBox extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           SelectableText(
             errorMessage,
             style: TextStyle(
@@ -1656,7 +1650,7 @@ class _ErrorDetailBox extends StatelessWidget {
               fontFamily: 'monospace',
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -1680,8 +1674,8 @@ class _ErrorDetailBox extends StatelessWidget {
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.red[700],
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
                   ),
                 ),
               ),
@@ -1726,7 +1720,7 @@ class AuthGate extends ConsumerWidget {
       AuthState.unauthenticated =>
         AuthScreen(initialDeepLink: initialDeepLink),
       AuthState.authenticating => const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+          body: AppLoadingIndicator(),
         ),
       AuthState.error =>
         AuthScreen(initialDeepLink: initialDeepLink, showError: true),

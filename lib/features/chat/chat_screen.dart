@@ -10,6 +10,7 @@ import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_tokens.dart';
 import 'chat_input.dart';
 import 'message_widget.dart';
 import 'widgets/permission_mode_selector.dart';
@@ -882,15 +883,20 @@ class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return AppBar(
       title: _buildTitle(context),
+      // Show a subtle shadow when content scrolls beneath the app bar.
+      scrolledUnderElevation: AppElevation.low,
       actions: [
         if (isThinking)
           IconButton(
             icon: const Icon(Icons.stop_circle_outlined),
+            iconSize: 24,
             tooltip: 'Stop',
             onPressed: onStop,
           ),
         IconButton(
           icon: const Icon(Icons.more_vert),
+          iconSize: 24,
+          tooltip: 'More options',
           onPressed: onMenuTap,
         ),
       ],
@@ -909,7 +915,7 @@ class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Session name — slightly bolder for polish
+        // Session name — w600 for visual hierarchy, ellipsis for long titles.
         Text(
           sessionTitle,
           style: TextStyle(
@@ -921,22 +927,22 @@ class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 2),
-        // Path pill chip + status badge in one row
+        // Path pill chip + status badge in one row.
         Row(
           children: [
             if (relativePath.isNotEmpty) ...[
               _PathChip(path: relativePath),
-              const SizedBox(width: 6),
-              // Subtle vertical separator
+              const SizedBox(width: AppSpacing.xs),
+              // Subtle vertical separator between path and status.
               Container(
                 width: 1,
                 height: 10,
                 color: colorScheme.outlineVariant,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.xs),
             ],
             AppStatusDot(color: statusColor, pulse: isThinking),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
             Flexible(
               child: Text(
                 [
@@ -944,7 +950,7 @@ class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                   if (machineName != null) machineName,
                 ].join('  ·  '),
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   color: colorScheme.onSurfaceVariant,
                 ),
                 maxLines: 1,
@@ -972,7 +978,7 @@ class _PathChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(100),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(
           color: colorScheme.outlineVariant,
         ),
