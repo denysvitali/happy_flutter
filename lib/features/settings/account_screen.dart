@@ -42,29 +42,20 @@ class AccountScreen extends ConsumerWidget {
   }
 
   Widget buildProfileSection(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(profileNotifierProvider);
     return SettingsSection(
       title: 'Profile',
       children: [
-        Consumer(
-          builder: (context, ref, child) {
-            return FutureBuilder<Profile?>(
-              future: AuthService().getProfile(),
-              builder: (context, snapshot) {
-                final profile = snapshot.data;
-                return ListTile(
-                  leading: profile?.avatarUrl != null
-                      ? CircleAvatar(
-                          backgroundImage: NetworkImage(profile!.avatarUrl!),
-                        )
-                      : const CircleAvatar(
-                          child: Icon(Icons.person),
-                        ),
-                  title: Text(profile?.displayName ?? 'Loading...'),
-                  subtitle: Text(profile?.github?.email ?? 'Not loaded'),
-                );
-              },
-            );
-          },
+        ListTile(
+          leading: profile?.avatarUrl != null
+              ? CircleAvatar(
+                  backgroundImage: NetworkImage(profile!.avatarUrl!),
+                )
+              : const CircleAvatar(
+                  child: Icon(Icons.person),
+                ),
+          title: Text(profile?.displayName ?? 'Loading...'),
+          subtitle: Text(profile?.github?.email ?? 'Not loaded'),
         ),
       ],
     );
@@ -130,6 +121,8 @@ class AccountScreen extends ConsumerWidget {
       children: [
         Consumer(
           builder: (context, ref, child) {
+            // Connected services are not yet exposed via a Riverpod provider;
+            // leaving as FutureBuilder until the provider is added.
             return FutureBuilder<List<ConnectedServiceInfo>>(
               future: AuthService().getConnectedServices(),
               builder: (context, snapshot) {

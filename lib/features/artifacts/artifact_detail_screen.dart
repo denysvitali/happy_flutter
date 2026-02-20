@@ -1,21 +1,53 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/sync_service.dart';
 
 /// Screen showing detail view for a single artifact.
-class ArtifactDetailScreen extends ConsumerWidget {
+class ArtifactDetailScreen extends ConsumerStatefulWidget {
   const ArtifactDetailScreen({required this.artifactId, super.key});
 
   final String artifactId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ArtifactDetailScreen> createState() =>
+      _ArtifactDetailScreenState();
+}
+
+class _ArtifactDetailScreenState
+    extends ConsumerState<ArtifactDetailScreen> {
+  StreamSubscription<void>? _syncSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(() async {
+      await ref
+          .read(artifactsNotifierProvider.notifier)
+          .refreshFromSync();
+    });
+    _syncSubscription = sync.onDataChanged.listen((_) {
+      if (!mounted) return;
+      ref.read(artifactsNotifierProvider.notifier).loadFromSync();
+    });
+  }
+
+  @override
+  void dispose() {
+    _syncSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final artifacts = ref.watch(artifactsNotifierProvider);
-    final artifact = artifacts[artifactId];
+    final artifact = artifacts[widget.artifactId];
 
     if (artifact == null) {
       return Scaffold(
@@ -61,7 +93,7 @@ class ArtifactDetailScreen extends ConsumerWidget {
             ),
             tooltip: l10n.commonDelete,
             onPressed: () =>
-                _confirmDelete(context, ref, l10n, artifact),
+                _confirmDelete(context, l10n, artifact),
           ),
         ],
       ),
@@ -74,9 +106,8 @@ class ArtifactDetailScreen extends ConsumerWidget {
 
   Future<void> _confirmDelete(
     BuildContext context,
-    WidgetRef ref,
     AppLocalizations l10n,
-    Artifact artifact,
+    DecryptedArtifact artifact,
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -115,7 +146,7 @@ class ArtifactDetailScreen extends ConsumerWidget {
 class _ArtifactDetailBody extends StatelessWidget {
   const _ArtifactDetailBody({required this.artifact});
 
-  final Artifact artifact;
+  final DecryptedArtifact artifact;
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +193,8 @@ class _ArtifactDetailBody extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            color:
+                Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(

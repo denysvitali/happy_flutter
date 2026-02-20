@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/components/app_status_dot.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
@@ -829,7 +830,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 /// Custom [PreferredSizeWidget] app bar for the chat screen.
 ///
 /// Shows the session title (bolder weight), a pill-shaped path chip
-/// in monospace, and a status row with a [_StatusDot] and status text.
+/// in monospace, and a status row with a [AppStatusDot] and status text.
 class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   const _ChatAppBar({
     required this.session,
@@ -913,7 +914,7 @@ class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
               const SizedBox(width: 6),
             ],
-            _StatusDot(color: statusColor, pulsing: isThinking),
+            AppStatusDot(color: statusColor, pulse: isThinking),
             const SizedBox(width: 4),
             Flexible(
               child: Text(
@@ -1281,74 +1282,3 @@ class _Dot extends StatelessWidget {
   }
 }
 
-// ─── _StatusDot ───────────────────────────────────────────────────────────
-
-/// An 8 px circle status indicator with optional pulse animation.
-///
-/// - Connected / online  → green  (`Color(0xFF22C55E)`)
-/// - Thinking / active   → primary (blue) with pulse
-/// - Disconnected / idle → `colorScheme.outline` (grey)
-class _StatusDot extends StatefulWidget {
-  const _StatusDot({required this.color, this.pulsing = false});
-  final Color color;
-  final bool pulsing;
-
-  @override
-  State<_StatusDot> createState() => _StatusDotState();
-}
-
-class _StatusDotState extends State<_StatusDot>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-    if (widget.pulsing) _controller.repeat(reverse: true);
-  }
-
-  @override
-  void didUpdateWidget(_StatusDot oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.pulsing && !_controller.isAnimating) {
-      _controller.repeat(reverse: true);
-    } else if (!widget.pulsing && _controller.isAnimating) {
-      _controller
-        ..stop()
-        ..value = 1.0;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: widget.color.withValues(
-              alpha: widget.pulsing ? _animation.value : 1.0,
-            ),
-          ),
-        );
-      },
-    );
-  }
-}

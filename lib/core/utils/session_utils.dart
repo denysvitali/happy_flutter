@@ -5,6 +5,10 @@ import 'package:intl/intl.dart';
 import '../models/machine.dart';
 import '../models/session.dart';
 
+// Re-export the canonical formatTimestamp from utils.dart so that existing
+// consumers of session_utils.dart continue to work without modification.
+export 'utils.dart' show formatTimestamp;
+
 /// Date grouping categories for session history
 enum DateGroup {
   today,
@@ -284,34 +288,6 @@ String formatLastSeen(int activeAt, {bool isActive = false}) {
     final formatter = DateFormat.yMMMd();
     return formatter.format(date);
   }
-}
-
-/// Formats a timestamp into a human-readable relative time string.
-String formatTimestamp(int timestamp, {bool relative = false}) {
-  final now = DateTime.now().millisecondsSinceEpoch;
-  final diffMs = now - timestamp;
-  final diffSeconds = (diffMs / 1000).floor();
-  final diffMinutes = (diffSeconds / 60).floor();
-  final diffHours = (diffMinutes / 60).floor();
-  final diffDays = (diffHours / 24).floor();
-
-  if (relative) {
-    if (diffSeconds < 60) {
-      return 'Just now';
-    } else if (diffMinutes < 60) {
-      return '$diffMinutes min ago';
-    } else if (diffHours < 24) {
-      return '$diffHours hr ago';
-    } else if (diffDays < 7) {
-      return '$diffDays days ago';
-    }
-  }
-
-  // Format as date using intl
-  final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
-  final nowYear = DateTime.now().year;
-  final formatter = DateFormat(nowYear == date.year ? 'MMM d' : 'MMM d, yyyy');
-  return formatter.format(date);
 }
 
 // ─── Folder grouping ─────────────────────────────────────────────────────────

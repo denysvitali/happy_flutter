@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,15 +7,18 @@ import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/sync_service.dart';
 
 /// Screen that shows the details of a single Zen todo item.
-class ZenViewScreen extends ConsumerWidget {
+class ZenViewScreen extends ConsumerStatefulWidget {
   /// Creates the Zen view screen.
   ///
   /// [todoId] identifies the task. [sessionId] identifies the list it
   /// belongs to.
   const ZenViewScreen({
-    required this.todoId, required this.sessionId, super.key,
+    required this.todoId,
+    required this.sessionId,
+    super.key,
   });
 
   /// The id of the task to display.
@@ -23,11 +28,38 @@ class ZenViewScreen extends ConsumerWidget {
   final String sessionId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ZenViewScreen> createState() => _ZenViewScreenState();
+}
+
+class _ZenViewScreenState extends ConsumerState<ZenViewScreen> {
+  StreamSubscription<void>? _syncSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(() async {
+      await ref
+          .read(todoStateNotifierProvider.notifier)
+          .refreshFromSync();
+    });
+    _syncSubscription = sync.onDataChanged.listen((_) {
+      if (!mounted) return;
+      ref.read(todoStateNotifierProvider.notifier).loadFromSync();
+    });
+  }
+
+  @override
+  void dispose() {
+    _syncSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final todoState = ref.watch(todoStateNotifierProvider);
-    final list = todoState.lists[sessionId];
+    final list = todoState.lists[widget.sessionId];
     final item =
-        list?.items.where((t) => t.id == todoId).firstOrNull;
+        list?.items.where((t) => t.id == widget.todoId).firstOrNull;
 
     if (item == null) {
       return Scaffold(
@@ -38,7 +70,7 @@ class ZenViewScreen extends ConsumerWidget {
       );
     }
 
-    return _ZenViewBody(item: item, sessionId: sessionId);
+    return _ZenViewBody(item: item, sessionId: widget.sessionId);
   }
 }
 

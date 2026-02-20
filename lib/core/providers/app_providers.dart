@@ -411,38 +411,59 @@ class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
 
 /// Artifacts provider
 final artifactsNotifierProvider =
-    NotifierProvider<ArtifactsNotifier, Map<String, Artifact>>(() {
-      return ArtifactsNotifier();
-    });
+    NotifierProvider<ArtifactsNotifier, Map<String, DecryptedArtifact>>(
+      () {
+        return ArtifactsNotifier();
+      },
+    );
 
-class ArtifactsNotifier extends Notifier<Map<String, Artifact>> {
+class ArtifactsNotifier
+    extends Notifier<Map<String, DecryptedArtifact>> {
   @override
-  Map<String, Artifact> build() => {};
+  Map<String, DecryptedArtifact> build() => {};
 
-  void addArtifact(Artifact artifact) {
+  void addArtifact(DecryptedArtifact artifact) {
     state = {...state, artifact.id: artifact};
   }
 
-  void updateArtifact(String id, Artifact Function(Artifact) update) {
+  void updateArtifact(
+    String id,
+    DecryptedArtifact Function(DecryptedArtifact) update,
+  ) {
     if (state.containsKey(id)) {
       state = {...state, id: update(state[id]!)};
     }
   }
 
   void removeArtifact(String id) {
-    state = Map<String, Artifact>.from(state)..remove(id);
+    state = Map<String, DecryptedArtifact>.from(state)..remove(id);
   }
 
-  void setArtifacts(List<Artifact> artifacts) {
+  void setArtifacts(List<DecryptedArtifact> artifacts) {
     state = {for (final artifact in artifacts) artifact.id: artifact};
+  }
+
+  void loadFromSync() {
+    if (!sync.isInitialized) {
+      return;
+    }
+    state = {for (final a in sync.artifacts) a.id: a};
+  }
+
+  Future<void> refreshFromSync() async {
+    if (!sync.isInitialized) {
+      return;
+    }
+    await sync.artifactsSync.invalidateAndAwait();
+    loadFromSync();
   }
 
   // NOTE: Cannot filter by sessionId without decrypting headers first
   // The sessionId is stored in the encrypted header, not on the Artifact model
   //
-  // List<Artifact> getBySession(String sessionId) {
+  // List<DecryptedArtifact> getBySession(String sessionId) {
   //   return state.values
-  //       .where((a) => a.sessionId == sessionId)
+  //       .where((a) => a.sessions?.contains(sessionId) ?? false)
   //       .toList();
   // }
 }
@@ -663,21 +684,25 @@ class TodoStateNotifier extends Notifier<TodoListState> {
     if (!sync.isInitialized) {
       return;
     }
-    final lists = sync.todoLists;
-    final mapped = <String, TodoList>{};
-    for (final entry in lists.entries) {
-      if (entry.key != null) {
-        mapped[entry.key!] = entry.value;
-      }
+    final mapped = <String?, TodoList>{};
+    for (final entry in sync.todoLists.entries) {
+      mapped[entry.key] = entry.value;
     }
     state = TodoListState(lists: mapped);
   }
 
-  void setTodoList(TodoList list) {
-    final sessionId = list.sessionId;
-    if (sessionId != null) {
-      state = state.copyWith(lists: {...state.lists, sessionId: list});
+  Future<void> refreshFromSync() async {
+    if (!sync.isInitialized) {
+      return;
     }
+    await sync.todosSync.invalidateAndAwait();
+    loadFromSync();
+  }
+
+  void setTodoList(TodoList list) {
+    state = state.copyWith(
+      lists: {...state.lists, list.sessionId: list},
+    );
   }
 
   void addTodo(String sessionId, TodoItem item) {
@@ -688,7 +713,9 @@ class TodoStateNotifier extends Notifier<TodoListState> {
         items: updatedItems,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
-      state = state.copyWith(lists: {...state.lists, sessionId: updatedList});
+      state = state.copyWith(
+        lists: {...state.lists, sessionId: updatedList},
+      );
     }
   }
 
@@ -709,7 +736,9 @@ class TodoStateNotifier extends Notifier<TodoListState> {
         items: updatedItems,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
-      state = state.copyWith(lists: {...state.lists, sessionId: updatedList});
+      state = state.copyWith(
+        lists: {...state.lists, sessionId: updatedList},
+      );
     }
   }
 
@@ -723,7 +752,9 @@ class TodoStateNotifier extends Notifier<TodoListState> {
         items: updatedItems,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
-      state = state.copyWith(lists: {...state.lists, sessionId: updatedList});
+      state = state.copyWith(
+        lists: {...state.lists, sessionId: updatedList},
+      );
     }
   }
 
@@ -749,13 +780,15 @@ class TodoStateNotifier extends Notifier<TodoListState> {
         items: updatedItems,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
-      state = state.copyWith(lists: {...state.lists, sessionId: updatedList});
+      state = state.copyWith(
+        lists: {...state.lists, sessionId: updatedList},
+      );
     }
   }
 
   void clearSessionTodos(String sessionId) {
     state = state.copyWith(
-      lists: Map<String, TodoList>.from(state.lists)..remove(sessionId),
+      lists: Map<String?, TodoList>.from(state.lists)..remove(sessionId),
     );
   }
 
@@ -765,11 +798,10 @@ class TodoStateNotifier extends Notifier<TodoListState> {
 }
 
 class TodoListState {
-
   TodoListState({this.lists = const {}});
-  final Map<String, TodoList> lists;
+  final Map<String?, TodoList> lists;
 
-  TodoListState copyWith({Map<String, TodoList>? lists}) {
+  TodoListState copyWith({Map<String?, TodoList>? lists}) {
     return TodoListState(lists: lists ?? this.lists);
   }
 

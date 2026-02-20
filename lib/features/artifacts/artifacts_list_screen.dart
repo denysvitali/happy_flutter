@@ -1,16 +1,48 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/sync_service.dart';
 
 /// Screen displaying the list of all artifacts.
-class ArtifactsListScreen extends ConsumerWidget {
+class ArtifactsListScreen extends ConsumerStatefulWidget {
   const ArtifactsListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ArtifactsListScreen> createState() =>
+      _ArtifactsListScreenState();
+}
+
+class _ArtifactsListScreenState
+    extends ConsumerState<ArtifactsListScreen> {
+  StreamSubscription<void>? _syncSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(() async {
+      await ref
+          .read(artifactsNotifierProvider.notifier)
+          .refreshFromSync();
+    });
+    _syncSubscription = sync.onDataChanged.listen((_) {
+      if (!mounted) return;
+      ref.read(artifactsNotifierProvider.notifier).loadFromSync();
+    });
+  }
+
+  @override
+  void dispose() {
+    _syncSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
     final artifacts = ref.watch(artifactsNotifierProvider);
     final sortedArtifacts = artifacts.values.toList()
@@ -67,7 +99,7 @@ class ArtifactsListScreen extends ConsumerWidget {
 
   Widget _buildList(
     BuildContext context,
-    List<Artifact> artifacts,
+    List<DecryptedArtifact> artifacts,
   ) {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -84,7 +116,7 @@ class ArtifactsListScreen extends ConsumerWidget {
 class _ArtifactListTile extends StatelessWidget {
   const _ArtifactListTile({required this.artifact});
 
-  final Artifact artifact;
+  final DecryptedArtifact artifact;
 
   @override
   Widget build(BuildContext context) {

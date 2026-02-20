@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/utils/voice_languages.dart';
 
@@ -51,12 +52,7 @@ class VoiceSettingsScreen extends ConsumerWidget {
               subtitle: Text(selectedLanguage?.displayName ?? 'Auto-detect'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const VoiceLanguageSelectionScreen(),
-                  ),
-                );
+                context.pushNamed('voice-language');
               },
             ),
           ),

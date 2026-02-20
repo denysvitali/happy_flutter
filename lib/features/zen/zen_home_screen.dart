@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,14 +7,42 @@ import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/sync_service.dart';
 
 /// Zen home screen — displays all todo items grouped by status.
-class ZenHomeScreen extends ConsumerWidget {
+class ZenHomeScreen extends ConsumerStatefulWidget {
   /// Creates the Zen home screen.
   const ZenHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ZenHomeScreen> createState() => _ZenHomeScreenState();
+}
+
+class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen> {
+  StreamSubscription<void>? _syncSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(() async {
+      await ref
+          .read(todoStateNotifierProvider.notifier)
+          .refreshFromSync();
+    });
+    _syncSubscription = sync.onDataChanged.listen((_) {
+      if (!mounted) return;
+      ref.read(todoStateNotifierProvider.notifier).loadFromSync();
+    });
+  }
+
+  @override
+  void dispose() {
+    _syncSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final todoState = ref.watch(todoStateNotifierProvider);
     final allTodos = todoState.allTodos;
     final totalCount = todoState.totalCount;
@@ -68,7 +98,9 @@ class ZenHomeScreen extends ConsumerWidget {
                 ],
                 if (completedTodos.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  _SectionHeader(title: context.l10n.zenSectionCompleted),
+                  _SectionHeader(
+                    title: context.l10n.zenSectionCompleted,
+                  ),
                   const SizedBox(height: 4),
                   ...completedTodos.map(
                     (item) => _TodoItemCard(

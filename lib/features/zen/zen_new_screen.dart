@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/sync_service.dart';
 
 /// Screen for creating a new Zen todo item.
 class ZenNewScreen extends ConsumerStatefulWidget {
@@ -19,6 +22,7 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
   final TextEditingController _contentController = TextEditingController();
   String _priority = 'medium';
   bool _isSaving = false;
+  StreamSubscription<void>? _syncSubscription;
 
   static const List<String> _priorities = [
     'low',
@@ -28,7 +32,22 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(() async {
+      await ref
+          .read(todoStateNotifierProvider.notifier)
+          .refreshFromSync();
+    });
+    _syncSubscription = sync.onDataChanged.listen((_) {
+      if (!mounted) return;
+      ref.read(todoStateNotifierProvider.notifier).loadFromSync();
+    });
+  }
+
+  @override
   void dispose() {
+    _syncSubscription?.cancel();
     _contentController.dispose();
     super.dispose();
   }

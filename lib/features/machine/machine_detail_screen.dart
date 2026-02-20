@@ -1,17 +1,49 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/sync_service.dart';
 
 /// Detail screen for a single machine.
 ///
 /// Shows machine info (name, host, OS, version) and lists sessions
 /// connected to this machine.
-class MachineDetailScreen extends ConsumerWidget {
-
+class MachineDetailScreen extends ConsumerStatefulWidget {
   const MachineDetailScreen({required this.machineId, super.key});
+
   final String machineId;
+
+  @override
+  ConsumerState<MachineDetailScreen> createState() =>
+      _MachineDetailScreenState();
+}
+
+class _MachineDetailScreenState
+    extends ConsumerState<MachineDetailScreen> {
+  StreamSubscription<void>? _syncSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(() async {
+      await ref
+          .read(machinesNotifierProvider.notifier)
+          .refreshFromSync();
+    });
+    _syncSubscription = sync.onDataChanged.listen((_) {
+      if (!mounted) return;
+      ref.read(machinesNotifierProvider.notifier).loadFromSync();
+    });
+  }
+
+  @override
+  void dispose() {
+    _syncSubscription?.cancel();
+    super.dispose();
+  }
 
   bool _isMachineOnline(int activeAt) {
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -49,10 +81,10 @@ class MachineDetailScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final machines = ref.watch(machinesNotifierProvider);
     final sessions = ref.watch(sessionsNotifierProvider);
-    final machine = machines[machineId];
+    final machine = machines[widget.machineId];
     final theme = Theme.of(context);
 
     if (machine == null) {
@@ -78,7 +110,7 @@ class MachineDetailScreen extends ConsumerWidget {
 
     // Sessions for this machine, sorted by most recently updated
     final machineSessions = sessions.values
-        .where((s) => s.metadata?.machineId == machineId)
+        .where((s) => s.metadata?.machineId == widget.machineId)
         .toList()
       ..sort(
         (a, b) => b.updatedAt.compareTo(a.updatedAt),
@@ -140,7 +172,10 @@ class MachineDetailScreen extends ConsumerWidget {
               children: [
                 if (metadata?.host != null)
                   _InfoRow(label: 'Host', value: metadata!.host),
-                _InfoRow(label: 'Machine ID', value: machineId),
+                _InfoRow(
+                  label: 'Machine ID',
+                  value: widget.machineId,
+                ),
                 if (metadata?.username != null)
                   _InfoRow(
                     label: 'Username',

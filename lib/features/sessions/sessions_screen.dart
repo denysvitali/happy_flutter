@@ -160,7 +160,6 @@ class _SessionsListContentState
     final machines = ref.watch(machinesNotifierProvider);
     // Only watch the specific settings fields that affect session display to
     // avoid re-sorting on every unrelated settings change.
-    const compactMode = true;
     final hideInactive = ref.watch(
       settingsNotifierProvider.select((s) => s.hideInactiveSessions),
     );
@@ -212,7 +211,6 @@ class _SessionsListContentState
         inactiveSessions,
         machines,
         triggerStagger: triggerStagger,
-        compactMode: compactMode,
         hideInactive: hideInactive,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
@@ -226,7 +224,6 @@ class _SessionsListContentState
     List<Session> inactiveSessions,
     Map<String, Machine> machines, {
     required bool triggerStagger,
-    required bool compactMode,
     required bool hideInactive,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
@@ -266,19 +263,15 @@ class _SessionsListContentState
         );
         for (final session in entry.value) {
           final capturedIndex = staggerIndex;
-          final card = compactMode
-              ? CompactActiveSessionCard(
-                  session: session,
-                  onTap: () => context.push('/chat/${session.id}'),
-                  showFlavorIcon: showFlavorIcons,
-                  avatarStyle: avatarStyle,
-                )
-              : ActiveSessionCard(
-                  session: session,
-                  onTap: () => context.push('/chat/${session.id}'),
-                  showFlavorIcon: showFlavorIcons,
-                  avatarStyle: avatarStyle,
-                );
+          final card = CompactActiveSessionCard(
+            session: session,
+            onTap: () => context.goNamed(
+              'chat',
+              pathParameters: {'sessionId': session.id},
+            ),
+            showFlavorIcon: showFlavorIcons,
+            avatarStyle: avatarStyle,
+          );
           children.add(
             _StaggeredSlideIn(
               index: capturedIndex,
@@ -312,7 +305,6 @@ class _SessionsListContentState
         machines,
         startIndex: staggerIndex,
         animate: triggerStagger,
-        compactMode: compactMode,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
       );
@@ -331,7 +323,6 @@ class _SessionsListContentState
     Map<String, Machine> machines, {
     required int startIndex,
     required bool animate,
-    required bool compactMode,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
@@ -374,11 +365,14 @@ class _SessionsListContentState
                 session: session,
                 child: SessionCard(
                   session: session,
-                  onTap: () => context.push('/chat/${session.id}'),
+                  onTap: () => context.goNamed(
+                    'chat',
+                    pathParameters: {'sessionId': session.id},
+                  ),
                   isFirst: isFirst,
                   isLast: isLast,
                   isSingle: isSingle,
-                  compact: compactMode,
+                  compact: true,
                   showFlavorIcon: showFlavorIcons,
                   avatarStyle: avatarStyle,
                 ),
@@ -2007,7 +2001,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       if (!mounted) return;
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       navigator.pop();
-      unawaited(router.push('/chat/$sessionId'));
+      router.goNamed(
+        'chat',
+        pathParameters: {'sessionId': sessionId},
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() {

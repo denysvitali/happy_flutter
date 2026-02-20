@@ -1,13 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Connection status for sidebar
-enum ConnectionStatus {
-  connected,
-  connecting,
-  disconnected,
-  error,
-  unknown,
-}
+import '../../api/socket_io_client.dart' show ConnectionStatus;
+import '../../components/app_status_dot.dart';
 
 /// Sidebar variant for different layouts
 enum SidebarVariant {
@@ -20,7 +14,7 @@ class Sidebar extends StatefulWidget {
 
   const Sidebar({
     required this.child,
-    this.connectionStatus = ConnectionStatus.unknown,
+    this.connectionStatus = ConnectionStatus.disconnected,
     this.statusText = '',
     this.statusColor,
     this.isPulsing = false,
@@ -60,7 +54,8 @@ class Sidebar extends StatefulWidget {
   State<Sidebar> createState() => _SidebarState();
 }
 
-class _SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
+class _SidebarState extends State<Sidebar>
+    with SingleTickerProviderStateMixin {
   late AnimationController _collapseController;
   late Animation<double> _widthAnimation;
 
@@ -181,9 +176,9 @@ class _SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
-          _StatusDot(
+          AppStatusDot(
             color: statusColor,
-            isPulsing: widget.isPulsing,
+            pulse: widget.isPulsing,
             size: 6,
           ),
           const SizedBox(width: 4),
@@ -211,89 +206,7 @@ class _SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
         return theme.colorScheme.outline;
       case ConnectionStatus.error:
         return theme.colorScheme.error;
-      case ConnectionStatus.unknown:
-        return theme.colorScheme.outlineVariant;
     }
-  }
-}
-
-/// Status dot with optional pulsing animation
-class _StatusDot extends StatefulWidget {
-
-  const _StatusDot({
-    required this.color,
-    this.isPulsing = false,
-    this.size = 6,
-  });
-  final Color color;
-  final bool isPulsing;
-  final double size;
-
-  @override
-  State<_StatusDot> createState() => __StatusDotState();
-}
-
-class __StatusDotState extends State<_StatusDot>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.5).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-
-    if (widget.isPulsing) {
-      _pulseController.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void didUpdateWidget(_StatusDot oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.isPulsing != widget.isPulsing) {
-      if (widget.isPulsing) {
-        _pulseController.repeat(reverse: true);
-      } else {
-        _pulseController.stop();
-        _scaleAnimation = Tween<double>(begin: 1.0, end: 1.0).animate(
-          CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-        );
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _scaleAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: child,
-        );
-      },
-      child: Container(
-        width: widget.size,
-        height: widget.size,
-        decoration: BoxDecoration(
-          color: widget.color,
-          shape: BoxShape.circle,
-        ),
-      ),
-    );
   }
 }
 
@@ -303,7 +216,8 @@ class SidebarNavItem extends StatelessWidget {
   const SidebarNavItem({
     required this.icon,
     required this.label,
-    required this.onTap, this.isActive = false,
+    required this.onTap,
+    this.isActive = false,
     this.badgeCount,
     this.hasIndicator = false,
     super.key,
@@ -383,7 +297,8 @@ class SidebarNavItem extends StatelessWidget {
                     color: isActive
                         ? colorScheme.primary
                         : colorScheme.onSurface,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight:
+                        isActive ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
               ),
@@ -408,8 +323,6 @@ extension ConnectionStatusExtension on ConnectionStatus {
         return colorScheme.outline;
       case ConnectionStatus.error:
         return colorScheme.error;
-      case ConnectionStatus.unknown:
-        return colorScheme.outlineVariant;
     }
   }
 }

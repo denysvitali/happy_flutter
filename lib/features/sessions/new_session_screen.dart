@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/api/websocket_client.dart';
+import '../../core/api/websocket_client.dart' show ConnectionStatus;
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
@@ -70,7 +70,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   }
 
   Future<void> _pickMachine() async {
-    final result = await context.push<Machine>('/pick-machine');
+    final result = await context.pushNamed<Machine>('pick-machine');
     if (result != null) {
       setState(() {
         _selectedMachine = result;
@@ -80,10 +80,11 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
 
   Future<void> _pickPath() async {
     final machineId = _selectedMachine?.id;
-    final result = await context.push<String>(
-      machineId != null
-          ? '/pick-path?machineId=$machineId'
-          : '/pick-path',
+    final result = await context.pushNamed<String>(
+      'pick-path',
+      queryParameters: machineId != null
+          ? {'machineId': machineId}
+          : const {},
     );
     if (result != null) {
       setState(() {

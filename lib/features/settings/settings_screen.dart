@@ -66,7 +66,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.sm),
           _buildAboutSection(context),
           const SizedBox(height: AppSpacing.sm),
-          _AccountSection(ref: ref),
+          const _AccountSection(),
           const SizedBox(height: AppSpacing.xxxl),
         ],
       ),
@@ -1116,12 +1116,10 @@ class _IconContainer extends StatelessWidget {
 
 /// Sign-out / account management area at the bottom of the settings list.
 class _AccountSection extends ConsumerWidget {
-  const _AccountSection({required this.ref});
-
-  final WidgetRef ref;
+  const _AccountSection();
 
   @override
-  Widget build(BuildContext context, WidgetRef widgetRef) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     const errorRed = Color(0xFFDC2626);
 
@@ -1141,12 +1139,12 @@ class _AccountSection extends ConsumerWidget {
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
         ),
-        onPressed: () => _confirmSignOut(context, widgetRef),
+        onPressed: () => _confirmSignOut(context, ref),
       ),
     );
   }
 
-  void _confirmSignOut(BuildContext context, WidgetRef widgetRef) {
+  void _confirmSignOut(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (dialogContext) {
@@ -1165,7 +1163,7 @@ class _AccountSection extends ConsumerWidget {
               ),
               onPressed: () {
                 Navigator.pop(dialogContext);
-                widgetRef
+                ref
                     .read(authStateNotifierProvider.notifier)
                     .signOut();
               },

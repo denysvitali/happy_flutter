@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert' show base64;
 import 'dart:io' show Platform, SecurityContext;
 
-import 'package:flutter/foundation.dart' show kReleaseMode;
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -625,5 +625,3 @@ class _HappyAppState extends ConsumerState<HappyApp>
     return isSupported ? candidate : null;
   }
 }
-
-bool get kIsWeb => identical(0, 0.0);

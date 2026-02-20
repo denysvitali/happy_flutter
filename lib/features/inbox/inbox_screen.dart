@@ -8,6 +8,7 @@ import '../../core/models/feed.dart';
 import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/social_service.dart';
+import '../../core/services/sync_service.dart';
 
 class InboxScreen extends ConsumerStatefulWidget {
   const InboxScreen({super.key});
@@ -19,11 +20,23 @@ class InboxScreen extends ConsumerStatefulWidget {
 class _InboxScreenState extends ConsumerState<InboxScreen> {
   final SocialService _socialService = SocialService();
   bool _isBusy = false;
+  StreamSubscription<void>? _syncSubscription;
 
   @override
   void initState() {
     super.initState();
     Future<void>.microtask(_refresh);
+    _syncSubscription = sync.onDataChanged.listen((_) {
+      if (!mounted) return;
+      ref.read(friendsNotifierProvider.notifier).loadFromSync();
+      ref.read(feedNotifierProvider.notifier).loadFromSync();
+    });
+  }
+
+  @override
+  void dispose() {
+    _syncSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _refresh() async {

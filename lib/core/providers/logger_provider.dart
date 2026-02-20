@@ -16,11 +16,13 @@ class LoggerState {
   LoggerState copyWith({
     List<LogEntry>? logs,
     int? filterLevel,
+    bool clearFilterLevel = false,
     String? searchQuery,
   }) {
     return LoggerState(
       logs: logs ?? this.logs,
-      filterLevel: filterLevel ?? this.filterLevel,
+      filterLevel:
+          clearFilterLevel ? null : (filterLevel ?? this.filterLevel),
       searchQuery: searchQuery ?? this.searchQuery,
     );
   }
@@ -114,7 +116,11 @@ class LoggerNotifier extends Notifier<LoggerState> {
 
   /// Set minimum log level filter
   void setFilterLevel(int? levelIndex) {
-    state = state.copyWith(filterLevel: levelIndex);
+    if (levelIndex == null) {
+      state = state.copyWith(clearFilterLevel: true);
+    } else {
+      state = state.copyWith(filterLevel: levelIndex);
+    }
   }
 
   /// Set search query for filtering logs

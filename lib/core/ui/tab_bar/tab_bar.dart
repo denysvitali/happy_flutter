@@ -207,6 +207,30 @@ class _TabItem extends StatelessWidget {
   }
 }
 
+// ─── _kAppTabs ───────────────────────────────────────────────────────────────
+
+/// Canonical tab definition list shared by [TabBar] and [CompactTabBar].
+const _kAppTabs = <AppTabInfo>[
+  AppTabInfo(
+    key: AppTab.inbox,
+    icon: Icons.inbox_outlined,
+    activeIcon: Icons.inbox,
+    label: 'Inbox',
+  ),
+  AppTabInfo(
+    key: AppTab.sessions,
+    icon: Icons.chat_bubble_outline,
+    activeIcon: Icons.chat_bubble,
+    label: 'Sessions',
+  ),
+  AppTabInfo(
+    key: AppTab.settings,
+    icon: Icons.settings_outlined,
+    activeIcon: Icons.settings,
+    label: 'Settings',
+  ),
+];
+
 // ─── TabBar ──────────────────────────────────────────────────────────────────
 
 /// Bottom/app tab bar widget
@@ -239,37 +263,8 @@ class TabBar extends StatefulWidget {
 }
 
 class _TabBarState extends State<TabBar> {
-  late final List<AppTabInfo> _tabs;
-
-  static const _kTabs = [
-    AppTabInfo(
-      key: AppTab.inbox,
-      icon: Icons.inbox_outlined,
-      activeIcon: Icons.inbox,
-      label: 'Inbox',
-    ),
-    AppTabInfo(
-      key: AppTab.sessions,
-      icon: Icons.chat_bubble_outline,
-      activeIcon: Icons.chat_bubble,
-      label: 'Sessions',
-    ),
-    AppTabInfo(
-      key: AppTab.settings,
-      icon: Icons.settings_outlined,
-      activeIcon: Icons.settings,
-      label: 'Settings',
-    ),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _tabs = _kTabs;
-  }
-
   int get _activeIndex =>
-      _tabs.indexWhere((t) => t.key == widget.activeTab);
+      _kAppTabs.indexWhere((t) => t.key == widget.activeTab);
 
   String _labelForTab(AppTab tab, AppLocalizations l10n) {
     return switch (tab) {
@@ -326,13 +321,13 @@ class _TabBarState extends State<TabBar> {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: _TabIndicator(
                     activeIndex: _activeIndex,
-                    tabCount: _tabs.length,
+                    tabCount: _kAppTabs.length,
                   ),
                 ),
               ),
               // Tab items row (above indicator)
               Row(
-                children: _tabs.map((tab) {
+                children: _kAppTabs.map((tab) {
                   final isActive = widget.activeTab == tab.key;
                   return _TabItem(
                     tab: tab,
@@ -377,27 +372,6 @@ class CompactTabBar extends StatelessWidget {
   final Color? selectedColor;
   final Color? unselectedColor;
 
-  static const _kTabs = [
-    AppTabInfo(
-      key: AppTab.inbox,
-      icon: Icons.inbox_outlined,
-      activeIcon: Icons.inbox,
-      label: 'Inbox',
-    ),
-    AppTabInfo(
-      key: AppTab.sessions,
-      icon: Icons.chat_bubble_outline,
-      activeIcon: Icons.chat_bubble,
-      label: 'Sessions',
-    ),
-    AppTabInfo(
-      key: AppTab.settings,
-      icon: Icons.settings_outlined,
-      activeIcon: Icons.settings,
-      label: 'Settings',
-    ),
-  ];
-
   String _labelForTab(AppTab tab, AppLocalizations l10n) {
     return switch (tab) {
       AppTab.inbox => l10n.tabsInbox,
@@ -416,7 +390,7 @@ class CompactTabBar extends StatelessWidget {
 
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: _kTabs.map((tab) {
+      children: _kAppTabs.map((tab) {
         final isActive = activeTab == tab.key;
         return SizedBox(
           width: 44,
@@ -444,7 +418,7 @@ class CompactTabBar extends StatelessWidget {
 /// The container is a rounded pill with a `surfaceContainerHighest`
 /// background. The active segment slides as a white/surface pill with a
 /// subtle shadow and a 200 ms easeInOut animation.
-class SegmentTabBar extends StatefulWidget {
+class SegmentTabBar extends StatelessWidget {
   const SegmentTabBar({
     required this.tabs,
     required this.selectedIndex,
@@ -463,16 +437,11 @@ class SegmentTabBar extends StatefulWidget {
   final TextStyle? unselectedTextStyle;
 
   @override
-  State<SegmentTabBar> createState() => _SegmentTabBarState();
-}
-
-class _SegmentTabBarState extends State<SegmentTabBar> {
-  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      padding: widget.padding,
+      padding: padding,
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest
             .withValues(alpha: 0.6),
@@ -482,11 +451,11 @@ class _SegmentTabBarState extends State<SegmentTabBar> {
         builder: (context, constraints) {
           // Resolve inner padding to calculate usable width
           final resolvedPadding =
-              widget.padding.resolve(Directionality.of(context));
+              padding.resolve(Directionality.of(context));
           final innerWidth = constraints.maxWidth -
               resolvedPadding.left -
               resolvedPadding.right;
-          final segmentWidth = innerWidth / widget.tabs.length;
+          final segmentWidth = innerWidth / tabs.length;
 
           return Stack(
             children: [
@@ -494,7 +463,7 @@ class _SegmentTabBarState extends State<SegmentTabBar> {
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeInOut,
-                left: widget.selectedIndex * segmentWidth,
+                left: selectedIndex * segmentWidth,
                 top: 0,
                 bottom: 0,
                 width: segmentWidth,
@@ -515,13 +484,12 @@ class _SegmentTabBarState extends State<SegmentTabBar> {
               ),
               // Label row (above the pill)
               Row(
-                children: widget.tabs.asMap().entries.map((entry) {
+                children: tabs.asMap().entries.map((entry) {
                   final index = entry.key;
-                  final isSelected =
-                      widget.selectedIndex == index;
+                  final isSelected = selectedIndex == index;
                   return GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => widget.onTabPress(index),
+                    onTap: () => onTabPress(index),
                     child: SizedBox(
                       width: segmentWidth,
                       child: Padding(
@@ -532,13 +500,13 @@ class _SegmentTabBarState extends State<SegmentTabBar> {
                           entry.value,
                           textAlign: TextAlign.center,
                           style: isSelected
-                              ? (widget.selectedTextStyle ??
+                              ? (selectedTextStyle ??
                                   const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     height: 1.2,
                                   ))
-                              : (widget.unselectedTextStyle ??
+                              : (unselectedTextStyle ??
                                   TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,

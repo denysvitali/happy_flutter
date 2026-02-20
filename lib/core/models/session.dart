@@ -280,6 +280,14 @@ class Session {
   /// Returns `true` when presence is the string `'online'`.
   bool get isPresenceOnline => presence == 'online';
 
+  /// Returns `true` when presence is the string `'online'`.
+  bool get isOnline => presence == 'online';
+
+  /// Returns `'online'` when present, `'offline'` for any other value
+  /// including an integer timestamp (last-seen epoch ms).
+  String get presenceString =>
+      presence is int ? 'offline' : (presence as String? ?? 'offline');
+
   /// Returns the last-seen timestamp when presence is an int, otherwise null.
   int? get lastSeenAt => presence is int ? presence as int : null;
 

@@ -188,6 +188,13 @@ class _DiffViewState extends State<DiffView> {
       widget.newText,
       contextLines: widget.contextLines,
     );
+    _config = widget.config ?? DiffViewConfig();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _colors = _resolveColors(context);
   }
 
   @override
@@ -202,9 +209,15 @@ class _DiffViewState extends State<DiffView> {
         contextLines: widget.contextLines,
       );
     }
+    if (oldWidget.config != widget.config) {
+      _config = widget.config ?? DiffViewConfig();
+    }
+    if (oldWidget.colors != widget.colors) {
+      _colors = _resolveColors(context);
+    }
   }
 
-  DiffViewColors _getColors(BuildContext context) {
+  DiffViewColors _resolveColors(BuildContext context) {
     if (widget.colors != null) {
       return widget.colors!;
     }
@@ -215,14 +228,8 @@ class _DiffViewState extends State<DiffView> {
         : DiffViewColors.light();
   }
 
-  DiffViewConfig _getConfig() {
-    return widget.config ?? DiffViewConfig();
-  }
-
   @override
   Widget build(BuildContext context) {
-    _colors = _getColors(context);
-    _config = _getConfig();
 
     final content = _buildDiffContent();
 
