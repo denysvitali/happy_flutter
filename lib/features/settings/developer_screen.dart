@@ -12,8 +12,6 @@ class DeveloperScreen extends ConsumerStatefulWidget {
 }
 
 class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
-  int _tapCount = 0;
-
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsNotifierProvider);
@@ -124,49 +122,6 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
         ],
       ),
     );
-
-    // ignore: dead_code
-    return Scaffold(
-      appBar: AppBar(title: const Text('Developer')),
-      body: Center(
-        child: GestureDetector(
-          onTap: () => _handleDevModeTap(context, ref),
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.build, size: 64),
-                const SizedBox(height: 16),
-                const Text('Developer Options'),
-                const SizedBox(height: 8),
-                Text(
-                  'Tap ${10 - _tapCount} more times',
-                  style: const TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _handleDevModeTap(BuildContext context, WidgetRef ref) {
-    setState(() {
-      _tapCount++;
-    });
-    if (_tapCount >= 10) {
-      ref
-          .read(settingsNotifierProvider.notifier)
-          .updateSetting('developerModeEnabled', true);
-      setState(() {
-        _tapCount = 0;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Developer mode enabled!')),
-      );
-    }
   }
 
   Widget _buildSectionHeader(String title) {

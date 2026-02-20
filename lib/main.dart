@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'dart:convert' show base64;
-import 'dart:io' show Platform, SecurityContext;
 
 import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_user_certificates_android/flutter_user_certificates_android.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -68,6 +66,12 @@ import 'features/user/user_profile_screen.dart';
 import 'features/zen/zen_home_screen.dart';
 import 'features/zen/zen_new_screen.dart';
 import 'features/zen/zen_view_screen.dart';
+import 'platform_io.dart'
+    if (dart.library.js_interop) 'platform_stub.dart';
+import 'security_context_io.dart'
+    if (dart.library.js_interop) 'security_context_stub.dart';
+import 'user_certs_io.dart'
+    if (dart.library.js_interop) 'user_certs_stub.dart';
 
 // Deep link handler for receiving happy:// URLs
 const _deepLinkChannel = MethodChannel('com.example.happy_flutter/deep_links');
@@ -103,7 +107,7 @@ Future<void> main() async {
       // Installed here so Sentry's Zone and error handlers are set up first.
       remoteLoggerAutoInstall();
 
-      if (!kIsWeb && Platform.isAndroid) {
+      if (!kIsWeb && isAndroid) {
         final certs =
             await FlutterUserCertificatesAndroid().getUserCertificates();
         for (final derBytes in (certs ?? {}).values) {
@@ -313,17 +317,20 @@ class _HappyAppState extends ConsumerState<HappyApp>
           path: '/settings/developer',
           name: 'developer',
           builder: (context, state) => AuthGate(child: DeveloperScreen()),
-        ),
-        GoRoute(
-          path: '/settings/developer/logs',
-          name: 'dev-logs',
-          builder: (context, state) => AuthGate(child: const DevLogsScreen()),
-        ),
-        GoRoute(
-          path: '/settings/developer/network',
-          name: 'dev-network',
-          builder: (context, state) =>
-              const AuthGate(child: NetworkInspectorScreen()),
+          routes: [
+            GoRoute(
+              path: 'logs',
+              name: 'dev-logs',
+              builder: (context, state) =>
+                  AuthGate(child: const DevLogsScreen()),
+            ),
+            GoRoute(
+              path: 'network',
+              name: 'dev-network',
+              builder: (context, state) =>
+                  const AuthGate(child: NetworkInspectorScreen()),
+            ),
+          ],
         ),
         // ── Agent 1: session enhancement screens ─────────────────────────
         GoRoute(
