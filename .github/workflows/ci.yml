@@ -138,8 +138,9 @@ jobs:
       - name: Setup Android NDK
         if: steps.ndk-cache.outputs.cache-hit != 'true'
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "ndk;28.2.13676358"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses || true
+          "$SDKMANAGER" "ndk;28.2.13676358"
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -293,8 +294,9 @@ jobs:
           steps.check_keystore.outputs.skip_release != 'true' &&
           steps.ndk-cache.outputs.cache-hit != 'true'
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "ndk;28.2.13676358"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses || true
+          "$SDKMANAGER" "ndk;28.2.13676358"
 
       - name: Cache pub dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
