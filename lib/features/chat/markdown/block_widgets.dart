@@ -33,6 +33,7 @@ class TextBlockWidget extends StatefulWidget {
 
 class _TextBlockWidgetState extends State<TextBlockWidget> {
   final List<TapGestureRecognizer> _recognizers = [];
+  Color _inlineCodeBg = const Color(0x1F000000);
 
   void _disposeRecognizers() {
     for (final r in _recognizers) {
@@ -51,12 +52,14 @@ class _TextBlockWidgetState extends State<TextBlockWidget> {
   Widget build(BuildContext context) {
     _disposeRecognizers();
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    _inlineCodeBg = cs.surfaceContainerHighest;
     final inheritedColor = DefaultTextStyle.of(context).style.color;
     final baseStyle = DefaultTextStyle.of(context).style.merge(
           TextStyle(
-            fontSize: 16,
-            height: 1.5,
-            color: inheritedColor ?? theme.colorScheme.onSurface,
+            fontSize: 15,
+            height: 1.45,
+            color: inheritedColor ?? cs.onSurface,
           ),
         );
 
@@ -84,7 +87,7 @@ class _TextBlockWidgetState extends State<TextBlockWidget> {
           ? 'monospace'
           : null,
       backgroundColor: span.styles.contains(MarkdownTextStyle.code)
-          ? Colors.black12
+          ? _inlineCodeBg
           : null,
     );
 
@@ -196,7 +199,7 @@ class _HeaderBlockWidgetState extends State<HeaderBlockWidget> {
 }
 
 /// A widget that displays an unordered (bulleted) list.
-class ListBlockWidget extends StatelessWidget {
+class ListBlockWidget extends StatefulWidget {
 
   const ListBlockWidget({
     required this.items, super.key,
@@ -208,15 +211,24 @@ class ListBlockWidget extends StatelessWidget {
   final bool isLast;
 
   @override
+  State<ListBlockWidget> createState() => _ListBlockWidgetState();
+}
+
+class _ListBlockWidgetState extends State<ListBlockWidget> {
+  Color _inlineCodeBg = const Color(0x1F000000);
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    _inlineCodeBg = cs.surfaceContainerHighest;
     final inheritedColor = DefaultTextStyle.of(context).style.color;
-    final textColor = inheritedColor ?? theme.colorScheme.onSurface;
+    final textColor = inheritedColor ?? cs.onSurface;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      children: items.map((item) {
+      children: widget.items.map((item) {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -226,8 +238,8 @@ class ListBlockWidget extends StatelessWidget {
               child: Text(
                 '•',
                 style: TextStyle(
-                  fontSize: 16,
-                  height: 1.5,
+                  fontSize: 15,
+                  height: 1.45,
                   color: textColor,
                 ),
               ),
@@ -236,8 +248,8 @@ class ListBlockWidget extends StatelessWidget {
               child: RichText(
                 text: TextSpan(
                   style: DefaultTextStyle.of(context).style.copyWith(
-                        fontSize: 16,
-                        height: 1.5,
+                        fontSize: 15,
+                        height: 1.45,
                         color: textColor,
                       ),
                   children: item.map(_buildSpan).toList(),
@@ -264,7 +276,7 @@ class ListBlockWidget extends StatelessWidget {
             ? 'monospace'
             : null,
         backgroundColor: span.styles.contains(MarkdownTextStyle.code)
-            ? Colors.black12
+            ? _inlineCodeBg
             : null,
       ),
     );
@@ -272,7 +284,7 @@ class ListBlockWidget extends StatelessWidget {
 }
 
 /// A widget that displays a numbered list.
-class NumberedListBlockWidget extends StatelessWidget {
+class NumberedListBlockWidget extends StatefulWidget {
 
   const NumberedListBlockWidget({
     required this.items, super.key,
@@ -284,15 +296,25 @@ class NumberedListBlockWidget extends StatelessWidget {
   final bool isLast;
 
   @override
+  State<NumberedListBlockWidget> createState() =>
+      _NumberedListBlockWidgetState();
+}
+
+class _NumberedListBlockWidgetState extends State<NumberedListBlockWidget> {
+  Color _inlineCodeBg = const Color(0x1F000000);
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    _inlineCodeBg = cs.surfaceContainerHighest;
     final inheritedColor = DefaultTextStyle.of(context).style.color;
-    final textColor = inheritedColor ?? theme.colorScheme.onSurface;
+    final textColor = inheritedColor ?? cs.onSurface;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      children: items.map((item) {
+      children: widget.items.map((item) {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -302,8 +324,8 @@ class NumberedListBlockWidget extends StatelessWidget {
               child: Text(
                 '${item.number}.',
                 style: TextStyle(
-                  fontSize: 16,
-                  height: 1.5,
+                  fontSize: 15,
+                  height: 1.45,
                   color: textColor,
                 ),
               ),
@@ -312,8 +334,8 @@ class NumberedListBlockWidget extends StatelessWidget {
               child: RichText(
                 text: TextSpan(
                   style: DefaultTextStyle.of(context).style.copyWith(
-                        fontSize: 16,
-                        height: 1.5,
+                        fontSize: 15,
+                        height: 1.45,
                         color: textColor,
                       ),
                   children: item.spans.map(_buildSpan).toList(),
@@ -340,7 +362,7 @@ class NumberedListBlockWidget extends StatelessWidget {
             ? 'monospace'
             : null,
         backgroundColor: span.styles.contains(MarkdownTextStyle.code)
-            ? Colors.black12
+            ? _inlineCodeBg
             : null,
       ),
     );

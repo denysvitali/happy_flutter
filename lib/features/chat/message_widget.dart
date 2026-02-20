@@ -109,6 +109,18 @@ class _MessageWidgetState extends State<MessageWidget>
         widget.messageData['content'] ?? widget.messageData['text'] ?? '';
     final text = content is String ? content : content.toString();
 
+    // Thinking blocks get a collapsible container instead of a bubble.
+    final isThinking = widget.messageData['isThinking'] == true;
+    if (isThinking && !widget.isFromCurrentUser) {
+      return FadeTransition(
+        opacity: _opacity,
+        child: SlideTransition(
+          position: _slide,
+          child: _ThinkingBlock(content: text),
+        ),
+      );
+    }
+
     return FadeTransition(
       opacity: _opacity,
       child: SlideTransition(
@@ -304,6 +316,158 @@ class _UserTailPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_UserTailPainter old) => old.color != color;
+}
+
+// ---------------------------------------------------------------------------
+// Thinking block widget (collapsible)
+// ---------------------------------------------------------------------------
+
+/// Collapsible widget for Claude's internal thinking content.
+///
+/// Collapsed by default — shows a "Thinking" header with a brain icon.
+/// Tapping expands to reveal the full thinking content in muted italic style.
+class _ThinkingBlock extends StatefulWidget {
+  const _ThinkingBlock({required this.content});
+
+  final String content;
+
+  @override
+  State<_ThinkingBlock> createState() => _ThinkingBlockState();
+}
+
+class _ThinkingBlockState extends State<_ThinkingBlock>
+    with SingleTickerProviderStateMixin {
+  bool _expanded = false;
+  late final AnimationController _controller;
+  late final Animation<double> _expandAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _expandAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    setState(() => _expanded = !_expanded);
+    if (_expanded) {
+      _controller.forward();
+    } else {
+      _controller.reverse();
+    }
+  }
+
+  String _getCleanContent() {
+    // Strip the leading "*Thinking...*" prefix if the server added one.
+    return widget.content
+        .replaceFirst(RegExp(r'^\*Thinking\.\.\.\*\s*\n*'), '')
+        .trim();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(
+            color: cs.outlineVariant,
+            width: 0.5,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header row — always visible, tap to toggle.
+            GestureDetector(
+              onTap: _toggle,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.psychology_outlined,
+                      size: 14,
+                      color: cs.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      'Thinking',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        Icons.expand_more,
+                        size: 16,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Expanded content with animation.
+            SizeTransition(
+              sizeFactor: _expandAnimation,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Divider(height: 0.5, color: cs.outlineVariant),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
+                    ),
+                    child: DefaultTextStyle.merge(
+                      style: TextStyle(
+                        color: cs.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      child: MarkdownView(
+                        markdown: _getCleanContent(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

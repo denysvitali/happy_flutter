@@ -12,9 +12,12 @@ import 'package:happy_flutter/core/models/profile.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 // ThemeHelper uses google_fonts which requires bundled assets in tests.
 // We build equivalent themes without google_fonts for golden rendering.
+import 'package:happy_flutter/features/chat/message_widget.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
+import 'package:happy_flutter/features/chat/widgets/permission_mode_selector.dart';
 import 'package:happy_flutter/features/sessions/sessions_screen.dart';
 import 'package:happy_flutter/features/settings/settings_screen.dart';
 
@@ -216,6 +219,233 @@ final _mockSessions = {
     path: '/Users/alex/personal/side-project',
   ),
 };
+
+// ─── Mock chat conversation widget ────────────────────────────────────────────
+
+/// A fully self-contained mock of the chat screen used for golden tests.
+/// Shows: user bubble, thinking block (collapsed), tool view, bot response.
+/// Does NOT depend on Sync or MMKV — safe to render in tests.
+class _MockChatView extends StatelessWidget {
+  const _MockChatView();
+
+  static const _messages = [
+    {
+      'id': 'm1',
+      'kind': 'text',
+      'role': 'user',
+      'content':
+          'Implement a binary search function in Python with proper error handling and docstrings.',
+    },
+    {
+      'id': 'm2',
+      'kind': 'text',
+      'role': 'assistant',
+      'isThinking': true,
+      'content':
+          'The user wants a binary search implementation. I should create a clean, well-documented function that handles edge cases — empty lists, out-of-bounds. I\'ll use type hints for clarity.',
+    },
+    {
+      'id': 'm3',
+      'kind': 'tool-call',
+      'role': 'assistant',
+      'name': 'Read',
+      'input': {'file_path': '/home/alex/project/algorithms.py'},
+      'state': 'completed',
+      'result': '# algorithms.py\n# (empty — no existing implementation)',
+    },
+    {
+      'id': 'm4',
+      'kind': 'text',
+      'role': 'assistant',
+      'content':
+          "Here's a clean implementation:\n\n```python\ndef binary_search(arr: list[int], target: int) -> int:\n    \"\"\"Search for target in sorted array.\n    Returns index or -1 if not found.\n    \"\"\"\n    left, right = 0, len(arr) - 1\n    while left <= right:\n        mid = (left + right) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    return -1\n```\n\nRuns in **O(log n)** time with no recursion overhead.",
+    },
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: const BackButton(),
+        scrolledUnderElevation: 1,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Backend API',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: cs.onSurface,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: cs.primary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  'Working on it...',
+                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ],
+        ),
+        // No Stop button here — it's in the toolbar only.
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert),
+            tooltip: 'More options',
+            onPressed: null,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              children: _messages.map((msg) {
+                if (msg['kind'] == 'tool-call') {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xs,
+                    ),
+                    child: ToolView(
+                      tool: Map<String, dynamic>.from(msg),
+                      sessionId: 'mock',
+                    ),
+                  );
+                }
+                return MessageWidget(
+                  messageData: Map<String, dynamic>.from(msg),
+                  isFromCurrentUser: msg['role'] == 'user',
+                );
+              }).toList(),
+            ),
+          ),
+          // Toolbar row — mirrors _InputToolbar layout.
+          Container(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.sm,
+              AppSpacing.xs,
+              AppSpacing.sm,
+              AppSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              color: cs.surface,
+              border: Border(
+                top: BorderSide(color: cs.outlineVariant, width: 0.5),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Row(
+                children: [
+                  // Permission mode selector (Claude modes only).
+                  PermissionModeSelector(
+                    selectedMode: PermissionMode.defaultMode,
+                    availableModes:
+                        PermissionModeExtension.claudeGeminiModes,
+                  ),
+                  const SizedBox(width: AppSpacing.xs + 2),
+                  // Model selector pill.
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      border: Border.all(
+                        color: cs.outlineVariant.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.auto_awesome_outlined,
+                          size: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Default',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: 11,
+                            color: cs.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 13,
+                          color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  // Stop button (only in toolbar, NOT in AppBar).
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xs + 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: cs.errorContainer,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      border: Border.all(
+                        color: cs.error.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.stop_rounded,
+                          size: 14,
+                          color: cs.onErrorContainer,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          'Stop',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: cs.onErrorContainer,
+                            height: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -422,6 +652,70 @@ void main() {
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/tool_read_completed_light.png'),
+      );
+    });
+  });
+
+  // ── Chat Screen (mocked conversation) ──────────────────────────────────────
+
+  group('Chat Screen', () {
+    Widget _chatApp({bool dark = false}) {
+      return MaterialApp(
+        theme: _testLightTheme(),
+        darkTheme: _testDarkTheme(),
+        themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+        localizationsDelegates: const [AppLocalizationsDelegate()],
+        debugShowCheckedModeBanner: false,
+        home: const _MockChatView(),
+      );
+    }
+
+    testWidgets('light mode - running conversation', (tester) async {
+      setPhoneSize(tester);
+
+      await tester.pumpWidget(_chatApp());
+      // Settle message entrance animations.
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/chat_running_light.png'),
+      );
+    });
+
+    testWidgets('dark mode - running conversation', (tester) async {
+      setPhoneSize(tester);
+
+      await tester.pumpWidget(_chatApp(dark: true));
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/chat_running_dark.png'),
+      );
+    });
+
+    testWidgets('light mode - thinking block expanded', (tester) async {
+      setPhoneSize(tester);
+
+      await tester.pumpWidget(_chatApp());
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      // Tap the "Thinking" header label to expand the thinking block.
+      await tester.tap(find.text('Thinking').first);
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 80));
+      }
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/chat_thinking_expanded_light.png'),
       );
     });
   });

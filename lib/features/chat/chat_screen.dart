@@ -56,7 +56,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// autoscroll is considered active.
   static const double _autoScrollThreshold = 100;
 
-  PermissionMode _permissionMode = PermissionMode.readOnly;
+  PermissionMode _permissionMode = PermissionMode.defaultMode;
   ClaudeModel _modelMode = ClaudeModel.defaultModel;
   Session? _session;
   List<Map<String, dynamic>> _messages = const [];
@@ -83,7 +83,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (savedMode != null) {
       final parsedMode = PermissionModeExtension.fromString(savedMode);
       setState(() {
-        _permissionMode = parsedMode ?? PermissionMode.readOnly;
+        _permissionMode = parsedMode ?? PermissionMode.defaultMode;
       });
     }
   }
@@ -373,7 +373,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         statusText: _getStatusText(),
         statusColor: _getStatusColor(context),
         isThinking: isThinking,
-        onStop: _stopSession,
         onMenuTap: () => _showSessionMenu(context),
       ),
       body: Column(
@@ -499,19 +498,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       'The tool use was rejected (eg. if it was a file edit, the '
       'new_string was NOT written to the file). STOP what you are '
       'doing and wait for the user to tell you how to proceed.';
-
-  Future<void> _stopSession() async {
-    if (!sync.isInitialized) return;
-    try {
-      await sync.sessionRPC(
-        widget.sessionId,
-        'abort',
-        {'reason': _abortReason},
-      );
-    } catch (e) {
-      debugPrint('Stop session failed: $e');
-    }
-  }
 
   Future<void> _abortSession() async {
     if (!sync.isInitialized) return;
@@ -883,7 +869,6 @@ class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.statusText,
     required this.statusColor,
     required this.isThinking,
-    required this.onStop,
     required this.onMenuTap,
   });
 
@@ -894,7 +879,6 @@ class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String statusText;
   final Color statusColor;
   final bool isThinking;
-  final VoidCallback onStop;
   final VoidCallback onMenuTap;
 
   @override
@@ -907,13 +891,6 @@ class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
       // Show a subtle shadow when content scrolls beneath the app bar.
       scrolledUnderElevation: AppElevation.low,
       actions: [
-        if (isThinking)
-          IconButton(
-            icon: const Icon(Icons.stop_circle_outlined),
-            iconSize: 24,
-            tooltip: 'Stop',
-            onPressed: onStop,
-          ),
         IconButton(
           icon: const Icon(Icons.more_vert),
           iconSize: 24,

@@ -468,6 +468,8 @@ class _InputToolbar extends StatelessWidget {
           perm.PermissionModeSelector(
             selectedMode: permissionMode,
             onModeChanged: onPermissionModeChanged,
+            availableModes:
+                perm.PermissionModeExtension.claudeGeminiModes,
           ),
         const SizedBox(width: AppSpacing.xs + 2),
         _ModelSelector(
