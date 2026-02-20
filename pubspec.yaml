@@ -63,6 +63,7 @@ dependencies:
   geolocator: ^13.0.1
   firebase_messaging: ^15.2.0
   js: ^0.7.2
+  mobile_scanner: ^7.2.0
 
 dependency_overrides:
   sodium_libs: 3.4.6+3

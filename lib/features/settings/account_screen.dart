@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/models/auth.dart';
 import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';
@@ -501,6 +502,9 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
   }
 }
 
+/// The three modes of the device linking screen.
+enum _LinkMode { scan, showQR, enterURL }
+
 /// Device linking screen
 class LinkDeviceScreen extends ConsumerStatefulWidget {
   const LinkDeviceScreen({super.key});
@@ -510,78 +514,57 @@ class LinkDeviceScreen extends ConsumerStatefulWidget {
 }
 
 class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
+  _LinkMode _mode = _LinkMode.scan;
+  late final MobileScannerController _scanController;
+  bool _scanned = false;
+
+  // showQR mode state
   DeviceLinkingResult? _linkingResult;
-  bool _isLoading = false;
+  bool _qrLoading = false;
   bool _isPolling = false;
+
+  // shared state
+  bool _isLoading = false;
   String? _error;
-  bool _showQR = true;
+
+  // enterURL mode state
   final TextEditingController _urlController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _startLinking();
+    _scanController = MobileScannerController(
+      formats: [BarcodeFormat.qrCode],
+    );
   }
 
   @override
   void dispose() {
     _urlController.dispose();
+    unawaited(_scanController.dispose());
     super.dispose();
   }
 
   Future<void> _startLinking() async {
-    if (!_showQR) return;
-
+    if (_mode != _LinkMode.showQR) return;
     setState(() {
-      _isLoading = true;
+      _qrLoading = true;
       _error = null;
     });
-
     try {
       final result = await AuthService().startDeviceLinking();
+      if (!mounted || _mode != _LinkMode.showQR) return;
       setState(() {
         _linkingResult = result;
-        _isLoading = false;
+        _qrLoading = false;
         _isPolling = true;
       });
-
       unawaited(_pollForApproval());
-    } catch (e) {
-      setState(() {
-        _error = 'Failed to start device linking: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _submitUrl() async {
-    final url = _urlController.text.trim();
-
-    if (!url.startsWith('happy://')) {
-      setState(() {
-        _error = 'Invalid URL format. Must start with "happy://"';
-      });
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      await AuthService().approveLinkingRequest(url);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Device link approved successfully!')),
-        );
-        context.pop();
-      }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Failed to approve linking: $e';
-          _isLoading = false;
+          _error = 'Failed to start device linking: $e';
+          _qrLoading = false;
         });
       }
     }
@@ -589,7 +572,6 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
 
   Future<void> _pollForApproval() async {
     if (_linkingResult == null) return;
-
     try {
       await AuthService().waitForLinkingApproval(_linkingResult!.linkingId);
       if (mounted) {
@@ -611,27 +593,82 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
     }
   }
 
-  String _formatError(dynamic e) {
-    if (e is ExpiredError) {
-      return 'Linking timed out. Please try again.';
-    } else if (e is AuthForbiddenError) {
-      return 'Linking rejected by server.';
+  Future<void> _approveUrl(String url) async {
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      await AuthService().approveLinkingRequest(url);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Device linked successfully!')),
+        );
+        context.pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = _formatError(e);
+          _isLoading = false;
+          _scanned = false;
+        });
+        if (_mode == _LinkMode.scan) {
+          unawaited(_scanController.start());
+        }
+      }
     }
+  }
+
+  void _onBarcodeDetected(BarcodeCapture capture) {
+    if (_scanned || _isLoading || _mode != _LinkMode.scan) return;
+    for (final barcode in capture.barcodes) {
+      final url = barcode.rawValue;
+      if (url != null && url.startsWith('happy://')) {
+        _scanned = true;
+        unawaited(_scanController.stop());
+        unawaited(_approveUrl(url));
+        return;
+      }
+    }
+  }
+
+  Future<void> _submitUrl() async {
+    final url = _urlController.text.trim();
+    if (!url.startsWith('happy://')) {
+      setState(() {
+        _error = 'Invalid URL format. Must start with "happy://"';
+      });
+      return;
+    }
+    await _approveUrl(url);
+  }
+
+  String _formatError(dynamic e) {
+    if (e is ExpiredError) return 'Linking timed out. Please try again.';
+    if (e is AuthForbiddenError) return 'Linking rejected by server.';
     return 'Linking failed: $e';
   }
 
-  void _toggleMode() {
+  void _setMode(_LinkMode mode) {
+    if (_mode == mode) return;
     setState(() {
-      _showQR = !_showQR;
+      _mode = mode;
       _error = null;
-      if (_showQR && _linkingResult == null) {
+    });
+    if (mode == _LinkMode.scan) {
+      _scanned = false;
+    } else if (mode == _LinkMode.showQR) {
+      if (_linkingResult == null && !_qrLoading) {
         _startLinking();
       }
-    });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Link Device'),
@@ -644,228 +681,228 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
                 'Link a New Device',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _showQR ? null : () => _toggleMode(),
-                      style: ButtonStyle(
-                        backgroundColor: _showQR
-                            ? WidgetStateProperty.all<Color>(
-                                Theme.of(
-                                  context,
-                                ).colorScheme.primary.withValues(alpha: 0.1))
-                            : null,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.qr_code, size: 18),
-                            const SizedBox(width: 8),
-                            const Text('Show QR'),
-                          ],
-                        ),
-                      ),
-                    ),
+              const SizedBox(height: 24),
+              SegmentedButton<_LinkMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: _LinkMode.scan,
+                    icon: Icon(Icons.qr_code_scanner),
+                    label: Text('Scan QR'),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: !_showQR ? null : () => _toggleMode(),
-                      style: ButtonStyle(
-                        backgroundColor: !_showQR
-                            ? WidgetStateProperty.all<Color>(
-                                Theme.of(
-                                  context,
-                                ).colorScheme.primary.withValues(alpha: 0.1))
-                            : null,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.link, size: 18),
-                            const SizedBox(width: 8),
-                            const Text('Enter URL'),
-                          ],
-                        ),
-                      ),
-                    ),
+                  ButtonSegment(
+                    value: _LinkMode.showQR,
+                    icon: Icon(Icons.qr_code),
+                    label: Text('Show QR'),
+                  ),
+                  ButtonSegment(
+                    value: _LinkMode.enterURL,
+                    icon: Icon(Icons.link),
+                    label: Text('Enter URL'),
                   ),
                 ],
+                selected: {_mode},
+                onSelectionChanged: (modes) => _setMode(modes.first),
               ),
-              const SizedBox(height: 32),
-              if (_error != null) ...[
-                Builder(
-                  builder: (context) {
-                    final cs = Theme.of(context).colorScheme;
-                    return Container(
-                      padding: const EdgeInsets.all(12),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: cs.errorContainer,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: cs.error.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            color: cs.onErrorContainer,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              _error!,
-                              style: TextStyle(
-                                color: cs.onErrorContainer,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 18),
-                            onPressed: () {
-                              setState(() {
-                                _error = null;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ],
-              const SizedBox(height: 32),
-              if (_showQR) ...[
-                Text(
-                  '1. Open Happy on another device\n'
-                  '2. Go to Settings → Account\n'
-                  '3. Tap "Restore Account"\n'
-                  '4. Scan this QR code',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+              const SizedBox(height: 16),
+              if (_error != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: cs.errorContainer,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: cs.error.withValues(alpha: 0.3),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 32),
-                if (_isLoading)
-                  Builder(
-                    builder: (context) {
-                      final cs = Theme.of(context).colorScheme;
-                      return Container(
-                        width: 250,
-                        height: 250,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: cs.surfaceContainerHighest,
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.md),
-                          border: Border.all(color: cs.outlineVariant),
-                        ),
-                        child: const Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                      );
-                    },
-                  )
-                else if (_linkingResult != null)
-                  QRCodeDisplay(
-                    data: _linkingResult!.getQRData(),
-                    size: 250,
-                  ),
-                if (_isPolling) ...[
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Row(
                     children: [
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Waiting for approval...',
-                        style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant,
+                      Icon(Icons.error_outline, color: cs.onErrorContainer),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            color: cs.onErrorContainer,
+                            fontSize: 12,
+                          ),
                         ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => setState(() => _error = null),
                       ),
                     ],
                   ),
-                ],
-              ],
-              if (!_showQR) ...[
-                Text(
-                  'Enter the linking URL from another device:\n\n'
-                  'happy://terminal?...\n\n'
-                  'Or happy:///account?...',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
                 ),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: _urlController,
-                  enabled: !_isLoading,
-                  decoration: InputDecoration(
-                    hintText: 'happy://terminal?...',
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.link),
-                  ),
-                  keyboardType: TextInputType.url,
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: 200,
-                  height: 44,
-                  child: FilledButton(
-                    onPressed: _isLoading ? null : _submitUrl,
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Approve Linking'),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 32),
-              SizedBox(
-                width: 200,
-                height: 44,
-                child: OutlinedButton(
-                  onPressed: _isPolling && _error != null
-                      ? _startLinking
-                      : () => context.pop(),
-                  child: Text(
-                    _isPolling && _error != null ? 'Try Again' : 'Cancel',
-                  ),
-                ),
-              ),
+              Expanded(child: _buildModeContent(cs)),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildModeContent(ColorScheme cs) {
+    return switch (_mode) {
+      _LinkMode.scan => _buildScanContent(cs),
+      _LinkMode.showQR => _buildShowQRContent(cs),
+      _LinkMode.enterURL => _buildEnterURLContent(cs),
+    };
+  }
+
+  Widget _buildScanContent(ColorScheme cs) {
+    return Column(
+      children: [
+        Text(
+          'Point your camera at the QR code displayed'
+          ' on the new device',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+        ),
+        const SizedBox(height: 24),
+        Expanded(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 280),
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        child: MobileScanner(
+                          controller: _scanController,
+                          onDetect: _onBarcodeDetected,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+        ),
+        const SizedBox(height: 16),
+        if (!_isLoading)
+          Text(
+            'New device: tap "Link or Restore Account"',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+          ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildShowQRContent(ColorScheme cs) {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Text(
+            '1. Open Happy on the new device\n'
+            '2. Tap "Link or Restore Account"\n'
+            '3. Scan this QR code',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 32),
+          if (_qrLoading)
+            Container(
+              width: 250,
+              height: 250,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: cs.outlineVariant),
+              ),
+              child: const Center(child: CircularProgressIndicator()),
+            )
+          else if (_linkingResult != null)
+            QRCodeDisplay(data: _linkingResult!.getQRData(), size: 250),
+          if (_isPolling) ...[
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Waiting for device to scan...',
+                  style: TextStyle(color: cs.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 32),
+          SizedBox(
+            width: 200,
+            height: 44,
+            child: OutlinedButton(
+              onPressed: !_isPolling && _error != null
+                  ? _startLinking
+                  : () => context.pop(),
+              child: Text(
+                !_isPolling && _error != null ? 'Try Again' : 'Cancel',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEnterURLContent(ColorScheme cs) {
+    return Column(
+      children: [
+        Text(
+          'Enter the linking URL from another device:\n\n'
+          'happy://terminal?...\n\n'
+          'Or happy:///account?...',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _urlController,
+          enabled: !_isLoading,
+          decoration: const InputDecoration(
+            hintText: 'happy://terminal?...',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.link),
+          ),
+          keyboardType: TextInputType.url,
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: 200,
+          height: 44,
+          child: FilledButton(
+            onPressed: _isLoading ? null : _submitUrl,
+            child: _isLoading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Approve Linking'),
+          ),
+        ),
+      ],
     );
   }
 }
