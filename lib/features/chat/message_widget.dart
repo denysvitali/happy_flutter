@@ -7,10 +7,7 @@ import 'markdown/markdown.dart';
 import 'tools/tools.dart';
 
 /// Message widget for displaying chat messages with speech bubbles,
-/// tails, entrance animations, and full markdown support.
-///
-/// Supports rich text formatting including headers, lists, code blocks,
-/// tables, mermaid diagrams, and text selection via long-press.
+/// entrance animations, and full markdown support.
 class MessageWidget extends StatefulWidget {
   /// Creates a [MessageWidget].
   const MessageWidget({
@@ -140,7 +137,7 @@ class _MessageWidgetState extends State<MessageWidget>
 }
 
 // ---------------------------------------------------------------------------
-// User bubble (right-aligned, primary color, tail bottom-right)
+// User bubble (right-aligned, primary color, iMessage-style radius)
 // ---------------------------------------------------------------------------
 
 class _UserBubble extends StatelessWidget {
@@ -161,72 +158,58 @@ class _UserBubble extends StatelessWidget {
       alignment: Alignment.centerRight,
       child: Padding(
         padding: const EdgeInsets.only(
-          left: 48,
-          right: AppSpacing.sm,
+          left: 60,
+          right: AppSpacing.md,
           top: 1,
-          bottom: AppSpacing.xs,
+          bottom: 2,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Flexible(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width * 0.85,
-                ),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(AppRadius.xl),
-                    topRight: Radius.circular(AppRadius.xl),
-                    bottomLeft: Radius.circular(AppRadius.xl),
-                    bottomRight: Radius.circular(AppRadius.xs),
-                  ),
-                  boxShadow: AppShadow.card,
-                ),
-                child: DefaultTextStyle.merge(
-                  style: TextStyle(
-                    color: theme.colorScheme.onPrimary,
-                  ),
-                  child: SelectionArea(
-                    contextMenuBuilder: (ctx, selectableRegionState) {
-                      return AdaptiveTextSelectionToolbar.buttonItems(
-                        anchors:
-                            selectableRegionState.contextMenuAnchors,
-                        buttonItems: [
-                          ...selectableRegionState
-                              .contextMenuButtonItems,
-                          ContextMenuButtonItem(
-                            label: 'Copy All',
-                            onPressed: () {
-                              ContextMenuController.removeAny();
-                              Clipboard.setData(
-                                ClipboardData(text: text),
-                              );
-                            },
-                          ),
-                        ],
-                      );
-                    },
-                    child: MarkdownView(
-                      markdown: text,
-                      onOptionPress: onOptionPress,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md + 2,
+            vertical: AppSpacing.sm + 2,
+          ),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.sizeOf(context).width * 0.80,
+          ),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(18),
+              topRight: Radius.circular(18),
+              bottomLeft: Radius.circular(18),
+              bottomRight: Radius.circular(6),
+            ),
+          ),
+          child: DefaultTextStyle.merge(
+            style: TextStyle(
+              color: theme.colorScheme.onPrimary,
+            ),
+            child: SelectionArea(
+              contextMenuBuilder: (ctx, selectableRegionState) {
+                return AdaptiveTextSelectionToolbar.buttonItems(
+                  anchors:
+                      selectableRegionState.contextMenuAnchors,
+                  buttonItems: [
+                    ...selectableRegionState
+                        .contextMenuButtonItems,
+                    ContextMenuButtonItem(
+                      label: 'Copy All',
+                      onPressed: () {
+                        ContextMenuController.removeAny();
+                        Clipboard.setData(
+                          ClipboardData(text: text),
+                        );
+                      },
                     ),
-                  ),
-                ),
+                  ],
+                );
+              },
+              child: MarkdownView(
+                markdown: text,
+                onOptionPress: onOptionPress,
               ),
             ),
-            // Tail pointing bottom-right
-            CustomPaint(
-              size: const Size(8, 10),
-              painter: _UserTailPainter(color: color),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -234,7 +217,7 @@ class _UserBubble extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Bot message (left-aligned, plain content, full width, no bubble)
+// Bot message (left-aligned, full width, clean typography)
 // ---------------------------------------------------------------------------
 
 class _BotMessage extends StatelessWidget {
@@ -253,10 +236,10 @@ class _BotMessage extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(
-        left: AppSpacing.md,
-        right: AppSpacing.md,
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
         top: 1,
-        bottom: AppSpacing.xs,
+        bottom: 2,
       ),
       child: SelectionArea(
         contextMenuBuilder: (ctx, selectableRegionState) {
@@ -287,45 +270,9 @@ class _BotMessage extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Tail painters
-// ---------------------------------------------------------------------------
-
-/// Draws a small triangle tail for the user (sent) bubble.
-///
-/// The tail attaches to the bottom-right corner of the bubble,
-/// pointing downward and to the right, like an iMessage sent bubble.
-class _UserTailPainter extends CustomPainter {
-  const _UserTailPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(_UserTailPainter old) => old.color != color;
-}
-
-// ---------------------------------------------------------------------------
 // Thinking block widget (collapsible)
 // ---------------------------------------------------------------------------
 
-/// Collapsible widget for Claude's internal thinking content.
-///
-/// Collapsed by default — shows a "Thinking" header with a brain icon.
-/// Tapping expands to reveal the full thinking content in muted italic style.
 class _ThinkingBlock extends StatefulWidget {
   const _ThinkingBlock({required this.content});
 
@@ -361,6 +308,7 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
   }
 
   void _toggle() {
+    HapticFeedback.selectionClick();
     setState(() => _expanded = !_expanded);
     if (_expanded) {
       _controller.forward();
@@ -370,7 +318,6 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
   }
 
   String _getCleanContent() {
-    // Strip the leading "*Thinking...*" prefix if the server added one.
     return widget.content
         .replaceFirst(RegExp(r'^\*Thinking\.\.\.\*\s*\n*'), '')
         .trim();
@@ -383,15 +330,15 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
 
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
+        horizontal: AppSpacing.md,
         vertical: AppSpacing.xs,
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: cs.surfaceContainerLow,
+          color: cs.onSurface.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(
-            color: cs.outlineVariant,
+            color: cs.outlineVariant.withValues(alpha: 0.3),
             width: 0.5,
           ),
         ),
@@ -406,7 +353,7 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
+                  vertical: AppSpacing.sm + 2,
                 ),
                 child: Row(
                   children: [
@@ -415,12 +362,12 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
                       size: 14,
                       color: cs.onSurfaceVariant,
                     ),
-                    const SizedBox(width: AppSpacing.xs),
+                    const SizedBox(width: 6),
                     Text(
                       'Thinking',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: cs.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const Spacer(),
@@ -428,9 +375,10 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
                       turns: _expanded ? 0.5 : 0,
                       duration: const Duration(milliseconds: 200),
                       child: Icon(
-                        Icons.expand_more,
+                        Icons.expand_more_rounded,
                         size: 16,
-                        color: cs.onSurfaceVariant,
+                        color: cs.onSurfaceVariant
+                            .withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -444,12 +392,12 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Divider(height: 0.5, color: cs.outlineVariant),
+                  Divider(
+                    height: 0.5,
+                    color: cs.outlineVariant.withValues(alpha: 0.3),
+                  ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.sm,
-                    ),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     child: DefaultTextStyle.merge(
                       style: TextStyle(
                         color: cs.onSurfaceVariant,
@@ -486,14 +434,15 @@ class _AgentEventWidget extends StatelessWidget {
     if (label == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
+        horizontal: AppSpacing.lg,
         vertical: AppSpacing.sm,
       ),
       child: Center(
         child: Text(
           label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant
+                .withValues(alpha: 0.6),
           ),
           textAlign: TextAlign.center,
         ),
@@ -523,9 +472,6 @@ class _AgentEventWidget extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 /// Markdown rendered message widget.
-///
-/// A simpler widget for rendering just markdown content without
-/// the chat message container styling.
 class MarkdownMessage extends StatelessWidget {
   /// Creates a [MarkdownMessage].
   const MarkdownMessage({required this.content, super.key});

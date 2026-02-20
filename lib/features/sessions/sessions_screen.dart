@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart' hide TabBar;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -814,19 +815,20 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
         AppSpacing.md,
-        10,
-        AppSpacing.md,
+        AppSpacing.lg,
         AppSpacing.xs,
       ),
       child: Text(
-        title,
-        style: theme.textTheme.titleSmall?.copyWith(
-          color: theme.colorScheme.primary,
+        title.toUpperCase(),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: cs.onSurfaceVariant,
           fontWeight: FontWeight.w600,
-          letterSpacing: 0.1,
+          letterSpacing: 0.5,
         ),
       ),
     );
@@ -1137,8 +1139,8 @@ AvatarStyle? _parseAvatarStyle(String? style) {
 
 // ─── Active session card ─────────────────────────────────────────────────────
 
-/// Active session card with a gradient border and primary-tinted background.
-class ActiveSessionCard extends StatefulWidget {
+/// Active session card — clean, no glow animation.
+class ActiveSessionCard extends StatelessWidget {
   const ActiveSessionCard({
     required this.session,
     required this.showFlavorIcon,
@@ -1160,85 +1162,74 @@ class ActiveSessionCard extends StatefulWidget {
   final AvatarStyle? avatarStyle;
 
   @override
-  State<ActiveSessionCard> createState() => _ActiveSessionCardState();
-}
-
-class _ActiveSessionCardState extends State<ActiveSessionCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _glowController;
-  late Animation<double> _glowAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _glowController = AnimationController(
-      duration: const Duration(milliseconds: 1800),
-      vsync: this,
-    )..repeat(reverse: true);
-    _glowAnimation = CurvedAnimation(
-      parent: _glowController,
-      curve: Curves.easeInOut,
-    );
-  }
-
-  @override
-  void dispose() {
-    _glowController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final sessionStatus = getSessionStatus(widget.session);
-    final avatarId = getSessionAvatarId(widget.session);
-    final sessionName = getSessionName(widget.session);
-    final sessionSubtitle = getSessionSubtitle(widget.session);
-    final sessionFlavor = widget.session.metadata?.flavor;
-    final hasDraft = widget.session.draft != null &&
-        widget.session.draft!.isNotEmpty;
-    final todoProgress = _getTodoProgress(widget.session.todos);
+    final sessionStatus = getSessionStatus(session);
+    final avatarId = getSessionAvatarId(session);
+    final sessionName = getSessionName(session);
+    final sessionSubtitle = getSessionSubtitle(session);
+    final sessionFlavor = session.metadata?.flavor;
+    final hasDraft = session.draft != null &&
+        session.draft!.isNotEmpty;
+    final todoProgress = _getTodoProgress(session.todos);
 
-    return AnimatedBuilder(
-      animation: _glowAnimation,
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        color: cs.primary.withValues(alpha: 0.04),
+        border: Border.all(
+          color: cs.primary.withValues(alpha: 0.12),
+          width: 0.5,
+        ),
+      ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(14),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap?.call();
+          },
+          borderRadius: BorderRadius.circular(AppRadius.md),
           child: IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
                   width: 3,
-                  color: Color(sessionStatus.statusDotColor),
+                  decoration: BoxDecoration(
+                    color: Color(sessionStatus.statusDotColor),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(AppRadius.md),
+                      bottomLeft: Radius.circular(AppRadius.md),
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.md,
-                      vertical: 10,
+                      vertical: AppSpacing.sm + 2,
                     ),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Avatar with Hero + optional draft badge.
                         Hero(
-                          tag: 'session-avatar-${widget.session.id}',
+                          tag: 'session-avatar-${session.id}',
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
                               SessionAvatar(
                                 id: avatarId,
                                 flavor: sessionFlavor,
-                                size: 48,
-                                showFlavorIcon:
-                                    widget.showFlavorIcon,
-                                style: widget.avatarStyle,
+                                size: 44,
+                                showFlavorIcon: showFlavorIcon,
+                                style: avatarStyle,
                               ),
                               if (hasDraft) const _DraftBadge(),
                             ],
@@ -1247,24 +1238,27 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            mainAxisAlignment:
+                                MainAxisAlignment.center,
                             children: [
                               Text(
                                 sessionName,
-                                style: theme.textTheme.bodyLarge?.copyWith(
+                                style: theme.textTheme.bodyMedium
+                                    ?.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  color: cs.onSurface,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
-                              const SizedBox(height: 3),
+                              const SizedBox(height: 2),
                               Text(
                                 sessionSubtitle,
-                                style: theme.textTheme.labelSmall?.copyWith(
+                                style: theme.textTheme.labelSmall
+                                    ?.copyWith(
                                   color: cs.onSurfaceVariant,
                                   fontFamily: 'monospace',
-                                  fontSize: 11,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
@@ -1274,26 +1268,31 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisAlignment:
+                              MainAxisAlignment.center,
+                          crossAxisAlignment:
+                              CrossAxisAlignment.end,
                           children: [
                             Text(
                               formatTimestamp(
-                                widget.session.updatedAt,
+                                session.updatedAt,
                                 relative: true,
                               ),
-                              style: theme.textTheme.labelSmall?.copyWith(
+                              style: theme.textTheme.labelSmall
+                                  ?.copyWith(
                                 color: cs.onSurfaceVariant,
-                                fontSize: 11,
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 4),
                             StatusDot(
-                              color: Color(sessionStatus.statusDotColor),
+                              color: Color(
+                                sessionStatus.statusDotColor,
+                              ),
                               isPulsing: sessionStatus.isPulsing,
-                              size: 8,
+                              size: 7,
                             ),
                             if (todoProgress != null) ...[
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 3),
                               _TodoProgressBadge(
                                 completed: todoProgress.completed,
                                 total: todoProgress.total,
@@ -1310,34 +1309,6 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
           ),
         ),
       ),
-      builder: (context, child) {
-        final t = _glowAnimation.value;
-        final glowOpacity = 0.04 + 0.08 * t;
-        final borderOpacity = 0.20 + 0.20 * t;
-
-        return Container(
-          margin: const EdgeInsets.symmetric(
-            horizontal: 4,
-            vertical: 2,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            color: cs.primary.withValues(alpha: 0.04),
-            border: Border.all(
-              color: cs.primary.withValues(alpha: borderOpacity),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: cs.primary.withValues(alpha: glowOpacity),
-                blurRadius: 6 * t + 2,
-                spreadRadius: 0,
-              ),
-            ],
-          ),
-          child: child,
-        );
-      },
     );
   }
 }
@@ -1384,12 +1355,16 @@ class CompactActiveSessionCard extends StatelessWidget {
     final todoProgress = _getTodoProgress(session.todos);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: 1,
+      ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.md),
         color: cs.primary.withValues(alpha: 0.04),
         border: Border.all(
-          color: cs.primary.withValues(alpha: 0.20),
+          color: cs.primary.withValues(alpha: 0.12),
+          width: 0.5,
         ),
       ),
       child: Material(
@@ -1397,7 +1372,10 @@ class CompactActiveSessionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.md),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: onTap,
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap?.call();
+          },
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: SizedBox(
             height: 56,
@@ -1406,7 +1384,13 @@ class CompactActiveSessionCard extends StatelessWidget {
               children: [
                 Container(
                   width: 3,
-                  color: Color(sessionStatus.statusDotColor),
+                  decoration: BoxDecoration(
+                    color: Color(sessionStatus.statusDotColor),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(AppRadius.md),
+                      bottomLeft: Radius.circular(AppRadius.md),
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: Padding(
@@ -1554,7 +1538,6 @@ class SessionCard extends StatelessWidget {
       borderRadius = BorderRadius.zero;
     }
 
-    // Session title color based on connection status (matches RN).
     final titleColor = sessionStatus.isConnected
         ? cs.onSurface
         : cs.onSurfaceVariant;
@@ -1686,98 +1669,33 @@ class SessionCard extends StatelessWidget {
 
 // ─── Empty state ─────────────────────────────────────────────────────────────
 
-/// Empty sessions view with an animated computer icon and CTA button.
-class EmptySessionsView extends StatefulWidget {
+/// Empty sessions view — clean, minimal design.
+class EmptySessionsView extends StatelessWidget {
   const EmptySessionsView({super.key});
-
-  @override
-  State<EmptySessionsView> createState() => _EmptySessionsViewState();
-}
-
-class _EmptySessionsViewState extends State<EmptySessionsView>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _pulse;
-  late Animation<double> _glow;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 2400),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    // Pulse: scale icon between 0.92 and 1.08.
-    _pulse = Tween<double>(begin: 0.92, end: 1.08).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-
-    // Icon glow opacity: 0.0 to 0.6.
-    _glow = Tween<double>(begin: 0.0, end: 0.6).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final iconColor = cs.onSurfaceVariant.withValues(alpha: 0.4);
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+        padding: const EdgeInsets.symmetric(horizontal: 48),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _pulse.value,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Soft glow halo behind the icon.
-                      Container(
-                        width: 96,
-                        height: 96,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: cs.primary.withValues(
-                                alpha: _glow.value * 0.35,
-                              ),
-                              blurRadius: 32,
-                              spreadRadius: AppSpacing.sm,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.computer_outlined,
-                        size: 64,
-                        color: iconColor,
-                      ),
-                    ],
-                  ),
-                );
-              },
+            Icon(
+              Icons.computer_outlined,
+              size: 48,
+              color: cs.onSurfaceVariant.withValues(alpha: 0.25),
             ),
-            const SizedBox(height: AppSpacing.xxl),
+            const SizedBox(height: AppSpacing.xl),
             Text(
               l10n.sessionNoSessionsYet,
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: cs.onSurfaceVariant,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                fontWeight: FontWeight.w500,
               ),
               textAlign: TextAlign.center,
             ),
@@ -1785,32 +1703,37 @@ class _EmptySessionsViewState extends State<EmptySessionsView>
             Text(
               l10n.emptyMainScreenInstallCli,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.5),
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: 2),
             Text(
               l10n.emptyMainScreenRunIt,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.5),
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: 2),
             Text(
               l10n.emptyMainScreenScanQrCode,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.5),
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.xxxl),
-            ElevatedButton.icon(
+            const SizedBox(height: AppSpacing.xxl),
+            FilledButton.tonal(
               onPressed: () =>
                   _SessionsListContent.showNewSessionDialog(context),
-              icon: const Icon(Icons.add),
-              label: Text(l10n.sessionNewSession),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(160, 44),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+              ),
+              child: Text(l10n.sessionNewSession),
             ),
           ],
         ),

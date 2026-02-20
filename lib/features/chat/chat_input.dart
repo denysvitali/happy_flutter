@@ -107,10 +107,7 @@ const _kSwitchAnim = Duration(milliseconds: 180);
 // Private sub-widgets
 // ---------------------------------------------------------------------------
 
-/// Abort button shown in the input toolbar when the session is online.
-///
-/// Shows a stop icon at rest and a spinner while the abort RPC is
-/// in-flight.  Hidden during permission-request state.
+/// Abort button — minimal pill with stop icon.
 class _AbortButton extends StatelessWidget {
   const _AbortButton({
     required this.isAborting,
@@ -137,13 +134,14 @@ class _AbortButton extends StatelessWidget {
             duration: _kBorderAnim,
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.sm,
-              vertical: AppSpacing.xs + 2,
+              vertical: 5,
             ),
             decoration: BoxDecoration(
-              color: cs.errorContainer,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
+              color: cs.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
               border: Border.all(
-                color: cs.error.withValues(alpha: 0.4),
+                color: cs.error.withValues(alpha: 0.2),
+                width: 0.5,
               ),
             ),
             child: AnimatedSwitcher(
@@ -154,8 +152,8 @@ class _AbortButton extends StatelessWidget {
                       width: 14,
                       height: 14,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: cs.onErrorContainer,
+                        strokeWidth: 1.5,
+                        color: cs.error,
                       ),
                     )
                   : Row(
@@ -165,15 +163,15 @@ class _AbortButton extends StatelessWidget {
                         Icon(
                           Icons.stop_rounded,
                           size: 14,
-                          color: cs.onErrorContainer,
+                          color: cs.error,
                         ),
-                        const SizedBox(width: AppSpacing.xs),
+                        const SizedBox(width: 3),
                         Text(
                           'Stop',
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: cs.onErrorContainer,
+                            fontWeight: FontWeight.w500,
+                            color: cs.error,
                             height: 1,
                           ),
                         ),
@@ -187,9 +185,8 @@ class _AbortButton extends StatelessWidget {
   }
 }
 
-/// Send / stop button with animated icon crossfade and scale spring.
+/// Send button — circular, matches iMessage's arrow-up design.
 class _SendButton extends StatelessWidget {
-  /// Creates a [_SendButton].
   const _SendButton({
     required this.isSending,
     required this.isSendDisabled,
@@ -197,16 +194,9 @@ class _SendButton extends StatelessWidget {
     required this.scaleAnimation,
   });
 
-  /// Whether a message is actively being sent (shows stop indicator).
   final bool isSending;
-
-  /// Whether sending is disabled entirely.
   final bool isSendDisabled;
-
-  /// Callback when the button is tapped.
   final VoidCallback onTap;
-
-  /// Spring-scale animation driven by the parent state.
   final Animation<double> scaleAnimation;
 
   @override
@@ -221,22 +211,13 @@ class _SendButton extends StatelessWidget {
         scale: scaleAnimation,
         child: AnimatedContainer(
           duration: _kBorderAnim,
-          width: 44,
-          height: 44,
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            shape: BoxShape.circle,
             color: canSend
                 ? cs.primary
-                : cs.surfaceContainerHighest,
-            boxShadow: canSend
-                ? [
-                    BoxShadow(
-                      color: cs.primary.withValues(alpha: 0.28),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : const [],
+                : cs.onSurface.withValues(alpha: 0.08),
           ),
           child: AnimatedSwitcher(
             duration: _kSwitchAnim,
@@ -247,19 +228,19 @@ class _SendButton extends StatelessWidget {
             child: isSending
                 ? Padding(
                     key: const ValueKey('spinner'),
-                    padding: const EdgeInsets.all(AppSpacing.md),
+                    padding: const EdgeInsets.all(8),
                     child: CircularProgressIndicator(
-                      strokeWidth: 2,
+                      strokeWidth: 1.5,
                       color: cs.onSurfaceVariant,
                     ),
                   )
                 : Icon(
                     key: const ValueKey('send'),
                     Icons.arrow_upward_rounded,
-                    size: 20,
+                    size: 18,
                     color: canSend
                         ? cs.onPrimary
-                        : cs.onSurface.withValues(alpha: 0.38),
+                        : cs.onSurface.withValues(alpha: 0.25),
                   ),
           ),
         ),
@@ -268,18 +249,14 @@ class _SendButton extends StatelessWidget {
   }
 }
 
-/// Model selector pill that opens a bottom-sheet picker.
-class _ModelSelector extends StatelessWidget {
-  /// Creates a [_ModelSelector].
-  const _ModelSelector({
+/// Inline chip for model selection — subtle, tappable.
+class _ModelChip extends StatelessWidget {
+  const _ModelChip({
     required this.model,
     required this.onTap,
   });
 
-  /// The currently selected model.
   final ClaudeModel model;
-
-  /// Called when the chip is tapped (should open picker).
   final VoidCallback onTap;
 
   @override
@@ -288,35 +265,18 @@ class _ModelSelector extends StatelessWidget {
     final cs = theme.colorScheme;
     final isDefault = model == ClaudeModel.defaultModel;
 
-    final chipBg = isDefault
-        ? cs.surfaceContainerHighest
-        : cs.primary;
-    final chipFg = isDefault ? cs.onSurfaceVariant : cs.onPrimary;
-    final chipBorder = isDefault
-        ? cs.outlineVariant.withValues(alpha: 0.7)
-        : cs.primary;
-
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: _kBorderAnim,
+      child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs + 2,
+          horizontal: 8,
+          vertical: 4,
         ),
         decoration: BoxDecoration(
-          color: chipBg,
+          color: isDefault
+              ? cs.onSurface.withValues(alpha: 0.05)
+              : cs.primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(color: chipBorder),
-          boxShadow: isDefault
-              ? const []
-              : [
-                  BoxShadow(
-                    color: cs.primary.withValues(alpha: 0.25),
-                    blurRadius: 6,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -325,25 +285,29 @@ class _ModelSelector extends StatelessWidget {
               model == ClaudeModel.opus
                   ? Icons.diamond_outlined
                   : Icons.auto_awesome_outlined,
-              size: 12,
-              color: chipFg,
+              size: 11,
+              color: isDefault
+                  ? cs.onSurfaceVariant
+                  : cs.primary,
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 3),
             Text(
               model.label,
               style: theme.textTheme.labelSmall?.copyWith(
                 fontSize: 11,
-                color: chipFg,
-                fontWeight:
-                    isDefault ? FontWeight.w500 : FontWeight.w700,
-                letterSpacing: 0.2,
+                color: isDefault
+                    ? cs.onSurfaceVariant
+                    : cs.primary,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(width: 2),
+            const SizedBox(width: 1),
             Icon(
               Icons.keyboard_arrow_down_rounded,
-              size: 13,
-              color: chipFg.withValues(alpha: 0.7),
+              size: 12,
+              color: isDefault
+                  ? cs.onSurfaceVariant.withValues(alpha: 0.5)
+                  : cs.primary.withValues(alpha: 0.6),
             ),
           ],
         ),
@@ -352,12 +316,10 @@ class _ModelSelector extends StatelessWidget {
   }
 }
 
-/// Context-size indicator showing token usage as "Nk / Mk" label.
+/// Context-size indicator showing token usage.
 class _ContextSizeIndicator extends StatelessWidget {
-  /// Creates a [_ContextSizeIndicator].
   const _ContextSizeIndicator({required this.contextSize});
 
-  /// Token count currently used.
   final int contextSize;
 
   static const int _maxContext = 190000;
@@ -365,53 +327,51 @@ class _ContextSizeIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final pctUsed =
         (contextSize / _maxContext * 100).clamp(0.0, 100.0);
     final pctRemaining = (100 - pctUsed).round();
 
     final Color indicatorColor;
     if (pctRemaining <= 5) {
-      indicatorColor = theme.colorScheme.error;
+      indicatorColor = cs.error;
     } else if (pctRemaining <= 15) {
       indicatorColor = Colors.orange;
     } else {
-      indicatorColor =
-          theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
+      indicatorColor = cs.onSurfaceVariant.withValues(alpha: 0.4);
     }
 
-    // Format as "Nk tokens"
     final String label;
     if (contextSize >= 1000) {
       final kVal = (contextSize / 1000).toStringAsFixed(0);
-      label = '${kVal}k / 190k';
+      label = '${kVal}k';
     } else {
-      label = '$contextSize / 190k';
+      label = '$contextSize';
     }
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 32,
-          height: 3,
+          width: 24,
+          height: 2,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: BorderRadius.circular(1),
             child: LinearProgressIndicator(
               value: pctUsed / 100,
-              backgroundColor:
-                  theme.colorScheme.surfaceContainerHighest,
+              backgroundColor: cs.onSurface.withValues(alpha: 0.06),
               valueColor:
                   AlwaysStoppedAnimation<Color>(indicatorColor),
             ),
           ),
         ),
-        const SizedBox(width: 5),
+        const SizedBox(width: 4),
         Text(
           label,
           style: theme.textTheme.labelSmall?.copyWith(
             color: indicatorColor,
             fontSize: 10,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ],
@@ -419,10 +379,8 @@ class _ContextSizeIndicator extends StatelessWidget {
   }
 }
 
-/// Toolbar row containing permission selector, model selector, abort
-/// button, and context indicator.
+/// Toolbar row — clean horizontal strip with inline chips.
 class _InputToolbar extends StatelessWidget {
-  /// Creates an [_InputToolbar].
   const _InputToolbar({
     required this.onShowModelPicker,
     this.permissionMode,
@@ -434,28 +392,13 @@ class _InputToolbar extends StatelessWidget {
     this.onAbort,
   });
 
-  /// Active permission mode (null = server default).
   final perm.PermissionMode? permissionMode;
-
-  /// Callback when permission mode changes.
   final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
-
-  /// Active model (null = server default).
   final ClaudeModel? modelMode;
-
-  /// Opens the model bottom-sheet picker.
   final VoidCallback onShowModelPicker;
-
-  /// Current context token usage, or null if unknown.
   final int? contextSize;
-
-  /// Whether to show the abort button.
   final bool showAbort;
-
-  /// Whether an abort RPC is in-flight (shows spinner).
   final bool isAborting;
-
-  /// Called when the abort button is tapped.
   final VoidCallback? onAbort;
 
   @override
@@ -471,8 +414,8 @@ class _InputToolbar extends StatelessWidget {
             availableModes:
                 perm.PermissionModeExtension.claudeGeminiModes,
           ),
-        const SizedBox(width: AppSpacing.xs + 2),
-        _ModelSelector(
+        const SizedBox(width: 6),
+        _ModelChip(
           model: model,
           onTap: onShowModelPicker,
         ),
@@ -480,7 +423,7 @@ class _InputToolbar extends StatelessWidget {
         if (showAbort) ...[
           _AbortButton(isAborting: isAborting, onTap: onAbort),
           if (contextSize != null && contextSize! > 0)
-            const SizedBox(width: AppSpacing.xs + 2),
+            const SizedBox(width: 6),
         ],
         if (contextSize != null && contextSize! > 0)
           _ContextSizeIndicator(contextSize: contextSize!),
@@ -491,20 +434,14 @@ class _InputToolbar extends StatelessWidget {
 
 /// Floating autocomplete suggestion list rendered above the input.
 class _FileAutocomplete extends StatelessWidget {
-  /// Creates a [_FileAutocomplete].
   const _FileAutocomplete({
     required this.suggestions,
     required this.selectedIndex,
     required this.onSelect,
   });
 
-  /// Filtered suggestions to display.
   final List<AutocompleteSuggestion> suggestions;
-
-  /// Currently highlighted suggestion index.
   final int selectedIndex;
-
-  /// Called when a suggestion is tapped.
   final ValueChanged<int> onSelect;
 
   @override
@@ -520,15 +457,10 @@ class _FileAutocomplete extends StatelessWidget {
             color: cs.surface,
             borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.5),
+              color: cs.outlineVariant.withValues(alpha: 0.3),
+              width: 0.5,
             ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x14000000), // ~8% black
-                blurRadius: 16,
-                offset: Offset(0, -4),
-              ),
-            ],
+            boxShadow: AppShadow.floating,
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -561,27 +493,24 @@ Widget _buildModelTile(
 
   return InkWell(
     onTap: () {
+      HapticFeedback.selectionClick();
       Navigator.pop(ctx);
       onChanged(model);
     },
-    child: AnimatedContainer(
-      duration: _kBorderAnim,
+    child: Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 10,
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
       ),
-      color: isSelected
-          ? cs.primaryContainer.withValues(alpha: 0.35)
-          : Colors.transparent,
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: isSelected
-                  ? cs.primary
-                  : cs.surfaceContainerHighest,
+                  ? cs.primary.withValues(alpha: 0.12)
+                  : cs.onSurface.withValues(alpha: 0.05),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -590,24 +519,24 @@ Widget _buildModelTile(
                   : model == ClaudeModel.sonnet
                       ? Icons.auto_awesome_outlined
                       : Icons.smart_toy_outlined,
-              size: 18,
-              color: isSelected ? cs.onPrimary : cs.onSurfaceVariant,
+              size: 16,
+              color: isSelected ? cs.primary : cs.onSurfaceVariant,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
               model.label,
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight:
-                    isSelected ? FontWeight.w700 : FontWeight.w400,
+                    isSelected ? FontWeight.w600 : FontWeight.w400,
                 color: isSelected ? cs.primary : cs.onSurface,
               ),
             ),
           ),
           if (isSelected)
             Icon(
-              Icons.check_circle_rounded,
+              Icons.check_rounded,
               size: 18,
               color: cs.primary,
             ),
@@ -629,11 +558,13 @@ void _showModelPickerSheet(
     context: context,
     backgroundColor: cs.surface,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(AppRadius.xl),
+      ),
     ),
     builder: (ctx) => SafeArea(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -642,20 +573,21 @@ void _showModelPickerSheet(
             Center(
               child: Container(
                 width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
+                height: 5,
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: cs.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
+                  color: cs.onSurface.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(2.5),
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm,
+              ),
               child: Text(
-                'Select Model',
+                'Model',
                 style: theme.textTheme.titleSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -988,6 +920,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         widget.isPermissionPending) {
       return;
     }
+    HapticFeedback.mediumImpact();
     _sendScaleController
       ..value = 0.0
       ..forward();
@@ -996,6 +929,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   Future<void> _onAbortTap() async {
     if (_isAborting || widget.onAbort == null) return;
+    HapticFeedback.heavyImpact();
     setState(() => _isAborting = true);
     final start = DateTime.now();
     try {
@@ -1003,7 +937,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
     } catch (_) {
       // Ignore — the caller logs errors.
     } finally {
-      // Enforce a minimum 300 ms loading time so the spinner is visible.
       final elapsed = DateTime.now().difference(start);
       const minDuration = Duration(milliseconds: 300);
       if (elapsed < minDuration) {
@@ -1040,45 +973,36 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   // ---------------------------------------------------------------------------
-  // Input container  (card-like elevated surface)
+  // Input container
   // ---------------------------------------------------------------------------
 
   Widget _buildInputContainer(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final cs = Theme.of(context).colorScheme;
 
     return Container(
       decoration: BoxDecoration(
         color: cs.surface,
         border: Border(
           top: BorderSide(
-            color: cs.onSurface.withValues(alpha: 0.08),
+            color: cs.outlineVariant.withValues(alpha: 0.3),
+            width: 0.5,
           ),
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D000000), // ~5% black
-            blurRadius: 12,
-            offset: Offset(0, -2),
-          ),
-        ],
       ),
       child: SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.sm + 2,
             AppSpacing.sm,
-            AppSpacing.sm + 2,
-            AppSpacing.sm + 2,
+            AppSpacing.sm,
+            AppSpacing.sm,
+            AppSpacing.xs,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Card-like text area
               _buildCardInputArea(context),
-              const SizedBox(height: AppSpacing.xs + 2),
-              // Toolbar below card
+              const SizedBox(height: 6),
               _InputToolbar(
                 permissionMode: widget.permissionMode,
                 onPermissionModeChanged:
@@ -1108,13 +1032,14 @@ class _ChatInputState extends ConsumerState<ChatInput>
   Widget _buildCardInputArea(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final pending = widget.isPermissionPending;
+
     final borderColor = pending
-        ? cs.onSurface.withValues(alpha: 0.08)
+        ? cs.outlineVariant.withValues(alpha: 0.2)
         : _isFocused
-            ? cs.primary
-            : cs.outlineVariant;
+            ? cs.primary.withValues(alpha: 0.4)
+            : cs.outlineVariant.withValues(alpha: 0.4);
     final cardColor = pending
-        ? cs.surfaceContainerHighest.withValues(alpha: 0.5)
+        ? cs.onSurface.withValues(alpha: 0.03)
         : cs.surfaceContainerLow;
 
     return AnimatedContainer(
@@ -1122,34 +1047,17 @@ class _ChatInputState extends ConsumerState<ChatInput>
       curve: Curves.easeInOut,
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: borderColor),
-        boxShadow: (!pending && _isFocused)
-            ? [
-                BoxShadow(
-                  color: cs.primary.withValues(alpha: 0.10),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 6,
-                  offset: const Offset(0, 1),
-                ),
-              ],
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: borderColor, width: 0.5),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(child: _buildTextField(context)),
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              0,
-              AppSpacing.xs + 2,
-              AppSpacing.xs + 2,
-              AppSpacing.xs + 2,
+            padding: const EdgeInsets.only(
+              right: 6,
+              bottom: 6,
             ),
             child: _SendButton(
               isSending: widget.isSending,
@@ -1171,10 +1079,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
     final hintText = pending
         ? 'Respond to the permission request above'
-        : 'Message\u2026  \u2318\u23ce to send';
-    final hintColor = pending
-        ? cs.onSurfaceVariant.withValues(alpha: 0.7)
-        : cs.onSurface.withValues(alpha: 0.35);
+        : 'Message';
+    final hintColor = cs.onSurface.withValues(alpha: 0.3);
 
     return KeyboardListener(
       focusNode: FocusNode(skipTraversal: true),
@@ -1187,21 +1093,19 @@ class _ChatInputState extends ConsumerState<ChatInput>
           hintText: hintText,
           hintStyle: theme.textTheme.bodyMedium?.copyWith(
             color: hintColor,
-            fontSize: 14,
           ),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
           disabledBorder: InputBorder.none,
           contentPadding: const EdgeInsets.fromLTRB(
-            AppSpacing.md + 2,
+            AppSpacing.lg,
             AppSpacing.sm + 2,
             AppSpacing.sm,
             AppSpacing.sm + 2,
           ),
         ),
         style: theme.textTheme.bodyMedium?.copyWith(
-          fontSize: 15,
           color: pending
               ? cs.onSurface.withValues(alpha: 0.38)
               : null,
@@ -1240,10 +1144,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
         vertical: 3,
       ),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.7),
+        color: cs.onSurface.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(AppRadius.sm + 2),
         border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.4),
+          color: cs.outlineVariant.withValues(alpha: 0.3),
+          width: 0.5,
         ),
       ),
       child: Row(
@@ -1338,7 +1243,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       child: Text(
         '/',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+          color: cs.onSurfaceVariant.withValues(alpha: 0.3),
         ),
       ),
     );

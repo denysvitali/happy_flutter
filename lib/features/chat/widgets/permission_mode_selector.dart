@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/app_tokens.dart';
 
 /// Permission mode options for Claude/Gemini agents
-/// Based on React Native's PermissionModeSelector.tsx
 enum PermissionMode {
   // Claude/Gemini modes
   defaultMode,
@@ -15,7 +16,7 @@ enum PermissionMode {
   yolo,
 }
 
-/// Extension for PermissionMode with React Native compatible configuration
+/// Extension for PermissionMode with configuration
 extension PermissionModeExtension on PermissionMode {
   /// Get the display name for this mode
   String get displayName {
@@ -57,7 +58,7 @@ extension PermissionModeExtension on PermissionMode {
     }
   }
 
-  /// Get the color for this mode (color-coded badges)
+  /// Get the color for this mode
   Color get color {
     switch (this) {
       case PermissionMode.defaultMode:
@@ -97,7 +98,7 @@ extension PermissionModeExtension on PermissionMode {
     }
   }
 
-  /// Get the icon name string for this mode (React Native compatible)
+  /// Get the icon name string for this mode
   String get iconName {
     switch (this) {
       case PermissionMode.defaultMode:
@@ -152,7 +153,7 @@ extension PermissionModeExtension on PermissionMode {
   /// Get all available modes
   static List<PermissionMode> get allModes => PermissionMode.values;
 
-  /// Parse mode from string (React Native compatible)
+  /// Parse mode from string
   static PermissionMode? fromString(String value) {
     final mapping = {
       'default': PermissionMode.defaultMode,
@@ -189,9 +190,8 @@ extension PermissionModeExtension on PermissionMode {
   }
 }
 
-/// Permission mode selector dropdown widget
-class PermissionModeSelector extends ConsumerStatefulWidget {
-
+/// Permission mode selector — inline chip that opens a bottom sheet.
+class PermissionModeSelector extends ConsumerWidget {
   const PermissionModeSelector({
     super.key,
     this.selectedMode,
@@ -200,6 +200,7 @@ class PermissionModeSelector extends ConsumerStatefulWidget {
     this.width,
     this.availableModes,
   });
+
   final PermissionMode? selectedMode;
   final ValueChanged<PermissionMode>? onModeChanged;
   final bool enabled;
@@ -207,242 +208,185 @@ class PermissionModeSelector extends ConsumerStatefulWidget {
   final List<PermissionMode>? availableModes;
 
   @override
-  ConsumerState<PermissionModeSelector> createState() =>
-      _PermissionModeSelectorState();
-}
-
-class _PermissionModeSelectorState
-    extends ConsumerState<PermissionModeSelector> {
-  final GlobalKey _buttonKey = GlobalKey();
-  OverlayEntry? _overlayEntry;
-
-  @override
-  void dispose() {
-    _overlayEntry?.remove();
-    super.dispose();
-  }
-
-  void _showDropdown() {
-    final renderBox =
-        _buttonKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-
-    final offset = renderBox.localToGlobal(Offset.zero);
-    final size = renderBox.size;
-
-    final screenHeight = MediaQuery.of(context).size.height;
-    final dropdownWidth = widget.width ?? 280;
-    final modes = _getAvailableModes();
-    // Estimate dropdown height: ~56px per item + padding
-    final estimatedHeight = modes.length * 56.0 + 8;
-
-    // Check if there's enough space below; if not, open above
-    final spaceBelow = screenHeight - (offset.dy + size.height + 4);
-    final openAbove = spaceBelow < estimatedHeight;
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _hideDropdown,
-        child: Stack(
-          children: [
-            Positioned.fill(child: Container(color: Colors.transparent)),
-            Positioned(
-              left: offset.dx,
-              bottom: openAbove
-                  ? screenHeight - offset.dy + 4
-                  : null,
-              top: openAbove ? null : offset.dy + size.height + 4,
-              width: dropdownWidth,
-              child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(12),
-                color: Theme.of(context).colorScheme.surface,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: openAbove
-                        ? offset.dy - 8
-                        : spaceBelow - 8,
-                  ),
-                  child: _buildDropdownItems(context),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    Overlay.of(context).insert(_overlayEntry!);
-  }
-
-  void _hideDropdown() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-  }
-
-  List<PermissionMode> _getAvailableModes() {
-    return widget.availableModes ?? PermissionMode.values;
-  }
-
-  Widget _buildDropdownItems(BuildContext context) {
-    final modes = _getAvailableModes();
-
-    return ListView.separated(
-      shrinkWrap: true,
-      padding: EdgeInsets.zero,
-      itemCount: modes.length,
-      separatorBuilder: (context, index) =>
-          Divider(height: 1, color: Theme.of(context).dividerColor),
-      itemBuilder: (context, index) {
-        final mode = modes[index];
-        final isSelected = widget.selectedMode == mode;
-
-        return InkWell(
-          onTap: () {
-            _hideDropdown();
-            widget.onModeChanged?.call(mode);
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                // Radio indicator with mode color
-                _buildRadioIndicator(context, mode, isSelected),
-                const SizedBox(width: 12),
-                // Mode icon
-                Icon(
-                  mode.icon,
-                  size: 20,
-                  color: isSelected ? mode.color : Theme.of(
-                    context,
-                  ).colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 12),
-                // Mode name and description
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        mode.displayName,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: isSelected
-                                  ? mode.color
-                                  : Theme.of(context).colorScheme.onSurface,
-                            ),
-                      ),
-                      Text(
-                        mode.description,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Selected check
-                if (isSelected)
-                  Icon(
-                    Icons.check,
-                    size: 18,
-                    color: mode.color,
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildRadioIndicator(
-    BuildContext context,
-    PermissionMode mode,
-    bool isSelected,
-  ) {
-    return Container(
-      width: 18,
-      height: 18,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: isSelected ? mode.color : Theme.of(context).dividerColor,
-          width: 2,
-        ),
-      ),
-      child: isSelected
-          ? Center(
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: mode.color,
-                ),
-              ),
-            )
-          : null,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final currentMode = widget.selectedMode ?? PermissionMode.defaultMode;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentMode = selectedMode ?? PermissionMode.defaultMode;
+    final cs = Theme.of(context).colorScheme;
+    final isDefault = currentMode == PermissionMode.defaultMode;
 
     return GestureDetector(
-      key: _buttonKey,
-      onTap: widget.enabled ? _showDropdown : null,
+      onTap: enabled ? () => _showModeSheet(context) : null,
       child: Container(
-        width: widget.width,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        width: width,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          border: Border.all(
-            color: widget.enabled
-                ? currentMode.color.withValues(alpha: 0.5)
-                : Theme.of(context).disabledColor,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          color: widget.enabled
-              ? currentMode.color.withValues(alpha: 0.1)
-              : Theme.of(context).disabledColor.withValues(alpha: 0.1),
+          color: isDefault
+              ? cs.onSurface.withValues(alpha: 0.05)
+              : currentMode.color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Permission mode indicator (color-coded dot)
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: currentMode.color,
-              ),
+            Icon(
+              currentMode.icon,
+              size: 12,
+              color: isDefault
+                  ? cs.onSurfaceVariant
+                  : currentMode.color,
             ),
-            const SizedBox(width: 8),
-            // Mode text
+            const SizedBox(width: 4),
             Text(
               currentMode.displayName,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: widget.enabled
-                        ? currentMode.color
-                        : Theme.of(context).disabledColor,
-                  ),
-            ),
-            if (widget.enabled) ...[
-              const SizedBox(width: 4),
-              Icon(
-                Icons.arrow_drop_down,
-                size: 16,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: isDefault
+                    ? cs.onSurfaceVariant
+                    : currentMode.color,
               ),
+            ),
+            const SizedBox(width: 1),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 12,
+              color: isDefault
+                  ? cs.onSurfaceVariant.withValues(alpha: 0.5)
+                  : currentMode.color.withValues(alpha: 0.6),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showModeSheet(BuildContext context) {
+    final modes = availableModes ?? PermissionMode.values;
+    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: cs.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.xl),
+        ),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(
+            top: AppSpacing.sm,
+            bottom: 4,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 5,
+                  margin: const EdgeInsets.only(
+                    bottom: AppSpacing.md,
+                  ),
+                  decoration: BoxDecoration(
+                    color: cs.onSurface.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(2.5),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  0,
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                ),
+                child: Text(
+                  'Permission Mode',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              for (final mode in modes)
+                _buildModeTile(ctx, mode, theme),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModeTile(
+    BuildContext ctx,
+    PermissionMode mode,
+    ThemeData theme,
+  ) {
+    final cs = theme.colorScheme;
+    final isSelected = (selectedMode ?? PermissionMode.defaultMode) == mode;
+
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        Navigator.pop(ctx);
+        onModeChanged?.call(mode);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? mode.color.withValues(alpha: 0.12)
+                    : cs.onSurface.withValues(alpha: 0.05),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                mode.icon,
+                size: 16,
+                color: isSelected
+                    ? mode.color
+                    : cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    mode.displayName,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                      color: isSelected
+                          ? mode.color
+                          : cs.onSurface,
+                    ),
+                  ),
+                  Text(
+                    mode.description,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Icon(
+                Icons.check_rounded,
+                size: 18,
+                color: mode.color,
+              ),
           ],
         ),
       ),
@@ -450,9 +394,8 @@ class _PermissionModeSelectorState
   }
 }
 
-/// Compact permission mode badge for display (color-coded)
+/// Compact permission mode badge for display
 class PermissionModeBadge extends StatelessWidget {
-
   const PermissionModeBadge({
     required this.mode, super.key,
     this.fontSize = 11,
@@ -470,11 +413,8 @@ class PermissionModeBadge extends StatelessWidget {
       padding: padding ??
           const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: mode.color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: mode.color.withValues(alpha: 0.3),
-        ),
+        color: mode.color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -491,7 +431,7 @@ class PermissionModeBadge extends StatelessWidget {
             mode.displayName,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: mode.color,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                   fontSize: fontSize,
                 ),
           ),
@@ -502,9 +442,7 @@ class PermissionModeBadge extends StatelessWidget {
 }
 
 /// Large permission mode selector for settings overlay
-/// Shows all available modes as radio list tiles
 class PermissionModeSettingsList extends StatelessWidget {
-
   const PermissionModeSettingsList({
     required this.onModeChanged, super.key,
     this.selectedMode,
@@ -530,9 +468,11 @@ class PermissionModeSettingsList extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section header
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm,
+            ),
             child: Text(
               'Permission Mode',
               style: theme.textTheme.labelMedium?.copyWith(
@@ -541,7 +481,6 @@ class PermissionModeSettingsList extends StatelessWidget {
               ),
             ),
           ),
-          // Mode options
           ...modes.map(
             (mode) => RadioListTile<PermissionMode>(
               value: mode,
@@ -552,7 +491,7 @@ class PermissionModeSettingsList extends StatelessWidget {
                   size: 20,
                   color: mode.color,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Text(
                   mode.displayName,
                   style: TextStyle(
