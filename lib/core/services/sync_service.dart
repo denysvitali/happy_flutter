@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -1683,6 +1684,110 @@ what you have, you must use the options mode.
     final errorMsg =
         result['errorMessage'] as String? ?? 'unknown error';
     throw StateError(errorMsg);
+  }
+
+  /// Execute a bash command on a machine.
+  ///
+  /// Returns a map with keys: `success` (bool), `stdout` (String),
+  /// `stderr` (String), `exitCode` (int).
+  Future<Map<String, dynamic>> machineBash({
+    required String machineId,
+    required String command,
+    required String cwd,
+  }) async {
+    try {
+      final result = await machineRPC(machineId, 'bash', {
+        'command': command,
+        'cwd': cwd,
+      });
+      if (result is Map) {
+        return {
+          'success': result['success'] ?? false,
+          'stdout': result['stdout'] ?? '',
+          'stderr': result['stderr'] ?? '',
+          'exitCode': result['exitCode'] ?? -1,
+        };
+      }
+    } catch (_) {
+      // Fall through to return failure map.
+    }
+    return {
+      'success': false,
+      'stdout': '',
+      'stderr': 'RPC call failed',
+      'exitCode': -1,
+    };
+  }
+
+  /// Create a git worktree on a machine under `.dev/worktree/<name>` relative
+  /// to [basePath] and return the absolute path to the new worktree.
+  ///
+  /// Mirrors React Native's `createWorktree` utility.
+  /// Throws [StateError] if [basePath] is not a git repository or the
+  /// worktree creation fails after retries.
+  Future<String> createWorktree({
+    required String machineId,
+    required String basePath,
+  }) async {
+    final gitCheck = await machineBash(
+      machineId: machineId,
+      command: 'git rev-parse --git-dir',
+      cwd: basePath,
+    );
+    if (gitCheck['success'] != true) {
+      throw StateError('Not a Git repository');
+    }
+
+    final name = _generateWorktreeName();
+    final worktreePath = '.dev/worktree/$name';
+    var result = await machineBash(
+      machineId: machineId,
+      command: 'git worktree add -b $name $worktreePath',
+      cwd: basePath,
+    );
+    if (result['success'] == true) {
+      return '$basePath/$worktreePath';
+    }
+
+    final stderr = result['stderr'] as String? ?? '';
+    if (stderr.contains('already exists')) {
+      for (var i = 2; i <= 4; i++) {
+        final newName = '$name-$i';
+        final newPath = '.dev/worktree/$newName';
+        result = await machineBash(
+          machineId: machineId,
+          command: 'git worktree add -b $newName $newPath',
+          cwd: basePath,
+        );
+        if (result['success'] == true) {
+          return '$basePath/$newPath';
+        }
+      }
+    }
+
+    throw StateError(
+      result['stderr'] as String? ?? 'Failed to create worktree',
+    );
+  }
+
+  static const _worktreeAdjectives = [
+    'clever', 'happy', 'swift', 'bright', 'calm',
+    'bold', 'quiet', 'brave', 'wise', 'eager',
+    'gentle', 'quick', 'sharp', 'smooth', 'fresh',
+  ];
+
+  static const _worktreeNouns = [
+    'ocean', 'forest', 'cloud', 'star', 'river',
+    'mountain', 'valley', 'bridge', 'beacon', 'harbor',
+    'garden', 'meadow', 'canyon', 'island', 'desert',
+  ];
+
+  String _generateWorktreeName() {
+    final rand = Random();
+    final adj =
+        _worktreeAdjectives[rand.nextInt(_worktreeAdjectives.length)];
+    final noun = _worktreeNouns[rand.nextInt(_worktreeNouns.length)];
+    return '$adj-$noun';
   }
 
   /// Convert an [AIBackendProfile] into a flat map of environment variables

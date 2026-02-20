@@ -22,6 +22,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   final _pathController = TextEditingController();
   bool _isCreating = false;
   String _selectedAgent = 'claude';
+  String _sessionType = 'simple';
 
   @override
   void initState() {
@@ -51,9 +52,18 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
 
     try {
       await sync.applySettings({'lastUsedAgent': _selectedAgent});
+      final String sessionPath;
+      if (_sessionType == 'worktree') {
+        sessionPath = await sync.createWorktree(
+          machineId: machine.id,
+          basePath: path,
+        );
+      } else {
+        sessionPath = path;
+      }
       final sessionId = await sync.createSession(
         machineId: machine.id,
-        path: path,
+        path: sessionPath,
       );
       if (!mounted) return;
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
@@ -251,6 +261,34 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                   ),
               ],
             ),
+          ),
+          const SizedBox(height: 20),
+
+          // Session type selector
+          Text(
+            'Type',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'simple',
+                label: Text('Simple'),
+                icon: Icon(Icons.folder_outlined),
+              ),
+              ButtonSegment(
+                value: 'worktree',
+                label: Text('Worktree'),
+                icon: Icon(Icons.account_tree_outlined),
+              ),
+            ],
+            selected: {_sessionType},
+            onSelectionChanged: (selection) {
+              setState(() => _sessionType = selection.first);
+            },
           ),
           const SizedBox(height: 20),
 

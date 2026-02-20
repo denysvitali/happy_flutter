@@ -1797,6 +1797,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   bool _isCreating = false;
   String? _createError;
   String _selectedAgent = 'claude';
+  String _sessionType = 'simple';
 
   @override
   void initState() {
@@ -1931,6 +1932,25 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(
+                value: 'simple',
+                label: Text('Simple'),
+                icon: Icon(Icons.folder_outlined),
+              ),
+              ButtonSegment(
+                value: 'worktree',
+                label: Text('Worktree'),
+                icon: Icon(Icons.account_tree_outlined),
+              ),
+            ],
+            selected: {_sessionType},
+            onSelectionChanged: (selection) {
+              setState(() => _sessionType = selection.first);
+            },
+          ),
+          const SizedBox(height: 16),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
                 value: 'claude',
                 label: Text('Claude'),
               ),
@@ -1998,9 +2018,18 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
 
     try {
       await sync.applySettings({'lastUsedAgent': _selectedAgent});
+      final String sessionPath;
+      if (_sessionType == 'worktree') {
+        sessionPath = await sync.createWorktree(
+          machineId: machineId,
+          basePath: path,
+        );
+      } else {
+        sessionPath = path;
+      }
       final sessionId = await sync.createSession(
         machineId: machineId,
-        path: path,
+        path: sessionPath,
       );
       if (!mounted) return;
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
