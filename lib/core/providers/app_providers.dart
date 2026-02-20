@@ -216,6 +216,9 @@ class SettingsNotifier extends Notifier<Settings> {
   Future<void> updateSetting<T>(String key, T value) async {
     await _storage.updateSetting(key, value);
     state = _updateSetting(state, key, value);
+    if (sync.isInitialized) {
+      await sync.applySettings({key: value});
+    }
   }
 
   Settings _updateSetting(dynamic settings, String key, dynamic value) {
@@ -534,7 +537,7 @@ class FriendsState {
   }
 
   List<UserProfile> get friendList =>
-      friends.where((f) => f.status == RelationshipStatus.friend).toList();
+      friends.where((f) => f.status == RelationshipStatus.friends).toList();
 
   List<FriendRequest> get incomingRequests =>
       pendingRequests.where((r) => r.status == 'pending').toList();
