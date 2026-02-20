@@ -136,6 +136,7 @@ what you have, you must use the options mode.
   int _settingsVersion = 0;
   Purchases _purchases = Purchases.defaults;
   final Map<String, Session> _sessions = <String, Session>{};
+  int? _lastSessionsFetchedAt;
   final Map<String, Machine> _machines = <String, Machine>{};
   // Timers that drop presence back to 'offline' if no activity arrives.
   final Map<String, Timer> _presenceTimers = {};
@@ -379,7 +380,6 @@ what you have, you must use the options mode.
     if (sessionId != null && messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId]?.invalidate();
     }
-    sessionsSync.invalidate();
     if (kDebugMode) {
       debugPrint(
         'New message received'
@@ -584,6 +584,9 @@ what you have, you must use the options mode.
   Future<void> fetchSessions() async {
     if (kDebugMode) debugPrint('Fetching sessions...');
 
+    final fetchStartMs = DateTime.now().millisecondsSinceEpoch;
+    final changedSince = _lastSessionsFetchedAt;
+
     try {
       final apiClient = ApiClient();
       final allSessions = <dynamic>[];
@@ -595,6 +598,7 @@ what you have, you must use the options mode.
           queryParameters: {
             'limit': 50,
             if (cursor != null) 'cursor': cursor,
+            if (changedSince != null) 'changedSince': changedSince,
           },
         );
 
@@ -618,7 +622,11 @@ what you have, you must use the options mode.
       }
 
       if (allSessions.isEmpty && cursor == null) {
-        // First request failed entirely — nothing to process
+        if (changedSince != null) {
+          // Delta fetch with no changes — update timestamp and return.
+          _lastSessionsFetchedAt = fetchStartMs;
+        }
+        // Full fetch: either failure or no sessions — don't update.
         return;
       }
 
@@ -701,16 +709,26 @@ what you have, you must use the options mode.
         }
       }
 
-      // Cancel all presence timers — server data takes precedence.
-      for (final timer in _presenceTimers.values) {
-        timer.cancel();
+      if (changedSince == null) {
+        // Full fetch: cancel all presence timers and replace sessions.
+        for (final timer in _presenceTimers.values) {
+          timer.cancel();
+        }
+        _presenceTimers.clear();
+        _sessions
+          ..clear()
+          ..addEntries(
+            decryptedSessions.map(
+              (session) => MapEntry(session.id, session),
+            ),
+          );
+      } else {
+        // Delta fetch: merge updated sessions, cancel their stale timers.
+        for (final session in decryptedSessions) {
+          _sessions[session.id] = session;
+          _presenceTimers.remove(session.id)?.cancel();
+        }
       }
-      _presenceTimers.clear();
-      _sessions
-        ..clear()
-        ..addEntries(
-          decryptedSessions.map((session) => MapEntry(session.id, session)),
-        );
 
       // Start 60 s staleness timers for every session that came back
       // 'online' from the server. If no real-time activity event arrives
@@ -746,6 +764,7 @@ what you have, you must use the options mode.
           'Fetched and decrypted ${decryptedSessions.length} sessions',
         );
       }
+      _lastSessionsFetchedAt = fetchStartMs;
       _dataChangeController.add(null);
     } catch (error, stack) {
       if (kDebugMode) debugPrint('Error fetching sessions: $error');
@@ -3092,6 +3111,7 @@ what you have, you must use the options mode.
     _artifacts.clear();
     _sessionMessages.clear();
     _sessions.clear();
+    _lastSessionsFetchedAt = null;
     _machines.clear();
     _profile = null;
     _settingsSnapshot = Settings();
