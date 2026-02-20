@@ -569,6 +569,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
           theme: ThemeHelper.buildLightTheme(),
           darkTheme: ThemeHelper.buildDarkTheme(),
           themeMode: _getThemeMode(themeMode),
+          locale: _resolveLocale(settings.preferredLanguage),
           localizationsDelegates: const [
             AppLocalizationsDelegate(),
             GlobalMaterialLocalizations.delegate,
@@ -588,6 +589,24 @@ class _HappyAppState extends ConsumerState<HappyApp>
       AppThemeMode.dark => ThemeMode.dark,
       AppThemeMode.adaptive => ThemeMode.system,
     };
+  }
+
+  /// Resolves a preferred language code (e.g. 'en-US', 'fr-FR', 'zh-CN')
+  /// to a [Locale], but only if it matches a supported locale.
+  /// Returns null to fall back to the system locale.
+  Locale? _resolveLocale(String? preferredLanguage) {
+    if (preferredLanguage == null || preferredLanguage.isEmpty) {
+      return null;
+    }
+    // Language codes are stored in BCP 47 hyphen format (e.g. 'en-US').
+    // Convert to underscore format for parseLocaleString (e.g. 'en_US').
+    final normalized = preferredLanguage.replaceAll('-', '_');
+    final candidate = parseLocaleString(normalized);
+    // Only apply if the candidate language is among the supported locales.
+    final isSupported = supportedLocales.any(
+      (l) => l.languageCode == candidate.languageCode,
+    );
+    return isSupported ? candidate : null;
   }
 }
 

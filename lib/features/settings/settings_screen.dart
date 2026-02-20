@@ -685,6 +685,13 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  String _avatarStyleLabel(String style) => switch (style) {
+        'gradient' => 'Gradient',
+        'pixelated' => 'Pixelated',
+        'brutalist' => 'Brutalist',
+        _ => style,
+      };
+
   void showAvatarStyleDialog(
     BuildContext context,
     Settings settings,
@@ -706,10 +713,10 @@ class SettingsScreen extends ConsumerWidget {
             },
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: ['brutalist', 'minimal', 'rounded', 'circle']
+              children: ['gradient', 'pixelated', 'brutalist']
                   .map(
                     (style) => RadioListTile(
-                      title: Text(style),
+                      title: Text(_avatarStyleLabel(style)),
                       value: style,
                     ),
                   )

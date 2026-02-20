@@ -6,6 +6,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/utils/session_utils.dart';
+import '../sessions/session_avatar.dart';
 import '../sessions/sessions_screen.dart';
 
 /// Screen that shows ALL sessions sorted by date, grouped by
@@ -18,6 +19,7 @@ class SessionRecentScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final sessions = ref.watch(sessionsNotifierProvider);
+    final settings = ref.watch(settingsNotifierProvider);
     final sessionList = sessions.values.toList()
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
@@ -42,20 +44,39 @@ class SessionRecentScreen extends ConsumerWidget {
               child: _SessionRecentList(
                 sessionList: sessionList,
                 localizeDateGroup: localizeDateGroup,
+                showFlavorIcons: settings.showFlavorIcons,
+                avatarStyle: _parseAvatarStyle(settings.avatarStyle),
               ),
             ),
     );
   }
 }
 
+/// Parses an avatar style string to the corresponding [AvatarStyle] enum.
+///
+/// Returns null if the string doesn't match a known style
+/// (causes hash-based selection).
+AvatarStyle? _parseAvatarStyle(String? style) {
+  return switch (style) {
+    'gradient' => AvatarStyle.gradient,
+    'pixelated' => AvatarStyle.pixelated,
+    'brutalist' => AvatarStyle.brutalist,
+    _ => null,
+  };
+}
+
 class _SessionRecentList extends StatelessWidget {
   const _SessionRecentList({
     required this.sessionList,
     required this.localizeDateGroup,
+    required this.showFlavorIcons,
+    this.avatarStyle,
   });
 
   final List<Session> sessionList;
   final String Function(DateGroup) localizeDateGroup;
+  final bool showFlavorIcons;
+  final AvatarStyle? avatarStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -102,6 +123,8 @@ class _SessionRecentList extends StatelessWidget {
         isFirst: isFirst,
         isLast: isLast,
         isSingle: isSingle,
+        showFlavorIcon: showFlavorIcons,
+        avatarStyle: avatarStyle,
       ),
     );
   }

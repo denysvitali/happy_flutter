@@ -49,18 +49,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cache Flutter SDK
-        uses: actions/cache@v4
-        id: flutter-cache
-        with:
-          path: /opt/hostedtoolcache/flutter
-          key: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
-        id: flutter-action
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
@@ -90,10 +80,6 @@ jobs:
        !startsWith(github.ref, 'refs/tags/v')) ||
       github.event.inputs.build_type == 'debug' ||
       github.event.inputs.build_type == 'both'
-    env:
-      ANDROID_HOME: ${{ github.workspace }}/android-sdk
-      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
-      ANDROID_NDK_HOME: ${{ github.workspace }}/android-sdk/ndk/28.2.13676358
 
     steps:
       - name: Checkout repository
@@ -122,7 +108,6 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo rm -rf /usr/local/lib/android
           sudo rm -rf /usr/local/share/boost
           sudo rm -rf /opt/microsoft/powershell
           sudo rm -rf /usr/local/share/chromedriver-linux64
@@ -131,18 +116,8 @@ jobs:
           sudo rm -rf /usr/share/swift
           df -h
 
-      - name: Cache Flutter SDK
-        uses: actions/cache@v4
-        id: flutter-cache
-        with:
-          path: /opt/hostedtoolcache/flutter
-          key: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
-        id: flutter-action
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
@@ -153,34 +128,18 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
 
-      - name: Cache Android SDK
+      - name: Cache Android NDK
+        id: ndk-cache
         uses: actions/cache@v4
-        id: android-sdk-cache
         with:
-          path: ${{ github.workspace }}/android-sdk
-          key: ${{ runner.os }}-android-sdk-ndk-v1
-          restore-keys: |
-            ${{ runner.os }}-android-sdk-
+          path: /usr/local/lib/android/sdk/ndk/28.2.13676358
+          key: ${{ runner.os }}-android-ndk-28.2.13676358
 
-      - name: Setup Android SDK
-        if: steps.android-sdk-cache.outputs.cache-hit != 'true'
+      - name: Setup Android NDK
+        if: steps.ndk-cache.outputs.cache-hit != 'true'
         run: |
-          mkdir -p $ANDROID_HOME
-          cd $ANDROID_HOME
-          # Download command line tools
-          curl -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q cmdline-tools.zip
-          mkdir -p cmdline-tools/latest
-          mv cmdline-tools/bin cmdline-tools/lib cmdline-tools/NOTICE.txt cmdline-tools/source.properties cmdline-tools/latest/ 2>/dev/null || true
-          rm cmdline-tools.zip
-          # Accept licenses and install required components
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;28.2.13676358" "ndk;27.0.12077973"
-          # Verify NDK was installed
-          ls -la $ANDROID_HOME/ndk/
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          yes | sdkmanager --licenses || true
+          sdkmanager "ndk;28.2.13676358"
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -194,7 +153,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.gradle/caches
+            ~/.gradle/caches/modules-2
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-deps-${{ hashFiles('android/**/build.gradle.kts', 'android/**/gradle.properties') }}
           restore-keys: |
@@ -263,10 +222,6 @@ jobs:
       (github.event_name == 'workflow_dispatch' &&
        (github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both')) ||
       startsWith(github.ref, 'refs/tags/v')
-    env:
-      ANDROID_HOME: ${{ github.workspace }}/android-sdk
-      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
-      ANDROID_NDK_HOME: ${{ github.workspace }}/android-sdk/ndk/28.2.13676358
 
     steps:
       - name: Checkout repository
@@ -296,7 +251,6 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo rm -rf /usr/local/lib/android
           sudo rm -rf /usr/local/share/boost
           sudo rm -rf /opt/microsoft/powershell
           sudo rm -rf /usr/local/share/chromedriver-linux64
@@ -312,20 +266,9 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      - name: Cache Flutter SDK
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        uses: actions/cache@v4
-        id: flutter-cache
-        with:
-          path: /opt/hostedtoolcache/flutter
-          key: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-
-
       - name: Setup Flutter
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         uses: subosito/flutter-action@v2
-        id: flutter-action
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
@@ -337,35 +280,21 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
 
-      - name: Cache Android SDK
+      - name: Cache Android NDK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        id: ndk-cache
         uses: actions/cache@v4
-        id: android-sdk-cache
         with:
-          path: ${{ github.workspace }}/android-sdk
-          key: ${{ runner.os }}-android-sdk-ndk-v1
-          restore-keys: |
-            ${{ runner.os }}-android-sdk-
+          path: /usr/local/lib/android/sdk/ndk/28.2.13676358
+          key: ${{ runner.os }}-android-ndk-28.2.13676358
 
-      - name: Setup Android SDK
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' && steps.android-sdk-cache.outputs.cache-hit != 'true' }}
+      - name: Setup Android NDK
+        if: >-
+          steps.check_keystore.outputs.skip_release != 'true' &&
+          steps.ndk-cache.outputs.cache-hit != 'true'
         run: |
-          mkdir -p $ANDROID_HOME
-          cd $ANDROID_HOME
-          # Download command line tools
-          curl -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q cmdline-tools.zip
-          mkdir -p cmdline-tools/latest
-          mv cmdline-tools/bin cmdline-tools/lib cmdline-tools/NOTICE.txt cmdline-tools/source.properties cmdline-tools/latest/ 2>/dev/null || true
-          rm cmdline-tools.zip
-          # Accept licenses and install required components
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;28.2.13676358" "ndk;27.0.12077973"
-          # Verify NDK was installed
-          ls -la $ANDROID_HOME/ndk/
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          yes | sdkmanager --licenses || true
+          sdkmanager "ndk;28.2.13676358"
 
       - name: Cache pub dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
@@ -381,7 +310,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.gradle/caches
+            ~/.gradle/caches/modules-2
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-deps-${{ hashFiles('android/**/build.gradle.kts', 'android/**/gradle.properties') }}
           restore-keys: |

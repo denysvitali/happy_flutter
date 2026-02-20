@@ -628,7 +628,8 @@ what you have, you must use the options mode.
               agentStateVersion: session['agentStateVersion'] as int,
               thinking: false,
               thinkingAt: null,
-              presence: 'online',
+              presence:
+                  session['presence'] as String? ?? 'offline',
               lastSeq: session['lastSeq'] as int?,
             );
 
@@ -1967,7 +1968,12 @@ what you have, you must use the options mode.
 
     try {
       final apiClient = ApiClient();
-      final isFirstLoad = !_sessionLastSeq.containsKey(sessionId);
+      // "First load" means no messages are in memory yet for this session
+      // (new session or app was restarted — _sessionMessages is not
+      // persisted to disk).  In this case we do a tail-load using the
+      // server's lastSeq hint regardless of the persisted _sessionLastSeq.
+      final isFirstLoad = !_sessionMessages.containsKey(sessionId) ||
+          (_sessionMessages[sessionId]?.isEmpty ?? true);
       int afterSeq;
 
       if (isFirstLoad) {

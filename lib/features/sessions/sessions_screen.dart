@@ -200,6 +200,8 @@ class _SessionsListContentState
         triggerStagger: triggerStagger,
         compactMode: settings.compactSessionView,
         hideInactive: settings.hideInactiveSessions,
+        showFlavorIcons: settings.showFlavorIcons,
+        avatarStyle: _parseAvatarStyle(settings.avatarStyle),
       ),
     );
   }
@@ -212,6 +214,8 @@ class _SessionsListContentState
     required bool triggerStagger,
     required bool compactMode,
     required bool hideInactive,
+    required bool showFlavorIcons,
+    required AvatarStyle? avatarStyle,
   }) {
     // Group active sessions by path.
     final activeByPath = <String, List<Session>>{};
@@ -252,10 +256,14 @@ class _SessionsListContentState
               ? CompactActiveSessionCard(
                   session: session,
                   onTap: () => context.push('/chat/${session.id}'),
+                  showFlavorIcon: showFlavorIcons,
+                  avatarStyle: avatarStyle,
                 )
               : ActiveSessionCard(
                   session: session,
                   onTap: () => context.push('/chat/${session.id}'),
+                  showFlavorIcon: showFlavorIcons,
+                  avatarStyle: avatarStyle,
                 );
           children.add(
             _StaggeredSlideIn(
@@ -291,6 +299,8 @@ class _SessionsListContentState
         startIndex: staggerIndex,
         animate: triggerStagger,
         compactMode: compactMode,
+        showFlavorIcons: showFlavorIcons,
+        avatarStyle: avatarStyle,
       );
       children.addAll(archivedItems);
     }
@@ -308,6 +318,8 @@ class _SessionsListContentState
     required int startIndex,
     required bool animate,
     required bool compactMode,
+    required bool showFlavorIcons,
+    required AvatarStyle? avatarStyle,
   }) {
     final folderItems = groupSessionsByFolder(sessions, machines);
 
@@ -353,6 +365,8 @@ class _SessionsListContentState
                   isLast: isLast,
                   isSingle: isSingle,
                   compact: compactMode,
+                  showFlavorIcon: showFlavorIcons,
+                  avatarStyle: avatarStyle,
                 ),
               ),
             ),
@@ -954,6 +968,19 @@ class _TodoProgressBadge extends StatelessWidget {
   }
 }
 
+/// Parses an avatar style string to the corresponding [AvatarStyle] enum.
+///
+/// Returns null if the string doesn't match a known style
+/// (causes hash-based selection).
+AvatarStyle? _parseAvatarStyle(String? style) {
+  return switch (style) {
+    'gradient' => AvatarStyle.gradient,
+    'pixelated' => AvatarStyle.pixelated,
+    'brutalist' => AvatarStyle.brutalist,
+    _ => null,
+  };
+}
+
 /// Computes todo progress, returning (completed, total) or null if
 /// todos are empty or all completed.
 ({int completed, int total})? _getTodoProgress(List<TodoItem>? todos) {
@@ -971,8 +998,10 @@ class _TodoProgressBadge extends StatelessWidget {
 class ActiveSessionCard extends StatefulWidget {
   const ActiveSessionCard({
     required this.session,
+    required this.showFlavorIcon,
     super.key,
     this.onTap,
+    this.avatarStyle,
   });
 
   /// The session to display.
@@ -980,6 +1009,12 @@ class ActiveSessionCard extends StatefulWidget {
 
   /// Callback when the card is tapped.
   final VoidCallback? onTap;
+
+  /// Whether to show the AI provider flavor icon on the avatar.
+  final bool showFlavorIcon;
+
+  /// The avatar style to use (null = hash-based selection).
+  final AvatarStyle? avatarStyle;
 
   @override
   State<ActiveSessionCard> createState() => _ActiveSessionCardState();
@@ -1058,6 +1093,9 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
                                 id: avatarId,
                                 flavor: sessionFlavor,
                                 size: 48,
+                                showFlavorIcon:
+                                    widget.showFlavorIcon,
+                                style: widget.avatarStyle,
                               ),
                               if (hasDraft) const _DraftBadge(),
                             ],
@@ -1172,8 +1210,10 @@ class _ActiveSessionCardState extends State<ActiveSessionCard>
 class CompactActiveSessionCard extends StatelessWidget {
   const CompactActiveSessionCard({
     required this.session,
+    required this.showFlavorIcon,
     super.key,
     this.onTap,
+    this.avatarStyle,
   });
 
   /// The session to display.
@@ -1181,6 +1221,12 @@ class CompactActiveSessionCard extends StatelessWidget {
 
   /// Callback when tapped.
   final VoidCallback? onTap;
+
+  /// Whether to show the AI provider flavor icon on the avatar.
+  final bool showFlavorIcon;
+
+  /// The avatar style to use (null = hash-based selection).
+  final AvatarStyle? avatarStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -1234,6 +1280,8 @@ class CompactActiveSessionCard extends StatelessWidget {
                                 id: avatarId,
                                 flavor: sessionFlavor,
                                 size: 36,
+                                showFlavorIcon: showFlavorIcon,
+                                style: avatarStyle,
                               ),
                               if (hasDraft) const _DraftBadge(),
                             ],
@@ -1296,6 +1344,7 @@ class CompactActiveSessionCard extends StatelessWidget {
 class SessionCard extends StatelessWidget {
   const SessionCard({
     required this.session,
+    required this.showFlavorIcon,
     super.key,
     this.onTap,
     this.isFirst = false,
@@ -1303,6 +1352,7 @@ class SessionCard extends StatelessWidget {
     this.isSingle = false,
     this.showDateHeader = false,
     this.compact = false,
+    this.avatarStyle,
   });
 
   /// The session to display.
@@ -1325,6 +1375,12 @@ class SessionCard extends StatelessWidget {
 
   /// Whether to use compact layout (smaller avatar, reduced padding).
   final bool compact;
+
+  /// Whether to show the AI provider flavor icon on the avatar.
+  final bool showFlavorIcon;
+
+  /// The avatar style to use (null = hash-based selection).
+  final AvatarStyle? avatarStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -1401,6 +1457,8 @@ class SessionCard extends StatelessWidget {
                               flavor: sessionFlavor,
                               size: compact ? 36 : 44,
                               monochrome: !sessionStatus.isConnected,
+                              showFlavorIcon: showFlavorIcon,
+                              style: avatarStyle,
                             ),
                             if (hasDraft) const _DraftBadge(),
                           ],
