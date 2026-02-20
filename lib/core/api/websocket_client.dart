@@ -174,11 +174,13 @@ class WebSocketClient {
 
       _channel!.stream.listen(
         _handleMessage,
-        onError: (error) {
+        onError: (error, stackTrace) {
           if (kDebugMode) {
             print('WebSocket stream error: $error');
           }
           _updateStatus(ConnectionStatus.error);
+          unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+          _scheduleReconnect();
         },
         onDone: () {
           if (kDebugMode) {

@@ -102,13 +102,21 @@ class SocketIoClient {
     });
 
     _socket!.onConnectError((error) {
-      if (kDebugMode) print('Socket.IO connect error: $error');
       _updateStatus(ConnectionStatus.error);
+      if (kDebugMode) debugPrint('Socket.IO connect error: $error');
+      unawaited(Sentry.captureException(
+        Exception('Socket.IO connect error: $error'),
+        stackTrace: StackTrace.current,
+      ));
     });
 
     _socket!.onError((error) {
-      if (kDebugMode) print('Socket.IO error: $error');
       _updateStatus(ConnectionStatus.error);
+      if (kDebugMode) debugPrint('Socket.IO error: $error');
+      unawaited(Sentry.captureException(
+        Exception('Socket.IO error: $error'),
+        stackTrace: StackTrace.current,
+      ));
     });
 
     _socket!.onAny((event, data) {

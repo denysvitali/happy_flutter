@@ -29,6 +29,13 @@ import '../services/server_config.dart';
 import '../utils/invalidate_sync.dart';
 import '../utils/parse_token.dart';
 
+int? _asSessionInt(dynamic value) {
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
+  return null;
+}
+
 // Global singleton instance
 class Sync {
   factory Sync() => _instance;
@@ -313,8 +320,12 @@ what you have, you must use the options mode.
 
   /// Handle incoming updates
   void handleUpdate(dynamic data) {
+    if (data is! Map<String, dynamic>) {
+      debugPrint('handleUpdate: unexpected data type: ${data.runtimeType}');
+      return;
+    }
     try {
-      final update = ApiUpdate.fromJson(data as Map<String, dynamic>);
+      final update = ApiUpdate.fromJson(data);
 
       switch (update.type) {
         case 'new-message':
@@ -354,8 +365,9 @@ what you have, you must use the options mode.
           _handleKvBatchUpdate(update.data);
           break;
       }
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) debugPrint('Failed to handle update: $error');
+      unawaited(Sentry.captureException(error, stackTrace: stack));
     }
   }
 
@@ -661,9 +673,9 @@ what you have, you must use the options mode.
         );
       }
       _dataChangeController.add(null);
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) debugPrint('Error fetching sessions: $error');
-      unawaited(Sentry.captureException(error));
+      unawaited(Sentry.captureException(error, stackTrace: stack));
     }
   }
 
@@ -676,7 +688,21 @@ what you have, you must use the options mode.
       final response = await apiClient.get('/v1/machines');
 
       if (apiClient.isSuccess(response)) {
-        final data = response.data as List;
+        // Machines response may be a list directly or wrapped in an object
+        final rawData = response.data;
+        final List data;
+        if (rawData is List) {
+          data = rawData;
+        } else if (rawData is Map<String, dynamic> &&
+            rawData['machines'] is List) {
+          data = rawData['machines'] as List;
+        } else {
+          debugPrint(
+            'Unexpected response format for machines: '
+            '${rawData?.runtimeType}',
+          );
+          return;
+        }
 
         // Initialize machine encryptions
         final machineKeys = <String, Uint8List?>{};
@@ -706,29 +732,36 @@ what you have, you must use the options mode.
 
           if (machineEncryption != null) {
             try {
-              final metadata = await machineEncryption.decryptMetadata(
-                machine['metadataVersion'] as int,
-                machine['metadata'] as String,
-              );
+              // Decrypt metadata - may be null/absent for new machines
+              final rawMetadata = machine['metadata'];
+              Map<String, dynamic>? metadata;
+              if (rawMetadata is String && rawMetadata.isNotEmpty) {
+                metadata = await machineEncryption.decryptMetadata(
+                  _asSessionInt(machine['metadataVersion']) ?? 0,
+                  rawMetadata,
+                );
+              }
 
               final daemonState = await machineEncryption.decryptDaemonState(
-                machine['daemonStateVersion'] as int,
+                _asSessionInt(machine['daemonStateVersion']) ?? 0,
                 machine['daemonState'] as String?,
               );
 
               final processedMachine = Machine(
                 id: machineId,
-                seq: machine['seq'] as int,
-                createdAt: machine['createdAt'] as int,
-                updatedAt: machine['updatedAt'] as int,
-                active: machine['active'] as bool,
-                activeAt: machine['activeAt'] as int,
+                seq: _asSessionInt(machine['seq']) ?? 0,
+                createdAt: _asSessionInt(machine['createdAt']) ?? 0,
+                updatedAt: _asSessionInt(machine['updatedAt']) ?? 0,
+                active: machine['active'] as bool? ?? false,
+                activeAt: _asSessionInt(machine['activeAt']) ?? 0,
                 metadata: metadata != null
                     ? MachineMetadata.fromJson(metadata)
                     : null,
-                metadataVersion: machine['metadataVersion'] as int,
+                metadataVersion:
+                    _asSessionInt(machine['metadataVersion']) ?? 0,
                 daemonState: daemonState,
-                daemonStateVersion: machine['daemonStateVersion'] as int,
+                daemonStateVersion:
+                    _asSessionInt(machine['daemonStateVersion']) ?? 0,
               );
 
               decryptedMachines.add(processedMachine);
@@ -760,9 +793,9 @@ what you have, you must use the options mode.
           );
         }
       }
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) debugPrint('Error fetching machines: $error');
-      unawaited(Sentry.captureException(error));
+      unawaited(Sentry.captureException(error, stackTrace: stack));
     }
   }
 
@@ -851,9 +884,9 @@ what you have, you must use the options mode.
       if (kDebugMode) {
         debugPrint('Fetched artifacts: ${_artifacts.length}');
       }
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) debugPrint('Failed to fetch artifacts: $error');
-      unawaited(Sentry.captureException(error));
+      unawaited(Sentry.captureException(error, stackTrace: stack));
     }
   }
 
@@ -901,9 +934,9 @@ what you have, you must use the options mode.
           'pending requests: ${_friendRequests.length}',
         );
       }
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) debugPrint('Failed to fetch friends: $error');
-      unawaited(Sentry.captureException(error));
+      unawaited(Sentry.captureException(error, stackTrace: stack));
     }
   }
 
@@ -949,9 +982,9 @@ what you have, you must use the options mode.
       if (kDebugMode) {
         debugPrint('Fetched feed items: ${_feedItems.length}');
       }
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) debugPrint('Failed to fetch feed: $error');
-      unawaited(Sentry.captureException(error));
+      unawaited(Sentry.captureException(error, stackTrace: stack));
     }
   }
 
@@ -992,9 +1025,9 @@ what you have, you must use the options mode.
           ' $totalItems item(s)',
         );
       }
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) debugPrint('Failed to fetch todos: $error');
-      unawaited(Sentry.captureException(error));
+      unawaited(Sentry.captureException(error, stackTrace: stack));
     }
   }
 
@@ -1160,59 +1193,35 @@ what you have, you must use the options mode.
   }
 
   UserProfile _mapFriendProfile(Map<String, dynamic> raw) {
-    final now = DateTime.now().millisecondsSinceEpoch;
     final id = (raw['id'] as String?) ??
         (raw['uid'] as String?) ??
         'unknown';
-    final firstName = raw['firstName'] as String?;
+    final firstName = (raw['firstName'] as String?) ?? '';
     final lastName = raw['lastName'] as String?;
-    final username = raw['username'] as String?;
-    final name = [firstName, lastName]
-        .whereType<String>()
-        .where((part) => part.isNotEmpty)
-        .join(' ')
-        .trim();
-    final avatar = raw['avatar'];
-    String? avatarUrl;
-    if (avatar is Map<String, dynamic>) {
-      avatarUrl = avatar['url'] as String?;
-    } else {
-      avatarUrl = raw['avatarUrl'] as String?;
+    final username = (raw['username'] as String?) ?? '';
+    final avatarRaw = raw['avatar'];
+    AvatarRef? avatar;
+    if (avatarRaw is Map<String, dynamic>) {
+      avatar = AvatarRef.fromJson(avatarRaw);
     }
 
     return UserProfile(
       id: id,
-      name: name.isNotEmpty ? name : username,
-      email: raw['email'] as String?,
-      avatarUrl: avatarUrl,
-      status: _mapRelationshipStatus(raw['status'] as String?),
-      lastSeenAt: _asInt(raw['lastSeenAt']),
-      createdAt: _asInt(raw['createdAt']) ?? now,
+      firstName: firstName,
+      lastName: lastName,
+      username: username,
+      avatar: avatar,
+      bio: raw['bio'] as String?,
+      status: RelationshipStatus.fromString(
+        raw['status'] as String? ?? 'none',
+      ),
     );
-  }
-
-  RelationshipStatus _mapRelationshipStatus(String? status) {
-    switch (status) {
-      case 'friend':
-      case 'friends':
-        return RelationshipStatus.friends;
-      case 'requested':
-        return RelationshipStatus.pendingOutgoing;
-      case 'pending':
-        return RelationshipStatus.pendingIncoming;
-      case 'blocked':
-        return RelationshipStatus.blocked;
-      case 'blockedByThem':
-        return RelationshipStatus.blockedByThem;
-      default:
-        return RelationshipStatus.none;
-    }
   }
 
   List<FriendRequest> _deriveFriendRequests(List<UserProfile> profiles) {
     return profiles
         .where(
-            (profile) => profile.status == RelationshipStatus.pendingIncoming,
+            (profile) => profile.status == RelationshipStatus.pending,
         )
         .map((profile) => FriendRequest(
               id: 'friend-request-${profile.id}',
@@ -1220,7 +1229,7 @@ what you have, you must use the options mode.
               fromUserName: profile.name ?? profile.id,
               fromUserAvatarUrl: profile.avatarUrl,
               toUserId: serverID,
-              createdAt: profile.createdAt,
+              createdAt: 0,
               status: 'pending',
             ))
         .toList();
@@ -1239,59 +1248,32 @@ what you have, you must use the options mode.
     final bodyMap = bodyRaw is Map<String, dynamic>
         ? bodyRaw
         : <String, dynamic>{};
-    final kind = bodyMap['kind'] as String?;
-
-    FeedType type;
-    FeedBody body;
+    final kind = bodyMap['kind'] as String? ?? 'text';
     var userId = raw['userId'] as String? ?? 'system';
 
-    switch (kind) {
-      case 'friend_request':
-        type = FeedType.friendRequest;
-        userId = (bodyMap['uid'] as String?) ?? userId;
-        body = FeedBody(
-          title: 'Friend request',
-          message: 'New friend request',
-          extra: bodyMap,
-        );
-        break;
-      case 'friend_accepted':
-        type = FeedType.friendAccepted;
-        userId = (bodyMap['uid'] as String?) ?? userId;
-        body = FeedBody(
-          title: 'Friend accepted',
-          message: 'Your request was accepted',
-          extra: bodyMap,
-        );
-        break;
-      case 'text':
-        type = FeedType.system;
-        body = FeedBody(
-          title: 'Update',
-          message: bodyMap['text'] as String?,
-          extra: bodyMap,
-        );
-        break;
-      default:
-        type = FeedType.system;
-        body = FeedBody(
-          title: 'Update',
-          message: raw['message'] as String?,
-          extra: bodyMap.isEmpty ? raw : bodyMap,
-        );
-        break;
+    // Derive userId from uid in body for relationship events
+    if (kind == 'friend_request' || kind == 'friend_accepted') {
+      userId = (bodyMap['uid'] as String?) ?? userId;
     }
+
+    final body = FeedBody(
+      kind: kind,
+      uid: bodyMap['uid'] as String?,
+      text: bodyMap['text'] as String?,
+    );
 
     return FeedItem(
       id: id,
       userId: userId,
       userName: raw['userName'] as String?,
       userAvatarUrl: raw['userAvatarUrl'] as String?,
-      type: type,
       body: body,
       createdAt: createdAt,
       read: raw['read'] as bool? ?? false,
       sessionId: raw['sessionId'] as String?,
+      repeatKey: raw['repeatKey'] as String?,
+      cursor: raw['cursor'] as String?,
+      counter: raw['counter'] as int?,
     );
   }
 
@@ -1369,9 +1351,9 @@ what you have, you must use the options mode.
           );
         }
       }
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) debugPrint('Error syncing settings: $error');
-      unawaited(Sentry.captureException(error));
+      unawaited(Sentry.captureException(error, stackTrace: stack));
     }
   }
 
@@ -1387,9 +1369,9 @@ what you have, you must use the options mode.
 
       final data = response.data as Map<String, dynamic>?;
       _purchases = Purchases.parse(data?['purchases']);
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) debugPrint('Failed to sync purchases: $error');
-      unawaited(Sentry.captureException(error));
+      unawaited(Sentry.captureException(error, stackTrace: stack));
     }
   }
 
@@ -1412,9 +1394,9 @@ what you have, you must use the options mode.
           );
         }
       }
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) debugPrint('Error fetching profile: $error');
-      unawaited(Sentry.captureException(error));
+      unawaited(Sentry.captureException(error, stackTrace: stack));
     }
   }
 
@@ -1460,9 +1442,9 @@ what you have, you must use the options mode.
           data?['update_url'] as String?;
       _nativeUpdateUrl =
           updateUrl != null && updateUrl.isNotEmpty ? updateUrl : null;
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) debugPrint('Failed to fetch native update: $error');
-      unawaited(Sentry.captureException(error));
+      unawaited(Sentry.captureException(error, stackTrace: stack));
       _nativeUpdateUrl = null;
     }
   }
@@ -1488,9 +1470,9 @@ what you have, you must use the options mode.
 
       await PushApi().registerToken(token);
       _registeredPushToken = token;
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) debugPrint('Failed to sync push token: $error');
-      unawaited(Sentry.captureException(error));
+      unawaited(Sentry.captureException(error, stackTrace: stack));
     }
   }
 
@@ -1525,11 +1507,11 @@ what you have, you must use the options mode.
 
       _handleDeleteSession(<String, dynamic>{'sid': sessionId});
       return true;
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) {
         debugPrint('Failed to delete session $sessionId: $error');
       }
-      unawaited(Sentry.captureException(error));
+      unawaited(Sentry.captureException(error, stackTrace: stack));
       return false;
     }
   }
@@ -1963,7 +1945,10 @@ what you have, you must use the options mode.
 
     final sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
-      throw StateError('Session encryption not initialized for $sessionId');
+      debugPrint(
+        'Session encryption not initialized for $sessionId, skipping fetch',
+      );
+      return;
     }
 
     try {
@@ -2049,9 +2034,9 @@ what you have, you must use the options mode.
       }
       _sessionMessageChangeController.add(sessionId);
       _dataChangeController.add(null);
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) debugPrint('Error fetching messages: $error');
-      unawaited(Sentry.captureException(error));
+      unawaited(Sentry.captureException(error, stackTrace: stack));
     }
   }
 

@@ -5,20 +5,22 @@ import 'dart:io' show Platform, SecurityContext;
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_user_certificates_android/flutter_user_certificates_android.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'core/api/api_client.dart';
 import 'core/i18n/app_localizations.dart';
 import 'core/i18n/supported_locales.dart';
 import 'core/models/auth.dart';
 import 'core/providers/app_providers.dart';
+import 'core/services/remote_logger.dart';
 import 'core/services/server_config.dart';
 import 'core/services/storage_service.dart' as storage;
 import 'core/utils/theme_helper.dart';
+import 'core/widgets/error_boundary.dart';
 import 'features/artifacts/artifact_detail_screen.dart';
 // Agent 3 — artifacts screens
 import 'features/artifacts/artifacts_list_screen.dart';
@@ -82,15 +84,18 @@ Uint8List _derToPem(Uint8List der) {
 }
 
 Future<void> main() async {
+  // Install remote logger early so console output is captured before Sentry.
+  remoteLoggerAutoInstall();
+
   await SentryFlutter.init(
     (options) {
-      options.dsn =
-          'https://34d0c1a2feec3a101164ba74383fc87e@o4506225548853248.ingest.us.sentry.io/4510613188378624';
-      options.sendDefaultPii = true;
-      options.tracesSampleRate = kReleaseMode ? 0.2 : 1.0;
-      options.release = 'happy_flutter@1.0.0+1';
-      options.environment =
-          kReleaseMode ? 'production' : 'debug';
+      options
+        ..dsn =
+            'https://34d0c1a2feec3a101164ba74383fc87e@o4506225548853248.ingest.us.sentry.io/4510613188378624'
+        ..sendDefaultPii = true
+        ..tracesSampleRate = kReleaseMode ? 0.2 : 1.0
+        ..release = 'happy_flutter@1.0.0+1'
+        ..environment = kReleaseMode ? 'production' : 'debug';
     },
     appRunner: () async {
       WidgetsFlutterBinding.ensureInitialized();
@@ -115,9 +120,11 @@ Future<void> main() async {
       final deepLink = await _getInitialDeepLink();
 
       runApp(
-        ProviderScope(
-          child: SentryWidget(
-            child: HappyApp(initialDeepLink: deepLink),
+        ErrorBoundary(
+          child: ProviderScope(
+            child: SentryWidget(
+              child: HappyApp(initialDeepLink: deepLink),
+            ),
           ),
         ),
       );

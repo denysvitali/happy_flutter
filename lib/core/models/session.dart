@@ -239,7 +239,7 @@ class Session {
       agentStateVersion: json['agentStateVersion'] as int,
       thinking: json['thinking'] as bool,
       thinkingAt: json['thinkingAt'] as int?,
-      presence: json['presence'] as String,
+      presence: json['presence'],
       todos: (json['todos'] as List<dynamic>?)
           ?.map((e) => TodoItem.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -264,7 +264,9 @@ class Session {
   final int agentStateVersion;
   final bool thinking;
   final int? thinkingAt;
-  final String presence;
+
+  /// Either the string `'online'` or an integer timestamp of last seen.
+  final dynamic presence;
   final List<TodoItem>? todos;
   final String? draft;
   final String? permissionMode;
@@ -274,6 +276,12 @@ class Session {
   /// The highest message seq number in the session, as reported by the
   /// server. Used for lazy tail-loading to avoid fetching all history.
   final int? lastSeq;
+
+  /// Returns `true` when presence is the string `'online'`.
+  bool get isPresenceOnline => presence == 'online';
+
+  /// Returns the last-seen timestamp when presence is an int, otherwise null.
+  int? get lastSeenAt => presence is int ? presence as int : null;
 
   Map<String, dynamic> toJson() {
     return {
@@ -312,7 +320,7 @@ class Session {
     int? agentStateVersion,
     bool? thinking,
     int? thinkingAt,
-    String? presence,
+    dynamic presence,
     List<TodoItem>? todos,
     String? draft,
     String? permissionMode,

@@ -15,7 +15,7 @@ import 'markdown_models.dart';
 ///
 /// Supports bold, italic, semibold, and inline code styles.
 /// Text is selectable for copying on long-press.
-class TextBlockWidget extends StatelessWidget {
+class TextBlockWidget extends StatefulWidget {
 
   const TextBlockWidget({
     required this.content, super.key,
@@ -27,7 +27,34 @@ class TextBlockWidget extends StatelessWidget {
   final bool isLast;
 
   @override
+  State<TextBlockWidget> createState() => _TextBlockWidgetState();
+}
+
+class _TextBlockWidgetState extends State<TextBlockWidget> {
+  final List<TapGestureRecognizer> _recognizers = [];
+
+  void _disposeRecognizers() {
+    for (final r in _recognizers) {
+      r.dispose();
+    }
+    _recognizers.clear();
+  }
+
+  @override
+  void dispose() {
+    _disposeRecognizers();
+    super.dispose();
+  }
+
+  TapGestureRecognizer _makeRecognizer(VoidCallback onTap) {
+    final r = TapGestureRecognizer()..onTap = onTap;
+    _recognizers.add(r);
+    return r;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    _disposeRecognizers();
     final theme = Theme.of(context);
     final inheritedColor = DefaultTextStyle.of(context).style.color;
     final baseStyle = DefaultTextStyle.of(context).style.merge(
@@ -41,7 +68,7 @@ class TextBlockWidget extends StatelessWidget {
     return RichText(
       text: TextSpan(
         style: baseStyle,
-        children: content.map(_buildSpan).toList(),
+        children: widget.content.map(_buildSpan).toList(),
       ),
     );
   }
@@ -85,7 +112,7 @@ class TextBlockWidget extends StatelessWidget {
 /// A widget that displays a header with the appropriate styling.
 ///
 /// Headers are rendered with decreasing font sizes from H1 to H6.
-class HeaderBlockWidget extends StatelessWidget {
+class HeaderBlockWidget extends StatefulWidget {
 
   const HeaderBlockWidget({
     required this.level, required this.content, super.key,
@@ -98,11 +125,38 @@ class HeaderBlockWidget extends StatelessWidget {
   final bool isLast;
 
   @override
+  State<HeaderBlockWidget> createState() => _HeaderBlockWidgetState();
+}
+
+class _HeaderBlockWidgetState extends State<HeaderBlockWidget> {
+  final List<TapGestureRecognizer> _recognizers = [];
+
+  void _disposeRecognizers() {
+    for (final r in _recognizers) {
+      r.dispose();
+    }
+    _recognizers.clear();
+  }
+
+  @override
+  void dispose() {
+    _disposeRecognizers();
+    super.dispose();
+  }
+
+  TapGestureRecognizer _makeRecognizer(VoidCallback onTap) {
+    final r = TapGestureRecognizer()..onTap = onTap;
+    _recognizers.add(r);
+    return r;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    _disposeRecognizers();
     final theme = Theme.of(context);
     final baseStyle = DefaultTextStyle.of(context).style;
 
-    final fontSize = switch (level) {
+    final fontSize = switch (widget.level) {
       1 => 28,
       2 => 24,
       3 => 20,
@@ -110,7 +164,7 @@ class HeaderBlockWidget extends StatelessWidget {
       _ => 16,
     };
 
-    final fontWeight = switch (level) {
+    final fontWeight = switch (widget.level) {
       1 => FontWeight.w900,
       2 || 3 => FontWeight.w600,
       _ => FontWeight.w600,
@@ -125,7 +179,7 @@ class HeaderBlockWidget extends StatelessWidget {
           height: 1.3,
           color: inheritedColor ?? theme.colorScheme.onSurface,
         ),
-        children: content.map(_buildSpan).toList(),
+        children: widget.content.map(_buildSpan).toList(),
       ),
     );
   }

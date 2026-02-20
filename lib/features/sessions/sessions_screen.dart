@@ -48,6 +48,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       ref.read(machinesNotifierProvider.notifier).loadFromSync();
       ref.read(friendsNotifierProvider.notifier).loadFromSync();
       ref.read(feedNotifierProvider.notifier).loadFromSync();
+      ref.read(todoStateNotifierProvider.notifier).loadFromSync();
     });
   }
 
@@ -157,7 +158,14 @@ class _SessionsListContentState
   Widget build(BuildContext context) {
     final sessions = ref.watch(sessionsNotifierProvider);
     final machines = ref.watch(machinesNotifierProvider);
-    final settings = ref.watch(settingsNotifierProvider);
+    // Only watch the specific settings fields that affect session display to
+    // avoid re-sorting on every unrelated settings change.
+    final compactMode = ref.watch(
+      settingsNotifierProvider.select((s) => s.compactSessionView),
+    );
+    final hideInactive = ref.watch(
+      settingsNotifierProvider.select((s) => s.hideInactiveSessions),
+    );
     final sessionList = sessions.values.toList();
 
     // Mark as loaded once we get any data or sync is initialized.

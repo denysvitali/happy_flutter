@@ -229,7 +229,24 @@ class SyntaxTokenizer {
     };
   }
 
+  // Cached compiled patterns — built once and reused across all tokenize calls.
+  static final List<_TokenPattern> _cachedPatterns = _buildPatterns();
+
+  static List<_TokenPattern> _buildPatterns() {
+    // Use the default (language-independent) keyword sets for the cache.
+    final keywordSets = _getKeywordSets('');
+    return _buildPatternsFromSets(keywordSets);
+  }
+
   static List<_TokenPattern> _getPatterns(
+    Map<String, List<String>> keywordSets,
+  ) {
+    // Return the cached list; the keyword sets are language-independent so
+    // the same compiled RegExp objects work for every language.
+    return _cachedPatterns;
+  }
+
+  static List<_TokenPattern> _buildPatternsFromSets(
     Map<String, List<String>> keywordSets,
   ) {
     final controlFlowPattern = keywordSets['controlFlow']!.join('|');

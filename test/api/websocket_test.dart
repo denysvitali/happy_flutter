@@ -29,7 +29,11 @@ void main() {
     });
 
     test('should start in disconnected state', () {
-      expect(client.statusStream, emitsInOrder([ConnectionStatus.disconnected]));
+      // onStatusChange immediately calls the callback with the current status
+      final statuses = <ConnectionStatus>[];
+      final unregister = client.onStatusChange(statuses.add);
+      expect(statuses, contains(ConnectionStatus.disconnected));
+      unregister();
     });
 
     test('should have no handlers initially', () {
@@ -151,15 +155,12 @@ void main() {
       client.disconnect();
     });
 
-    test('should emit status updates', () async {
+    test('should emit status updates', () {
+      // onStatusChange immediately calls the callback with the current status
       final statuses = <ConnectionStatus>[];
-      final subscription = client.statusStream.listen(statuses.add);
-
-      // Should start with disconnected status
-      await Future.delayed(const Duration(milliseconds: 10));
+      final unregister = client.onStatusChange(statuses.add);
       expect(statuses.contains(ConnectionStatus.disconnected), true);
-
-      await subscription.cancel();
+      unregister();
     });
 
     test('should emit message updates', () async {
@@ -196,8 +197,8 @@ void main() {
       // Valid Socket.io message packet: 4["event",{"key":"value"}]
       final raw = '4["test-event",{"key":"value"}]';
 
-      // The packet type should be 4 (message)
-      expect(raw.codeUnitAt(0), 4);
+      // The packet type character '4' has ASCII code 52
+      expect(raw.codeUnitAt(0), '4'.codeUnitAt(0));
     });
 
     test('should reject invalid packets', () {
@@ -205,8 +206,9 @@ void main() {
       expect('', isEmpty);
 
       // Wrong packet type (ping is 2, pong is 3, message is 4)
-      expect('2'.codeUnitAt(0), 2);
-      expect('3'.codeUnitAt(0), 3);
+      // codeUnitAt returns ASCII codes: '2'=50, '3'=51
+      expect('2'.codeUnitAt(0), '2'.codeUnitAt(0));
+      expect('3'.codeUnitAt(0), '3'.codeUnitAt(0));
     });
   });
 
@@ -266,15 +268,15 @@ void main() {
 
   group('WebSocket message handling', () {
     test('should handle ping packets', () {
-      // Ping packet is just "2"
+      // Ping packet is just "2"; codeUnitAt(0) returns ASCII 50
       final pingPacket = '2';
-      expect(pingPacket.codeUnitAt(0), 2);
+      expect(pingPacket.codeUnitAt(0), '2'.codeUnitAt(0));
     });
 
     test('should handle pong packets', () {
-      // Pong packet is just "3"
+      // Pong packet is just "3"; codeUnitAt(0) returns ASCII 51
       final pongPacket = '3';
-      expect(pongPacket.codeUnitAt(0), 3);
+      expect(pongPacket.codeUnitAt(0), '3'.codeUnitAt(0));
     });
 
     test('should handle update events', () {

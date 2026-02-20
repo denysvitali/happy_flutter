@@ -15,6 +15,7 @@ import '../models/profile.dart';
 import '../utils/backup_key_utils.dart';
 import 'encryption_service.dart';
 import 'storage_service.dart';
+import 'sync_service.dart';
 
 /// Authentication service handling QR-based authentication flow
 class AuthService {
@@ -706,31 +707,95 @@ Timestamp: ${DateTime.now().toIso8601String()}
       throw AuthException('Invalid auth URL format');
     }
 
-    return approveLinkingWithPublicKey(publicKey);
+    final isTerminalLink = url.startsWith('happy://terminal?');
+    return approveLinkingWithPublicKey(
+      publicKey,
+      isTerminalLink: isTerminalLink,
+    );
   }
 
-  /// Approve a device linking request with a public key
-  Future<bool> approveLinkingWithPublicKey(Uint8List requesterPublicKey) async {
+  /// Approve a device linking request with a public key.
+  ///
+  /// [isTerminalLink] distinguishes terminal links (`happy://terminal?...`)
+  /// from account links (`happy:///account?...`). Terminal links POST to
+  /// `/v1/auth/response` and may send a V2 bundle; account links POST to
+  /// `/v1/auth/account/response` and always send only the encrypted secret.
+  Future<bool> approveLinkingWithPublicKey(
+    Uint8List requesterPublicKey, {
+    bool isTerminalLink = false,
+  }) async {
     final credentials = await TokenStorage().getCredentials();
     if (credentials == null) {
       throw AuthException('Not authenticated');
     }
 
     final secret = base64Decode(credentials.secret);
-    final encryptedResponse = await CryptoBox.encrypt(
-      secret,
-      requesterPublicKey,
-    );
 
-    final response = await _apiClient.post(
-      '/v1/auth/account/response',
-      data: {
-        'publicKey': base64Encode(requesterPublicKey),
-        'response': base64Encode(encryptedResponse),
-      },
-    );
+    if (isTerminalLink) {
+      // Terminal link: check V2 support, then POST to /v1/auth/response
+      final publicKeyB64 = base64Encode(requesterPublicKey);
 
-    return response.statusCode == 200;
+      // Check whether the requester supports the V2 bundle format.
+      var supportsV2 = false;
+      try {
+        final statusResponse = await _apiClient.get(
+          '/v1/auth/request/status',
+          queryParameters: {'publicKey': publicKeyB64},
+        );
+        if (statusResponse.statusCode == 200 &&
+            statusResponse.data is Map<String, dynamic>) {
+          final statusData =
+              statusResponse.data as Map<String, dynamic>;
+          supportsV2 = statusData['supportsV2'] == true;
+
+          // If not pending, nothing to approve.
+          final status = statusData['status'] as String?;
+          if (status == 'authorized' || status == 'not_found') {
+            return true;
+          }
+        }
+      } catch (e) {
+        debugPrint('Failed to check auth request status: $e');
+        // Fall through and attempt V1 approval.
+      }
+
+      final Uint8List responsePayload;
+      if (supportsV2 && sync.isInitialized) {
+        // V2: encrypt [0x00, ...contentDataKey]
+        final contentDataKey = sync.encryption.contentDataKey;
+        final v2Bundle = Uint8List(1 + contentDataKey.length);
+        v2Bundle[0] = 0x00;
+        v2Bundle.setAll(1, contentDataKey);
+        responsePayload = await CryptoBox.encrypt(v2Bundle, requesterPublicKey);
+      } else {
+        // V1: encrypt the raw secret
+        responsePayload = await CryptoBox.encrypt(secret, requesterPublicKey);
+      }
+
+      final response = await _apiClient.post(
+        '/v1/auth/response',
+        data: {
+          'publicKey': publicKeyB64,
+          'response': base64Encode(responsePayload),
+        },
+      );
+      return response.statusCode == 200;
+    } else {
+      // Account link: always POST to /v1/auth/account/response with secret
+      final encryptedResponse = await CryptoBox.encrypt(
+        secret,
+        requesterPublicKey,
+      );
+
+      final response = await _apiClient.post(
+        '/v1/auth/account/response',
+        data: {
+          'publicKey': base64Encode(requesterPublicKey),
+          'response': base64Encode(encryptedResponse),
+        },
+      );
+      return response.statusCode == 200;
+    }
   }
 }
 

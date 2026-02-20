@@ -1,19 +1,33 @@
+int? _asApiInt(dynamic value) {
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
+  return null;
+}
+
 /// API message schema
 class ApiMessage {
 
   ApiMessage(
       {required this.id,
       required this.seq,
-      required this.content, required this.createdAt, this.localId});
+      required this.content,
+      required this.createdAt,
+      this.localId,
+      this.updatedAt});
 
   factory ApiMessage.fromJson(Map<String, dynamic> json) {
+    final contentRaw = json['content'];
+    final content = contentRaw is Map<String, dynamic>
+        ? ApiMessageContent.fromJson(contentRaw)
+        : ApiMessageContent(t: '', c: '');
     return ApiMessage(
-      id: json['id'] as String,
-      seq: json['seq'] as int,
+      id: json['id'] as String? ?? '',
+      seq: _asApiInt(json['seq']) ?? 0,
       localId: json['localId'] as String?,
-      content:
-          ApiMessageContent.fromJson(json['content'] as Map<String, dynamic>),
-      createdAt: json['createdAt'] as int,
+      content: content,
+      createdAt: _asApiInt(json['createdAt']) ?? 0,
+      updatedAt: _asApiInt(json['updatedAt']),
     );
   }
   final String id;
@@ -21,6 +35,7 @@ class ApiMessage {
   final String? localId;
   final ApiMessageContent content;
   final int createdAt;
+  final int? updatedAt;
 
   Map<String, dynamic> toJson() {
     return {
@@ -29,6 +44,7 @@ class ApiMessage {
       'localId': localId,
       'content': content.toJson(),
       'createdAt': createdAt,
+      'updatedAt': updatedAt,
     };
   }
 }
@@ -38,7 +54,10 @@ class ApiMessageContent {
   ApiMessageContent({required this.t, required this.c});
 
   factory ApiMessageContent.fromJson(Map<String, dynamic> json) {
-    return ApiMessageContent(t: json['t'] as String, c: json['c'] as String);
+    return ApiMessageContent(
+      t: json['t'] as String? ?? '',
+      c: json['c'] as String? ?? '',
+    );
   }
   final String t;
   final String c;
@@ -124,36 +143,78 @@ class Permission {
 /// Message metadata
 class MessageMeta {
 
-  MessageMeta(
-      {this.role,
-      this.cwd,
-      this.sessionId,
-      this.version,
-      this.gitBranch,
-      this.slug,
-      this.requestId,
-      this.timestamp});
+  const MessageMeta({
+    this.sentFrom,
+    this.permissionMode,
+    this.model,
+    this.fallbackModel,
+    this.customSystemPrompt,
+    this.appendSystemPrompt,
+    this.allowedTools,
+    this.disallowedTools,
+    this.displayText,
+  });
 
   factory MessageMeta.fromJson(Map<String, dynamic> json) {
     return MessageMeta(
-      role: json['role'] as String?,
-      cwd: json['cwd'] as String?,
-      sessionId: json['sessionId'] as String?,
-      version: json['version'] as String?,
-      gitBranch: json['gitBranch'] as String?,
-      slug: json['slug'] as String?,
-      requestId: json['requestId'] as String?,
-      timestamp: json['timestamp'] as int?,
+      sentFrom: json['sentFrom'] as String?,
+      permissionMode: json['permissionMode'] as String?,
+      model: json['model'] as String?,
+      fallbackModel: json['fallbackModel'] as String?,
+      customSystemPrompt: json['customSystemPrompt'] as String?,
+      appendSystemPrompt: json['appendSystemPrompt'] as String?,
+      allowedTools: (json['allowedTools'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList(),
+      disallowedTools: (json['disallowedTools'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList(),
+      displayText: json['displayText'] as String?,
     );
   }
-  final String? role;
-  final String? cwd;
-  final String? sessionId;
-  final String? version;
-  final String? gitBranch;
-  final String? slug;
-  final String? requestId;
-  final int? timestamp;
+
+  /// Who sent the message (e.g. 'user', 'agent').
+  final String? sentFrom;
+
+  /// Permission mode at time of send.
+  final String? permissionMode;
+
+  /// Model used for this message.
+  final String? model;
+
+  /// Fallback model, if any.
+  final String? fallbackModel;
+
+  /// Custom system prompt override.
+  final String? customSystemPrompt;
+
+  /// Appended system prompt.
+  final String? appendSystemPrompt;
+
+  /// Tools allowed for this request.
+  final List<String>? allowedTools;
+
+  /// Tools disallowed for this request.
+  final List<String>? disallowedTools;
+
+  /// Display text for the message.
+  final String? displayText;
+
+  Map<String, dynamic> toJson() {
+    return {
+      if (sentFrom != null) 'sentFrom': sentFrom,
+      if (permissionMode != null) 'permissionMode': permissionMode,
+      if (model != null) 'model': model,
+      if (fallbackModel != null) 'fallbackModel': fallbackModel,
+      if (customSystemPrompt != null)
+        'customSystemPrompt': customSystemPrompt,
+      if (appendSystemPrompt != null)
+        'appendSystemPrompt': appendSystemPrompt,
+      if (allowedTools != null) 'allowedTools': allowedTools,
+      if (disallowedTools != null) 'disallowedTools': disallowedTools,
+      if (displayText != null) 'displayText': displayText,
+    };
+  }
 }
 
 /// Agent event types - using sealed class pattern with implementations

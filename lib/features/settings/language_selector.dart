@@ -120,7 +120,7 @@ class LanguageSelector extends ConsumerWidget {
           children: [
             // Automatic detection
             RadioGroup<String>(
-              groupValue: ref.read(settingsNotifierProvider).locale ?? '',
+              groupValue: ref.read(settingsNotifierProvider).locale,
               onChanged: (value) {
                 ref
                     .read(settingsNotifierProvider.notifier)

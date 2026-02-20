@@ -42,9 +42,9 @@ class PickProfileScreen extends StatelessWidget {
       color: Color(0xFF4285F4),
     ),
     _AiProfile(
-      id: 'openai',
-      name: 'OpenAI',
-      description: 'OpenAI models — powerful general-purpose '
+      id: 'codex',
+      name: 'Codex',
+      description: 'OpenAI Codex — powerful general-purpose '
           'AI assistant',
       icon: Icons.hub_outlined,
       color: Color(0xFF10A37F),

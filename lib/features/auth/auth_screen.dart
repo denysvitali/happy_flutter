@@ -177,9 +177,17 @@ class QRCodePainter extends CustomPainter {
 
 /// Authentication screen with landing page pattern
 class AuthScreen extends ConsumerStatefulWidget {
-  const AuthScreen({super.key, this.initialDeepLink});
+  const AuthScreen({
+    super.key,
+    this.initialDeepLink,
+    this.showError = false,
+  });
 
   final String? initialDeepLink;
+
+  /// When [true], a banner is shown saying authentication failed and the
+  /// user should sign in again. Used when [AuthState.error] redirects here.
+  final bool showError;
 
   @override
   ConsumerState<AuthScreen> createState() => _AuthScreenState();
@@ -218,6 +226,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _handleIncomingLink(widget.initialDeepLink!);
       });
+    }
+
+    // Show error banner if redirected due to AuthState.error
+    if (widget.showError) {
+      _error = 'Something went wrong. Please sign in again.';
     }
   }
 
@@ -1716,7 +1729,7 @@ class AuthGate extends ConsumerWidget {
           body: Center(child: CircularProgressIndicator()),
         ),
       AuthState.error =>
-        AuthScreen(initialDeepLink: initialDeepLink),
+        AuthScreen(initialDeepLink: initialDeepLink, showError: true),
     };
   }
 }

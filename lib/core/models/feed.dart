@@ -7,49 +7,57 @@ class FeedItem {
   FeedItem({
     required this.id,
     required this.userId,
-    required this.type,
     required this.body,
     required this.createdAt,
     this.userName,
     this.userAvatarUrl,
     this.read = false,
     this.sessionId,
+    this.repeatKey,
+    this.cursor,
+    this.counter,
   });
 
   factory FeedItem.fromJson(Map<String, dynamic> json) {
     return FeedItem(
       id: json['id'] as String,
-      userId: json['userId'] as String,
+      userId: json['userId'] as String? ?? '',
       userName: json['userName'] as String?,
       userAvatarUrl: json['userAvatarUrl'] as String?,
-      type: FeedType.fromString(json['type'] as String),
-      body: FeedBody.fromJson(json['body'] as Map<String, dynamic>),
+      body: FeedBody.fromJson(json['body'] as Map<String, dynamic>? ?? {}),
       createdAt: json['createdAt'] as int,
       read: json['read'] as bool? ?? false,
       sessionId: json['sessionId'] as String?,
+      repeatKey: json['repeatKey'] as String?,
+      cursor: json['cursor'] as String?,
+      counter: json['counter'] as int?,
     );
   }
   final String id;
   final String userId;
   final String? userName;
   final String? userAvatarUrl;
-  final FeedType type;
   final FeedBody body;
   final int createdAt;
   final bool read;
   final String? sessionId;
+  final String? repeatKey;
+  final String? cursor;
+  final int? counter;
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'userId': userId,
-      'userName': userName,
-      'userAvatarUrl': userAvatarUrl,
-      'type': type.value,
+      if (userName != null) 'userName': userName,
+      if (userAvatarUrl != null) 'userAvatarUrl': userAvatarUrl,
       'body': body.toJson(),
       'createdAt': createdAt,
       'read': read,
-      'sessionId': sessionId,
+      if (sessionId != null) 'sessionId': sessionId,
+      if (repeatKey != null) 'repeatKey': repeatKey,
+      if (cursor != null) 'cursor': cursor,
+      if (counter != null) 'counter': counter,
     };
   }
 
@@ -58,133 +66,59 @@ class FeedItem {
     String? userId,
     String? userName,
     String? userAvatarUrl,
-    FeedType? type,
     FeedBody? body,
     int? createdAt,
     bool? read,
     String? sessionId,
+    String? repeatKey,
+    String? cursor,
+    int? counter,
   }) {
     return FeedItem(
       id: id ?? this.id,
       userId: userId ?? this.userId,
       userName: userName ?? this.userName,
       userAvatarUrl: userAvatarUrl ?? this.userAvatarUrl,
-      type: type ?? this.type,
       body: body ?? this.body,
       createdAt: createdAt ?? this.createdAt,
       read: read ?? this.read,
       sessionId: sessionId ?? this.sessionId,
+      repeatKey: repeatKey ?? this.repeatKey,
+      cursor: cursor ?? this.cursor,
+      counter: counter ?? this.counter,
     );
   }
 }
 
-/// Types of feed items
-enum FeedType {
-  sessionInvite,
-  friendRequest,
-  friendAccepted,
-  mention,
-  reaction,
-  artifactShared,
-  sessionEnded,
-  system,
-  ;
-
-  static FeedType fromString(String value) {
-    switch (value) {
-      case 'sessionInvite':
-        return sessionInvite;
-      case 'friendRequest':
-        return friendRequest;
-      case 'friendAccepted':
-        return friendAccepted;
-      case 'mention':
-        return mention;
-      case 'reaction':
-        return reaction;
-      case 'artifactShared':
-        return artifactShared;
-      case 'sessionEnded':
-        return sessionEnded;
-      default:
-        return system;
-    }
-  }
-
-  String get value {
-    switch (this) {
-      case sessionInvite:
-        return 'sessionInvite';
-      case friendRequest:
-        return 'friendRequest';
-      case friendAccepted:
-        return 'friendAccepted';
-      case mention:
-        return 'mention';
-      case reaction:
-        return 'reaction';
-      case artifactShared:
-        return 'artifactShared';
-      case sessionEnded:
-        return 'sessionEnded';
-      case system:
-        return 'system';
-    }
-  }
-
-  String get displayName {
-    switch (this) {
-      case sessionInvite:
-        return 'Session Invite';
-      case friendRequest:
-        return 'Friend Request';
-      case friendAccepted:
-        return 'Friend Accepted';
-      case mention:
-        return 'Mention';
-      case reaction:
-        return 'Reaction';
-      case artifactShared:
-        return 'Artifact Shared';
-      case sessionEnded:
-        return 'Session Ended';
-      case system:
-        return 'System';
-    }
-  }
-}
-
-/// Feed body content based on type
+/// Feed body content — discriminated union on [kind].
+///
+/// Supported kinds: `'friend_request'`, `'friend_accepted'`, `'text'`.
 class FeedBody {
 
-  FeedBody({
-    required this.title,
-    this.message,
-    this.linkUrl,
-    this.extra,
-  });
+  const FeedBody({required this.kind, this.uid, this.text});
 
   factory FeedBody.fromJson(Map<String, dynamic> json) {
     return FeedBody(
-      title: json['title'] as String,
-      message: json['message'] as String?,
-      linkUrl: json['linkUrl'] as String?,
-      extra: json['extra'] as Map<String, dynamic>?,
+      kind: json['kind'] as String? ?? 'text',
+      uid: json['uid'] as String?,
+      text: json['text'] as String?,
     );
   }
-  final String title;
-  final String? message;
-  final String? linkUrl;
-  final Map<String, dynamic>? extra;
 
-  Map<String, dynamic> toJson() {
-    return {
-      'title': title,
-      'message': message,
-      'linkUrl': linkUrl,
-      'extra': extra,
-    };
-  }
+  /// Discriminant: `'friend_request'`, `'friend_accepted'`, or `'text'`.
+  final String kind;
+
+  /// User ID associated with the event (friend_request / friend_accepted).
+  final String? uid;
+
+  /// Message text (text kind).
+  final String? text;
+
+  Map<String, dynamic> toJson() => {
+        'kind': kind,
+        if (uid != null) 'uid': uid,
+        if (text != null) 'text': text,
+      };
 }
 
 /// App notification

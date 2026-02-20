@@ -80,10 +80,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
   Future<void> _removeFriend(UserProfile user) async {
     final confirmed = await _showConfirmDialog(
-      title: user.status == RelationshipStatus.friends
+      title: user.status == RelationshipStatus.friend
           ? 'Remove Friend'
           : 'Cancel Request',
-      message: user.status == RelationshipStatus.friends
+      message: user.status == RelationshipStatus.friend
           ? 'Are you sure you want to remove '
               '${user.name ?? 'this user'} as a friend?'
           : 'Cancel friend request to '
@@ -181,12 +181,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                             ),
                           ),
 
-                        // Email
-                        if (user.email != null)
+                        // Bio
+                        if (user.bio != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
-                              user.email!,
+                              user.bio!,
                               style: TextStyle(
                                 fontSize: 14,
                                 color: theme
@@ -242,7 +242,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
   Widget _buildStatusBadge(UserProfile user, ThemeData theme) {
     switch (user.status) {
-      case RelationshipStatus.friends:
+      case RelationshipStatus.friend:
         return Container(
           padding: const EdgeInsets.symmetric(
             horizontal: 12,
@@ -268,7 +268,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             ],
           ),
         );
-      case RelationshipStatus.pendingOutgoing:
+      case RelationshipStatus.requested:
         return Container(
           padding: const EdgeInsets.symmetric(
             horizontal: 12,
@@ -298,7 +298,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             ],
           ),
         );
-      case RelationshipStatus.pendingIncoming:
+      case RelationshipStatus.pending:
         return Container(
           padding: const EdgeInsets.symmetric(
             horizontal: 12,
@@ -328,9 +328,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             ],
           ),
         );
-      case RelationshipStatus.blocked:
-      case RelationshipStatus.blockedByThem:
-        return const SizedBox.shrink();
+      case RelationshipStatus.rejected:
       case RelationshipStatus.none:
         return const SizedBox.shrink();
     }
@@ -344,7 +342,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     }
 
     switch (user.status) {
-      case RelationshipStatus.friends:
+      case RelationshipStatus.friend:
         return OutlinedButton.icon(
           onPressed: () => _removeFriend(user),
           icon: const Icon(
@@ -361,7 +359,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           ),
         );
 
-      case RelationshipStatus.pendingOutgoing:
+      case RelationshipStatus.requested:
         return OutlinedButton.icon(
           onPressed: () => _removeFriend(user),
           icon: const Icon(Icons.close),
@@ -371,7 +369,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           ),
         );
 
-      case RelationshipStatus.pendingIncoming:
+      case RelationshipStatus.pending:
         return Column(
           children: [
             FilledButton.icon(
@@ -401,10 +399,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           ],
         );
 
-      case RelationshipStatus.blocked:
-      case RelationshipStatus.blockedByThem:
-        return const SizedBox.shrink();
-
+      case RelationshipStatus.rejected:
       case RelationshipStatus.none:
         return FilledButton.icon(
           onPressed: () => _addFriend(user),

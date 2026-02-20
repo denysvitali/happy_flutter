@@ -67,7 +67,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     final incoming = friendsState.incomingRequests;
     final requested = friendsState.friends
         .where(
-          (friend) => friend.status == RelationshipStatus.pendingOutgoing,
+          (friend) => friend.status == RelationshipStatus.requested,
         )
         .toList(growable: false);
 
@@ -166,7 +166,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                     .map(
                       (friend) => _UserRow(
                         title: friend.name ?? friend.id,
-                        subtitle: _onlineText(friend.lastSeenAt),
+                        subtitle: 'Friend',
                         avatarUrl: friend.avatarUrl,
                         trailing: TextButton(
                           onPressed: _isBusy
@@ -183,26 +183,6 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         ],
       ),
     );
-  }
-
-  String _onlineText(int? lastSeenAtMs) {
-    if (lastSeenAtMs == null || lastSeenAtMs <= 0) {
-      return 'Status unknown';
-    }
-
-    final lastSeen = DateTime.fromMillisecondsSinceEpoch(lastSeenAtMs);
-    final delta = DateTime.now().difference(lastSeen);
-
-    if (delta.inMinutes < 1) {
-      return 'Active now';
-    }
-    if (delta.inHours < 1) {
-      return '${delta.inMinutes}m ago';
-    }
-    if (delta.inDays < 1) {
-      return '${delta.inHours}h ago';
-    }
-    return '${delta.inDays}d ago';
   }
 
   Future<void> _showRemoveFriendDialog(UserProfile friend) async {
@@ -423,7 +403,7 @@ class _FeedCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                item.type == FeedType.friendRequest
+                item.body.kind == 'friend_request'
                     ? Icons.person_add_alt_1
                     : Icons.notifications,
                 size: 20,
@@ -437,7 +417,7 @@ class _FeedCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.body.title,
+                    _bodyTitle(item.body),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: isUnread
                           ? FontWeight.w700
@@ -446,10 +426,10 @@ class _FeedCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (item.body.message != null) ...[
+                  if (item.body.text != null) ...[
                     const SizedBox(height: 2),
                     Text(
-                      item.body.message!,
+                      item.body.text!,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: cs.onSurfaceVariant,
                       ),
@@ -491,6 +471,19 @@ class _FeedCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static String _bodyTitle(FeedBody body) {
+    switch (body.kind) {
+      case 'friend_request':
+        return 'Friend request';
+      case 'friend_accepted':
+        return 'Friend accepted';
+      case 'text':
+        return body.text ?? 'Update';
+      default:
+        return 'Update';
+    }
   }
 
   static String _timeAgo(int createdAtMs) {

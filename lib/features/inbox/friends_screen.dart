@@ -281,7 +281,7 @@ class _FriendTile extends StatelessWidget {
               : null,
         ),
         title: Text(name),
-        subtitle: friend.email != null ? Text(friend.email!) : null,
+        subtitle: friend.bio != null ? Text(friend.bio!) : null,
         trailing: TextButton(
           onPressed: isBusy ? null : onRemove,
           child: Text(context.l10n.friendsRemoveAction),

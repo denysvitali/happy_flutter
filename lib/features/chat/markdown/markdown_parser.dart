@@ -238,7 +238,7 @@ class _MarkdownParser {
     }
 
     // Update index to end of table
-    index = startIndex;
+    index = idx;
 
     return TableBlock(headers: headers, rows: rows);
   }

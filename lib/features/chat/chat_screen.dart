@@ -76,8 +76,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _loadSavedPermissionMode() async {
-    final savedMode =
-        await DraftStorage().getPermissionMode(widget.sessionId);
+    final savedMode = await DraftStorage().getPermissionMode(widget.sessionId);
+    if (!mounted) return;
     if (savedMode != null) {
       final parsedMode = PermissionModeExtension.fromString(savedMode);
       setState(() {

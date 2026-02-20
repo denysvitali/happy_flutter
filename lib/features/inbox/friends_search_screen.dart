@@ -118,7 +118,7 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
                       itemBuilder: (context, index) {
                         final user = _results[index];
                         final isFriend =
-                            user.status == RelationshipStatus.friends;
+                            user.status == RelationshipStatus.friend;
                         final isPending = user.status.isPending;
 
                         return Card(
@@ -159,15 +159,14 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
 
   String _statusLabel(RelationshipStatus status) {
     switch (status) {
-      case RelationshipStatus.friends:
+      case RelationshipStatus.friend:
         return 'Already friends';
-      case RelationshipStatus.pendingIncoming:
+      case RelationshipStatus.pending:
         return 'Incoming request';
-      case RelationshipStatus.pendingOutgoing:
+      case RelationshipStatus.requested:
         return 'Request pending';
-      case RelationshipStatus.blocked:
-      case RelationshipStatus.blockedByThem:
-        return 'Blocked';
+      case RelationshipStatus.rejected:
+        return 'Request rejected';
       case RelationshipStatus.none:
         return 'Not connected';
     }

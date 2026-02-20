@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 /// Utility for backing up and restoring secret keys using base32 with dashes
@@ -151,12 +152,13 @@ class BackupKeyUtils {
     return result;
   }
 
-  /// Generate a random 32-byte key (for testing)
+  /// Generate a cryptographically secure random 32-byte key.
   static Uint8List generateRandomKey() {
-    final random = Uint8List(32);
+    final random = Random.secure();
+    final key = Uint8List(32);
     for (var i = 0; i < 32; i++) {
-      random[i] = (DateTime.now().millisecondsSinceEpoch + i) % 256;
+      key[i] = random.nextInt(256);
     }
-    return random;
+    return key;
   }
 }

@@ -53,7 +53,9 @@ class _AgentConversationScreenState
   }
 
   void _refresh() {
-    final messages = sync.messagesForSession(widget.sessionId);
+    if (!mounted) return;
+    final messages =
+        sync.sessionMessages[widget.sessionId] ?? [];
     for (final msg in messages) {
       if (msg['id'] == widget.messageId) {
         final children = msg['children'] as List<dynamic>?;

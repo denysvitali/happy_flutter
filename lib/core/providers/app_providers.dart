@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:riverpod/riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -53,6 +55,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
           ref.read(profileNotifierProvider.notifier).loadFromSync();
           ref.read(friendsNotifierProvider.notifier).loadFromSync();
           ref.read(feedNotifierProvider.notifier).loadFromSync();
+          ref.read(todoStateNotifierProvider.notifier).loadFromSync();
           await ref.read(profileNotifierProvider.notifier).refreshFromSync();
           await ref.read(friendsNotifierProvider.notifier).refreshFromSync();
           await ref.read(feedNotifierProvider.notifier).refreshFromSync();
@@ -68,7 +71,8 @@ class AuthStateNotifier extends Notifier<AuthState> {
           _pendingDeepLink = null;
         }
       }
-    } catch (e) {
+    } catch (e, stack) {
+      unawaited(Sentry.captureException(e, stackTrace: stack));
       state = AuthState.error;
     }
   }
@@ -537,7 +541,7 @@ class FriendsState {
   }
 
   List<UserProfile> get friendList =>
-      friends.where((f) => f.status == RelationshipStatus.friends).toList();
+      friends.where((f) => f.status == RelationshipStatus.friend).toList();
 
   List<FriendRequest> get incomingRequests =>
       pendingRequests.where((r) => r.status == 'pending').toList();
@@ -654,6 +658,20 @@ final todoStateNotifierProvider =
 class TodoStateNotifier extends Notifier<TodoListState> {
   @override
   TodoListState build() => TodoListState();
+
+  void loadFromSync() {
+    if (!sync.isInitialized) {
+      return;
+    }
+    final lists = sync.todoLists;
+    final mapped = <String, TodoList>{};
+    for (final entry in lists.entries) {
+      if (entry.key != null) {
+        mapped[entry.key!] = entry.value;
+      }
+    }
+    state = TodoListState(lists: mapped);
+  }
 
   void setTodoList(TodoList list) {
     final sessionId = list.sessionId;

@@ -554,8 +554,86 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
 
     final hasContent = !minimal;
 
+    // Build the invariant children outside the AnimatedBuilder so they are
+    // not rebuilt on every pulse animation frame (60 fps while running).
+    final invariantChild = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (hasContent) {
+              _toggleExpanded();
+            } else {
+              widget.onPress?.call();
+            }
+          },
+          onLongPress: widget.onPress != null
+              ? () {
+                  HapticFeedback.mediumImpact();
+                  widget.onPress!.call();
+                }
+              : null,
+          child: _ToolHeader(
+            toolIcon: toolIcon,
+            toolTitle: toolTitle,
+            status: status,
+            subtitle: subtitle,
+            state: state,
+            createdAt: createdAt,
+            statusIcon: statusIcon,
+            hasContent: hasContent,
+            showCheckFlash: _showCheckFlash,
+            chevronAnim: _chevronAnim,
+            hasPermissionRequest: hasPermissionRequest,
+          ),
+        ),
+        if (hasContent)
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            child: _expanded
+                ? _buildContent(
+                    context,
+                    knownTool,
+                    toolInput,
+                    toolResult,
+                    state,
+                    errorResult,
+                    permission,
+                  )
+                : const SizedBox.shrink(),
+          ),
+        if (permission != null &&
+            widget.sessionId != null &&
+            toolName != 'AskUserQuestion')
+          PermissionFooter(
+            permission: permission,
+            sessionId: widget.sessionId!,
+            toolName: toolName,
+            toolInput: toolInput,
+            flavor: widget.metadata?['flavor'] as String?,
+            onAllow: () => _handlePermissionAllow(permission),
+            onDeny: () => _handlePermissionDeny(permission),
+            onAllowAllEdits: () =>
+                _handlePermissionAllowAllEdits(permission),
+            onAllowForSession: () => _handlePermissionAllowForSession(
+              permission,
+              toolName,
+              toolInput,
+            ),
+            onCodexApprove: () => _handleCodexApprove(permission),
+            onCodexApproveForSession: () =>
+                _handleCodexApproveForSession(permission),
+            onCodexAbort: () => _handleCodexAbort(permission),
+          ),
+      ],
+    );
+
     return AnimatedBuilder(
       animation: _pulseAnim,
+      child: invariantChild,
       builder: (context, child) {
         final borderOpacity =
             state == ToolState.running ? _pulseAnim.value : 1.0;
@@ -580,82 +658,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
             ),
           ),
           margin: const EdgeInsets.symmetric(vertical: 2),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  if (hasContent) {
-                    _toggleExpanded();
-                  } else {
-                    widget.onPress?.call();
-                  }
-                },
-                onLongPress: widget.onPress != null
-                    ? () {
-                        HapticFeedback.mediumImpact();
-                        widget.onPress!.call();
-                      }
-                    : null,
-                child: _ToolHeader(
-                  toolIcon: toolIcon,
-                  toolTitle: toolTitle,
-                  status: status,
-                  subtitle: subtitle,
-                  state: state,
-                  createdAt: createdAt,
-                  statusIcon: statusIcon,
-                  hasContent: hasContent,
-                  showCheckFlash: _showCheckFlash,
-                  chevronAnim: _chevronAnim,
-                  hasPermissionRequest: hasPermissionRequest,
-                ),
-              ),
-              if (hasContent)
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeInOut,
-                  child: _expanded
-                      ? _buildContent(
-                          context,
-                          knownTool,
-                          toolInput,
-                          toolResult,
-                          state,
-                          errorResult,
-                          permission,
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              if (permission != null &&
-                  widget.sessionId != null &&
-                  toolName != 'AskUserQuestion')
-                PermissionFooter(
-                  permission: permission,
-                  sessionId: widget.sessionId!,
-                  toolName: toolName,
-                  toolInput: toolInput,
-                  flavor: widget.metadata?['flavor'] as String?,
-                  onAllow: () => _handlePermissionAllow(permission),
-                  onDeny: () => _handlePermissionDeny(permission),
-                  onAllowAllEdits: () =>
-                      _handlePermissionAllowAllEdits(permission),
-                  onAllowForSession: () =>
-                      _handlePermissionAllowForSession(
-                    permission,
-                    toolName,
-                    toolInput,
-                  ),
-                  onCodexApprove: () =>
-                      _handleCodexApprove(permission),
-                  onCodexApproveForSession: () =>
-                      _handleCodexApproveForSession(permission),
-                  onCodexAbort: () => _handleCodexAbort(permission),
-                ),
-            ],
-          ),
+          child: child,
         );
       },
     );
@@ -727,13 +730,29 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     );
   }
 
+  // Static set of known tool names — used to skip the per-call map allocation
+  // when the tool name is not in the set.
+  static const Set<String> _knownToolNames = {
+    'Glob', 'Grep', 'LS', 'Read', 'read', 'Edit', 'MultiEdit', 'Write',
+    'edit', 'Bash', 'CodexBash', 'execute', 'CodexPatch', 'CodexDiff',
+    'Task', 'TodoWrite', 'WebFetch', 'WebSearch', 'ExitPlanMode',
+    'exit_plan_mode', 'AskUserQuestion', 'NotebookRead', 'NotebookEdit',
+  };
+
   /// Returns a view builder for the named tool, or null for default fallback.
+  ///
+  /// The lambda map is only allocated when [toolName] is a known tool, and
+  /// immediately discarded after the single lookup — avoiding repeated large
+  /// allocations at 60 fps when a tool is running.
   Widget Function(
     Map<String, dynamic>,
     Map<String, dynamic>?,
     List<Map<String, dynamic>>?,
   )?
   _getToolViewComponent(String toolName) {
+    // Fast path: avoid allocating the map for unknown tool names.
+    if (!_knownToolNames.contains(toolName)) return null;
+
     final views = <
         String,
         Widget Function(

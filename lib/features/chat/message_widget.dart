@@ -161,7 +161,7 @@ class _UserBubble extends StatelessWidget {
                   vertical: 8,
                 ),
                 constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.85,
+                  maxWidth: MediaQuery.sizeOf(context).width * 0.85,
                 ),
                 decoration: BoxDecoration(
                   color: color,

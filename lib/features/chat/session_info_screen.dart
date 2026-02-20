@@ -328,9 +328,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               _InfoRow(
                 icon: Icons.fingerprint,
                 label: 'Session ID',
-                value: '${session.id.substring(0, 8)}...'
-                    '${session.id.substring(session.id.length - 8)}',
-                onTap: () => _copyToClipboard(session.id),
+                value: session.id.length > 16
+                    ? '${session.id.substring(0, 8)}...'
+                        '${session.id.substring(session.id.length - 8)}'
+                    : session.id,
+                onTap: () => _copyToClipboard(context, session.id),
               ),
               const Divider(height: 1, indent: 52),
               _InfoRow(

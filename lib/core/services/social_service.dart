@@ -150,31 +150,26 @@ class SocialService {
   }
 
   UserProfile _mapFriendProfile(Map<String, dynamic> raw) {
-    final now = DateTime.now().millisecondsSinceEpoch;
     final id = (raw['id'] as String?) ?? (raw['uid'] as String?) ?? 'unknown';
-    final firstName = raw['firstName'] as String?;
+    final firstName = (raw['firstName'] as String?) ?? '';
     final lastName = raw['lastName'] as String?;
-    final username = raw['username'] as String?;
-    final name = [
-      firstName,
-      lastName,
-    ].whereType<String>().where((part) => part.isNotEmpty).join(' ').trim();
-    final avatar = raw['avatar'];
-    String? avatarUrl;
-    if (avatar is Map<String, dynamic>) {
-      avatarUrl = avatar['url'] as String?;
-    } else {
-      avatarUrl = raw['avatarUrl'] as String?;
+    final username = (raw['username'] as String?) ?? '';
+    final avatarRaw = raw['avatar'];
+    AvatarRef? avatar;
+    if (avatarRaw is Map<String, dynamic>) {
+      avatar = AvatarRef.fromJson(avatarRaw);
     }
 
     return UserProfile(
       id: id,
-      name: name.isNotEmpty ? name : username,
-      email: raw['email'] as String?,
-      avatarUrl: avatarUrl,
-      status: _mapRelationshipStatus(raw['status'] as String?),
-      lastSeenAt: _asInt(raw['lastSeenAt']),
-      createdAt: _asInt(raw['createdAt']) ?? now,
+      firstName: firstName,
+      lastName: lastName,
+      username: username,
+      avatar: avatar,
+      bio: raw['bio'] as String?,
+      status: RelationshipStatus.fromString(
+        raw['status'] as String? ?? 'none',
+      ),
     );
   }
 
@@ -186,78 +181,30 @@ class SocialService {
     final bodyMap = bodyRaw is Map<String, dynamic>
         ? bodyRaw
         : <String, dynamic>{};
-    final kind = bodyMap['kind'] as String?;
-
-    FeedType type;
-    FeedBody body;
+    final kind = bodyMap['kind'] as String? ?? 'text';
     var userId = raw['userId'] as String? ?? 'system';
 
-    switch (kind) {
-      case 'friend_request':
-        type = FeedType.friendRequest;
-        userId = (bodyMap['uid'] as String?) ?? userId;
-        body = FeedBody(
-          title: 'Friend request',
-          message: 'New friend request',
-          extra: bodyMap,
-        );
-        break;
-      case 'friend_accepted':
-        type = FeedType.friendAccepted;
-        userId = (bodyMap['uid'] as String?) ?? userId;
-        body = FeedBody(
-          title: 'Friend accepted',
-          message: 'Your request was accepted',
-          extra: bodyMap,
-        );
-        break;
-      case 'text':
-        type = FeedType.system;
-        body = FeedBody(
-          title: 'Update',
-          message: bodyMap['text'] as String?,
-          extra: bodyMap,
-        );
-        break;
-      default:
-        type = FeedType.system;
-        body = FeedBody(
-          title: 'Update',
-          message: raw['message'] as String?,
-          extra: bodyMap.isEmpty ? raw : bodyMap,
-        );
-        break;
+    // Derive userId from uid in body for relationship events
+    if (kind == 'friend_request' || kind == 'friend_accepted') {
+      userId = (bodyMap['uid'] as String?) ?? userId;
     }
+
+    final body = FeedBody(
+      kind: kind,
+      uid: bodyMap['uid'] as String?,
+      text: bodyMap['text'] as String?,
+    );
 
     return FeedItem(
       id: id,
       userId: userId,
       userName: raw['userName'] as String?,
       userAvatarUrl: raw['userAvatarUrl'] as String?,
-      type: type,
       body: body,
       createdAt: createdAt,
       read: raw['read'] as bool? ?? false,
       sessionId: raw['sessionId'] as String?,
     );
-  }
-
-  RelationshipStatus _mapRelationshipStatus(String? status) {
-    switch (status) {
-      case 'friend':
-      case 'friends':
-        return RelationshipStatus.friends;
-      case 'requested':
-        return RelationshipStatus.pendingOutgoing;
-      case 'pending':
-        return RelationshipStatus.pendingIncoming;
-      case 'blocked':
-        return RelationshipStatus.blocked;
-      case 'blockedByThem':
-        return RelationshipStatus.blockedByThem;
-      default:
-        return RelationshipStatus.none;
-    }
   }
 
   int? _asInt(dynamic value) {

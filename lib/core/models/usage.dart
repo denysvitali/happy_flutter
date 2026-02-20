@@ -2,6 +2,20 @@
 /// Based on React Native's apiUsage.ts
 library;
 
+int? _asUsageInt(dynamic value) {
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
+  return null;
+}
+
+double? _asUsageDouble(dynamic value) {
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
+  if (value is num) return value.toDouble();
+  return null;
+}
+
 /// A single usage data point
 class UsageDataPoint {
 
@@ -13,15 +27,17 @@ class UsageDataPoint {
   });
 
   factory UsageDataPoint.fromJson(Map<String, dynamic> json) {
+    final tokensRaw = json['tokens'];
+    final costRaw = json['cost'];
     return UsageDataPoint(
-      timestamp: json['timestamp'] as int,
-      tokens: (json['tokens'] as Map<String, dynamic>).map(
-        (k, v) => MapEntry(k, (v as int).toInt()),
-      ),
-      cost: (json['cost'] as Map<String, dynamic>).map(
-        (k, v) => MapEntry(k, (v as double).toDouble()),
-      ),
-      reportCount: json['reportCount'] as int,
+      timestamp: _asUsageInt(json['timestamp']) ?? 0,
+      tokens: tokensRaw is Map<String, dynamic>
+          ? tokensRaw.map((k, v) => MapEntry(k, _asUsageInt(v) ?? 0))
+          : {},
+      cost: costRaw is Map<String, dynamic>
+          ? costRaw.map((k, v) => MapEntry(k, _asUsageDouble(v) ?? 0.0))
+          : {},
+      reportCount: _asUsageInt(json['reportCount']) ?? 0,
     );
   }
   final int timestamp;

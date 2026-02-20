@@ -149,6 +149,34 @@ class _MarkdownViewState extends State<MarkdownView> {
     }
   }
 
+  void _handleLongPress() {
+    // Show a snackbar with copy option
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('Copy text'),
+          action: SnackBarAction(
+            label: 'Copy',
+            onPressed: () => _copyText(),
+          ),
+        ),
+      );
+  }
+
+  Future<void> _copyText() async {
+    await Clipboard.setData(ClipboardData(text: widget.markdown));
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Text copied to clipboard'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+    }
+  }
 }
 
 /// A simpler markdown view widget for basic text rendering.
