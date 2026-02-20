@@ -36,6 +36,7 @@ import 'features/chat/session_info_screen.dart';
 // Agent 1 — session enhancement screens
 import 'features/chat/session_recent_screen.dart';
 import 'features/dev/dev_logs_screen.dart';
+import 'features/dev/network_inspector_screen.dart';
 import 'features/inbox/friends_screen.dart';
 import 'features/inbox/friends_search_screen.dart';
 import 'features/inbox/inbox_screen.dart';
@@ -317,6 +318,12 @@ class _HappyAppState extends ConsumerState<HappyApp>
           path: '/settings/developer/logs',
           name: 'dev-logs',
           builder: (context, state) => AuthGate(child: const DevLogsScreen()),
+        ),
+        GoRoute(
+          path: '/settings/developer/network',
+          name: 'dev-network',
+          builder: (context, state) =>
+              const AuthGate(child: NetworkInspectorScreen()),
         ),
         // ── Agent 1: session enhancement screens ─────────────────────────
         GoRoute(

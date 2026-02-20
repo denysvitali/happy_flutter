@@ -50,7 +50,8 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               title: 'Network Inspector',
               subtitle: 'View API requests and responses',
               icon: Icons.network_check,
-              onTap: () {},
+              onTap: () =>
+                  context.push('/settings/developer/network'),
             ),
             const SizedBox(height: 8),
             _buildDebugOption(

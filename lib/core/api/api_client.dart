@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -6,6 +7,7 @@ import 'package:native_dio_adapter/native_dio_adapter.dart';
 import 'package:sentry_dio/sentry_dio.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../services/http_request_logger.dart';
 import '../services/server_config.dart';
 
 /// Custom Dio client with user CA certificate support and proper error handling
@@ -63,6 +65,95 @@ class ApiClient {
       ),
     );
     _dio!.addSentry();
+
+    // HTTP request tracker — records all requests to httpRequestLogger.
+    _dio!.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          options.extra['_trackId'] =
+              httpRequestLogger.takeNextId();
+          options.extra['_trackStart'] =
+              DateTime.now().millisecondsSinceEpoch;
+          options.extra['_trackReqBytes'] =
+              _estimateRequestBytes(options.data);
+          return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          _recordTrackedRequest(
+            response.requestOptions,
+            response.statusCode,
+            _estimateResponseBytes(response),
+          );
+          return handler.next(response);
+        },
+        onError: (error, handler) {
+          _recordTrackedRequest(
+            error.requestOptions,
+            error.response?.statusCode,
+            null,
+          );
+          return handler.next(error);
+        },
+      ),
+    );
+  }
+
+  static int _estimateRequestBytes(dynamic data) {
+    if (data == null) return 0;
+    if (data is String) return utf8.encode(data).length;
+    try {
+      return utf8.encode(jsonEncode(data)).length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  static int? _estimateResponseBytes(Response<dynamic> response) {
+    final cl =
+        response.headers.value(Headers.contentLengthHeader);
+    if (cl != null) {
+      final parsed = int.tryParse(cl);
+      if (parsed != null && parsed > 0) return parsed;
+    }
+    final data = response.data;
+    if (data == null) return 0;
+    if (data is String) return utf8.encode(data).length;
+    if (data is List<int>) return data.length;
+    try {
+      return utf8.encode(jsonEncode(data)).length;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static void _recordTrackedRequest(
+    RequestOptions options,
+    int? statusCode,
+    int? responseBytes,
+  ) {
+    final id = options.extra['_trackId'] as int?;
+    final startMs = options.extra['_trackStart'] as int?;
+    final requestBytes =
+        options.extra['_trackReqBytes'] as int?;
+    final now = DateTime.now();
+    final durationMs = startMs != null
+        ? now.millisecondsSinceEpoch - startMs
+        : null;
+    final timestamp = startMs != null
+        ? DateTime.fromMillisecondsSinceEpoch(startMs)
+        : now;
+    httpRequestLogger.record(
+      HttpRequestEntry(
+        id: id ?? httpRequestLogger.takeNextId(),
+        timestamp: timestamp,
+        method: options.method,
+        path: options.path,
+        statusCode: statusCode,
+        requestBytes: requestBytes,
+        responseBytes: responseBytes,
+        durationMs: durationMs,
+      ),
+    );
   }
 
   /// Refresh the server URL without restarting the app
