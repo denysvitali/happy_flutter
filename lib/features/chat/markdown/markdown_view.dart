@@ -4,7 +4,6 @@
 /// with the appropriate widget. Supports text selection on long-press.
 library;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -347,14 +346,17 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
           );
 
           if (span.url != null) {
-            return TextSpan(
-              text: span.text,
-              style: style.copyWith(
-                color: Colors.blue,
-                decoration: TextDecoration.underline,
+            return WidgetSpan(
+              alignment: PlaceholderAlignment.baseline,
+              baseline: TextBaseline.alphabetic,
+              child: InlineLinkWidget(
+                text: span.text,
+                url: span.url!,
+                baseStyle: style.copyWith(
+                  color: Colors.blue,
+                  decoration: TextDecoration.underline,
+                ),
               ),
-              recognizer: TapGestureRecognizer()
-                ..onTap = () => _launchUrl(span.url!),
             );
           }
 
@@ -455,12 +457,5 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
         ),
       ),
     );
-  }
-
-  void _launchUrl(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri != null && await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
   }
 }

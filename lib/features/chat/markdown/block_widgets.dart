@@ -4,7 +4,6 @@
 /// with support for text selection and proper styling.
 library;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -68,21 +67,18 @@ class TextBlockWidget extends StatelessWidget {
     );
 
     if (span.url != null) {
-      return TextSpan(
-        text: span.text,
-        style: textStyle,
-        recognizer: TapGestureRecognizer()..onTap = () => _launchUrl(span.url!),
+      return WidgetSpan(
+        alignment: PlaceholderAlignment.baseline,
+        baseline: TextBaseline.alphabetic,
+        child: InlineLinkWidget(
+          text: span.text,
+          url: span.url!,
+          baseStyle: textStyle,
+        ),
       );
     }
 
     return TextSpan(text: span.text, style: textStyle);
-  }
-
-  Future<void> _launchUrl(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri != null && await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
   }
 }
 
@@ -141,21 +137,18 @@ class HeaderBlockWidget extends StatelessWidget {
     );
 
     if (span.url != null) {
-      return TextSpan(
-        text: span.text,
-        style: textStyle,
-        recognizer: TapGestureRecognizer()..onTap = () => _launchUrl(span.url!),
+      return WidgetSpan(
+        alignment: PlaceholderAlignment.baseline,
+        baseline: TextBaseline.alphabetic,
+        child: InlineLinkWidget(
+          text: span.text,
+          url: span.url!,
+          baseStyle: textStyle,
+        ),
       );
     }
 
     return TextSpan(text: span.text, style: textStyle);
-  }
-
-  Future<void> _launchUrl(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri != null && await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
   }
 }
 
@@ -689,5 +682,46 @@ class TableBlockWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// An inline link rendered as a [WidgetSpan] to avoid gesture conflicts.
+///
+/// Using [WidgetSpan] instead of [TextSpan.recognizer] prevents the link's
+/// [TapGestureRecognizer] from competing with [SelectionArea]'s long-press
+/// recognizer in the gesture arena. This ensures text selection works
+/// correctly and link taps are not suppressed.
+class InlineLinkWidget extends StatelessWidget {
+  const InlineLinkWidget({
+    required this.text,
+    required this.url,
+    required this.baseStyle,
+  });
+
+  final String text;
+  final String url;
+  final TextStyle baseStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _launchUrl(url),
+      child: Text(
+        text,
+        style: baseStyle.copyWith(
+          color: Colors.blue,
+          decoration: TextDecoration.underline,
+          decorationColor: Colors.blue,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 }
