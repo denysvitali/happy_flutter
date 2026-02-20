@@ -253,8 +253,8 @@ class _BotMessage extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(
-        left: AppSpacing.sm,
-        right: AppSpacing.sm,
+        left: AppSpacing.md,
+        right: AppSpacing.md,
         top: 1,
         bottom: AppSpacing.xs,
       ),

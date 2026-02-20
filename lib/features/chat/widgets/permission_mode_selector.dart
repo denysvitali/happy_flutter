@@ -400,7 +400,7 @@ class _PermissionModeSelectorState
       onTap: widget.enabled ? _showDropdown : null,
       child: Container(
         width: widget.width,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           border: Border.all(
             color: widget.enabled

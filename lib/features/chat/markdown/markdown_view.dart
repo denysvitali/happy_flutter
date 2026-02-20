@@ -5,7 +5,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'block_widgets.dart';
 import 'markdown_models.dart';
@@ -64,9 +63,7 @@ class _MarkdownViewState extends State<MarkdownView> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onLongPress: _handleLongPress,
-      child: Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: _blocks.asMap().entries.map((entry) {
@@ -77,7 +74,6 @@ class _MarkdownViewState extends State<MarkdownView> {
 
         return _buildBlock(block, isFirst, isLast);
       }).toList(),
-      ),
     );
   }
 
@@ -152,34 +148,6 @@ class _MarkdownViewState extends State<MarkdownView> {
     }
   }
 
-  void _handleLongPress() {
-    // Show a snackbar with copy option
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: const Text('Copy text'),
-          action: SnackBarAction(
-            label: 'Copy',
-            onPressed: () => _copyText(),
-          ),
-        ),
-      );
-  }
-
-  Future<void> _copyText() async {
-    await Clipboard.setData(ClipboardData(text: widget.markdown));
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            content: Text('Text copied to clipboard'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-    }
-  }
 }
 
 /// A simpler markdown view widget for basic text rendering.
@@ -244,14 +212,14 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
         return _buildRichText(content, theme);
       case HeaderBlock(:final level, :final content):
         final fontSize = switch (level) {
-          1 => 28.0,
-          2 => 24.0,
-          3 => 20.0,
-          4 => 18.0,
-          _ => 16.0,
+          1 => 20.0,
+          2 => 18.0,
+          3 => 16.0,
+          4 => 15.0,
+          _ => 15.0,
         };
         final fontWeight = switch (level) {
-          1 => FontWeight.w900,
+          1 => FontWeight.w700,
           2 || 3 => FontWeight.w600,
           _ => FontWeight.w600,
         };
@@ -350,7 +318,7 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
     return RichText(
       text: TextSpan(
         style: TextStyle(
-          fontSize: fontSize ?? 16,
+          fontSize: fontSize ?? 15,
           fontWeight: fontWeight,
           height: 1.5,
           color: theme.colorScheme.onSurface,
@@ -365,7 +333,7 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
                 : span.styles.contains(MarkdownTextStyle.semibold)
                     ? FontWeight.w600
                     : fontWeight,
-            fontSize: fontSize ?? 16,
+            fontSize: fontSize ?? 15,
             color: theme.colorScheme.onSurface,
             fontFamily:
                 span.styles.contains(MarkdownTextStyle.code)

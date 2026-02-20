@@ -149,15 +149,15 @@ class _HeaderBlockWidgetState extends State<HeaderBlockWidget> {
     final baseStyle = DefaultTextStyle.of(context).style;
 
     final fontSize = switch (widget.level) {
-      1 => 28,
-      2 => 24,
-      3 => 20,
-      4 => 18,
-      _ => 16,
+      1 => 20,
+      2 => 18,
+      3 => 16,
+      4 => 15,
+      _ => 15,
     };
 
     final fontWeight = switch (widget.level) {
-      1 => FontWeight.w900,
+      1 => FontWeight.w700,
       2 || 3 => FontWeight.w600,
       _ => FontWeight.w600,
     };

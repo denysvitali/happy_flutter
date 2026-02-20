@@ -302,7 +302,7 @@ class _ModelSelector extends StatelessWidget {
         duration: _kBorderAnim,
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
+          vertical: AppSpacing.xs + 2,
         ),
         decoration: BoxDecoration(
           color: chipBg,
