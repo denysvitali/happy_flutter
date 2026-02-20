@@ -84,9 +84,6 @@ Uint8List _derToPem(Uint8List der) {
 }
 
 Future<void> main() async {
-  // Install remote logger early so console output is captured before Sentry.
-  remoteLoggerAutoInstall();
-
   await SentryFlutter.init(
     (options) {
       options
@@ -95,10 +92,15 @@ Future<void> main() async {
         ..sendDefaultPii = true
         ..tracesSampleRate = kReleaseMode ? 0.2 : 1.0
         ..release = 'happy_flutter@1.0.0+1'
+        // NOTE: debug builds send to the 'debug' environment in Sentry.
+        // Set the Performance filter to "All" or "debug" to see traces
+        // while developing — Sentry defaults to showing 'production' only.
         ..environment = kReleaseMode ? 'production' : 'debug';
     },
     appRunner: () async {
       WidgetsFlutterBinding.ensureInitialized();
+      // Installed here so Sentry's Zone and error handlers are set up first.
+      remoteLoggerAutoInstall();
 
       if (!kIsWeb && Platform.isAndroid) {
         final certs =
