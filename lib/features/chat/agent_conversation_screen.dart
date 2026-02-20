@@ -206,13 +206,13 @@ class _ThinkingRow extends StatelessWidget {
           Icon(
             Icons.auto_awesome_rounded,
             size: 12,
-            color: theme.colorScheme.onSurfaceVariant.withAlpha(153),
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
           ),
           const SizedBox(width: 4),
           Text(
             'Thinking...',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withAlpha(153),
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
               fontStyle: FontStyle.italic,
             ),
           ),

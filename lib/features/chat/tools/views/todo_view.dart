@@ -203,7 +203,7 @@ class _TodoRow extends StatelessWidget {
       statusColor = theme.colorScheme.primary;
     } else {
       statusColor = theme.colorScheme.onSurfaceVariant
-          .withAlpha(153);
+          .withValues(alpha: 0.6);
     }
 
     final Widget statusIcon;
@@ -226,7 +226,7 @@ class _TodoRow extends StatelessWidget {
     final decoration =
         todo.isCompleted ? TextDecoration.lineThrough : null;
     final textColor = todo.isCompleted
-        ? theme.colorScheme.onSurface.withAlpha(102)
+        ? theme.colorScheme.onSurfaceVariant
         : theme.colorScheme.onSurface;
 
     return Padding(

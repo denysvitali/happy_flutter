@@ -449,6 +449,7 @@ class _DismissibleActiveSession extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
     return Dismissible(
       key: ValueKey('active-${session.id}'),
       direction: DismissDirection.endToStart,
@@ -457,17 +458,17 @@ class _DismissibleActiveSession extends ConsumerWidget {
       onDismissed: (_) {},
       background: Container(
         alignment: Alignment.centerRight,
-        color: Colors.red,
+        color: cs.error,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-        child: const Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.archive_outlined, color: Colors.white, size: 22),
-            SizedBox(height: AppSpacing.xs),
+            Icon(Icons.archive_outlined, color: cs.onError, size: 22),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               'Archive',
               style: TextStyle(
-                color: Colors.white,
+                color: cs.onError,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -497,7 +498,10 @@ class _DismissibleActiveSession extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor:
+                  Theme.of(ctx).colorScheme.error,
+            ),
             child: const Text('Archive'),
           ),
         ],
@@ -535,6 +539,7 @@ class _DismissibleInactiveSession extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
     return Dismissible(
       key: ValueKey('inactive-${session.id}'),
       direction: DismissDirection.endToStart,
@@ -542,17 +547,17 @@ class _DismissibleInactiveSession extends ConsumerWidget {
       onDismissed: (_) {},
       background: Container(
         alignment: Alignment.centerRight,
-        color: Colors.red,
+        color: cs.error,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-        child: const Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.delete_outline, color: Colors.white, size: 22),
-            SizedBox(height: AppSpacing.xs),
+            Icon(Icons.delete_outline, color: cs.onError, size: 22),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               'Delete',
               style: TextStyle(
-                color: Colors.white,
+                color: cs.onError,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -582,7 +587,10 @@ class _DismissibleInactiveSession extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor:
+                  Theme.of(ctx).colorScheme.error,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -1872,11 +1880,13 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    const connectedColor = Color(0xFF22C55E);
     final color = switch (widget.status) {
-      ConnectionStatus.connected => Colors.green,
-      ConnectionStatus.connecting => Colors.orange,
-      ConnectionStatus.error => Colors.red,
-      ConnectionStatus.disconnected => Colors.grey,
+      ConnectionStatus.connected => connectedColor,
+      ConnectionStatus.connecting => Colors.orange.shade600,
+      ConnectionStatus.error => cs.error,
+      ConnectionStatus.disconnected => cs.onSurfaceVariant,
     };
 
     final isConnecting =

@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../core/utils/session_utils.dart';
 
 // Minimum CLI version required for full compatibility.
@@ -107,10 +108,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
   void _showError(String message) {
     if (!mounted) return;
+    final cs = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red,
+        backgroundColor: cs.error,
         duration: const Duration(seconds: 3),
       ),
     );
@@ -131,8 +133,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+              backgroundColor:
+                  Theme.of(ctx).colorScheme.error,
+              foregroundColor:
+                  Theme.of(ctx).colorScheme.onError,
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Archive'),
@@ -171,8 +175,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+              backgroundColor:
+                  Theme.of(ctx).colorScheme.error,
+              foregroundColor:
+                  Theme.of(ctx).colorScheme.onError,
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Delete'),
@@ -259,10 +265,13 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
         if (isCliOutdated) ...[
           Card(
             elevation: 0,
-            color: Colors.orange.withValues(alpha: 0.08),
+            color: theme.colorScheme.tertiaryContainer,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: const BorderSide(color: Colors.orange, width: 1),
+              side: BorderSide(
+                color: theme.colorScheme.tertiary,
+                width: 1,
+              ),
             ),
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
@@ -274,9 +283,9 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.warning_amber_outlined,
-                      color: Colors.orange,
+                      color: theme.colorScheme.onTertiaryContainer,
                       size: 28,
                     ),
                     const SizedBox(width: 12),
@@ -287,7 +296,8 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                           Text(
                             'CLI Version Outdated',
                             style: theme.textTheme.titleSmall?.copyWith(
-                              color: Colors.orange,
+                              color: theme.colorScheme
+                                  .onTertiaryContainer,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -295,15 +305,16 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                           Text(
                             'Run: npm install -g happy-coder@latest',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.orange,
+                              color: theme.colorScheme
+                                  .onTertiaryContainer,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.copy_outlined,
-                      color: Colors.orange,
+                      color: theme.colorScheme.onTertiaryContainer,
                       size: 16,
                     ),
                   ],
@@ -383,7 +394,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 _ActionRow(
                   icon: Icons.archive_outlined,
                   label: 'Archive Session',
-                  color: Colors.red,
+                  color: theme.colorScheme.error,
                   isLoading: _isArchiving,
                   onTap: _isArchiving ? null : _handleArchiveSession,
                 ),
@@ -393,7 +404,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 _ActionRow(
                   icon: Icons.delete_outline,
                   label: 'Delete Session',
-                  color: Colors.red,
+                  color: theme.colorScheme.error,
                   isLoading: _isDeleting,
                   onTap: _isDeleting ? null : _handleDeleteSession,
                 ),
@@ -456,7 +467,9 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                         : Icons.verified_outlined,
                     label: 'CLI Version',
                     value: meta.version!,
-                    iconColor: isCliOutdated ? Colors.orange : null,
+                    iconColor: isCliOutdated
+                        ? theme.colorScheme.tertiary
+                        : null,
                   ),
                 ],
                 if (meta.flavor != null) ...[
@@ -568,8 +581,9 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 icon: Icons.lightbulb_outline,
                 label: 'Thinking',
                 value: session.thinking ? 'Yes' : 'No',
-                iconColor:
-                    session.thinking ? Colors.amber : Colors.grey,
+                iconColor: session.thinking
+                    ? theme.colorScheme.tertiary
+                    : theme.colorScheme.onSurfaceVariant,
               ),
               if (session.thinking &&
                   session.thinkingAt != null) ...[
@@ -578,7 +592,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   icon: Icons.timer_outlined,
                   label: 'Thinking since',
                   value: _formatDate(session.thinkingAt!),
-                  iconColor: Colors.amber,
+                  iconColor: theme.colorScheme.tertiary,
                 ),
               ],
             ],
@@ -632,12 +646,14 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final activeColor = cs.primary;
+    final inactiveColor = cs.onSurfaceVariant;
+    final chipColor = isActive ? activeColor : inactiveColor;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: isActive
-            ? Colors.green.withValues(alpha: 0.15)
-            : Colors.grey.withValues(alpha: 0.15),
+        color: chipColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -647,7 +663,7 @@ class _StatusChip extends StatelessWidget {
             width: 8,
             height: 8,
             decoration: BoxDecoration(
-              color: isActive ? Colors.green : Colors.grey,
+              color: chipColor,
               shape: BoxShape.circle,
             ),
           ),
@@ -657,7 +673,7 @@ class _StatusChip extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: isActive ? Colors.green : Colors.grey,
+              color: chipColor,
             ),
           ),
         ],
@@ -705,6 +721,7 @@ class _InfoRow extends StatelessWidget {
     final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
@@ -768,6 +785,7 @@ class _ActionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(

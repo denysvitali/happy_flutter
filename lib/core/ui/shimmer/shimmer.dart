@@ -143,17 +143,19 @@ class ShimmerStyles {
 
   /// Shimmer for card-like content
   static Widget card({
+    required BuildContext context,
     required double height,
     double? width,
     BorderRadiusGeometry borderRadius =
         const BorderRadius.all(Radius.circular(12)),
   }) {
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Shimmer(
       child: Container(
         height: height,
         width: width,
         decoration: BoxDecoration(
-          color: const Color(0xFFE0E0E0),
+          color: color,
           borderRadius: borderRadius,
         ),
       ),
@@ -162,17 +164,19 @@ class ShimmerStyles {
 
   /// Shimmer for text lines
   static Widget textLine({
+    required BuildContext context,
     double height = 16,
     double width = double.infinity,
     BorderRadiusGeometry borderRadius =
         const BorderRadius.all(Radius.circular(4)),
   }) {
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Shimmer(
       child: Container(
         height: height,
         width: width,
         decoration: BoxDecoration(
-          color: const Color(0xFFE0E0E0),
+          color: color,
           borderRadius: borderRadius,
         ),
       ),
@@ -180,13 +184,17 @@ class ShimmerStyles {
   }
 
   /// Shimmer for avatar placeholder
-  static Widget avatar({double size = 48}) {
+  static Widget avatar({
+    required BuildContext context,
+    double size = 48,
+  }) {
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Shimmer(
       child: Container(
         width: size,
         height: size,
-        decoration: const BoxDecoration(
-          color: Color(0xFFE0E0E0),
+        decoration: BoxDecoration(
+          color: color,
           shape: BoxShape.circle,
         ),
       ),
@@ -195,11 +203,13 @@ class ShimmerStyles {
 
   /// Multi-line text shimmer
   static Widget textLines({
+    required BuildContext context,
     int lines = 3,
     double lineHeight = 16,
     double width = double.infinity,
     double spacing = 8,
   }) {
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Shimmer(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -212,9 +222,10 @@ class ShimmerStyles {
             child: Container(
               height: lineHeight,
               width: index == lines - 1 ? width * 0.6 : width,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE0E0E0),
-                borderRadius: BorderRadius.all(Radius.circular(4)),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius:
+                    const BorderRadius.all(Radius.circular(4)),
               ),
             ),
           );
@@ -239,12 +250,13 @@ class ShimmerImagePlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Shimmer(
       child: Container(
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: const Color(0xFFE0E0E0),
+          color: color,
           borderRadius: borderRadius,
         ),
       ),
@@ -257,11 +269,13 @@ class ShimmerPulse extends StatefulWidget {
 
   const ShimmerPulse({
     this.size = 48,
-    this.color = const Color(0xFFE0E0E0),
+    this.color,
     super.key,
   });
   final double size;
-  final Color color;
+
+  /// Dot color. Defaults to [ColorScheme.surfaceContainerHighest] when null.
+  final Color? color;
 
   @override
   State<ShimmerPulse> createState() => _ShimmerPulseState();
@@ -288,6 +302,8 @@ class _ShimmerPulseState extends State<ShimmerPulse>
 
   @override
   Widget build(BuildContext context) {
+    final resolvedColor = widget.color ??
+        Theme.of(context).colorScheme.surfaceContainerHighest;
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -303,7 +319,7 @@ class _ShimmerPulseState extends State<ShimmerPulse>
         width: widget.size,
         height: widget.size,
         decoration: BoxDecoration(
-          color: widget.color,
+          color: resolvedColor,
           shape: BoxShape.circle,
         ),
       ),

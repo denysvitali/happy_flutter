@@ -103,7 +103,7 @@ class TaskView extends StatelessWidget {
                   '$childCount',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant
-                        .withAlpha(153),
+                        .withValues(alpha: 0.6),
                   ),
                 ),
               ),
@@ -112,7 +112,7 @@ class TaskView extends StatelessWidget {
             Icon(
               Icons.chevron_right_rounded,
               size: 18,
-              color: theme.colorScheme.onSurfaceVariant.withAlpha(128),
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
             ),
           ],
         ),

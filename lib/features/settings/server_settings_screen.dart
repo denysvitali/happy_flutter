@@ -194,7 +194,7 @@ class _ServerSettingsScreenState
                               _statusMessage!,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: _isConnected ?? false
-                                    ? Colors.green
+                                    ? theme.colorScheme.primary
                                     : _isConnected == false
                                         ? theme.colorScheme.error
                                         : theme.colorScheme.onSurfaceVariant,
@@ -311,7 +311,11 @@ class _ServerSettingsScreenState
       );
     }
     if (_isConnected ?? false) {
-      return const Icon(Icons.check_circle, color: Colors.green, size: 24);
+      return Icon(
+        Icons.check_circle,
+        color: theme.colorScheme.primary,
+        size: 24,
+      );
     }
     if (_isConnected == false) {
       return Icon(

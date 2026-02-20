@@ -231,13 +231,15 @@ class _FileHeader extends StatelessWidget {
                 _FileIcon(extension: extension),
                 const SizedBox(width: AppSpacing.sm - 2),
                 Expanded(
-                  child: SelectableText(
+                  child: Text(
                     resolvedPath,
                     style: const TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 12,
                       color: Color(0xFFE6EDF3),
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (content != null)

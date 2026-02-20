@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../core/utils/theme_helper.dart';
 
 /// Theme settings screen - Adaptive/Light/Dark theme selection
@@ -99,9 +100,12 @@ class ThemeSettingsScreen extends ConsumerWidget {
     return Card(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         child: Padding(
-          padding: const EdgeInsets.all(4),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
           child: Row(
             children: [
               Container(

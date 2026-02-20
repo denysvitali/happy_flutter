@@ -250,7 +250,7 @@ class _SendButton extends StatelessWidget {
                     padding: const EdgeInsets.all(AppSpacing.md),
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: cs.onSurface.withValues(alpha: 0.6),
+                      color: cs.onSurfaceVariant,
                     ),
                   )
                 : Icon(
@@ -1110,10 +1110,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
         ? cs.onSurface.withValues(alpha: 0.08)
         : _isFocused
             ? cs.primary
-            : cs.onSurface.withValues(alpha: 0.12);
+            : cs.outlineVariant;
     final cardColor = pending
         ? cs.surfaceContainerHighest.withValues(alpha: 0.5)
-        : cs.surface;
+        : cs.surfaceContainerLow;
 
     return AnimatedContainer(
       duration: _kBorderAnim,
@@ -1171,7 +1171,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         ? 'Respond to the permission request above'
         : 'Message\u2026  \u2318\u23ce to send';
     final hintColor = pending
-        ? cs.onSurface.withValues(alpha: 0.45)
+        ? cs.onSurfaceVariant.withValues(alpha: 0.7)
         : cs.onSurface.withValues(alpha: 0.35);
 
     return KeyboardListener(

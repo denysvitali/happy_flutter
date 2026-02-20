@@ -21,12 +21,14 @@ class VoiceSettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Padding(
-            padding: EdgeInsets.only(bottom: 16),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
             child: Text(
               'Select the language for voice assistant output. '
               'Language settings are provided by ElevenLabs.',
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           // Auto-detect option
@@ -149,7 +151,7 @@ class _VoiceLanguageSelectionScreenState
             child: Text(
               '${filteredLanguages.length} languages available',
               style: TextStyle(
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 12,
               ),
             ),

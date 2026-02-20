@@ -50,11 +50,11 @@ class AppEmptyState extends StatelessWidget {
               height: AppSpacing.xxxl * 2,
               decoration: BoxDecoration(
                 color: cs.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(AppRadius.xl),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
               ),
               child: Icon(
                 icon,
-                size: AppSpacing.xxxl,
+                size: AppSpacing.xxxl + AppSpacing.sm,
                 color: cs.onSurfaceVariant,
               ),
             ),
@@ -71,7 +71,7 @@ class AppEmptyState extends StatelessWidget {
               Text(
                 subtitle!,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: cs.onSurface.withValues(alpha: 0.6),
+                  color: cs.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),

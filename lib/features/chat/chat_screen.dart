@@ -524,12 +524,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _showSessionMenu(BuildContext context) {
     final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.xl),
+        ),
+      ),
+      backgroundColor: cs.surface,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(
+                  top: AppSpacing.sm,
+                  bottom: AppSpacing.md,
+                ),
+                decoration: BoxDecoration(
+                  color: cs.outlineVariant,
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
+                ),
+              ),
+            ),
             ListTile(
               leading: const Icon(Icons.settings),
               title: Text(l10n.chatSessionSettings),
@@ -1014,12 +1035,12 @@ class _ScrollToBottomPill extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return Material(
       color: colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(100),
+      borderRadius: BorderRadius.circular(AppRadius.pill),
       elevation: 2,
       shadowColor: colorScheme.shadow.withValues(alpha: 0.15),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(100),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: 10,
@@ -1061,43 +1082,44 @@ class _PermissionRequiredBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
         height: 36,
         width: double.infinity,
-        decoration: const BoxDecoration(
-          color: Color(0xFFFFF3CD),
+        decoration: BoxDecoration(
+          color: colorScheme.tertiaryContainer,
           border: Border(
-            top: BorderSide(color: Color(0xFFFFC107), width: 1),
+            top: BorderSide(color: colorScheme.tertiary, width: 1),
           ),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.security_rounded,
               size: 16,
-              color: Color(0xFFE65100),
+              color: colorScheme.onTertiaryContainer,
             ),
             const SizedBox(width: 8),
-            const Expanded(
+            Expanded(
               child: Text(
                 'Permission required',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF7A4100),
+                  color: colorScheme.onTertiaryContainer,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 18,
-              color: Color(0xFFE65100),
+              color: colorScheme.onTertiaryContainer,
             ),
           ],
         ),
@@ -1140,7 +1162,7 @@ class _EmptyChatView extends StatelessWidget {
                 color: colorScheme.primary.withValues(alpha: 0.7),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.xl),
             Text(
               l10n.chatStartConversation,
               textAlign: TextAlign.center,

@@ -84,14 +84,14 @@ class ProfilesScreen extends ConsumerWidget {
           // Custom profiles
           if (profiles.isNotEmpty) ...[
             const SizedBox(height: 16),
-            const Padding(
-              padding: EdgeInsets.only(left: 16, bottom: 8),
+            Padding(
+              padding: const EdgeInsets.only(left: 16, bottom: 8),
               child: Text(
                 'Custom Profiles',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -139,7 +139,7 @@ class ProfilesScreen extends ConsumerWidget {
           height: 40,
           decoration: BoxDecoration(
             color: profile == null
-                ? Colors.grey
+                ? Theme.of(context).colorScheme.onSurfaceVariant
                 : Theme.of(context).colorScheme.primary,
             borderRadius: BorderRadius.circular(8),
           ),
@@ -151,7 +151,7 @@ class ProfilesScreen extends ConsumerWidget {
                     : profile.id == 'openai'
                         ? Icons.smart_toy
                         : Icons.computer,
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.onPrimary,
           ),
         ),
         title: Text(profile?.name ?? 'None'),
@@ -169,7 +169,10 @@ class ProfilesScreen extends ConsumerWidget {
               ),
             if (onDelete != null)
               IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
+                icon: Icon(
+                  Icons.delete,
+                  color: Theme.of(context).colorScheme.error,
+                ),
                 onPressed: onDelete,
               ),
           ],
@@ -289,7 +292,10 @@ class ProfilesScreen extends ConsumerWidget {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  Theme.of(context).colorScheme.error,
+            ),
             onPressed: () {
               final settings = ref.read(settingsNotifierProvider);
               final updatedProfiles =

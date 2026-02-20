@@ -54,7 +54,8 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
         settings.experiments || sidebarWidth < 340;
 
     // Connection status info
-    final connectionInfo = _getConnectionInfo(connectionStatus, l10n);
+    final cs = Theme.of(context).colorScheme;
+    final connectionInfo = _getConnectionInfo(connectionStatus, l10n, cs);
 
     return Container(
       width: sidebarWidth,
@@ -109,29 +110,30 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
   _ConnectionInfo _getConnectionInfo(
     ConnectionStatus status,
     AppLocalizations l10n,
+    ColorScheme cs,
   ) {
     switch (status) {
       case ConnectionStatus.connected:
         return _ConnectionInfo(
-          color: Colors.green,
+          color: const Color(0xFF34C759),
           isPulsing: false,
           text: l10n.sidebarStatusConnected,
         );
       case ConnectionStatus.connecting:
         return _ConnectionInfo(
-          color: Colors.orange,
+          color: const Color(0xFFFF9500),
           isPulsing: true,
           text: l10n.sidebarStatusConnecting,
         );
       case ConnectionStatus.disconnected:
         return _ConnectionInfo(
-          color: Colors.grey,
+          color: cs.onSurfaceVariant,
           isPulsing: false,
           text: l10n.sidebarStatusDisconnected,
         );
       case ConnectionStatus.error:
         return _ConnectionInfo(
-          color: Colors.red,
+          color: cs.error,
           isPulsing: false,
           text: l10n.sidebarStatusError,
         );
@@ -322,6 +324,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
     required bool hasContent,
     required Color tintColor,
   }) {
+    final cs = Theme.of(context).colorScheme;
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -345,7 +348,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.red,
+                color: cs.error,
                 borderRadius: BorderRadius.circular(8),
               ),
               constraints: const BoxConstraints(
@@ -354,8 +357,8 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
               ),
               child: Text(
                 friendRequestCount > 99 ? '99+' : friendRequestCount.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: cs.onError,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                 ),
@@ -371,8 +374,8 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
             child: Container(
               width: 6,
               height: 6,
-              decoration: const BoxDecoration(
-                color: Colors.black,
+              decoration: BoxDecoration(
+                color: cs.onSurface,
                 shape: BoxShape.circle,
               ),
             ),
@@ -399,6 +402,7 @@ class _DefaultSessionContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
     final sessions = ref.watch(sessionsNotifierProvider);
     final sessionList = sessions.values.toList();
 
@@ -410,14 +414,14 @@ class _DefaultSessionContent extends ConsumerWidget {
             Icon(
               Icons.computer_outlined,
               size: 48,
-              color: Colors.grey[400],
+              color: cs.onSurfaceVariant,
             ),
             const SizedBox(height: 16),
             Text(
               l10n.sessionNoSessionsYet,
               style: TextStyle(
                 fontSize: 14,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: cs.onSurfaceVariant,
               ),
             ),
           ],
@@ -447,11 +451,12 @@ class _SessionListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       elevation: 0,
-      color: theme.colorScheme.surface,
+      color: cs.surface,
       child: InkWell(
         onTap: () => context.push('/chat/${session.id}'),
         borderRadius: BorderRadius.circular(8),
@@ -464,7 +469,9 @@ class _SessionListItem extends StatelessWidget {
                 width: 10,
                 height: 10,
                 decoration: BoxDecoration(
-                  color: session.active ? Colors.green : Colors.grey,
+                  color: session.active
+                      ? const Color(0xFF34C759)
+                      : cs.onSurfaceVariant,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -487,7 +494,7 @@ class _SessionListItem extends StatelessWidget {
                         session.metadata!.path!,
                         style: TextStyle(
                           fontSize: 12,
-                          color: theme.colorScheme.onSurfaceVariant,
+                          color: cs.onSurfaceVariant,
                         ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
@@ -500,7 +507,7 @@ class _SessionListItem extends StatelessWidget {
                 _formatTimestamp(session.updatedAt),
                 style: TextStyle(
                   fontSize: 11,
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: cs.onSurfaceVariant,
                 ),
               ),
             ],

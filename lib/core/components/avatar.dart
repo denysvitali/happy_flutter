@@ -669,11 +669,13 @@ class AvatarGradient extends StatelessWidget {
         errorBuilder: (context, error, stackTrace) => Container(
           width: size,
           height: size,
-          color: Colors.grey[300],
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest,
           child: Icon(
             Icons.person,
             size: size * 0.6,
-            color: Colors.grey[600],
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -954,18 +956,22 @@ class Avatar extends StatelessWidget {
           return Container(
             width: size,
             height: size,
-            color: Colors.grey[300],
+            color: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest,
             child: const Center(child: CircularProgressIndicator()),
           );
         },
         errorBuilder: (context, error, stackTrace) => Container(
           width: size,
           height: size,
-          color: Colors.grey[300],
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest,
           child: Icon(
             Icons.person,
             size: size * 0.6,
-            color: Colors.grey[600],
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),

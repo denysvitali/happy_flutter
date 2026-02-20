@@ -17,7 +17,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildSectionHeader('Experimental Features'),
+          _buildSectionHeader(context, 'Experimental Features'),
           _buildToggle(
             context: context,
             title: 'Experimental Features',
@@ -57,7 +57,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
             },
           ),
           const SizedBox(height: 24),
-          _buildSectionHeader('Display'),
+          _buildSectionHeader(context, 'Display'),
           _buildToggle(
             context: context,
             title: 'Markdown Copy V2',
@@ -74,15 +74,15 @@ class FeaturesSettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.only(left: 16, bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          color: Colors.grey,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
           letterSpacing: 0.5,
         ),
       ),

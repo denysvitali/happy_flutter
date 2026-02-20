@@ -110,7 +110,7 @@ class QRCodeDisplay extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
         boxShadow: [
           BoxShadow(
             color: primary.withValues(alpha: 0.20),
@@ -580,7 +580,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         _StatusBanner(
           icon: Icons.check_circle,
           message: _linkSuccessMessage!,
-          color: Colors.green,
+          color: const Color(0xFF34C759),
           isLoading: false,
           onDismiss: () => setState(() => _linkSuccessMessage = null),
         ),
@@ -592,7 +592,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         _StatusBanner(
           icon: Icons.warning,
           message: context.l10n.authServerConnectionError,
-          color: Colors.red,
+          color: Theme.of(context).colorScheme.error,
           isLoading: false,
           onDismiss: () => setState(() => _serverError = null),
         ),
@@ -604,7 +604,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         _StatusBanner(
           icon: Icons.error_outline,
           message: _error!,
-          color: Colors.red,
+          color: Theme.of(context).colorScheme.error,
           isLoading: false,
           onDismiss: () => setState(() => _error = null),
         ),
@@ -1066,7 +1066,9 @@ class _QRCodeSection extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: theme.colorScheme.primary.withValues(alpha: 0.15),

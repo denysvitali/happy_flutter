@@ -34,30 +34,30 @@ import 'views/write_view.dart';
 const _kAutoCollapseDelay = Duration(seconds: 3);
 
 /// Returns the left border accent color for a given tool state.
-Color _stateAccentColor(ToolState state) {
+Color _stateAccentColor(ToolState state, ColorScheme cs) {
   switch (state) {
     case ToolState.running:
-      return const Color(0xFF2196F3); // blue
+      return cs.primary;
     case ToolState.completed:
-      return const Color(0xFF34C759); // green
+      return const Color(0xFF34C759); // semantic green brand color
     case ToolState.error:
-      return const Color(0xFFFF3B30); // red
+      return cs.error;
     case ToolState.pending:
-      return const Color(0xFF8E8E93); // grey
+      return cs.onSurfaceVariant;
   }
 }
 
 /// Returns the background color for the status badge.
-Color _statusBadgeBg(ToolState state) {
+Color _statusBadgeBg(ToolState state, ColorScheme cs) {
   switch (state) {
     case ToolState.running:
-      return const Color(0xFF2196F3);
+      return cs.primary;
     case ToolState.completed:
-      return const Color(0xFF34C759);
+      return const Color(0xFF34C759); // semantic green brand color
     case ToolState.error:
-      return const Color(0xFFFF3B30);
+      return cs.error;
     case ToolState.pending:
-      return const Color(0xFF8E8E93);
+      return cs.onSurfaceVariant;
   }
 }
 
@@ -187,7 +187,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
 
     _chevronController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 250),
     );
     _chevronAnim = Tween<double>(begin: 0.0, end: 0.5).animate(
       CurvedAnimation(parent: _chevronController, curve: Curves.easeInOut),
@@ -493,7 +493,9 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         permission['status'] != 'denied' &&
         permission['status'] != 'canceled';
     final accentColor =
-        hasPermissionRequest ? _permissionColor : _stateAccentColor(state);
+        hasPermissionRequest
+            ? _permissionColor
+            : _stateAccentColor(state, theme.colorScheme);
 
     // Check for tool-use error
     final resultStr = toolResult?.toString() ?? '';
@@ -647,19 +649,23 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
           width: 1,
         );
 
-        return Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs / 2),
+          child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.sm),
-            border: Border(
-              left: accentBorder,
-              top: sideBorder,
-              right: sideBorder,
-              bottom: sideBorder,
+            child: Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                border: Border(
+                  left: accentBorder,
+                  top: sideBorder,
+                  right: sideBorder,
+                  bottom: sideBorder,
+                ),
+              ),
+              child: child,
             ),
           ),
-          margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs / 2),
-          child: child,
         );
       },
     );
@@ -939,6 +945,7 @@ class _ToolHeader extends StatelessWidget {
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
               ],
@@ -1011,7 +1018,7 @@ class _ToolStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = _statusBadgeBg(state);
+    final bg = _statusBadgeBg(state, Theme.of(context).colorScheme);
 
     final Widget child;
     if (state == ToolState.completed) {
@@ -1174,6 +1181,7 @@ class ToolViewMinimal extends StatelessWidget {
             child: Text(
               title,
               style: theme.textTheme.bodyMedium,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),

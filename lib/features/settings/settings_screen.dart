@@ -441,7 +441,9 @@ class SettingsScreen extends ConsumerWidget {
               icon: hasCerts
                   ? Icons.verified_user
                   : Icons.info_outline,
-              iconColor: hasCerts ? Colors.green : null,
+              iconColor: hasCerts
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
               title: l10n.settingsUserCaCertificates,
               subtitle: hasCerts
                   ? l10n.settingsUserCertificatesInstalled
@@ -721,6 +723,7 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) {
         final l10nDialog = AppLocalizations.of(dialogContext);
+        final colorScheme = Theme.of(dialogContext).colorScheme;
         return AlertDialog(
           title: Text(l10nDialog.settingsSignOut),
           content: Text(l10nDialog.settingsSignOutConfirm),
@@ -731,7 +734,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: colorScheme.error,
               ),
               onPressed: () {
                 Navigator.pop(dialogContext);
@@ -786,7 +789,7 @@ class _ProfileHeader extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              cs.primary.withValues(alpha: 0.05),
+              cs.primary.withValues(alpha: 0.10),
               cs.surface,
             ],
           ),
@@ -823,7 +826,7 @@ class _ProfileHeader extends StatelessWidget {
             Text(
               bio,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: cs.onSurface.withValues(alpha: 0.6),
+                color: cs.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
               maxLines: 2,
@@ -868,7 +871,7 @@ class _SettingsSection extends StatelessWidget {
             child: Text(
               title!.toUpperCase(),
               style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurface.withValues(alpha: 0.5),
+                color: cs.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.8,
                 fontSize: 12,
@@ -967,7 +970,7 @@ class _SettingsRow extends StatelessWidget {
                       Text(
                         subtitle!,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurface.withValues(alpha: 0.6),
+                          color: cs.onSurfaceVariant,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -1036,7 +1039,7 @@ class _SettingsToggleRow extends StatelessWidget {
                     Text(
                       subtitle!,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurface.withValues(alpha: 0.6),
+                        color: cs.onSurfaceVariant,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -1125,7 +1128,7 @@ class _AccountSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    const errorRed = Color(0xFFDC2626);
+    final errorColor = Theme.of(context).colorScheme.error;
 
     return SizedBox(
       width: double.infinity,
@@ -1133,8 +1136,8 @@ class _AccountSection extends ConsumerWidget {
         icon: const Icon(Icons.logout, size: 18),
         label: Text(l10n.settingsSignOut),
         style: OutlinedButton.styleFrom(
-          foregroundColor: errorRed,
-          side: const BorderSide(color: errorRed),
+          foregroundColor: errorColor,
+          side: BorderSide(color: errorColor),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
             vertical: AppSpacing.md,
@@ -1153,6 +1156,7 @@ class _AccountSection extends ConsumerWidget {
       context: context,
       builder: (dialogContext) {
         final l10nDialog = AppLocalizations.of(dialogContext);
+        final colorScheme = Theme.of(dialogContext).colorScheme;
         return AlertDialog(
           title: Text(l10nDialog.settingsSignOut),
           content: Text(l10nDialog.settingsSignOutConfirm),
@@ -1163,7 +1167,7 @@ class _AccountSection extends ConsumerWidget {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: colorScheme.error,
               ),
               onPressed: () {
                 Navigator.pop(dialogContext);
@@ -1217,7 +1221,7 @@ class SettingsSection extends StatelessWidget {
             child: Text(
               title!.toUpperCase(),
               style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurface.withValues(alpha: 0.5),
+                color: cs.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.8,
                 fontSize: 12,

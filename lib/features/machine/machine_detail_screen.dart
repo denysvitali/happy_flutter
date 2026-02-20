@@ -89,6 +89,7 @@ class _MachineDetailScreenState
     final sessions = ref.watch(sessionsNotifierProvider);
     final machine = machines[widget.machineId];
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     if (machine == null) {
       return Scaffold(
@@ -110,7 +111,9 @@ class _MachineDetailScreenState
         metadata?.host ??
         machine.id;
     final isOnline = _isMachineOnline(machine.activeAt);
-    final statusColor = isOnline ? Colors.green : Colors.grey;
+    final statusColor = isOnline
+        ? const Color(0xFF34C759)
+        : cs.onSurfaceVariant;
 
     // Sessions for this machine, sorted by most recently updated
     final machineSessions = sessions.values
@@ -239,8 +242,8 @@ class _MachineDetailScreenState
                   label: 'Status',
                   value: isOnline ? 'likely alive' : 'stopped',
                   valueColor: isOnline
-                      ? Colors.green
-                      : Colors.orange,
+                      ? const Color(0xFF34C759)
+                      : const Color(0xFFFF9500),
                   isLast: metadata?.daemonLastKnownStatus == null &&
                       metadata?.daemonLastKnownPid == null,
                 ),

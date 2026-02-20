@@ -40,6 +40,7 @@ class _TabBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final label = count > 99 ? '99+' : count.toString();
     final isMultiDigit = count > 9;
     return Container(
@@ -49,15 +50,15 @@ class _TabBadge extends StatelessWidget {
         horizontal: isMultiDigit ? 4 : 0,
       ),
       decoration: BoxDecoration(
-        color: Colors.red,
+        color: cs.error,
         borderRadius: BorderRadius.circular(8),
       ),
       alignment: Alignment.center,
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 10,
-          color: Colors.white,
+          color: cs.onError,
           fontWeight: FontWeight.w600,
           height: 1,
         ),
@@ -182,8 +183,8 @@ class _TabItem extends StatelessWidget {
                       child: Container(
                         width: 6,
                         height: 6,
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.error,
                           shape: BoxShape.circle,
                         ),
                       ),

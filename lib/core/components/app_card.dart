@@ -61,37 +61,51 @@ class _AppCardState extends State<AppCard> {
 
     final borderColor = cs.onSurface.withValues(alpha: 0.08);
 
-    Widget content = Padding(
+    final Widget content = Padding(
       padding: effectivePadding,
       child: widget.child,
     );
 
-    if (widget.onTap != null) {
-      content = InkWell(
-        onTap: () {
-          if (widget.haptic) HapticFeedback.lightImpact();
-          widget.onTap!();
-        },
-        onTapDown: (_) => setState(() => _pressed = true),
-        onTapUp: (_) => setState(() => _pressed = false),
-        onTapCancel: () => setState(() => _pressed = false),
-        borderRadius: AppCard._radius,
-        child: content,
-      );
-    }
+    // Wrap in Material so InkWell splashes render correctly.
+    // DecoratedBox handles the visual decoration (shadow, border, bg)
+    // outside the clipping region so box shadows are not clipped.
+    final Widget inner = ClipRRect(
+      borderRadius: AppCard._radius,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: AppCard._radius,
+          border: Border.all(color: borderColor),
+        ),
+        child: widget.onTap != null
+            ? Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    if (widget.haptic) HapticFeedback.lightImpact();
+                    widget.onTap!();
+                  },
+                  onTapDown: (_) => setState(() => _pressed = true),
+                  onTapUp: (_) => setState(() => _pressed = false),
+                  onTapCancel: () => setState(() => _pressed = false),
+                  splashColor: cs.primary.withValues(alpha: 0.08),
+                  highlightColor: cs.primary.withValues(alpha: 0.04),
+                  splashFactory: InkRipple.splashFactory,
+                  child: content,
+                ),
+              )
+            : content,
+      ),
+    );
 
+    // Box shadows must live outside ClipRRect to be visible.
     final card = Container(
       margin: widget.margin,
       decoration: BoxDecoration(
-        color: cs.surface,
         borderRadius: AppCard._radius,
-        border: Border.all(color: borderColor),
         boxShadow: AppShadow.card,
       ),
-      child: ClipRRect(
-        borderRadius: AppCard._radius,
-        child: content,
-      ),
+      child: inner,
     );
 
     if (widget.onTap == null) return card;

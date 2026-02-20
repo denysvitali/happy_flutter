@@ -115,17 +115,22 @@ class _EditViewState extends State<EditView> {
             ),
 
           // ── Diff ────────────────────────────────────────
-          if (show)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: dw.DiffView(
-                oldText: oldString,
-                newText: newString,
-                showLineNumbers: true,
-                showPlusMinusSymbols: true,
-                contextLines: 3,
-              ),
-            ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            child: show
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    child: dw.DiffView(
+                      oldText: oldString,
+                      newText: newString,
+                      showLineNumbers: true,
+                      showPlusMinusSymbols: true,
+                      contextLines: 3,
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
         ],
       ),
     );

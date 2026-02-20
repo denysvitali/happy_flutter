@@ -7,6 +7,7 @@ import '../../core/models/auth.dart';
 import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../core/utils/backup_key_utils.dart';
 import '../auth/auth_screen.dart' show QRCodeDisplay;
 
@@ -155,23 +156,28 @@ class AccountScreen extends ConsumerWidget {
       if (!context.mounted) return;
       unawaited(showDialog(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (context) {
+          final cs = Theme.of(context).colorScheme;
+          return AlertDialog(
           title: const Text('Backup Key'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 'Save this key in a safe place. You can use it'
                 ' to restore your account.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[300]!),
+                  color: cs.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  border: Border.all(color: cs.outlineVariant),
                 ),
                 child: SelectableText(
                   key,
@@ -200,7 +206,8 @@ class AccountScreen extends ConsumerWidget {
               label: const Text('Copy'),
             ),
           ],
-        ),
+        );
+        },
       ));
     } catch (e) {
       scaffoldMessenger.showSnackBar(
@@ -233,15 +240,19 @@ class ServiceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return ListTile(
-      leading: Icon(_getServiceIcon(), color: _getServiceColor()),
+      leading: Icon(_getServiceIcon(), color: _getServiceColor(cs)),
       title: Text(service.service.displayName),
       subtitle: service.isConnected
           ? Text(service.accountName ?? service.accountEmail ?? 'Connected')
           : const Text('Not connected'),
       trailing: service.isConnected
-          ? Icon(Icons.check_circle, color: Colors.green[400])
-          : Icon(Icons.circle_outlined, color: Colors.grey[400]),
+          ? Icon(Icons.check_circle, color: cs.primary)
+          : Icon(
+              Icons.circle_outlined,
+              color: cs.onSurface.withValues(alpha: 0.3),
+            ),
       onTap: service.isConnected ? () => _showServiceInfo(context) : null,
     );
   }
@@ -259,16 +270,16 @@ class ServiceTile extends StatelessWidget {
     }
   }
 
-  Color _getServiceColor() {
+  Color _getServiceColor(ColorScheme cs) {
     switch (service.service) {
       case ConnectedService.claude:
-        return Colors.orange;
+        return const Color(0xFFFF9500);
       case ConnectedService.github:
-        return Colors.grey[800]!;
+        return cs.onSurface;
       case ConnectedService.gemini:
-        return Colors.blue;
+        return cs.primary;
       case ConnectedService.openai:
-        return Colors.green;
+        return const Color(0xFF34C759);
     }
   }
 
@@ -344,9 +355,12 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
+            Text(
               'Enter your backup key to restore your account.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 24),
             Form(
@@ -366,25 +380,35 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
             ),
             if (_error != null) ...[
               const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red[300]!),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline, color: Colors.red[700]),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _error!,
-                        style: TextStyle(color: Colors.red[700]),
+              Builder(
+                builder: (context) {
+                  final cs = Theme.of(context).colorScheme;
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: cs.errorContainer,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: cs.error.withValues(alpha: 0.3),
                       ),
                     ),
-                  ],
-                ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          color: cs.onErrorContainer,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: TextStyle(color: cs.onErrorContainer),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
             const SizedBox(height: 24),
@@ -682,63 +706,82 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
               ),
               const SizedBox(height: 32),
               if (_error != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.red[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red[300]!),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.error_outline, color: Colors.red[700]),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _error!,
-                          style: TextStyle(
-                            color: Colors.red[700],
-                            fontSize: 12,
-                          ),
+                Builder(
+                  builder: (context) {
+                    final cs = Theme.of(context).colorScheme;
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: cs.errorContainer,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: cs.error.withValues(alpha: 0.3),
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 18),
-                        onPressed: () {
-                          setState(() {
-                            _error = null;
-                          });
-                        },
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            color: cs.onErrorContainer,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _error!,
+                              style: TextStyle(
+                                color: cs.onErrorContainer,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 18),
+                            onPressed: () {
+                              setState(() {
+                                _error = null;
+                              });
+                            },
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ],
               const SizedBox(height: 32),
               if (_showQR) ...[
-                const Text(
+                Text(
                   '1. Open Happy on another device\n'
                   '2. Go to Settings → Account\n'
                   '3. Tap "Restore Account"\n'
                   '4. Scan this QR code',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 32),
                 if (_isLoading)
-                  Container(
-                    width: 250,
-                    height: 250,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: const Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final cs = Theme.of(context).colorScheme;
+                      return Container(
+                        width: 250,
+                        height: 250,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHighest,
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: cs.outlineVariant),
+                        ),
+                        child: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+                    },
                   )
                 else if (_linkingResult != null)
                   QRCodeDisplay(
@@ -759,7 +802,9 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                       Text(
                         'Waiting for approval...',
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -767,12 +812,15 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                 ],
               ],
               if (!_showQR) ...[
-                const Text(
+                Text(
                   'Enter the linking URL from another device:\n\n'
                   'happy://terminal?...\n\n'
                   'Or happy:///account?...',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 TextField(
@@ -863,23 +911,29 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Unlink Device'),
-        content: Text(
-          'Are you sure you want to unlink "${device.name}"?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder: (context) {
+        final cs = Theme.of(context).colorScheme;
+        return AlertDialog(
+          title: const Text('Unlink Device'),
+          content: Text(
+            'Are you sure you want to unlink "${device.name}"?',
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Unlink'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cs.error,
+                foregroundColor: cs.onError,
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Unlink'),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed != true) return;
@@ -908,19 +962,28 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _devices.isEmpty
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.devices, size: 64, color: Colors.grey[400]),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No linked devices',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
+                  child: Builder(
+                    builder: (context) {
+                      final cs = Theme.of(context).colorScheme;
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.devices,
+                            size: 64,
+                            color: cs.onSurface.withValues(alpha: 0.3),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No linked devices',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 )
               : ListView.builder(
@@ -949,6 +1012,7 @@ class DeviceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -960,14 +1024,14 @@ class DeviceTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.blue[100],
+                  color: cs.primaryContainer,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   'This Device',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.blue[700],
+                    color: cs.onPrimaryContainer,
                   ),
                 ),
               ),
@@ -979,7 +1043,7 @@ class DeviceTile extends StatelessWidget {
         trailing: device.isCurrentDevice
             ? null
             : IconButton(
-                icon: Icon(Icons.delete_outline, color: Colors.red[400]),
+                icon: Icon(Icons.delete_outline, color: cs.error),
                 onPressed: onUnlink,
               ),
       ),
@@ -1035,7 +1099,7 @@ class SettingsSection extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 letterSpacing: 0.5,
               ),
             ),

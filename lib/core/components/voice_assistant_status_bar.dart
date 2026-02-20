@@ -34,7 +34,7 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
     final l10n = context.l10n;
     final theme = Theme.of(context);
 
-    final statusInfo = _getStatusInfo(connectionStatus, l10n);
+    final statusInfo = _getStatusInfo(connectionStatus, l10n, theme);
 
     if (variant == 'full') {
       return _buildFullVariant(context, statusInfo, theme);
@@ -43,39 +43,44 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
     return _buildSidebarVariant(context, statusInfo, theme);
   }
 
-  _StatusInfo _getStatusInfo(ConnectionStatus status, AppLocalizations l10n) {
+  _StatusInfo _getStatusInfo(
+    ConnectionStatus status,
+    AppLocalizations l10n,
+    ThemeData theme,
+  ) {
+    final surfaceLow = theme.colorScheme.surfaceContainerLow;
     switch (status) {
       case ConnectionStatus.connected:
         return _StatusInfo(
-          color: Colors.green,
-          backgroundColor: Colors.grey[100]!,
+          color: const Color(0xFF34C759),
+          backgroundColor: surfaceLow,
           isPulsing: false,
           text: l10n.voiceAssistantActive,
-          textColor: Colors.green,
+          textColor: const Color(0xFF34C759),
         );
       case ConnectionStatus.connecting:
         return _StatusInfo(
-          color: Colors.orange,
-          backgroundColor: Colors.grey[100]!,
+          color: const Color(0xFFFF9500),
+          backgroundColor: surfaceLow,
           isPulsing: true,
           text: l10n.voiceAssistantConnecting,
-          textColor: Colors.orange,
+          textColor: const Color(0xFFFF9500),
         );
       case ConnectionStatus.error:
         return _StatusInfo(
-          color: Colors.red,
-          backgroundColor: Colors.grey[100]!,
+          color: theme.colorScheme.error,
+          backgroundColor: surfaceLow,
           isPulsing: false,
           text: l10n.voiceAssistantError,
-          textColor: Colors.red,
+          textColor: theme.colorScheme.error,
         );
       case ConnectionStatus.disconnected:
         return _StatusInfo(
-          color: Colors.grey,
-          backgroundColor: Colors.grey[100]!,
+          color: theme.colorScheme.onSurfaceVariant,
+          backgroundColor: surfaceLow,
           isPulsing: false,
           text: l10n.voiceAssistantDefault,
-          textColor: Colors.grey,
+          textColor: theme.colorScheme.onSurfaceVariant,
         );
     }
   }

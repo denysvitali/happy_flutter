@@ -129,10 +129,10 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
       padding: const EdgeInsets.only(left: 16, bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          color: Colors.grey,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
           letterSpacing: 0.5,
         ),
       ),
@@ -160,7 +160,12 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
     return Card(
       child: ListTile(
         title: Text(label),
-        trailing: Text(value, style: const TextStyle(color: Colors.grey)),
+        trailing: Text(
+          value,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
     );
   }
@@ -203,7 +208,10 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  Theme.of(context).colorScheme.error,
+            ),
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
