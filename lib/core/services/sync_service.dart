@@ -527,32 +527,50 @@ what you have, you must use the options mode.
       if (session != null) {
         final thinking = data['thinking'] as bool? ?? false;
         final activeAt = data['activeAt'] as int?;
-        _sessions[sessionId] = session.copyWith(
-          thinking: thinking,
-          thinkingAt: thinking
-              ? (activeAt ?? DateTime.now().millisecondsSinceEpoch)
-              : null,
-          presence: 'online',
-        );
-        _dataChangeController.add(null);
-        // Reset staleness timer — if no further activity arrives within
-        // 60 s, drop presence back to 'offline' so the session stops
-        // appearing in the Active section.
-        _presenceTimers[sessionId]?.cancel();
-        _presenceTimers[sessionId] = Timer(
-          const Duration(seconds: 60),
-          () {
-            _presenceTimers.remove(sessionId);
-            final current = _sessions[sessionId];
-            if (current != null && current.presence == 'online') {
-              _sessions[sessionId] = current.copyWith(
-                presence: 'offline',
-                thinking: false,
-              );
-              _dataChangeController.add(null);
-            }
-          },
-        );
+        // The server can push active:false to explicitly mark a session
+        // offline (matches ApiEphemeralActivityUpdateSchema in the
+        // reference implementation).
+        final isActive = data['active'] as bool? ?? true;
+
+        if (isActive) {
+          _sessions[sessionId] = session.copyWith(
+            thinking: thinking,
+            thinkingAt: thinking
+                ? (activeAt ?? DateTime.now().millisecondsSinceEpoch)
+                : null,
+            presence: 'online',
+          );
+          _dataChangeController.add(null);
+          // Reset staleness timer — if no further activity arrives within
+          // 60 s, drop presence back to inactive so the session stops
+          // appearing in the Active section.
+          _presenceTimers[sessionId]?.cancel();
+          _presenceTimers[sessionId] = Timer(
+            const Duration(seconds: 60),
+            () {
+              _presenceTimers.remove(sessionId);
+              final current = _sessions[sessionId];
+              if (current != null && current.presence == 'online') {
+                _sessions[sessionId] = current.copyWith(
+                  presence: current.activeAt,
+                  thinking: false,
+                );
+                _dataChangeController.add(null);
+              }
+            },
+          );
+        } else {
+          // Session explicitly went offline — cancel any timer and
+          // immediately mark it inactive.
+          _presenceTimers[sessionId]?.cancel();
+          _presenceTimers.remove(sessionId);
+          _sessions[sessionId] = session.copyWith(
+            presence: _asSessionInt(activeAt) ?? session.activeAt,
+            thinking: false,
+            thinkingAt: null,
+          );
+          _dataChangeController.add(null);
+        }
       }
       return;
     }
@@ -661,8 +679,14 @@ what you have, you must use the options mode.
               agentStateVersion: session['agentStateVersion'] as int,
               thinking: false,
               thinkingAt: null,
-              presence:
-                  session['presence'] as String? ?? 'offline',
+              // Compute presence locally from the active flag, exactly as
+              // the reference implementation does with
+              // resolveSessionOnlineState. The server may send a stale
+              // presence value (or no presence value at all), so we
+              // never trust it directly.
+              presence: (session['active'] as bool)
+                  ? 'online'
+                  : (_asSessionInt(session['activeAt']) ?? 0),
               lastSeq: session['lastSeq'] as int?,
             );
 
@@ -687,6 +711,30 @@ what you have, you must use the options mode.
         ..addEntries(
           decryptedSessions.map((session) => MapEntry(session.id, session)),
         );
+
+      // Start 60 s staleness timers for every session that came back
+      // 'online' from the server. If no real-time activity event arrives
+      // to confirm the session is still running, the timer will drop it
+      // to inactive — preventing stale active flags from persisting
+      // indefinitely (matches the reference implementation's behaviour).
+      for (final s in decryptedSessions) {
+        if (s.presence == 'online') {
+          _presenceTimers[s.id] = Timer(
+            const Duration(seconds: 60),
+            () {
+              _presenceTimers.remove(s.id);
+              final current = _sessions[s.id];
+              if (current != null && current.presence == 'online') {
+                _sessions[s.id] = current.copyWith(
+                  presence: current.activeAt,
+                  thinking: false,
+                );
+                _dataChangeController.add(null);
+              }
+            },
+          );
+        }
+      }
 
       // Re-apply permission data now that agentState is fresh.
       for (final sessionId in _sessionMessages.keys) {
