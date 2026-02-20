@@ -218,6 +218,7 @@ class Session {
     this.permissionMode,
     this.modelMode,
     this.latestUsage,
+    this.lastSeq,
   });
 
   factory Session.fromJson(Map<String, dynamic> json) {
@@ -248,6 +249,7 @@ class Session {
       latestUsage: json['latestUsage'] != null
           ? UsageData.fromJson(json['latestUsage'] as Map<String, dynamic>)
           : null,
+      lastSeq: json['lastSeq'] as int?,
     );
   }
   final String id;
@@ -269,6 +271,10 @@ class Session {
   final String? modelMode;
   final UsageData? latestUsage;
 
+  /// The highest message seq number in the session, as reported by the
+  /// server. Used for lazy tail-loading to avoid fetching all history.
+  final int? lastSeq;
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -289,6 +295,7 @@ class Session {
       'permissionMode': permissionMode,
       'modelMode': modelMode,
       'latestUsage': latestUsage?.toJson(),
+      'lastSeq': lastSeq,
     };
   }
 
@@ -311,6 +318,7 @@ class Session {
     String? permissionMode,
     String? modelMode,
     UsageData? latestUsage,
+    int? lastSeq,
   }) {
     return Session(
       id: id ?? this.id,
@@ -331,6 +339,7 @@ class Session {
       permissionMode: permissionMode ?? this.permissionMode,
       modelMode: modelMode ?? this.modelMode,
       latestUsage: latestUsage ?? this.latestUsage,
+      lastSeq: lastSeq ?? this.lastSeq,
     );
   }
 }

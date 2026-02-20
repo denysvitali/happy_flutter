@@ -30,6 +30,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isSending = false;
   bool _isLoadingMessages = true;
 
+  /// Number of messages in `_messages` the last time `_refreshFromSync` was
+  /// called.  Used to detect how many older messages were prepended by a
+  /// server fetch so that `_visibleCount` can be bumped by the same amount,
+  /// keeping the viewport stable.
+  int _prevMessagesLength = 0;
+
   /// Whether autoscroll to the bottom is active.
   ///
   /// Autoscroll is enabled when the user is within [_autoScrollThreshold]
@@ -129,7 +135,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     setState(() {
       _session = latestSession;
+
+      // If older messages were prepended (length grew from the front),
+      // bump _visibleCount by the same delta to keep the viewport stable.
+      if (messagesChanged && latestMessages.length > _prevMessagesLength) {
+        final prepended = latestMessages.length - _prevMessagesLength;
+        // Only adjust when we were already showing all locally-loaded
+        // messages (i.e., we triggered a server fetch from the top).
+        if (_visibleCount >= _prevMessagesLength && _prevMessagesLength > 0) {
+          _visibleCount = (_visibleCount + prepended)
+              .clamp(0, latestMessages.length);
+        }
+      }
+
       _messages = latestMessages;
+      _prevMessagesLength = latestMessages.length;
+
       if (sessionChanged) {
         _metadataJson = latestSession?.metadata?.toJson();
       }
@@ -203,17 +224,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _loadMore() {
     if (_isLoadingMore) return;
-    if (_visibleCount >= _messages.length) return;
-    _isLoadingMore = true;
-    setState(() {
-      _visibleCount =
-          (_visibleCount + _pageSize).clamp(0, _messages.length);
-    });
-    // Reset the guard after the frame so rapid scroll events don't
-    // queue multiple consecutive setState calls.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _isLoadingMore = false;
-    });
+
+    if (_visibleCount < _messages.length) {
+      // Client-side windowing: more locally-loaded messages to reveal.
+      _isLoadingMore = true;
+      setState(() {
+        _visibleCount =
+            (_visibleCount + _pageSize).clamp(0, _messages.length);
+      });
+      // Reset the guard after the frame so rapid scroll events don't
+      // queue multiple consecutive setState calls.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _isLoadingMore = false;
+      });
+      return;
+    }
+
+    // All locally-loaded messages are visible — check whether the server
+    // has older messages that haven't been fetched yet.
+    if (sync.hasOlderMessages(widget.sessionId) &&
+        !sync.isLoadingOlderMessages(widget.sessionId)) {
+      sync.fetchOlderMessages(widget.sessionId);
+    }
   }
 
   Machine? _getMachine() {
@@ -473,7 +505,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final startIndex =
         (totalCount - _visibleCount).clamp(0, totalCount);
     final visibleMessages = _messages.sublist(startIndex);
-    final hasMore = startIndex > 0;
+
+    // True when there are more locally-loaded messages above the window.
+    final hasLocalMore = startIndex > 0;
+
+    // True when all locally-loaded messages are visible but the server
+    // may have older messages not yet fetched.
+    final allLocalVisible = _visibleCount >= totalCount;
+    final isLoadingFromServer =
+        allLocalVisible && sync.isLoadingOlderMessages(widget.sessionId);
+    final hasServerMore =
+        allLocalVisible && sync.hasOlderMessages(widget.sessionId);
+
+    // Show a header widget above the topmost message.
+    // Priority: client-side spinner > server spinner > "beginning" label.
+    final showHeader = hasLocalMore || isLoadingFromServer ||
+        (!hasServerMore && allLocalVisible && totalCount > 0);
 
     // Build a key→listIndex lookup once (O(n)) so that
     // findChildIndexCallback is O(1) instead of O(n) per item.
@@ -497,28 +544,51 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       controller: _scrollController,
       reverse: true,
       padding: const EdgeInsets.only(top: 6, bottom: 80),
-      itemCount: visibleMessages.length + (hasMore ? 1 : 0),
+      itemCount: visibleMessages.length + (showHeader ? 1 : 0),
       findChildIndexCallback: (key) {
         if (key is! ValueKey<String>) return null;
         return keyToListIndex[key.value];
       },
       itemBuilder: (context, index) {
-        // Reversed: index 0 = last message (bottom)
-        final reversedIndex = visibleMessages.length - 1 - index;
-
-        // "Load more" at the top (last index in reversed list)
-        if (hasMore && index == visibleMessages.length) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(8),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+        // Reversed: index 0 = last message (bottom).
+        // The header (if any) sits at the very top — the last item index
+        // in the reversed list.
+        if (showHeader && index == visibleMessages.length) {
+          if (hasLocalMore) {
+            // Client-side windowing: more already-loaded messages above.
+            return const Center(
+              key: ValueKey('header-local-more'),
+              child: Padding(
+                padding: EdgeInsets.all(8),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
               ),
-            ),
-          );
+            );
+          }
+
+          if (isLoadingFromServer) {
+            // Server fetch in progress.
+            return const Center(
+              key: ValueKey('header-server-loading'),
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            );
+          }
+
+          // No more messages anywhere — beginning of conversation.
+          return _buildConversationStartLabel(context);
         }
+
+        final reversedIndex = visibleMessages.length - 1 - index;
 
         final message = visibleMessages[reversedIndex];
         final nextMessage = reversedIndex + 1 < visibleMessages.length
@@ -548,6 +618,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildConversationStartLabel(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      key: const ValueKey('header-beginning'),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Divider(color: colorScheme.outlineVariant),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              'Beginning of conversation',
+              style: TextStyle(
+                fontSize: 12,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Divider(color: colorScheme.outlineVariant),
+          ),
+        ],
+      ),
     );
   }
 

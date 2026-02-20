@@ -37,6 +37,9 @@ class Sync {
 
   // Constants
   static const int sessionReadyTimeoutMs = 10000;
+
+  /// Number of recent messages to load on first open of a session.
+  static const int initialLoad = 200;
   static const String _appendSystemPrompt = '''
 # Options
 
@@ -82,6 +85,13 @@ what you have, you must use the options mode.
   late InvalidateSync sessionsSync;
   final Map<String, InvalidateSync> messagesSync = {};
   final Map<String, int> _sessionLastSeq = {};
+
+  /// Tracks the lowest seq loaded for each session. A value of 0 means
+  /// we have loaded from the very beginning (no older messages exist).
+  final Map<String, int> _sessionFirstLoadedSeq = {};
+
+  /// Sessions currently being paginated backwards (older-message loads).
+  final Set<String> _loadingOlderMessages = {};
   late InvalidateSync settingsSync;
   late InvalidateSync profileSync;
   late InvalidateSync purchasesSync;
@@ -156,6 +166,18 @@ what you have, you must use the options mode.
   List<Map<String, dynamic>> messagesForSession(String sessionId) =>
       List.unmodifiable(_sessionMessages[sessionId] ?? const []);
 
+  /// Returns true when there are older messages available for [sessionId]
+  /// that have not yet been loaded.
+  bool hasOlderMessages(String sessionId) {
+    final firstLoaded = _sessionFirstLoadedSeq[sessionId];
+    return firstLoaded != null && firstLoaded > 1;
+  }
+
+  /// Returns true while an older-message page fetch is in progress for
+  /// [sessionId].
+  bool isLoadingOlderMessages(String sessionId) =>
+      _loadingOlderMessages.contains(sessionId);
+
   /// Stream that emits when session/machine/general data changes.
   Stream<void> get onDataChanged => _dataChangeController.stream;
 
@@ -212,6 +234,9 @@ what you have, you must use the options mode.
     _sessionLastSeq
       ..clear()
       ..addAll(MMKVStorage().getSessionLastSeq());
+    _sessionFirstLoadedSeq
+      ..clear()
+      ..addAll(MMKVStorage().getSessionFirstLoadedSeq());
 
     // Initialize sync managers
     sessionsSync = InvalidateSync(fetchSessions);
@@ -362,6 +387,11 @@ what you have, you must use the options mode.
       messagesSync.remove(sessionId)?.dispose();
       _sessionLastSeq.remove(sessionId);
       MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
+      _sessionFirstLoadedSeq.remove(sessionId);
+      MMKVStorage().saveSessionFirstLoadedSeq(
+        Map.unmodifiable(_sessionFirstLoadedSeq),
+      );
+      _loadingOlderMessages.remove(sessionId);
       _sessionMessages.remove(sessionId);
       _todoLists.remove(sessionId);
       _sessions.remove(sessionId);
@@ -599,6 +629,7 @@ what you have, you must use the options mode.
               thinking: false,
               thinkingAt: null,
               presence: 'online',
+              lastSeq: session['lastSeq'] as int?,
             );
 
             decryptedSessions.add(processedSession);
@@ -1918,7 +1949,12 @@ what you have, you must use the options mode.
     messagesSync[sessionId]?.invalidate();
   }
 
-  /// Fetch messages for a session
+  /// Fetch messages for a session.
+  ///
+  /// On first open (no entry in [_sessionLastSeq]) this uses the session's
+  /// [Session.lastSeq] hint to jump straight to the tail of the history,
+  /// fetching only the most recent [initialLoad] messages.  Subsequent calls
+  /// (incremental delta syncs) continue from [_sessionLastSeq] as before.
   Future<void> fetchMessages(String sessionId) async {
     if (kDebugMode) {
       debugPrint('Fetching messages for session: $sessionId');
@@ -1931,7 +1967,30 @@ what you have, you must use the options mode.
 
     try {
       final apiClient = ApiClient();
-      var afterSeq = _sessionLastSeq[sessionId] ?? 0;
+      final isFirstLoad = !_sessionLastSeq.containsKey(sessionId);
+      int afterSeq;
+
+      if (isFirstLoad) {
+        // Lazy tail-load: start near the end of the session history so we
+        // don't download thousands of messages that the UI will never show.
+        final session = _sessions[sessionId];
+        final serverLastSeq = session?.lastSeq;
+        if (serverLastSeq != null && serverLastSeq > initialLoad) {
+          afterSeq = serverLastSeq - initialLoad;
+          // Record where we started so the UI can offer "load older" later.
+          _sessionFirstLoadedSeq[sessionId] = afterSeq + 1;
+        } else {
+          afterSeq = 0;
+          // Session is short — we will load everything; no older messages.
+          _sessionFirstLoadedSeq[sessionId] = 0;
+        }
+        MMKVStorage().saveSessionFirstLoadedSeq(
+          Map.unmodifiable(_sessionFirstLoadedSeq),
+        );
+      } else {
+        afterSeq = _sessionLastSeq[sessionId]!;
+      }
+
       while (true) {
         final response = await apiClient.get(
           '/v3/sessions/$sessionId/messages',
@@ -1987,6 +2046,90 @@ what you have, you must use the options mode.
     } catch (error) {
       if (kDebugMode) debugPrint('Error fetching messages: $error');
       unawaited(Sentry.captureException(error));
+    }
+  }
+
+  /// Fetch the page of messages that precedes what has already been loaded
+  /// for [sessionId].  Call [hasOlderMessages] first to guard against
+  /// unnecessary requests.
+  Future<void> fetchOlderMessages(String sessionId) async {
+    if (isLoadingOlderMessages(sessionId)) return;
+    final firstLoaded = _sessionFirstLoadedSeq[sessionId] ?? 0;
+    if (firstLoaded <= 1) return; // nothing older to fetch
+
+    final sessionEncryption = encryption.getSessionEncryption(sessionId);
+    if (sessionEncryption == null) return;
+
+    _loadingOlderMessages.add(sessionId);
+    _dataChangeController.add(null);
+
+    try {
+      const pageSize = 100;
+      final startSeq =
+          (firstLoaded - 1 - pageSize).clamp(0, firstLoaded - 1);
+
+      final apiClient = ApiClient();
+      final response = await apiClient.get(
+        '/v3/sessions/$sessionId/messages',
+        queryParameters: {
+          'after_seq': startSeq,
+          'limit': pageSize,
+        },
+      );
+
+      if (!apiClient.isSuccess(response)) {
+        if (kDebugMode) {
+          debugPrint(
+            'Failed to fetch older messages: ${response.statusCode}',
+          );
+        }
+        return;
+      }
+
+      final data = response.data as Map<String, dynamic>;
+      final messages = (data['messages'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+
+      final decryptedMessages =
+          await sessionEncryption.decryptMessages(messages);
+
+      final mappedMessages = <Map<String, dynamic>>[];
+      final toolResults = <Map<String, dynamic>>[];
+      for (final decrypted in decryptedMessages) {
+        if (decrypted == null || decrypted.content == null) continue;
+        final (msgs, results) =
+            _processDecryptedMessage(decrypted, sessionId);
+        mappedMessages.addAll(msgs);
+        toolResults.addAll(results);
+      }
+
+      if (mappedMessages.isNotEmpty) {
+        _upsertSessionMessages(sessionId, mappedMessages);
+      }
+      if (toolResults.isNotEmpty) {
+        _applyToolResults(sessionId, toolResults);
+      }
+      _groupSidechainMessages(sessionId);
+      _applyPermissionRequests(sessionId);
+
+      // Move the lower boundary back to cover the page we just fetched.
+      _sessionFirstLoadedSeq[sessionId] =
+          startSeq == 0 ? 0 : startSeq + 1;
+      MMKVStorage().saveSessionFirstLoadedSeq(
+        Map.unmodifiable(_sessionFirstLoadedSeq),
+      );
+
+      _sessionMessageChangeController.add(sessionId);
+      _dataChangeController.add(null);
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('Error fetching older messages: $error');
+      }
+      unawaited(Sentry.captureException(error));
+    } finally {
+      _loadingOlderMessages.remove(sessionId);
+      _dataChangeController.add(null);
     }
   }
 
@@ -2857,6 +3000,9 @@ what you have, you must use the options mode.
     messagesSync.clear();
     _sessionLastSeq.clear();
     MMKVStorage().clearSessionLastSeq();
+    _sessionFirstLoadedSeq.clear();
+    MMKVStorage().clearSessionFirstLoadedSeq();
+    _loadingOlderMessages.clear();
 
     sessionsSync.dispose();
     settingsSync.dispose();

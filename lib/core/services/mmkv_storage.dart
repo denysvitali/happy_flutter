@@ -16,6 +16,7 @@ class _StorageKeys {
   static const String profile = 'profile';
   static const String migrationComplete = 'mmkv-migration-complete';
   static const String sessionLastSeq = 'session-last-seq';
+  static const String sessionFirstLoadedSeq = 'session-first-loaded-seq';
 }
 
 /// MMKV-based storage wrapper with migration from SharedPreferences
@@ -370,6 +371,47 @@ class MMKVStorage {
       _mmkv?.removeValue(_StorageKeys.sessionLastSeq);
     } catch (e) {
       debugPrint('MMKV: Failed to clear session last seq: $e');
+    }
+  }
+
+  /// Get all persisted session first-loaded-seq cursors (synchronous)
+  Map<String, int> getSessionFirstLoadedSeq() {
+    if (!_initialized) return {};
+    try {
+      final json =
+          _mmkv?.decodeString(_StorageKeys.sessionFirstLoadedSeq);
+      if (json != null) {
+        final decoded = jsonDecode(json) as Map<String, dynamic>;
+        return decoded.map((k, v) => MapEntry(k, v as int));
+      }
+    } catch (e) {
+      debugPrint('MMKV: Failed to get session first loaded seq: $e');
+    }
+    return {};
+  }
+
+  /// Persist all session first-loaded-seq cursors (synchronous)
+  void saveSessionFirstLoadedSeq(Map<String, int> seqs) {
+    if (!_initialized) return;
+    try {
+      _mmkv?.encodeString(
+        _StorageKeys.sessionFirstLoadedSeq,
+        jsonEncode(seqs),
+      );
+    } catch (e) {
+      debugPrint('MMKV: Failed to save session first loaded seq: $e');
+    }
+  }
+
+  /// Clear all session first-loaded-seq cursors
+  void clearSessionFirstLoadedSeq() {
+    if (!_initialized) return;
+    try {
+      _mmkv?.removeValue(_StorageKeys.sessionFirstLoadedSeq);
+    } catch (e) {
+      debugPrint(
+        'MMKV: Failed to clear session first loaded seq: $e',
+      );
     }
   }
 
