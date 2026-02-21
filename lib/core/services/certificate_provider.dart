@@ -77,8 +77,9 @@ class CertificateProvider {
 
   /// Get bundled certificates from assets
   Future<Uint8List?> _getBundledCertificates() async {
-    // This method would load certificates bundled with the app
-    // For enterprise deployments, bundle CA certs in assets/certs/
+    // TODO: Implement actual certificate pinning using bundled server
+    // certificates. Bundle CA certs in assets/certs/ for enterprise
+    // deployments.
     return null;
   }
 }

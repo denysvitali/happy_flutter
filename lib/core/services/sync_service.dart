@@ -343,7 +343,7 @@ what you have, you must use the options mode.
   /// Handle incoming updates
   void handleUpdate(dynamic data) {
     if (data is! Map<String, dynamic>) {
-      debugPrint('handleUpdate: unexpected data type: ${data.runtimeType}');
+      if (kDebugMode) debugPrint('handleUpdate: unexpected data type: ${data.runtimeType}');
       return;
     }
     try {
@@ -839,10 +839,11 @@ what you have, you must use the options mode.
             rawData['machines'] is List) {
           data = rawData['machines'] as List;
         } else {
-          debugPrint(
-            'Unexpected response format for machines: '
-            '${rawData?.runtimeType}',
-          );
+          if (kDebugMode)
+            debugPrint(
+              'Unexpected response format for machines: '
+              '${rawData?.runtimeType}',
+            );
           return;
         }
 
@@ -1880,8 +1881,8 @@ what you have, you must use the options mode.
           'exitCode': result['exitCode'] ?? -1,
         };
       }
-    } catch (_) {
-      // Fall through to return failure map.
+    } catch (error) {
+      if (kDebugMode) debugPrint('machineBash error: $error');
     }
     return {
       'success': false,
@@ -2324,9 +2325,10 @@ what you have, you must use the options mode.
 
     final sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
-      debugPrint(
-        'Session encryption not initialized for $sessionId, skipping fetch',
-      );
+      if (kDebugMode)
+        debugPrint(
+          'Session encryption not initialized for $sessionId, skipping fetch',
+        );
       return;
     }
 
