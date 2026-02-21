@@ -17,16 +17,9 @@ import 'package:flutter/material.dart';
 /// )
 /// ```
 class ShimmerView extends StatefulWidget {
-
   const ShimmerView({
     required this.child,
-    this.colors = const [
-      Color(0xFFE0E0E0),
-      Color(0xFFF0F0F0),
-      Color(0xFFF8F8F8),
-      Color(0xFFF0F0F0),
-      Color(0xFFE0E0E0),
-    ],
+    this.colors,
     this.shimmerWidthPercent = 80,
     this.duration = const Duration(milliseconds: 1500),
     this.enabled = true,
@@ -35,10 +28,22 @@ class ShimmerView extends StatefulWidget {
   /// The child widget to display with shimmer effect
   final Widget child;
 
-  /// Colors for the shimmer gradient animation
+  /// Colors for the shimmer gradient animation.
   ///
-  /// Default: ['#E0E0E0', '#F0F0F0', '#F8F8F8', '#F0F0F0', '#E0E0E0']
-  final List<Color> colors;
+  /// When null (the default), theme-aware colors are automatically derived
+  /// from the current [ColorScheme] so the shimmer looks correct in both
+  /// light and dark mode.
+  final List<Color>? colors;
+
+  /// Default shimmer colors for light mode; used as a fallback when no
+  /// explicit [colors] are provided and the theme is light.
+  static const List<Color> _defaultColors = [
+    Color(0xFFE0E0E0),
+    Color(0xFFF0F0F0),
+    Color(0xFFF8F8F8),
+    Color(0xFFF0F0F0),
+    Color(0xFFE0E0E0),
+  ];
 
   /// Width of the shimmer band as a percentage of the widget width
   ///
@@ -105,8 +110,19 @@ class _ShimmerViewState extends State<ShimmerView>
         return RepaintBoundary(
           child: ShaderMask(
             shaderCallback: (bounds) {
-              return LinearGradient(
-                colors: widget.colors,
+              final cs = Theme.of(context).colorScheme;
+              final resolvedColors = widget.colors ??
+                  (cs.brightness == Brightness.dark
+                      ? [
+                          cs.surfaceContainerLowest,
+                          cs.surfaceContainer,
+                          cs.surfaceContainerHigh,
+                          cs.surfaceContainer,
+                          cs.surfaceContainerLowest,
+                        ]
+                      : ShimmerView._defaultColors);
+            return LinearGradient(
+                colors: resolvedColors,
                 stops: const [0.0, 0.2, 0.5, 0.8, 1.0],
                 begin: Alignment.topLeft,
                 end: Alignment.topRight,

@@ -1,17 +1,20 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 
-/// Material-style tap target with ripple effect and optional haptic
-/// feedback.
+/// Platform-aware tap target with ripple (Android) or press-scale (iOS).
 ///
-/// Wraps [child] in an [InkWell] with the given [borderRadius].
-/// When [haptic] is true (the default), a light impact is triggered
-/// via [HapticFeedback.lightImpact] on each tap.
+/// On iOS: wraps the child in a [GestureDetector] with an [AnimatedScale]
+/// that shrinks to 97 % on press — matching the iOS feel.
 ///
-/// The splash and highlight animations run at [AppDuration.fast]
-/// (150 ms) for a snappy micro-interaction feel.
-class AppTappable extends StatelessWidget {
+/// On Android and other platforms: uses [InkWell] with a ripple, preserving
+/// Material feedback.
+///
+/// When [haptic] is true (the default), a light impact fires on each tap.
+class AppTappable extends StatefulWidget {
   /// Creates a tappable wrapper.
   const AppTappable({
     required this.child,
@@ -27,7 +30,7 @@ class AppTappable extends StatelessWidget {
   /// Called when the widget is tapped.
   final VoidCallback? onTap;
 
-  /// The border radius of the ripple.
+  /// The border radius of the ripple (Android) or clip (iOS).
   ///
   /// Defaults to `BorderRadius.circular(AppRadius.sm)` when null.
   final BorderRadius? borderRadius;
@@ -38,28 +41,54 @@ class AppTappable extends StatelessWidget {
   final bool haptic;
 
   @override
+  State<AppTappable> createState() => _AppTappableState();
+}
+
+class _AppTappableState extends State<AppTappable> {
+  bool _pressed = false;
+
+  void _handleTap() {
+    if (widget.haptic) HapticFeedback.lightImpact();
+    widget.onTap?.call();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final radius =
-        borderRadius ?? BorderRadius.circular(AppRadius.sm);
+        widget.borderRadius ?? BorderRadius.circular(AppRadius.sm);
+
+    final isIOS = !kIsWeb && Platform.isIOS;
+
+    if (isIOS) {
+      return GestureDetector(
+        onTap: widget.onTap == null ? null : _handleTap,
+        onTapDown: widget.onTap == null
+            ? null
+            : (_) => setState(() => _pressed = true),
+        onTapUp: widget.onTap == null
+            ? null
+            : (_) => setState(() => _pressed = false),
+        onTapCancel: widget.onTap == null
+            ? null
+            : () => setState(() => _pressed = false),
+        child: AnimatedScale(
+          scale: _pressed ? 0.97 : 1.0,
+          duration: AppDuration.fast,
+          curve: Curves.easeInOut,
+          child: widget.child,
+        ),
+      );
+    }
 
     return InkWell(
-      onTap: onTap == null
-          ? null
-          : () {
-              if (haptic) HapticFeedback.lightImpact();
-              onTap!();
-            },
+      onTap: widget.onTap == null ? null : _handleTap,
       borderRadius: radius,
-      splashColor: Theme.of(context)
-          .colorScheme
-          .primary
-          .withValues(alpha: 0.08),
-      highlightColor: Theme.of(context)
-          .colorScheme
-          .primary
-          .withValues(alpha: 0.04),
+      splashColor:
+          Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+      highlightColor:
+          Theme.of(context).colorScheme.primary.withValues(alpha: 0.04),
       splashFactory: InkRipple.splashFactory,
-      child: child,
+      child: widget.child,
     );
   }
 }

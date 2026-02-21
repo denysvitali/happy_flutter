@@ -108,3 +108,23 @@ abstract final class AppColors {
   /// Diff: context text (dark mode).
   static const Color diffContextTextDark = Color(0xFFC9D1D9);
 }
+
+// ─── Opacity ─────────────────────────────────────────────────────────────────
+
+/// Shared opacity levels for overlays, tints, and disabled states.
+abstract final class AppOpacity {
+  /// 0.08 – barely visible tint (hover state).
+  static const double faint = 0.08;
+
+  /// 0.12 – subtle overlay (selection, focus ring).
+  static const double subtle = 0.12;
+
+  /// 0.15 – soft scrim (divider, placeholder bg).
+  static const double soft = 0.15;
+
+  /// 0.30 – medium overlay (disabled surface).
+  static const double medium = 0.30;
+
+  /// 0.50 – strong scrim (modal backdrop).
+  static const double strong = 0.50;
+}

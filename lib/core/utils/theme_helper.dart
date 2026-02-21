@@ -513,11 +513,11 @@ OutlinedButtonThemeData _buildOutlinedButtonTheme({
 ListTileThemeData _buildListTileTheme({required bool dark}) {
   return ListTileThemeData(
     contentPadding: const EdgeInsets.symmetric(
-      horizontal: 16,
+      horizontal: AppSpacing.lg,
       vertical: 2,
     ),
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadius.md),
     ),
     titleTextStyle: GoogleFonts.inter(
       fontSize: 15,
@@ -607,7 +607,7 @@ DialogThemeData _buildDialogTheme({required bool dark}) {
 SnackBarThemeData _buildSnackBarTheme({required bool dark}) {
   return SnackBarThemeData(
     backgroundColor:
-        dark ? const Color(0xFF1E293B) : const Color(0xFF1E293B),
+        dark ? const Color(0xFF334155) : const Color(0xFF1E293B),
     contentTextStyle: GoogleFonts.inter(
       fontSize: 14,
       color: Colors.white,

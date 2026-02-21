@@ -11,6 +11,7 @@ export 'package:happy_flutter/core/components/app_empty_state.dart';
 export 'package:happy_flutter/core/components/app_loading_indicator.dart';
 export 'package:happy_flutter/core/components/app_section_header.dart';
 export 'package:happy_flutter/core/components/app_status_dot.dart';
+export 'package:happy_flutter/core/components/status_dot.dart';
 export 'package:happy_flutter/core/components/app_tappable.dart';
 export 'package:happy_flutter/core/components/avatar.dart';
 export 'package:happy_flutter/core/components/diff_view.dart';

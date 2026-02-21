@@ -13,8 +13,14 @@ import 'package:flutter/material.dart';
 ///
 /// Usage: `SizedBox(height: AppSpacing.md)`
 abstract final class AppSpacing {
+  /// 2 px – micro gap, hairline nudge.
+  static const double xxs = 2;
+
   /// 4 px – hairline gap, icon-to-label nudge.
   static const double xs = 4;
+
+  /// 6 px – between xs and sm.
+  static const double xsm = 6;
 
   /// 8 px – tight internal padding.
   static const double sm = 8;
@@ -77,6 +83,34 @@ abstract final class AppDuration {
 
   /// 500 ms – elaborate animations (onboarding).
   static const Duration slower = Duration(milliseconds: 500);
+}
+
+// ─── Line height ─────────────────────────────────────────────────────────────
+
+/// Text line-height multipliers.
+abstract final class AppLineHeight {
+  /// 1.0 – condensed, headlines.
+  static const double tight = 1.0;
+
+  /// 1.4 – default body text.
+  static const double normal = 1.4;
+
+  /// 1.5 – comfortable reading.
+  static const double relaxed = 1.5;
+
+  /// 1.6 – loose, accessibility-friendly.
+  static const double loose = 1.6;
+}
+
+// ─── Touch targets ───────────────────────────────────────────────────────────
+
+/// Minimum interactive touch target sizes (WCAG 2.5.5 guidance).
+abstract final class AppTouchTarget {
+  /// 44 px – minimum tap target per Apple HIG / WCAG.
+  static const double min = 44;
+
+  /// 48 px – comfortable tap target per Material guidelines.
+  static const double comfortable = 48;
 }
 
 // ─── Curves ──────────────────────────────────────────────────────────────────
