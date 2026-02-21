@@ -138,6 +138,42 @@ class Permission {
   final List<String>? allowedTools;
   final String? decision;
   final int? date;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'status': status,
+      if (reason != null) 'reason': reason,
+      if (mode != null) 'mode': mode,
+      if (allowedTools != null) 'allowedTools': allowedTools,
+      if (decision != null) 'decision': decision,
+      if (date != null) 'date': date,
+    };
+  }
+
+  Permission copyWith({
+    String? id,
+    String? status,
+    String? reason,
+    String? mode,
+    List<String>? allowedTools,
+    String? decision,
+    int? date,
+  }) {
+    return Permission(
+      id: id ?? this.id,
+      status: status ?? this.status,
+      reason: reason ?? this.reason,
+      mode: mode ?? this.mode,
+      allowedTools: allowedTools != null
+          ? List<String>.from(allowedTools)
+          : (this.allowedTools != null
+              ? List<String>.from(this.allowedTools!)
+              : null),
+      decision: decision ?? this.decision,
+      date: date ?? this.date,
+    );
+  }
 }
 
 /// Message metadata

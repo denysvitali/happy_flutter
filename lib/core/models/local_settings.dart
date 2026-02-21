@@ -47,8 +47,9 @@ class LocalSettings {
           commandPaletteEnabled ?? this.commandPaletteEnabled,
       themePreference: themePreference ?? this.themePreference,
       markdownCopyV2: markdownCopyV2 ?? this.markdownCopyV2,
-      acknowledgedCliVersions:
-          acknowledgedCliVersions ?? this.acknowledgedCliVersions,
+      acknowledgedCliVersions: acknowledgedCliVersions != null
+          ? Map<String, String>.from(acknowledgedCliVersions)
+          : Map<String, String>.from(this.acknowledgedCliVersions),
     );
   }
 

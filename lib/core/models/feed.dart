@@ -119,6 +119,18 @@ class FeedBody {
         if (uid != null) 'uid': uid,
         if (text != null) 'text': text,
       };
+
+  FeedBody copyWith({
+    String? kind,
+    String? uid,
+    String? text,
+  }) {
+    return FeedBody(
+      kind: kind ?? this.kind,
+      uid: uid ?? this.uid,
+      text: text ?? this.text,
+    );
+  }
 }
 
 /// App notification
@@ -152,8 +164,8 @@ class AppNotification {
   final String? body;
   final Map<String, dynamic>? data;
   final int createdAt;
-  bool dismissed;
-  int? readAt;
+  final bool dismissed;
+  final int? readAt;
 
   Map<String, dynamic> toJson() {
     return {

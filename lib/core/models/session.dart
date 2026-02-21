@@ -239,7 +239,7 @@ class Session {
       agentStateVersion: json['agentStateVersion'] as int,
       thinking: json['thinking'] as bool,
       thinkingAt: json['thinkingAt'] as int?,
-      presence: json['presence'],
+      presence: json['presence'] ?? 'offline',
       todos: (json['todos'] as List<dynamic>?)
           ?.map((e) => TodoItem.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -350,7 +350,7 @@ class Session {
       thinking: thinking ?? this.thinking,
       thinkingAt: thinkingAt ?? this.thinkingAt,
       presence: presence ?? this.presence,
-      todos: todos ?? this.todos,
+      todos: todos != null ? List<TodoItem>.from(todos) : this.todos,
       draft: draft ?? this.draft,
       permissionMode: permissionMode ?? this.permissionMode,
       modelMode: modelMode ?? this.modelMode,

@@ -53,6 +53,30 @@ class Artifact {
       'updatedAt': updatedAt,
     };
   }
+
+  Artifact copyWith({
+    String? id,
+    String? header,
+    int? headerVersion,
+    String? body,
+    int? bodyVersion,
+    String? dataEncryptionKey,
+    int? seq,
+    int? createdAt,
+    int? updatedAt,
+  }) {
+    return Artifact(
+      id: id ?? this.id,
+      header: header ?? this.header,
+      headerVersion: headerVersion ?? this.headerVersion,
+      body: body ?? this.body,
+      bodyVersion: bodyVersion ?? this.bodyVersion,
+      dataEncryptionKey: dataEncryptionKey ?? this.dataEncryptionKey,
+      seq: seq ?? this.seq,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 }
 
 /// Decrypted artifact header (matches React Native ArtifactHeader interface)
@@ -204,7 +228,11 @@ class DecryptedArtifact { // Whether decryption was successful
     return DecryptedArtifact(
       id: id ?? this.id,
       title: title ?? this.title,
-      sessions: sessions ?? this.sessions,
+      sessions: sessions != null
+          ? List<String>.from(sessions)
+          : (this.sessions != null
+              ? List<String>.from(this.sessions!)
+              : null),
       draft: draft ?? this.draft,
       body: body ?? this.body,
       headerVersion: headerVersion ?? this.headerVersion,

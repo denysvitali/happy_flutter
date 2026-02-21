@@ -172,13 +172,13 @@ class GitStatus {
   final int untrackedCount;
   final int stagedCount;
   final int lastUpdatedAt;
-  int stagedLinesAdded = 0;
-  int stagedLinesRemoved = 0;
-  int unstagedLinesAdded = 0;
-  int unstagedLinesRemoved = 0;
-  int linesAdded = 0;
-  int linesRemoved = 0;
-  int linesChanged = 0;
+  final int stagedLinesAdded;
+  final int stagedLinesRemoved;
+  final int unstagedLinesAdded;
+  final int unstagedLinesRemoved;
+  final int linesAdded;
+  final int linesRemoved;
+  final int linesChanged;
   final String? upstreamBranch;
   final int? aheadCount;
   final int? behindCount;
@@ -204,5 +204,45 @@ class GitStatus {
       'behindCount': behindCount,
       'stashCount': stashCount,
     };
+  }
+
+  GitStatus copyWith({
+    String? branch,
+    bool? isDirty,
+    int? modifiedCount,
+    int? untrackedCount,
+    int? stagedCount,
+    int? lastUpdatedAt,
+    int? stagedLinesAdded,
+    int? stagedLinesRemoved,
+    int? unstagedLinesAdded,
+    int? unstagedLinesRemoved,
+    int? linesAdded,
+    int? linesRemoved,
+    int? linesChanged,
+    String? upstreamBranch,
+    int? aheadCount,
+    int? behindCount,
+    int? stashCount,
+  }) {
+    return GitStatus(
+      branch: branch ?? this.branch,
+      isDirty: isDirty ?? this.isDirty,
+      modifiedCount: modifiedCount ?? this.modifiedCount,
+      untrackedCount: untrackedCount ?? this.untrackedCount,
+      stagedCount: stagedCount ?? this.stagedCount,
+      lastUpdatedAt: lastUpdatedAt ?? this.lastUpdatedAt,
+      stagedLinesAdded: stagedLinesAdded ?? this.stagedLinesAdded,
+      stagedLinesRemoved: stagedLinesRemoved ?? this.stagedLinesRemoved,
+      unstagedLinesAdded: unstagedLinesAdded ?? this.unstagedLinesAdded,
+      unstagedLinesRemoved: unstagedLinesRemoved ?? this.unstagedLinesRemoved,
+      linesAdded: linesAdded ?? this.linesAdded,
+      linesRemoved: linesRemoved ?? this.linesRemoved,
+      linesChanged: linesChanged ?? this.linesChanged,
+      upstreamBranch: upstreamBranch ?? this.upstreamBranch,
+      aheadCount: aheadCount ?? this.aheadCount,
+      behindCount: behindCount ?? this.behindCount,
+      stashCount: stashCount ?? this.stashCount,
+    );
   }
 }

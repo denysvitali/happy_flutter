@@ -73,7 +73,9 @@ class Profile {
       lastName: lastName ?? this.lastName,
       avatar: avatar ?? this.avatar,
       github: clearGithub ? null : (github ?? this.github),
-      connectedServices: connectedServices ?? this.connectedServices,
+      connectedServices: connectedServices != null
+          ? List<String>.from(connectedServices)
+          : List<String>.from(this.connectedServices),
     );
   }
 

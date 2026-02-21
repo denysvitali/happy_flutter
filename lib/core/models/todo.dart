@@ -138,7 +138,9 @@ class TodoItem {
       priority: priority ?? this.priority,
       order: order ?? this.order,
       parentId: clearParentId ? null : (parentId ?? this.parentId),
-      dependencies: dependencies ?? this.dependencies,
+      dependencies: dependencies != null
+          ? List<String>.from(dependencies)
+          : List<String>.from(this.dependencies),
       dueAt: dueAt ?? this.dueAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

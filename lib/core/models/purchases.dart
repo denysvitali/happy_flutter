@@ -28,8 +28,12 @@ class Purchases {
     Map<String, bool>? entitlements,
   }) {
     return Purchases(
-      activeSubscriptions: activeSubscriptions ?? this.activeSubscriptions,
-      entitlements: entitlements ?? this.entitlements,
+      activeSubscriptions: activeSubscriptions != null
+          ? List<String>.from(activeSubscriptions)
+          : List<String>.from(this.activeSubscriptions),
+      entitlements: entitlements != null
+          ? Map<String, bool>.from(entitlements)
+          : Map<String, bool>.from(this.entitlements),
     );
   }
 

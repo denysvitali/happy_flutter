@@ -295,15 +295,15 @@ class AIBackendProfile {
   final TogetherAIConfig? togetherAIConfig;
   final TmuxConfig? tmuxConfig;
   final String? startupBashScript;
-  List<EnvironmentVariable> environmentVariables = [];
+  final List<EnvironmentVariable> environmentVariables;
   final String? defaultSessionType;
   final String? defaultPermissionMode;
   final String? defaultModelMode;
-  ProfileCompatibility compatibility = ProfileCompatibility();
-  bool isBuiltIn = false;
-  int createdAt = 0;
-  int updatedAt = 0;
-  String version = '1.0.0';
+  final ProfileCompatibility compatibility;
+  final bool isBuiltIn;
+  final int createdAt;
+  final int updatedAt;
+  final String version;
 
   Map<String, dynamic> toJson() {
     return {
@@ -359,7 +359,9 @@ class AIBackendProfile {
       togetherAIConfig: togetherAIConfig ?? this.togetherAIConfig,
       tmuxConfig: tmuxConfig ?? this.tmuxConfig,
       startupBashScript: startupBashScript ?? this.startupBashScript,
-      environmentVariables: environmentVariables ?? this.environmentVariables,
+      environmentVariables: environmentVariables != null
+          ? List<EnvironmentVariable>.from(environmentVariables)
+          : List<EnvironmentVariable>.from(this.environmentVariables),
       defaultSessionType: defaultSessionType ?? this.defaultSessionType,
       defaultPermissionMode:
           defaultPermissionMode ?? this.defaultPermissionMode,
