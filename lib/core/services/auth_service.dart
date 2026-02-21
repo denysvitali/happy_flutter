@@ -40,6 +40,7 @@ class AuthService {
   /// Start QR authentication
   /// Returns the public key to display in QR code
   Future<Uint8List> startQRAuth() async {
+    _pendingQRSecretKey?.dispose();
     final keypair = await CryptoBox.generateKeypair();
     _pendingQRSecretKey = keypair.secretKey;
 
@@ -193,6 +194,7 @@ class AuthService {
                   AuthCredentials(token: token, secret: base64Encode(secret));
               await TokenStorage().setCredentials(credentials);
               _apiClient.updateToken(token);
+              _pendingQRSecretKey = null;
 
               return credentials;
             }
@@ -297,6 +299,8 @@ class AuthService {
 
   /// Sign out
   Future<void> signOut() async {
+    _cachedKeypairSecret?.dispose();
+    _cachedKeypairSecret = null;
     _apiClient.clearToken();
     await TokenStorage().removeCredentials();
   }
@@ -435,7 +439,7 @@ Server URL: $serverUrl
 Endpoint: /v1/auth/account/request
 Public Key: ${encodedPublicKey.substring(0, 30)}...
 Status Code: ${e.response?.statusCode}
-Response: ${e.response?.data}
+Response: [omitted]
 Timestamp: ${DateTime.now().toIso8601String()}
 ========================================
 ''';

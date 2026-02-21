@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
+
 import 'base64.dart';
 import 'encryption_cache.dart';
 import 'encryptor.dart';
@@ -131,6 +133,7 @@ class SessionEncryption {
       final decrypted = await _decryptor.decrypt([encryptedData]);
       return decrypted[0];
     } catch (e) {
+      if (kDebugMode) debugPrint('SessionEncryption.decryptRaw failed: $e');
       return null;
     }
   }

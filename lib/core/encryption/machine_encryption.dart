@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
+
 import 'base64.dart';
 import 'encryption_cache.dart';
 import 'encryptor.dart';
@@ -48,6 +50,9 @@ class MachineEncryption {
       _cache.setCachedMachineMetadata(_machineId, version, data);
       return data;
     } catch (e) {
+      if (kDebugMode) {
+        debugPrint('MachineEncryption.decryptMetadata failed: $e');
+      }
       return null;
     }
   }
@@ -83,6 +88,9 @@ class MachineEncryption {
       _cache.setCachedDaemonState(_machineId, version, result);
       return result;
     } catch (e) {
+      if (kDebugMode) {
+        debugPrint('MachineEncryption.decryptDaemonState failed: $e');
+      }
       // Cache null to avoid repeated decryption attempts
       _cache.setCachedDaemonState(_machineId, version, null);
       return null;
@@ -102,6 +110,7 @@ class MachineEncryption {
       final decrypted = await _decryptor.decrypt([encryptedData]);
       return decrypted[0];
     } catch (e) {
+      if (kDebugMode) debugPrint('MachineEncryption.decryptRaw failed: $e');
       return null;
     }
   }

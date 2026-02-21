@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:sodium/sodium.dart';
 
 import 'sodium_loader.dart';
@@ -87,6 +88,7 @@ class CryptoSecretBox {
       final jsonString = utf8.decode(decrypted);
       return jsonDecode(jsonString);
     } catch (e) {
+      if (kDebugMode) debugPrint('CryptoSecretBox.decrypt failed: $e');
       return null;
     }
   }

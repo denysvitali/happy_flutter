@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:sodium/sodium.dart';
 
 import 'aes_gcm.dart';
@@ -86,6 +87,7 @@ class BoxEncryption implements Encryptor {
         final jsonString = TextUtils.decodeUtf8(decrypted);
         results.add(jsonDecode(jsonString));
       } catch (e) {
+        if (kDebugMode) debugPrint('BoxEncryption.decrypt failed: $e');
         results.add(null);
       }
     }
@@ -133,6 +135,7 @@ class AES256Encryption implements Encryptor {
         );
         results.add(decrypted);
       } catch (e) {
+        if (kDebugMode) debugPrint('AES256Encryption.decrypt failed: $e');
         results.add(null);
       }
     }
