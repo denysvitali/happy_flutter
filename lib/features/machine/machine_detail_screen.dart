@@ -8,6 +8,7 @@ import '../../core/components/app_status_dot.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Detail screen for a single machine.
@@ -112,7 +113,7 @@ class _MachineDetailScreenState
         machine.id;
     final isOnline = _isMachineOnline(machine.activeAt);
     final statusColor = isOnline
-        ? const Color(0xFF34C759)
+        ? AppColors.success
         : cs.onSurfaceVariant;
 
     // Sessions for this machine, sorted by most recently updated
@@ -230,8 +231,8 @@ class _MachineDetailScreenState
                   label: 'Status',
                   value: isOnline ? 'likely alive' : 'stopped',
                   valueColor: isOnline
-                      ? const Color(0xFF34C759)
-                      : const Color(0xFFFF9500),
+                      ? AppColors.success
+                      : AppColors.warning,
                   isLast: metadata?.daemonLastKnownStatus == null &&
                       metadata?.daemonLastKnownPid == null,
                 ),

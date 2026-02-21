@@ -1490,9 +1490,13 @@ class SessionCard extends StatelessWidget {
     if (isSingle) {
       borderRadius = BorderRadius.circular(AppRadius.md);
     } else if (isFirst) {
-      borderRadius = const BorderRadius.vertical(top: Radius.circular(AppRadius.md));
+      borderRadius = const BorderRadius.vertical(
+        top: Radius.circular(AppRadius.md),
+      );
     } else if (isLast) {
-      borderRadius = const BorderRadius.vertical(bottom: Radius.circular(AppRadius.md));
+      borderRadius = const BorderRadius.vertical(
+        bottom: Radius.circular(AppRadius.md),
+      );
     } else {
       borderRadius = BorderRadius.zero;
     }

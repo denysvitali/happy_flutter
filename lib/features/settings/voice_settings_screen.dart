@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/voice_languages.dart';
 
@@ -49,7 +50,7 @@ class VoiceSettingsScreen extends ConsumerWidget {
             child: ListTile(
               leading: const Icon(
                 Icons.language,
-                color: Color(0xFF007AFF),
+                color: AppColors.iosBlue,
               ),
               title: const Text('Voice Language'),
               subtitle: Text(selectedLanguage?.displayName ?? 'Auto-detect'),
@@ -148,7 +149,10 @@ class _VoiceLanguageSelectionScreenState
           ),
           // Language count footer
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm,
+            ),
             child: Text(
               '${filteredLanguages.length} languages available',
               style: TextStyle(
@@ -173,7 +177,7 @@ class _VoiceLanguageSelectionScreenState
                   child: ListTile(
                     leading: const Icon(
                       Icons.language,
-                      color: Color(0xFF007AFF),
+                      color: AppColors.iosBlue,
                     ),
                     title: Text(language.displayName),
                     subtitle: Text(language.subtitle),

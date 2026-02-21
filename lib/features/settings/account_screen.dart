@@ -8,6 +8,7 @@ import '../../core/models/auth.dart';
 import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/backup_key_utils.dart';
 import '../auth/auth_screen.dart' show QRCodeDisplay;
@@ -278,13 +279,13 @@ class ServiceTile extends StatelessWidget {
   Color _getServiceColor(ColorScheme cs) {
     switch (service.service) {
       case ConnectedService.claude:
-        return const Color(0xFFFF9500);
+        return AppColors.warning;
       case ConnectedService.github:
         return cs.onSurface;
       case ConnectedService.gemini:
         return cs.primary;
       case ConnectedService.openai:
-        return const Color(0xFF34C759);
+        return AppColors.success;
     }
   }
 
@@ -1063,7 +1064,10 @@ class DeviceTile extends StatelessWidget {
             Expanded(child: Text(device.name)),
             if (device.isCurrentDevice)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 2,
+                ),
                 decoration: BoxDecoration(
                   color: cs.primaryContainer,
                   borderRadius: BorderRadius.circular(AppRadius.xs),

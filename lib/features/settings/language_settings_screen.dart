@@ -122,7 +122,9 @@ class _LanguageSettingsScreenState
                   borderRadius: BorderRadius.circular(AppRadius.md),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                ),
               ),
               autofocus: false,
             ),

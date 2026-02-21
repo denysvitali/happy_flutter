@@ -11,6 +11,7 @@ import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'chat_input.dart';
 import 'message_widget.dart';
@@ -297,10 +298,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (session == null) return colorScheme.outline;
 
     if (session.agentState?.requests?.isNotEmpty ?? false) {
-      return const Color(0xFFF59E0B);
+      return AppColors.info;
     }
     if (session.thinking) return colorScheme.primary;
-    if (session.presence == 'online') return const Color(0xFF34C759);
+    if (session.presence == 'online') return AppColors.success;
     return colorScheme.outline;
   }
 
@@ -970,10 +971,10 @@ class _PermissionRequiredBanner extends StatelessWidget {
         height: 36,
         width: double.infinity,
         decoration: BoxDecoration(
-          color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
+          color: AppColors.info.withValues(alpha: 0.08),
           border: Border(
             top: BorderSide(
-              color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+              color: AppColors.info.withValues(alpha: 0.2),
               width: 0.5,
             ),
           ),

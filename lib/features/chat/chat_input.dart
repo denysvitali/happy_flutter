@@ -529,7 +529,10 @@ void _showModelPickerSheet(
     ),
     builder: (ctx) => SafeArea(
       child: Padding(
-        padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.xs),
+        padding: const EdgeInsets.only(
+          top: AppSpacing.sm,
+          bottom: AppSpacing.xs,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

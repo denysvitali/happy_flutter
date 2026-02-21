@@ -64,7 +64,12 @@ class _ReleaseCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, AppSpacing.md, 14, AppSpacing.md),
+        padding: const EdgeInsets.fromLTRB(
+          14,
+          AppSpacing.md,
+          14,
+          AppSpacing.md,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

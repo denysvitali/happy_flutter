@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/websocket_client.dart' show ConnectionStatus;
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../i18n/app_localizations.dart';
 import 'status_dot.dart';
@@ -53,19 +54,19 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
     switch (status) {
       case ConnectionStatus.connected:
         return _StatusInfo(
-          color: const Color(0xFF34C759),
+          color: AppColors.success,
           backgroundColor: surfaceLow,
           isPulsing: false,
           text: l10n.voiceAssistantActive,
-          textColor: const Color(0xFF34C759),
+          textColor: AppColors.success,
         );
       case ConnectionStatus.connecting:
         return _StatusInfo(
-          color: const Color(0xFFFF9500),
+          color: AppColors.warning,
           backgroundColor: surfaceLow,
           isPulsing: true,
           text: l10n.voiceAssistantConnecting,
-          textColor: const Color(0xFFFF9500),
+          textColor: AppColors.warning,
         );
       case ConnectionStatus.error:
         return _StatusInfo(

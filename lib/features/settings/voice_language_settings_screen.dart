@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_colors.dart';
 
 /// A voice language option displayed in the list.
 class _VoiceLanguageOption {
@@ -210,7 +211,7 @@ class _VoiceLanguageSettingsScreenState
                 return ListTile(
                   leading: const Icon(
                     Icons.language,
-                    color: Color(0xFF007AFF),
+                    color: AppColors.iosBlue,
                   ),
                   title: Text(lang.name),
                   subtitle: lang.nativeName.isNotEmpty

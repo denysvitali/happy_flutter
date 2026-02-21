@@ -15,6 +15,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/server_config.dart';
 import '../../core/services/storage_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/backup_key_utils.dart';
 
@@ -589,7 +590,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         _StatusBanner(
           icon: Icons.check_circle,
           message: _linkSuccessMessage!,
-          color: const Color(0xFF34C759),
+          color: AppColors.success,
           isLoading: false,
           onDismiss: () => setState(() => _linkSuccessMessage = null),
         ),

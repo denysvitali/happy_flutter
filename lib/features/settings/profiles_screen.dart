@@ -95,7 +95,10 @@ class ProfilesScreen extends ConsumerWidget {
           if (profiles.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
             Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.lg, bottom: AppSpacing.sm),
+              padding: const EdgeInsets.only(
+                left: AppSpacing.lg,
+                bottom: AppSpacing.sm,
+              ),
               child: Text(
                 'Custom Profiles',
                 style: TextStyle(

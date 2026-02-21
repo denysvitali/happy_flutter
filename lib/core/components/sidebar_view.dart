@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/websocket_client.dart' show ConnectionStatus;
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../i18n/app_localizations.dart';
 import 'status_dot.dart';
@@ -116,13 +117,13 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
     switch (status) {
       case ConnectionStatus.connected:
         return _ConnectionInfo(
-          color: const Color(0xFF34C759),
+          color: AppColors.success,
           isPulsing: false,
           text: l10n.sidebarStatusConnected,
         );
       case ConnectionStatus.connecting:
         return _ConnectionInfo(
-          color: const Color(0xFFFF9500),
+          color: AppColors.warning,
           isPulsing: true,
           text: l10n.sidebarStatusConnecting,
         );
@@ -471,7 +472,7 @@ class _SessionListItem extends StatelessWidget {
                 height: 10,
                 decoration: BoxDecoration(
                   color: session.active
-                      ? const Color(0xFF34C759)
+                      ? AppColors.success
                       : cs.onSurfaceVariant,
                   shape: BoxShape.circle,
                 ),

@@ -1,4 +1,7 @@
+import 'package:flutter/painting.dart';
+
 import '../models/session.dart';
+import '../theme/app_colors.dart';
 import 'session_utils.dart';
 import 'vibing_messages.dart';
 
@@ -64,8 +67,8 @@ SessionStatus getSessionStatus(Session session) {
       isConnected: false,
       statusText: 'Last seen ${formatLastSeen(session.activeAt)}',
       shouldShowStatus: true,
-      statusColor: 0xFF999999,
-      statusDotColor: 0xFF999999,
+      statusColor: const Color(0xFF999999).toARGB32(),
+      statusDotColor: const Color(0xFF999999).toARGB32(),
     );
   }
 
@@ -76,8 +79,8 @@ SessionStatus getSessionStatus(Session session) {
       isConnected: true,
       statusText: 'Permission required',
       shouldShowStatus: true,
-      statusColor: 0xFFFF9500,
-      statusDotColor: 0xFFFF9500,
+      statusColor: AppColors.warning.toARGB32(),
+      statusDotColor: AppColors.warning.toARGB32(),
       isPulsing: true,
     );
   }
@@ -89,8 +92,8 @@ SessionStatus getSessionStatus(Session session) {
       isConnected: true,
       statusText: '${vibingMessage.toLowerCase()}...',
       shouldShowStatus: true,
-      statusColor: 0xFF007AFF,
-      statusDotColor: 0xFF007AFF,
+      statusColor: AppColors.iosBlue.toARGB32(),
+      statusDotColor: AppColors.iosBlue.toARGB32(),
       isPulsing: true,
     );
   }
@@ -100,7 +103,7 @@ SessionStatus getSessionStatus(Session session) {
     isConnected: true,
     statusText: 'Online',
     shouldShowStatus: false,
-    statusColor: 0xFF34C759,
-    statusDotColor: 0xFF34C759,
+    statusColor: AppColors.success.toARGB32(),
+    statusDotColor: AppColors.success.toARGB32(),
   );
 }
