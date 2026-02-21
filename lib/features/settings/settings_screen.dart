@@ -278,7 +278,7 @@ class SettingsScreen extends ConsumerWidget {
         _SettingsNavRow(
           icon: Icons.record_voice_over,
           title: 'Voice Settings',
-          subtitle: 'Configure ElevenLabs voice',
+          subtitle: 'Configure voice assistant',
           onTap: () => context.push('/settings/voice'),
         ),
       ],

@@ -7,7 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/voice_languages.dart';
 
-/// Voice settings screen - ElevenLabs voice language selection
+/// Voice settings screen - TTS and voice language selection
 class VoiceSettingsScreen extends ConsumerWidget {
   const VoiceSettingsScreen({super.key});
 
@@ -27,13 +27,29 @@ class VoiceSettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
+          // TTS toggle
+          Card(
+            child: SwitchListTile(
+              secondary: const Icon(Icons.volume_up_outlined),
+              title: const Text('Text-to-Speech'),
+              subtitle: const Text(
+                'Read assistant messages aloud',
+              ),
+              value: settings.ttsEnabled,
+              onChanged: (value) => ref
+                  .read(settingsNotifierProvider.notifier)
+                  .updateSetting('ttsEnabled', value),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.lg),
             child: Text(
-              'Select the language for voice assistant output. '
-              'Language settings are provided by ElevenLabs.',
+              'Select the language for voice output.',
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurfaceVariant,
               ),
             ),
           ),
