@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/websocket_client.dart' show ConnectionStatus;
 import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/built_in_profiles.dart';
 import '../../core/models/machine.dart';
+import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
@@ -25,12 +27,14 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   bool _isCreating = false;
   String _selectedAgent = 'claude';
   String _sessionType = 'simple';
+  String? _selectedProfileId;
 
   @override
   void initState() {
     super.initState();
     final settings = ref.read(settingsNotifierProvider);
     _selectedAgent = settings.lastUsedAgent ?? 'claude';
+    _selectedProfileId = settings.lastUsedProfile;
   }
 
   @override
@@ -45,6 +49,15 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
       !_isCreating &&
       connectionStatus == ConnectionStatus.connected;
 
+  /// Resolve the currently selected profile display name.
+  String _profileDisplayName() {
+    if (_selectedProfileId == null) return 'None';
+    final settings = ref.read(settingsNotifierProvider);
+    final profile =
+        resolveProfile(_selectedProfileId!, settings.profiles);
+    return profile?.name ?? _selectedProfileId!;
+  }
+
   Future<void> _createSession() async {
     final machine = _selectedMachine;
     final path = _pathController.text.trim();
@@ -53,7 +66,10 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     setState(() => _isCreating = true);
 
     try {
-      await sync.applySettings({'lastUsedAgent': _selectedAgent});
+      await sync.applySettings({
+        'lastUsedAgent': _selectedAgent,
+        'lastUsedProfile': _selectedProfileId,
+      });
       final String sessionPath;
       if (_sessionType == 'worktree') {
         sessionPath = await sync.createWorktree(
@@ -107,6 +123,61 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     }
   }
 
+  Future<void> _pickProfile() async {
+    final result =
+        await context.pushNamed<String?>('pick-profile');
+    // result is the profile ID or null for "None"
+    if (!mounted) return;
+    setState(() {
+      _selectedProfileId = result;
+    });
+    // Auto-adjust agent based on profile compatibility
+    if (result != null) {
+      final settings = ref.read(settingsNotifierProvider);
+      final profile =
+          resolveProfile(result, settings.profiles);
+      if (profile != null) {
+        final compat = profile.compatibility;
+        // If current agent is incompatible, switch to first
+        // compatible one.
+        if (!_isAgentCompatible(_selectedAgent, compat)) {
+          if (compat.claude) {
+            setState(() => _selectedAgent = 'claude');
+          } else if (compat.codex) {
+            setState(() => _selectedAgent = 'codex');
+          } else if (compat.gemini) {
+            setState(() => _selectedAgent = 'gemini');
+          }
+        }
+      }
+    }
+  }
+
+  bool _isAgentCompatible(
+    String agent,
+    ProfileCompatibility compat,
+  ) {
+    switch (agent) {
+      case 'claude':
+        return compat.claude;
+      case 'codex':
+        return compat.codex;
+      case 'gemini':
+        return compat.gemini;
+      default:
+        return true;
+    }
+  }
+
+  /// Get the compatibility flags for the current profile.
+  ProfileCompatibility? _currentProfileCompatibility() {
+    if (_selectedProfileId == null) return null;
+    final settings = ref.read(settingsNotifierProvider);
+    final profile =
+        resolveProfile(_selectedProfileId!, settings.profiles);
+    return profile?.compatibility;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -117,6 +188,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
         .toList();
     final connectionStatus = ref.watch(connectionNotifierProvider);
     final theme = Theme.of(context);
+    final compat = _currentProfileCompatibility();
 
     return Scaffold(
       appBar: AppBar(
@@ -289,6 +361,51 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           ),
           const SizedBox(height: AppSpacing.xl),
 
+          // Profile selector
+          // TODO(l10n): Add 'Profile' to localizations
+          _FieldLabel('Profile'),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            padding: EdgeInsets.zero,
+            onTap: _pickProfile,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.tune,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Text(
+                      _profileDisplayName(),
+                      style:
+                          theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight:
+                            _selectedProfileId != null
+                                ? FontWeight.w600
+                                : null,
+                        color: _selectedProfileId == null
+                            ? theme
+                                .colorScheme.onSurfaceVariant
+                            : null,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+
           // Agent selector
           // TODO(l10n): Add 'Agent' to localizations
           _FieldLabel('Agent'),
@@ -298,14 +415,17 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
               ButtonSegment(
                 value: 'claude',
                 label: Text(l10n.sessionsClaude),
+                enabled: compat == null || compat.claude,
               ),
               ButtonSegment(
                 value: 'codex',
                 label: Text(l10n.sessionsCodex),
+                enabled: compat == null || compat.codex,
               ),
               ButtonSegment(
                 value: 'gemini',
                 label: Text(l10n.sessionsGemini),
+                enabled: compat == null || compat.gemini,
               ),
             ],
             selected: {_selectedAgent},

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/built_in_profiles.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
 
-/// Profiles screen - AI backend profiles (Claude, Gemini, OpenAI)
+/// Profiles screen - AI backend profiles management in Settings.
 class ProfilesScreen extends ConsumerWidget {
   const ProfilesScreen({super.key});
 
@@ -13,30 +14,8 @@ class ProfilesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final settings = ref.watch(settingsNotifierProvider);
-    final profiles = settings.profiles;
+    final customProfiles = settings.profiles;
     final selectedProfileId = settings.lastUsedProfile;
-
-    // Built-in profiles
-    final builtInProfiles = [
-      AIBackendProfile(
-        id: 'anthropic',
-        name: 'Claude (Anthropic)',
-        description: 'Default Anthropic API configuration',
-        isBuiltIn: true,
-      ),
-      AIBackendProfile(
-        id: 'openai',
-        name: 'OpenAI',
-        description: 'OpenAI API configuration',
-        isBuiltIn: true,
-      ),
-      AIBackendProfile(
-        id: 'google',
-        name: 'Gemini (Google)',
-        description: 'Google Gemini API configuration',
-        isBuiltIn: true,
-      ),
-    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -44,7 +23,8 @@ class ProfilesScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => _showAddProfileDialog(context, ref),
+            onPressed: () =>
+                _showAddProfileDialog(context, ref),
           ),
         ],
       ),
@@ -63,9 +43,11 @@ class ProfilesScreen extends ConsumerWidget {
             },
           ),
           const SizedBox(height: AppSpacing.sm),
+
           // Built-in profiles
           ...builtInProfiles.map((profile) {
-            final isSelected = selectedProfileId == profile.id;
+            final isSelected =
+                selectedProfileId == profile.id;
             return KeyedSubtree(
               key: ValueKey(profile.id),
               child: Column(
@@ -82,19 +64,15 @@ class ProfilesScreen extends ConsumerWidget {
                             profile.id,
                           );
                     },
-                    onEdit: () => _showEditProfileDialog(
-                      context,
-                      ref,
-                      profile,
-                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                 ],
               ),
             );
           }),
+
           // Custom profiles
-          if (profiles.isNotEmpty) ...[
+          if (customProfiles.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
             Padding(
               padding: const EdgeInsets.only(
@@ -106,13 +84,16 @@ class ProfilesScreen extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurfaceVariant,
                   letterSpacing: 0.5,
                 ),
               ),
             ),
-            ...profiles.map((profile) {
-              final isSelected = selectedProfileId == profile.id;
+            ...customProfiles.map((profile) {
+              final isSelected =
+                  selectedProfileId == profile.id;
               return KeyedSubtree(
                 key: ValueKey(profile.id),
                 child: Column(
@@ -123,7 +104,8 @@ class ProfilesScreen extends ConsumerWidget {
                       isSelected: isSelected,
                       onTap: () {
                         ref
-                            .read(settingsNotifierProvider.notifier)
+                            .read(
+                                settingsNotifierProvider.notifier)
                             .updateSetting(
                               'lastUsedProfile',
                               profile.id,
@@ -134,12 +116,11 @@ class ProfilesScreen extends ConsumerWidget {
                         ref,
                         profile,
                       ),
-                      onDelete: () =>
-                          _confirmDeleteProfile(
-                            context,
-                            ref,
-                            profile,
-                          ),
+                      onDelete: () => _confirmDeleteProfile(
+                        context,
+                        ref,
+                        profile,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
                   ],
@@ -168,28 +149,32 @@ class ProfilesScreen extends ConsumerWidget {
           decoration: BoxDecoration(
             color: profile == null
                 ? Theme.of(context).colorScheme.onSurfaceVariant
-                : Theme.of(context).colorScheme.primary,
+                : profile.isBuiltIn
+                    ? _colorForProfile(profile.id)
+                    : Theme.of(context).colorScheme.primary,
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: Icon(
             profile == null
                 ? Icons.remove
-                : profile.id == 'anthropic'
-                    ? Icons.auto_awesome
-                    : profile.id == 'openai'
-                        ? Icons.smart_toy
-                        : Icons.computer,
+                : profile.isBuiltIn
+                    ? _iconForProfile(profile.id)
+                    : Icons.person_outline,
             color: Theme.of(context).colorScheme.onPrimary,
           ),
         ),
         title: Text(profile?.name ?? 'None'),
-        subtitle: Text(profile?.description ?? 'Use default configuration'),
+        subtitle: Text(
+          profile?.description ?? 'Use default configuration',
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isSelected)
-              Icon(Icons.check,
-                  color: Theme.of(context).colorScheme.primary),
+              Icon(
+                Icons.check,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             if (onEdit != null)
               IconButton(
                 icon: const Icon(Icons.edit),
@@ -210,7 +195,8 @@ class ProfilesScreen extends ConsumerWidget {
     );
   }
 
-  void _showAddProfileDialog(BuildContext context, WidgetRef ref) {
+  void _showAddProfileDialog(
+      BuildContext context, WidgetRef ref) {
     final nameController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
@@ -222,9 +208,11 @@ class ProfilesScreen extends ConsumerWidget {
           key: formKey,
           child: TextFormField(
             controller: nameController,
-            decoration: const InputDecoration(labelText: 'Profile Name'),
-            validator: (value) =>
-                value == null || value.isEmpty ? 'Name is required' : null,
+            decoration:
+                const InputDecoration(labelText: 'Profile Name'),
+            validator: (value) => value == null || value.isEmpty
+                ? 'Name is required'
+                : null,
           ),
         ),
         actions: [
@@ -235,19 +223,25 @@ class ProfilesScreen extends ConsumerWidget {
           ElevatedButton(
             onPressed: () {
               if (formKey.currentState?.validate() ?? false) {
-                final settings = ref.read(settingsNotifierProvider);
+                final settings =
+                    ref.read(settingsNotifierProvider);
                 final newProfile = AIBackendProfile(
-                  id: 'custom_${DateTime.now().millisecondsSinceEpoch}',
+                  id: 'custom_'
+                      '${DateTime.now().millisecondsSinceEpoch}',
                   name: nameController.text,
                   description: 'Custom profile',
                   isBuiltIn: false,
-                  createdAt: DateTime.now().millisecondsSinceEpoch,
-                  updatedAt: DateTime.now().millisecondsSinceEpoch,
+                  createdAt:
+                      DateTime.now().millisecondsSinceEpoch,
+                  updatedAt:
+                      DateTime.now().millisecondsSinceEpoch,
                 );
-                ref.read(settingsNotifierProvider.notifier).updateSetting(
-                  'profiles',
-                  [...settings.profiles, newProfile],
-                );
+                ref
+                    .read(settingsNotifierProvider.notifier)
+                    .updateSetting(
+                      'profiles',
+                      [...settings.profiles, newProfile],
+                    );
                 Navigator.pop(context);
               }
             },
@@ -259,8 +253,12 @@ class ProfilesScreen extends ConsumerWidget {
   }
 
   void _showEditProfileDialog(
-      BuildContext context, WidgetRef ref, AIBackendProfile profile) {
-    final nameController = TextEditingController(text: profile.name);
+    BuildContext context,
+    WidgetRef ref,
+    AIBackendProfile profile,
+  ) {
+    final nameController =
+        TextEditingController(text: profile.name);
     final formKey = GlobalKey<FormState>();
 
     showDialog(
@@ -271,9 +269,11 @@ class ProfilesScreen extends ConsumerWidget {
           key: formKey,
           child: TextFormField(
             controller: nameController,
-            decoration: const InputDecoration(labelText: 'Profile Name'),
-            validator: (value) =>
-                value == null || value.isEmpty ? 'Name is required' : null,
+            decoration:
+                const InputDecoration(labelText: 'Profile Name'),
+            validator: (value) => value == null || value.isEmpty
+                ? 'Name is required'
+                : null,
           ),
         ),
         actions: [
@@ -284,12 +284,15 @@ class ProfilesScreen extends ConsumerWidget {
           ElevatedButton(
             onPressed: () {
               if (formKey.currentState?.validate() ?? false) {
-                final settings = ref.read(settingsNotifierProvider);
-                final updatedProfiles = settings.profiles.map((p) {
+                final settings =
+                    ref.read(settingsNotifierProvider);
+                final updatedProfiles =
+                    settings.profiles.map((p) {
                   if (p.id == profile.id) {
                     return p.copyWith(
                       name: nameController.text,
-                      updatedAt: DateTime.now().millisecondsSinceEpoch,
+                      updatedAt:
+                          DateTime.now().millisecondsSinceEpoch,
                     );
                   }
                   return p;
@@ -308,12 +311,17 @@ class ProfilesScreen extends ConsumerWidget {
   }
 
   void _confirmDeleteProfile(
-      BuildContext context, WidgetRef ref, AIBackendProfile profile) {
+    BuildContext context,
+    WidgetRef ref,
+    AIBackendProfile profile,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Profile'),
-        content: Text('Are you sure you want to delete "${profile.name}"?'),
+        content: Text(
+          'Are you sure you want to delete "${profile.name}"?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -325,9 +333,11 @@ class ProfilesScreen extends ConsumerWidget {
                   Theme.of(context).colorScheme.error,
             ),
             onPressed: () {
-              final settings = ref.read(settingsNotifierProvider);
-              final updatedProfiles =
-                  settings.profiles.where((p) => p.id != profile.id).toList();
+              final settings =
+                  ref.read(settingsNotifierProvider);
+              final updatedProfiles = settings.profiles
+                  .where((p) => p.id != profile.id)
+                  .toList();
               ref
                   .read(settingsNotifierProvider.notifier)
                   .updateSetting('profiles', updatedProfiles);
@@ -338,5 +348,39 @@ class ProfilesScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+IconData _iconForProfile(String id) {
+  switch (id) {
+    case 'anthropic':
+      return Icons.auto_awesome;
+    case 'deepseek':
+      return Icons.psychology;
+    case 'zai':
+      return Icons.bolt;
+    case 'openai':
+      return Icons.smart_toy;
+    case 'azure-openai':
+      return Icons.cloud;
+    default:
+      return Icons.computer;
+  }
+}
+
+Color _colorForProfile(String id) {
+  switch (id) {
+    case 'anthropic':
+      return const Color(0xFFD97757);
+    case 'deepseek':
+      return const Color(0xFF4A6CF7);
+    case 'zai':
+      return const Color(0xFF6366F1);
+    case 'openai':
+      return const Color(0xFF10A37F);
+    case 'azure-openai':
+      return const Color(0xFF0078D4);
+    default:
+      return const Color(0xFF6B7280);
   }
 }

@@ -1,65 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/built_in_profiles.dart';
+import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
 
-/// A selectable AI profile entry.
-class _AiProfile {
-
-  const _AiProfile({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.icon,
-    required this.color,
-  });
-  final String id;
-  final String name;
-  final String description;
-  final IconData icon;
-  final Color color;
-}
-
-/// Screen for selecting an AI profile (Claude, Gemini, OpenAI).
+/// Screen for selecting an AI backend profile.
 ///
-/// Pops with a string identifier of the selected profile.
-class PickProfileScreen extends StatelessWidget {
+/// Shows built-in profiles (Anthropic, DeepSeek, Z.AI, OpenAI, Azure)
+/// plus any user-defined custom profiles from settings.
+///
+/// Pops with the selected profile ID string, or `null` for "None".
+class PickProfileScreen extends ConsumerWidget {
   const PickProfileScreen({super.key});
 
-  static const _profiles = [
-    // TODO(l10n): Add Claude profile description
-    _AiProfile(
-      id: 'claude',
-      name: 'Claude',
-      description: "Anthropic's Claude — balanced, safe, "
-          'and capable AI assistant',
-      icon: Icons.auto_awesome,
-      color: Color(0xFFD97757),
-    ),
-    // TODO(l10n): Add Gemini profile description
-    _AiProfile(
-      id: 'gemini',
-      name: 'Gemini',
-      description: "Google's Gemini — multimodal AI "
-          'with strong reasoning',
-      icon: Icons.diamond_outlined,
-      color: Color(0xFF4285F4),
-    ),
-    // TODO(l10n): Add Codex profile description
-    _AiProfile(
-      id: 'codex',
-      name: 'Codex',
-      description: 'OpenAI Codex — powerful general-purpose '
-          'AI assistant',
-      icon: Icons.hub_outlined,
-      color: Color(0xFF10A37F),
-    ),
-  ];
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
+    final settings = ref.watch(settingsNotifierProvider);
+    final selectedId = settings.lastUsedProfile;
+    final customProfiles = settings.profiles;
 
     return Scaffold(
       appBar: AppBar(
@@ -68,34 +30,134 @@ class PickProfileScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
-          // TODO(l10n): Add profile chooser description text
           Text(
-            'Choose an AI backend profile '
-            'for your session.',
+            'Choose an AI backend profile for your session.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          ..._profiles.map(
-            (profile) => _ProfileCard(
-              profile: profile,
-              onTap: () => context.pop(profile.id),
+
+          // "None" option
+          _ProfileCard(
+            name: 'None',
+            description: 'Use default configuration',
+            icon: Icons.remove_circle_outline,
+            color: theme.colorScheme.onSurfaceVariant,
+            isSelected: selectedId == null,
+            onTap: () => context.pop<String?>(null),
+          ),
+
+          // Built-in profiles
+          Padding(
+            padding: const EdgeInsets.only(
+              top: AppSpacing.lg,
+              left: AppSpacing.xs,
+              bottom: AppSpacing.sm,
+            ),
+            child: Text(
+              'BUILT-IN',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
+          ...builtInProfiles.map(
+            (profile) => _ProfileCard(
+              name: profile.name,
+              description: profile.description ?? '',
+              icon: _iconForProfile(profile.id),
+              color: _colorForProfile(profile.id),
+              isSelected: selectedId == profile.id,
+              onTap: () => context.pop<String?>(profile.id),
+            ),
+          ),
+
+          // Custom profiles
+          if (customProfiles.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.only(
+                top: AppSpacing.lg,
+                left: AppSpacing.xs,
+                bottom: AppSpacing.sm,
+              ),
+              child: Text(
+                'CUSTOM',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            ...customProfiles.map(
+              (profile) => _ProfileCard(
+                name: profile.name,
+                description: profile.description ?? 'Custom profile',
+                icon: Icons.person_outline,
+                color: theme.colorScheme.primary,
+                isSelected: selectedId == profile.id,
+                onTap: () => context.pop<String?>(profile.id),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _ProfileCard extends StatelessWidget {
+IconData _iconForProfile(String id) {
+  switch (id) {
+    case 'anthropic':
+      return Icons.auto_awesome;
+    case 'deepseek':
+      return Icons.psychology;
+    case 'zai':
+      return Icons.bolt;
+    case 'openai':
+      return Icons.smart_toy;
+    case 'azure-openai':
+      return Icons.cloud;
+    default:
+      return Icons.computer;
+  }
+}
 
+Color _colorForProfile(String id) {
+  switch (id) {
+    case 'anthropic':
+      return const Color(0xFFD97757);
+    case 'deepseek':
+      return const Color(0xFF4A6CF7);
+    case 'zai':
+      return const Color(0xFF6366F1);
+    case 'openai':
+      return const Color(0xFF10A37F);
+    case 'azure-openai':
+      return const Color(0xFF0078D4);
+    default:
+      return const Color(0xFF6B7280);
+  }
+}
+
+class _ProfileCard extends StatelessWidget {
   const _ProfileCard({
-    required this.profile,
+    required this.name,
+    required this.description,
+    required this.icon,
+    required this.color,
+    required this.isSelected,
     required this.onTap,
   });
-  final _AiProfile profile;
+
+  final String name;
+  final String description;
+  final IconData icon;
+  final Color color;
+  final bool isSelected;
   final VoidCallback onTap;
 
   @override
@@ -103,7 +165,7 @@ class _ProfileCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -112,17 +174,14 @@ class _ProfileCard extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: profile.color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius:
+                      BorderRadius.circular(AppRadius.md),
                 ),
-                child: Icon(
-                  profile.icon,
-                  color: profile.color,
-                  size: 24,
-                ),
+                child: Icon(icon, color: color, size: 22),
               ),
               const SizedBox(width: AppSpacing.lg),
               Expanded(
@@ -130,25 +189,34 @@ class _ProfileCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      profile.name,
-                      style: theme.textTheme.titleMedium?.copyWith(
+                      name,
+                      style:
+                          theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      profile.description,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                      description,
+                      style:
+                          theme.textTheme.bodySmall?.copyWith(
+                        color: theme
+                            .colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              if (isSelected)
+                Icon(
+                  Icons.check_circle,
+                  color: theme.colorScheme.primary,
+                )
+              else
+                Icon(
+                  Icons.chevron_right,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
             ],
           ),
         ),
