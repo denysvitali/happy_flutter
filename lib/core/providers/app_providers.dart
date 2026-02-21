@@ -6,7 +6,6 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../api/api_client.dart';
 import '../api/socket_io_client.dart' as socket_io;
-import '../api/websocket_client.dart' show ConnectionStatus;
 import '../models/artifact.dart';
 import '../models/auth.dart';
 import '../models/feed.dart';
@@ -295,13 +294,14 @@ class SettingsNotifier extends Notifier<Settings> {
 }
 
 /// WebSocket connection provider
-class ConnectionNotifier extends Notifier<ConnectionStatus> {
+class ConnectionNotifier
+    extends Notifier<socket_io.ConnectionStatus> {
   void Function()? _unsubscribe;
 
   @override
-  ConnectionStatus build() {
+  socket_io.ConnectionStatus build() {
     ref.onDispose(() => _unsubscribe?.call());
-    return _mapSocketStatus(sync.connectionStatus);
+    return sync.connectionStatus;
   }
 
   void connect(String serverUrl, String token) {
@@ -315,21 +315,8 @@ class ConnectionNotifier extends Notifier<ConnectionStatus> {
   void listenToStatus() {
     _unsubscribe?.call();
     _unsubscribe = socket_io.socketIoClient.onStatusChange((status) {
-      state = _mapSocketStatus(status);
+      state = status;
     });
-  }
-
-  ConnectionStatus _mapSocketStatus(socket_io.ConnectionStatus status) {
-    switch (status) {
-      case socket_io.ConnectionStatus.connected:
-        return ConnectionStatus.connected;
-      case socket_io.ConnectionStatus.connecting:
-        return ConnectionStatus.connecting;
-      case socket_io.ConnectionStatus.error:
-        return ConnectionStatus.error;
-      case socket_io.ConnectionStatus.disconnected:
-        return ConnectionStatus.disconnected;
-    }
   }
 }
 
@@ -382,7 +369,7 @@ final settingsNotifierProvider = NotifierProvider<SettingsNotifier, Settings>(
 
 /// WebSocket connection provider
 final connectionNotifierProvider =
-    NotifierProvider<ConnectionNotifier, ConnectionStatus>(() {
+    NotifierProvider<ConnectionNotifier, socket_io.ConnectionStatus>(() {
       return ConnectionNotifier();
     });
 

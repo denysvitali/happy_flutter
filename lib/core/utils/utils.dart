@@ -128,32 +128,6 @@ String prettyJson(dynamic json) {
   return JsonEncoder.withIndent('  ').convert(json);
 }
 
-/// Rate limiter
-class RateLimiter {
-
-  RateLimiter({required this.window, required this.maxRequests});
-  final Duration window;
-  final int maxRequests;
-  final _timestamps = <int>[];
-
-  bool tryAcquire() {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final windowStart = now - window.inMilliseconds;
-
-    // Remove old timestamps
-    _timestamps.removeWhere((t) => t < windowStart);
-
-    if (_timestamps.length >= maxRequests) {
-      return false;
-    }
-
-    _timestamps.add(now);
-    return true;
-  }
-
-  int get remainingRequests => maxRequests - _timestamps.length;
-}
-
 /// Debouncer
 class Debouncer {
 

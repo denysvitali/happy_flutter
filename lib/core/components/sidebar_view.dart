@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api/websocket_client.dart' show ConnectionStatus;
+import '../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';

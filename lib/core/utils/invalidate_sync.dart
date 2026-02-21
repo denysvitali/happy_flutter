@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 
+import '../services/logger_service.dart';
+
 /// A utility class for managing async operations with invalidation
 class InvalidateSync {
 
@@ -71,6 +73,7 @@ class InvalidateSync {
         _currentOperation = null;
         _running = false;
         if (operation != null && !operation.isCompleted) {
+          logger.error('InvalidateSync: max retries exceeded', error);
           operation.completeError(error);
         }
       }
@@ -85,8 +88,11 @@ class InvalidateSync {
   }
 
   void _scheduleRetry() {
-    final delay = baseDelayMs * pow(2, _retryCount - 1).toInt();
+    final delay = (baseDelayMs * pow(2, _retryCount - 1)).toInt();
     final clampedDelay = min(delay, maxDelayMs);
+    logger.debug(
+      'InvalidateSync: retry $_retryCount in ${clampedDelay}ms',
+    );
 
     _retryTimer?.cancel();
     _retryTimer = Timer(Duration(milliseconds: clampedDelay), () {

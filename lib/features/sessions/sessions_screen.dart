@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api/websocket_client.dart';
+import '../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
