@@ -87,15 +87,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     if (_activeTab == AppTab.sessions) {
       return _buildSessionsAppBar(context, l10n);
     }
-    return AppBar(
-      title: Text(_getTabTitle(l10n)),
-    );
+    return AppBar(title: Text(_getTabTitle(l10n)));
   }
 
-  AppBar _buildSessionsAppBar(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) {
+  AppBar _buildSessionsAppBar(BuildContext context, AppLocalizations l10n) {
     final connectionStatus = ref.watch(connectionNotifierProvider);
 
     return AppBar(
@@ -104,8 +99,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
         ConnectionStatusBadge(status: connectionStatus),
         IconButton(
           icon: const Icon(Icons.add),
-          onPressed: () =>
-              _SessionsListContent.showNewSessionDialog(context),
+          onPressed: () => _SessionsListContent.showNewSessionDialog(context),
         ),
       ],
     );
@@ -150,8 +144,7 @@ class _SessionsListContent extends ConsumerStatefulWidget {
       _SessionsListContentState();
 }
 
-class _SessionsListContentState
-    extends ConsumerState<_SessionsListContent> {
+class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
   bool _hasLoaded = false;
   // Track list key to trigger stagger animation on first load.
   bool _animationTriggered = false;
@@ -173,9 +166,7 @@ class _SessionsListContentState
       settingsNotifierProvider.select((s) => s.showFlavorIcons),
     );
     final avatarStyle = ref.watch(
-      settingsNotifierProvider.select(
-        (s) => _parseAvatarStyle(s.avatarStyle),
-      ),
+      settingsNotifierProvider.select((s) => _parseAvatarStyle(s.avatarStyle)),
     );
     final sessionList = sessions.values.toList();
 
@@ -206,9 +197,7 @@ class _SessionsListContentState
 
     return RefreshIndicator(
       onRefresh: () async {
-        await ref
-            .read(sessionsNotifierProvider.notifier)
-            .refreshFromSync();
+        await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
       },
       color: Theme.of(context).colorScheme.primary,
       child: _buildSessionsList(
@@ -251,22 +240,18 @@ class _SessionsListContentState
       children.add(
         _FadeInSection(
           delay: Duration(milliseconds: _kStaggerStep * staggerIndex),
-          child: _SectionHeader(
-            title: context.l10n.sessionActiveSessions,
-          ),
+          child: _SectionHeader(title: context.l10n.sessionActiveSessions),
         ),
       );
 
-      for (final entry in (activeByPath.entries.toList()
-          ..sort((a, b) => a.key.compareTo(b.key)))) {
+      for (final entry
+          in (activeByPath.entries.toList()
+            ..sort((a, b) => a.key.compareTo(b.key)))) {
         final pathKey = entry.key;
-        final isPathCollapsed =
-            _collapsedActivePaths.contains(pathKey);
+        final isPathCollapsed = _collapsedActivePaths.contains(pathKey);
         children.add(
           _FadeInSection(
-            delay: Duration(
-              milliseconds: _kStaggerStep * staggerIndex,
-            ),
+            delay: Duration(milliseconds: _kStaggerStep * staggerIndex),
             child: _PathHeader(
               path: pathKey,
               sessionCount: entry.value.length,
@@ -299,10 +284,7 @@ class _SessionsListContentState
               _StaggeredSlideIn(
                 index: capturedIndex,
                 animate: triggerStagger,
-                child: _DismissibleActiveSession(
-                  session: session,
-                  child: card,
-                ),
+                child: _DismissibleActiveSession(session: session, child: card),
               ),
             );
             staggerIndex++;
@@ -317,7 +299,8 @@ class _SessionsListContentState
         _FadeInSection(
           delay: Duration(milliseconds: _kStaggerStep * staggerIndex),
           child: _SectionHeader(
-            title: '${context.l10n.sessionHistory}'
+            title:
+                '${context.l10n.sessionHistory}'
                 ' (${inactiveSessions.length})',
           ),
         ),
@@ -344,10 +327,7 @@ class _SessionsListContentState
     }
 
     return ListView(
-      padding: const EdgeInsets.only(
-        top: AppSpacing.xs,
-        bottom: AppSpacing.lg,
-      ),
+      padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
       children: children,
     );
   }
@@ -381,9 +361,7 @@ class _SessionsListContentState
           final isCollapsed = collapsedFolderKeys.contains(folderKey);
           widgets.add(
             _FadeInSection(
-              delay: Duration(
-                milliseconds: _kStaggerStep * itemIndex,
-              ),
+              delay: Duration(milliseconds: _kStaggerStep * itemIndex),
               child: _FolderSectionHeader(
                 displayPath: displayPath,
                 machineName: machineName,
@@ -399,7 +377,8 @@ class _SessionsListContentState
           :final isLast,
           :final isSingle,
         ):
-          final collapsed = currentFolderKey != null &&
+          final collapsed =
+              currentFolderKey != null &&
               collapsedFolderKeys.contains(currentFolderKey);
           if (!collapsed) {
             final capturedIndex = itemIndex;
@@ -409,20 +388,33 @@ class _SessionsListContentState
                 animate: animate,
                 child: _DismissibleInactiveSession(
                   session: session,
-                  child: SessionCard(
-                    session: session,
-                    onTap: () => unawaited(
-                      context.pushNamed(
-                        'chat',
-                        pathParameters: {'sessionId': session.id},
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SessionCard(
+                        session: session,
+                        onTap: () => unawaited(
+                          context.pushNamed(
+                            'chat',
+                            pathParameters: {'sessionId': session.id},
+                          ),
+                        ),
+                        isFirst: isFirst,
+                        isLast: isLast,
+                        isSingle: isSingle,
+                        compact: true,
+                        showFlavorIcon: showFlavorIcons,
+                        avatarStyle: avatarStyle,
                       ),
-                    ),
-                    isFirst: isFirst,
-                    isLast: isLast,
-                    isSingle: isSingle,
-                    compact: true,
-                    showFlavorIcon: showFlavorIcons,
-                    avatarStyle: avatarStyle,
+                      if (!isLast && !isSingle)
+                        Divider(
+                          height: 1,
+                          indent: 64,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outlineVariant.withAlpha(50),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -440,10 +432,7 @@ class _SessionsListContentState
 
 /// Dismissible wrapper for active sessions (swipe left → archive).
 class _DismissibleActiveSession extends ConsumerWidget {
-  const _DismissibleActiveSession({
-    required this.session,
-    required this.child,
-  });
+  const _DismissibleActiveSession({required this.session, required this.child});
 
   final Session session;
   final Widget child;
@@ -481,10 +470,7 @@ class _DismissibleActiveSession extends ConsumerWidget {
     );
   }
 
-  Future<bool> _confirmArchive(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
+  Future<bool> _confirmArchive(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -500,8 +486,7 @@ class _DismissibleActiveSession extends ConsumerWidget {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(
-              foregroundColor:
-                  Theme.of(ctx).colorScheme.error,
+              foregroundColor: Theme.of(ctx).colorScheme.error,
             ),
             child: const Text('Archive'),
           ),
@@ -518,9 +503,7 @@ class _DismissibleActiveSession extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to archive session: $e'),
-          ),
+          SnackBar(content: Text('Failed to archive session: $e')),
         );
       }
       return false;
@@ -570,10 +553,7 @@ class _DismissibleInactiveSession extends ConsumerWidget {
     );
   }
 
-  Future<bool> _confirmDelete(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
+  Future<bool> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -589,8 +569,7 @@ class _DismissibleInactiveSession extends ConsumerWidget {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(
-              foregroundColor:
-                  Theme.of(ctx).colorScheme.error,
+              foregroundColor: Theme.of(ctx).colorScheme.error,
             ),
             child: const Text('Delete'),
           ),
@@ -603,9 +582,7 @@ class _DismissibleInactiveSession extends ConsumerWidget {
     try {
       final success = await sync.deleteSession(session.id);
       if (success) {
-        await ref
-            .read(sessionsNotifierProvider.notifier)
-            .refreshFromSync();
+        await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
         return true;
       } else {
         if (context.mounted) {
@@ -617,9 +594,9 @@ class _DismissibleInactiveSession extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete session: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete session: $e')));
       }
       return false;
     }
@@ -659,20 +636,14 @@ class _StaggeredSlideInState extends State<_StaggeredSlideIn>
       duration: const Duration(milliseconds: _kSlideDuration),
       vsync: this,
     );
-    _opacity = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    );
+    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
     _slide = Tween<Offset>(
       begin: const Offset(0, 0.10),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     if (widget.animate) {
-      final delay =
-          Duration(milliseconds: _kStaggerStep * widget.index);
+      final delay = Duration(milliseconds: _kStaggerStep * widget.index);
       Future.delayed(delay, () {
         if (mounted) _controller.forward();
       });
@@ -718,10 +689,7 @@ class _FadeInSectionState extends State<_FadeInSection>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _opacity = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    );
+    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
     Future.delayed(widget.delay, () {
       if (mounted) _controller.forward();
     });
@@ -773,7 +741,7 @@ class _PathHeader extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                path.toUpperCase(),
+                path.split('/').last.toUpperCase(),
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: cs.onSurfaceVariant,
                   fontFamily: 'monospace',
@@ -795,8 +763,8 @@ class _PathHeader extends StatelessWidget {
               turns: isCollapsed ? -0.25 : 0,
               duration: const Duration(milliseconds: 200),
               child: Icon(
-                Icons.expand_more,
-                size: 16,
+                Icons.keyboard_arrow_down,
+                size: 18,
                 color: cs.onSurfaceVariant,
               ),
             ),
@@ -834,8 +802,6 @@ class _SectionHeader extends StatelessWidget {
     );
   }
 }
-
-
 
 /// Folder section header for grouping inactive sessions by directory + machine.
 ///
@@ -890,7 +856,7 @@ class _FolderSectionHeader extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    displayPath.toUpperCase(),
+                    displayPath.split('/').last.toUpperCase(),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: mutedColor,
                       fontFamily: 'monospace',
@@ -926,8 +892,8 @@ class _FolderSectionHeader extends StatelessWidget {
                   turns: isCollapsed ? -0.25 : 0,
                   duration: const Duration(milliseconds: 200),
                   child: Icon(
-                    Icons.expand_more,
-                    size: 16,
+                    Icons.keyboard_arrow_down,
+                    size: 18,
                     color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                   ),
                 ),
@@ -935,9 +901,7 @@ class _FolderSectionHeader extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              sessionCount == 1
-                  ? '1 session'
-                  : '$sessionCount sessions',
+              sessionCount == 1 ? '1 session' : '$sessionCount sessions',
               style: theme.textTheme.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant.withValues(alpha: 0.45),
                 fontSize: 10,
@@ -951,8 +915,6 @@ class _FolderSectionHeader extends StatelessWidget {
 }
 
 // ─── Status widgets ──────────────────────────────────────────────────────────
-
-
 
 /// Status dot widget with pulsing animation.
 ///
@@ -990,8 +952,7 @@ class _StatusDotState extends State<StatusDot>
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    _animation =
-        CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
     if (widget.isPulsing) {
       _controller.repeat(reverse: true);
     } else {
@@ -1005,10 +966,7 @@ class _StatusDotState extends State<StatusDot>
     if (widget.isPulsing) {
       _controller.repeat(reverse: true);
     } else {
-      _controller.animateTo(
-        1.0,
-        duration: const Duration(milliseconds: 200),
-      );
+      _controller.animateTo(1.0, duration: const Duration(milliseconds: 200));
     }
   }
 
@@ -1024,8 +982,7 @@ class _StatusDotState extends State<StatusDot>
       animation: _animation,
       builder: (context, child) {
         // React Native pulsing: opacity goes from 1.0 to 0.3 and back.
-        final opacity =
-            widget.isPulsing ? 0.3 + 0.7 * _animation.value : 1.0;
+        final opacity = widget.isPulsing ? 0.3 + 0.7 * _animation.value : 1.0;
         return Container(
           width: widget.size,
           height: widget.size,
@@ -1070,10 +1027,7 @@ class _DraftBadge extends StatelessWidget {
 
 /// Task progress badge shown near the timestamp/status area.
 class _TodoProgressBadge extends StatelessWidget {
-  const _TodoProgressBadge({
-    required this.completed,
-    required this.total,
-  });
+  const _TodoProgressBadge({required this.completed, required this.total});
 
   final int completed;
   final int total;
@@ -1093,11 +1047,7 @@ class _TodoProgressBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.lightbulb_outline,
-            size: 10,
-            color: cs.onSurfaceVariant,
-          ),
+          Icon(Icons.lightbulb_outline, size: 10, color: cs.onSurfaceVariant),
           const SizedBox(width: 2),
           Text(
             '$completed/$total',
@@ -1131,8 +1081,7 @@ AvatarStyle? _parseAvatarStyle(String? style) {
 ({int completed, int total})? _getTodoProgress(List<TodoItem>? todos) {
   if (todos == null || todos.isEmpty) return null;
   final total = todos.length;
-  final completed =
-      todos.where((t) => t.status == TodoState.completed).length;
+  final completed = todos.where((t) => t.status == TodoState.completed).length;
   if (completed >= total) return null;
   return (completed: completed, total: total);
 }
@@ -1170,8 +1119,7 @@ class ActiveSessionCard extends StatelessWidget {
     final sessionName = getSessionName(session);
     final sessionSubtitle = getSessionSubtitle(session);
     final sessionFlavor = session.metadata?.flavor;
-    final hasDraft = session.draft != null &&
-        session.draft!.isNotEmpty;
+    final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = _getTodoProgress(session.todos);
 
     return Container(
@@ -1238,25 +1186,34 @@ class ActiveSessionCard extends StatelessWidget {
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            mainAxisAlignment:
-                                MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                sessionName,
-                                style: theme.textTheme.bodyMedium
-                                    ?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      sessionName,
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  StatusDot(
+                                    color: Color(sessionStatus.statusDotColor),
+                                    isPulsing: sessionStatus.isPulsing,
+                                    size: 8,
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 sessionSubtitle,
-                                style: theme.textTheme.labelSmall
-                                    ?.copyWith(
+                                style: theme.textTheme.labelSmall?.copyWith(
                                   color: cs.onSurfaceVariant,
                                   fontFamily: 'monospace',
                                 ),
@@ -1268,29 +1225,19 @@ class ActiveSessionCard extends StatelessWidget {
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Column(
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
-                          crossAxisAlignment:
-                              CrossAxisAlignment.end,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
                               formatTimestamp(
                                 session.updatedAt,
                                 relative: true,
                               ),
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(
+                              style: theme.textTheme.labelSmall?.copyWith(
                                 color: cs.onSurfaceVariant,
                               ),
                             ),
                             const SizedBox(height: 4),
-                            StatusDot(
-                              color: Color(
-                                sessionStatus.statusDotColor,
-                              ),
-                              isPulsing: sessionStatus.isPulsing,
-                              size: 7,
-                            ),
                             if (todoProgress != null) ...[
                               const SizedBox(height: 3),
                               _TodoProgressBadge(
@@ -1312,8 +1259,6 @@ class ActiveSessionCard extends StatelessWidget {
     );
   }
 }
-
-
 
 // ─── Compact active session card ─────────────────────────────────────────────
 
@@ -1350,8 +1295,7 @@ class CompactActiveSessionCard extends StatelessWidget {
     final avatarId = getSessionAvatarId(session);
     final sessionName = getSessionName(session);
     final sessionFlavor = session.metadata?.flavor;
-    final hasDraft =
-        session.draft != null && session.draft!.isNotEmpty;
+    final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = _getTodoProgress(session.todos);
 
     return Container(
@@ -1418,14 +1362,26 @@ class CompactActiveSessionCard extends StatelessWidget {
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
-                          child: Text(
-                            sessionName,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w500,
-                              color: cs.onSurface,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  sessionName,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: cs.onSurface,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              StatusDot(
+                                color: Color(sessionStatus.statusDotColor),
+                                isPulsing: sessionStatus.isPulsing,
+                                size: 8,
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
@@ -1520,8 +1476,7 @@ class SessionCard extends StatelessWidget {
     final sessionName = getSessionName(session);
     final sessionSubtitle = getSessionSubtitle(session);
     final sessionFlavor = session.metadata?.flavor;
-    final hasDraft =
-        session.draft != null && session.draft!.isNotEmpty;
+    final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = _getTodoProgress(session.todos);
 
     // Determine card border-radius based on position within group.
@@ -1529,11 +1484,9 @@ class SessionCard extends StatelessWidget {
     if (isSingle) {
       borderRadius = BorderRadius.circular(12);
     } else if (isFirst) {
-      borderRadius =
-          const BorderRadius.vertical(top: Radius.circular(12));
+      borderRadius = const BorderRadius.vertical(top: Radius.circular(12));
     } else if (isLast) {
-      borderRadius =
-          const BorderRadius.vertical(bottom: Radius.circular(12));
+      borderRadius = const BorderRadius.vertical(bottom: Radius.circular(12));
     } else {
       borderRadius = BorderRadius.zero;
     }
@@ -1571,7 +1524,7 @@ class SessionCard extends StatelessWidget {
                     vertical: compact ? 6 : AppSpacing.sm,
                   ),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Avatar with Hero animation, monochrome when
                       // disconnected, and optional draft badge.
@@ -1592,22 +1545,33 @@ class SessionCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      SizedBox(
-                        width:
-                            compact ? AppSpacing.sm : AppSpacing.md,
-                      ),
+                      SizedBox(width: compact ? AppSpacing.sm : AppSpacing.md),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              sessionName,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: titleColor,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    sessionName,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: titleColor,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                StatusDot(
+                                  color: sessionStatus.isConnected
+                                      ? Color(sessionStatus.statusDotColor)
+                                      : cs.outlineVariant,
+                                  isPulsing: sessionStatus.isPulsing,
+                                  size: 8,
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 2),
                             Text(
@@ -1629,23 +1593,13 @@ class SessionCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            formatTimestamp(
-                              session.updatedAt,
-                              relative: true,
-                            ),
+                            formatTimestamp(session.updatedAt, relative: true),
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: cs.onSurfaceVariant,
                               fontSize: 11,
                             ),
                           ),
                           const SizedBox(height: 6),
-                          StatusDot(
-                            color: sessionStatus.isConnected
-                                ? Color(sessionStatus.statusDotColor)
-                                : cs.outlineVariant,
-                            isPulsing: sessionStatus.isPulsing,
-                            size: 7,
-                          ),
                           if (todoProgress != null) ...[
                             const SizedBox(height: 4),
                             _TodoProgressBadge(
@@ -1754,8 +1708,7 @@ class ConnectionStatusBadge extends StatefulWidget {
   final ConnectionStatus status;
 
   @override
-  State<ConnectionStatusBadge> createState() =>
-      _ConnectionStatusBadgeState();
+  State<ConnectionStatusBadge> createState() => _ConnectionStatusBadgeState();
 }
 
 class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
@@ -1812,8 +1765,7 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
       ConnectionStatus.disconnected => cs.onSurfaceVariant,
     };
 
-    final isConnecting =
-        widget.status == ConnectionStatus.connecting;
+    final isConnecting = widget.status == ConnectionStatus.connecting;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
@@ -1822,8 +1774,7 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
             ? AnimatedBuilder(
                 animation: _pulseAnimation,
                 builder: (context, child) {
-                  final opacity =
-                      0.35 + 0.65 * _pulseAnimation.value;
+                  final opacity = 0.35 + 0.65 * _pulseAnimation.value;
                   final scale = 0.75 + 0.5 * _pulseAnimation.value;
                   return Transform.scale(
                     scale: scale,
@@ -1848,8 +1799,7 @@ class NewSessionDialog extends ConsumerStatefulWidget {
   const NewSessionDialog({super.key});
 
   @override
-  ConsumerState<NewSessionDialog> createState() =>
-      _NewSessionDialogState();
+  ConsumerState<NewSessionDialog> createState() => _NewSessionDialogState();
 }
 
 class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
@@ -1885,8 +1835,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
             Text(l10n.newSessionNoMachinesFound)
           else
             DropdownButtonFormField<String>(
-              decoration:
-                  InputDecoration(labelText: l10n.sessionMachine),
+              decoration: InputDecoration(labelText: l10n.sessionMachine),
               initialValue: _selectedMachine,
               isExpanded: true,
               selectedItemBuilder: (context) => [
@@ -1917,9 +1866,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                         Icon(
                           Icons.computer,
                           size: 18,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 8),
                         Flexible(
@@ -1947,10 +1894,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               if (_selectedMachine == null) return const [];
               final sessions = ref.read(sessionsNotifierProvider);
               final paths = sessions.values
-                  .where(
-                    (s) =>
-                        s.metadata?.machineId == _selectedMachine,
-                  )
+                  .where((s) => s.metadata?.machineId == _selectedMachine)
                   .map((s) => s.metadata?.path)
                   .whereType<String>()
                   .toSet()
@@ -1960,34 +1904,30 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               }
               return paths.where(
                 (p) => p.toLowerCase().contains(
-                      textEditingValue.text.toLowerCase(),
-                    ),
+                  textEditingValue.text.toLowerCase(),
+                ),
               );
             },
             onSelected: (value) {
               setState(() => _selectedPath = value);
             },
-            fieldViewBuilder: (
-              context,
-              controller,
-              focusNode,
-              onFieldSubmitted,
-            ) {
-              return TextFormField(
-                controller: controller,
-                focusNode: focusNode,
-                decoration: InputDecoration(
-                  labelText: l10n.sessionPath,
-                  hintText: l10n.sessionPathHint,
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedPath = value;
-                    _createError = null;
-                  });
+            fieldViewBuilder:
+                (context, controller, focusNode, onFieldSubmitted) {
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: InputDecoration(
+                      labelText: l10n.sessionPath,
+                      hintText: l10n.sessionPathHint,
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedPath = value;
+                        _createError = null;
+                      });
+                    },
+                  );
                 },
-              );
-            },
           ),
           const SizedBox(height: AppSpacing.lg),
           SegmentedButton<String>(
@@ -2011,18 +1951,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           const SizedBox(height: AppSpacing.lg),
           SegmentedButton<String>(
             segments: const [
-              ButtonSegment(
-                value: 'claude',
-                label: Text('Claude'),
-              ),
-              ButtonSegment(
-                value: 'codex',
-                label: Text('Codex'),
-              ),
-              ButtonSegment(
-                value: 'gemini',
-                label: Text('Gemini'),
-              ),
+              ButtonSegment(value: 'claude', label: Text('Claude')),
+              ButtonSegment(value: 'codex', label: Text('Codex')),
+              ButtonSegment(value: 'gemini', label: Text('Gemini')),
             ],
             selected: {_selectedAgent},
             onSelectionChanged: (selection) {
@@ -2047,7 +1978,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           child: Text(l10n.commonCancel),
         ),
         ElevatedButton(
-          onPressed: !_isCreating &&
+          onPressed:
+              !_isCreating &&
                   (_selectedPath?.isNotEmpty ?? false) &&
                   _selectedMachine != null
               ? () => _createSession(context)
@@ -2096,10 +2028,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       navigator.pop();
       unawaited(
-        router.pushNamed(
-          'chat',
-          pathParameters: {'sessionId': sessionId},
-        ),
+        router.pushNamed('chat', pathParameters: {'sessionId': sessionId}),
       );
     } catch (e) {
       if (!mounted) return;

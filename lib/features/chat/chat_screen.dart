@@ -126,8 +126,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return;
     }
 
-    final hadRequests =
-        _session?.agentState?.requests?.isNotEmpty ?? false;
+    final hadRequests = _session?.agentState?.requests?.isNotEmpty ?? false;
     final hasRequests =
         latestSession?.agentState?.requests?.isNotEmpty ?? false;
     final newPermission = !hadRequests && hasRequests;
@@ -138,8 +137,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (messagesChanged && latestMessages.length > _prevMessagesLength) {
         final prepended = latestMessages.length - _prevMessagesLength;
         if (_visibleCount >= _prevMessagesLength && _prevMessagesLength > 0) {
-          _visibleCount = (_visibleCount + prepended)
-              .clamp(0, latestMessages.length);
+          _visibleCount = (_visibleCount + prepended).clamp(
+            0,
+            latestMessages.length,
+          );
         }
       }
 
@@ -214,8 +215,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (_visibleCount < _messages.length) {
       _isLoadingMore = true;
       setState(() {
-        _visibleCount =
-            (_visibleCount + _pageSize).clamp(0, _messages.length);
+        _visibleCount = (_visibleCount + _pageSize).clamp(0, _messages.length);
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _isLoadingMore = false;
@@ -267,8 +267,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final session = _session;
     if (session == null) return '';
 
-    final hasRequests =
-        session.agentState?.requests?.isNotEmpty ?? false;
+    final hasRequests = session.agentState?.requests?.isNotEmpty ?? false;
     if (hasRequests) return 'Permission required';
 
     if (session.thinking) {
@@ -280,9 +279,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     if (session.presence == 'online') return 'Online';
 
-    final lastSeen = DateTime.fromMillisecondsSinceEpoch(
-      session.updatedAt,
-    );
+    final lastSeen = DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
     final diff = DateTime.now().difference(lastSeen);
     if (diff.inMinutes < 1) return 'Last seen just now';
     if (diff.inMinutes < 60) {
@@ -345,20 +342,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           ),
                         )
                       : _messages.isEmpty
-                          ? const _EmptyChatView(
-                              key: ValueKey('empty'),
-                            )
-                          : _buildMessageList(),
+                      ? const _EmptyChatView(key: ValueKey('empty'))
+                      : _buildMessageList(),
                 ),
                 // Scroll-to-bottom pill
                 AnimatedOpacity(
-                  opacity:
-                      (!_autoScroll && !_isLoadingMessages) ? 1.0 : 0.0,
+                  opacity: (!_autoScroll && !_isLoadingMessages) ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeInOut,
                   child: AnimatedScale(
-                    scale:
-                        (!_autoScroll && !_isLoadingMessages) ? 1.0 : 0.8,
+                    scale: (!_autoScroll && !_isLoadingMessages) ? 1.0 : 0.8,
                     duration: const Duration(milliseconds: 200),
                     curve: Curves.easeInOut,
                     child: Align(
@@ -383,17 +376,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   bottom: 0,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 250),
-                    transitionBuilder: (child, animation) =>
-                        FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0, 0.3),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
-                          ),
-                        ),
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.3),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    ),
                     child: isThinking && !_isLoadingMessages
                         ? const Align(
                             key: ValueKey('typing'),
@@ -407,18 +399,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               child: _TypingIndicator(),
                             ),
                           )
-                        : const SizedBox.shrink(
-                            key: ValueKey('no-typing'),
-                          ),
+                        : const SizedBox.shrink(key: ValueKey('no-typing')),
                   ),
                 ),
               ],
             ),
           ),
           if (_session?.agentState?.requests?.isNotEmpty ?? false)
-            _PermissionRequiredBanner(
-              onTap: () => _scrollToBottom(),
-            ),
+            _PermissionRequiredBanner(onTap: () => _scrollToBottom()),
           ChatInput(
             sessionId: widget.sessionId,
             controller: _controller,
@@ -428,8 +416,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onPermissionModeChanged: _onPermissionModeChanged,
             modelMode: _modelMode,
             onModelModeChanged: _onModelModeChanged,
-            contextSize: sync.sessionUsage[widget.sessionId]
-                ?['contextSize'] as int?,
+            contextSize:
+                sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
             isPermissionPending:
                 _session?.agentState?.requests?.isNotEmpty ?? false,
             isSessionOnline: _session?.isPresenceOnline ?? false,
@@ -457,11 +445,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _abortSession() async {
     if (!sync.isInitialized) return;
-    await sync.sessionRPC(
-      widget.sessionId,
-      'abort',
-      {'reason': _abortReason},
-    );
+    await sync.sessionRPC(widget.sessionId, 'abort', {'reason': _abortReason});
   }
 
   void _showSessionMenu(BuildContext context) {
@@ -470,9 +454,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xl),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       ),
       backgroundColor: cs.surface,
       builder: (context) => SafeArea(
@@ -505,10 +487,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               },
             ),
             ListTile(
-              leading: Icon(
-                Icons.delete_outline,
-                color: cs.error,
-              ),
+              leading: Icon(Icons.delete_outline, color: cs.error),
               title: Text(
                 l10n.chatDeleteSession,
                 style: TextStyle(color: cs.error),
@@ -527,8 +506,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildMessageList() {
     final totalCount = _messages.length;
-    final startIndex =
-        (totalCount - _visibleCount).clamp(0, totalCount);
+    final startIndex = (totalCount - _visibleCount).clamp(0, totalCount);
     final visibleMessages = _messages.sublist(startIndex);
 
     final hasLocalMore = startIndex > 0;
@@ -539,14 +517,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final hasServerMore =
         allLocalVisible && sync.hasOlderMessages(widget.sessionId);
 
-    final showHeader = hasLocalMore || isLoadingFromServer ||
+    final showHeader =
+        hasLocalMore ||
+        isLoadingFromServer ||
         (!hasServerMore && allLocalVisible && totalCount > 0);
 
     final keyToListIndex = <String, int>{};
     for (var i = 0; i < visibleMessages.length; i++) {
       final m = visibleMessages[i];
-      final k =
-          m['id'] as String? ?? m['toolUseId'] as String?;
+      final k = m['id'] as String? ?? m['toolUseId'] as String?;
       if (k != null) {
         keyToListIndex[k] = visibleMessages.length - 1 - i;
       }
@@ -568,9 +547,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           if (hasLocalMore || isLoadingFromServer) {
             return Center(
               key: ValueKey(
-                hasLocalMore
-                    ? 'header-local-more'
-                    : 'header-server-loading',
+                hasLocalMore ? 'header-local-more' : 'header-server-loading',
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -579,10 +556,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 1.5,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant
-                        .withValues(alpha: 0.3),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                   ),
                 ),
               ),
@@ -604,7 +580,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         final sameSender = nextRole == currentRole;
         final bottomPad = sameSender ? 4.0 : 12.0;
 
-        final messageKey = message['id'] as String? ??
+        final messageKey =
+            message['id'] as String? ??
             message['toolUseId'] as String? ??
             'msg-$reversedIndex';
         return Padding(
@@ -657,9 +634,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${context.l10n.chatFailedToSend}: $e'),
-          ),
+          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
         );
       }
     } finally {
@@ -693,9 +668,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _scrollToBottom();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to clear: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to clear: $e')));
         }
       } finally {
         if (mounted) setState(() => _isSending = false);
@@ -725,11 +700,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${context.l10n.chatFailedToSend}: $e',
-            ),
-          ),
+          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
         );
         _controller.text = text;
       }
@@ -754,13 +725,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: Text(l10n.commonCancel),
           ),
           TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: cs.error,
-            ),
+            style: TextButton.styleFrom(foregroundColor: cs.error),
             onPressed: () async {
               Navigator.pop(context);
-              final deleted =
-                  await sync.deleteSession(widget.sessionId);
+              final deleted = await sync.deleteSession(widget.sessionId);
               if (!mounted) {
                 return;
               }
@@ -769,9 +737,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 return;
               }
               ScaffoldMessenger.of(this.context).showSnackBar(
-                const SnackBar(
-                  content: Text('Failed to delete session'),
-                ),
+                const SnackBar(content: Text('Failed to delete session')),
               );
             },
             child: Text(l10n.commonDelete),
@@ -838,40 +804,40 @@ class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
       children: [
         Text(
           sessionTitle,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: 1),
+        const SizedBox(height: 4),
         Row(
           children: [
             if (relativePath.isNotEmpty) ...[
               _PathChip(path: relativePath),
               const SizedBox(width: 6),
-              Container(
-                width: 0.5,
-                height: 10,
-                color: colorScheme.outlineVariant,
-              ),
-              const SizedBox(width: 6),
             ],
-            AppStatusDot(color: statusColor, pulse: isThinking),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                [
-                  statusText,
-                  if (machineName != null) machineName,
-                ].join('  ·  '),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            _SessionHeaderChip(
+              text: statusText,
+              leading: AppStatusDot(
+                color: statusColor,
+                pulse: isThinking,
+                size: 6,
               ),
             ),
+            if (machineName != null) ...[
+              const SizedBox(width: 6),
+              Flexible(
+                child: _SessionHeaderChip(
+                  text: machineName,
+                  leading: Icon(
+                    Icons.computer_outlined,
+                    size: 10,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ],
@@ -889,10 +855,14 @@ class _PathChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: colorScheme.onSurface.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+          width: 0.5,
+        ),
       ),
       child: Text(
         path,
@@ -941,10 +911,7 @@ class _ScrollToBottomPill extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadius.pill),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Icon(
               Icons.keyboard_arrow_down_rounded,
               size: 20,
@@ -1099,18 +1066,24 @@ class _TypingIndicatorState extends State<_TypingIndicator>
   Animation<double> _buildDotAnimation(double start, double end) {
     return TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0, end: -4)
-            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        tween: Tween<double>(
+          begin: 0,
+          end: -4,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
         weight: 45,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: -4, end: 0.5)
-            .chain(CurveTween(curve: Curves.easeInCubic)),
+        tween: Tween<double>(
+          begin: -4,
+          end: 0.5,
+        ).chain(CurveTween(curve: Curves.easeInCubic)),
         weight: 30,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.5, end: 0)
-            .chain(CurveTween(curve: Curves.easeOut)),
+        tween: Tween<double>(
+          begin: 0.5,
+          end: 0,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 25,
       ),
     ]).animate(
@@ -1173,10 +1146,49 @@ class _Dot extends StatelessWidget {
       child: Container(
         width: 6,
         height: 6,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+    );
+  }
+}
+
+// ─── _SessionHeaderChip ───────────────────────────────────────────────────
+
+class _SessionHeaderChip extends StatelessWidget {
+  const _SessionHeaderChip({required this.text, this.leading});
+
+  final String text;
+  final Widget? leading;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.4),
+          width: 0.5,
         ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (leading != null) ...[leading!, const SizedBox(width: 4)],
+          Flexible(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }

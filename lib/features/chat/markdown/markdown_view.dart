@@ -27,11 +27,8 @@ typedef OptionPressedCallback = void Function(String option);
 /// - Interactive options blocks
 /// - Text selection via long-press
 class MarkdownView extends StatefulWidget {
+  const MarkdownView({required this.markdown, super.key, this.onOptionPress});
 
-  const MarkdownView({
-    required this.markdown, super.key,
-    this.onOptionPress,
-  });
   /// The raw markdown text to render.
   final String markdown;
 
@@ -147,7 +144,6 @@ class _MarkdownViewState extends State<MarkdownView> {
       // Sealed class ensures all cases are covered above
     }
   }
-
 }
 
 /// A simpler markdown view widget for basic text rendering.
@@ -155,8 +151,8 @@ class _MarkdownViewState extends State<MarkdownView> {
 /// This is a convenience widget that renders markdown without
 /// additional styling wrapper.
 class SimpleMarkdownView extends StatefulWidget {
-
   const SimpleMarkdownView({required this.markdown, super.key});
+
   /// The markdown text to render.
   final String markdown;
 
@@ -291,10 +287,7 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
           children: items.map((item) {
             return Container(
               margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 border: Border.all(color: theme.colorScheme.outlineVariant),
                 borderRadius: BorderRadius.circular(8),
@@ -331,16 +324,17 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
             fontWeight: span.styles.contains(MarkdownTextStyle.bold)
                 ? FontWeight.bold
                 : span.styles.contains(MarkdownTextStyle.semibold)
-                    ? FontWeight.w600
-                    : fontWeight,
+                ? FontWeight.w600
+                : fontWeight,
             fontSize: fontSize ?? 14,
-            color: theme.colorScheme.onSurface,
-            fontFamily:
-                span.styles.contains(MarkdownTextStyle.code)
-                    ? 'monospace'
-                    : null,
+            color: span.styles.contains(MarkdownTextStyle.code)
+                ? Colors.pink.shade300
+                : theme.colorScheme.onSurface,
+            fontFamily: span.styles.contains(MarkdownTextStyle.code)
+                ? 'monospace'
+                : null,
             backgroundColor: span.styles.contains(MarkdownTextStyle.code)
-                ? Colors.black12
+                ? theme.colorScheme.primary.withValues(alpha: 0.1)
                 : null,
           );
 
@@ -379,7 +373,6 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
             ? (available / columnCount).clamp(72.0, double.infinity)
             : available;
         final tableWidth = colWidth * columnCount;
-        final needsScroll = tableWidth > available + 0.5;
 
         final tableContent = Container(
           width: tableWidth,
@@ -405,8 +398,8 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
                       width: colWidth,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 7,
+                          horizontal: 16,
+                          vertical: 12,
                         ),
                         child: Text(
                           header,
@@ -432,23 +425,22 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
                     border: Border(
                       bottom: isLastRow
                           ? BorderSide.none
-                          : BorderSide(
-                              color: theme.colorScheme.outlineVariant,
-                            ),
+                          : BorderSide(color: theme.colorScheme.outlineVariant),
                     ),
                   ),
                   child: Row(
                     children: headers.asMap().entries.map((cellEntry) {
                       final cellIndex = cellEntry.key;
-                      final cellText =
-                          row.length > cellIndex ? row[cellIndex] : '';
+                      final cellText = row.length > cellIndex
+                          ? row[cellIndex]
+                          : '';
 
                       return SizedBox(
                         width: colWidth,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 7,
+                            horizontal: 16,
+                            vertical: 12,
                           ),
                           child: Text(
                             cellText,
@@ -467,13 +459,10 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
           ),
         );
 
-        if (needsScroll) {
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: tableContent,
-          );
-        }
-        return tableContent;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: tableContent,
+        );
       },
     );
   }

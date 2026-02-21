@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'dart:convert' show base64;
 
-import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'core/api/api_client.dart';
 import 'core/i18n/app_localizations.dart';
@@ -66,12 +65,16 @@ import 'features/user/user_profile_screen.dart';
 import 'features/zen/zen_home_screen.dart';
 import 'features/zen/zen_new_screen.dart';
 import 'features/zen/zen_view_screen.dart';
-import 'platform_io.dart'
-    if (dart.library.js_interop) 'platform_stub.dart';
+import 'platform_io.dart' if (dart.library.js_interop) 'platform_stub.dart';
 import 'security_context_io.dart'
     if (dart.library.js_interop) 'security_context_stub.dart';
-import 'user_certs_io.dart'
-    if (dart.library.js_interop) 'user_certs_stub.dart';
+import 'user_certs_io.dart' if (dart.library.js_interop) 'user_certs_stub.dart';
+
+// Conditional imports - only load Sentry on native platforms
+import 'sentry_init_native.dart'
+    if (dart.library.js_interop) 'sentry_init_stub.dart';
+import 'sentry_widget.dart'
+    if (dart.library.js_interop) 'sentry_widget_stub.dart';
 
 // Deep link handler for receiving happy:// URLs
 const _deepLinkChannel = MethodChannel('com.example.happy_flutter/deep_links');
@@ -79,8 +82,7 @@ const _deepLinkChannel = MethodChannel('com.example.happy_flutter/deep_links');
 /// Converts a DER-encoded certificate to PEM format.
 Uint8List _derToPem(Uint8List der) {
   final b64 = base64.encode(der);
-  final buf = StringBuffer()
-    ..writeln('-----BEGIN CERTIFICATE-----');
+  final buf = StringBuffer()..writeln('-----BEGIN CERTIFICATE-----');
   for (var i = 0; i < b64.length; i += 64) {
     buf.writeln(b64.substring(i, i + 64 < b64.length ? i + 64 : b64.length));
   }
@@ -89,53 +91,38 @@ Uint8List _derToPem(Uint8List der) {
 }
 
 Future<void> main() async {
-  await SentryFlutter.init(
-    (options) {
-      options
-        ..dsn =
-            'https://34d0c1a2feec3a101164ba74383fc87e@o4506225548853248.ingest.us.sentry.io/4510613188378624'
-        ..sendDefaultPii = true
-        ..tracesSampleRate = kReleaseMode ? 0.2 : 1.0
-        ..release = 'happy_flutter@1.0.0+1'
-        // NOTE: debug builds send to the 'debug' environment in Sentry.
-        // Set the Performance filter to "All" or "debug" to see traces
-        // while developing — Sentry defaults to showing 'production' only.
-        ..environment = kReleaseMode ? 'production' : 'debug';
-    },
-    appRunner: () async {
-      WidgetsFlutterBinding.ensureInitialized();
-      // Installed here so Sentry's Zone and error handlers are set up first.
-      remoteLoggerAutoInstall();
+  // Use conditional initialization - Sentry only on native, not on web
+  await initSentryForPlatform(_runApp);
+}
 
-      if (!kIsWeb && isAndroid) {
-        final certs =
-            await FlutterUserCertificatesAndroid().getUserCertificates();
-        for (final derBytes in (certs ?? {}).values) {
-          // Android KeyStore returns DER; Dart's SecurityContext needs PEM.
-          final pem = _derToPem(derBytes);
-          SecurityContext.defaultContext
-              .setTrustedCertificatesBytes(pem);
-        }
-      }
+Future<void> _runApp() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Installed here so Sentry's Zone and error handlers are set up first.
+  remoteLoggerAutoInstall();
 
-      await storage.Storage().initialize();
+  if (!kIsWeb && isAndroid) {
+    final certs = await FlutterUserCertificatesAndroid().getUserCertificates();
+    for (final derBytes in (certs ?? {}).values) {
+      // Android KeyStore returns DER; Dart's SecurityContext needs PEM.
+      final pem = _derToPem(derBytes);
+      SecurityContext.defaultContext.setTrustedCertificatesBytes(pem);
+    }
+  }
 
-      final serverUrl = getServerUrl();
-      await ApiClient().initialize(serverUrl: serverUrl);
+  await storage.Storage().initialize();
 
-      // Handle initial deep link if the app was opened from a link
-      final deepLink = await _getInitialDeepLink();
+  final serverUrl = getServerUrl();
+  await ApiClient().initialize(serverUrl: serverUrl);
 
-      runApp(
-        ErrorBoundary(
-          child: ProviderScope(
-            child: SentryWidget(
-              child: HappyApp(initialDeepLink: deepLink),
-            ),
-          ),
-        ),
-      );
-    },
+  // Handle initial deep link if the app was opened from a link
+  final deepLink = await _getInitialDeepLink();
+
+  runApp(
+    ErrorBoundary(
+      child: ProviderScope(
+        child: SentryWidget(child: HappyApp(initialDeepLink: deepLink)),
+      ),
+    ),
   );
 }
 
@@ -150,7 +137,6 @@ Future<String?> _getInitialDeepLink() async {
 }
 
 class HappyApp extends ConsumerStatefulWidget {
-
   const HappyApp({super.key, this.initialDeepLink});
   final String? initialDeepLink;
 
@@ -190,9 +176,9 @@ class _HappyAppState extends ConsumerState<HappyApp>
 
   void _processInitialDeepLink() {
     if (widget.initialDeepLink != null) {
-      ref.read(
-        authStateNotifierProvider.notifier,
-      ).handleDeepLink(widget.initialDeepLink!);
+      ref
+          .read(authStateNotifierProvider.notifier)
+          .handleDeepLink(widget.initialDeepLink!);
     }
   }
 
@@ -204,9 +190,9 @@ class _HappyAppState extends ConsumerState<HappyApp>
 
   void _applyThemeFromSettings() {
     final settings = ref.read(settingsNotifierProvider);
-    AppThemeMode.fromString(settings.themeMode).applySystemChromeWithContext(
-      ref.context,
-    );
+    AppThemeMode.fromString(
+      settings.themeMode,
+    ).applySystemChromeWithContext(ref.context);
   }
 
   GoRouter _buildRouter() {
@@ -414,8 +400,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/new/pick/path',
           name: 'pick-path',
-          builder: (context, state) =>
-              const AuthGate(child: PickPathScreen()),
+          builder: (context, state) => const AuthGate(child: PickPathScreen()),
         ),
         GoRoute(
           path: '/new/pick/profile',
@@ -472,14 +457,12 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/zen',
           name: 'zen',
-          builder: (context, state) =>
-              const AuthGate(child: ZenHomeScreen()),
+          builder: (context, state) => const AuthGate(child: ZenHomeScreen()),
         ),
         GoRoute(
           path: '/zen/new',
           name: 'zen-new',
-          builder: (context, state) =>
-              const AuthGate(child: ZenNewScreen()),
+          builder: (context, state) => const AuthGate(child: ZenNewScreen()),
         ),
         GoRoute(
           path: '/zen/view',
@@ -496,8 +479,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/friends',
           name: 'friends',
-          builder: (context, state) =>
-              const AuthGate(child: FriendsScreen()),
+          builder: (context, state) => const AuthGate(child: FriendsScreen()),
         ),
         // ── Agent 5: terminal + additional settings screens ───────────────
         GoRoute(
@@ -509,8 +491,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/terminal',
           name: 'terminal',
-          builder: (context, state) =>
-              const AuthGate(child: TerminalScreen()),
+          builder: (context, state) => const AuthGate(child: TerminalScreen()),
         ),
         GoRoute(
           path: '/settings/server',
@@ -589,6 +570,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
 
         return MaterialApp.router(
           title: 'Happy',
+          debugShowCheckedModeBanner: false,
           theme: ThemeHelper.buildLightTheme(),
           darkTheme: ThemeHelper.buildDarkTheme(),
           themeMode: _getThemeMode(themeMode),

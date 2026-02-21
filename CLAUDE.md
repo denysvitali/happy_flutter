@@ -8,6 +8,8 @@ Happy Flutter is a **reimplementation of happy's mobile app** (React Native) loc
 
 **Flutter Version**: 3.38.7 (Dart 3.10+) — pinned via devenv (see `.fvmrc`, `devenv.nix`)
 
+**devenv Setup**: This project uses [devenv](https://devenv.sh/) to pin Flutter and development tools. Install via `curl -fsSL https://devenv.sh | bash`, then run `devenv shell` to enter the dev environment. The `.fvmrc` file specifies the exact Flutter SDK version; devenv ensures this version is used automatically.
+
 **Source of Truth**: See `ROADMAP.md` for feature parity tracking against the React Native app at `../happy`.
 
 ## Common Commands
@@ -33,7 +35,18 @@ devenv shell -- flutter pub run build_runner build
 # Build APK (flavors: development, preview, production)
 devenv shell -- flutter build apk --debug --flavor development
 devenv shell -- flutter build apk --release --flavor production
+
+# Build for iOS
+devenv shell -- flutter build ios --release
+
+# Run on connected device/emulator
+devenv shell -- flutter run
 ```
+
+**Build Flavors**:
+- `development` — development server, debug logging enabled
+- `preview` — staging server, reduced logging
+- `production` — production server at `api.cluster-fluster.com`
 
 ## Architecture
 
@@ -155,6 +168,8 @@ For routes that carry non-URL data (e.g., `message-detail`, `agent-conversation`
 
 **Service/API duality**: every feature domain has both a `XxxService` singleton (production code) and an injectable `XxxApi` class (accepts `ApiClient?`, used in tests). `sync_service.dart` calls `ApiClient()` directly for some endpoints, bypassing both.
 
+**API classes location**: Feature APIs are in `lib/core/api/` (sessions_api.dart, messages_api.dart, machines_api.dart, etc.)
+
 **Two MMKV instances**:
 - Default (`MMKV.defaultMMKV()`) — user data, cleared on logout
 - `MMKV('server-config')` — server URL, survives `Storage.clearAll()`
@@ -194,7 +209,7 @@ Forgetting this produces a confusing "ambiguous import" compile error.
 - `ConsumerStatefulWidget` + `ConsumerState` — when the screen needs local state and Riverpod
 - `ConsumerWidget` — stateless screens that only read providers
 
-**i18n**: `context.l10n` extension (or `AppLocalizations.of(context)`) — currently a handwritten stub with hardcoded English strings in `lib/core/i18n/app_localizations.dart`. `l10n.yaml` points to `/l10n/*.arb` at the repo root; the generator is configured but not yet wired up.
+**i18n**: `context.l10n` extension (or `AppLocalizations.of(context)`) — currently a handwritten stub with hardcoded English strings in `lib/core/i18n/app_localizations.dart`. `l10n.yaml` points to `/l10n/*.arb` at the repo root; the generator is configured but not yet wired up. ARB translation files exist in `lib/l10n/` but translations are not populated yet.
 
 ## Testing
 
@@ -239,4 +254,17 @@ devenv shell -- flutter pub run build_runner build
 - Ed25519 authentication signatures (`ed25519_edwards`)
 - Certificate pinning note: `CertificateProvider` is currently a stub returning `null`; pinning relies on the platform CA store via `NativeAdapter`
 - Credentials in `flutter_secure_storage`; app data in MMKV
-- Web build is **disabled** — `sodium` and `mmkv` are not web-compatible
+- **Web build disabled** — `sodium` and `mmkv` are not web-compatible. Encryption uses Web Crypto API as a fallback (see `lib/core/encryption/web_crypto.dart`)
+
+## Platform-Specific Code
+
+Platform-specific implementations use conditional exports:
+
+| File | Purpose |
+|------|---------|
+| `lib/platform_io.dart` | Native platform (Android/iOS) implementations |
+| `lib/platform_stub.dart` | Stub for platforms without native code |
+| `lib/security_context_io.dart` | Native security context |
+| `lib/user_certs_io.dart` | Native certificate handling |
+
+For Android/iOS builds, the `lib/`-level files conditionally export the `_io` variants. The `_stub` variants provide no-op implementations for unsupported platforms.

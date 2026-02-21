@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -109,10 +110,7 @@ const _kSwitchAnim = Duration(milliseconds: 180);
 
 /// Abort button — minimal pill with stop icon.
 class _AbortButton extends StatelessWidget {
-  const _AbortButton({
-    required this.isAborting,
-    this.onTap,
-  });
+  const _AbortButton({required this.isAborting, this.onTap});
 
   final bool isAborting;
   final VoidCallback? onTap;
@@ -125,10 +123,7 @@ class _AbortButton extends StatelessWidget {
       onTap: isAborting ? null : onTap,
       behavior: HitTestBehavior.opaque,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          minWidth: 44,
-          minHeight: 44,
-        ),
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
         child: Center(
           child: AnimatedContainer(
             duration: _kBorderAnim,
@@ -160,11 +155,7 @@ class _AbortButton extends StatelessWidget {
                       key: const ValueKey('abort-icon'),
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.stop_rounded,
-                          size: 14,
-                          color: cs.error,
-                        ),
+                        Icon(Icons.stop_rounded, size: 14, color: cs.error),
                         const SizedBox(width: 3),
                         Text(
                           'Stop',
@@ -215,9 +206,7 @@ class _SendButton extends StatelessWidget {
           height: 32,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: canSend
-                ? cs.primary
-                : cs.onSurface.withValues(alpha: 0.08),
+            color: canSend ? cs.primary : cs.onSurface.withValues(alpha: 0.08),
           ),
           child: AnimatedSwitcher(
             duration: _kSwitchAnim,
@@ -251,10 +240,7 @@ class _SendButton extends StatelessWidget {
 
 /// Inline chip for model selection — subtle, tappable.
 class _ModelChip extends StatelessWidget {
-  const _ModelChip({
-    required this.model,
-    required this.onTap,
-  });
+  const _ModelChip({required this.model, required this.onTap});
 
   final ClaudeModel model;
   final VoidCallback onTap;
@@ -268,10 +254,7 @@ class _ModelChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 4,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: isDefault
               ? cs.onSurface.withValues(alpha: 0.05)
@@ -286,18 +269,14 @@ class _ModelChip extends StatelessWidget {
                   ? Icons.diamond_outlined
                   : Icons.auto_awesome_outlined,
               size: 11,
-              color: isDefault
-                  ? cs.onSurfaceVariant
-                  : cs.primary,
+              color: isDefault ? cs.onSurfaceVariant : cs.primary,
             ),
             const SizedBox(width: 3),
             Text(
               model.label,
               style: theme.textTheme.labelSmall?.copyWith(
                 fontSize: 11,
-                color: isDefault
-                    ? cs.onSurfaceVariant
-                    : cs.primary,
+                color: isDefault ? cs.onSurfaceVariant : cs.primary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -328,8 +307,7 @@ class _ContextSizeIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final pctUsed =
-        (contextSize / _maxContext * 100).clamp(0.0, 100.0);
+    final pctUsed = (contextSize / _maxContext * 100).clamp(0.0, 100.0);
     final pctRemaining = (100 - pctUsed).round();
 
     final Color indicatorColor;
@@ -360,8 +338,7 @@ class _ContextSizeIndicator extends StatelessWidget {
             child: LinearProgressIndicator(
               value: pctUsed / 100,
               backgroundColor: cs.onSurface.withValues(alpha: 0.06),
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(indicatorColor),
+              valueColor: AlwaysStoppedAnimation<Color>(indicatorColor),
             ),
           ),
         ),
@@ -411,19 +388,14 @@ class _InputToolbar extends StatelessWidget {
           perm.PermissionModeSelector(
             selectedMode: permissionMode,
             onModeChanged: onPermissionModeChanged,
-            availableModes:
-                perm.PermissionModeExtension.claudeGeminiModes,
+            availableModes: perm.PermissionModeExtension.claudeGeminiModes,
           ),
         const SizedBox(width: 6),
-        _ModelChip(
-          model: model,
-          onTap: onShowModelPicker,
-        ),
+        _ModelChip(model: model, onTap: onShowModelPicker),
         const Spacer(),
         if (showAbort) ...[
           _AbortButton(isAborting: isAborting, onTap: onAbort),
-          if (contextSize != null && contextSize! > 0)
-            const SizedBox(width: 6),
+          if (contextSize != null && contextSize! > 0) const SizedBox(width: 6),
         ],
         if (contextSize != null && contextSize! > 0)
           _ContextSizeIndicator(contextSize: contextSize!),
@@ -517,8 +489,8 @@ Widget _buildModelTile(
               model == ClaudeModel.opus
                   ? Icons.diamond_outlined
                   : model == ClaudeModel.sonnet
-                      ? Icons.auto_awesome_outlined
-                      : Icons.smart_toy_outlined,
+                  ? Icons.auto_awesome_outlined
+                  : Icons.smart_toy_outlined,
               size: 16,
               color: isSelected ? cs.primary : cs.onSurfaceVariant,
             ),
@@ -528,18 +500,13 @@ Widget _buildModelTile(
             child: Text(
               model.label,
               style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 color: isSelected ? cs.primary : cs.onSurface,
               ),
             ),
           ),
           if (isSelected)
-            Icon(
-              Icons.check_rounded,
-              size: 18,
-              color: cs.primary,
-            ),
+            Icon(Icons.check_rounded, size: 18, color: cs.primary),
         ],
       ),
     ),
@@ -558,9 +525,7 @@ void _showModelPickerSheet(
     context: context,
     backgroundColor: cs.surface,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(AppRadius.xl),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
     ),
     builder: (ctx) => SafeArea(
       child: Padding(
@@ -583,7 +548,10 @@ void _showModelPickerSheet(
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm,
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.sm,
               ),
               child: Text(
                 'Model',
@@ -702,7 +670,6 @@ class ChatInput extends ConsumerStatefulWidget {
 
 class _ChatInputState extends ConsumerState<ChatInput>
     with TickerProviderStateMixin {
-
   _ChatInputState()
     : _draftAutoSave = DraftAutoSave(sessionId: '', onSave: (_) {});
   final FocusNode _focusNode = FocusNode();
@@ -731,10 +698,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       value: 1.0,
     );
     _sendScale = Tween<double>(begin: 0.82, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _sendScaleController,
-        curve: Curves.easeOutBack,
-      ),
+      CurvedAnimation(parent: _sendScaleController, curve: Curves.easeOutBack),
     );
 
     _loadDraft();
@@ -767,9 +731,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   Future<void> _loadDraft() async {
     final draft = await DraftStorage().getDraft(widget.sessionId);
-    if (draft != null &&
-        draft.isNotEmpty &&
-        widget.controller.text.isEmpty) {
+    if (draft != null && draft.isNotEmpty && widget.controller.text.isEmpty) {
       widget.controller.text = draft;
       _previousText = draft;
     }
@@ -791,10 +753,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final currentText = widget.controller.text;
     _updateAutocomplete(currentText);
 
-    if (DraftStateTransition.isStateTransition(
-      _previousText,
-      currentText,
-    )) {
+    if (DraftStateTransition.isStateTransition(_previousText, currentText)) {
       _draftAutoSave.saveNow();
     } else if (currentText.trim().isNotEmpty) {
       _draftAutoSave.update(currentText);
@@ -811,8 +770,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     }
 
     final textBeforeCursor = text.substring(0, cursorPosition);
-    final lastWordMatch =
-        RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor);
+    final lastWordMatch = RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor);
 
     if (lastWordMatch == null) {
       _clearAutocomplete();
@@ -824,20 +782,13 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
     if (trigger == '@') {
       final suggestions = widget.fileSuggestions
-          .where(
-            (s) =>
-                s.label.toLowerCase().contains(query.toLowerCase()),
-          )
+          .where((s) => s.label.toLowerCase().contains(query.toLowerCase()))
           .toList();
       _autocompleteController.setSuggestions(suggestions, query);
       setState(() => _showAutocomplete = suggestions.isNotEmpty);
     } else if (trigger == '/') {
       final suggestions = _slashCommands
-          .where(
-            (c) => c.command
-                .toLowerCase()
-                .contains(query.toLowerCase()),
-          )
+          .where((c) => c.command.toLowerCase().contains(query.toLowerCase()))
           .map(
             (c) => AutocompleteSuggestion(
               id: c.command,
@@ -869,14 +820,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final text = widget.controller.text;
     final cursorPosition = widget.controller.selection.base.offset;
     final textBeforeCursor = text.substring(0, cursorPosition);
-    final lastWordMatch =
-        RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor);
+    final lastWordMatch = RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor);
 
     if (lastWordMatch != null) {
       final startIndex = lastWordMatch.start;
-      final trigger = suggestion.type == SuggestionType.command
-          ? '/'
-          : '@';
+      final trigger = suggestion.type == SuggestionType.command ? '/' : '@';
       final replacement = '$trigger${suggestion.label} ';
       final newText = text.replaceRange(
         startIndex,
@@ -962,9 +910,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
             suggestions: _autocompleteController.suggestions,
             selectedIndex: _autocompleteController.selectedIndex,
             onSelect: (index) {
-              _applySuggestion(
-                _autocompleteController.suggestions[index],
-              );
+              _applySuggestion(_autocompleteController.suggestions[index]);
             },
           ),
         _buildInputContainer(context),
@@ -979,46 +925,56 @@ class _ChatInputState extends ConsumerState<ChatInput>
   Widget _buildInputContainer(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        border: Border(
-          top: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.3),
-            width: 0.5,
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                cs.surface.withValues(alpha: 0.6),
+                cs.surface.withValues(alpha: 0.95),
+              ],
+            ),
+            border: Border(
+              top: BorderSide(
+                color: cs.outlineVariant.withValues(alpha: 0.2),
+                width: 0.5,
+              ),
+            ),
           ),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.sm,
-            AppSpacing.sm,
-            AppSpacing.sm,
-            AppSpacing.xs,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildCardInputArea(context),
-              const SizedBox(height: 6),
-              _InputToolbar(
-                permissionMode: widget.permissionMode,
-                onPermissionModeChanged:
-                    widget.onPermissionModeChanged,
-                modelMode: widget.modelMode,
-                onShowModelPicker: () =>
-                    widget.onModelModeChanged != null
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.sm,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildCardInputArea(context),
+                  const SizedBox(height: 10),
+                  _InputToolbar(
+                    permissionMode: widget.permissionMode,
+                    onPermissionModeChanged: widget.onPermissionModeChanged,
+                    modelMode: widget.modelMode,
+                    onShowModelPicker: () => widget.onModelModeChanged != null
                         ? _showModelPicker(context)
                         : null,
-                contextSize: widget.contextSize,
-                showAbort: widget.isSessionOnline &&
-                    !widget.isPermissionPending,
-                isAborting: _isAborting,
-                onAbort: _onAbortTap,
+                    contextSize: widget.contextSize,
+                    showAbort:
+                        widget.isSessionOnline && !widget.isPermissionPending,
+                    isAborting: _isAborting,
+                    onAbort: _onAbortTap,
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -1036,8 +992,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final borderColor = pending
         ? cs.outlineVariant.withValues(alpha: 0.2)
         : _isFocused
-            ? cs.primary.withValues(alpha: 0.4)
-            : cs.outlineVariant.withValues(alpha: 0.4);
+        ? cs.primary.withValues(alpha: 0.4)
+        : cs.outlineVariant.withValues(alpha: 0.4);
     final cardColor = pending
         ? cs.onSurface.withValues(alpha: 0.03)
         : cs.surfaceContainerLow;
@@ -1049,16 +1005,20 @@ class _ChatInputState extends ConsumerState<ChatInput>
         color: cardColor,
         borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(color: borderColor, width: 0.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(child: _buildTextField(context)),
           Padding(
-            padding: const EdgeInsets.only(
-              right: 6,
-              bottom: 6,
-            ),
+            padding: const EdgeInsets.only(right: 6, bottom: 6),
             child: _SendButton(
               isSending: widget.isSending,
               isSendDisabled:
@@ -1091,9 +1051,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         enabled: !pending,
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: theme.textTheme.bodyMedium?.copyWith(
-            color: hintColor,
-          ),
+          hintStyle: theme.textTheme.bodyMedium?.copyWith(color: hintColor),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
@@ -1106,20 +1064,16 @@ class _ChatInputState extends ConsumerState<ChatInput>
           ),
         ),
         style: theme.textTheme.bodyMedium?.copyWith(
-          color: pending
-              ? cs.onSurface.withValues(alpha: 0.38)
-              : null,
+          color: pending ? cs.onSurface.withValues(alpha: 0.38) : null,
         ),
         maxLines: 4,
         minLines: 1,
-        textInputAction:
-            defaultTargetPlatform == TargetPlatform.android
-                ? TextInputAction.newline
-                : TextInputAction.send,
-        onSubmitted:
-            defaultTargetPlatform == TargetPlatform.android
-                ? null
-                : (_) => widget.onSend(),
+        textInputAction: defaultTargetPlatform == TargetPlatform.android
+            ? TextInputAction.newline
+            : TextInputAction.send,
+        onSubmitted: defaultTargetPlatform == TargetPlatform.android
+            ? null
+            : (_) => widget.onSend(),
       ),
     );
   }
@@ -1153,8 +1107,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       ),
       child: Row(
         children: [
-          if (widget.machineName != null &&
-              widget.onMachinePressed != null)
+          if (widget.machineName != null && widget.onMachinePressed != null)
             _buildInfoChip(
               context,
               icon: Icons.computer_outlined,
@@ -1166,8 +1119,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
               widget.onMachinePressed != null &&
               widget.onPathPressed != null)
             _buildInfoSeparator(context),
-          if (widget.currentPath != null &&
-              widget.onPathPressed != null)
+          if (widget.currentPath != null && widget.onPathPressed != null)
             Flexible(
               child: _buildInfoChip(
                 context,

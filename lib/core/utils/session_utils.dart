@@ -10,12 +10,7 @@ import '../models/session.dart';
 export 'utils.dart' show formatTimestamp;
 
 /// Date grouping categories for session history
-enum DateGroup {
-  today,
-  yesterday,
-  lastSevenDays,
-  older,
-}
+enum DateGroup { today, yesterday, lastSevenDays, older }
 
 /// Groups sessions into date-based categories.
 /// Categories: "Today", "Yesterday", "Last 7 Days", "Older"
@@ -163,9 +158,16 @@ String getSessionName(Session session) {
   } else if (session.metadata != null) {
     final path = session.metadata!.path ?? '';
     final segments = path.split('/').where((e) => e.isNotEmpty);
-    final lastSegment = segments.isNotEmpty ? segments.last : null;
+    var lastSegment = segments.isNotEmpty ? segments.last : null;
     if (lastSegment == null) {
       return 'Unknown';
+    }
+    // Remove hash from workspace-xxx-*** names
+    if (lastSegment.startsWith('workspace-')) {
+      final parts = lastSegment.split('-');
+      if (parts.length > 2) {
+        lastSegment = parts.sublist(0, 2).join('-');
+      }
     }
     return lastSegment;
   }
@@ -217,10 +219,7 @@ String getSessionSubtitle(Session session) {
   if (session.metadata != null) {
     final path = session.metadata!.path;
     if (path != null) {
-      return formatPathRelativeToHome(
-        path,
-        homeDir: session.metadata!.homeDir,
-      );
+      return formatPathRelativeToHome(path, homeDir: session.metadata!.homeDir);
     }
   }
   return 'Unknown';
@@ -364,12 +363,8 @@ List<SessionFolderItem> groupSessionsByFolder(
   // Sort groups by most recently updated session descending.
   final sortedKeys = groups.keys.toList()
     ..sort((a, b) {
-      final aLatest = groups[a]!
-          .map((s) => s.updatedAt)
-          .reduce(math.max);
-      final bLatest = groups[b]!
-          .map((s) => s.updatedAt)
-          .reduce(math.max);
+      final aLatest = groups[a]!.map((s) => s.updatedAt).reduce(math.max);
+      final bLatest = groups[b]!.map((s) => s.updatedAt).reduce(math.max);
       return bLatest.compareTo(aLatest);
     });
 
@@ -384,7 +379,8 @@ List<SessionFolderItem> groupSessionsByFolder(
     final first = groupSessions.first;
     final machineId = first.metadata?.machineId ?? '';
     final machine = machines[machineId];
-    final machineName = machine?.metadata?.displayName ??
+    final machineName =
+        machine?.metadata?.displayName ??
         machine?.metadata?.host ??
         first.metadata?.host ??
         'Unknown';

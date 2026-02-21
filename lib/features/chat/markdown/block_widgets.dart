@@ -17,9 +17,9 @@ import 'markdown_models.dart';
 /// Supports bold, italic, semibold, and inline code styles.
 /// Text is selectable for copying on long-press.
 class TextBlockWidget extends StatefulWidget {
-
   const TextBlockWidget({
-    required this.content, super.key,
+    required this.content,
+    super.key,
     this.isFirst = false,
     this.isLast = false,
   });
@@ -53,15 +53,15 @@ class _TextBlockWidgetState extends State<TextBlockWidget> {
     _disposeRecognizers();
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    _inlineCodeBg = cs.surfaceContainerHighest;
+    _inlineCodeBg = cs.primary.withValues(alpha: 0.1);
     final inheritedColor = DefaultTextStyle.of(context).style.color;
     final baseStyle = DefaultTextStyle.of(context).style.merge(
-          TextStyle(
-            fontSize: 14,
-            height: 1.45,
-            color: inheritedColor ?? cs.onSurface,
-          ),
-        );
+      TextStyle(
+        fontSize: 14,
+        height: 1.45,
+        color: inheritedColor ?? cs.onSurface,
+      ),
+    );
 
     return RichText(
       text: TextSpan(
@@ -73,7 +73,6 @@ class _TextBlockWidgetState extends State<TextBlockWidget> {
 
   InlineSpan _buildSpan(MarkdownSpan span) {
     final textStyle = TextStyle(
-      color: span.url != null ? Colors.blue : null,
       decoration: span.url != null ? TextDecoration.underline : null,
       fontStyle: span.styles.contains(MarkdownTextStyle.italic)
           ? FontStyle.italic
@@ -81,14 +80,17 @@ class _TextBlockWidgetState extends State<TextBlockWidget> {
       fontWeight: span.styles.contains(MarkdownTextStyle.bold)
           ? FontWeight.bold
           : span.styles.contains(MarkdownTextStyle.semibold)
-              ? FontWeight.w600
-              : null,
+          ? FontWeight.w600
+          : null,
       fontFamily: span.styles.contains(MarkdownTextStyle.code)
           ? 'monospace'
           : null,
       backgroundColor: span.styles.contains(MarkdownTextStyle.code)
           ? _inlineCodeBg
           : null,
+      color: span.styles.contains(MarkdownTextStyle.code)
+          ? Colors.pink.shade300
+          : (span.url != null ? Colors.blue : null),
     );
 
     if (span.url != null) {
@@ -111,9 +113,10 @@ class _TextBlockWidgetState extends State<TextBlockWidget> {
 ///
 /// Headers are rendered with decreasing font sizes from H1 to H6.
 class HeaderBlockWidget extends StatefulWidget {
-
   const HeaderBlockWidget({
-    required this.level, required this.content, super.key,
+    required this.level,
+    required this.content,
+    super.key,
     this.isFirst = false,
     this.isLast = false,
   });
@@ -200,9 +203,9 @@ class _HeaderBlockWidgetState extends State<HeaderBlockWidget> {
 
 /// A widget that displays an unordered (bulleted) list.
 class ListBlockWidget extends StatefulWidget {
-
   const ListBlockWidget({
-    required this.items, super.key,
+    required this.items,
+    super.key,
     this.isFirst = false,
     this.isLast = false,
   });
@@ -221,7 +224,7 @@ class _ListBlockWidgetState extends State<ListBlockWidget> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    _inlineCodeBg = cs.surfaceContainerHighest;
+    _inlineCodeBg = cs.primary.withValues(alpha: 0.1);
     final inheritedColor = DefaultTextStyle.of(context).style.color;
     final textColor = inheritedColor ?? cs.onSurface;
 
@@ -237,21 +240,17 @@ class _ListBlockWidgetState extends State<ListBlockWidget> {
               padding: const EdgeInsets.only(right: 8, top: 2),
               child: Text(
                 '•',
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.45,
-                  color: textColor,
-                ),
+                style: TextStyle(fontSize: 14, height: 1.45, color: textColor),
               ),
             ),
             Expanded(
               child: RichText(
                 text: TextSpan(
                   style: DefaultTextStyle.of(context).style.copyWith(
-                        fontSize: 14,
-                        height: 1.45,
-                        color: textColor,
-                      ),
+                    fontSize: 14,
+                    height: 1.45,
+                    color: textColor,
+                  ),
                   children: item.map(_buildSpan).toList(),
                 ),
               ),
@@ -278,6 +277,9 @@ class _ListBlockWidgetState extends State<ListBlockWidget> {
         backgroundColor: span.styles.contains(MarkdownTextStyle.code)
             ? _inlineCodeBg
             : null,
+        color: span.styles.contains(MarkdownTextStyle.code)
+            ? Colors.pink.shade300
+            : null,
       ),
     );
   }
@@ -285,9 +287,9 @@ class _ListBlockWidgetState extends State<ListBlockWidget> {
 
 /// A widget that displays a numbered list.
 class NumberedListBlockWidget extends StatefulWidget {
-
   const NumberedListBlockWidget({
-    required this.items, super.key,
+    required this.items,
+    super.key,
     this.isFirst = false,
     this.isLast = false,
   });
@@ -307,7 +309,7 @@ class _NumberedListBlockWidgetState extends State<NumberedListBlockWidget> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    _inlineCodeBg = cs.surfaceContainerHighest;
+    _inlineCodeBg = cs.primary.withValues(alpha: 0.1);
     final inheritedColor = DefaultTextStyle.of(context).style.color;
     final textColor = inheritedColor ?? cs.onSurface;
 
@@ -323,21 +325,17 @@ class _NumberedListBlockWidgetState extends State<NumberedListBlockWidget> {
               padding: const EdgeInsets.only(right: 8, top: 2),
               child: Text(
                 '${item.number}.',
-                style: TextStyle(
-                  fontSize: 15,
-                  height: 1.45,
-                  color: textColor,
-                ),
+                style: TextStyle(fontSize: 15, height: 1.45, color: textColor),
               ),
             ),
             Expanded(
               child: RichText(
                 text: TextSpan(
                   style: DefaultTextStyle.of(context).style.copyWith(
-                        fontSize: 15,
-                        height: 1.45,
-                        color: textColor,
-                      ),
+                    fontSize: 15,
+                    height: 1.45,
+                    color: textColor,
+                  ),
                   children: item.spans.map(_buildSpan).toList(),
                 ),
               ),
@@ -364,6 +362,9 @@ class _NumberedListBlockWidgetState extends State<NumberedListBlockWidget> {
         backgroundColor: span.styles.contains(MarkdownTextStyle.code)
             ? _inlineCodeBg
             : null,
+        color: span.styles.contains(MarkdownTextStyle.code)
+            ? Colors.pink.shade300
+            : null,
       ),
     );
   }
@@ -378,9 +379,9 @@ class _NumberedListBlockWidgetState extends State<NumberedListBlockWidget> {
 /// - Language badge display
 /// - Text selection support
 class CodeBlockWidget extends StatefulWidget {
-
   const CodeBlockWidget({
-    required this.content, super.key,
+    required this.content,
+    super.key,
     this.language,
     this.isFirst = false,
     this.isLast = false,
@@ -438,9 +439,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(7),
                   ),
-                  border: Border(
-                    bottom: BorderSide(color: borderColor),
-                  ),
+                  border: Border(bottom: BorderSide(color: borderColor)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -571,9 +570,9 @@ class HorizontalRuleBlockWidget extends StatelessWidget {
 
 /// A widget that displays an options block for interactive choices.
 class OptionsBlockWidget extends StatelessWidget {
-
   const OptionsBlockWidget({
-    required this.items, super.key,
+    required this.items,
+    super.key,
     this.isFirst = false,
     this.isLast = false,
     this.onOptionPress,
@@ -587,53 +586,46 @@ class OptionsBlockWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: items.asMap().entries.map((entry) {
-        final index = entry.key;
-        final item = entry.value;
-
-        final inheritedColor = DefaultTextStyle.of(context).style.color;
-        final child = Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: items.map((item) {
+        final child = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+            ),
+            borderRadius: BorderRadius.circular(100),
+          ),
           child: Text(
             item,
             style: TextStyle(
-              fontSize: 16,
-              height: 1.5,
-              color: inheritedColor ?? theme.colorScheme.onSurface,
+              fontSize: 14,
+              color: onOptionPress != null
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w500,
             ),
           ),
         );
 
         if (onOptionPress != null) {
-          return InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () => onOptionPress!(item),
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: theme.colorScheme.outlineVariant,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              margin: index > 0 ? const EdgeInsets.only(top: 8) : null,
+          return Material(
+            color: Colors.transparent,
+            elevation: 1,
+            shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(100),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(100),
+              onTap: () => onOptionPress!(item),
               child: child,
             ),
           );
         }
 
-        return Container(
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: theme.colorScheme.outlineVariant,
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          margin: index > 0 ? const EdgeInsets.only(top: 8) : null,
-          child: child,
-        );
+        return child;
       }).toList(),
     );
   }
@@ -641,9 +633,10 @@ class OptionsBlockWidget extends StatelessWidget {
 
 /// A widget that displays a table with headers and data rows.
 class TableBlockWidget extends StatelessWidget {
-
   const TableBlockWidget({
-    required this.headers, required this.rows, super.key,
+    required this.headers,
+    required this.rows,
+    super.key,
     this.isFirst = false,
     this.isLast = false,
   });
@@ -666,7 +659,6 @@ class TableBlockWidget extends StatelessWidget {
             ? (available / columnCount).clamp(72.0, double.infinity)
             : available;
         final tableWidth = colWidth * columnCount;
-        final needsScroll = tableWidth > available + 0.5;
 
         final tableContent = Container(
           width: tableWidth,
@@ -694,8 +686,8 @@ class TableBlockWidget extends StatelessWidget {
                       width: colWidth,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 7,
+                          horizontal: 16,
+                          vertical: 12,
                         ),
                         child: Text(
                           header,
@@ -721,31 +713,30 @@ class TableBlockWidget extends StatelessWidget {
                     border: Border(
                       bottom: isLastRow
                           ? BorderSide.none
-                          : BorderSide(
-                              color: theme.colorScheme.outlineVariant,
-                            ),
+                          : BorderSide(color: theme.colorScheme.outlineVariant),
                     ),
                   ),
                   child: Row(
                     children: headers.asMap().entries.map((cellEntry) {
                       final cellIndex = cellEntry.key;
-                      final cellText =
-                          row.length > cellIndex ? row[cellIndex] : '';
+                      final cellText = row.length > cellIndex
+                          ? row[cellIndex]
+                          : '';
 
                       return SizedBox(
                         width: colWidth,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 7,
+                            horizontal: 16,
+                            vertical: 12,
                           ),
                           child: Text(
                             cellText,
                             style: TextStyle(
                               fontSize: 13,
                               height: 1.4,
-                              color: inheritedColor ??
-                                  theme.colorScheme.onSurface,
+                              color:
+                                  inheritedColor ?? theme.colorScheme.onSurface,
                             ),
                           ),
                         ),
@@ -758,13 +749,10 @@ class TableBlockWidget extends StatelessWidget {
           ),
         );
 
-        if (needsScroll) {
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: tableContent,
-          );
-        }
-        return tableContent;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: tableContent,
+        );
       },
     );
   }

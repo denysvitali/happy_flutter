@@ -3,13 +3,13 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
-import 'package:ed25519_edwards/ed25519_edwards.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:sodium/sodium.dart' show SecureKey;
+import 'package:sodium/sodium.dart' show SecureKey, Sodium;
 
 import '../api/api_client.dart';
 import '../encryption/crypto_box.dart';
+import '../encryption/sodium_loader.dart';
 import '../models/auth.dart';
 import '../models/profile.dart';
 import '../utils/backup_key_utils.dart';
@@ -29,6 +29,13 @@ class AuthService {
   // Pending secret keys for in-progress auth flows (NaCl box, X25519)
   SecureKey? _pendingQRSecretKey;
   SecureKey? _pendingLinkingSecretKey;
+
+  // Sodium instance for Ed25519 signing
+  static Sodium? _sodium;
+  static Future<Sodium> get _sodiumInstance async {
+    _sodium ??= await loadSodium();
+    return _sodium!;
+  }
 
   /// Start QR authentication
   /// Returns the public key to display in QR code
@@ -596,14 +603,33 @@ Timestamp: ${DateTime.now().toIso8601String()}
       throw ArgumentError('Seed must be exactly 32 bytes');
     }
 
-    final privateKey = newKeyFromSeed(seed);
-    final publicKey = public(privateKey);
+    final sodium = await _sodiumInstance;
+
+    // Use seedKeyPair to derive the keypair from the seed
+    // This gives us the proper Ed25519 keypair
+    final seedKey = SecureKey.fromList(sodium, seed);
+    final keypair = sodium.crypto.sign.seedKeyPair(seedKey);
+    seedKey.dispose();
+
+    // Get the public key bytes
+    final publicKeyBytes = Uint8List.fromList(keypair.publicKey);
+
+    // For _KeyPair storage, we store the seed (for compatibility with the
+    // original format). The actual signing will be done using the keypair's
+    // secretKey. We need to cache this for later use.
+
+    // Store the seed (32 bytes) as the private key - this is what gets
+    // serialized. The _cachedKeypairSecret will be used for actual signing.
+    _cachedKeypairSecret = keypair.secretKey;
 
     return _KeyPair(
-      privateKey: Uint8List.fromList(privateKey.bytes),
-      publicKey: Uint8List.fromList(publicKey.bytes),
+      privateKey: Uint8List.fromList(seed),
+      publicKey: publicKeyBytes,
     );
   }
+
+  // Cached secret key for signing (the 64-byte extended Ed25519 secret key)
+  SecureKey? _cachedKeypairSecret;
 
   /// Extract error message from response data
   String _extractErrorMessage(dynamic data) {
@@ -652,15 +678,23 @@ Timestamp: ${DateTime.now().toIso8601String()}
     Uint8List challenge,
     Uint8List privateKey,
   ) async {
-    if (kIsWeb) {
-      throw UnimplementedError(
-        'Challenge signing not yet implemented on web platform. '
-        'Use Web Crypto API for full web functionality.',
-      );
+    final sodium = await _sodiumInstance;
+
+    // Use the cached secret key if available (from _generateKeypair)
+    // This is the proper 64-byte extended Ed25519 secret key
+    final secretKey = _cachedKeypairSecret ??
+        SecureKey.fromList(sodium, privateKey);
+
+    final signature = sodium.crypto.sign.detached(
+      message: challenge,
+      secretKey: secretKey,
+    );
+
+    // Only dispose if we created it from the privateKey (not cached)
+    if (_cachedKeypairSecret == null) {
+      secretKey.dispose();
     }
 
-    final privateKeyObj = PrivateKey(privateKey);
-    final signature = sign(privateKeyObj, challenge);
     return signature;
   }
 

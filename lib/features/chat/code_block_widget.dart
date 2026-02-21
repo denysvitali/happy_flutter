@@ -25,9 +25,9 @@ class _MochaColors {
 /// Widget for displaying a code block with syntax highlighting, copy button,
 /// line numbers, and language header.
 class CodeBlockWidget extends StatefulWidget {
-
   const CodeBlockWidget({
-    required this.code, super.key,
+    required this.code,
+    super.key,
     this.language,
     this.fileName,
     this.showLineNumbers = true,
@@ -35,6 +35,7 @@ class CodeBlockWidget extends StatefulWidget {
     this.fontSize = 13,
     this.maxVisibleLines = 12,
   });
+
   /// The source code to display.
   final String code;
 
@@ -70,8 +71,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   int get _lineCount => '\n'.allMatches(widget.code).length + 1;
 
   /// Whether the code needs vertical scrolling.
-  bool get _needsVerticalScroll =>
-      _lineCount > widget.maxVisibleLines;
+  bool get _needsVerticalScroll => _lineCount > widget.maxVisibleLines;
 
   /// Max height before vertical scrolling kicks in.
   double get _maxHeight =>
@@ -80,13 +80,11 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = widget.isDarkMode ??
-        (Theme.of(context).brightness == Brightness.dark);
+    final isDark =
+        widget.isDarkMode ?? (Theme.of(context).brightness == Brightness.dark);
 
-    final bgColor =
-        isDark ? _mocha.base : const Color(0xFFF8F8F8);
-    final borderColor =
-        isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
+    final bgColor = isDark ? _mocha.crust : const Color(0xFFF1F5F9);
+    final borderColor = isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
 
     return Container(
       decoration: BoxDecoration(
@@ -106,10 +104,10 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
             copied: _copied,
             onCopy: _copyToClipboard,
           ),
-          if (_needsVerticalScroll) SizedBox(
-                  height: _maxHeight,
-                  child: _buildScrollableCode(isDark),
-                ) else _buildScrollableCode(isDark),
+          if (_needsVerticalScroll)
+            SizedBox(height: _maxHeight, child: _buildScrollableCode(isDark))
+          else
+            _buildScrollableCode(isDark),
         ],
       ),
     );
@@ -134,12 +132,13 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (widget.showLineNumbers) _LineNumbers(
-            lineCount: _lineCount,
-            fontSize: widget.fontSize,
-            lineHeight: _lineHeight,
-            isDark: isDark,
-          ),
+          if (widget.showLineNumbers)
+            _LineNumbers(
+              lineCount: _lineCount,
+              fontSize: widget.fontSize,
+              lineHeight: _lineHeight,
+              isDark: isDark,
+            ),
           Padding(
             padding: EdgeInsets.only(
               left: widget.showLineNumbers ? AppSpacing.md : AppSpacing.lg,
@@ -170,7 +169,6 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
 
 /// Header bar showing language name, optional filename, and copy button.
 class _CodeHeader extends StatelessWidget {
-
   const _CodeHeader({
     required this.language,
     required this.fileName,
@@ -187,10 +185,8 @@ class _CodeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final headerBg = isDark ? _mocha.mantle : const Color(0xFFEFF1F3);
-    final dividerColor =
-        isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
-    final labelColor =
-        isDark ? _mocha.subtext0 : const Color(0xFF6E7781);
+    final dividerColor = isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
+    final labelColor = isDark ? _mocha.subtext0 : const Color(0xFF6E7781);
 
     final displayName = _resolveDisplayName();
 
@@ -198,9 +194,7 @@ class _CodeHeader extends StatelessWidget {
       height: 36,
       decoration: BoxDecoration(
         color: headerBg,
-        border: Border(
-          bottom: BorderSide(color: dividerColor),
-        ),
+        border: Border(bottom: BorderSide(color: dividerColor)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: Row(
@@ -231,11 +225,7 @@ class _CodeHeader extends StatelessWidget {
             ),
           const Spacer(),
           // Copy button – always visible
-          _CopyButton(
-            copied: copied,
-            isDark: isDark,
-            onTap: onCopy,
-          ),
+          _CopyButton(copied: copied, isDark: isDark, onTap: onCopy),
         ],
       ),
     );
@@ -277,7 +267,6 @@ class _CodeHeader extends StatelessWidget {
 
 /// Animated copy button with "Copied!" feedback.
 class _CopyButton extends StatelessWidget {
-
   const _CopyButton({
     required this.copied,
     required this.isDark,
@@ -336,7 +325,6 @@ class _CopyButton extends StatelessWidget {
 
 /// Left column displaying line numbers.
 class _LineNumbers extends StatelessWidget {
-
   const _LineNumbers({
     required this.lineCount,
     required this.fontSize,
@@ -350,10 +338,8 @@ class _LineNumbers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final numColor =
-        isDark ? _mocha.surface1 : const Color(0xFF8C959F);
-    final dividerColor =
-        isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
+    final numColor = isDark ? _mocha.surface1 : const Color(0xFF8C959F);
+    final dividerColor = isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
 
     return Container(
       padding: const EdgeInsets.only(
@@ -361,9 +347,7 @@ class _LineNumbers extends StatelessWidget {
         right: AppSpacing.sm + AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        border: Border(
-          right: BorderSide(color: dividerColor),
-        ),
+        border: Border(right: BorderSide(color: dividerColor)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,

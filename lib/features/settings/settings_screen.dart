@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -98,16 +99,12 @@ class SettingsScreen extends ConsumerWidget {
                     .refreshFromSync();
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Claude disconnected'),
-                  ),
+                  const SnackBar(content: Text('Claude disconnected')),
                 );
               } catch (error) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed to disconnect: $error'),
-                  ),
+                  SnackBar(content: Text('Failed to disconnect: $error')),
                 );
               }
             } else {
@@ -130,32 +127,23 @@ class SettingsScreen extends ConsumerWidget {
                     .refreshFromSync();
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('GitHub disconnected'),
-                  ),
+                  const SnackBar(content: Text('GitHub disconnected')),
                 );
               } catch (error) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed to disconnect: $error'),
-                  ),
+                  SnackBar(content: Text('Failed to disconnect: $error')),
                 );
               }
             } else {
               try {
                 final params = await GitHubApi().getOAuthParams();
                 final uri = Uri.parse(params.url);
-                await launchUrl(
-                  uri,
-                  mode: LaunchMode.externalApplication,
-                );
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
               } catch (error) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed to start OAuth: $error'),
-                  ),
+                  SnackBar(content: Text('Failed to start OAuth: $error')),
                 );
               }
             }
@@ -208,8 +196,7 @@ class SettingsScreen extends ConsumerWidget {
           icon: Icons.account_circle_outlined,
           title: l10n.settingsAvatarStyle,
           subtitle: settings.avatarStyle,
-          onTap: () =>
-              showAvatarStyleDialog(context, settings, ref),
+          onTap: () => showAvatarStyleDialog(context, settings, ref),
         ),
       ],
     );
@@ -219,8 +206,7 @@ class SettingsScreen extends ConsumerWidget {
     if (localeString.isEmpty) return '';
     final parts = localeString.split('_');
     if (parts.length == 2) {
-      final first =
-          '${parts[0][0].toUpperCase()}${parts[0].substring(1)}';
+      final first = '${parts[0][0].toUpperCase()}${parts[0].substring(1)}';
       return '$first (${parts[1]})';
     }
     return '${parts[0][0].toUpperCase()}${parts[0].substring(1)}';
@@ -371,10 +357,7 @@ class SettingsScreen extends ConsumerWidget {
       children: machineList
           .map((machine) {
             final metadata = machine.metadata;
-            final title =
-                metadata?.displayName ??
-                metadata?.host ??
-                machine.id;
+            final title = metadata?.displayName ?? metadata?.host ?? machine.id;
             final subtitle =
                 '${metadata?.platform ?? 'unknown'}'
                 ' • ${machine.active ? 'Online' : 'Offline'}';
@@ -391,10 +374,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDeveloperSection(
-    BuildContext context,
-    Settings settings,
-  ) {
+  Widget _buildDeveloperSection(BuildContext context, Settings settings) {
     final l10n = AppLocalizations.of(context);
     return _SettingsSection(
       title: l10n.settingsDeveloper,
@@ -432,15 +412,11 @@ class SettingsScreen extends ConsumerWidget {
       title: l10n.settingsCertificates,
       children: [
         FutureBuilder<bool>(
-          future: Future.value(
-            CertificateProvider().hasUserCertificates(),
-          ),
+          future: Future.value(CertificateProvider().hasUserCertificates()),
           builder: (context, snapshot) {
             final hasCerts = snapshot.data ?? false;
             return _SettingsRow(
-              icon: hasCerts
-                  ? Icons.verified_user
-                  : Icons.info_outline,
+              icon: hasCerts ? Icons.verified_user : Icons.info_outline,
               iconColor: hasCerts
                   ? Theme.of(context).colorScheme.primary
                   : null,
@@ -463,10 +439,8 @@ class SettingsScreen extends ConsumerWidget {
         FutureBuilder<Map<String, dynamic>>(
           future: _getServerInfo(),
           builder: (context, snapshot) {
-            final url =
-                snapshot.data?['url'] as String? ?? 'Loading...';
-            final isCustom =
-                snapshot.data?['isCustom'] as bool? ?? false;
+            final url = snapshot.data?['url'] as String? ?? 'Loading...';
+            final isCustom = snapshot.data?['isCustom'] as bool? ?? false;
 
             return _SettingsRow(
               icon: isCustom ? Icons.edit : Icons.cloud_outlined,
@@ -477,10 +451,9 @@ class SettingsScreen extends ConsumerWidget {
                 size: 20,
                 color: isCustom
                     ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.3),
+                    : Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.3),
               ),
               onTap: () => showServerUrlDialog(context, url),
             );
@@ -496,10 +469,7 @@ class SettingsScreen extends ConsumerWidget {
     return {'url': url, 'isCustom': isCustom};
   }
 
-  void showServerUrlDialog(
-    BuildContext context,
-    String currentUrl,
-  ) {
+  void showServerUrlDialog(BuildContext context, String currentUrl) {
     final controller = TextEditingController(text: currentUrl);
     final formKey = GlobalKey<FormState>();
     String? errorText;
@@ -550,19 +520,14 @@ class SettingsScreen extends ConsumerWidget {
                     setServerUrl(null);
                     ApiClient().refreshServerUrl();
                     Navigator.pop(dialogContext);
-                    ScaffoldMessenger.of(dialogContext)
-                        .showSnackBar(
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
                       SnackBar(
-                        content: Text(
-                          l10nDialog.settingsServerResetSuccess,
-                        ),
+                        content: Text(l10nDialog.settingsServerResetSuccess),
                         duration: const Duration(seconds: 3),
                       ),
                     );
                   },
-                  child: Text(
-                    l10nDialog.settingsServerResetToDefault,
-                  ),
+                  child: Text(l10nDialog.settingsServerResetToDefault),
                 ),
               FilledButton(
                 onPressed: isVerifying
@@ -583,8 +548,7 @@ class SettingsScreen extends ConsumerWidget {
                           isVerifying = true;
                         });
 
-                        final verificationResult =
-                            await verifyServerUrl(url);
+                        final verificationResult = await verifyServerUrl(url);
 
                         setDialogState(() {
                           isVerifying = false;
@@ -592,25 +556,19 @@ class SettingsScreen extends ConsumerWidget {
 
                         if (!verificationResult.isValid) {
                           setDialogState(() {
-                            errorText = l10nDialog
-                                .settingsServerNotReachable;
+                            errorText = l10nDialog.settingsServerNotReachable;
                           });
                           return;
                         }
 
                         setServerUrl(url);
-                        unawaited(
-                          ApiClient().refreshServerUrl(),
-                        );
+                        unawaited(ApiClient().refreshServerUrl());
 
                         if (dialogContext.mounted) {
                           Navigator.pop(dialogContext);
-                          ScaffoldMessenger.of(dialogContext)
-                              .showSnackBar(
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
                             SnackBar(
-                              content: Text(
-                                l10nDialog.settingsServerSaved,
-                              ),
+                              content: Text(l10nDialog.settingsServerSaved),
                               duration: const Duration(seconds: 3),
                             ),
                           );
@@ -620,9 +578,7 @@ class SettingsScreen extends ConsumerWidget {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                        ),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : Text(l10nDialog.settingsServerSaveVerify),
               ),
@@ -658,8 +614,7 @@ class SettingsScreen extends ConsumerWidget {
         _SettingsNavRow(
           icon: Icons.bug_report_outlined,
           title: 'Report an Issue',
-          onTap: () =>
-              openUrl('https://github.com/slopus/happy/issues'),
+          onTap: () => openUrl('https://github.com/slopus/happy/issues'),
         ),
         _SettingsNavRow(
           icon: Icons.privacy_tip_outlined,
@@ -676,11 +631,11 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   String _avatarStyleLabel(String style) => switch (style) {
-        'gradient' => 'Gradient',
-        'pixelated' => 'Pixelated',
-        'brutalist' => 'Brutalist',
-        _ => style,
-      };
+    'gradient' => 'Gradient',
+    'pixelated' => 'Pixelated',
+    'brutalist' => 'Brutalist',
+    _ => style,
+  };
 
   void showAvatarStyleDialog(
     BuildContext context,
@@ -738,9 +693,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               onPressed: () {
                 Navigator.pop(dialogContext);
-                ref
-                    .read(authStateNotifierProvider.notifier)
-                    .signOut();
+                ref.read(authStateNotifierProvider.notifier).signOut();
               },
               child: Text(l10nDialog.settingsSignOut),
             ),
@@ -774,65 +727,65 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
     final name = profile?.displayName?.trim();
     final avatarUrl = profile?.avatarUrl;
-    final displayName =
-        (name == null || name.isEmpty) ? 'Happy' : name;
-    final bio = profile?.bio ??
-        'Secure mobile companion for your sessions';
+    final displayName = (name == null || name.isEmpty) ? 'Happy' : name;
+    final bio = profile?.bio ?? 'Secure mobile companion for your sessions';
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              cs.primary.withValues(alpha: 0.10),
-              cs.surface,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: cs.surface.withAlpha(150),
+            border: Border.all(
+              color: dark
+                  ? Colors.white.withAlpha(20)
+                  : Colors.black.withAlpha(10),
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.lg,
+          ),
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 36,
+                backgroundColor: cs.primaryContainer,
+                backgroundImage: avatarUrl != null
+                    ? NetworkImage(avatarUrl)
+                    : null,
+                child: avatarUrl == null
+                    ? Text(
+                        _initialForName(displayName),
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: cs.onPrimaryContainer,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                displayName,
+                style: theme.textTheme.headlineSmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                bio,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
           ),
-        ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.lg,
-        ),
-        child: Column(
-          children: [
-            CircleAvatar(
-              radius: 36,
-              backgroundColor: cs.primaryContainer,
-              backgroundImage: avatarUrl != null
-                  ? NetworkImage(avatarUrl)
-                  : null,
-              child: avatarUrl == null
-                  ? Text(
-                      _initialForName(displayName),
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: cs.onPrimaryContainer,
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              displayName,
-              style: theme.textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              bio,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
         ),
       ),
     );
@@ -842,17 +795,13 @@ class _ProfileHeader extends StatelessWidget {
 /// iOS-style section container — label above card, children inside a
 /// rounded Card with 12 px radius.
 class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({
-    required this.children,
-    this.title,
-  });
+  const _SettingsSection({required this.children, this.title});
 
   final String? title;
   final List<Widget> children;
 
   // Leading padding (16) + icon container width (36) + icon gap (12) = 64.
-  static const double _dividerIndent =
-      AppSpacing.lg + 36 + AppSpacing.md;
+  static const double _dividerIndent = AppSpacing.lg + 36 + AppSpacing.md;
 
   @override
   Widget build(BuildContext context) {
@@ -872,9 +821,9 @@ class _SettingsSection extends StatelessWidget {
               title!.toUpperCase(),
               style: theme.textTheme.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.8,
-                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.5,
+                fontSize: 13,
               ),
             ),
           ),
@@ -882,13 +831,9 @@ class _SettingsSection extends StatelessWidget {
         Card(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(
-              color: cs.outlineVariant,
-            ),
+            side: BorderSide(color: cs.outlineVariant),
           ),
-          child: Column(
-            children: _intersperse(children, cs),
-          ),
+          child: Column(children: _intersperse(children, cs)),
         ),
       ],
     );
@@ -901,13 +846,15 @@ class _SettingsSection extends StatelessWidget {
     for (var i = 0; i < items.length; i++) {
       result.add(items[i]);
       if (i < items.length - 1) {
-        result.add(Divider(
-          height: 1,
-          thickness: 0.5,
-          indent: _dividerIndent,
-          endIndent: 0,
-          color: cs.outlineVariant,
-        ));
+        result.add(
+          Divider(
+            height: 1,
+            thickness: 0.5,
+            indent: _dividerIndent,
+            endIndent: 0,
+            color: cs.outlineVariant,
+          ),
+        );
       }
     }
     return result;
@@ -949,10 +896,7 @@ class _SettingsRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              _IconContainer(
-                icon: icon,
-                color: iconColor,
-              ),
+              _IconContainer(icon: icon, color: iconColor),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
@@ -1048,10 +992,7 @@ class _SettingsToggleRow extends StatelessWidget {
                 ],
               ),
             ),
-            Switch.adaptive(
-              value: value,
-              onChanged: onChanged,
-            ),
+            Switch.adaptive(value: value, onChanged: onChanged),
           ],
         ),
       ),
@@ -1092,10 +1033,7 @@ class _SettingsNavRow extends StatelessWidget {
 
 /// 36x36 rounded icon container used as the leading widget in rows.
 class _IconContainer extends StatelessWidget {
-  const _IconContainer({
-    required this.icon,
-    this.color,
-  });
+  const _IconContainer({required this.icon, this.color});
 
   final IconData icon;
   final Color? color;
@@ -1112,11 +1050,7 @@ class _IconContainer extends StatelessWidget {
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
-      child: Icon(
-        icon,
-        size: 18,
-        color: effectiveColor,
-      ),
+      child: Icon(icon, size: 18, color: effectiveColor),
     );
   }
 }
@@ -1171,9 +1105,7 @@ class _AccountSection extends ConsumerWidget {
               ),
               onPressed: () {
                 Navigator.pop(dialogContext);
-                ref
-                    .read(authStateNotifierProvider.notifier)
-                    .signOut();
+                ref.read(authStateNotifierProvider.notifier).signOut();
               },
               child: Text(l10nDialog.settingsSignOut),
             ),
@@ -1188,11 +1120,7 @@ class _AccountSection extends ConsumerWidget {
 
 /// Settings section wrapper (public API preserved for external callers).
 class SettingsSection extends StatelessWidget {
-  const SettingsSection({
-    required this.children,
-    super.key,
-    this.title,
-  });
+  const SettingsSection({required this.children, super.key, this.title});
 
   /// Optional section heading text.
   final String? title;
@@ -1201,8 +1129,7 @@ class SettingsSection extends StatelessWidget {
   final List<Widget> children;
 
   // Leading padding (16) + icon container width (36) + icon gap (12) = 64.
-  static const double _dividerIndent =
-      AppSpacing.lg + 36 + AppSpacing.md;
+  static const double _dividerIndent = AppSpacing.lg + 36 + AppSpacing.md;
 
   @override
   Widget build(BuildContext context) {
@@ -1246,13 +1173,15 @@ class SettingsSection extends StatelessWidget {
     for (var i = 0; i < items.length; i++) {
       result.add(items[i]);
       if (i < items.length - 1) {
-        result.add(Divider(
-          height: 1,
-          thickness: 0.5,
-          indent: _dividerIndent,
-          endIndent: 0,
-          color: cs.outlineVariant,
-        ));
+        result.add(
+          Divider(
+            height: 1,
+            thickness: 0.5,
+            indent: _dividerIndent,
+            endIndent: 0,
+            color: cs.outlineVariant,
+          ),
+        );
       }
     }
     return result;
