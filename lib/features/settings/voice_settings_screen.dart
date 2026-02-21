@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/voice_languages.dart';
@@ -39,6 +40,24 @@ class VoiceSettingsScreen extends ConsumerWidget {
               onChanged: (value) => ref
                   .read(settingsNotifierProvider.notifier)
                   .updateSetting('ttsEnabled', value),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          // Test TTS button
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.play_arrow),
+              title: const Text('Test TTS'),
+              subtitle: const Text(
+                'Tap to hear a test phrase',
+              ),
+              onTap: () async {
+                final tts = TtsService();
+                await tts.init();
+                await tts.speak(
+                  'Hello! Text to speech is working.',
+                );
+              },
             ),
           ),
           const SizedBox(height: AppSpacing.lg),

@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow Rules
+
+- **Always commit and push** after completing changes. Do not wait for the user to ask — commit and push as soon as the work is done.
+
 ## Project Overview
 
 Happy Flutter is a **reimplementation of happy's mobile app** (React Native) located at `../happy`. The goal is to achieve full feature parity with the original React Native implementation.

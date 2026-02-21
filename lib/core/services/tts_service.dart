@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
+import 'logger_service.dart' show logger;
+
 /// Text-to-speech service using the device's built-in TTS engine.
 ///
 /// Strips markdown formatting before speaking so the user hears
@@ -16,25 +18,52 @@ class TtsService {
   /// Initialise the TTS engine. Safe to call multiple times.
   Future<void> init({String? language}) async {
     if (kIsWeb) return; // TTS not supported on web
+    logger.info('[TTS] init called (initialized=$_initialized)');
     _tts ??= FlutterTts();
     if (!_initialized) {
       await _tts!.setSpeechRate(0.5);
       await _tts!.setVolume(1.0);
       await _tts!.setPitch(1.0);
+      _tts!.setStartHandler(() {
+        logger.info('[TTS] Speech started');
+      });
+      _tts!.setCompletionHandler(() {
+        logger.info('[TTS] Speech completed');
+      });
+      _tts!.setErrorHandler((msg) {
+        logger.error('[TTS] Error: $msg');
+      });
       _initialized = true;
+      logger.info('[TTS] Engine initialized');
     }
     if (language != null && language.isNotEmpty) {
       await _tts!.setLanguage(language);
+      logger.info('[TTS] Language set to $language');
     }
   }
 
   /// Speak the given markdown text after stripping formatting.
   Future<void> speak(String markdown) async {
-    if (kIsWeb || _tts == null) return;
+    if (kIsWeb) {
+      logger.warning('[TTS] speak skipped: kIsWeb');
+      return;
+    }
+    if (_tts == null) {
+      logger.warning('[TTS] speak skipped: _tts is null '
+          '(call init() first)');
+      return;
+    }
     final clean = _stripMarkdown(markdown);
-    if (clean.isEmpty) return;
+    if (clean.isEmpty) {
+      logger.warning('[TTS] speak skipped: text empty '
+          'after stripping markdown');
+      return;
+    }
+    logger.info('[TTS] Speaking ${clean.length} chars: '
+        '"${clean.substring(0, clean.length.clamp(0, 80))}..."');
     await _tts!.stop();
-    await _tts!.speak(clean);
+    final result = await _tts!.speak(clean);
+    logger.info('[TTS] speak() returned: $result');
   }
 
   /// Stop any in-progress speech.
