@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// A selectable AI profile entry.
@@ -54,11 +55,12 @@ class PickProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Profile'),
+        title: Text(l10n.pickSelectProfile),
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),

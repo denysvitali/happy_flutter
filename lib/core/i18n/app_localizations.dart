@@ -92,6 +92,27 @@ class AppLocalizations {
   String get newSessionTitle => 'New Session';
   String get newSessionNoMachinesFound => 'No machines found';
 
+  // Sessions (extended)
+  String get sessionsActiveSessions => 'ACTIVE SESSIONS';
+  String get sessionsArchive => 'Archive';
+  String get sessionsArchiveSession => 'Archive Session';
+  String get sessionsArchiveConfirm =>
+      'This will stop the running session. Are you sure?';
+  String get sessionsDeleteConfirm =>
+      'This will permanently delete the session and all its messages.';
+  String sessionsCount(int count) =>
+      count == 1 ? '1 session' : '$count sessions';
+  String get sessionsSimple => 'Simple';
+  String get sessionsWorktree => 'Worktree';
+  String get sessionsClaude => 'Claude';
+  String get sessionsCodex => 'Codex';
+  String get sessionsGemini => 'Gemini';
+
+  // Pick Screens
+  String get pickSelectMachine => 'Select Machine';
+  String get pickSelectProfile => 'Select Profile';
+  String get pickSelectPath => 'Select Path';
+
   // Tabs
   String get tabsInbox => 'Inbox';
   String get tabsSettings => 'Settings';
@@ -158,6 +179,8 @@ class AppLocalizations {
   String get settingsServerSaveVerify => 'Save & Verify';
   String get settingsSignOut => 'Sign Out';
   String get settingsSignOutConfirm => 'Are you sure you want to sign out?';
+  String get settingsOnline => 'Online';
+  String get settingsOffline => 'Offline';
 
   // Tools
   String get toolEdit => 'Edit';

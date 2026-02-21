@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/components/components.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
@@ -14,6 +15,7 @@ class PickMachineScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final machines =
         ref.watch(machinesNotifierProvider).values.toList();
     final sessions = ref.watch(sessionsNotifierProvider);
@@ -48,7 +50,7 @@ class PickMachineScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Machine'),
+        title: Text(l10n.pickSelectMachine),
       ),
       body: machines.isEmpty
           ? Center(
@@ -173,7 +175,9 @@ class _MachineListTile extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.xs),
               Text(
-                isOnline ? 'online' : 'offline',
+                isOnline
+                    ? context.l10n.sidebarStatusConnected
+                    : context.l10n.settingsOffline,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: isOnline
                       ? Colors.green

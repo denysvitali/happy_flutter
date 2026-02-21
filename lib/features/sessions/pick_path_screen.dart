@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/components/components.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -36,6 +37,7 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final machines = ref.watch(machinesNotifierProvider);
     final sessions = ref.watch(sessionsNotifierProvider);
 
@@ -76,11 +78,11 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Path'),
+        title: Text(l10n.pickSelectPath),
         actions: [
           TextButton(
             onPressed: hasText ? _confirm : null,
-            child: const Text('Confirm'),
+            child: Text(l10n.commonConfirm),
           ),
         ],
       ),
@@ -182,7 +184,7 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
             height: 48,
             child: FilledButton(
               onPressed: hasText ? _confirm : null,
-              child: const Text('Confirm'),
+              child: Text(l10n.commonConfirm),
             ),
           ),
         ],

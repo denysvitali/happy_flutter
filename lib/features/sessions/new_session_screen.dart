@@ -249,7 +249,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                           ),
                           const SizedBox(width: AppSpacing.sm),
                           Text(
-                            'Browse paths...',
+                            l10n.pickSelectPath,
                             style: theme.textTheme.bodyMedium
                                 ?.copyWith(
                               color: theme.colorScheme.primary,
@@ -269,16 +269,16 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           _FieldLabel('Type'),
           const SizedBox(height: AppSpacing.sm),
           SegmentedButton<String>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: 'simple',
-                label: Text('Simple'),
-                icon: Icon(Icons.folder_outlined),
+                label: Text(l10n.sessionsSimple),
+                icon: const Icon(Icons.folder_outlined),
               ),
               ButtonSegment(
                 value: 'worktree',
-                label: Text('Worktree'),
-                icon: Icon(Icons.account_tree_outlined),
+                label: Text(l10n.sessionsWorktree),
+                icon: const Icon(Icons.account_tree_outlined),
               ),
             ],
             selected: {_sessionType},
@@ -292,18 +292,18 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           _FieldLabel('Agent'),
           const SizedBox(height: AppSpacing.sm),
           SegmentedButton<String>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: 'claude',
-                label: Text('Claude'),
+                label: Text(l10n.sessionsClaude),
               ),
               ButtonSegment(
                 value: 'codex',
-                label: Text('Codex'),
+                label: Text(l10n.sessionsCodex),
               ),
               ButtonSegment(
                 value: 'gemini',
-                label: Text('Gemini'),
+                label: Text(l10n.sessionsGemini),
               ),
             ],
             selected: {_selectedAgent},
@@ -322,8 +322,8 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
               ),
               child: Text(
                 connectionStatus == ConnectionStatus.connecting
-                    ? 'Connecting to server...'
-                    : 'Not connected to server',
+                    ? l10n.authConnecting
+                    : l10n.sidebarStatusDisconnected,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
