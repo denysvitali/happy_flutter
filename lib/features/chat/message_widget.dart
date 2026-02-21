@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
 import 'markdown/markdown.dart';
 import 'tools/tools.dart';
@@ -163,47 +164,33 @@ class _UserBubble extends StatelessWidget {
           top: 1,
           bottom: 2,
         ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md + 2,
-            vertical: AppSpacing.sm + 2,
-          ),
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.sizeOf(context).width * 0.80,
-          ),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(18),
-              topRight: Radius.circular(18),
-              bottomLeft: Radius.circular(18),
-              bottomRight: Radius.circular(6),
+        child: GestureDetector(
+          onLongPress: () {
+            HapticFeedback.mediumImpact();
+            _showRawMarkdownSheet(context, text);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md + 2,
+              vertical: AppSpacing.sm + 2,
             ),
-          ),
-          child: DefaultTextStyle.merge(
-            style: TextStyle(
-              color: theme.colorScheme.onPrimary,
+            constraints: BoxConstraints(
+              maxWidth:
+                  MediaQuery.sizeOf(context).width * 0.80,
             ),
-            child: SelectionArea(
-              contextMenuBuilder: (ctx, selectableRegionState) {
-                return AdaptiveTextSelectionToolbar.buttonItems(
-                  anchors:
-                      selectableRegionState.contextMenuAnchors,
-                  buttonItems: [
-                    ...selectableRegionState
-                        .contextMenuButtonItems,
-                    ContextMenuButtonItem(
-                      label: 'Copy All',
-                      onPressed: () {
-                        ContextMenuController.removeAny();
-                        Clipboard.setData(
-                          ClipboardData(text: text),
-                        );
-                      },
-                    ),
-                  ],
-                );
-              },
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                topRight: Radius.circular(18),
+                bottomLeft: Radius.circular(18),
+                bottomRight: Radius.circular(6),
+              ),
+            ),
+            child: DefaultTextStyle.merge(
+              style: TextStyle(
+                color: theme.colorScheme.onPrimary,
+              ),
               child: MarkdownView(
                 markdown: text,
                 onOptionPress: onOptionPress,
@@ -234,29 +221,18 @@ class _BotMessage extends StatelessWidget {
     final theme = Theme.of(context);
     final textColor = theme.colorScheme.onSurface;
 
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: AppSpacing.lg,
-        right: AppSpacing.lg,
-        top: 1,
-        bottom: 2,
-      ),
-      child: SelectionArea(
-        contextMenuBuilder: (ctx, selectableRegionState) {
-          return AdaptiveTextSelectionToolbar.buttonItems(
-            anchors: selectableRegionState.contextMenuAnchors,
-            buttonItems: [
-              ...selectableRegionState.contextMenuButtonItems,
-              ContextMenuButtonItem(
-                label: 'Copy All',
-                onPressed: () {
-                  ContextMenuController.removeAny();
-                  Clipboard.setData(ClipboardData(text: text));
-                },
-              ),
-            ],
-          );
-        },
+    return GestureDetector(
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        _showRawMarkdownSheet(context, text);
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(
+          left: AppSpacing.lg,
+          right: AppSpacing.lg,
+          top: 1,
+          bottom: 2,
+        ),
         child: DefaultTextStyle.merge(
           style: TextStyle(color: textColor),
           child: MarkdownView(
@@ -465,6 +441,127 @@ class _AgentEventWidget extends StatelessWidget {
         return null;
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Raw markdown bottom sheet (long-press to copy)
+// ---------------------------------------------------------------------------
+
+/// Shows a bottom sheet with selectable raw markdown text
+/// and a copy-all button. This provides a reliable way to
+/// copy message content on Android where SelectionArea can
+/// be unreliable.
+void _showRawMarkdownSheet(
+  BuildContext context,
+  String markdown,
+) {
+  final theme = Theme.of(context);
+  final cs = theme.colorScheme;
+  final l10n = context.l10n;
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: cs.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(16),
+      ),
+    ),
+    builder: (ctx) => DraggableScrollableSheet(
+      initialChildSize: 0.55,
+      minChildSize: 0.3,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (ctx, scrollController) => Column(
+        children: [
+          // Drag handle
+          Container(
+            margin: const EdgeInsets.symmetric(
+              vertical: AppSpacing.sm,
+            ),
+            width: 32,
+            height: 4,
+            decoration: BoxDecoration(
+              color: cs.onSurfaceVariant
+                  .withValues(alpha: 0.3),
+              borderRadius:
+                  BorderRadius.circular(2),
+            ),
+          ),
+          // Header row
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.chatCopyMessage,
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(
+                      ClipboardData(text: markdown),
+                    );
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          l10n.commonCopy,
+                        ),
+                        duration: const Duration(
+                          seconds: 1,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.copy,
+                    size: 18,
+                  ),
+                  label: Text(l10n.commonCopy),
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            color: cs.outlineVariant
+                .withValues(alpha: 0.3),
+          ),
+          // Selectable content
+          Expanded(
+            child: ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.all(
+                AppSpacing.lg,
+              ),
+              children: [
+                SelectableText(
+                  markdown,
+                  style:
+                      theme.textTheme.bodyMedium
+                          ?.copyWith(
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
