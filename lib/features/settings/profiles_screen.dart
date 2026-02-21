@@ -63,22 +63,31 @@ class ProfilesScreen extends ConsumerWidget {
           // Built-in profiles
           ...builtInProfiles.map((profile) {
             final isSelected = selectedProfileId == profile.id;
-            return Column(
-              children: [
-                _buildProfileCard(
-                  context: context,
-                  profile: profile,
-                  isSelected: isSelected,
-                  onTap: () {
-                    ref
-                        .read(settingsNotifierProvider.notifier)
-                        .updateSetting('lastUsedProfile', profile.id);
-                  },
-                  onEdit: () =>
-                      _showEditProfileDialog(context, ref, profile),
-                ),
-                const SizedBox(height: 8),
-              ],
+            return KeyedSubtree(
+              key: ValueKey(profile.id),
+              child: Column(
+                children: [
+                  _buildProfileCard(
+                    context: context,
+                    profile: profile,
+                    isSelected: isSelected,
+                    onTap: () {
+                      ref
+                          .read(settingsNotifierProvider.notifier)
+                          .updateSetting(
+                            'lastUsedProfile',
+                            profile.id,
+                          );
+                    },
+                    onEdit: () => _showEditProfileDialog(
+                      context,
+                      ref,
+                      profile,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
             );
           }),
           // Custom profiles
@@ -98,24 +107,37 @@ class ProfilesScreen extends ConsumerWidget {
             ),
             ...profiles.map((profile) {
               final isSelected = selectedProfileId == profile.id;
-              return Column(
-                children: [
-                  _buildProfileCard(
-                    context: context,
-                    profile: profile,
-                    isSelected: isSelected,
-                    onTap: () {
-                      ref
-                          .read(settingsNotifierProvider.notifier)
-                          .updateSetting('lastUsedProfile', profile.id);
-                    },
-                    onEdit: () =>
-                        _showEditProfileDialog(context, ref, profile),
-                    onDelete: () =>
-                        _confirmDeleteProfile(context, ref, profile),
-                  ),
-                  const SizedBox(height: 8),
-                ],
+              return KeyedSubtree(
+                key: ValueKey(profile.id),
+                child: Column(
+                  children: [
+                    _buildProfileCard(
+                      context: context,
+                      profile: profile,
+                      isSelected: isSelected,
+                      onTap: () {
+                        ref
+                            .read(settingsNotifierProvider.notifier)
+                            .updateSetting(
+                              'lastUsedProfile',
+                              profile.id,
+                            );
+                      },
+                      onEdit: () => _showEditProfileDialog(
+                        context,
+                        ref,
+                        profile,
+                      ),
+                      onDelete: () =>
+                          _confirmDeleteProfile(
+                            context,
+                            ref,
+                            profile,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
               );
             }),
           ],

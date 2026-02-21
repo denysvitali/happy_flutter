@@ -126,7 +126,11 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundImage: user.avatarUrl != null
-                                  ? NetworkImage(user.avatarUrl!)
+                                  ? ResizeImage(
+                                      NetworkImage(user.avatarUrl!),
+                                      width: 108,
+                                      height: 108,
+                                    )
                                   : null,
                               child: user.avatarUrl == null
                                   ? Text(_initials(user.name ?? user.id))

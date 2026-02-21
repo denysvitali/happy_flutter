@@ -120,12 +120,16 @@ class _DiffViewState extends State<DiffView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: _diffResult.hunks.map((hunk) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHunkHeader(hunk, theme, colors),
-                ...hunk.lines.map((line) => _buildLine(line, theme, colors)),
-              ],
+            return RepaintBoundary(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHunkHeader(hunk, theme, colors),
+                  ...hunk.lines.map(
+                    (line) => _buildLine(line, theme, colors),
+                  ),
+                ],
+              ),
             );
           }).toList(),
         ),
@@ -168,7 +172,9 @@ class _DiffViewState extends State<DiffView> {
             _buildLineNumber(line, theme, colors),
           if (widget.config.showPlusMinusSymbols)
             _buildSymbol(line, textColor),
-          Expanded(child: _buildContent(line, theme, colors)),
+          Expanded(
+            child: _buildContent(line, theme, colors),
+          ),
         ],
       ),
     );

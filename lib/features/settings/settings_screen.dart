@@ -756,7 +756,11 @@ class _ProfileHeader extends StatelessWidget {
                 radius: 36,
                 backgroundColor: cs.primaryContainer,
                 backgroundImage: avatarUrl != null
-                    ? NetworkImage(avatarUrl)
+                    ? ResizeImage(
+                        NetworkImage(avatarUrl),
+                        width: 216,
+                        height: 216,
+                      )
                     : null,
                 child: avatarUrl == null
                     ? Text(

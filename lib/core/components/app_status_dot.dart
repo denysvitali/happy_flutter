@@ -90,6 +90,7 @@ class _AppStatusDotState extends State<AppStatusDot>
     }
     return AnimatedBuilder(
       animation: _controller,
+      child: _buildStaticDot(),
       builder: (context, child) {
         final ringColor = (widget.pulseColor ?? widget.color)
             .withValues(alpha: _opacity.value * 0.4);
@@ -99,7 +100,7 @@ class _AppStatusDotState extends State<AppStatusDot>
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Outer pulsing ring.
+              // Animated outer pulsing ring.
               Transform.scale(
                 scale: _scale.value,
                 child: Container(
@@ -111,17 +112,27 @@ class _AppStatusDotState extends State<AppStatusDot>
                   ),
                 ),
               ),
-              // Inner solid dot.
+              // Static inner dot (passed via child parameter).
               child!,
             ],
           ),
         );
       },
-      child: _buildDot(),
     );
   }
 
   Widget _buildDot() {
+    return Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: widget.color,
+      ),
+    );
+  }
+
+  Widget _buildStaticDot() {
     return Container(
       width: widget.size,
       height: widget.size,

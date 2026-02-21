@@ -346,24 +346,51 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       : _buildMessageList(),
                 ),
                 // Scroll-to-bottom pill
-                AnimatedOpacity(
-                  opacity: (!_autoScroll && !_isLoadingMessages) ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  child: AnimatedScale(
-                    scale: (!_autoScroll && !_isLoadingMessages) ? 1.0 : 0.8,
-                    duration: const Duration(milliseconds: 200),
+                IgnorePointer(
+                  ignoring:
+                      _autoScroll || _isLoadingMessages,
+                  child: AnimatedOpacity(
+                    opacity:
+                        (!_autoScroll &&
+                                !_isLoadingMessages)
+                            ? 1.0
+                            : 0.0,
+                    duration:
+                        const Duration(
+                          milliseconds: 200,
+                        ),
                     curve: Curves.easeInOut,
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _ScrollToBottomPill(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            setState(() => _autoScroll = true);
-                            _scrollToBottom();
-                          },
+                    child: AnimatedScale(
+                      scale:
+                          (!_autoScroll &&
+                                  !_isLoadingMessages)
+                              ? 1.0
+                              : 0.8,
+                      duration:
+                          const Duration(
+                            milliseconds: 200,
+                          ),
+                      curve: Curves.easeInOut,
+                      child: Align(
+                        alignment:
+                            Alignment.bottomCenter,
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: 12,
+                          ),
+                          child:
+                              _ScrollToBottomPill(
+                            onTap: () {
+                              HapticFeedback
+                                  .lightImpact();
+                              setState(
+                                () =>
+                                    _autoScroll =
+                                        true,
+                              );
+                              _scrollToBottom();
+                            },
+                          ),
                         ),
                       ),
                     ),

@@ -119,7 +119,12 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               title: 'Updates',
               child: Column(
                 children: feedState.items
-                    .map((item) => _FeedCard(item: item))
+                    .map(
+                      (item) => _FeedCard(
+                        key: ValueKey(item.id),
+                        item: item,
+                      ),
+                    )
                     .toList(growable: false),
               ),
             ),
@@ -132,6 +137,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                 children: incoming
                     .map(
                       (request) => _FriendRequestCard(
+                        key: ValueKey(request.fromUserId),
                         request: request,
                         disabled: _isBusy,
                         onAccept: () => _runFriendAction(
@@ -160,6 +166,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                 children: requested
                     .map(
                       (friend) => _UserRow(
+                        key: ValueKey(friend.id),
                         title: friend.name ?? friend.id,
                         subtitle: 'Request pending',
                         userId: friend.id,
@@ -189,6 +196,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                 children: friends
                     .map(
                       (friend) => _UserRow(
+                        key: ValueKey(friend.id),
                         title: friend.name ?? friend.id,
                         subtitle: 'Friend',
                         userId: friend.id,
@@ -367,7 +375,8 @@ class _Section extends StatelessWidget {
 
 /// Individual feed activity row with avatar, title, message and timestamp.
 class _FeedCard extends StatelessWidget {
-  const _FeedCard({required this.item});
+  const _FeedCard({required Key key, required this.item})
+      : super(key: key);
 
   final FeedItem item;
 
@@ -583,11 +592,12 @@ class _InboxItem extends StatelessWidget {
 
 class _FriendRequestCard extends StatelessWidget {
   const _FriendRequestCard({
+    required Key key,
     required this.request,
     required this.disabled,
     required this.onAccept,
     required this.onReject,
-  });
+  }) : super(key: key);
 
   final FriendRequest request;
   final bool disabled;
@@ -623,12 +633,13 @@ class _FriendRequestCard extends StatelessWidget {
 
 class _UserRow extends StatelessWidget {
   const _UserRow({
+    required Key key,
     required this.title,
     required this.subtitle,
     required this.userId,
     required this.avatarUrl,
     required this.trailing,
-  });
+  }) : super(key: key);
 
   final String title;
   final String subtitle;

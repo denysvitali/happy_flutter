@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -132,6 +131,8 @@ what you have, you must use the options mode.
   final List<FeedItem> _feedItems = <FeedItem>[];
   final List<DecryptedArtifact> _artifacts = <DecryptedArtifact>[];
   final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
+  Map<String, List<Map<String, dynamic>>>?
+      _sessionMessagesCache;
   final Map<String, Map<String, dynamic>> _sessionUsage = {};
   Settings _settingsSnapshot = Settings();
   int _settingsVersion = 0;
@@ -147,6 +148,7 @@ what you have, you must use the options mode.
   final _dataChangeController = StreamController<void>.broadcast();
   final _sessionMessageChangeController =
       StreamController<String>.broadcast();
+  Timer? _dataChangeDebounceTimer;
 
   Map<String?, TodoList> get todoLists => Map.unmodifiable(_todoLists);
   List<UserProfile> get friends => List.unmodifiable(_friends);
@@ -166,12 +168,18 @@ what you have, you must use the options mode.
   ConnectionStatus get connectionStatus => _connectionStatus;
   String? get nativeUpdateUrl => _nativeUpdateUrl;
   bool get hasNativeUpdate => _nativeUpdateUrl != null;
-  Map<String, List<Map<String, dynamic>>> get sessionMessages =>
-      Map.unmodifiable(
-        _sessionMessages.map(
-          (key, value) => MapEntry(key, List<Map<String, dynamic>>.from(value)),
+  Map<String, List<Map<String, dynamic>>>
+      get sessionMessages {
+    _sessionMessagesCache ??= Map.unmodifiable(
+      _sessionMessages.map(
+        (key, value) => MapEntry(
+          key,
+          List<Map<String, dynamic>>.unmodifiable(value),
         ),
-      );
+      ),
+    );
+    return _sessionMessagesCache!;
+  }
 
   /// Returns the messages for a single session without copying all sessions.
   List<Map<String, dynamic>> messagesForSession(String sessionId) =>
@@ -305,6 +313,15 @@ what you have, you must use the options mode.
     todosSync.invalidate();
   }
 
+  /// Debounced data change notification.
+  /// Batches rapid successive emissions within 16ms window.
+  void _notifyDataChanged() {
+    _dataChangeDebounceTimer?.cancel();
+    _dataChangeDebounceTimer = Timer(const Duration(milliseconds: 16), () {
+      _dataChangeController.add(null);
+    });
+  }
+
   /// Subscribe to socket updates
   void subscribeToUpdates() {
     socketIoClient
@@ -402,13 +419,16 @@ what you have, you must use the options mode.
       messagesSync.remove(sessionId)?.dispose();
       _loadingOlderMessages.remove(sessionId);
       _sessionMessages.remove(sessionId);
+      _sessionMessagesCache = null;
       _todoLists.remove(sessionId);
       _sessions.remove(sessionId);
       _presenceTimers.remove(sessionId)?.cancel();
       _sessionDataKeys.remove(sessionId);
       if (isInitialized) {
         _sessionLastSeq.remove(sessionId);
-        MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
+        MMKVStorage().saveSessionLastSeq(
+          Map.unmodifiable(_sessionLastSeq),
+        );
         _sessionFirstLoadedSeq.remove(sessionId);
         MMKVStorage().saveSessionFirstLoadedSeq(
           Map.unmodifiable(_sessionFirstLoadedSeq),
@@ -485,6 +505,32 @@ what you have, you must use the options mode.
     feedSync.invalidate();
   }
 
+  /// Check if data contains a key matching the search string
+  /// without full JSON serialization.
+  bool _containsKeyRecursive(
+    dynamic data,
+    String key,
+  ) {
+    if (data is Map) {
+      for (final k in data.keys) {
+        if (k is String &&
+            k.toLowerCase().contains(key)) {
+          return true;
+        }
+        if (_containsKeyRecursive(data[k], key)) {
+          return true;
+        }
+      }
+    } else if (data is List) {
+      for (final item in data) {
+        if (_containsKeyRecursive(item, key)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   /// Handle KV batch update (for todos)
   void _handleKvBatchUpdate(Map<String, dynamic> data) {
     final changes = data['changes'];
@@ -499,8 +545,7 @@ what you have, you must use the options mode.
       return;
     }
 
-    final serialized = jsonEncode(data).toLowerCase();
-    if (serialized.contains('todo')) {
+    if (_containsKeyRecursive(data, 'todo')) {
       todosSync.invalidate();
       if (kDebugMode) {
         debugPrint('KV batch update received (todos-fallback)');
@@ -543,7 +588,7 @@ what you have, you must use the options mode.
                 : null,
             presence: 'online',
           );
-          _dataChangeController.add(null);
+          _notifyDataChanged();
           // Reset staleness timer — if no further activity arrives within
           // 60 s, drop presence back to inactive so the session stops
           // appearing in the Active section.
@@ -558,7 +603,7 @@ what you have, you must use the options mode.
                   presence: current.activeAt,
                   thinking: false,
                 );
-                _dataChangeController.add(null);
+                _notifyDataChanged();
               }
             },
           );
@@ -572,7 +617,7 @@ what you have, you must use the options mode.
             thinking: false,
             thinkingAt: null,
           );
-          _dataChangeController.add(null);
+          _notifyDataChanged();
         }
       }
       return;
@@ -750,7 +795,7 @@ what you have, you must use the options mode.
                   presence: current.activeAt,
                   thinking: false,
                 );
-                _dataChangeController.add(null);
+                _notifyDataChanged();
               }
             },
           );
@@ -768,7 +813,7 @@ what you have, you must use the options mode.
         );
       }
       _lastSessionsFetchedAt = fetchStartMs;
-      _dataChangeController.add(null);
+      _notifyDataChanged();
     } catch (error, stack) {
       if (kDebugMode) debugPrint('Error fetching sessions: $error');
       unawaited(Sentry.captureException(error, stackTrace: stack));
@@ -881,7 +926,7 @@ what you have, you must use the options mode.
             'Fetched and decrypted ${decryptedMachines.length} machines',
           );
         }
-        _dataChangeController.add(null);
+        _notifyDataChanged();
       } else {
         if (kDebugMode) {
           debugPrint(
@@ -2007,6 +2052,7 @@ what you have, you must use the options mode.
     if (msgs != null) {
       _sessionMessages[sessionId] =
           msgs.where((m) => m['id'] != localId).toList();
+      _sessionMessagesCache = null;
     }
   }
 
@@ -2233,7 +2279,7 @@ what you have, you must use the options mode.
         if (!hasMore) break;
       }
       _sessionMessageChangeController.add(sessionId);
-      _dataChangeController.add(null);
+      _notifyDataChanged();
     } catch (error, stack) {
       if (kDebugMode) debugPrint('Error fetching messages: $error');
       unawaited(Sentry.captureException(error, stackTrace: stack));
@@ -2252,7 +2298,7 @@ what you have, you must use the options mode.
     if (sessionEncryption == null) return;
 
     _loadingOlderMessages.add(sessionId);
-    _dataChangeController.add(null);
+    _notifyDataChanged();
 
     try {
       const pageSize = 100;
@@ -2312,7 +2358,7 @@ what you have, you must use the options mode.
       );
 
       _sessionMessageChangeController.add(sessionId);
-      _dataChangeController.add(null);
+      _notifyDataChanged();
     } catch (error) {
       if (kDebugMode) {
         debugPrint('Error fetching older messages: $error');
@@ -2320,7 +2366,7 @@ what you have, you must use the options mode.
       unawaited(Sentry.captureException(error));
     } finally {
       _loadingOlderMessages.remove(sessionId);
-      _dataChangeController.add(null);
+      _notifyDataChanged();
     }
   }
 
@@ -2874,13 +2920,13 @@ what you have, you must use the options mode.
     }
     if (promptToTaskId.isEmpty) return;
 
-    // Pass 2: Match sidechain roots to Tasks, build uuid chain
+    // Pass 2: Combined pass to find sidechain roots and group
+    // child messages in a single iteration
     final uuidToSidechainId = <String, String>{};
     final sidechainChildren =
         <String, List<Map<String, dynamic>>>{};
     final sidechainMsgIds = <String>{};
 
-    // First pass: find sidechain roots
     for (final msg in messages) {
       if (msg['kind'] == 'sidechain-root') {
         final prompt = msg['prompt'] as String?;
@@ -2892,52 +2938,42 @@ what you have, you must use the options mode.
           }
           sidechainMsgIds.add(msg['id'] as String);
         }
-      }
-    }
+      } else if (msg['isSidechain'] == true) {
+        final uuid = msg['uuid'] as String?;
+        final parentUuid = msg['parentUuid'] as String?;
 
-    if (uuidToSidechainId.isEmpty) return;
-
-    // Second pass: group child sidechain messages
-    for (final msg in messages) {
-      if (msg['isSidechain'] != true) continue;
-      if (msg['kind'] == 'sidechain-root') continue;
-
-      final uuid = msg['uuid'] as String?;
-      final parentUuid = msg['parentUuid'] as String?;
-
-      if (parentUuid != null &&
-          uuidToSidechainId.containsKey(parentUuid)) {
-        final sidechainId = uuidToSidechainId[parentUuid]!;
-        if (uuid != null) {
-          uuidToSidechainId[uuid] = sidechainId;
+        if (parentUuid != null &&
+            uuidToSidechainId.containsKey(parentUuid)) {
+          final sidechainId = uuidToSidechainId[parentUuid]!;
+          if (uuid != null) {
+            uuidToSidechainId[uuid] = sidechainId;
+          }
+          sidechainChildren
+              .putIfAbsent(sidechainId, () => [])
+              .add(msg);
+          sidechainMsgIds.add(msg['id'] as String);
         }
-        sidechainChildren
-            .putIfAbsent(sidechainId, () => [])
-            .add(msg);
-        sidechainMsgIds.add(msg['id'] as String);
       }
     }
 
     if (sidechainMsgIds.isEmpty) return;
 
-    // Pass 3: Remove sidechain messages from main list,
-    // attach children to Task tool-call messages
+    // Pass 3: Remove sidechain messages from main list, attach
+    // children to Task tool-call messages (mutate in-place to
+    // avoid spread copy overhead)
     final filtered = <Map<String, dynamic>>[];
     for (final msg in messages) {
       final msgId = msg['id'] as String;
       if (sidechainMsgIds.contains(msgId)) continue;
 
       if (sidechainChildren.containsKey(msgId)) {
-        filtered.add({
-          ...msg,
-          'children': sidechainChildren[msgId],
-        });
-      } else {
-        filtered.add(msg);
+        msg['children'] = sidechainChildren[msgId];
       }
+      filtered.add(msg);
     }
 
     _sessionMessages[sessionId] = filtered;
+    _sessionMessagesCache = null;
   }
 
   /// Apply tool results to existing tool-call messages in a session.
@@ -3003,6 +3039,7 @@ what you have, you must use the options mode.
 
     if (changed) {
       _sessionMessages[sessionId] = updated;
+      _sessionMessagesCache = null;
     }
   }
 
@@ -3100,6 +3137,7 @@ what you have, you must use the options mode.
 
     if (changed) {
       _sessionMessages[sessionId] = updated;
+      _sessionMessagesCache = null;
     }
   }
 
@@ -3163,19 +3201,46 @@ what you have, you must use the options mode.
       merged[messageId] = message;
     }
 
-    final sorted = merged.values.toList()
-      ..sort((a, b) {
+    final sorted = merged.values.toList();
+
+    // Optimize: skip sort if already sorted (common case when
+    // appending new messages).
+    var needsSort = false;
+    for (var i = 1; i < sorted.length; i++) {
+      final prevCreated = _asInt(sorted[i - 1]['createdAt']) ?? 0;
+      final currCreated = _asInt(sorted[i]['createdAt']) ?? 0;
+      if (prevCreated > currCreated) {
+        needsSort = true;
+        break;
+      }
+      // Also check seq if createdAt is equal.
+      if (prevCreated == currCreated) {
+        final prevSeq = sorted[i - 1]['seq'] as int? ?? 0;
+        final currSeq = sorted[i]['seq'] as int? ?? 0;
+        if (prevSeq > currSeq) {
+          needsSort = true;
+          break;
+        }
+      }
+    }
+
+    if (needsSort) {
+      sorted.sort((a, b) {
         final aCreated = _asInt(a['createdAt']) ?? 0;
         final bCreated = _asInt(b['createdAt']) ?? 0;
         if (aCreated != bCreated) {
           return aCreated.compareTo(bCreated);
         }
-        return (a['seq'] as int? ?? 0).compareTo(b['seq'] as int? ?? 0);
+        return (a['seq'] as int? ?? 0)
+            .compareTo(b['seq'] as int? ?? 0);
       });
+    }
+
     const maxMessages = 3000;
     _sessionMessages[sessionId] = sorted.length > maxMessages
         ? sorted.sublist(sorted.length - maxMessages)
         : sorted;
+    _sessionMessagesCache = null;
   }
 
   /// Shutdown sync engine and clear volatile state.
@@ -3184,6 +3249,9 @@ what you have, you must use the options mode.
       ..offMessage('update')
       ..offMessage('ephemeral')
       ..disconnect();
+
+    _dataChangeDebounceTimer?.cancel();
+    _dataChangeDebounceTimer = null;
 
     for (final sync in messagesSync.values) {
       sync.dispose();
@@ -3217,6 +3285,7 @@ what you have, you must use the options mode.
     _feedItems.clear();
     _artifacts.clear();
     _sessionMessages.clear();
+    _sessionMessagesCache = null;
     _sessions.clear();
     _lastSessionsFetchedAt = null;
     _machines.clear();

@@ -274,7 +274,11 @@ class _FriendTile extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundImage: friend.avatarUrl != null
-              ? NetworkImage(friend.avatarUrl!)
+              ? ResizeImage(
+                  NetworkImage(friend.avatarUrl!),
+                  width: 108,
+                  height: 108,
+                )
               : null,
           child: friend.avatarUrl == null
               ? Text(name.isNotEmpty ? name[0].toUpperCase() : '?')
@@ -386,7 +390,11 @@ class _RequestTile extends StatelessWidget {
           children: [
             CircleAvatar(
               backgroundImage: request.fromUserAvatarUrl != null
-                  ? NetworkImage(request.fromUserAvatarUrl!)
+                  ? ResizeImage(
+                      NetworkImage(request.fromUserAvatarUrl!),
+                      width: 108,
+                      height: 108,
+                    )
                   : null,
               child: request.fromUserAvatarUrl == null
                   ? Text(

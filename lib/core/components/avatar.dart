@@ -744,11 +744,43 @@ class _PixelGridPainter extends CustomPainter {
     required this.hash,
     required this.palette,
     required this.monochrome,
-  });
+  }) : _colors = _computeColors(hash, palette, monochrome);
+
   final String id;
   final int hash;
   final List<String> palette;
   final bool monochrome;
+  final List<Color> _colors;
+
+  static List<Color> _computeColors(
+    int hash,
+    List<String> palette,
+    bool monochrome,
+  ) {
+    final colors = <Color>[];
+    for (var index = 0; index < 64; index++) {
+      final color = _colorForIndex(hash, palette, monochrome, index);
+      colors.add(color);
+    }
+    return colors;
+  }
+
+  static Color _colorForIndex(
+    int hash,
+    List<String> palette,
+    bool monochrome,
+    int index,
+  ) {
+    if (monochrome) {
+      final colorHash = (hash + index) % palette.length;
+      final colorStr = palette[colorHash];
+      return _parseColor(colorStr);
+    }
+
+    // Generate varied colors using golden angle + HSL
+    final hue = ((hash + index * 137.508) % 360).toDouble();
+    return HSLColor.fromAHSL(1.0, hue, 0.45, 0.65).toColor();
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -757,16 +789,7 @@ class _PixelGridPainter extends CustomPainter {
     for (var row = 0; row < 8; row++) {
       for (var col = 0; col < 8; col++) {
         final index = row * 8 + col;
-        final colorHash = (hash + index) % palette.length;
-        var colorStr = palette[colorHash];
-
-        // Generate varied colors using golden angle
-        if (!monochrome) {
-          final hue = ((hash + index * 137.508) % 360).toInt();
-          colorStr = 'hsl($hue, 45%, 65%)';
-        }
-
-        final paint = Paint()..color = _parseColor(colorStr);
+        final paint = Paint()..color = _colors[index];
         final rect = Rect.fromLTWH(
           col * cellSize,
           row * cellSize,
@@ -778,27 +801,20 @@ class _PixelGridPainter extends CustomPainter {
     }
   }
 
-  Color _parseColor(String colorStr) {
+  static Color _parseColor(String colorStr) {
     if (colorStr.startsWith('#')) {
       final hex = colorStr.substring(1);
       return Color(int.parse(hex, radix: 16) | 0xFF000000);
-    }
-
-    // Parse HSL
-    final match = RegExp(r'hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)')
-        .firstMatch(colorStr);
-    if (match != null) {
-      final h = int.parse(match.group(1)!);
-      final s = int.parse(match.group(2)!);
-      final l = int.parse(match.group(3)!);
-      return HSLColor.fromAHSL(1.0, h.toDouble(), s / 100, l / 100).toColor();
     }
 
     return Colors.grey;
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(_PixelGridPainter oldDelegate) =>
+      oldDelegate.hash != hash ||
+      oldDelegate.monochrome != monochrome ||
+      oldDelegate.palette != palette;
 }
 
 /// Flavor icon overlay widget for AI assistant avatars
@@ -944,6 +960,8 @@ class Avatar extends StatelessWidget {
 
   Widget _buildImageAvatar(BuildContext context) {
     final borderRadius = square ? 0.0 : size / 2;
+    final cacheSize = (size *
+        MediaQuery.devicePixelRatioOf(context)).toInt();
     final imageElement = ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: Image.network(
@@ -951,6 +969,8 @@ class Avatar extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.cover,
+        cacheWidth: cacheSize,
+        cacheHeight: cacheSize,
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
           return Container(

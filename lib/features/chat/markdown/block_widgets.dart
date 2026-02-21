@@ -34,12 +34,24 @@ class TextBlockWidget extends StatefulWidget {
 class _TextBlockWidgetState extends State<TextBlockWidget> {
   final List<TapGestureRecognizer> _recognizers = [];
   Color _inlineCodeBg = const Color(0x1F000000);
+  List<InlineSpan>? _cachedSpans;
+  Object? _lastContent;
 
   void _disposeRecognizers() {
     for (final r in _recognizers) {
       r.dispose();
     }
     _recognizers.clear();
+  }
+
+  @override
+  void didUpdateWidget(TextBlockWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.content != widget.content) {
+      _disposeRecognizers();
+      _cachedSpans = null;
+      _lastContent = null;
+    }
   }
 
   @override
@@ -50,7 +62,6 @@ class _TextBlockWidgetState extends State<TextBlockWidget> {
 
   @override
   Widget build(BuildContext context) {
-    _disposeRecognizers();
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     _inlineCodeBg = cs.primary.withValues(alpha: 0.1);
@@ -63,10 +74,19 @@ class _TextBlockWidgetState extends State<TextBlockWidget> {
       ),
     );
 
-    return RichText(
-      text: TextSpan(
-        style: baseStyle,
-        children: widget.content.map(_buildSpan).toList(),
+    if (_lastContent != widget.content) {
+      _lastContent = widget.content;
+      _cachedSpans = widget.content
+          .map(_buildSpan)
+          .toList(growable: false);
+    }
+
+    return RepaintBoundary(
+      child: RichText(
+        text: TextSpan(
+          style: baseStyle,
+          children: _cachedSpans ?? [],
+        ),
       ),
     );
   }
@@ -131,12 +151,24 @@ class HeaderBlockWidget extends StatefulWidget {
 
 class _HeaderBlockWidgetState extends State<HeaderBlockWidget> {
   final List<TapGestureRecognizer> _recognizers = [];
+  List<InlineSpan>? _cachedSpans;
+  Object? _lastContent;
 
   void _disposeRecognizers() {
     for (final r in _recognizers) {
       r.dispose();
     }
     _recognizers.clear();
+  }
+
+  @override
+  void didUpdateWidget(HeaderBlockWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.content != widget.content) {
+      _disposeRecognizers();
+      _cachedSpans = null;
+      _lastContent = null;
+    }
   }
 
   @override
@@ -147,7 +179,6 @@ class _HeaderBlockWidgetState extends State<HeaderBlockWidget> {
 
   @override
   Widget build(BuildContext context) {
-    _disposeRecognizers();
     final theme = Theme.of(context);
     final baseStyle = DefaultTextStyle.of(context).style;
 
@@ -166,6 +197,14 @@ class _HeaderBlockWidgetState extends State<HeaderBlockWidget> {
     };
 
     final inheritedColor = DefaultTextStyle.of(context).style.color;
+
+    if (_lastContent != widget.content) {
+      _lastContent = widget.content;
+      _cachedSpans = widget.content
+          .map(_buildSpan)
+          .toList(growable: false);
+    }
+
     return RichText(
       text: TextSpan(
         style: baseStyle.copyWith(
@@ -174,7 +213,7 @@ class _HeaderBlockWidgetState extends State<HeaderBlockWidget> {
           height: 1.3,
           color: inheritedColor ?? theme.colorScheme.onSurface,
         ),
-        children: widget.content.map(_buildSpan).toList(),
+        children: _cachedSpans ?? [],
       ),
     );
   }

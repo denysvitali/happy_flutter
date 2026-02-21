@@ -51,7 +51,11 @@ class AccountScreen extends ConsumerWidget {
         ListTile(
           leading: profile?.avatarUrl != null
               ? CircleAvatar(
-                  backgroundImage: NetworkImage(profile!.avatarUrl!),
+                  backgroundImage: ResizeImage(
+                    NetworkImage(profile!.avatarUrl!),
+                    width: (48 * 3).toInt(),
+                    height: (48 * 3).toInt(),
+                  ),
                 )
               : const CircleAvatar(
                   child: Icon(Icons.person),

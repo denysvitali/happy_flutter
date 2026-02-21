@@ -92,6 +92,8 @@ class SessionAvatar extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.cover,
+        cacheWidth: (size * 3).toInt(),
+        cacheHeight: (size * 3).toInt(),
         errorBuilder: (
           context,
           error,

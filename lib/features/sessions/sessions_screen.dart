@@ -63,10 +63,16 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final friendsState = ref.watch(friendsNotifierProvider);
-    final feedState = ref.watch(feedNotifierProvider);
-    final inboxBadgeCount = friendsState.incomingRequests.length;
-    final showInboxDot = feedState.unreadCount > 0;
+    final inboxBadgeCount = ref.watch(
+      friendsNotifierProvider.select(
+        (s) => s.incomingRequests.length,
+      ),
+    );
+    final showInboxDot = ref.watch(
+      feedNotifierProvider.select(
+        (s) => s.unreadCount > 0,
+      ),
+    );
 
     return Scaffold(
       appBar: _buildAppBar(context, l10n),
