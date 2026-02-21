@@ -512,7 +512,11 @@ class _DismissibleActiveSession extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to archive session: $e')),
+          SnackBar(
+            content: Text(
+              'Failed to archive session: $e',
+            ),
+          ),
         );
       }
       return false;
@@ -597,16 +601,18 @@ class _DismissibleInactiveSession extends ConsumerWidget {
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to delete session')),
+            const SnackBar(
+              content: Text('Failed to delete session'),
+            ),
           );
         }
         return false;
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to delete session: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete session: $e')),
+        );
       }
       return false;
     }

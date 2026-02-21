@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/components/app_section_header.dart';
 import '../../core/components/app_status_dot.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
@@ -97,7 +98,7 @@ class _MachineDetailScreenState
         appBar: AppBar(title: const Text('')),
         body: Center(
           child: Text(
-            'Machine not found',
+            context.l10n.errorNotFound,
             style: TextStyle(
               fontSize: 16,
               color: theme.colorScheme.onSurfaceVariant,
@@ -145,7 +146,9 @@ class _MachineDetailScreenState
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
-                  isOnline ? 'online' : 'offline',
+                  isOnline
+                      ? context.l10n.settingsOnline
+                      : context.l10n.settingsOffline,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: statusColor,
                   ),
@@ -166,7 +169,7 @@ class _MachineDetailScreenState
           children: [
             // Machine info section
             AppSectionHeader(
-              title: 'Machine',
+              title: context.l10n.machineHost,
               padding: const EdgeInsets.only(
                 left: AppSpacing.xs,
                 bottom: AppSpacing.sm,
@@ -175,41 +178,44 @@ class _MachineDetailScreenState
             _InfoCard(
               children: [
                 if (metadata?.host != null)
-                  _InfoRow(label: 'Host', value: metadata!.host),
+                  _InfoRow(
+                    label: context.l10n.machineHost,
+                    value: metadata!.host,
+                  ),
                 _InfoRow(
-                  label: 'Machine ID',
+                  label: context.l10n.machineMachineId,
                   value: widget.machineId,
                   mono: true,
                 ),
                 if (metadata?.username != null)
                   _InfoRow(
-                    label: 'Username',
+                    label: context.l10n.machineUsername,
                     value: metadata!.username!,
                   ),
                 if (metadata?.platform != null)
                   _InfoRow(
-                    label: 'Platform',
+                    label: context.l10n.machinePlatform,
                     value: metadata!.platform,
                   ),
                 if (metadata?.arch != null)
                   _InfoRow(
-                    label: 'Architecture',
+                    label: context.l10n.machineArchitecture,
                     value: metadata!.arch!,
                   ),
                 if (metadata?.happyCliVersion != null)
                   _InfoRow(
-                    label: 'CLI Version',
+                    label: context.l10n.machineCliVersion,
                     value: metadata!.happyCliVersion,
                     mono: true,
                   ),
                 if (metadata?.homeDir != null)
                   _InfoRow(
-                    label: 'Home Dir',
+                    label: context.l10n.machineHomeDir,
                     value: metadata!.homeDir,
                     mono: true,
                   ),
                 _InfoRow(
-                  label: 'Last Seen',
+                  label: context.l10n.machineLastSeen,
                   value: _formatTimestamp(machine.activeAt),
                   isLast: true,
                 ),
@@ -219,7 +225,7 @@ class _MachineDetailScreenState
 
             // Daemon status section
             AppSectionHeader(
-              title: 'Daemon',
+              title: context.l10n.machineStatus,
               padding: const EdgeInsets.only(
                 left: AppSpacing.xs,
                 bottom: AppSpacing.sm,
@@ -228,7 +234,7 @@ class _MachineDetailScreenState
             _InfoCard(
               children: [
                 _InfoRow(
-                  label: 'Status',
+                  label: context.l10n.machineStatus,
                   value: isOnline ? 'likely alive' : 'stopped',
                   valueColor: isOnline
                       ? AppColors.success
@@ -238,14 +244,17 @@ class _MachineDetailScreenState
                 ),
                 if (metadata?.daemonLastKnownStatus != null)
                   _InfoRow(
-                    label: 'Last Known Status',
+                    label:
+                        context.l10n.machineLastKnownStatus,
                     value: metadata!.daemonLastKnownStatus!,
                     isLast: metadata.daemonLastKnownPid == null,
                   ),
                 if (metadata?.daemonLastKnownPid != null)
                   _InfoRow(
-                    label: 'Last Known PID',
-                    value: metadata!.daemonLastKnownPid.toString(),
+                    label:
+                        context.l10n.machineLastKnownPid,
+                    value: metadata!.daemonLastKnownPid
+                        .toString(),
                     mono: true,
                     isLast: true,
                   ),

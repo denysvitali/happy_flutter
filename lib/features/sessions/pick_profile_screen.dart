@@ -27,6 +27,7 @@ class PickProfileScreen extends StatelessWidget {
   const PickProfileScreen({super.key});
 
   static const _profiles = [
+    // TODO(l10n): Add Claude profile description
     _AiProfile(
       id: 'claude',
       name: 'Claude',
@@ -35,6 +36,7 @@ class PickProfileScreen extends StatelessWidget {
       icon: Icons.auto_awesome,
       color: Color(0xFFD97757),
     ),
+    // TODO(l10n): Add Gemini profile description
     _AiProfile(
       id: 'gemini',
       name: 'Gemini',
@@ -43,6 +45,7 @@ class PickProfileScreen extends StatelessWidget {
       icon: Icons.diamond_outlined,
       color: Color(0xFF4285F4),
     ),
+    // TODO(l10n): Add Codex profile description
     _AiProfile(
       id: 'codex',
       name: 'Codex',
@@ -65,8 +68,10 @@ class PickProfileScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
+          // TODO(l10n): Add profile chooser description text
           Text(
-            'Choose an AI backend profile for your session.',
+            'Choose an AI backend profile '
+            'for your session.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),

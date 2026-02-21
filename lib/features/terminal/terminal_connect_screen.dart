@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -46,7 +47,7 @@ class _TerminalConnectScreenState
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Connect Terminal')),
+      appBar: AppBar(title: Text(context.l10n.terminalConnect)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Form(
@@ -84,7 +85,7 @@ class _TerminalConnectScreenState
 
               // Machine selector
               Text(
-                'MACHINE',
+                context.l10n.sessionSelectMachine.toUpperCase(),
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                   letterSpacing: 0.8,
@@ -156,6 +157,7 @@ class _TerminalConnectScreenState
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              // (Note: No l10n key for "TERMINAL / SESSION ID")
               const SizedBox(height: AppSpacing.sm),
               Card(
                 child: TextFormField(
@@ -187,7 +189,7 @@ class _TerminalConnectScreenState
               FilledButton.icon(
                 onPressed: machineList.isEmpty ? null : _handleConnect,
                 icon: const Icon(Icons.link),
-                label: const Text('Connect'),
+                label: Text(context.l10n.commonContinue),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),

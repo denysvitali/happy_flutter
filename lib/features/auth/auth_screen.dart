@@ -230,7 +230,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
     // Show error banner if redirected due to AuthState.error
     if (widget.showError) {
-      _error = 'Something went wrong. Please sign in again.';
+      _error = context.l10n.authSomethingWentWrong;
     }
   }
 
@@ -252,7 +252,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       final publicKey = AuthService.parseAuthUrl(url);
       if (publicKey == null) {
         setState(() {
-          _error = 'Invalid QR code';
+          _error = context.l10n.authInvalidQR;
           _isProcessingLink = false;
         });
         return;
@@ -261,7 +261,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       final credentials = await TokenStorage().getCredentials();
       if (credentials == null) {
         setState(() {
-          _error = 'Please sign in first to approve device linking';
+          _error = context.l10n.authSignInFirst;
           _isProcessingLink = false;
         });
         return;
@@ -271,18 +271,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
       if (success) {
         setState(() {
-          _linkSuccessMessage = 'Device linked successfully!';
+          _linkSuccessMessage =
+              context.l10n.authDeviceLinkedSuccess;
           _isProcessingLink = false;
         });
       } else {
         setState(() {
-          _error = 'Failed to link device';
+          _error = context.l10n.authFailedToLinkDevice;
           _isProcessingLink = false;
         });
       }
     } catch (e) {
       setState(() {
-        _error = 'Error linking device: $e';
+        _error = context.l10n.authErrorLinkingDevice(
+          e.toString(),
+        );
         _isProcessingLink = false;
       });
     }
@@ -577,7 +580,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       notices.add(
         _StatusBanner(
           icon: null,
-          message: 'Processing device link...',
+          message: context.l10n.authProcessingDeviceLink,
           color: Theme.of(context).colorScheme.primary,
           isLoading: true,
           onDismiss: null,
@@ -631,7 +634,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     final padding = MediaQuery.of(context).padding;
 
     final appBar = AppBar(
-      title: const Text('Link Account'),
+      title: Text(context.l10n.authLinkAccount),
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
         onPressed: _goBack,
@@ -932,7 +935,7 @@ class _AuthButtonGroup extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         RoundButton(
-          title: 'Sign In with Secret Key',
+          title: l10n.authSignInWithSecretKey,
           onPressed: onRestoreKey,
           isPrimary: false,
         ),
@@ -1134,7 +1137,7 @@ class _PollingView extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.sm),
               Text(
-                'Waiting for approval...',
+                context.l10n.authWaitingForApproval,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -1144,14 +1147,14 @@ class _PollingView extends StatelessWidget {
           const SizedBox(height: AppSpacing.xl),
         ],
         RoundButton(
-          title: 'Try Again',
+          title: context.l10n.authTryAgain,
           onPressed: onTryAgain,
           isPrimary: false,
           isLoading: isPolling && hasError,
         ),
         const SizedBox(height: AppSpacing.md),
         RoundButton(
-          title: 'Back',
+          title: context.l10n.commonBack,
           onPressed: onBack,
           isPrimary: false,
         ),
@@ -1219,16 +1222,17 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
 
   Future<void> _submit() async {
     final input = _controller.text.trim();
+    final l10n = context.l10n;
     if (input.isEmpty) {
-      setState(() => _errorText = 'Please enter a secret key');
+      setState(
+        () => _errorText = l10n.authPleaseEnterSecretKey,
+      );
       return;
     }
     final normalized = _normalize(input);
     if (normalized == null) {
       setState(() {
-        _errorText = 'Invalid key. Use backup key'
-            ' (11 groups), base64, base64url,'
-            ' or 64-char hex.';
+        _errorText = l10n.authInvalidKey;
       });
       return;
     }
@@ -1250,22 +1254,22 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AlertDialog(
-      title: const Text('Sign In with Secret Key'),
+      title: Text(l10n.authSignInWithSecretKey),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Enter backup key (11 groups like XXXXX-XXXXX...),'
-            ' base64/base64url, or 64-char hex key.',
+          Text(
+            l10n.authSecretKeyInstruction,
           ),
           const SizedBox(height: AppSpacing.md),
           TextField(
             controller: _controller,
             enabled: !_isSubmitting,
             decoration: InputDecoration(
-              labelText: 'Secret Key',
-              hintText: 'Backup key / base64 / hex',
+              labelText: l10n.authSecretKeyLabel,
+              hintText: l10n.authSecretKeyHint,
               errorText: _errorText,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -1314,13 +1318,13 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
                   _controller.text = text;
                   setState(() => _errorText = null);
                 },
-          child: const Text('Paste'),
+          child: Text(l10n.authPaste),
         ),
         TextButton(
           onPressed: _isSubmitting
               ? null
               : () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.commonCancel),
         ),
         FilledButton(
           onPressed: _isSubmitting ? null : _submit,
@@ -1330,7 +1334,7 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
                   strokeWidth: 2,
                   color: Colors.white,
                 )
-              : const Text('Sign In'),
+              : Text(l10n.authSignIn),
         ),
       ],
     );
@@ -1419,9 +1423,9 @@ class _ServerUrlDialogState extends State<_ServerUrlDialog> {
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Server URL saved and applied.'),
-          duration: Duration(seconds: 3),
+        SnackBar(
+          content: Text(context.l10n.authServerUrlSaved),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
@@ -1677,9 +1681,11 @@ class _ErrorDetailBox extends StatelessWidget {
                     ClipboardData(text: errorMessage),
                   );
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Error details copied'),
-                      duration: Duration(seconds: 2),
+                    SnackBar(
+                      content: Text(
+                        l10n.authErrorDetailsCopied,
+                      ),
+                      duration: const Duration(seconds: 2),
                     ),
                   );
                 },

@@ -232,6 +232,42 @@ class AppLocalizations {
   String get welcomeCreateAccount => 'Create Account';
   String get welcomeLinkOrRestoreAccount => 'Link or Restore Account';
   String get authServerSettings => 'Server Settings';
+  String get authSomethingWentWrong =>
+      'Something went wrong. Please sign in again.';
+  String get authSignInFirst =>
+      'Please sign in first to approve device linking';
+  String get authDeviceLinkedSuccess =>
+      'Device linked successfully!';
+  String get authFailedToLinkDevice =>
+      'Failed to link device';
+  String authErrorLinkingDevice(String error) =>
+      'Error linking device: $error';
+  String get authProcessingDeviceLink =>
+      'Processing device link...';
+  String get authLinkAccount => 'Link Account';
+  String get authWaitingForApproval =>
+      'Waiting for approval...';
+  String get authTryAgain => 'Try Again';
+  String get authSignInWithSecretKey =>
+      'Sign In with Secret Key';
+  String get authSecretKeyInstruction =>
+      'Enter backup key (11 groups like '
+      'XXXXX-XXXXX...), base64/base64url, '
+      'or 64-char hex key.';
+  String get authSecretKeyLabel => 'Secret Key';
+  String get authSecretKeyHint =>
+      'Backup key / base64 / hex';
+  String get authPleaseEnterSecretKey =>
+      'Please enter a secret key';
+  String get authInvalidKey =>
+      'Invalid key. Use backup key (11 groups), '
+      'base64, base64url, or 64-char hex.';
+  String get authPaste => 'Paste';
+  String get authSignIn => 'Sign In';
+  String get authServerUrlSaved =>
+      'Server URL saved and applied.';
+  String get authErrorDetailsCopied =>
+      'Error details copied';
 
   // Errors
   String get errorGeneric => 'Something went wrong';
@@ -311,6 +347,43 @@ class AppLocalizations {
 
   // Account & Other
   String get accountAccountSettings => 'Account Settings';
+  String get accountProfile => 'Profile';
+  String get accountBackupKey => 'Backup Key';
+  String get accountShowBackupKey => 'Show Backup Key';
+  String get accountShowBackupKeySubtitle =>
+      'View your account recovery key';
+  String get accountCopyBackupKey => 'Copy Backup Key';
+  String get accountCopyToClipboard => 'Copy to clipboard';
+  String get accountRestore => 'Restore';
+  String get accountRestoreAccount => 'Restore Account';
+  String get accountRestoreAccountSubtitle =>
+      'Recover account from backup key';
+  String get accountDevices => 'Devices';
+  String get accountLinkedDevices => 'Linked Devices';
+  String get accountLinkedDevicesSubtitle =>
+      'Manage devices linked to your account';
+  String get accountLinkNewDevice => 'Link New Device';
+  String get accountLinkNewDeviceSubtitle =>
+      'Generate QR code for another device';
+  String get accountConnectedServices => 'Connected Services';
+  String get accountBackupKeyCopied => 'Backup key copied';
+  String get accountBackupKeyCopiedToClipboard =>
+      'Backup key copied to clipboard';
+  String get accountNotConnected => 'Not connected';
+  String get accountName => 'Name';
+  String get accountEmail => 'Email';
+  String get accountPasteFromClipboard => 'Paste from Clipboard';
+  String get accountRestoredSuccess => 'Account restored successfully';
+  String get accountLinkDevice => 'Link Device';
+  String get accountScanQR => 'Scan QR';
+  String get accountShowQR => 'Show QR';
+  String get accountEnterUrl => 'Enter URL';
+  String get accountApproveLinking => 'Approve Linking';
+  String get accountUnlinkDevice => 'Unlink Device';
+  String get accountUnlinkConfirm =>
+      'Are you sure you want to unlink this device?';
+  String get accountUnlink => 'Unlink';
+  String get accountFailedToUnlink => 'Failed to unlink device';
   String get settingsCertificates => 'Certificates';
   String get settingsUserCaCertificates => 'User CA Certificates';
   String get settingsUserCertificatesInstalled =>
@@ -319,6 +392,160 @@ class AppLocalizations {
   String get settingsAbout => 'About';
   String get settingsPrivacyPolicy => 'Privacy Policy';
   String get settingsTermsOfService => 'Terms of Service';
+
+  // Chat (extended)
+  String get chatPermissionRequired =>
+      'Permission required';
+  String get chatOnline => 'Online';
+  String get chatLastSeenJustNow =>
+      'Last seen just now';
+  String chatLastSeenMinutes(int minutes) =>
+      'Last seen ${minutes}m ago';
+  String chatLastSeenHours(int hours) =>
+      'Last seen ${hours}h ago';
+  String chatLastSeenDays(int days) =>
+      'Last seen ${days}d ago';
+  String get chatBeginningOfConversation =>
+      'Beginning of conversation';
+  String chatFailedToClear(String error) =>
+      'Failed to clear: $error';
+  String get chatFailedToDeleteSession =>
+      'Failed to delete session';
+  String get chatMoreOptions => 'More options';
+
+  // Settings (extended)
+  String get settingsConnectedAccounts =>
+      'Connected Accounts';
+  String get settingsClaudeCode => 'Claude Code';
+  String get settingsConnected => 'Connected';
+  String get settingsNotConnected =>
+      'Not connected';
+  String get settingsClaudeDisconnected =>
+      'Claude disconnected';
+  String settingsFailedToDisconnect(String error) =>
+      'Failed to disconnect: $error';
+  String settingsConnectedAs(String login) =>
+      'Connected as @$login';
+  String get settingsGitHubDisconnected =>
+      'GitHub disconnected';
+  String settingsFailedToStartOAuth(String error) =>
+      'Failed to start OAuth: $error';
+  String get settingsVoiceSettings =>
+      'Voice Settings';
+  String get settingsConfigureVoice =>
+      'Configure ElevenLabs voice';
+  String get settingsSocial => 'Social';
+  String get settingsFindFriends => 'Find Friends';
+  String get settingsFindFriendsSubtitle =>
+      'Search and send friend requests';
+  String get settingsOpenInbox => 'Open Inbox';
+  String get settingsOpenInboxSubtitle =>
+      'View updates and requests';
+  String get settingsMachines => 'Machines';
+  String get settingsDeveloperOptions =>
+      'Developer Options';
+  String get settingsDeveloperEnabled => 'Enabled';
+  String get settingsDeveloperTapToEnable =>
+      'Tap 10 times to enable';
+  String get settingsAccountSubtitle =>
+      'Backup key, devices, services';
+  String get settingsWhatsNew => "What's New";
+  String get settingsWhatsNewSubtitle =>
+      'Latest improvements and updates';
+
+  // Features Settings
+  String get featuresTitle => 'Features';
+  String get featuresExperimentalTitle =>
+      'Experimental Features';
+  String get featuresEnhancedSessionWizard =>
+      'Enhanced Session Wizard';
+  String get featuresEnhancedSessionWizardDesc =>
+      'Use the improved session creation flow';
+  String get featuresHideInactiveSessions =>
+      'Hide Inactive Sessions';
+  String get featuresHideInactiveSessionsDesc =>
+      'Hide sessions not used recently';
+  String get featuresMarkdownCopyV2 =>
+      'Markdown Copy V2';
+  String get featuresMarkdownCopyV2Desc =>
+      'Use improved markdown copying';
+
+  // Developer Settings
+  String get developerTitle => 'Developer';
+  String get developerClearCache => 'Clear Cache';
+  String get developerResetSettings =>
+      'Reset Settings';
+
+  // Profiles Settings
+  String get profilesTitle => 'Profiles';
+  String get profilesProfileName => 'Profile Name';
+  String get profilesAddProfile => 'Add Profile';
+  String get profilesEditProfile => 'Edit Profile';
+  String get profilesDeleteProfile =>
+      'Delete Profile';
+
+  // Changelog
+  String get changelogTitle => "What's New";
+
+  // Server Settings
+  String get serverTitle => 'Server';
+
+  // Voice Settings
+  String get voiceTitle => 'Voice';
+  String get voiceLanguageTitle => 'Voice Language';
+
+  // Claude Connect
+  String get claudeConnectTitle =>
+      'Connect Claude API';
+
+  // Artifacts
+  String get artifactsTitle => 'Artifacts';
+  String get artifactsNew => 'New Artifact';
+  String get artifactsEdit => 'Edit Artifact';
+  String get artifactsEnterTitleOrContent =>
+      'Please enter a title or content.';
+  String get artifactsTitleLabel => 'TITLE';
+  String get artifactsEnterTitle =>
+      'Enter a new title';
+  String get artifactsContentLabel => 'CONTENT';
+  String get artifactsEnterContent =>
+      'Enter new content';
+  String get artifactsDetail => 'Artifact';
+  String get artifactsStatus => 'Status';
+  String get artifactsDraft => 'Draft';
+
+  // Machine Detail
+  String get machineHost => 'Host';
+  String get machineMachineId => 'Machine ID';
+  String get machineUsername => 'Username';
+  String get machinePlatform => 'Platform';
+  String get machineArchitecture => 'Architecture';
+  String get machineCliVersion => 'CLI Version';
+  String get machineHomeDir => 'Home Dir';
+  String get machineLastSeen => 'Last Seen';
+  String get machineStatus => 'Status';
+  String get machineLastKnownStatus =>
+      'Last Known Status';
+  String get machineLastKnownPid =>
+      'Last Known PID';
+
+  // Terminal
+  String get terminalConnected =>
+      'Terminal connected.';
+  String get terminalOutputPending =>
+      '[output pending]';
+  String get terminalDisconnect => 'Disconnect';
+  String get terminalDisconnectConfirm =>
+      'Are you sure you want to disconnect '
+      'from the terminal?';
+  String get terminalTitle => 'Terminal';
+  String get terminalConnect =>
+      'Connect Terminal';
+
+  // Common (extended)
+  String get commonUnknown => 'unknown';
+  String authError(String error) =>
+      'Error: $error';
 }
 
 /// Localizations delegate

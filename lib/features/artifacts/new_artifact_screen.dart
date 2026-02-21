@@ -36,8 +36,8 @@ class _NewArtifactScreenState
 
     if (title.isEmpty && content.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a title or content.'),
+        SnackBar(
+          content: Text(context.l10n.artifactsEnterTitleOrContent),
         ),
       );
       return;
@@ -62,7 +62,7 @@ class _NewArtifactScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Artifact'),
+        title: Text(l10n.artifactsNew),
         actions: [
           TextButton(
             onPressed: _handleCreate,
@@ -79,12 +79,12 @@ class _NewArtifactScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const _SectionLabel(label: 'TITLE'),
+              _SectionLabel(label: l10n.artifactsTitleLabel),
               const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _titleController,
                 decoration: InputDecoration(
-                  hintText: 'Enter a title (optional)',
+                  hintText: l10n.artifactsEnterTitle,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
@@ -95,12 +95,12 @@ class _NewArtifactScreenState
                 maxLines: 1,
               ),
               const SizedBox(height: AppSpacing.xxl),
-              const _SectionLabel(label: 'CONTENT'),
+              _SectionLabel(label: l10n.artifactsContentLabel),
               const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _contentController,
                 decoration: InputDecoration(
-                  hintText: 'Enter content (optional)',
+                  hintText: l10n.artifactsEnterContent,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),

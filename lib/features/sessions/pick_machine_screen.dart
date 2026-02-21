@@ -55,6 +55,7 @@ class PickMachineScreen extends ConsumerWidget {
       body: machines.isEmpty
           ? Center(
               child: Text(
+                // TODO(l10n): Add 'No machines available' to l10n
                 'No machines available',
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
@@ -68,6 +69,7 @@ class PickMachineScreen extends ConsumerWidget {
               ),
               children: [
                 if (recentMachines.isNotEmpty) ...[
+                  // TODO(l10n): Add 'Recent' to l10n
                   const AppSectionHeader(title: 'Recent'),
                   ...recentMachines.map(
                     (machine) => _MachineListTile(
@@ -80,7 +82,10 @@ class PickMachineScreen extends ConsumerWidget {
                 ],
                 if (otherMachines.isNotEmpty) ...[
                   if (recentMachines.isNotEmpty)
-                    const AppSectionHeader(title: 'All Machines'),
+                    // TODO(l10n): Add 'All Machines' to l10n
+                    const AppSectionHeader(
+                      title: 'All Machines',
+                    ),
                   ...otherMachines.map(
                     (machine) => _MachineListTile(
                       machine: machine,

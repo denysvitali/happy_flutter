@@ -40,8 +40,8 @@ class _EditArtifactScreenState
 
     if (title.isEmpty && content.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a title or content.'),
+        SnackBar(
+          content: Text(context.l10n.artifactsEnterTitleOrContent),
         ),
       );
       return;
@@ -68,7 +68,7 @@ class _EditArtifactScreenState
 
     if (artifact == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit Artifact')),
+        appBar: AppBar(title: Text(l10n.artifactsEdit)),
         body: Center(
           child: Text(l10n.errorNotFound),
         ),
@@ -77,7 +77,7 @@ class _EditArtifactScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit Artifact'),
+        title: Text(l10n.artifactsEdit),
         actions: [
           TextButton(
             onPressed: _handleSave,
@@ -96,12 +96,12 @@ class _EditArtifactScreenState
             children: [
               const _EncryptionNote(),
               const SizedBox(height: AppSpacing.xl),
-              const _SectionLabel(label: 'TITLE'),
+              _SectionLabel(label: l10n.artifactsTitleLabel),
               const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _titleController,
                 decoration: InputDecoration(
-                  hintText: 'Enter a new title',
+                  hintText: l10n.artifactsEnterTitle,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
@@ -112,12 +112,12 @@ class _EditArtifactScreenState
                 maxLines: 1,
               ),
               const SizedBox(height: AppSpacing.xxl),
-              const _SectionLabel(label: 'CONTENT'),
+              _SectionLabel(label: l10n.artifactsContentLabel),
               const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _contentController,
                 decoration: InputDecoration(
-                  hintText: 'Enter new content',
+                  hintText: l10n.artifactsEnterContent,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),

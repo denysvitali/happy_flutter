@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Claude API connect screen — allows entry of a Claude API key and
@@ -43,10 +44,11 @@ class _ClaudeConnectScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Connect Claude API')),
+      appBar: AppBar(title: Text(l10n.claudeConnectTitle)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(

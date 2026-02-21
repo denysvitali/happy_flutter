@@ -168,7 +168,7 @@ class _ServerSettingsScreenState
     final isCustom = isUsingCustomServer();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Server')),
+      appBar: AppBar(title: Text(l10n.serverTitle)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(

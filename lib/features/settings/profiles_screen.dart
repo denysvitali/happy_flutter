@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
@@ -10,6 +11,7 @@ class ProfilesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final settings = ref.watch(settingsNotifierProvider);
     final profiles = settings.profiles;
     final selectedProfileId = settings.lastUsedProfile;
@@ -38,7 +40,7 @@ class ProfilesScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profiles'),
+        title: Text(l10n.profilesTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),

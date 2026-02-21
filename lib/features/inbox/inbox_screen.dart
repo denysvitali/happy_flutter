@@ -8,6 +8,7 @@ import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/components/app_tappable.dart';
 import '../../core/components/avatar.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/models/feed.dart';
 import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
@@ -60,9 +61,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(successMessage)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(successMessage)),
+      );
     } catch (error) {
       if (!mounted) {
         return;
@@ -123,6 +124,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                       (item) => _FeedCard(
                         key: ValueKey(item.id),
                         item: item,
+                        l10n: context.l10n,
                       ),
                     )
                     .toList(growable: false),
@@ -144,13 +146,13 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                           () => _socialService.addFriend(
                             request.fromUserId,
                           ),
-                          'Request accepted',
+                          context.l10n.friendsRequestAccepted,
                         ),
                         onReject: () => _runFriendAction(
                           () => _socialService.removeFriend(
                             request.fromUserId,
                           ),
-                          'Request rejected',
+                          context.l10n.friendsRequestRejected,
                         ),
                       ),
                     )
@@ -180,7 +182,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                                     ),
                                     'Request canceled',
                                   ),
-                          child: const Text('Cancel'),
+                          child: Text(context.l10n.commonCancel),
                         ),
                       ),
                     )
@@ -205,7 +207,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                           onPressed: _isBusy
                               ? null
                               : () => _showRemoveFriendDialog(friend),
-                          child: const Text('Remove'),
+                          child: Text(context.l10n.friendsRemoveAction),
                         ),
                       ),
                     )
@@ -222,18 +224,18 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remove Friend'),
+        title: Text(context.l10n.friendsRemoveTitle),
         content: Text(
           'Remove ${friend.name ?? friend.id} from your friends?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Remove'),
+            child: Text(context.l10n.friendsRemoveAction),
           ),
         ],
       ),
@@ -242,7 +244,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     if (confirmed ?? false) {
       await _runFriendAction(
         () => _socialService.removeFriend(friend.id),
-        'Friend removed',
+        context.l10n.friendsRemoved,
       );
     }
   }
@@ -278,7 +280,7 @@ class _InboxHeader extends StatelessWidget {
         FilledButton.icon(
           onPressed: onFindFriends,
           icon: const Icon(Icons.person_add_alt_1),
-          label: const Text('Find Friends'),
+          label: Text(context.l10n.friendsAddFriend),
         ),
       ],
     );
@@ -317,7 +319,7 @@ class _InboxEmptyView extends StatelessWidget {
             action: FilledButton.icon(
               onPressed: onFindFriends,
               icon: const Icon(Icons.person_search),
-              label: const Text('Find Friends'),
+              label: Text(context.l10n.friendsAddFriend),
             ),
           ),
         ],
@@ -375,10 +377,14 @@ class _Section extends StatelessWidget {
 
 /// Individual feed activity row with avatar, title, message and timestamp.
 class _FeedCard extends StatelessWidget {
-  const _FeedCard({required Key key, required this.item})
-      : super(key: key);
+  const _FeedCard({
+    required Key key,
+    required this.item,
+    required this.l10n,
+  }) : super(key: key);
 
   final FeedItem item;
+  final AppLocalizations l10n;
 
   @override
   Widget build(BuildContext context) {
@@ -475,7 +481,7 @@ class _FeedCard extends StatelessWidget {
     );
   }
 
-  static String _bodyTitle(FeedBody body) {
+  String _bodyTitle(FeedBody body) {
     switch (body.kind) {
       case 'friend_request':
         return 'Friend request';
@@ -608,7 +614,7 @@ class _FriendRequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _InboxItem(
       title: request.fromUserName,
-      subtitle: 'Wants to connect',
+      subtitle: context.l10n.friendsWantsToConnect,
       userId: request.fromUserId,
       avatarUrl: request.fromUserAvatarUrl,
       trailing: Row(
@@ -616,12 +622,12 @@ class _FriendRequestCard extends StatelessWidget {
         children: [
           TextButton(
             onPressed: disabled ? null : onReject,
-            child: const Text('Reject'),
+            child: Text(context.l10n.friendsReject),
           ),
           const SizedBox(width: AppSpacing.xs),
           FilledButton(
             onPressed: disabled ? null : onAccept,
-            child: const Text('Accept'),
+            child: Text(context.l10n.friendsAccept),
           ),
         ],
       ),

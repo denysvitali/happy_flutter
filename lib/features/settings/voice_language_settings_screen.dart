@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 
@@ -157,13 +158,16 @@ class _VoiceLanguageSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final settings = ref.watch(settingsNotifierProvider);
     final selectedCode = settings.voiceAssistantLanguage ?? '';
     final theme = Theme.of(context);
     final filtered = _filtered;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Voice Language')),
+      appBar: AppBar(
+        title: Text(l10n.voiceLanguageTitle),
+      ),
       body: Column(
         children: [
           // Search bar

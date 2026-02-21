@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Terminal emulator screen — displays terminal output with a dark
@@ -12,9 +13,15 @@ class TerminalScreen extends ConsumerStatefulWidget {
 }
 
 class _TerminalScreenState extends ConsumerState<TerminalScreen> {
-  final List<String> lines = ['Terminal connected.'];
+  late final List<String> lines;
   final _commandController = TextEditingController();
   final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    lines = [context.l10n.terminalConnected];
+  }
 
   static const _terminalTextStyle = TextStyle(
     fontFamily: 'monospace',
@@ -38,7 +45,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     setState(() {
       lines
         ..add('> $trimmed')
-        ..add('[output pending]');
+        ..add(context.l10n.terminalOutputPending);
     });
     _commandController.clear();
     // Scroll to bottom after the frame renders
@@ -57,21 +64,21 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Disconnect'),
-        content: const Text(
-          'Are you sure you want to disconnect from the terminal?',
+        title: Text(context.l10n.terminalDisconnect),
+        content: Text(
+          context.l10n.terminalDisconnectConfirm,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
             style: FilledButton.styleFrom(
               backgroundColor: Colors.red,
             ),
-            child: const Text('Disconnect'),
+            child: Text(context.l10n.terminalDisconnect),
           ),
         ],
       ),
@@ -91,17 +98,17 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF2D2D2D),
         foregroundColor: const Color(0xFFD4D4D4),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.terminal, size: 18),
-            SizedBox(width: AppSpacing.sm),
-            Text('Terminal'),
+            const Icon(Icons.terminal, size: 18),
+            const SizedBox(width: AppSpacing.sm),
+            Text(context.l10n.terminalTitle),
           ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.power_settings_new),
-            tooltip: 'Disconnect',
+            tooltip: context.l10n.terminalDisconnect,
             onPressed: _confirmDisconnect,
           ),
         ],

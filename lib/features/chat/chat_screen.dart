@@ -264,12 +264,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     'Pondering...',
   ];
 
-  String _getStatusText() {
+  String _getStatusText(BuildContext context) {
     final session = _session;
     if (session == null) return '';
+    final l10n = context.l10n;
 
     final hasRequests = session.agentState?.requests?.isNotEmpty ?? false;
-    if (hasRequests) return 'Permission required';
+    if (hasRequests) return l10n.chatPermissionRequired;
 
     if (session.thinking) {
       final idx = Random(
@@ -278,18 +279,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return _thinkingMessages[idx];
     }
 
-    if (session.presence == 'online') return 'Online';
+    if (session.presence == 'online') return l10n.chatOnline;
 
     final lastSeen = DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
     final diff = DateTime.now().difference(lastSeen);
-    if (diff.inMinutes < 1) return 'Last seen just now';
+    if (diff.inMinutes < 1) return l10n.chatLastSeenJustNow;
     if (diff.inMinutes < 60) {
-      return 'Last seen ${diff.inMinutes}m ago';
+      return l10n.chatLastSeenMinutes(diff.inMinutes);
     }
     if (diff.inHours < 24) {
-      return 'Last seen ${diff.inHours}h ago';
+      return l10n.chatLastSeenHours(diff.inHours);
     }
-    return 'Last seen ${diff.inDays}d ago';
+    return l10n.chatLastSeenDays(diff.inDays);
   }
 
   Color _getStatusColor(BuildContext context) {
@@ -315,7 +316,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         sessionTitle: _getSessionTitle(),
         relativePath: _formatRelativePath(_session?.metadata?.path),
         machine: _getMachine(),
-        statusText: _getStatusText(),
+        statusText: _getStatusText(context),
         statusColor: _getStatusColor(context),
         isThinking: isThinking,
         onMenuTap: () => _showSessionMenu(context),
@@ -635,7 +636,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
       child: Center(
         child: Text(
-          'Beginning of conversation',
+          context.l10n.chatBeginningOfConversation,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
             color: cs.onSurfaceVariant.withValues(alpha: 0.4),
           ),
@@ -698,7 +699,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('Failed to clear: $e')));
+          ).showSnackBar(
+            SnackBar(
+              content: Text(
+                context.l10n.chatFailedToClear(e.toString()),
+              ),
+            ),
+          );
         }
       } finally {
         if (mounted) setState(() => _isSending = false);
@@ -765,7 +772,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 return;
               }
               ScaffoldMessenger.of(this.context).showSnackBar(
-                const SnackBar(content: Text('Failed to delete session')),
+                SnackBar(
+                  content: Text(
+                    context.l10n.chatFailedToDeleteSession,
+                  ),
+                ),
               );
             },
             child: Text(l10n.commonDelete),
@@ -811,7 +822,7 @@ class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
         IconButton(
           icon: const Icon(Icons.more_horiz_rounded),
           iconSize: 22,
-          tooltip: 'More options',
+          tooltip: context.l10n.chatMoreOptions,
           onPressed: onMenuTap,
         ),
       ],
@@ -990,7 +1001,7 @@ class _PermissionRequiredBanner extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Permission required',
+                context.l10n.chatPermissionRequired,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   fontWeight: FontWeight.w500,
                   color: cs.onSurface.withValues(alpha: 0.7),

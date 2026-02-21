@@ -51,7 +51,7 @@ class _ArtifactsListScreenState
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Artifacts')),
+      appBar: AppBar(title: Text(l10n.artifactsTitle)),
       body: sortedArtifacts.isEmpty
           ? _buildEmptyState(l10n)
           : _buildList(sortedArtifacts),
@@ -66,7 +66,7 @@ class _ArtifactsListScreenState
   Widget _buildEmptyState(AppLocalizations l10n) {
     return AppEmptyState(
       icon: Icons.description_outlined,
-      title: 'No Artifacts',
+      title: l10n.artifactsDetail,
       subtitle: 'Create your first artifact using the + button.',
     );
   }
@@ -153,7 +153,10 @@ class _ArtifactListCard extends StatelessWidget {
                     ),
                     if (isDraft) ...[
                       const SizedBox(width: AppSpacing.xs),
-                      _TypeBadge(label: 'Draft', color: cs.tertiary),
+                      _TypeBadge(
+                        label: context.l10n.artifactsDraft,
+                        color: cs.tertiary,
+                      ),
                     ],
                   ],
                 ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -15,12 +16,13 @@ class DeveloperScreen extends ConsumerStatefulWidget {
 class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final settings = ref.watch(settingsNotifierProvider);
     final isDeveloperMode = settings.developerModeEnabled;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Developer'),
+        title: Text(l10n.developerTitle),
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -99,7 +101,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
-              title: 'Clear Cache',
+              title: l10n.developerClearCache,
               subtitle: 'Clear cached data',
               icon: Icons.delete_sweep,
               onTap: () => _clearCache(context),
@@ -107,7 +109,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
-              title: 'Reset Settings',
+              title: l10n.developerResetSettings,
               subtitle: 'Reset all settings to defaults',
               icon: Icons.restart_alt,
               onTap: () => _resetSettings(context, ref),
@@ -174,55 +176,65 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
   void _clearCache(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear Cache'),
-        content: const Text('Are you sure you want to clear all cached data?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      builder: (context) {
+        final l10nDialog = AppLocalizations.of(context);
+        return AlertDialog(
+          title: Text(l10nDialog.developerClearCache),
+          content: const Text(
+            'Are you sure you want to clear all cached data?',
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Cache cleared')),
-              );
-            },
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10nDialog.commonCancel),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Cache cleared')),
+                );
+              },
+              child: const Text('Clear'),
+            ),
+          ],
+        );
+      },
     );
   }
 
   void _resetSettings(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset Settings'),
-        content: const Text(
-            'Are you sure you want to reset all settings to defaults?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      builder: (context) {
+        final l10nDialog = AppLocalizations.of(context);
+        return AlertDialog(
+          title: Text(l10nDialog.developerResetSettings),
+          content: const Text(
+            'Are you sure you want to reset all settings '
+            'to defaults?',
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  Theme.of(context).colorScheme.error,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10nDialog.commonCancel),
             ),
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings reset')),
-              );
-            },
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    Theme.of(context).colorScheme.error,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Settings reset')),
+                );
+              },
+              child: const Text('Reset'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

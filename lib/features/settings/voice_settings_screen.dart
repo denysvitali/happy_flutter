@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
@@ -12,13 +13,16 @@ class VoiceSettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final settings = ref.watch(settingsNotifierProvider);
-    final selectedLanguageCode = settings.voiceAssistantLanguage ?? '';
-    final selectedLanguage = findVoiceLanguageByCode(selectedLanguageCode);
+    final selectedLanguageCode =
+        settings.voiceAssistantLanguage ?? '';
+    final selectedLanguage =
+        findVoiceLanguageByCode(selectedLanguageCode);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Voice'),
+        title: Text(l10n.voiceTitle),
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),

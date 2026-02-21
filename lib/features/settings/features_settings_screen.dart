@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 
 /// Features settings screen - Experiments toggles
@@ -8,23 +9,26 @@ class FeaturesSettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final settings = ref.watch(settingsNotifierProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Features'),
+        title: Text(l10n.featuresTitle),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildSectionHeader(context, 'Experimental Features'),
+          _buildSectionHeader(
+            context,
+            l10n.featuresExperimentalTitle,
+          ),
           _buildToggle(
             context: context,
-            title: 'Experimental Features',
-            subtitle:
-                settings.experiments
-                    ? 'Enabled'
-                    : 'Disabled - Try new features',
+            title: l10n.featuresExperimentalTitle,
+            subtitle: settings.experiments
+                ? 'Enabled'
+                : 'Disabled - Try new features',
             value: settings.experiments,
             onChanged: (value) {
               ref
@@ -35,20 +39,23 @@ class FeaturesSettingsScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           _buildToggle(
             context: context,
-            title: 'Enhanced Session Wizard',
-            subtitle: 'Use the improved session creation flow',
+            title: l10n.featuresEnhancedSessionWizard,
+            subtitle: l10n.featuresEnhancedSessionWizardDesc,
             value: settings.useEnhancedSessionWizard,
             onChanged: (value) {
               ref
                   .read(settingsNotifierProvider.notifier)
-                  .updateSetting('useEnhancedSessionWizard', value);
+                  .updateSetting(
+                    'useEnhancedSessionWizard',
+                    value,
+                  );
             },
           ),
           const SizedBox(height: 8),
           _buildToggle(
             context: context,
-            title: 'Hide Inactive Sessions',
-            subtitle: 'Hide sessions that have not been used recently',
+            title: l10n.featuresHideInactiveSessions,
+            subtitle: l10n.featuresHideInactiveSessionsDesc,
             value: settings.hideInactiveSessions,
             onChanged: (value) {
               ref
@@ -60,8 +67,8 @@ class FeaturesSettingsScreen extends ConsumerWidget {
           _buildSectionHeader(context, 'Display'),
           _buildToggle(
             context: context,
-            title: 'Markdown Copy V2',
-            subtitle: 'Use improved markdown copying',
+            title: l10n.featuresMarkdownCopyV2,
+            subtitle: l10n.featuresMarkdownCopyV2Desc,
             value: settings.markdownCopyV2,
             onChanged: (value) {
               ref

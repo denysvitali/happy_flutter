@@ -54,7 +54,7 @@ class _ArtifactDetailScreenState
 
     if (artifact == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Artifact')),
+        appBar: AppBar(title: Text(l10n.artifactsDetail)),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(
@@ -125,7 +125,7 @@ class _ArtifactDetailScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.commonDelete),
-        content: const Text(
+        content: Text(
           'Are you sure you want to delete this artifact?',
         ),
         actions: [
@@ -189,13 +189,16 @@ class _ArtifactDetailBody extends StatelessWidget {
               value: artifact.seq.toString(),
             ),
             if (artifact.draft ?? false)
-              const _MetaRow(label: 'Status', value: 'Draft'),
+              _MetaRow(
+                label: context.l10n.artifactsStatus,
+                value: context.l10n.artifactsDraft,
+              ),
           ],
         ),
         const SizedBox(height: AppSpacing.xxl),
         // Content section label.
         Text(
-          'CONTENT',
+          context.l10n.artifactsContentLabel,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 letterSpacing: 1.2,
@@ -417,7 +420,9 @@ class _CopyButton extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.xs),
             Text(
-              copied ? 'Copied' : 'Copy',
+              copied
+                  ? context.l10n.commonDone
+                  : context.l10n.commonCopy,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: copied ? cs.primary : cs.onSurfaceVariant,
                   ),

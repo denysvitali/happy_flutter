@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
 import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';
@@ -673,10 +674,11 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Link Device'),
+        title: Text(l10n.accountLinkDevice),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
@@ -688,35 +690,36 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Link a New Device',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: AppSpacing.xxl),
               SegmentedButton<_LinkMode>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: _LinkMode.scan,
-                    icon: Icon(Icons.qr_code_scanner),
-                    label: Text('Scan QR'),
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: Text(l10n.accountScanQR),
                   ),
                   ButtonSegment(
                     value: _LinkMode.showQR,
-                    icon: Icon(Icons.qr_code),
-                    label: Text('Show QR'),
+                    icon: const Icon(Icons.qr_code),
+                    label: Text(l10n.accountShowQR),
                   ),
                   ButtonSegment(
                     value: _LinkMode.enterURL,
-                    icon: Icon(Icons.link),
-                    label: Text('Enter URL'),
+                    icon: const Icon(Icons.link),
+                    label: Text(l10n.accountEnterUrl),
                   ),
                 ],
                 selected: {_mode},
-                onSelectionChanged: (modes) => _setMode(modes.first),
+                onSelectionChanged: (modes) =>
+                    _setMode(modes.first),
               ),
               const SizedBox(height: AppSpacing.lg),
               if (_error != null)
@@ -752,7 +755,9 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                     ],
                   ),
                 ),
-              Expanded(child: _buildModeContent(cs)),
+              Expanded(
+                child: _buildModeContent(cs, l10n),
+              ),
             ],
           ),
         ),
@@ -760,11 +765,14 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
     );
   }
 
-  Widget _buildModeContent(ColorScheme cs) {
+  Widget _buildModeContent(
+    ColorScheme cs,
+    AppLocalizations l10n,
+  ) {
     return switch (_mode) {
       _LinkMode.scan => _buildScanContent(cs),
-      _LinkMode.showQR => _buildShowQRContent(cs),
-      _LinkMode.enterURL => _buildEnterURLContent(cs),
+      _LinkMode.showQR => _buildShowQRContent(cs, l10n),
+      _LinkMode.enterURL => _buildEnterURLContent(cs, l10n),
     };
   }
 
@@ -809,7 +817,10 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
     );
   }
 
-  Widget _buildShowQRContent(ColorScheme cs) {
+  Widget _buildShowQRContent(
+    ColorScheme cs,
+    AppLocalizations l10n,
+  ) {
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -862,7 +873,9 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                   ? _startLinking
                   : () => context.pop(),
               child: Text(
-                !_isPolling && _error != null ? 'Try Again' : 'Cancel',
+                !_isPolling && _error != null
+                    ? l10n.authTryAgain
+                    : l10n.commonCancel,
               ),
             ),
           ),
@@ -871,7 +884,10 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
     );
   }
 
-  Widget _buildEnterURLContent(ColorScheme cs) {
+  Widget _buildEnterURLContent(
+    ColorScheme cs,
+    AppLocalizations l10n,
+  ) {
     return Column(
       children: [
         Text(
@@ -902,9 +918,11 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
                   )
-                : const Text('Approve Linking'),
+                : Text(l10n.accountApproveLinking),
           ),
         ),
       ],
@@ -950,20 +968,22 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
   }
 
   Future<void> _unlinkDevice(DeviceInfo device) async {
+    final l10n = AppLocalizations.of(context);
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
+        final l10nDialog = AppLocalizations.of(context);
         final cs = Theme.of(context).colorScheme;
         return AlertDialog(
-          title: const Text('Unlink Device'),
+          title: Text(l10nDialog.accountUnlinkDevice),
           content: Text(
             'Are you sure you want to unlink "${device.name}"?',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              child: Text(l10nDialog.commonCancel),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -971,7 +991,7 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
                 foregroundColor: cs.onError,
               ),
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Unlink'),
+              child: Text(l10nDialog.accountUnlink),
             ),
           ],
         );
@@ -980,21 +1000,25 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
 
     if (confirmed != true) return;
 
-    final success = await AuthService().unlinkDevice(device.id);
+    final success =
+        await AuthService().unlinkDevice(device.id);
     if (success) {
       unawaited(_loadDevices());
     } else {
       scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('Failed to unlink device')),
+        SnackBar(
+          content: Text(l10n.accountFailedToUnlink),
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Linked Devices'),
+        title: Text(l10n.accountLinkedDevices),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
