@@ -85,7 +85,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
       );
       if (!mounted) return;
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
-      unawaited(context.push('/chat/$sessionId'));
+      context.goNamed('chat', pathParameters: {'sessionId': sessionId});
     } catch (e) {
       if (!mounted) return;
       setState(() => _isCreating = false);

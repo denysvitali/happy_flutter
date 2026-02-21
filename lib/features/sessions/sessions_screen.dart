@@ -123,14 +123,14 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   }
 
   Widget _buildCurrentTabContent() {
-    switch (_activeTab) {
-      case AppTab.inbox:
-        return const InboxScreen();
-      case AppTab.sessions:
-        return const _SessionsListContent();
-      case AppTab.settings:
-        return const SettingsScreen();
-    }
+    return IndexedStack(
+      index: _activeTab.index,
+      children: const [
+        InboxScreen(),
+        _SessionsListContent(),
+        SettingsScreen(),
+      ],
+    );
   }
 }
 
@@ -334,9 +334,13 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
       children.addAll(archivedItems);
     }
 
-    return ListView(
-      padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
-      children: children,
+    return ListView.builder(
+      padding: const EdgeInsets.only(
+        top: AppSpacing.xs,
+        bottom: AppSpacing.lg,
+      ),
+      itemCount: children.length,
+      itemBuilder: (ctx, i) => children[i],
     );
   }
 

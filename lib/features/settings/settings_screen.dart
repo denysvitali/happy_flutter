@@ -83,7 +83,7 @@ class SettingsScreen extends ConsumerWidget {
     final claudeConnected =
         profile?.connectedServices.contains('anthropic') ?? false;
 
-    return _SettingsSection(
+    return SettingsSection(
       title: 'Connected Accounts',
       children: [
         _SettingsNavRow(
@@ -108,7 +108,7 @@ class SettingsScreen extends ConsumerWidget {
                 );
               }
             } else {
-              unawaited(context.push('/settings/account'));
+              unawaited(context.pushNamed('account'));
             }
           },
         ),
@@ -166,14 +166,14 @@ class SettingsScreen extends ConsumerWidget {
       _ => l10n.appearanceThemeAdaptive,
     };
 
-    return _SettingsSection(
+    return SettingsSection(
       title: l10n.settingsAppearance,
       children: [
         _SettingsNavRow(
           icon: Icons.palette,
           title: l10n.appearanceTheme,
           subtitle: themeModeLabel,
-          onTap: () => context.push('/settings/theme'),
+          onTap: () => context.pushNamed('theme'),
         ),
         _SettingsNavRow(
           icon: Icons.language,
@@ -181,7 +181,7 @@ class SettingsScreen extends ConsumerWidget {
           subtitle: settings.locale.isEmpty
               ? l10n.settingsLanguageAutomatic
               : _getLocaleDisplayName(settings.locale),
-          onTap: () => context.push('/settings/language'),
+          onTap: () => context.pushNamed('language'),
         ),
         _SettingsToggleRow(
           icon: Icons.emoji_emotions_outlined,
@@ -218,7 +218,7 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
   ) {
     final l10n = AppLocalizations.of(context);
-    return _SettingsSection(
+    return SettingsSection(
       title: l10n.settingsBehavior,
       children: [
         _SettingsToggleRow(
@@ -263,7 +263,7 @@ class SettingsScreen extends ConsumerWidget {
     Settings settings,
     WidgetRef ref,
   ) {
-    return _SettingsSection(
+    return SettingsSection(
       title: 'Voice',
       children: [
         _SettingsToggleRow(
@@ -279,7 +279,7 @@ class SettingsScreen extends ConsumerWidget {
           icon: Icons.record_voice_over,
           title: 'Voice Settings',
           subtitle: 'Configure voice assistant',
-          onTap: () => context.push('/settings/voice'),
+          onTap: () => context.pushNamed('voice'),
         ),
       ],
     );
@@ -287,14 +287,14 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildAIProfilesSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return _SettingsSection(
+    return SettingsSection(
       title: l10n.settingsProfiles,
       children: [
         _SettingsNavRow(
           icon: Icons.account_tree,
           title: l10n.settingsProfiles,
           subtitle: l10n.settingsProfilesSubtitle,
-          onTap: () => context.push('/settings/profiles'),
+          onTap: () => context.pushNamed('profiles'),
         ),
       ],
     );
@@ -302,14 +302,14 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildUsageSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return _SettingsSection(
+    return SettingsSection(
       title: l10n.settingsUsage,
       children: [
         _SettingsNavRow(
           icon: Icons.analytics,
           title: l10n.settingsUsage,
           subtitle: l10n.settingsUsageSubtitle,
-          onTap: () => context.push('/settings/usage'),
+          onTap: () => context.pushNamed('usage'),
         ),
       ],
     );
@@ -317,34 +317,34 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildFeaturesSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return _SettingsSection(
+    return SettingsSection(
       title: l10n.settingsFeatures,
       children: [
         _SettingsNavRow(
           icon: Icons.science,
           title: l10n.featuresExperiments,
           subtitle: l10n.featuresExperimentsDesc,
-          onTap: () => context.push('/settings/features'),
+          onTap: () => context.pushNamed('features'),
         ),
       ],
     );
   }
 
   Widget _buildSocialSection(BuildContext context) {
-    return _SettingsSection(
+    return SettingsSection(
       title: 'Social',
       children: [
         _SettingsNavRow(
           icon: Icons.person_add_alt_1,
           title: 'Find Friends',
           subtitle: 'Search and send friend requests',
-          onTap: () => context.push('/friends/search'),
+          onTap: () => context.pushNamed('friends-search'),
         ),
         _SettingsNavRow(
           icon: Icons.inbox_outlined,
           title: 'Open Inbox',
           subtitle: 'View updates and requests',
-          onTap: () => context.push('/inbox'),
+          onTap: () => context.pushNamed('inbox'),
         ),
       ],
     );
@@ -365,7 +365,7 @@ class SettingsScreen extends ConsumerWidget {
         return a.active ? -1 : 1;
       });
 
-    return _SettingsSection(
+    return SettingsSection(
       title: 'Machines',
       children: machineList
           .map((machine) {
@@ -389,7 +389,7 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildDeveloperSection(BuildContext context, Settings settings) {
     final l10n = AppLocalizations.of(context);
-    return _SettingsSection(
+    return SettingsSection(
       title: l10n.settingsDeveloper,
       children: [
         _SettingsNavRow(
@@ -398,7 +398,7 @@ class SettingsScreen extends ConsumerWidget {
           subtitle: settings.developerModeEnabled
               ? 'Enabled'
               : 'Tap 10 times to enable',
-          onTap: () => context.push('/settings/developer'),
+          onTap: () => context.pushNamed('developer'),
         ),
       ],
     );
@@ -406,14 +406,14 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildAccountSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return _SettingsSection(
+    return SettingsSection(
       title: l10n.settingsAccount,
       children: [
         _SettingsNavRow(
           icon: Icons.person,
           title: l10n.accountAccountSettings,
           subtitle: 'Backup key, devices, services',
-          onTap: () => context.push('/settings/account'),
+          onTap: () => context.pushNamed('account'),
         ),
       ],
     );
@@ -421,7 +421,7 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildCertificatesSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return _SettingsSection(
+    return SettingsSection(
       title: l10n.settingsCertificates,
       children: [
         FutureBuilder<bool>(
@@ -446,7 +446,7 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildServerSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return _SettingsSection(
+    return SettingsSection(
       title: l10n.settingsServer,
       children: [
         FutureBuilder<Map<String, dynamic>>(
@@ -604,7 +604,7 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildAboutSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return _SettingsSection(
+    return SettingsSection(
       title: l10n.settingsAbout,
       children: [
         _SettingsRow(
@@ -616,7 +616,7 @@ class SettingsScreen extends ConsumerWidget {
           icon: Icons.new_releases_outlined,
           title: "What's New",
           subtitle: 'Latest improvements and updates',
-          onTap: () => context.push('/settings/changelog'),
+          onTap: () => context.pushNamed('changelog'),
         ),
         _SettingsNavRow(
           icon: Icons.code,
@@ -809,74 +809,6 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-/// iOS-style section container — label above card, children inside a
-/// rounded Card with 12 px radius.
-class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({required this.children, this.title});
-
-  final String? title;
-  final List<Widget> children;
-
-  // Leading padding (16) + icon container width (36) + icon gap (12) = 64.
-  static const double _dividerIndent = AppSpacing.lg + 36 + AppSpacing.md;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (title != null) ...[
-          Padding(
-            padding: const EdgeInsets.only(
-              left: AppSpacing.xs,
-              bottom: AppSpacing.xs,
-            ),
-            child: Text(
-              title!.toUpperCase(),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.5,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ],
-        Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(color: cs.outlineVariant),
-          ),
-          child: Column(children: _intersperse(children, cs)),
-        ),
-      ],
-    );
-  }
-
-  /// Inserts a slim divider between children (but not before/after).
-  List<Widget> _intersperse(List<Widget> items, ColorScheme cs) {
-    if (items.length <= 1) return items;
-    final result = <Widget>[];
-    for (var i = 0; i < items.length; i++) {
-      result.add(items[i]);
-      if (i < items.length - 1) {
-        result.add(
-          Divider(
-            height: 1,
-            thickness: 0.5,
-            indent: _dividerIndent,
-            endIndent: 0,
-            color: cs.outlineVariant,
-          ),
-        );
-      }
-    }
-    return result;
-  }
-}
 
 /// A plain setting row: icon container + title/subtitle + optional trailing.
 class _SettingsRow extends StatelessWidget {

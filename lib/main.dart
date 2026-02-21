@@ -466,9 +466,11 @@ class _HappyAppState extends ConsumerState<HappyApp>
           path: '/zen/view',
           name: 'zen-view',
           builder: (context, state) {
-            final todoId = state.uri.queryParameters['todoId'] ?? '';
+            final extra =
+                state.extra as Map<String, dynamic>?;
+            final todoId = extra?['todoId'] as String? ?? '';
             final sessionId =
-                state.uri.queryParameters['sessionId'] ?? 'global';
+                extra?['sessionId'] as String? ?? 'global';
             return AuthGate(
               child: ZenViewScreen(todoId: todoId, sessionId: sessionId),
             );

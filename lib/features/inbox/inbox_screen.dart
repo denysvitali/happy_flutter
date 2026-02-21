@@ -125,9 +125,18 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                         key: ValueKey(item.id),
                         item: item,
                         l10n: context.l10n,
-                        onTap: () => ref
-                            .read(feedNotifierProvider.notifier)
-                            .markAsRead(item.id),
+                        onTap: () {
+                          ref
+                              .read(feedNotifierProvider.notifier)
+                              .markAsRead(item.id);
+                          final sid = item.sessionId;
+                          if (sid != null) {
+                            context.pushNamed(
+                              'chat',
+                              pathParameters: {'sessionId': sid},
+                            );
+                          }
+                        },
                       ),
                     )
                     .toList(growable: false),
