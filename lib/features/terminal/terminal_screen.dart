@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Terminal emulator screen — displays terminal output with a dark
 /// background and allows entering commands.
+///
+/// Expects `GoRouterState.extra` to be a `Map<String, dynamic>` with
+/// `machineId` (String) and `terminalId` (String) keys, provided by
+/// [TerminalConnectScreen].
 class TerminalScreen extends ConsumerStatefulWidget {
   const TerminalScreen({super.key});
 
@@ -16,11 +22,17 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   late final List<String> lines;
   final _commandController = TextEditingController();
   final _scrollController = ScrollController();
+  String? _machineId;
+  String? _cwd;
 
   @override
   void initState() {
     super.initState();
     lines = [context.l10n.terminalConnected];
+    final extra =
+        GoRouterState.of(context).extra as Map<String, dynamic>?;
+    _machineId = extra?['machineId'] as String?;
+    _cwd = extra?['terminalId'] as String? ?? '/';
   }
 
   static const _terminalTextStyle = TextStyle(
@@ -37,18 +49,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     super.dispose();
   }
 
-  void _submitCommand(String command) {
-    final trimmed = command.trim();
-    if (trimmed.isEmpty) {
-      return;
-    }
-    setState(() {
-      lines
-        ..add('> $trimmed')
-        ..add(context.l10n.terminalOutputPending);
-    });
-    _commandController.clear();
-    // Scroll to bottom after the frame renders
+  void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -58,6 +59,42 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
         );
       }
     });
+  }
+
+  Future<void> _submitCommand(String command) async {
+    final trimmed = command.trim();
+    if (trimmed.isEmpty) return;
+
+    setState(() {
+      lines.add('> $trimmed');
+    });
+    _commandController.clear();
+    _scrollToBottom();
+
+    final machineId = _machineId;
+    if (machineId == null || machineId.isEmpty) {
+      setState(() => lines.add('[No machine connected]'));
+      _scrollToBottom();
+      return;
+    }
+
+    try {
+      final result = await sync.machineBash(
+        machineId: machineId,
+        command: trimmed,
+        cwd: _cwd ?? '/',
+      );
+      final stdout = (result['stdout'] as String? ?? '').trim();
+      final stderr = (result['stderr'] as String? ?? '').trim();
+      setState(() {
+        if (stdout.isNotEmpty) lines.addAll(stdout.split('\n'));
+        if (stderr.isNotEmpty) lines.addAll(stderr.split('\n'));
+        if (stdout.isEmpty && stderr.isEmpty) lines.add('');
+      });
+    } catch (e) {
+      setState(() => lines.add('[Error: $e]'));
+    }
+    _scrollToBottom();
   }
 
   void _confirmDisconnect() {

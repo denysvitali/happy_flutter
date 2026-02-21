@@ -1032,6 +1032,129 @@ what you have, you must use the options mode.
     }
   }
 
+  /// Fetch a single artifact with full body decrypted.
+  Future<DecryptedArtifact?> fetchArtifactWithBody(String id) async {
+    try {
+      final response = await ApiClient().get('/v1/artifacts/$id');
+      if (!ApiClient().isSuccess(response)) {
+        if (kDebugMode) {
+          debugPrint('Failed to fetch artifact: ${response.statusCode}');
+        }
+        return null;
+      }
+      final raw = response.data;
+      if (raw is! Map<String, dynamic>) return null;
+      final artifact = Artifact.fromJson(raw);
+      final decryptedKey = _artifactDataKeys[artifact.id] ??
+          await encryption.decryptEncryptionKey(artifact.dataEncryptionKey);
+      if (decryptedKey == null) return null;
+      _artifactDataKeys[artifact.id] = decryptedKey;
+      final artifactEncryption = ArtifactEncryption(decryptedKey);
+      final header = await artifactEncryption.decryptHeader(artifact.header);
+      final body = artifact.body != null
+          ? await artifactEncryption.decryptBody(artifact.body!)
+          : null;
+      return DecryptedArtifact(
+        id: artifact.id,
+        title: header?['title'] as String?,
+        body: body?['body'] as String?,
+        headerVersion: artifact.headerVersion,
+        bodyVersion: artifact.bodyVersion,
+        seq: artifact.seq,
+        createdAt: artifact.createdAt,
+        updatedAt: artifact.updatedAt,
+        isDecrypted: header != null,
+      );
+    } catch (error, stack) {
+      if (kDebugMode) debugPrint('Failed to fetch artifact: $error');
+      unawaited(Sentry.captureException(error, stackTrace: stack));
+      return null;
+    }
+  }
+
+  /// Create a new artifact with optional title and body.
+  /// Returns the new artifact's ID.
+  Future<String> createArtifact(String? title, String? body) async {
+    final dek = ArtifactEncryption.generateDataEncryptionKey();
+    final artifactEncryption = ArtifactEncryption(dek);
+    final encryptedDek = await encryption.encryptEncryptionKey(dek);
+    final encryptedDekB64 =
+        Base64Utils.encode(encryptedDek, Encoding.base64);
+    final encryptedHeader = await artifactEncryption
+        .encryptHeader({'title': title});
+    final encryptedBody = await artifactEncryption
+        .encryptBody({'body': body ?? ''});
+    final artifactId = encryption.generateId();
+    final request = ArtifactCreateRequest(
+      id: artifactId,
+      header: encryptedHeader,
+      body: encryptedBody,
+      dataEncryptionKey: encryptedDekB64,
+    );
+    final response = await ApiClient().post(
+      '/v1/artifacts',
+      data: request.toJson(),
+    );
+    if (!ApiClient().isSuccess(response)) {
+      throw StateError(
+        'Failed to create artifact: ${response.statusCode}',
+      );
+    }
+    _artifactDataKeys[artifactId] = dek;
+    artifactsSync.invalidate();
+    return artifactId;
+  }
+
+  /// Update an existing artifact's title and/or body.
+  Future<void> updateArtifact(
+    String id,
+    String? title,
+    String? body,
+  ) async {
+    final dek = _artifactDataKeys[id];
+    if (dek == null) {
+      throw StateError('No decryption key found for artifact $id');
+    }
+    final artifactEncryption = ArtifactEncryption(dek);
+    final existing = _artifacts.firstWhere(
+      (a) => a.id == id,
+      orElse: () => throw StateError('Artifact $id not found in cache'),
+    );
+    final encryptedHeader = await artifactEncryption
+        .encryptHeader({'title': title});
+    final encryptedBody = await artifactEncryption
+        .encryptBody({'body': body ?? ''});
+    final request = ArtifactUpdateRequest(
+      header: encryptedHeader,
+      expectedHeaderVersion: existing.headerVersion,
+      body: encryptedBody,
+      expectedBodyVersion: existing.bodyVersion,
+    );
+    final response = await ApiClient().post(
+      '/v1/artifacts/$id',
+      data: request.toJson(),
+    );
+    if (!ApiClient().isSuccess(response)) {
+      throw StateError(
+        'Failed to update artifact: ${response.statusCode}',
+      );
+    }
+    artifactsSync.invalidate();
+  }
+
+  /// Delete an artifact by ID.
+  Future<void> deleteArtifact(String id) async {
+    final response = await ApiClient().delete('/v1/artifacts/$id');
+    if (!ApiClient().isSuccess(response)) {
+      throw StateError(
+        'Failed to delete artifact: ${response.statusCode}',
+      );
+    }
+    _artifactDataKeys.remove(id);
+    _artifacts.removeWhere((a) => a.id == id);
+    _notifyDataChanged();
+  }
+
   /// Fetch friends list from server
   Future<void> fetchFriends() async {
     if (kDebugMode) debugPrint('Fetching friends...');
@@ -2369,11 +2492,11 @@ what you have, you must use the options mode.
 
       _sessionMessageChangeController.add(sessionId);
       _notifyDataChanged();
-    } catch (error) {
+    } catch (error, stack) {
       if (kDebugMode) {
         debugPrint('Error fetching older messages: $error');
       }
-      unawaited(Sentry.captureException(error));
+      unawaited(Sentry.captureException(error, stackTrace: stack));
     } finally {
       _loadingOlderMessages.remove(sessionId);
       _notifyDataChanged();
@@ -3262,6 +3385,9 @@ what you have, you must use the options mode.
 
     _dataChangeDebounceTimer?.cancel();
     _dataChangeDebounceTimer = null;
+
+    unawaited(_dataChangeController.close());
+    unawaited(_sessionMessageChangeController.close());
 
     for (final sync in messagesSync.values) {
       sync.dispose();

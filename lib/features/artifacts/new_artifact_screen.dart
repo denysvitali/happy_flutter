@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart'; // for context.l10n extension
+import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Screen for creating a new artifact.
@@ -20,6 +22,7 @@ class _NewArtifactScreenState
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
+  bool _isBusy = false;
 
   @override
   void dispose() {
@@ -29,6 +32,7 @@ class _NewArtifactScreenState
   }
 
   Future<void> _handleCreate() async {
+    if (_isBusy) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final title = _titleController.text.trim();
@@ -43,17 +47,23 @@ class _NewArtifactScreenState
       return;
     }
 
-    // TODO(dev): Encrypt title and content, generate a data encryption key,
-    // build an ArtifactCreateRequest, and submit via the API client.
-    // Once the artifact is created and added to the provider, navigate
-    // to the new artifact's detail screen with context.go('/artifacts/<id>').
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'TODO(dev): Artifact creation with encryption not yet implemented.',
-        ),
-      ),
-    );
+    setState(() => _isBusy = true);
+    try {
+      final artifactId = await sync.createArtifact(
+        title.isNotEmpty ? title : null,
+        content.isNotEmpty ? content : null,
+      );
+      if (mounted) {
+        context.go('/artifacts/$artifactId');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to create artifact: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isBusy = false);
+    }
   }
 
   @override
@@ -65,8 +75,13 @@ class _NewArtifactScreenState
         title: Text(l10n.artifactsNew),
         actions: [
           TextButton(
-            onPressed: _handleCreate,
-            child: Text(l10n.commonCreate),
+            onPressed: _isBusy ? null : _handleCreate,
+            child: _isBusy
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(l10n.commonCreate),
           ),
         ],
       ),
@@ -114,8 +129,13 @@ class _NewArtifactScreenState
               ),
               const SizedBox(height: AppSpacing.xxxl),
               FilledButton(
-                onPressed: _handleCreate,
-                child: Text(l10n.commonCreate),
+                onPressed: _isBusy ? null : _handleCreate,
+                child: _isBusy
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(l10n.commonCreate),
               ),
             ],
           ),

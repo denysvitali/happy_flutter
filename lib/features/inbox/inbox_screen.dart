@@ -125,6 +125,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                         key: ValueKey(item.id),
                         item: item,
                         l10n: context.l10n,
+                        onTap: () => ref
+                            .read(feedNotifierProvider.notifier)
+                            .markAsRead(item.id),
                       ),
                     )
                     .toList(growable: false),
@@ -382,10 +385,12 @@ class _FeedCard extends StatelessWidget {
     required Key key,
     required this.item,
     required this.l10n,
+    this.onTap,
   }) : super(key: key);
 
   final FeedItem item;
   final AppLocalizations l10n;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -394,6 +399,7 @@ class _FeedCard extends StatelessWidget {
     final isUnread = !item.read;
 
     return AppTappable(
+      onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(

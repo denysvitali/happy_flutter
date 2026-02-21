@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Screen for editing an existing artifact.
@@ -24,6 +26,15 @@ class _EditArtifactScreenState
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
+  bool _isBusy = false;
+  bool _initialized = false;
+
+  void _initFromArtifact(DecryptedArtifact artifact) {
+    if (_initialized) return;
+    _initialized = true;
+    _titleController.text = artifact.title ?? '';
+    _contentController.text = artifact.body ?? '';
+  }
 
   @override
   void dispose() {
@@ -33,6 +44,7 @@ class _EditArtifactScreenState
   }
 
   Future<void> _handleSave() async {
+    if (_isBusy) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final title = _titleController.text.trim();
@@ -47,17 +59,24 @@ class _EditArtifactScreenState
       return;
     }
 
-    // TODO(dev): Encrypt updated title and content using the artifact's
-    // existing dataEncryptionKey, build an ArtifactUpdateRequest with
-    // expectedHeaderVersion / expectedBodyVersion, submit via API client,
-    // update the provider with the response, then navigate back.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'TODO(dev): Artifact update with encryption not yet implemented.',
-        ),
-      ),
-    );
+    setState(() => _isBusy = true);
+    try {
+      await sync.updateArtifact(
+        widget.artifactId,
+        title.isNotEmpty ? title : null,
+        content.isNotEmpty ? content : null,
+      );
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save artifact: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isBusy = false);
+    }
   }
 
   @override
@@ -75,13 +94,21 @@ class _EditArtifactScreenState
       );
     }
 
+    // Populate fields once on first build after artifact loads.
+    _initFromArtifact(artifact);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.artifactsEdit),
         actions: [
           TextButton(
-            onPressed: _handleSave,
-            child: Text(l10n.commonSave),
+            onPressed: _isBusy ? null : _handleSave,
+            child: _isBusy
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(l10n.commonSave),
           ),
         ],
       ),
@@ -131,8 +158,13 @@ class _EditArtifactScreenState
               ),
               const SizedBox(height: AppSpacing.xxxl),
               FilledButton(
-                onPressed: _handleSave,
-                child: Text(l10n.commonSave),
+                onPressed: _isBusy ? null : _handleSave,
+                child: _isBusy
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(l10n.commonSave),
               ),
             ],
           ),

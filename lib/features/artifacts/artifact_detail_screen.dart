@@ -145,11 +145,20 @@ class _ArtifactDetailScreenState
     );
 
     if (confirmed ?? false) {
-      ref
-          .read(artifactsNotifierProvider.notifier)
-          .removeArtifact(artifact.id);
-      if (context.mounted) {
-        context.pop();
+      try {
+        await sync.deleteArtifact(artifact.id);
+        ref
+            .read(artifactsNotifierProvider.notifier)
+            .removeArtifact(artifact.id);
+        if (context.mounted) {
+          context.pop();
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete artifact: $e')),
+          );
+        }
       }
     }
   }
