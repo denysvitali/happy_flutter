@@ -234,7 +234,7 @@ class ProfilesScreen extends ConsumerWidget {
           ),
           ElevatedButton(
             onPressed: () {
-              if (formKey.currentState!.validate()) {
+              if (formKey.currentState?.validate() ?? false) {
                 final settings = ref.read(settingsNotifierProvider);
                 final newProfile = AIBackendProfile(
                   id: 'custom_${DateTime.now().millisecondsSinceEpoch}',
@@ -283,7 +283,7 @@ class ProfilesScreen extends ConsumerWidget {
           ),
           ElevatedButton(
             onPressed: () {
-              if (formKey.currentState!.validate()) {
+              if (formKey.currentState?.validate() ?? false) {
                 final settings = ref.read(settingsNotifierProvider);
                 final updatedProfiles = settings.profiles.map((p) {
                   if (p.id == profile.id) {

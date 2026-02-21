@@ -81,6 +81,7 @@ class _ArtifactsListScreenState
       itemBuilder: (context, index) {
         final artifact = artifacts[index];
         return Padding(
+          key: ValueKey(artifact.id),
           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: _ArtifactListCard(artifact: artifact),
         );

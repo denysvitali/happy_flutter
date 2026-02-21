@@ -221,21 +221,22 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   }
 
   Future<void> _showRemoveFriendDialog(UserProfile friend) async {
+    final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(context.l10n.friendsRemoveTitle),
+        title: Text(l10n.friendsRemoveTitle),
         content: Text(
           'Remove ${friend.name ?? friend.id} from your friends?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text(context.l10n.commonCancel),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text(context.l10n.friendsRemoveAction),
+            child: Text(l10n.friendsRemoveAction),
           ),
         ],
       ),
@@ -244,7 +245,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     if (confirmed ?? false) {
       await _runFriendAction(
         () => _socialService.removeFriend(friend.id),
-        context.l10n.friendsRemoved,
+        l10n.friendsRemoved,
       );
     }
   }

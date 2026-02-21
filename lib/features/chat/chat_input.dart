@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -880,7 +881,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   Future<void> _onAbortTap() async {
     if (_isAborting || widget.onAbort == null) return;
-    HapticFeedback.heavyImpact();
+    unawaited(HapticFeedback.heavyImpact());
     setState(() => _isAborting = true);
     final start = DateTime.now();
     try {

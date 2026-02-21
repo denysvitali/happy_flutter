@@ -9,8 +9,10 @@ import '../../core/components/app_status_dot.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
+import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'chat_input.dart';
@@ -54,6 +56,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _scrollController.addListener(_onScroll);
     _loadSavedPermissionMode();
     _initializeSyncBackedChat();
+    unawaited(TtsService().init());
   }
 
   Future<void> _loadSavedPermissionMode() async {
@@ -73,6 +76,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _messageSyncSubscription?.cancel();
     _controller.dispose();
     _scrollController.dispose();
+    TtsService().stop();
     super.dispose();
   }
 
@@ -162,6 +166,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     if (newPermission) {
       _scrollToBottom();
+    }
+
+    // Speak new bot messages via TTS when enabled.
+    if (messagesChanged && latestMessages.isNotEmpty) {
+      final last = latestMessages.last;
+      final role = last['role'] as String? ?? '';
+      final kind = last['kind'] as String?;
+      if (role == 'assistant' && kind != 'tool-call') {
+        final ttsOn = ref.read(settingsNotifierProvider).ttsEnabled;
+        if (ttsOn) {
+          final text = (last['content'] ?? last['text'] ?? '')
+              .toString();
+          if (text.isNotEmpty) {
+            unawaited(TtsService().speak(text));
+          }
+        }
+      }
     }
   }
 
@@ -675,6 +696,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final text = _controller.text.trim();
     if (text.isEmpty || _isSending) return;
 
+    // Stop any in-progress TTS when user sends a new message.
+    unawaited(TtsService().stop());
+
     if (text == '/clear') {
       _controller.clear();
       unawaited(DraftStorage().removeDraft(widget.sessionId));
@@ -763,6 +787,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             style: TextButton.styleFrom(foregroundColor: cs.error),
             onPressed: () async {
               Navigator.pop(context);
+              final failedL10n = l10n;
               final deleted = await sync.deleteSession(widget.sessionId);
               if (!mounted) {
                 return;
@@ -774,7 +799,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ScaffoldMessenger.of(this.context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    context.l10n.chatFailedToDeleteSession,
+                    failedL10n.chatFailedToDeleteSession,
                   ),
                 ),
               );

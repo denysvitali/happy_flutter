@@ -28,6 +28,7 @@ class Settings {
       ..hideInactiveSessions = json['hideInactiveSessions'] as bool? ?? false
       ..reviewPromptAnswered = json['reviewPromptAnswered'] as bool? ?? false
       ..reviewPromptLikedApp = json['reviewPromptLikedApp'] as bool?
+      ..ttsEnabled = json['ttsEnabled'] as bool? ?? false
       ..voiceAssistantLanguage = json['voiceAssistantLanguage'] as String?
       ..preferredLanguage = json['preferredLanguage'] as String?
       ..recentMachinePaths = (json['recentMachinePaths'] as List<dynamic>?)
@@ -77,6 +78,7 @@ class Settings {
   bool hideInactiveSessions = false;
   bool reviewPromptAnswered = false;
   bool? reviewPromptLikedApp;
+  bool ttsEnabled = false;
   String? voiceAssistantLanguage;
   String? preferredLanguage;
   /// Alias for preferredLanguage to maintain compatibility
@@ -117,6 +119,7 @@ class Settings {
       'hideInactiveSessions': hideInactiveSessions,
       'reviewPromptAnswered': reviewPromptAnswered,
       'reviewPromptLikedApp': reviewPromptLikedApp,
+      'ttsEnabled': ttsEnabled,
       'voiceAssistantLanguage': voiceAssistantLanguage,
       'preferredLanguage': preferredLanguage,
       'recentMachinePaths': recentMachinePaths.map((e) => e.toJson()).toList(),

@@ -408,7 +408,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(
-                            _error!,
+                            _error ?? '',
                             style: TextStyle(color: cs.onErrorContainer),
                           ),
                         ),
@@ -461,13 +461,13 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     if (data != null && data.text != null) {
       setState(() {
-        _controller.text = data.text!;
+        _controller.text = data.text ?? '';
       });
     }
   }
 
   Future<void> _restoreAccount() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() {
       _isLoading = true;

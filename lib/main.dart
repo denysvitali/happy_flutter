@@ -68,13 +68,11 @@ import 'features/zen/zen_view_screen.dart';
 import 'platform_io.dart' if (dart.library.js_interop) 'platform_stub.dart';
 import 'security_context_io.dart'
     if (dart.library.js_interop) 'security_context_stub.dart';
-import 'user_certs_io.dart' if (dart.library.js_interop) 'user_certs_stub.dart';
-
-// Conditional imports - only load Sentry on native platforms
 import 'sentry_init_native.dart'
     if (dart.library.js_interop) 'sentry_init_stub.dart';
 import 'sentry_widget.dart'
     if (dart.library.js_interop) 'sentry_widget_stub.dart';
+import 'user_certs_io.dart' if (dart.library.js_interop) 'user_certs_stub.dart';
 
 // Deep link handler for receiving happy:// URLs
 const _deepLinkChannel = MethodChannel('com.example.happy_flutter/deep_links');

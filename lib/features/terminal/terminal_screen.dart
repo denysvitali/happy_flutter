@@ -128,6 +128,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                 final line = lines[index];
                 final isCommand = line.startsWith('> ');
                 return Padding(
+                  key: ValueKey(index),
                   padding: const EdgeInsets.symmetric(vertical: 1),
                   child: Text(
                     line,

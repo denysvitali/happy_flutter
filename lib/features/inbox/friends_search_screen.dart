@@ -128,6 +128,7 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
                         final isPending = user.status.isPending;
 
                         return Card(
+                          key: ValueKey(user.id),
                           margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                           child: ListTile(
                             leading: CircleAvatar(

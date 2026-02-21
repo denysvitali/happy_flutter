@@ -439,7 +439,7 @@ class _DefaultSessionContent extends ConsumerWidget {
       itemCount: sessionList.length,
       itemBuilder: (context, index) {
         final session = sessionList[index];
-        return _SessionListItem(session: session);
+        return _SessionListItem(key: ValueKey(session.id), session: session);
       },
     );
   }
@@ -447,7 +447,7 @@ class _DefaultSessionContent extends ConsumerWidget {
 
 class _SessionListItem extends StatelessWidget {
 
-  const _SessionListItem({required this.session});
+  const _SessionListItem({super.key, required this.session});
   final Session session;
 
   @override

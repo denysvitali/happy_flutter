@@ -143,15 +143,20 @@ class _AgentConversationScreenState
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               itemCount: children.length,
               itemBuilder: (context, i) =>
-                  _buildChildMessage(theme, children[i]),
+                  _buildChildMessage(
+                    theme,
+                    children[i],
+                    key: ValueKey(children[i]['id'] ?? i),
+                  ),
             ),
     );
   }
 
   Widget _buildChildMessage(
     ThemeData theme,
-    Map<String, dynamic> msg,
-  ) {
+    Map<String, dynamic> msg, {
+    required Key? key,
+  }) {
     final kind = msg['kind'] as String?;
 
     if (kind == 'text') {
@@ -159,6 +164,7 @@ class _AgentConversationScreenState
       if (content.isEmpty) return const SizedBox.shrink();
       final isThinking = msg['isThinking'] == true;
       return Padding(
+        key: key,
         padding: const EdgeInsets.only(bottom: 8),
         child: isThinking
             ? _ThinkingRow(theme: theme)
@@ -178,6 +184,7 @@ class _AgentConversationScreenState
 
     if (kind == 'tool-call') {
       return _ToolRow(
+        key: key,
         theme: theme,
         msg: msg,
         metadata: _taskMsg?['metadata'] as Map<String, dynamic>?,
@@ -228,6 +235,7 @@ class _ThinkingRow extends StatelessWidget {
 
 class _ToolRow extends StatelessWidget {
   const _ToolRow({
+    super.key,
     required this.theme,
     required this.msg,
     required this.metadata,

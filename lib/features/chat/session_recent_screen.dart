@@ -91,7 +91,8 @@ class _SessionRecentList extends StatelessWidget {
       itemBuilder: (context, index) {
         final item = groupedItems[index];
         return switch (item) {
-          SessionHistoryDateHeader(:final date) => _DateHeader(date: date),
+          SessionHistoryDateHeader(:final date) =>
+            _DateHeader(key: ValueKey(date), date: date),
           SessionHistorySession(:final session) => _buildSessionCard(
             context,
             session,
@@ -116,6 +117,7 @@ class _SessionRecentList extends StatelessWidget {
     final isSingle = isFirst && isLast;
 
     return Padding(
+      key: ValueKey(session.id),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: SessionCard(
         session: session,
@@ -131,7 +133,7 @@ class _SessionRecentList extends StatelessWidget {
 }
 
 class _DateHeader extends StatelessWidget {
-  const _DateHeader({required this.date});
+  const _DateHeader({super.key, required this.date});
 
   final String date;
 

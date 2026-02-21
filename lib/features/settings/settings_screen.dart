@@ -43,7 +43,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           _buildBehaviorSection(context, settings, ref),
           const SizedBox(height: AppSpacing.lg),
-          _buildVoiceSection(context),
+          _buildVoiceSection(context, settings, ref),
           const SizedBox(height: AppSpacing.lg),
           _buildConnectedAccountsSection(context, ref, profile),
           const SizedBox(height: AppSpacing.lg),
@@ -258,10 +258,23 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildVoiceSection(BuildContext context) {
+  Widget _buildVoiceSection(
+    BuildContext context,
+    Settings settings,
+    WidgetRef ref,
+  ) {
     return _SettingsSection(
       title: 'Voice',
       children: [
+        _SettingsToggleRow(
+          icon: Icons.volume_up_outlined,
+          title: 'Text-to-Speech',
+          subtitle: 'Read assistant messages aloud',
+          value: settings.ttsEnabled,
+          onChanged: (value) => ref
+              .read(settingsNotifierProvider.notifier)
+              .updateSetting('ttsEnabled', value),
+        ),
         _SettingsNavRow(
           icon: Icons.record_voice_over,
           title: 'Voice Settings',

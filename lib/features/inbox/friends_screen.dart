@@ -242,6 +242,7 @@ class _FriendsTab extends StatelessWidget {
         itemBuilder: (context, index) {
           final friend = friends[index];
           return _FriendTile(
+            key: ValueKey(friend.id),
             friend: friend,
             isBusy: isBusy,
             onRemove: () => onRemove(friend),
@@ -254,6 +255,7 @@ class _FriendsTab extends StatelessWidget {
 
 class _FriendTile extends StatelessWidget {
   const _FriendTile({
+    super.key,
     required this.friend,
     required this.isBusy,
     required this.onRemove,
@@ -357,6 +359,7 @@ class _RequestsTab extends StatelessWidget {
         itemBuilder: (context, index) {
           final req = requests[index];
           return _RequestTile(
+            key: ValueKey(req.id),
             request: req,
             isBusy: isBusy,
             onAccept: () => onAccept(req),
@@ -370,6 +373,7 @@ class _RequestsTab extends StatelessWidget {
 
 class _RequestTile extends StatelessWidget {
   const _RequestTile({
+    super.key,
     required this.request,
     required this.isBusy,
     required this.onAccept,

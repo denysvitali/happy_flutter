@@ -174,6 +174,7 @@ class _VoiceLanguageSelectionScreenState
                 final isSelected = _isLanguageSelected(language);
 
                 return Card(
+                  key: ValueKey(language.code),
                   margin: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.xs,

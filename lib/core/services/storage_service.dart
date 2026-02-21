@@ -143,6 +143,8 @@ class SettingsStorage {
         updated.reviewPromptAnswered = value as bool;
       case 'reviewPromptLikedApp':
         updated.reviewPromptLikedApp = value as bool?;
+      case 'ttsEnabled':
+        updated.ttsEnabled = value as bool;
       case 'voiceAssistantLanguage':
         updated.voiceAssistantLanguage = value as String?;
       case 'preferredLanguage':
