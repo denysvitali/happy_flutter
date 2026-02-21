@@ -24,6 +24,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   final _scrollController = ScrollController();
   String? _machineId;
   String? _cwd;
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -63,17 +64,21 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
 
   Future<void> _submitCommand(String command) async {
     final trimmed = command.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty || _isSending) return;
 
     setState(() {
       lines.add('> $trimmed');
+      _isSending = true;
     });
     _commandController.clear();
     _scrollToBottom();
 
     final machineId = _machineId;
     if (machineId == null || machineId.isEmpty) {
-      setState(() => lines.add('[No machine connected]'));
+      setState(() {
+        lines.add('[No machine connected]');
+        _isSending = false;
+      });
       _scrollToBottom();
       return;
     }
@@ -93,6 +98,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       });
     } catch (e) {
       setState(() => lines.add('[Error: $e]'));
+    } finally {
+      if (mounted) setState(() => _isSending = false);
     }
     _scrollToBottom();
   }
@@ -204,6 +211,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                   child: TextField(
                     controller: _commandController,
                     style: _terminalTextStyle,
+                    enabled: !_isSending,
                     decoration: const InputDecoration(
                       border: InputBorder.none,
                       isDense: true,
@@ -217,17 +225,31 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                     cursorColor: const Color(0xFFD4D4D4),
                     textInputAction: TextInputAction.send,
                     autocorrect: false,
-                    onSubmitted: _submitCommand,
+                    onSubmitted: _isSending ? null : _submitCommand,
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.send,
-                    color: Color(0xFF4EC94E),
-                    size: 20,
+                if (_isSending)
+                  const SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: Padding(
+                      padding: EdgeInsets.all(8),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFF4EC94E),
+                      ),
+                    ),
+                  )
+                else
+                  IconButton(
+                    icon: const Icon(
+                      Icons.send,
+                      color: Color(0xFF4EC94E),
+                      size: 20,
+                    ),
+                    onPressed: () =>
+                        _submitCommand(_commandController.text),
                   ),
-                  onPressed: () => _submitCommand(_commandController.text),
-                ),
               ],
             ),
           ),

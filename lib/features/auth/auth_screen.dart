@@ -930,13 +930,13 @@ class _AuthButtonGroup extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         RoundButton(
           title: l10n.welcomeLinkOrRestoreAccount,
-          onPressed: onLinkAccount,
+          onPressed: isLoadingCreate ? null : onLinkAccount,
           isPrimary: false,
         ),
         const SizedBox(height: AppSpacing.sm),
         RoundButton(
           title: l10n.authSignInWithSecretKey,
-          onPressed: onRestoreKey,
+          onPressed: isLoadingCreate ? null : onRestoreKey,
           isPrimary: false,
         ),
       ],

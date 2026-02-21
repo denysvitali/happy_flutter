@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/api/api_client.dart';
 import '../../core/components/app_section_header.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/i18n/app_localizations.dart';
@@ -85,6 +86,53 @@ class _MachineDetailScreenState
     return session.metadata?.path ?? session.metadata?.host ?? '';
   }
 
+  Future<void> _confirmDelete(
+    BuildContext context,
+    String machineId,
+    String machineName,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.l10n.commonDelete),
+        content: Text(
+          'Are you sure you want to remove "$machineName"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(context.l10n.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: Text(context.l10n.commonDelete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed ?? false) {
+      final response =
+          await ApiClient().delete('/v1/machines/$machineId');
+      if (!context.mounted) return;
+      if (ApiClient().isSuccess(response)) {
+        sync.machinesSync.invalidate();
+        context.pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to delete machine (${response.statusCode})',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final machines = ref.watch(machinesNotifierProvider);
@@ -157,6 +205,20 @@ class _MachineDetailScreenState
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.delete_outline,
+              color: cs.error,
+            ),
+            tooltip: context.l10n.commonDelete,
+            onPressed: () => _confirmDelete(
+              context,
+              widget.machineId,
+              machineName,
+            ),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () =>
