@@ -128,9 +128,6 @@ class ToolView extends StatefulWidget {
     this.messages,
     this.sessionId,
     this.onPress,
-    this.onPlanAccepted,
-    this.onPlanDiscarded,
-    this.onPlanChangesProposed,
   });
 
   /// The tool call data.
@@ -147,15 +144,6 @@ class ToolView extends StatefulWidget {
 
   /// Callback when the tool header is pressed.
   final VoidCallback? onPress;
-
-  /// Called when the user accepts a plan proposal.
-  final void Function(String permissionMode)? onPlanAccepted;
-
-  /// Called when the user discards a plan proposal.
-  final VoidCallback? onPlanDiscarded;
-
-  /// Called when the user wants to propose changes to a plan.
-  final VoidCallback? onPlanChangesProposed;
 
   @override
   State<ToolView> createState() => _ToolViewState();
@@ -262,7 +250,14 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     _prevState = newState;
   }
 
+  bool get _isPlanTool {
+    final name = widget.tool['name'] as String? ?? '';
+    return name == 'ExitPlanMode' || name == 'exit_plan_mode';
+  }
+
   void _scheduleAutoCollapse() {
+    // Never auto-collapse plan tools — the plan must stay visible.
+    if (_isPlanTool) return;
     _collapseTimer?.cancel();
     _collapseTimer = Timer(_kAutoCollapseDelay, () {
       if (mounted && _expanded) _setExpanded(false);
@@ -320,6 +315,22 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       );
     } catch (e) {
       debugPrint('Permission allow all edits failed: $e');
+    }
+  }
+
+  Future<void> _handlePermissionAllowBypass(
+    Map<String, dynamic> permission,
+  ) async {
+    final permId = permission['id'] as String?;
+    if (permId == null || widget.sessionId == null) return;
+    try {
+      await sync.sessionAllow(
+        widget.sessionId!,
+        permId,
+        mode: 'bypassPermissions',
+      );
+    } catch (e) {
+      debugPrint('Permission allow bypass failed: $e');
     }
   }
 
@@ -621,6 +632,8 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
             onDeny: () => _handlePermissionDeny(permission),
             onAllowAllEdits: () =>
                 _handlePermissionAllowAllEdits(permission),
+            onAllowBypass: () =>
+                _handlePermissionAllowBypass(permission),
             onAllowForSession: () => _handlePermissionAllowForSession(
               permission,
               toolName,
@@ -790,20 +803,10 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       'TodoWrite': (t, m, _) => TodoView(tool: t, metadata: m),
       'WebFetch': (t, m, _) => WebFetchView(tool: t, metadata: m),
       'WebSearch': (t, m, _) => WebSearchView(tool: t, metadata: m),
-      'ExitPlanMode': (t, m, _) => ExitPlanToolView(
-            tool: t,
-            metadata: m,
-            onAccept: widget.onPlanAccepted,
-            onDiscard: widget.onPlanDiscarded,
-            onProposeChanges: widget.onPlanChangesProposed,
-          ),
-      'exit_plan_mode': (t, m, _) => ExitPlanToolView(
-            tool: t,
-            metadata: m,
-            onAccept: widget.onPlanAccepted,
-            onDiscard: widget.onPlanDiscarded,
-            onProposeChanges: widget.onPlanChangesProposed,
-          ),
+      'ExitPlanMode': (t, m, _) =>
+          ExitPlanToolView(tool: t, metadata: m),
+      'exit_plan_mode': (t, m, _) =>
+          ExitPlanToolView(tool: t, metadata: m),
       'AskUserQuestion': _buildAskUserQuestionView,
       'NotebookRead': (t, m, _) => ReadView(tool: t, metadata: m),
       'NotebookEdit': (t, m, _) => EditView(tool: t, metadata: m),

@@ -13,6 +13,7 @@ class PermissionFooter extends StatefulWidget {
     this.onAllow,
     this.onDeny,
     this.onAllowAllEdits,
+    this.onAllowBypass,
     this.onAllowForSession,
     this.onCodexApprove,
     this.onCodexApproveForSession,
@@ -42,6 +43,9 @@ class PermissionFooter extends StatefulWidget {
 
   /// Callback when permission is allowed for all edits.
   final VoidCallback? onAllowAllEdits;
+
+  /// Callback when permission is allowed in bypass (yolo) mode.
+  final VoidCallback? onAllowBypass;
 
   /// Callback when permission is allowed for the session.
   final VoidCallback? onAllowForSession;
@@ -115,6 +119,9 @@ class _PermissionFooterState extends State<PermissionFooter> {
           return 'run: $short';
         }
         return 'run bash command';
+      case 'ExitPlanMode':
+      case 'exit_plan_mode':
+        return 'accept plan and continue';
       default:
         return 'run ${widget.toolName}';
     }
@@ -146,11 +153,15 @@ class _PermissionFooterState extends State<PermissionFooter> {
           (t) => t == toolName || t.startsWith('$toolName('),
         );
 
+    final isPlanTool =
+        toolName == 'ExitPlanMode' ||
+        toolName == 'exit_plan_mode';
+
     final isEditTool = toolName == 'Edit' ||
         toolName == 'MultiEdit' ||
         toolName == 'Write' ||
         toolName == 'NotebookEdit' ||
-        toolName == 'ExitPlanMode';
+        isPlanTool;
 
     final isCodex =
         widget.flavor == 'codex' || toolName.startsWith('Codex');
@@ -250,20 +261,33 @@ class _PermissionFooterState extends State<PermissionFooter> {
                           onCodexAbort: () =>
                               _wrap(widget.onCodexAbort),
                         )
-                      : _ActionButtons(
-                          isPending: isPending,
-                          isEditTool: isEditTool,
-                          isApproved: isApproved,
-                          isDenied: isDenied,
-                          isApprovedViaAllEdits: isApprovedViaAllEdits,
-                          isApprovedForSession: isApprovedForSession,
-                          onAllow: () => _wrap(widget.onAllow),
-                          onDeny: () => _wrap(widget.onDeny),
-                          onAllowAllEdits: () =>
-                              _wrap(widget.onAllowAllEdits),
-                          onAllowForSession: () =>
-                              _wrap(widget.onAllowForSession),
-                        ),
+                      : isPlanTool
+                          ? _PlanActionButtons(
+                              isPending: isPending,
+                              onAllowAllEdits: () =>
+                                  _wrap(widget.onAllowAllEdits),
+                              onAllowBypass: () =>
+                                  _wrap(widget.onAllowBypass),
+                              onDeny: () => _wrap(widget.onDeny),
+                            )
+                          : _ActionButtons(
+                              isPending: isPending,
+                              isEditTool: isEditTool,
+                              isApproved: isApproved,
+                              isDenied: isDenied,
+                              isApprovedViaAllEdits:
+                                  isApprovedViaAllEdits,
+                              isApprovedForSession:
+                                  isApprovedForSession,
+                              onAllow: () =>
+                                  _wrap(widget.onAllow),
+                              onDeny: () =>
+                                  _wrap(widget.onDeny),
+                              onAllowAllEdits: () =>
+                                  _wrap(widget.onAllowAllEdits),
+                              onAllowForSession: () =>
+                                  _wrap(widget.onAllowForSession),
+                            ),
             ),
           ],
         ],
@@ -366,6 +390,94 @@ class _ActionButtons extends StatelessWidget {
               borderRadius: BorderRadius.circular(7),
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PlanActionButtons extends StatelessWidget {
+  const _PlanActionButtons({
+    required this.isPending,
+    this.onAllowAllEdits,
+    this.onAllowBypass,
+    this.onDeny,
+  });
+
+  final bool isPending;
+  final VoidCallback? onAllowAllEdits;
+  final VoidCallback? onAllowBypass;
+  final VoidCallback? onDeny;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            // Accept edits
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: isPending ? onAllowAllEdits : null,
+                icon: const Icon(Icons.edit_rounded, size: 15),
+                label: const Text('Accept edits'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor:
+                      theme.colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  textStyle:
+                      theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            // Yolo mode
+            _SecondaryButton(
+              label: 'Yolo',
+              onPressed: isPending ? onAllowBypass : null,
+            ),
+            const SizedBox(width: 6),
+            // Deny
+            OutlinedButton.icon(
+              onPressed: isPending ? onDeny : null,
+              icon:
+                  const Icon(Icons.close_rounded, size: 14),
+              label: const Text('Deny'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: theme.colorScheme.error,
+                side: BorderSide(
+                  color: theme.colorScheme.error
+                      .withValues(alpha: 0.5),
+                  width: 1,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                textStyle:
+                    theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(7),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
