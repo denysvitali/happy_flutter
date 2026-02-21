@@ -131,7 +131,7 @@ class SocketIoClient {
         try {
           _updateController.add(ApiUpdate.fromJson(data));
         } catch (e, s) {
-          if (kDebugMode) print('Failed to parse update: $e');
+          debugPrint('Failed to parse update: $e');
           unawaited(Sentry.captureException(e, stackTrace: s));
         }
       }

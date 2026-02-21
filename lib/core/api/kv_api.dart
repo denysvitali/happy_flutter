@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../models/kv.dart';
 import 'api_client.dart';
+import 'base_api_exception.dart';
 
 /// KV Store API client
 /// Provides key-value storage operations
@@ -194,23 +195,9 @@ class KvApi {
 }
 
 /// Exception thrown by KV API operations
-class KvApiException implements Exception {
-
-  const KvApiException(this.message, {this.statusCode});
-  final String message;
-  final int? statusCode;
+class KvApiException extends BaseApiException {
+  const KvApiException(super.message, {super.statusCode});
 
   @override
   String toString() => 'KvApiException: $message';
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is KvApiException &&
-        other.message == message &&
-        other.statusCode == statusCode;
-  }
-
-  @override
-  int get hashCode => Object.hash(message, statusCode);
 }

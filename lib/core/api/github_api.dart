@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'api_client.dart';
+import 'base_api_exception.dart';
 
 /// GitHub Integration API client
 /// Handles GitHub OAuth and profile operations
@@ -128,25 +129,11 @@ class GitHubApi {
 }
 
 /// Exception thrown by GitHub API operations
-class GitHubApiException implements Exception {
-
-  const GitHubApiException(this.message, {this.statusCode});
-  final String message;
-  final int? statusCode;
+class GitHubApiException extends BaseApiException {
+  const GitHubApiException(super.message, {super.statusCode});
 
   @override
   String toString() => 'GitHubApiException: $message';
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is GitHubApiException &&
-        other.message == message &&
-        other.statusCode == statusCode;
-  }
-
-  @override
-  int get hashCode => Object.hash(message, statusCode);
 }
 
 /// GitHub OAuth parameters

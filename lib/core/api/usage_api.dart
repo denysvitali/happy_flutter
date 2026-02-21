@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../models/usage.dart';
 import 'api_client.dart';
+import 'base_api_exception.dart';
 
 /// Usage Statistics API client
 /// Handles API usage tracking, token usage, and cost statistics
@@ -137,25 +138,11 @@ class UsageApi {
 }
 
 /// Exception thrown by Usage API operations
-class UsageApiException implements Exception {
-
-  const UsageApiException(this.message, {this.statusCode});
-  final String message;
-  final int? statusCode;
+class UsageApiException extends BaseApiException {
+  const UsageApiException(super.message, {super.statusCode});
 
   @override
   String toString() => 'UsageApiException: $message';
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is UsageApiException &&
-        other.message == message &&
-        other.statusCode == statusCode;
-  }
-
-  @override
-  int get hashCode => Object.hash(message, statusCode);
 }
 
 /// Usage summary with raw data and calculated totals

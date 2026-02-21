@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'api_client.dart';
+import 'base_api_exception.dart';
 
 /// Connected Services API client
 /// Handles connecting/disconnecting third-party services (Claude, GitHub, Gemini, OpenAI)
@@ -95,19 +96,18 @@ class ServicesApi {
 
   /// Get connection status for all supported services
   Future<Map<String, bool>> getAllConnectionStatus() async {
-    final services = ['github', 'claude', 'gemini', 'openai'];
-    final statusMap = <String, bool>{};
-
-    for (final service in services) {
-      try {
-        statusMap[service] = await isServiceConnected(service);
-      } catch (e) {
-        debugPrint('Error checking $service status: $e');
-        statusMap[service] = false;
-      }
-    }
-
-    return statusMap;
+    const services = ['github', 'claude', 'gemini', 'openai'];
+    final results = await Future.wait(
+      services.map((service) async {
+        try {
+          return await isServiceConnected(service);
+        } catch (e) {
+          debugPrint('Error checking $service status: $e');
+          return false;
+        }
+      }),
+    );
+    return Map.fromIterables(services, results);
   }
 
   /// Connect GitHub service (convenience method)
@@ -152,23 +152,9 @@ class ServicesApi {
 }
 
 /// Exception thrown by Services API operations
-class ServicesApiException implements Exception {
-
-  const ServicesApiException(this.message, {this.statusCode});
-  final String message;
-  final int? statusCode;
+class ServicesApiException extends BaseApiException {
+  const ServicesApiException(super.message, {super.statusCode});
 
   @override
   String toString() => 'ServicesApiException: $message';
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is ServicesApiException &&
-        other.message == message &&
-        other.statusCode == statusCode;
-  }
-
-  @override
-  int get hashCode => Object.hash(message, statusCode);
 }

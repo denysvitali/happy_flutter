@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'api_client.dart';
+import 'base_api_exception.dart';
 
 /// Push Notifications API client
 /// Handles push notification token registration
@@ -86,23 +87,9 @@ class PushApi {
 }
 
 /// Exception thrown by Push API operations
-class PushApiException implements Exception {
-
-  const PushApiException(this.message, {this.statusCode});
-  final String message;
-  final int? statusCode;
+class PushApiException extends BaseApiException {
+  const PushApiException(super.message, {super.statusCode});
 
   @override
   String toString() => 'PushApiException: $message';
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is PushApiException &&
-        other.message == message &&
-        other.statusCode == statusCode;
-  }
-
-  @override
-  int get hashCode => Object.hash(message, statusCode);
 }
