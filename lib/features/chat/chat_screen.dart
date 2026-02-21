@@ -376,7 +376,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             Alignment.bottomCenter,
                         child: Padding(
                           padding: const EdgeInsets.only(
-                            bottom: 12,
+                            bottom: AppSpacing.md,
                           ),
                           child:
                               _ScrollToBottomPill(
@@ -577,7 +577,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 hasLocalMore ? 'header-local-more' : 'header-server-loading',
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                 child: SizedBox(
                   width: 16,
                   height: 16,
@@ -605,7 +605,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         final currentRole = message['role'] as String?;
         final nextRole = nextMessage?['role'] as String?;
         final sameSender = nextRole == currentRole;
-        final bottomPad = sameSender ? 4.0 : 12.0;
+        final bottomPad = sameSender ? AppSpacing.xs : AppSpacing.md;
 
         final messageKey =
             message['id'] as String? ??
@@ -837,7 +837,7 @@ class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: AppSpacing.xs),
         Row(
           children: [
             if (relativePath.isNotEmpty) ...[
@@ -1031,7 +1031,7 @@ class _EmptyChatView extends StatelessWidget {
               size: 40,
               color: cs.onSurfaceVariant.withValues(alpha: 0.25),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: AppSpacing.lg),
             Text(
               l10n.chatStartConversation,
               textAlign: TextAlign.center,
@@ -1137,10 +1137,13 @@ class _TypingIndicatorState extends State<_TypingIndicator>
     final dotColor = cs.onSurfaceVariant.withValues(alpha: 0.35);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 8,
+      ),
       decoration: BoxDecoration(
         color: cs.onSurface.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: AnimatedBuilder(
         animation: _controller,
@@ -1149,9 +1152,9 @@ class _TypingIndicatorState extends State<_TypingIndicator>
             mainAxisSize: MainAxisSize.min,
             children: [
               _Dot(offset: _dot1.value, color: dotColor),
-              const SizedBox(width: 4),
+              SizedBox(width: AppSpacing.xs),
               _Dot(offset: _dot2.value, color: dotColor),
-              const SizedBox(width: 4),
+              SizedBox(width: AppSpacing.xs),
               _Dot(offset: _dot3.value, color: dotColor),
             ],
           );

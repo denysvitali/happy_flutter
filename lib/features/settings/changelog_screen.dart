@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/theme/app_tokens.dart';
 
 class ChangelogScreen extends StatelessWidget {
   const ChangelogScreen({super.key});
@@ -9,7 +10,7 @@ class ChangelogScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text("What's New")),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           _ReleaseCard(
             version: 'Latest',
@@ -20,7 +21,7 @@ class ChangelogScreen extends StatelessWidget {
               'Improved Settings with profile, machines, and account controls',
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           _ReleaseCard(
             version: 'Previous',
             date: 'January 2026',
@@ -30,7 +31,7 @@ class ChangelogScreen extends StatelessWidget {
               'Developer diagnostics and logs improvements',
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           FilledButton.tonalIcon(
             onPressed: () => _openReleases(),
             icon: const Icon(Icons.open_in_new),
@@ -63,7 +64,7 @@ class _ReleaseCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        padding: const EdgeInsets.fromLTRB(14, AppSpacing.md, 14, AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -123,18 +123,6 @@ class _MachineDetailScreenState
         (a, b) => b.updatedAt.compareTo(a.updatedAt),
       );
 
-    // Recent distinct paths used on this machine
-    final pathsSeen = <String>{};
-    final recentPaths = <String>[];
-    for (final s in machineSessions) {
-      final p = s.metadata?.path;
-      if (p != null && p.isNotEmpty && !pathsSeen.contains(p)) {
-        pathsSeen.add(p);
-        recentPaths.add(p);
-        if (recentPaths.length >= 5) break;
-      }
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: Column(

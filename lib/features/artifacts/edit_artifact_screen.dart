@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Screen for editing an existing artifact.
 ///
@@ -87,22 +88,22 @@ class _EditArtifactScreenState
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           keyboardDismissBehavior:
               ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const _EncryptionNote(),
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpacing.xl),
               const _SectionLabel(label: 'TITLE'),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _titleController,
                 decoration: InputDecoration(
                   hintText: 'Enter a new title',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   filled: true,
                 ),
@@ -110,15 +111,15 @@ class _EditArtifactScreenState
                 textInputAction: TextInputAction.next,
                 maxLines: 1,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.xxl),
               const _SectionLabel(label: 'CONTENT'),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _contentController,
                 decoration: InputDecoration(
                   hintText: 'Enter new content',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   filled: true,
                   alignLabelWithHint: true,
@@ -128,7 +129,7 @@ class _EditArtifactScreenState
                 minLines: 6,
                 keyboardType: TextInputType.multiline,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSpacing.xxxl),
               FilledButton(
                 onPressed: _handleSave,
                 child: Text(l10n.commonSave),
@@ -147,14 +148,14 @@ class _EncryptionNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: Theme.of(
           context,
-        ).colorScheme.secondaryContainer.withAlpha(128),
-        borderRadius: BorderRadius.circular(8),
+        ).colorScheme.secondaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withAlpha(76),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -164,7 +165,7 @@ class _EncryptionNote extends StatelessWidget {
             size: 16,
             color: Theme.of(context).colorScheme.onSecondaryContainer,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               'The existing content is encrypted. '

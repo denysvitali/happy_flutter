@@ -1243,7 +1243,7 @@ class ActiveSessionCard extends StatelessWidget {
                                 color: cs.onSurfaceVariant,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: AppSpacing.xs),
                             if (todoProgress != null) ...[
                               const SizedBox(height: 3),
                               _TodoProgressBadge(
@@ -1488,11 +1488,11 @@ class SessionCard extends StatelessWidget {
     // Determine card border-radius based on position within group.
     BorderRadius borderRadius;
     if (isSingle) {
-      borderRadius = BorderRadius.circular(12);
+      borderRadius = BorderRadius.circular(AppRadius.md);
     } else if (isFirst) {
-      borderRadius = const BorderRadius.vertical(top: Radius.circular(12));
+      borderRadius = const BorderRadius.vertical(top: Radius.circular(AppRadius.md));
     } else if (isLast) {
-      borderRadius = const BorderRadius.vertical(bottom: Radius.circular(12));
+      borderRadius = const BorderRadius.vertical(bottom: Radius.circular(AppRadius.md));
     } else {
       borderRadius = BorderRadius.zero;
     }
@@ -1607,7 +1607,7 @@ class SessionCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           if (todoProgress != null) ...[
-                            const SizedBox(height: 4),
+                            const SizedBox(height: AppSpacing.xs),
                             _TodoProgressBadge(
                               completed: todoProgress.completed,
                               total: todoProgress.total,
@@ -1874,7 +1874,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                           size: 18,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppSpacing.sm),
                         Flexible(
                           child: Text(
                             machine.metadata?.displayName ??

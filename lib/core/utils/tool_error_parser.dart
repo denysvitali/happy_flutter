@@ -70,8 +70,8 @@ class ToolErrorParser {
   static List<ParsedToolError> extractAll(String errorMessage) {
     final errors = <ParsedToolError>[];
     final matches = _toolUseErrorRegex.allMatches(errorMessage);
-    for (final _ in matches) {
-      final parsed = parse(errorMessage);
+    for (final match in matches) {
+      final parsed = parse(match.group(0)!);
       if (parsed != null) {
         errors.add(parsed);
       }

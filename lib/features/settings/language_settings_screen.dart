@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../core/utils/languages.dart';
 
 /// Language settings screen with 40+ languages, search, and auto-detection.
@@ -106,7 +107,7 @@ class _LanguageSettingsScreenState
         children: [
           // Search field
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: TextField(
               controller: _searchController,
               focusNode: _searchFocusNode,
@@ -118,10 +119,10 @@ class _LanguageSettingsScreenState
                     .colorScheme
                     .surfaceContainerHighest,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               ),
               autofocus: false,
             ),
@@ -129,7 +130,7 @@ class _LanguageSettingsScreenState
           // Language list
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               children: [
                 // Automatic detection option
                 _buildLanguageOption(
@@ -142,14 +143,14 @@ class _LanguageSettingsScreenState
                   isSelected: currentSelection == autoLanguageCode,
                   onTap: () => handleLanguageChange(autoLanguageCode),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 const Divider(),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 // All supported languages (filtered by search)
                 if (filteredCodes.isEmpty)
                   Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(32),
+                      padding: const EdgeInsets.all(AppSpacing.xxxl),
                       child: Text(
                         l10n.noLanguagesFound,
                         style: TextStyle(
@@ -175,11 +176,11 @@ class _LanguageSettingsScreenState
                           isSelected: currentSelection == code,
                           onTap: () => handleLanguageChange(code),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: AppSpacing.sm),
                       ],
                     );
                   }),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.lg),
               ],
             ),
           ),

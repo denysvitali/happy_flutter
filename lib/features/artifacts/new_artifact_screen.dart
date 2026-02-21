@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/app_localizations.dart'; // for context.l10n extension
+import '../../core/theme/app_tokens.dart';
 
 /// Screen for creating a new artifact.
 ///
@@ -72,20 +73,20 @@ class _NewArtifactScreenState
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           keyboardDismissBehavior:
               ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const _SectionLabel(label: 'TITLE'),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _titleController,
                 decoration: InputDecoration(
                   hintText: 'Enter a title (optional)',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   filled: true,
                 ),
@@ -93,15 +94,15 @@ class _NewArtifactScreenState
                 textInputAction: TextInputAction.next,
                 maxLines: 1,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.xxl),
               const _SectionLabel(label: 'CONTENT'),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _contentController,
                 decoration: InputDecoration(
                   hintText: 'Enter content (optional)',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   filled: true,
                   alignLabelWithHint: true,
@@ -111,7 +112,7 @@ class _NewArtifactScreenState
                 minLines: 6,
                 keyboardType: TextInputType.multiline,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSpacing.xxxl),
               FilledButton(
                 onPressed: _handleCreate,
                 child: Text(l10n.commonCreate),

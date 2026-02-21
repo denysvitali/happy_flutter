@@ -360,8 +360,7 @@ class _PriorityChip extends StatelessWidget {
       ),
       child: Text(
         priority,
-        style: TextStyle(
-          fontSize: 12,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
           fontWeight: FontWeight.w600,
           color: color,
         ),

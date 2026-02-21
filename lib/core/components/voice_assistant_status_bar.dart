@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/websocket_client.dart' show ConnectionStatus;
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_tokens.dart';
 import '../i18n/app_localizations.dart';
 import 'status_dot.dart';
 
@@ -96,7 +97,7 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
       color: statusInfo.backgroundColor,
       child: Center(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           child: Row(
             children: [
               Row(
@@ -149,7 +150,7 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
       color: statusInfo.backgroundColor,
       child: Row(
         children: [
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           StatusDot(
             color: statusInfo.color,
             isPulsing: statusInfo.isPulsing,
@@ -178,7 +179,7 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
             size: 14,
             color: statusInfo.textColor,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
         ],
       ),
     );

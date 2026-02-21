@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Terminal emulator screen — displays terminal output with a dark
 /// background and allows entering commands.
@@ -93,7 +94,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
         title: const Row(
           children: [
             Icon(Icons.terminal, size: 18),
-            SizedBox(width: 8),
+            SizedBox(width: AppSpacing.sm),
             Text('Terminal'),
           ],
         ),
@@ -112,8 +113,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
               ),
               itemCount: lines.length,
               itemBuilder: (context, index) {
@@ -138,10 +139,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
           Container(
             color: const Color(0xFF2D2D2D),
             padding: EdgeInsets.only(
-              left: 12,
-              right: 8,
-              top: 8,
-              bottom: 8 + bottomInset,
+              left: AppSpacing.md,
+              right: AppSpacing.sm,
+              top: AppSpacing.sm,
+              bottom: AppSpacing.sm + bottomInset,
             ),
             child: Row(
               children: [

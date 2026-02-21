@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// A selectable AI profile entry.
 class _AiProfile {
@@ -60,7 +61,7 @@ class PickProfileScreen extends StatelessWidget {
         title: const Text('Select Profile'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           Text(
             'Choose an AI backend profile for your session.',
@@ -68,7 +69,7 @@ class PickProfileScreen extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           ..._profiles.map(
             (profile) => _ProfileCard(
               profile: profile,
@@ -95,12 +96,12 @@ class _ProfileCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Row(
             children: [
               Container(
@@ -108,7 +109,7 @@ class _ProfileCard extends StatelessWidget {
                 height: 48,
                 decoration: BoxDecoration(
                   color: profile.color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(
                   profile.icon,
@@ -116,7 +117,7 @@ class _ProfileCard extends StatelessWidget {
                   size: 24,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,7 +128,7 @@ class _ProfileCard extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       profile.description,
                       style: theme.textTheme.bodySmall?.copyWith(

@@ -217,7 +217,7 @@ class _SendButton extends StatelessWidget {
             child: isSending
                 ? Padding(
                     key: const ValueKey('spinner'),
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(AppSpacing.sm),
                     child: CircularProgressIndicator(
                       strokeWidth: 1.5,
                       color: cs.onSurfaceVariant,
@@ -342,7 +342,7 @@ class _ContextSizeIndicator extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: AppSpacing.xs),
         Text(
           label,
           style: theme.textTheme.labelSmall?.copyWith(
@@ -529,7 +529,7 @@ void _showModelPickerSheet(
     ),
     builder: (ctx) => SafeArea(
       child: Padding(
-        padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: 4),
+        padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.xs),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1148,7 +1148,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 13, color: cs.onSurfaceVariant),
-        const SizedBox(width: 4),
+        const SizedBox(width: AppSpacing.xs),
         if (ellipsis)
           Flexible(
             child: Text(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Claude API connect screen — allows entry of a Claude API key and
 /// optional base URL override.
@@ -47,7 +48,7 @@ class _ClaudeConnectScreenState
     return Scaffold(
       appBar: AppBar(title: const Text('Connect Claude API')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -55,12 +56,12 @@ class _ClaudeConnectScreenState
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFF1E1E1E),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
                 border: Border.all(
                   color: Colors.white12,
                 ),
               ),
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -71,22 +72,22 @@ class _ClaudeConnectScreenState
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     'Run the following command in your terminal:',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: const Color(0xFF9E9E9E),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.md),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
+                      horizontal: AppSpacing.md,
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF2D2D2D),
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(AppRadius.xs),
                     ),
                     child: const Row(
                       children: [
@@ -114,9 +115,9 @@ class _ClaudeConnectScreenState
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
             const Divider(),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
 
             // Manual API key entry section
             Text(
@@ -127,14 +128,14 @@ class _ClaudeConnectScreenState
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               'Alternatively, enter your Anthropic API key directly.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
 
             // API key field
             TextField(
@@ -161,7 +162,7 @@ class _ClaudeConnectScreenState
               autocorrect: false,
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
 
             // Optional base URL field
             TextField(
@@ -176,7 +177,7 @@ class _ClaudeConnectScreenState
               autocorrect: false,
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
 
             // Connect button
             FilledButton.icon(
@@ -188,7 +189,7 @@ class _ClaudeConnectScreenState
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
 
             // Disclaimer footer
             Text(

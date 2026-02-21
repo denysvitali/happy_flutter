@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Terminal connect screen — select a machine and enter a terminal ID
 /// to establish a terminal connection.
@@ -47,7 +48,7 @@ class _TerminalConnectScreenState
     return Scaffold(
       appBar: AppBar(title: const Text('Connect Terminal')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Form(
           key: _formKey,
           child: Column(
@@ -57,7 +58,7 @@ class _TerminalConnectScreenState
               Card(
                 color: theme.colorScheme.primaryContainer,
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Row(
                     children: [
                       Icon(
@@ -65,7 +66,7 @@ class _TerminalConnectScreenState
                         color: theme.colorScheme.primary,
                         size: 32,
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Text(
                           'Connect to a terminal session running on one'
@@ -79,7 +80,7 @@ class _TerminalConnectScreenState
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.xxl),
 
               // Machine selector
               Text(
@@ -90,11 +91,11 @@ class _TerminalConnectScreenState
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               if (machineList.isEmpty)
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     child: Text(
                       'No machines connected. Start the Happy CLI on a'
                       ' machine first.',
@@ -111,7 +112,7 @@ class _TerminalConnectScreenState
                     decoration: const InputDecoration(
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
+                        horizontal: AppSpacing.lg,
                         vertical: 4,
                       ),
                       prefixIcon: Icon(Icons.computer_outlined),
@@ -144,7 +145,7 @@ class _TerminalConnectScreenState
                   ),
                 ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.xxl),
 
               // Terminal ID input
               Text(
@@ -155,15 +156,15 @@ class _TerminalConnectScreenState
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Card(
                 child: TextFormField(
                   controller: _terminalIdController,
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.md,
                     ),
                     prefixIcon: Icon(Icons.tag),
                     hintText: 'e.g. main, dev, 1234',
@@ -180,7 +181,7 @@ class _TerminalConnectScreenState
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSpacing.xxxl),
 
               // Connect button
               FilledButton.icon(

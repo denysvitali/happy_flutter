@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Developer screen - Debug tools (10x click to enable)
 class DeveloperScreen extends ConsumerStatefulWidget {
@@ -22,7 +23,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
         title: const Text('Developer'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           // Developer mode toggle
           Card(
@@ -40,9 +41,9 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             ),
           ),
           if (isDeveloperMode) ...[
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
             _buildSectionHeader('Debug Tools'),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
               title: 'Network Inspector',
@@ -51,7 +52,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               onTap: () =>
                   context.push('/settings/developer/network'),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
               title: 'Logs',
@@ -59,7 +60,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               icon: Icons.terminal,
               onTap: () => context.push('/settings/developer/logs'),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
               title: 'Encryption Debug',
@@ -67,7 +68,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               icon: Icons.security,
               onTap: () {},
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
               title: 'Session Debug',
@@ -75,9 +76,9 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               icon: Icons.history,
               onTap: () {},
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
             _buildSectionHeader('Testing'),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
               title: 'Test Notifications',
@@ -85,7 +86,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               icon: Icons.notifications,
               onTap: () {},
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
               title: 'Test Error Reporting',
@@ -93,9 +94,9 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               icon: Icons.bug_report,
               onTap: () {},
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
             _buildSectionHeader('Cache & Storage'),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
               title: 'Clear Cache',
@@ -103,7 +104,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               icon: Icons.delete_sweep,
               onTap: () => _clearCache(context),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
               title: 'Reset Settings',
@@ -111,7 +112,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               icon: Icons.restart_alt,
               onTap: () => _resetSettings(context, ref),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
             _buildSectionHeader('Build Info'),
             const SizedBox(height: 8),
             _buildInfoTile('App Version', '1.0.0'),

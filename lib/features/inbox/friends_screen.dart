@@ -6,6 +6,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/social_service.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Friends screen with two tabs: accepted friends and incoming requests.
 class FriendsScreen extends ConsumerStatefulWidget {
@@ -131,7 +132,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
                 children: [
                   Text(l10n.friendsTabFriends),
                   if (friends.isNotEmpty) ...[
-                    const SizedBox(width: 6),
+                    const SizedBox(width: AppSpacing.xs),
                     _CountBadge(count: friends.length),
                   ],
                 ],
@@ -143,7 +144,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
                 children: [
                   Text(l10n.friendsTabRequests),
                   if (incoming.isNotEmpty) ...[
-                    const SizedBox(width: 6),
+                    const SizedBox(width: AppSpacing.xs),
                     _CountBadge(count: incoming.length),
                   ],
                 ],
@@ -202,20 +203,20 @@ class _FriendsTab extends StatelessWidget {
       return RefreshIndicator(
         onRefresh: onRefresh,
         child: ListView(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(AppSpacing.xxxl),
           children: [
             Icon(
               Icons.people_outline,
               size: 64,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.xl),
             Text(
               context.l10n.friendsEmptyTitle,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               context.l10n.friendsEmptySubtitle,
               textAlign: TextAlign.center,
@@ -231,7 +232,12 @@ class _FriendsTab extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 80),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          80,
+        ),
         itemCount: friends.length,
         itemBuilder: (context, index) {
           final friend = friends[index];
@@ -262,9 +268,9 @@ class _FriendTile extends StatelessWidget {
     final name = friend.name ?? friend.id;
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.only(bottom: 4),
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         side: BorderSide(
           color: Theme.of(
             context,
@@ -320,14 +326,14 @@ class _RequestsTab extends StatelessWidget {
       return RefreshIndicator(
         onRefresh: onRefresh,
         child: ListView(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(AppSpacing.xxxl),
           children: [
             Icon(
               Icons.inbox_outlined,
               size: 64,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.xl),
             Text(
               context.l10n.friendsNoRequests,
               textAlign: TextAlign.center,
@@ -341,7 +347,12 @@ class _RequestsTab extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 80),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          80,
+        ),
         itemCount: requests.length,
         itemBuilder: (context, index) {
           final req = requests[index];
@@ -375,9 +386,9 @@ class _RequestTile extends StatelessWidget {
     final l10n = context.l10n;
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.only(bottom: 4),
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         side: BorderSide(
           color: Theme.of(
             context,
@@ -385,7 +396,12 @@ class _RequestTile extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.sm,
+        ),
         child: Row(
           children: [
             CircleAvatar(
@@ -404,7 +420,7 @@ class _RequestTile extends StatelessWidget {
                     )
                   : null,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,12 +436,12 @@ class _RequestTile extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             TextButton(
               onPressed: isBusy ? null : onReject,
               child: Text(l10n.friendsReject),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
             FilledButton(
               onPressed: isBusy ? null : onAccept,
               child: Text(l10n.friendsAccept),
@@ -450,10 +466,13 @@ class _CountBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: 1,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Text(
         '$count',

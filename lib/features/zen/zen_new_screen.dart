@@ -192,7 +192,7 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
                   label: Text(p),
                   selected: selected,
                   selectedColor: color.withValues(alpha: 0.18),
-                  labelStyle: TextStyle(
+                  labelStyle: theme.textTheme.labelSmall?.copyWith(
                     color: selected ? color : cs.onSurfaceVariant,
                     fontWeight: selected
                         ? FontWeight.w700

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/server_config.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Server settings screen — view and update the server URL
 /// with live connection status indicator.
@@ -169,18 +170,18 @@ class _ServerSettingsScreenState
     return Scaffold(
       appBar: AppBar(title: const Text('Server')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Connection status card
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Row(
                   children: [
                     _buildStatusIcon(theme),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,7 +209,7 @@ class _ServerSettingsScreenState
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
 
             // URL label
             Text(
@@ -219,7 +220,7 @@ class _ServerSettingsScreenState
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
 
             // URL TextField
             TextField(
@@ -244,7 +245,7 @@ class _ServerSettingsScreenState
               onChanged: (_) => setState(() => _errorText = null),
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
 
             if (isCustom)
               Text(
@@ -254,7 +255,7 @@ class _ServerSettingsScreenState
                 ),
               ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
 
             // Action buttons
             Row(
@@ -265,7 +266,7 @@ class _ServerSettingsScreenState
                     child: Text(l10n.settingsServerResetToDefault),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: FilledButton(
                     onPressed: _isVerifying ? null : _handleSave,
@@ -283,7 +284,7 @@ class _ServerSettingsScreenState
               ],
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
 
             // Footer info
             Text(

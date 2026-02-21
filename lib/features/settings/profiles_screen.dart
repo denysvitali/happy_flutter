@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Profiles screen - AI backend profiles (Claude, Gemini, OpenAI)
 class ProfilesScreen extends ConsumerWidget {
@@ -46,7 +47,7 @@ class ProfilesScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           // None option
           _buildProfileCard(
@@ -59,7 +60,7 @@ class ProfilesScreen extends ConsumerWidget {
                   .updateSetting('lastUsedProfile', null);
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           // Built-in profiles
           ...builtInProfiles.map((profile) {
             final isSelected = selectedProfileId == profile.id;
@@ -85,16 +86,16 @@ class ProfilesScreen extends ConsumerWidget {
                       profile,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                 ],
               ),
             );
           }),
           // Custom profiles
           if (profiles.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             Padding(
-              padding: const EdgeInsets.only(left: 16, bottom: 8),
+              padding: const EdgeInsets.only(left: AppSpacing.lg, bottom: AppSpacing.sm),
               child: Text(
                 'Custom Profiles',
                 style: TextStyle(
@@ -135,7 +136,7 @@ class ProfilesScreen extends ConsumerWidget {
                             profile,
                           ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                   ],
                 ),
               );
@@ -163,7 +164,7 @@ class ProfilesScreen extends ConsumerWidget {
             color: profile == null
                 ? Theme.of(context).colorScheme.onSurfaceVariant
                 : Theme.of(context).colorScheme.primary,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: Icon(
             profile == null

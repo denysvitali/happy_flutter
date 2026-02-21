@@ -36,7 +36,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
             isSelected: settings.themeMode == 'adaptive',
             onTap: () => _changeTheme(context, ref, 'adaptive'),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           _buildThemeOption(
             context: context,
             title: l10n.appearanceThemeLight,
@@ -45,7 +45,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
             isSelected: settings.themeMode == 'light',
             onTap: () => _changeTheme(context, ref, 'light'),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           _buildThemeOption(
             context: context,
             title: l10n.appearanceThemeDark,
@@ -54,7 +54,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
             isSelected: settings.themeMode == 'dark',
             onTap: () => _changeTheme(context, ref, 'dark'),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xxl),
           _buildCurrentThemePreview(context),
         ],
       ),
@@ -109,12 +109,12 @@ class ThemeSettingsScreen extends ConsumerWidget {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? colorScheme.primaryContainer
                       : colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Icon(
                   icon,
@@ -123,7 +123,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                       : colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,7 +154,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                   Icons.chevron_right,
                   color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
             ],
           ),
         ),
@@ -175,10 +175,10 @@ class ThemeSettingsScreen extends ConsumerWidget {
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
               children: [
                 Row(
@@ -187,19 +187,19 @@ class ThemeSettingsScreen extends ConsumerWidget {
                       isDark ? Icons.dark_mode : Icons.light_mode,
                       color: Theme.of(context).colorScheme.primary,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppSpacing.md),
                     Text(
                       isDark ? 'Dark mode active' : 'Light mode active',
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Container(
                   height: 40,
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                     border: Border.all(
                       color: Theme.of(context).colorScheme.outlineVariant,
                     ),
@@ -213,7 +213,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Row(
                   children: [
                     Expanded(
@@ -221,7 +221,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                         height: 40,
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),
                         child: Center(
                           child: Text(
@@ -235,14 +235,14 @@ class ThemeSettingsScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Container(
                         height: 40,
                         decoration: BoxDecoration(
                           color:
                               Theme.of(context).colorScheme.secondaryContainer,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),
                         child: Center(
                           child: Text(
@@ -262,7 +262,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         Text(
           "Based on your device's"
           " ${isDark ? 'dark' : 'light'} appearance setting.",

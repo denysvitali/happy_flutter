@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_tokens.dart';
 import 'calculate_diff.dart';
 import 'diff_types.dart';
 
@@ -57,7 +58,7 @@ class _DiffViewState extends State<DiffView> {
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,7 +74,7 @@ class _DiffViewState extends State<DiffView> {
   Widget _buildStatsHeader(ThemeData theme) {
     final colors = widget.config.theme;
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(AppSpacing.lg),
       child: Row(
         children: [
           if (widget.oldTitle != null || widget.newTitle != null) ...[
@@ -85,7 +86,7 @@ class _DiffViewState extends State<DiffView> {
           ],
           if (_diffResult.stats.additions > 0)
             Padding(
-              padding: const EdgeInsets.only(left: 16),
+              padding: const EdgeInsets.only(left: AppSpacing.lg),
               child: Text(
                 '+${_diffResult.stats.additions}',
                 style: TextStyle(
@@ -96,7 +97,7 @@ class _DiffViewState extends State<DiffView> {
             ),
           if (_diffResult.stats.deletions > 0)
             Padding(
-              padding: const EdgeInsets.only(left: 8),
+              padding: const EdgeInsets.only(left: AppSpacing.sm),
               child: Text(
                 '-${_diffResult.stats.deletions}',
                 style: TextStyle(
@@ -116,7 +117,7 @@ class _DiffViewState extends State<DiffView> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Padding(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: _diffResult.hunks.map((hunk) {
@@ -140,7 +141,10 @@ class _DiffViewState extends State<DiffView> {
   Widget _buildHunkHeader(DiffHunk hunk, ThemeData theme, DiffTheme colors) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
       color: colors.hunkHeaderBg,
       child: Text(
         '@@ -${hunk.oldStart},${hunk.oldLines}'
@@ -188,7 +192,7 @@ class _DiffViewState extends State<DiffView> {
             : line.oldLineNumber;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       color: colors.lineNumberBg,
       constraints: const BoxConstraints(minWidth: 50),
       child: Text(
@@ -211,7 +215,7 @@ class _DiffViewState extends State<DiffView> {
             : ' ';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
       child: Text(
         symbol,
         style: TextStyle(
@@ -242,7 +246,7 @@ class _DiffViewState extends State<DiffView> {
         ) : formatted;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       color: line.type == DiffLineType.normal ? null : null,
       child: RichText(
         text: TextSpan(
@@ -295,7 +299,7 @@ class _DiffViewState extends State<DiffView> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       child: RichText(
         text: TextSpan(children: spans),
       ),
@@ -396,7 +400,7 @@ class DiffStatsView extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Text(
           '-${stats.deletions}',
           style: TextStyle(
@@ -405,7 +409,7 @@ class DiffStatsView extends StatelessWidget {
           ),
         ),
         if (showTotal) ...[
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Text(
             '(${stats.totalChanges} changes)',
             style: TextStyle(

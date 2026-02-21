@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide TabBar;
 
 import '../../../platform_io.dart'
     if (dart.library.js_interop) '../../../platform_stub.dart';
 import '../../i18n/app_localizations.dart';
+import '../../theme/app_tokens.dart';
 
 /// Tab type for the app
 enum AppTab {
@@ -47,11 +48,11 @@ class _TabBadge extends StatelessWidget {
       height: 16,
       constraints: BoxConstraints(minWidth: isMultiDigit ? 22 : 16),
       padding: EdgeInsets.symmetric(
-        horizontal: isMultiDigit ? 4 : 0,
+        horizontal: isMultiDigit ? AppSpacing.xs : 0,
       ),
       decoration: BoxDecoration(
         color: cs.error,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       alignment: Alignment.center,
       child: Text(
@@ -106,7 +107,7 @@ class _TabIndicator extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
                 ),
               ),
             ),
@@ -448,7 +449,7 @@ class SegmentTabBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest
             .withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -474,7 +475,7 @@ class SegmentTabBar extends StatelessWidget {
                   margin: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
                     color: colorScheme.surface,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.10),

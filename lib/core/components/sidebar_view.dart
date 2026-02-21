@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/websocket_client.dart' show ConnectionStatus;
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_tokens.dart';
 import '../i18n/app_localizations.dart';
 import 'status_dot.dart';
 import 'voice_assistant_status_bar.dart';
@@ -158,7 +159,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
       child: Padding(
         padding: EdgeInsets.only(
           top: MediaQuery.paddingOf(context).top,
-          left: 16,
+          left: AppSpacing.lg,
           right: 8,
         ),
         child: Row(
@@ -177,7 +178,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
             // Left-justified title (when experiments enabled
             if (shouldLeftJustify)
               Padding(
-                padding: const EdgeInsets.only(left: 8),
+                padding: const EdgeInsets.only(left: AppSpacing.sm),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,7 +198,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                             isPulsing: connectionInfo.isPulsing,
                             size: 6,
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: AppSpacing.xs),
                           Text(
                             connectionInfo.text,
                             style: TextStyle(
@@ -306,7 +307,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Padding(
         padding: const EdgeInsets.all(6),
         child: Icon(
@@ -330,7 +331,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
       children: [
         InkWell(
           onTap: () => context.push('/inbox'),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           child: Padding(
             padding: const EdgeInsets.all(6),
             child: Icon(
@@ -349,7 +350,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               decoration: BoxDecoration(
                 color: cs.error,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               constraints: const BoxConstraints(
                 minWidth: 16,
@@ -416,7 +417,7 @@ class _DefaultSessionContent extends ConsumerWidget {
               size: 48,
               color: cs.onSurfaceVariant,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             Text(
               l10n.sessionNoSessionsYet,
               style: TextStyle(
@@ -433,7 +434,7 @@ class _DefaultSessionContent extends ConsumerWidget {
     sessionList.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
     return ListView.builder(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       itemCount: sessionList.length,
       itemBuilder: (context, index) {
         final session = sessionList[index];
@@ -459,9 +460,9 @@ class _SessionListItem extends StatelessWidget {
       color: cs.surface,
       child: InkWell(
         onTap: () => context.push('/chat/${session.id}'),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(AppSpacing.md),
           child: Row(
             children: [
               // Status indicator
@@ -475,7 +476,7 @@ class _SessionListItem extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               // Session name
               Expanded(
                 child: Column(

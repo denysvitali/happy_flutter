@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../api/socket_io_client.dart' show ConnectionStatus;
 import '../../components/app_status_dot.dart';
+import '../../theme/app_tokens.dart';
 
 /// Sidebar variant for different layouts
 enum SidebarVariant {
@@ -128,7 +129,7 @@ class _SidebarState extends State<Sidebar>
   Widget _buildHeader(ThemeData theme) {
     return Container(
       height: kToolbarHeight,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
@@ -140,7 +141,7 @@ class _SidebarState extends State<Sidebar>
         children: [
           if (widget.headerLeading != null) ...[
             widget.headerLeading!,
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
           ],
           if (widget.variant == SidebarVariant.sidebar) ...[
             Expanded(
@@ -160,7 +161,7 @@ class _SidebarState extends State<Sidebar>
           ],
           if (widget.headerActions != null) ...[
             ...widget.headerActions!.map((action) => Padding(
-              padding: const EdgeInsets.only(left: 8),
+              padding: const EdgeInsets.only(left: AppSpacing.sm),
               child: action,
             )),
           ],
@@ -173,7 +174,10 @@ class _SidebarState extends State<Sidebar>
     final statusColor = widget.statusColor ?? _getStatusColor(theme);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.xs,
+      ),
       child: Row(
         children: [
           AppStatusDot(
@@ -181,7 +185,7 @@ class _SidebarState extends State<Sidebar>
             pulse: widget.isPulsing,
             size: 6,
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: Text(
               widget.statusText,
@@ -239,7 +243,10 @@ class SidebarNavItem extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
           child: Row(
             children: [
               Stack(
@@ -270,13 +277,13 @@ class SidebarNavItem extends StatelessWidget {
                       top: -4,
                       right: -4,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xs,
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
                           color: colorScheme.error,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),
                         child: Text(
                           badgeCount! > 99 ? '99+' : badgeCount.toString(),
@@ -289,7 +296,7 @@ class SidebarNavItem extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Text(
                   label,

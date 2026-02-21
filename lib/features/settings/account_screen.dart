@@ -27,16 +27,16 @@ class AccountScreen extends ConsumerWidget {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           buildProfileSection(context, ref),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xxl),
           buildBackupSection(context),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xxl),
           buildRestoreSection(context),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xxl),
           buildDevicesSection(context),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xxl),
           buildServicesSection(context),
         ],
       ),
@@ -176,9 +176,9 @@ class AccountScreen extends ConsumerWidget {
                   color: cs.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   color: cs.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -356,7 +356,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.xxl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -367,7 +367,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
             Form(
               key: _formKey,
               child: TextFormField(
@@ -384,15 +384,15 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
               ),
             ),
             if (_error != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               Builder(
                 builder: (context) {
                   final cs = Theme.of(context).colorScheme;
                   return Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
                       color: cs.errorContainer,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
                       border: Border.all(
                         color: cs.error.withValues(alpha: 0.3),
                       ),
@@ -403,7 +403,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
                           Icons.error_outline,
                           color: cs.onErrorContainer,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(
                             _error!,
@@ -416,7 +416,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
                 },
               ),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
             SizedBox(
               height: 48,
               child: ElevatedButton(
@@ -430,7 +430,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
                     : const Text('Restore Account'),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             SizedBox(
               height: 48,
               child: OutlinedButton(
@@ -683,7 +683,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.xxl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -695,7 +695,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.xxl),
               SegmentedButton<_LinkMode>(
                 segments: const [
                   ButtonSegment(
@@ -717,14 +717,14 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                 selected: {_mode},
                 onSelectionChanged: (modes) => _setMode(modes.first),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               if (_error != null)
                 Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                   decoration: BoxDecoration(
                     color: cs.errorContainer,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                     border: Border.all(
                       color: cs.error.withValues(alpha: 0.3),
                     ),
@@ -732,7 +732,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                   child: Row(
                     children: [
                       Icon(Icons.error_outline, color: cs.onErrorContainer),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Text(
                           _error!,
@@ -776,7 +776,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: AppSpacing.xxl),
         Expanded(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -796,14 +796,14 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                   ),
                 ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
         if (!_isLoading)
           Text(
             'New device: tap "Link or Restore Account"',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
           ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
       ],
     );
   }
@@ -819,12 +819,12 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: AppSpacing.xxxl),
           if (_qrLoading)
             Container(
               width: 250,
               height: 250,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
                 color: cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(AppRadius.md),
@@ -835,7 +835,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
           else if (_linkingResult != null)
             QRCodeDisplay(data: _linkingResult!.getQRData(), size: 250),
           if (_isPolling) ...[
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -844,7 +844,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Text(
                   'Waiting for device to scan...',
                   style: TextStyle(color: cs.onSurfaceVariant),
@@ -852,7 +852,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
               ],
             ),
           ],
-          const SizedBox(height: 32),
+          const SizedBox(height: AppSpacing.xxxl),
           SizedBox(
             width: 200,
             height: 44,
@@ -880,7 +880,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: AppSpacing.xxl),
         TextField(
           controller: _urlController,
           enabled: !_isLoading,
@@ -891,7 +891,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
           ),
           keyboardType: TextInputType.url,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
         SizedBox(
           width: 200,
           height: 44,
@@ -1014,7 +1014,7 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
                             size: 64,
                             color: cs.onSurface.withValues(alpha: 0.3),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AppSpacing.lg),
                           Text(
                             'No linked devices',
                             style: TextStyle(
@@ -1028,7 +1028,7 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   itemCount: _devices.length,
                   itemBuilder: (context, index) {
                     final device = _devices[index];
@@ -1055,7 +1055,7 @@ class DeviceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
       child: ListTile(
         leading: Icon(_getPlatformIcon()),
         title: Row(
@@ -1063,10 +1063,10 @@ class DeviceTile extends StatelessWidget {
             Expanded(child: Text(device.name)),
             if (device.isCurrentDevice)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
                 decoration: BoxDecoration(
                   color: cs.primaryContainer,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
                 ),
                 child: Text(
                   'This Device',

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../core/utils/voice_languages.dart';
 
 /// Voice settings screen - ElevenLabs voice language selection
@@ -19,10 +20,10 @@ class VoiceSettingsScreen extends ConsumerWidget {
         title: const Text('Voice'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           Padding(
-            padding: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
             child: Text(
               'Select the language for voice assistant output. '
               'Language settings are provided by ElevenLabs.',
@@ -42,7 +43,7 @@ class VoiceSettingsScreen extends ConsumerWidget {
                   .updateSetting('voiceAssistantLanguage', null);
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           // Navigate to language selection
           Card(
             child: ListTile(
@@ -127,7 +128,7 @@ class _VoiceLanguageSelectionScreenState
         children: [
           // Search bar
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             color: Theme.of(context).colorScheme.surface,
             child: TextField(
               decoration: const InputDecoration(
@@ -136,7 +137,7 @@ class _VoiceLanguageSelectionScreenState
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(10)),
                 ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                contentPadding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               ),
               onChanged: (value) {
                 setState(() {
@@ -147,7 +148,7 @@ class _VoiceLanguageSelectionScreenState
           ),
           // Language count footer
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
             child: Text(
               '${filteredLanguages.length} languages available',
               style: TextStyle(
@@ -166,8 +167,8 @@ class _VoiceLanguageSelectionScreenState
 
                 return Card(
                   margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.xs,
                   ),
                   child: ListTile(
                     leading: const Icon(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/friend.dart';
 import '../../core/services/social_service.dart';
+import '../../core/theme/app_tokens.dart';
 
 class FriendsSearchScreen extends StatefulWidget {
   const FriendsSearchScreen({super.key});
@@ -82,7 +83,12 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Find Friends')),
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.md,
+        ),
         child: Column(
           children: [
             Row(
@@ -98,14 +104,14 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 FilledButton(
                   onPressed: _isSearching ? null : _search,
                   child: const Text('Search'),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Expanded(
               child: _isSearching
                   ? const Center(child: CircularProgressIndicator())
@@ -122,7 +128,7 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
                         final isPending = user.status.isPending;
 
                         return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
+                          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundImage: user.avatarUrl != null
