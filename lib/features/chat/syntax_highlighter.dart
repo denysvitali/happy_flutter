@@ -646,8 +646,8 @@ class _SyntaxHighlighterState extends State<SyntaxHighlighter> {
 
   @override
   Widget build(BuildContext context) {
-    return RichText(
-      text: TextSpan(
+    return Text.rich(
+      TextSpan(
         children: _textSpans,
         style: TextStyle(
           fontFamily: 'monospace',

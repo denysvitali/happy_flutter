@@ -308,8 +308,8 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
     double? fontSize,
     FontWeight? fontWeight,
   }) {
-    return RichText(
-      text: TextSpan(
+    return Text.rich(
+      TextSpan(
         style: TextStyle(
           fontSize: fontSize ?? 14,
           fontWeight: fontWeight,

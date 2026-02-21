@@ -82,8 +82,8 @@ class _TextBlockWidgetState extends State<TextBlockWidget> {
     }
 
     return RepaintBoundary(
-      child: RichText(
-        text: TextSpan(
+      child: Text.rich(
+        TextSpan(
           style: baseStyle,
           children: _cachedSpans ?? [],
         ),
@@ -205,8 +205,8 @@ class _HeaderBlockWidgetState extends State<HeaderBlockWidget> {
           .toList(growable: false);
     }
 
-    return RichText(
-      text: TextSpan(
+    return Text.rich(
+      TextSpan(
         style: baseStyle.copyWith(
           fontSize: fontSize.toDouble(),
           fontWeight: fontWeight,
@@ -283,8 +283,8 @@ class _ListBlockWidgetState extends State<ListBlockWidget> {
               ),
             ),
             Expanded(
-              child: RichText(
-                text: TextSpan(
+              child: Text.rich(
+                TextSpan(
                   style: DefaultTextStyle.of(context).style.copyWith(
                     fontSize: 14,
                     height: 1.45,
@@ -368,8 +368,8 @@ class _NumberedListBlockWidgetState extends State<NumberedListBlockWidget> {
               ),
             ),
             Expanded(
-              child: RichText(
-                text: TextSpan(
+              child: Text.rich(
+                TextSpan(
                   style: DefaultTextStyle.of(context).style.copyWith(
                     fontSize: 15,
                     height: 1.45,
