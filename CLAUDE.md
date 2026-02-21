@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Workflow Rules
 
 - **Always commit and push** after completing changes. Do not wait for the user to ask — commit and push as soon as the work is done.
+- **Always use `rg` (ripgrep)** when searching for code, symbols, or strings in the codebase. Do not guess imports or symbol locations.
 
 ## Project Overview
 
