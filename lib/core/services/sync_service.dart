@@ -15,6 +15,7 @@ import '../encryption/encryption_cache.dart';
 import '../encryption/encryption_manager.dart';
 import '../models/api_update.dart';
 import '../models/artifact.dart';
+import '../models/built_in_profiles.dart';
 import '../models/auth.dart';
 import '../models/feed.dart';
 import '../models/friend.dart';
@@ -1684,14 +1685,13 @@ what you have, you must use the options mode.
     // Derive agent type and environment variables from the active profile.
     final profileId = _settingsSnapshot.lastUsedProfile;
     final profile = profileId != null
-        ? _settingsSnapshot.profiles
-            .where((p) => p.id == profileId)
-            .firstOrNull
+        ? _resolveProfile(profileId)
         : _settingsSnapshot.profiles.firstOrNull;
     final envVars = profile != null
         ? _profileEnvironmentVariables(profile)
         : <String, String>{};
     final agent = _settingsSnapshot.lastUsedAgent;
+    final startupScript = profile?.startupBashScript;
 
     final result = await machineRPC(
       machineId,
@@ -1702,6 +1702,8 @@ what you have, you must use the options mode.
         'approvedNewDirectoryCreation': approvedNewDirectoryCreation,
         if (agent != null) 'agent': agent,
         if (envVars.isNotEmpty) 'environmentVariables': envVars,
+        if (startupScript != null && startupScript.isNotEmpty)
+          'startupBashScript': startupScript,
       },
     );
 
@@ -1840,6 +1842,14 @@ what you have, you must use the options mode.
   /// Convert an [AIBackendProfile] into a flat map of environment variables
   /// that will be forwarded to the machine daemon when spawning a session.
   ///
+  /// Resolve a profile by ID: custom profiles first, then built-in.
+  AIBackendProfile? _resolveProfile(String id) {
+    for (final p in _settingsSnapshot.profiles) {
+      if (p.id == id) return p;
+    }
+    return getBuiltInProfile(id);
+  }
+
   /// Mirrors React Native's `getProfileEnvironmentVariables` in settings.ts.
   Map<String, String> _profileEnvironmentVariables(
     AIBackendProfile profile,
