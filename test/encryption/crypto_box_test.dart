@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/crypto_box.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('CryptoBox', () {
     group('KeyPair Generation', () {
       test('generateKeypair creates keys of correct size', () async {
@@ -87,7 +88,6 @@ void main() {
         final encrypted = await CryptoBox.encrypt(
           originalData,
           recipientKeyPair.publicKey,
-          senderKeyPair.privateKey,
         );
 
         expect(encrypted, isNot(equals(originalData)));
@@ -102,7 +102,6 @@ void main() {
       });
 
       test('encrypt produces different output each time', () async {
-        final senderKeyPair = await CryptoBox.generateKeypair();
         final recipientKeyPair = await CryptoBox.generateKeypair();
 
         final data = Uint8List.fromList([1, 2, 3]);
@@ -110,12 +109,10 @@ void main() {
         final encrypted1 = await CryptoBox.encrypt(
           data,
           recipientKeyPair.publicKey,
-          senderKeyPair.privateKey,
         );
         final encrypted2 = await CryptoBox.encrypt(
           data,
           recipientKeyPair.publicKey,
-          senderKeyPair.privateKey,
         );
 
         // Should be different due to random nonce
@@ -123,7 +120,6 @@ void main() {
       });
 
       test('decrypt with wrong key returns null', () async {
-        final senderKeyPair = await CryptoBox.generateKeypair();
         final recipientKeyPair = await CryptoBox.generateKeypair();
         final wrongKeyPair = await CryptoBox.generateKeypair();
 
@@ -132,7 +128,6 @@ void main() {
         final encrypted = await CryptoBox.encrypt(
           data,
           recipientKeyPair.publicKey,
-          senderKeyPair.privateKey,
         );
 
         final decrypted = await CryptoBox.decrypt(
@@ -152,7 +147,6 @@ void main() {
         final encrypted = await CryptoBox.encrypt(
           originalData,
           recipientKeyPair.publicKey,
-          senderKeyPair.privateKey,
         );
 
         final decrypted = await CryptoBox.decrypt(
@@ -176,7 +170,6 @@ void main() {
         final encrypted = await CryptoBox.encrypt(
           originalData,
           recipientKeyPair.publicKey,
-          senderKeyPair.privateKey,
         );
 
         final decrypted = await CryptoBox.decrypt(
@@ -188,7 +181,6 @@ void main() {
       });
 
       test('encrypted bundle has correct structure', () async {
-        final senderKeyPair = await CryptoBox.generateKeypair();
         final recipientKeyPair = await CryptoBox.generateKeypair();
 
         final data = Uint8List.fromList([1, 2, 3]);
@@ -196,7 +188,6 @@ void main() {
         final encrypted = await CryptoBox.encrypt(
           data,
           recipientKeyPair.publicKey,
-          senderKeyPair.privateKey,
         );
 
         // Bundle format: ephemeral public key (32) + nonce (24) + ciphertext
@@ -288,7 +279,6 @@ void main() {
         final encrypted = await CryptoBox.encrypt(
           originalData,
           recipientKeyPair.publicKey,
-          senderKeyPair.privateKey,
         );
 
         final decrypted = await CryptoBox.decrypt(
@@ -305,7 +295,6 @@ void main() {
         // Verify that our bundle format matches the expected structure
         // for compatibility with React Native's libsodium implementation
 
-        final senderKeyPair = await CryptoBox.generateKeypair();
         final recipientKeyPair = await CryptoBox.generateKeypair();
 
         final testData = Uint8List.fromList([72, 101, 108, 108, 111]); // "Hello"
@@ -313,7 +302,6 @@ void main() {
         final encrypted = await CryptoBox.encrypt(
           testData,
           recipientKeyPair.publicKey,
-          senderKeyPair.privateKey,
         );
 
         // Bundle should contain: ephemeral_pk (32) + nonce (24) + ciphertext
