@@ -2685,9 +2685,6 @@ what you have, you must use the options mode.
     final dataType = data['type'] as String?;
 
     if (dataType == 'assistant') {
-      // Must have uuid to be displayed
-      if (data['uuid'] == null) return ([], []);
-
       final agentMsg = data['message'];
       if (agentMsg is! Map<String, dynamic>) return ([], []);
 
