@@ -2388,8 +2388,33 @@ what you have, you must use the options mode.
 
         final mappedMessages = <Map<String, dynamic>>[];
         final toolResults = <Map<String, dynamic>>[];
-        for (final decrypted in decryptedMessages) {
+        for (var i = 0; i < decryptedMessages.length; i++) {
+          final decrypted = decryptedMessages[i];
           if (decrypted == null || decrypted.content == null) {
+            if (kDebugMode) {
+              debugPrint(
+                'Decryption failed for message index $i '
+                '(id=${decrypted?.id}, seq=${decrypted?.seq})',
+              );
+            }
+            if (decrypted != null && decrypted.seq > afterSeq) {
+              afterSeq = decrypted.seq;
+            }
+            mappedMessages.add({
+              'id': 'error-${decrypted?.id ?? 'unknown-$i'}',
+              'seq': decrypted?.seq ?? 0,
+              'createdAt':
+                  decrypted?.createdAt.millisecondsSinceEpoch ?? 0,
+              'role': 'system',
+              'kind': 'error',
+              'errorType': 'decryption_failed',
+              'errorMessage': 'Failed to decrypt message',
+              'debugData': {
+                'messageId': decrypted?.id,
+                'seq': decrypted?.seq,
+                'localId': decrypted?.localId,
+              },
+            });
             continue;
           }
           if (decrypted.seq > afterSeq) afterSeq = decrypted.seq;
@@ -2466,8 +2491,32 @@ what you have, you must use the options mode.
 
       final mappedMessages = <Map<String, dynamic>>[];
       final toolResults = <Map<String, dynamic>>[];
-      for (final decrypted in decryptedMessages) {
-        if (decrypted == null || decrypted.content == null) continue;
+      for (var i = 0; i < decryptedMessages.length; i++) {
+        final decrypted = decryptedMessages[i];
+        if (decrypted == null || decrypted.content == null) {
+          if (kDebugMode) {
+            debugPrint(
+              'Decryption failed for older message index $i '
+              '(id=${decrypted?.id}, seq=${decrypted?.seq})',
+            );
+          }
+          mappedMessages.add({
+            'id': 'error-${decrypted?.id ?? 'unknown-$i'}',
+            'seq': decrypted?.seq ?? 0,
+            'createdAt':
+                decrypted?.createdAt.millisecondsSinceEpoch ?? 0,
+            'role': 'system',
+            'kind': 'error',
+            'errorType': 'decryption_failed',
+            'errorMessage': 'Failed to decrypt message',
+            'debugData': {
+              'messageId': decrypted?.id,
+              'seq': decrypted?.seq,
+              'localId': decrypted?.localId,
+            },
+          });
+          continue;
+        }
         final (msgs, results) =
             _processDecryptedMessage(decrypted, sessionId);
         mappedMessages.addAll(msgs);
@@ -2616,7 +2665,26 @@ what you have, you must use the options mode.
     // Agent messages: {role: 'agent', content: {type: ..., data: ...}}
     if (role == 'agent') {
       if (nestedContent is! Map<String, dynamic>) {
-        return ([], []);
+        return (
+          [
+            {
+              'id': 'error-${message.id}_parse',
+              'seq': message.seq,
+              'createdAt': createdAt,
+              'role': 'system',
+              'kind': 'error',
+              'errorType': 'agent_content_not_map',
+              'errorMessage': 'Agent message content is not '
+                  'a valid structure',
+              'debugData': {
+                'messageId': message.id,
+                'seq': message.seq,
+                'contentType': '${nestedContent.runtimeType}',
+              },
+            },
+          ],
+          <Map<String, dynamic>>[],
+        );
       }
 
       final contentType = nestedContent['type'] as String?;
@@ -2658,7 +2726,25 @@ what you have, you must use the options mode.
       }
     }
 
-    return ([], []);
+    return (
+      [
+        {
+          'id': 'error-${message.id}_parse',
+          'seq': message.seq,
+          'createdAt': createdAt,
+          'role': 'system',
+          'kind': 'error',
+          'errorType': 'unknown_role',
+          'errorMessage': 'Unrecognized message role: $role',
+          'debugData': {
+            'messageId': message.id,
+            'seq': message.seq,
+            'role': role,
+          },
+        },
+      ],
+      <Map<String, dynamic>>[],
+    );
   }
 
   (List<Map<String, dynamic>>, List<Map<String, dynamic>>)

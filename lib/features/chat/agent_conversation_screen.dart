@@ -191,6 +191,14 @@ class _AgentConversationScreenState
       );
     }
 
+    if (kind == 'error') {
+      return _ErrorRow(
+        key: key,
+        theme: theme,
+        msg: msg,
+      );
+    }
+
     return const SizedBox.shrink();
   }
 }
@@ -301,5 +309,98 @@ class _ToolRow extends StatelessWidget {
       default:
         return ToolState.pending;
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Error row (compact inline error indicator)
+// ---------------------------------------------------------------------------
+
+class _ErrorRow extends StatelessWidget {
+  const _ErrorRow({
+    super.key,
+    required this.theme,
+    required this.msg,
+  });
+
+  final ThemeData theme;
+  final Map<String, dynamic> msg;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = theme.colorScheme;
+    final errorType = msg['errorType'] as String? ?? 'unknown';
+    final errorMessage = msg['errorMessage'] as String? ?? 'Unknown error';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: GestureDetector(
+        onTap: () => _showErrorSheet(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: cs.errorContainer.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 14,
+                color: cs.error,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  '$errorType: $errorMessage',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onErrorContainer,
+                    fontSize: 12,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showErrorSheet(BuildContext context) {
+    // Reuse the same detail sheet from message_widget.dart
+    // For now, show a simple dialog with debug data
+    final debugData = msg['debugData'] as Map<String, dynamic>?;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(msg['errorType'] as String? ?? 'Error'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(msg['errorMessage'] as String? ?? 'Unknown error'),
+              if (debugData != null) ...[
+                const SizedBox(height: 12),
+                const Text('Debug data:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(
+                  debugData.toString(),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 }

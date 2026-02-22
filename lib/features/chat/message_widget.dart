@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -72,6 +74,11 @@ class _MessageWidgetState extends State<MessageWidget>
     // Agent events render as centered system-style text - no animation.
     if (kind == 'agent-event') {
       return _AgentEventWidget(event: widget.messageData['event']);
+    }
+
+    // Error messages render as tappable error cards - no animation.
+    if (kind == 'error') {
+      return _ErrorMessageWidget(messageData: widget.messageData);
     }
 
     // Tool calls render without bubble styling - no animation.
@@ -562,6 +569,266 @@ void _showRawMarkdownSheet(
       ),
     ),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Error message widget (tappable with detail bottom sheet)
+// ---------------------------------------------------------------------------
+
+class _ErrorMessageWidget extends StatelessWidget {
+  const _ErrorMessageWidget({required this.messageData});
+
+  final Map<String, dynamic> messageData;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final errorType = messageData['errorType'] as String? ?? 'unknown';
+    final errorMessage =
+        messageData['errorMessage'] as String? ?? 'Unknown error';
+
+    return GestureDetector(
+      onTap: () => _showErrorDetailSheet(context),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: cs.errorContainer,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 18,
+                color: cs.onErrorContainer,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      errorType.replaceAll('_', ' '),
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: cs.onErrorContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      errorMessage,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onErrorContainer.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: cs.onErrorContainer.withValues(alpha: 0.6),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showErrorDetailSheet(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final l10n = context.l10n;
+    final errorType = messageData['errorType'] as String? ?? 'unknown';
+    final errorMessage =
+        messageData['errorMessage'] as String? ?? 'Unknown error';
+    final messageId = messageData['id'] as String?;
+    final seq = messageData['seq'] as int?;
+    final createdAt = messageData['createdAt'] as int?;
+    final debugData = messageData['debugData'] as Map<String, dynamic>?;
+
+    final timestamp = createdAt != null
+        ? DateTime.fromMillisecondsSinceEpoch(createdAt).toString()
+        : 'Unknown';
+
+    final jsonString = const JsonEncoder.withIndent('  ').convert({
+      'errorType': errorType,
+      'errorMessage': errorMessage,
+      'messageId': messageId,
+      'seq': seq,
+      'createdAt': timestamp,
+      'debugData': debugData,
+    });
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: cs.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(16),
+        ),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.3,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (ctx, scrollController) => Column(
+          children: [
+            // Drag handle
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              width: 32,
+              height: 4,
+              decoration: BoxDecoration(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header row
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      errorType.replaceAll('_', ' '),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: cs.error,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: jsonString));
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(l10n.commonCopy),
+                          duration: const Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.copy, size: 18),
+                    label: Text(l10n.commonCopy),
+                  ),
+                ],
+              ),
+            ),
+            Divider(
+              color: cs.outlineVariant.withValues(alpha: 0.3),
+            ),
+            // Error details
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                children: [
+                  // Error message
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: cs.errorContainer.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: Text(
+                      errorMessage,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: cs.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  // Metadata
+                  _DetailRow(label: 'Message ID', value: messageId ?? 'N/A'),
+                  _DetailRow(label: 'Seq', value: seq?.toString() ?? 'N/A'),
+                  _DetailRow(label: 'Timestamp', value: timestamp),
+                  const SizedBox(height: AppSpacing.md),
+                  // Debug data
+                  Text(
+                    'Debug Data',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E1E),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: SelectableText(
+                      debugData != null
+                          ? const JsonEncoder.withIndent('  ')
+                              .convert(debugData)
+                          : 'No debug data',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        color: const Color(0xFF9CDCFE),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: SelectableText(
+              value,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
