@@ -203,7 +203,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(context);
-                await MMKVStorage().clearAll();
+                await Storage().clearAll();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Cache cleared')),
