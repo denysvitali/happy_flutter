@@ -15,6 +15,7 @@ export 'package:happy_flutter/core/components/app_tappable.dart';
 export 'package:happy_flutter/core/components/avatar.dart';
 export 'package:happy_flutter/core/components/diff_view.dart';
 export 'package:happy_flutter/core/components/diff_view_widget.dart';
+export 'package:happy_flutter/core/components/settings_section.dart';
 export 'package:happy_flutter/core/components/shimmer_view.dart';
 export 'package:happy_flutter/core/components/sidebar_view.dart';
 export 'package:happy_flutter/core/components/voice_assistant_status_bar.dart';

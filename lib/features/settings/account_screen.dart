@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
 import '../../core/models/profile.dart';
@@ -1145,39 +1146,5 @@ class DeviceTile extends StatelessWidget {
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return device.lastActive.toLocal().toString().split(' ')[0];
-  }
-}
-
-/// Settings section wrapper
-class SettingsSection extends StatelessWidget {
-
-  const SettingsSection({required this.children, super.key, this.title});
-  final String? title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (title != null)
-          Padding(
-            padding: const EdgeInsets.only(
-              left: AppSpacing.lg,
-              bottom: AppSpacing.sm,
-            ),
-            child: Text(
-              title!,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-        Card(child: Column(children: children)),
-      ],
-    );
   }
 }
