@@ -68,28 +68,33 @@ class CryptoBox {
     final ephemeralKeyPair = await generateKeypair();
     final nonce = await randomNonce();
 
-    // Encrypt using libsodium crypto_box_easy with the ephemeral key
-    final encrypted = sodium.crypto.box.easy(
-      message: data,
-      nonce: nonce,
-      publicKey: recipientPublicKey,
-      secretKey: ephemeralKeyPair.secretKey,
-    );
-
-    // Bundle: ephemeral public key (32 bytes) + nonce (24 bytes) + ciphertext
-    final result = Uint8List(
-      CryptoBoxConstants.publicKeyBytes +
-          CryptoBoxConstants.nonceBytes +
-          encrypted.length,
-    )
-      ..setAll(0, ephemeralKeyPair.publicKey)
-      ..setAll(CryptoBoxConstants.publicKeyBytes, nonce)
-      ..setAll(
-        CryptoBoxConstants.publicKeyBytes + CryptoBoxConstants.nonceBytes,
-        encrypted,
+    try {
+      // Encrypt using libsodium crypto_box_easy with the ephemeral key
+      final encrypted = sodium.crypto.box.easy(
+        message: data,
+        nonce: nonce,
+        publicKey: recipientPublicKey,
+        secretKey: ephemeralKeyPair.secretKey,
       );
 
-    return result;
+      // Bundle: ephemeral public key (32 bytes) + nonce (24 bytes) + ciphertext
+      final result = Uint8List(
+        CryptoBoxConstants.publicKeyBytes +
+            CryptoBoxConstants.nonceBytes +
+            encrypted.length,
+      )
+        ..setAll(0, ephemeralKeyPair.publicKey)
+        ..setAll(CryptoBoxConstants.publicKeyBytes, nonce)
+        ..setAll(
+          CryptoBoxConstants.publicKeyBytes + CryptoBoxConstants.nonceBytes,
+          encrypted,
+        );
+
+      return result;
+    } finally {
+      // Always dispose the ephemeral keypair to prevent memory leaks
+      ephemeralKeyPair.dispose();
+    }
   }
 
   /// Decrypt encrypted bundle (crypto_box_open_easy)
@@ -140,4 +145,11 @@ class KeyPair {
   final Uint8List publicKey;
   final SecureKey privateKey;
   final SecureKey secretKey;
+
+  /// Disposes the secure keys to free native memory.
+  /// Call this when the keypair is no longer needed.
+  void dispose() {
+    privateKey.dispose();
+    secretKey.dispose();
+  }
 }

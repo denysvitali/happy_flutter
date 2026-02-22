@@ -313,6 +313,10 @@ class AuthService {
   Future<void> signOut() async {
     _cachedKeypairSecret?.dispose();
     _cachedKeypairSecret = null;
+    _pendingQRSecretKey?.dispose();
+    _pendingQRSecretKey = null;
+    _pendingLinkingSecretKey?.dispose();
+    _pendingLinkingSecretKey = null;
     _apiClient.clearToken();
     await TokenStorage().removeCredentials();
   }
@@ -423,6 +427,7 @@ class AuthService {
 
   /// Start device linking process
   Future<DeviceLinkingResult> startDeviceLinking() async {
+    _pendingLinkingSecretKey?.dispose();
     final seed = _encryption.randomBytes(32);
     final keypair = await CryptoBox.keypairFromSeed(seed);
     _pendingLinkingSecretKey = keypair.secretKey;
