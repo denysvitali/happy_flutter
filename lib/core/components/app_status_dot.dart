@@ -18,6 +18,7 @@ class AppStatusDot extends StatefulWidget {
     this.size = 8,
     this.pulse = false,
     this.pulseColor,
+    this.margin,
   });
 
   /// The color of the dot.
@@ -33,6 +34,9 @@ class AppStatusDot extends StatefulWidget {
   ///
   /// Defaults to [color] when null.
   final Color? pulseColor;
+
+  /// Optional margin around the dot.
+  final EdgeInsets? margin;
 
   @override
   State<AppStatusDot> createState() => _AppStatusDotState();
@@ -85,40 +89,46 @@ class _AppStatusDotState extends State<AppStatusDot>
 
   @override
   Widget build(BuildContext context) {
+    Widget dot;
     if (!widget.pulse) {
-      return _buildDot();
-    }
-    return AnimatedBuilder(
-      animation: _controller,
-      child: _buildStaticDot(),
-      builder: (context, child) {
-        final ringColor = (widget.pulseColor ?? widget.color)
-            .withValues(alpha: _opacity.value * 0.4);
-        return SizedBox(
-          width: widget.size * 2.4,
-          height: widget.size * 2.4,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Animated outer pulsing ring.
-              Transform.scale(
-                scale: _scale.value,
-                child: Container(
-                  width: widget.size,
-                  height: widget.size,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: ringColor,
+      dot = _buildDot();
+    } else {
+      dot = AnimatedBuilder(
+        animation: _controller,
+        child: _buildStaticDot(),
+        builder: (context, child) {
+          final ringColor = (widget.pulseColor ?? widget.color)
+              .withValues(alpha: _opacity.value * 0.4);
+          return SizedBox(
+            width: widget.size * 2.4,
+            height: widget.size * 2.4,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Animated outer pulsing ring.
+                Transform.scale(
+                  scale: _scale.value,
+                  child: Container(
+                    width: widget.size,
+                    height: widget.size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: ringColor,
+                    ),
                   ),
                 ),
-              ),
-              // Static inner dot (passed via child parameter).
-              child!,
-            ],
-          ),
-        );
-      },
-    );
+                // Static inner dot (passed via child parameter).
+                child!,
+              ],
+            ),
+          );
+        },
+      );
+    }
+    if (widget.margin != null) {
+      return Padding(padding: widget.margin!, child: dot);
+    }
+    return dot;
   }
 
   Widget _buildDot() {
