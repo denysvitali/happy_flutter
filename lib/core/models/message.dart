@@ -85,12 +85,12 @@ class ToolCall {
     return ToolCall(
       name: json['name'] as String,
       state: json['state'] as String,
-      input: json['input'],
+      input: json['input'] as Map<String, dynamic>?,
       createdAt: json['createdAt'] as int,
       startedAt: json['startedAt'] as int?,
       completedAt: json['completedAt'] as int?,
       description: json['description'] as String?,
-      result: json['result'],
+      result: json['result'] as Map<String, dynamic>?,
       permission: json['permission'] != null
           ? Permission.fromJson(json['permission'] as Map<String, dynamic>)
           : null,
@@ -98,12 +98,12 @@ class ToolCall {
   }
   final String name;
   final String state;
-  final dynamic input;
+  final Map<String, dynamic>? input;
   final int createdAt;
   final int? startedAt;
   final int? completedAt;
   final String? description;
-  final dynamic result;
+  final Map<String, dynamic>? result;
   final Permission? permission;
 }
 

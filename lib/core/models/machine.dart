@@ -91,7 +91,7 @@ class Machine {
           ? MachineMetadata.fromJson(json['metadata'] as Map<String, dynamic>)
           : null,
       metadataVersion: json['metadataVersion'] as int,
-      daemonState: json['daemonState'],
+      daemonState: json['daemonState'] as Map<String, dynamic>?,
       daemonStateVersion: json['daemonStateVersion'] as int,
     );
   }
@@ -103,7 +103,7 @@ class Machine {
   final int activeAt;
   final MachineMetadata? metadata;
   final int metadataVersion;
-  final dynamic daemonState;
+  final Map<String, dynamic>? daemonState;
   final int daemonStateVersion;
 
   Map<String, dynamic> toJson() {

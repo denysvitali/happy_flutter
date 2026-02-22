@@ -601,7 +601,7 @@ what you have, you must use the options mode.
               final current = _sessions[sessionId];
               if (current != null && current.presence == 'online') {
                 _sessions[sessionId] = current.copyWith(
-                  presence: current.activeAt,
+                  presence: 'offline',
                   thinking: false,
                 );
                 _notifyDataChanged();
@@ -614,7 +614,7 @@ what you have, you must use the options mode.
           _presenceTimers[sessionId]?.cancel();
           _presenceTimers.remove(sessionId);
           _sessions[sessionId] = session.copyWith(
-            presence: _asSessionInt(activeAt) ?? session.activeAt,
+            presence: 'offline',
             thinking: false,
             thinkingAt: null,
           );
@@ -741,9 +741,7 @@ what you have, you must use the options mode.
               // resolveSessionOnlineState. The server may send a stale
               // presence value (or no presence value at all), so we
               // never trust it directly.
-              presence: (session['active'] as bool)
-                  ? 'online'
-                  : (_asSessionInt(session['activeAt']) ?? 0),
+              presence: (session['active'] as bool) ? 'online' : 'offline',
               lastSeq: session['lastSeq'] as int?,
             );
 
@@ -793,7 +791,7 @@ what you have, you must use the options mode.
               final current = _sessions[s.id];
               if (current != null && current.presence == 'online') {
                 _sessions[s.id] = current.copyWith(
-                  presence: current.activeAt,
+                  presence: 'offline',
                   thinking: false,
                 );
                 _notifyDataChanged();
