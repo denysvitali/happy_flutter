@@ -116,7 +116,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             ),
             const SizedBox(height: AppSpacing.xxl),
             _buildSectionHeader('Build Info'),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _buildInfoTile('App Version', '1.0.0'),
             _buildInfoTile('Build Number', '1'),
             _buildInfoTile('Flutter Version', '3.38.7'),
@@ -129,7 +129,10 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 16, bottom: 8),
+      padding: const EdgeInsets.only(
+        left: AppSpacing.lg,
+        bottom: AppSpacing.sm,
+      ),
       child: Text(
         title,
         style: TextStyle(

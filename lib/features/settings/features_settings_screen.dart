@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Features settings screen - Experiments toggles
 class FeaturesSettingsScreen extends ConsumerWidget {
@@ -17,7 +18,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
         title: Text(l10n.featuresTitle),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           _buildSectionHeader(
             context,
@@ -36,7 +37,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                   .updateSetting('experiments', value);
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           _buildToggle(
             context: context,
             title: l10n.featuresEnhancedSessionWizard,
@@ -51,7 +52,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                   );
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           _buildToggle(
             context: context,
             title: l10n.featuresHideInactiveSessions,
@@ -63,7 +64,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                   .updateSetting('hideInactiveSessions', value);
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xxl),
           _buildSectionHeader(context, 'Display'),
           _buildToggle(
             context: context,
@@ -83,7 +84,10 @@ class FeaturesSettingsScreen extends ConsumerWidget {
 
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 16, bottom: 8),
+      padding: const EdgeInsets.only(
+        left: AppSpacing.lg,
+        bottom: AppSpacing.sm,
+      ),
       child: Text(
         title,
         style: TextStyle(

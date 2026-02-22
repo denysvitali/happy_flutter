@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// A voice language option displayed in the list.
 class _VoiceLanguageOption {
@@ -173,7 +174,7 @@ class _VoiceLanguageSettingsScreenState
           // Search bar
           Container(
             color: theme.colorScheme.surface,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: TextField(
               decoration: const InputDecoration(
                 hintText: 'Search languages...',
@@ -182,8 +183,8 @@ class _VoiceLanguageSettingsScreenState
                   borderRadius: BorderRadius.all(Radius.circular(10)),
                 ),
                 contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.sm,
                 ),
               ),
               onChanged: (value) => setState(() => _searchQuery = value),
@@ -192,7 +193,10 @@ class _VoiceLanguageSettingsScreenState
 
           // Count footer
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.xs,
+            ),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(

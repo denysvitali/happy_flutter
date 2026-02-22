@@ -88,10 +88,10 @@ class _ReleaseCard extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.sm),
             ...items.map(
               (item) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: Text('• $item'),
               ),
             ),

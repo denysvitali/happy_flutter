@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/i18n/supported_locales.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Language selector widget for settings.
 ///
@@ -29,7 +30,7 @@ class LanguageSelector extends ConsumerWidget {
           title: Text(l10n.settingsLanguage),
         ),
         body: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
             // Automatic detection option
             ListTile(

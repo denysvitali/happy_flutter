@@ -26,7 +26,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
         title: Text(l10n.appearanceTheme),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           _buildThemeOption(
             context: context,

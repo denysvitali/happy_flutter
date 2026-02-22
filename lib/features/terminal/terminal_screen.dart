@@ -233,7 +233,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                     width: 36,
                     height: 36,
                     child: Padding(
-                      padding: EdgeInsets.all(8),
+                      padding: EdgeInsets.all(AppSpacing.sm),
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         color: Color(0xFF4EC94E),
