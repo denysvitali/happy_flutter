@@ -58,10 +58,19 @@ class AuthStateNotifier extends Notifier<AuthState> {
           ref.read(profileNotifierProvider.notifier).loadFromSync();
           ref.read(friendsNotifierProvider.notifier).loadFromSync();
           ref.read(feedNotifierProvider.notifier).loadFromSync();
+          ref.read(artifactsNotifierProvider.notifier).loadFromSync();
           ref.read(todoStateNotifierProvider.notifier).loadFromSync();
-          await ref.read(profileNotifierProvider.notifier).refreshFromSync();
-          await ref.read(friendsNotifierProvider.notifier).refreshFromSync();
-          await ref.read(feedNotifierProvider.notifier).refreshFromSync();
+          // Refresh all providers from server in parallel
+          await Future.wait([
+            ref.read(sessionsNotifierProvider.notifier).refreshFromSync(),
+            ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
+            ref.read(settingsNotifierProvider.notifier).refreshFromSync(),
+            ref.read(profileNotifierProvider.notifier).refreshFromSync(),
+            ref.read(friendsNotifierProvider.notifier).refreshFromSync(),
+            ref.read(feedNotifierProvider.notifier).refreshFromSync(),
+            ref.read(artifactsNotifierProvider.notifier).refreshFromSync(),
+            ref.read(todoStateNotifierProvider.notifier).refreshFromSync(),
+          ]);
           final profile = ref.read(profileNotifierProvider);
           if (profile != null) {
             Sentry.configureScope(
@@ -399,7 +408,7 @@ class ProfileNotifier extends Notifier<Profile?> {
     if (!sync.isInitialized) {
       return;
     }
-    await sync.refreshProfile();
+    await sync.profileSync.invalidateAndAwait();
     loadFromSync();
   }
 
@@ -541,7 +550,7 @@ class FriendsNotifier extends Notifier<FriendsState> {
     if (!sync.isInitialized) {
       return;
     }
-    await sync.refreshFriends();
+    await sync.friendsSync.invalidateAndAwait();
     loadFromSync();
   }
 
@@ -636,7 +645,7 @@ class FeedNotifier extends Notifier<FeedState> {
     if (!sync.isInitialized) {
       return;
     }
-    await sync.refreshFeed();
+    await sync.feedSync.invalidateAndAwait();
     loadFromSync();
   }
 
