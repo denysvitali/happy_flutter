@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 // google_fonts runtime fetching is disabled in flutter_test_config.dart;
 // bundled fonts from google_fonts/ are used instead.
-import 'package:happy_flutter/core/api/websocket_client.dart'
+import 'package:happy_flutter/core/api/socket_io_client.dart'
     show ConnectionStatus;
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/machine.dart' show GitStatus, Machine;
