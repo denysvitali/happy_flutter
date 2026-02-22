@@ -155,7 +155,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
     _setupDeepLinkListener();
     Future.delayed(Duration.zero, () {
       ref.read(authStateNotifierProvider.notifier).checkAuth();
-      _initializeTheme();
+      unawaited(_initializeTheme());
       _processInitialDeepLink();
     });
   }
@@ -180,7 +180,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
     }
   }
 
-  void _initializeTheme() async {
+  Future<void> _initializeTheme() async {
     // Load settings and apply the theme
     await ref.read(settingsNotifierProvider.notifier).loadSettings();
     _applyThemeFromSettings();
@@ -343,6 +343,8 @@ class _HappyAppState extends ConsumerState<HappyApp>
           path: '/chat/:sessionId/file',
           name: 'session-file',
           builder: (context, state) {
+            // ignore: unused_local_variable
+            final sessionId = state.pathParameters['sessionId'] ?? '';
             final path2 = state.uri.queryParameters['path'] ?? '';
             final content = state.uri.queryParameters['content'];
             return AuthGate(

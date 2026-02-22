@@ -283,12 +283,6 @@ class Session {
   /// Returns `true` when presence is the string `'online'`.
   bool get isOnline => presence == 'online';
 
-  /// Returns the presence string ('online' or 'offline').
-  String get presenceString => presence;
-
-  /// Returns null since presence is always a String, not an int timestamp.
-  int? get lastSeenAt => null;
-
   Map<String, dynamic> toJson() {
     return {
       'id': id,

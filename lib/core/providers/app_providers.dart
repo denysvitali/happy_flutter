@@ -118,20 +118,6 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   @override
   Map<String, Session> build() => {};
 
-  void addSession(Session session) {
-    state = {...state, session.id: session};
-  }
-
-  void updateSession(String id, Session Function(Session) update) {
-    if (state.containsKey(id)) {
-      state = {...state, id: update(state[id]!)};
-    }
-  }
-
-  void removeSession(String id) {
-    state = Map<String, Session>.from(state)..remove(id);
-  }
-
   void setSessions(List<Session> sessions) {
     state = {for (final session in sessions) session.id: session};
   }
@@ -162,20 +148,6 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
 class MachinesNotifier extends Notifier<Map<String, Machine>> {
   @override
   Map<String, Machine> build() => {};
-
-  void addMachine(Machine machine) {
-    state = {...state, machine.id: machine};
-  }
-
-  void updateMachine(String id, Machine Function(Machine) update) {
-    if (state.containsKey(id)) {
-      state = {...state, id: update(state[id]!)};
-    }
-  }
-
-  void setMachines(List<Machine> machines) {
-    state = {for (final machine in machines) machine.id: machine};
-  }
 
   void loadFromSync() {
     if (!sync.isInitialized) {
@@ -232,9 +204,10 @@ class SettingsNotifier extends Notifier<Settings> {
     }
   }
 
-  Settings _updateSetting(dynamic settings, String key, dynamic value) {
-    // Directly update mutable field instead of JSON roundtrip
-    final updated = settings as Settings;
+  Settings _updateSetting(Settings settings, String key, dynamic value) {
+    // Mutate fields then return new instance via JSON roundtrip so Riverpod
+    // detects the change (object reference must differ).
+    final updated = settings;
     switch (key) {
       case 'schemaVersion':
         updated.schemaVersion = value as int;
@@ -293,7 +266,7 @@ class SettingsNotifier extends Notifier<Settings> {
       case 'lastUsedProfile':
         updated.lastUsedProfile = value as String?;
     }
-    return updated;
+    return Settings.fromJson(updated.toJson());
   }
 }
 
@@ -433,31 +406,6 @@ class ProfileNotifier extends Notifier<Profile?> {
   void clear() {
     state = null;
   }
-}
-
-/// Per-session git status provider
-final sessionGitStatusProvider =
-    NotifierProvider<SessionGitStatusNotifier, Map<String, GitStatus>>(() {
-      return SessionGitStatusNotifier();
-    });
-
-class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
-  @override
-  Map<String, GitStatus> build() => {};
-
-  void updateGitStatus(String sessionId, GitStatus status) {
-    state = {...state, sessionId: status};
-  }
-
-  void clearGitStatus(String sessionId) {
-    state = Map<String, GitStatus>.from(state)..remove(sessionId);
-  }
-
-  void clearAll() {
-    state = {};
-  }
-
-  GitStatus? getGitStatus(String sessionId) => state[sessionId];
 }
 
 /// Artifacts provider
@@ -643,14 +591,6 @@ class FeedNotifier extends Notifier<FeedState> {
     loadFromSync();
   }
 
-  void setFeedItems(List<FeedItem> items) {
-    state = state.copyWith(items: items);
-  }
-
-  void addFeedItem(FeedItem item) {
-    state = state.copyWith(items: [item, ...state.items]);
-  }
-
   void markAsRead(String itemId) {
     state = state.copyWith(
       items: state.items.map((item) {
@@ -658,39 +598,6 @@ class FeedNotifier extends Notifier<FeedState> {
           return item.copyWith(read: true);
         }
         return item;
-      }).toList(),
-    );
-  }
-
-  void markAllAsRead() {
-    state = state.copyWith(
-      items: state.items.map((item) => item.copyWith(read: true)).toList(),
-    );
-  }
-
-  void removeFeedItem(String itemId) {
-    state = state.copyWith(
-      items: state.items.where((item) => item.id != itemId).toList(),
-    );
-  }
-
-  void setNotifications(List<AppNotification> notifications) {
-    state = state.copyWith(notifications: notifications);
-  }
-
-  void addNotification(AppNotification notification) {
-    state = state.copyWith(
-      notifications: [notification, ...state.notifications],
-    );
-  }
-
-  void dismissNotification(String id) {
-    state = state.copyWith(
-      notifications: state.notifications.map((n) {
-        if (n.id == id) {
-          return n.copyWith(dismissed: true);
-        }
-        return n;
       }).toList(),
     );
   }
