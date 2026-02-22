@@ -72,5 +72,18 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Local network access is used to discover devices on your network.</string>
 
+	<!-- Deep link URL scheme configuration -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.example.happyFlutter</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>happy</string>
+			</array>
+		</dict>
+	</array>
+
 </dict>
 </plist>
