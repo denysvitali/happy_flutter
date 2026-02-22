@@ -120,10 +120,6 @@ what you have, you must use the options mode.
   String? _registeredPushToken;
   String? _nativeUpdateUrl;
 
-  // Recalculation locking
-  int recalculationLockCount = 0;
-  int lastRecalculationTime = 0;
-
   // Pending settings
   Map<String, dynamic> pendingSettings = {};
   final Map<String?, TodoList> _todoLists = <String?, TodoList>{};
@@ -1204,10 +1200,10 @@ what you have, you must use the options mode.
     }
   }
 
-  /// Fetch friend requests from server (backward compatibility)
-  Future<void> fetchFriendRequests() async {
-    await fetchFriends();
-  }
+  /// Fetch friend requests from server.
+  /// Friends and requests are both returned by fetchFriends() from /v1/friends,
+  /// so this is a no-op to avoid a double network request.
+  Future<void> fetchFriendRequests() async {}
 
   /// Fetch feed items from server
   Future<void> fetchFeed() async {
@@ -1585,6 +1581,7 @@ what you have, you must use the options mode.
             ...pendingSettings,
           });
           _settingsVersion = currentVersion;
+          _notifyDataChanged();
         }
       }
 

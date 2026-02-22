@@ -147,6 +147,8 @@ class AuthService {
 
         if (response.statusCode == 403) {
           final serverResponse = _extractErrorMessage(response.data);
+          _cachedKeypairSecret?.dispose();
+          _cachedKeypairSecret = null;
           throw AuthForbiddenError(
             'Authentication rejected by server (403).',
             serverResponse: serverResponse,
@@ -158,6 +160,8 @@ class AuthService {
             response.statusCode! >= 400 &&
             response.statusCode! < 500) {
           final errorMsg = _extractErrorMessage(response.data);
+          _cachedKeypairSecret?.dispose();
+          _cachedKeypairSecret = null;
           throw AuthRequestError(
             errorMsg,
             statusCode: response.statusCode,
@@ -166,6 +170,8 @@ class AuthService {
         }
 
         if (response.statusCode != null && response.statusCode! >= 500) {
+          _cachedKeypairSecret?.dispose();
+          _cachedKeypairSecret = null;
           throw ServerError(
             'Please try again later.',
             statusCode: response.statusCode,
@@ -209,6 +215,8 @@ class AuthService {
           await Future.delayed(const Duration(milliseconds: 1000));
         } else if (e.response?.statusCode == 403) {
           final serverResponse = _extractErrorMessage(e.response?.data);
+          _cachedKeypairSecret?.dispose();
+          _cachedKeypairSecret = null;
           throw AuthForbiddenError(
             'Authentication rejected by server (403).',
             serverResponse: serverResponse,
@@ -219,6 +227,8 @@ class AuthService {
                 e.error.toString().contains('Handshake') ||
                 e.error.toString().contains('Certificate') ||
                 e.error.toString().contains('SSL'))) {
+          _cachedKeypairSecret?.dispose();
+          _cachedKeypairSecret = null;
           throw SSLError(
             'SSL/TLS handshake failed.',
             certificateInfo: e.message,
@@ -243,6 +253,8 @@ class AuthService {
       }
     }
 
+    _cachedKeypairSecret?.dispose();
+    _cachedKeypairSecret = null;
     throw ExpiredError('Authentication timed out after 2 minutes');
   }
 

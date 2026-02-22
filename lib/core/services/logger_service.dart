@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 
 /// Log levels in increasing order of severity
@@ -65,7 +67,7 @@ class LoggerService {
 
   static const int _maxLogs = 5000;
 
-  final List<LogEntry> _logs = [];
+  final Queue<LogEntry> _logs = Queue<LogEntry>();
   final List<void Function()> _listeners = [];
 
   /// Current minimum log level (logs below this level are discarded)
@@ -103,7 +105,7 @@ class LoggerService {
 
     // Maintain circular buffer limit
     if (_logs.length > _maxLogs) {
-      _logs.removeAt(0);
+      _logs.removeFirst();
     }
 
     // Write to console in debug mode
@@ -166,8 +168,9 @@ class LoggerService {
 
   /// Get the last N logs
   List<LogEntry> getRecentLogs(int n) {
-    final start = _logs.length > n ? _logs.length - n : 0;
-    return _logs.sublist(start);
+    final list = _logs.toList();
+    final start = list.length > n ? list.length - n : 0;
+    return list.sublist(start);
   }
 
   /// Get logs filtered by level

@@ -34,14 +34,15 @@ class SocketIoClient {
   String? _serverUrl;
   String? _authToken;
   String? _clientType;
+  bool _hasConnectedOnce = false;
 
   // Stream controllers for events
   final _statusController = StreamController<ConnectionStatus>.broadcast();
   final _updateController = StreamController<ApiUpdate>.broadcast();
   final _messageController = StreamController<SocketMessage>.broadcast();
 
-  // Event handlers - matches React Native's messageHandlers Map pattern
-  final Map<String, void Function(dynamic)> _messageHandlers = {};
+  // Event handlers - supports multiple handlers per event
+  final Map<String, List<void Function(dynamic)>> _messageHandlers = {};
 
   // Connection listeners
   final _reconnectedListeners = <void Function()>[];
@@ -65,7 +66,7 @@ class SocketIoClient {
     required String token,
     String clientType = 'user-scoped',
   }) {
-    if (_socket != null && _status == ConnectionStatus.connected) return;
+    if (_socket != null) return;
 
     _serverUrl = serverUrl;
     _authToken = token;
@@ -92,9 +93,10 @@ class SocketIoClient {
   void _setupEventHandlers() {
     _socket!.onConnect((_) {
       _updateStatus(ConnectionStatus.connected);
-      if (!(_socket?.recovered ?? false)) {
+      if (_hasConnectedOnce && !(_socket?.recovered ?? false)) {
         _notifyReconnected();
       }
+      _hasConnectedOnce = true;
     });
 
     _socket!.onDisconnect((_) {
@@ -124,8 +126,10 @@ class SocketIoClient {
         SocketMessage(event: event, data: data),
       );
 
-      final handler = _messageHandlers[event];
-      if (handler != null) handler(data);
+      final handlers = _messageHandlers[event];
+      if (handlers != null) {
+        for (final h in List.of(handlers)) h(data);
+      }
 
       if (event == 'update' && data is Map<String, dynamic>) {
         try {
@@ -143,6 +147,7 @@ class SocketIoClient {
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
+    _hasConnectedOnce = false;
     _updateStatus(ConnectionStatus.disconnected);
   }
 
@@ -184,14 +189,21 @@ class SocketIoClient {
     return () => _statusListeners.remove(listener);
   }
 
-  /// Register message handler for specific event
-  /// Matches React Native's `onMessage` pattern
+  /// Register message handler for a specific event. Multiple handlers per
+  /// event are supported. Returns an unsubscribe callback that removes only
+  /// the registered handler (not all handlers for the event).
   void Function() onMessage(String event, void Function(dynamic) handler) {
-    _messageHandlers[event] = handler;
-    return () => _messageHandlers.remove(event);
+    _messageHandlers.putIfAbsent(event, () => []).add(handler);
+    return () {
+      final list = _messageHandlers[event];
+      if (list != null) {
+        list.remove(handler);
+        if (list.isEmpty) _messageHandlers.remove(event);
+      }
+    };
   }
 
-  /// Unregister message handler
+  /// Unregister all handlers for an event.
   void offMessage(String event) {
     _messageHandlers.remove(event);
   }

@@ -129,10 +129,10 @@ Future<ServerUrlVerificationResult> verifyServerUrl(String url) async {
     return ServerUrlVerificationResult.failed(errorMsg, 'Validation');
   }
 
+  final dio = Dio();
   try {
     // Use plain Dart IO so SecurityContext.defaultContext (populated with
     // user-installed CA certificates in main()) is respected.
-    final dio = Dio();
     dio.options.connectTimeout = const Duration(seconds: 10);
     dio.options.receiveTimeout = const Duration(seconds: 10);
     // Don't throw on 4xx/5xx so we can inspect the status ourselves.
@@ -189,6 +189,8 @@ Future<ServerUrlVerificationResult> verifyServerUrl(String url) async {
     debugPrint('Server verification failed: $e');
     saveServerUrlError(errorMsg);
     return ServerUrlVerificationResult.failed(errorMsg, 'Unknown');
+  } finally {
+    dio.close();
   }
 }
 
