@@ -8,7 +8,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../i18n/app_localizations.dart';
-import 'status_dot.dart';
+import 'app_status_dot.dart';
 import 'voice_assistant_status_bar.dart';
 
 /// Sidebar navigation widget matching React Native's SidebarView.tsx.
@@ -194,9 +194,9 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                     if (connectionInfo.text.isNotEmpty)
                       Row(
                         children: [
-                          StatusDot(
+                          AppStatusDot(
                             color: connectionInfo.color,
-                            isPulsing: connectionInfo.isPulsing,
+                            pulse: connectionInfo.isPulsing,
                             size: 6,
                           ),
                           const SizedBox(width: AppSpacing.xs),
@@ -274,9 +274,9 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          StatusDot(
+                          AppStatusDot(
                             color: connectionInfo.color,
-                            isPulsing: connectionInfo.isPulsing,
+                            pulse: connectionInfo.isPulsing,
                             size: 6,
                           ),
                           const SizedBox(width: 4),

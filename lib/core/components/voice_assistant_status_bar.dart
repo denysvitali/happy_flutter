@@ -6,7 +6,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../i18n/app_localizations.dart';
-import 'status_dot.dart';
+import 'app_status_dot.dart';
 
 /// Voice assistant status bar for sidebar variant.
 ///
@@ -103,9 +103,9 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  StatusDot(
+                  AppStatusDot(
                     color: statusInfo.color,
-                    isPulsing: statusInfo.isPulsing,
+                    pulse: statusInfo.isPulsing,
                     size: 8,
                   ),
                   const SizedBox(width: 6),
@@ -152,9 +152,9 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
       child: Row(
         children: [
           const SizedBox(width: AppSpacing.md),
-          StatusDot(
+          AppStatusDot(
             color: statusInfo.color,
-            isPulsing: statusInfo.isPulsing,
+            pulse: statusInfo.isPulsing,
             size: 8,
           ),
           const SizedBox(width: 6),

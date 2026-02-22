@@ -16,6 +16,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
 import '../../core/utils/session_status.dart';
 import '../../core/utils/session_utils.dart';
+import '../../core/components/app_status_dot.dart';
 import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
 import 'session_avatar.dart';
@@ -934,88 +935,6 @@ class _FolderSectionHeader extends StatelessWidget {
   }
 }
 
-// ─── Status widgets ──────────────────────────────────────────────────────────
-
-/// Status dot widget with pulsing animation.
-///
-/// Matches React Native's StatusDot component implementation.
-class StatusDot extends StatefulWidget {
-  const StatusDot({
-    required this.color,
-    super.key,
-    this.isPulsing = false,
-    this.size = 6,
-  });
-
-  /// The dot color.
-  final Color color;
-
-  /// Whether the dot should pulse continuously.
-  final bool isPulsing;
-
-  /// Diameter of the dot in logical pixels.
-  final double size;
-
-  @override
-  State<StatusDot> createState() => _StatusDotState();
-}
-
-class _StatusDotState extends State<StatusDot>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    );
-    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
-    if (widget.isPulsing) {
-      _controller.repeat(reverse: true);
-    } else {
-      _controller.value = 1.0;
-    }
-  }
-
-  @override
-  void didUpdateWidget(StatusDot oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isPulsing) {
-      _controller.repeat(reverse: true);
-    } else {
-      _controller.animateTo(1.0, duration: const Duration(milliseconds: 200));
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        // React Native pulsing: opacity goes from 1.0 to 0.3 and back.
-        final opacity = widget.isPulsing ? 0.3 + 0.7 * _animation.value : 1.0;
-        return Container(
-          width: widget.size,
-          height: widget.size,
-          decoration: BoxDecoration(
-            color: widget.color.withValues(alpha: opacity),
-            shape: BoxShape.circle,
-          ),
-        );
-      },
-    );
-  }
-}
-
 // ─── Badge helpers ───────────────────────────────────────────────────────────
 
 /// Draft icon overlay badge shown on avatar bottom-right corner.
@@ -1223,9 +1142,9 @@ class ActiveSessionCard extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(width: AppSpacing.sm),
-                                  StatusDot(
+                                  AppStatusDot(
                                     color: Color(sessionStatus.statusDotColor),
-                                    isPulsing: sessionStatus.isPulsing,
+                                    pulse: sessionStatus.isPulsing,
                                     size: 8,
                                   ),
                                 ],
@@ -1396,9 +1315,9 @@ class CompactActiveSessionCard extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: AppSpacing.sm),
-                              StatusDot(
+                              AppStatusDot(
                                 color: Color(sessionStatus.statusDotColor),
-                                isPulsing: sessionStatus.isPulsing,
+                                pulse: sessionStatus.isPulsing,
                                 size: 8,
                               ),
                             ],
@@ -1588,11 +1507,11 @@ class SessionCard extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: AppSpacing.sm),
-                                StatusDot(
+                                AppStatusDot(
                                   color: sessionStatus.isConnected
                                       ? Color(sessionStatus.statusDotColor)
                                       : cs.outlineVariant,
-                                  isPulsing: sessionStatus.isPulsing,
+                                  pulse: sessionStatus.isPulsing,
                                   size: 8,
                                 ),
                               ],
