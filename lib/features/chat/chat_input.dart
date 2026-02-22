@@ -677,6 +677,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
   _ChatInputState()
     : _draftAutoSave = DraftAutoSave(sessionId: '', onSave: (_) {});
   final FocusNode _focusNode = FocusNode();
+  final FocusNode _keyboardListenerFocusNode =
+      FocusNode(skipTraversal: true);
   final AutocompleteController _autocompleteController =
       AutocompleteController();
   final DraftAutoSave _draftAutoSave;
@@ -726,6 +728,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     _draftAutoSave.dispose();
     widget.controller.removeListener(_onTextChanged);
     _focusNode.dispose();
+    _keyboardListenerFocusNode.dispose();
     super.dispose();
   }
 
@@ -1047,7 +1050,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final hintColor = cs.onSurface.withValues(alpha: 0.3);
 
     return KeyboardListener(
-      focusNode: FocusNode(skipTraversal: true),
+      focusNode: _keyboardListenerFocusNode,
       onKeyEvent: _handleKeyPress,
       child: TextField(
         controller: widget.controller,

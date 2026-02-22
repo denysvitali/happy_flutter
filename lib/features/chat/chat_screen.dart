@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/i18n/app_localizations.dart';
@@ -534,6 +535,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               onTap: () {
                 HapticFeedback.lightImpact();
                 Navigator.pop(context);
+                context.pushNamed(
+                  'session-info',
+                  pathParameters: {
+                    'sessionId': widget.sessionId,
+                  },
+                );
               },
             ),
             ListTile(
@@ -721,6 +728,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _scrollToBottom();
       } catch (e) {
         if (mounted) {
+          setState(() => _controller.text = text);
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(

@@ -151,7 +151,7 @@ class NavigationBarTheme {
 }
 
 /// Widget to configure navigation bar
-class NavigationBarThemeWrapper extends StatelessWidget {
+class NavigationBarThemeWrapper extends StatefulWidget {
 
   const NavigationBarThemeWrapper({
     required this.child,
@@ -164,16 +164,39 @@ class NavigationBarThemeWrapper extends StatelessWidget {
   final bool darkMode;
 
   @override
-  Widget build(BuildContext context) {
-    // Apply navigation bar configuration
-    final overlayStyle = theme.systemNavigationBarOverlay ??
-        (darkMode
+  State<NavigationBarThemeWrapper> createState() =>
+      _NavigationBarThemeWrapperState();
+}
+
+class _NavigationBarThemeWrapperState
+    extends State<NavigationBarThemeWrapper> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _applyOverlayStyle();
+  }
+
+  @override
+  void didUpdateWidget(NavigationBarThemeWrapper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.darkMode != widget.darkMode ||
+        oldWidget.theme.systemNavigationBarOverlay !=
+            widget.theme.systemNavigationBarOverlay) {
+      _applyOverlayStyle();
+    }
+  }
+
+  void _applyOverlayStyle() {
+    final overlayStyle = widget.theme.systemNavigationBarOverlay ??
+        (widget.darkMode
             ? SystemUiOverlayStyle.light
             : SystemUiOverlayStyle.dark);
-
     SystemChrome.setSystemUIOverlayStyle(overlayStyle);
+  }
 
-    return child;
+  @override
+  Widget build(BuildContext context) {
+    return widget.child;
   }
 }
 
@@ -223,18 +246,7 @@ class AnimatedStatusBar extends StatefulWidget {
   State<AnimatedStatusBar> createState() => _AnimatedStatusBarState();
 }
 
-class _AnimatedStatusBarState extends State<AnimatedStatusBar>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: widget.duration,
-      vsync: this,
-    );
-  }
-
+class _AnimatedStatusBarState extends State<AnimatedStatusBar> {
   @override
   void didUpdateWidget(AnimatedStatusBar oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -242,12 +254,6 @@ class _AnimatedStatusBarState extends State<AnimatedStatusBar>
       // Apply the new style immediately when animation is not used
       SystemChrome.setSystemUIOverlayStyle(widget.targetStyle);
     }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 
   @override

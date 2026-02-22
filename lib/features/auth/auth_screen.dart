@@ -416,6 +416,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     try {
       await AuthService().waitForAuthApproval(publicKey);
       if (mounted) {
+        setState(() => _isPolling = false);
         unawaited(
           ref.read(authStateNotifierProvider.notifier).checkAuth(),
         );
