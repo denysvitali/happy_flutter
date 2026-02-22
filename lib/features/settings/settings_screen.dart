@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/github_api.dart';
 import '../../core/api/services_api.dart';
+import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/profile.dart';
@@ -86,7 +87,7 @@ class SettingsScreen extends ConsumerWidget {
     return SettingsSection(
       title: 'Connected Accounts',
       children: [
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.smart_toy_outlined,
           title: 'Claude Code',
           subtitle: claudeConnected ? 'Connected' : 'Not connected',
@@ -112,7 +113,7 @@ class SettingsScreen extends ConsumerWidget {
             }
           },
         ),
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.code,
           title: 'GitHub',
           subtitle: github != null
@@ -169,13 +170,13 @@ class SettingsScreen extends ConsumerWidget {
     return SettingsSection(
       title: l10n.settingsAppearance,
       children: [
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.palette,
           title: l10n.appearanceTheme,
           subtitle: themeModeLabel,
           onTap: () => context.pushNamed('theme'),
         ),
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.language,
           title: l10n.settingsLanguage,
           subtitle: settings.locale.isEmpty
@@ -183,7 +184,7 @@ class SettingsScreen extends ConsumerWidget {
               : _getLocaleDisplayName(settings.locale),
           onTap: () => context.pushNamed('language'),
         ),
-        _SettingsToggleRow(
+        SettingsToggleRow(
           icon: Icons.emoji_emotions_outlined,
           title: l10n.settingsShowFlavorIcons,
           subtitle: l10n.settingsShowFlavorIconsSubtitle,
@@ -192,7 +193,7 @@ class SettingsScreen extends ConsumerWidget {
               .read(settingsNotifierProvider.notifier)
               .updateSetting('showFlavorIcons', value),
         ),
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.account_circle_outlined,
           title: l10n.settingsAvatarStyle,
           subtitle: settings.avatarStyle,
@@ -221,7 +222,7 @@ class SettingsScreen extends ConsumerWidget {
     return SettingsSection(
       title: l10n.settingsBehavior,
       children: [
-        _SettingsToggleRow(
+        SettingsToggleRow(
           icon: Icons.open_in_new_outlined,
           title: l10n.settingsViewInline,
           subtitle: l10n.settingsViewInlineSubtitle,
@@ -230,7 +231,7 @@ class SettingsScreen extends ConsumerWidget {
               .read(settingsNotifierProvider.notifier)
               .updateSetting('viewInline', value),
         ),
-        _SettingsToggleRow(
+        SettingsToggleRow(
           icon: Icons.check_box_outlined,
           title: l10n.settingsExpandTodos,
           value: settings.expandTodos,
@@ -238,7 +239,7 @@ class SettingsScreen extends ConsumerWidget {
               .read(settingsNotifierProvider.notifier)
               .updateSetting('expandTodos', value),
         ),
-        _SettingsToggleRow(
+        SettingsToggleRow(
           icon: Icons.format_list_numbered,
           title: l10n.settingsShowLineNumbers,
           value: settings.showLineNumbers,
@@ -246,7 +247,7 @@ class SettingsScreen extends ConsumerWidget {
               .read(settingsNotifierProvider.notifier)
               .updateSetting('showLineNumbers', value),
         ),
-        _SettingsToggleRow(
+        SettingsToggleRow(
           icon: Icons.wrap_text,
           title: l10n.settingsWrapLinesInDiffs,
           value: settings.wrapLinesInDiffs,
@@ -266,7 +267,7 @@ class SettingsScreen extends ConsumerWidget {
     return SettingsSection(
       title: 'Voice',
       children: [
-        _SettingsToggleRow(
+        SettingsToggleRow(
           icon: Icons.volume_up_outlined,
           title: 'Text-to-Speech',
           subtitle: 'Read assistant messages aloud',
@@ -275,7 +276,7 @@ class SettingsScreen extends ConsumerWidget {
               .read(settingsNotifierProvider.notifier)
               .updateSetting('ttsEnabled', value),
         ),
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.record_voice_over,
           title: 'Voice Settings',
           subtitle: 'Configure voice assistant',
@@ -290,7 +291,7 @@ class SettingsScreen extends ConsumerWidget {
     return SettingsSection(
       title: l10n.settingsProfiles,
       children: [
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.account_tree,
           title: l10n.settingsProfiles,
           subtitle: l10n.settingsProfilesSubtitle,
@@ -305,7 +306,7 @@ class SettingsScreen extends ConsumerWidget {
     return SettingsSection(
       title: l10n.settingsUsage,
       children: [
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.analytics,
           title: l10n.settingsUsage,
           subtitle: l10n.settingsUsageSubtitle,
@@ -320,7 +321,7 @@ class SettingsScreen extends ConsumerWidget {
     return SettingsSection(
       title: l10n.settingsFeatures,
       children: [
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.science,
           title: l10n.featuresExperiments,
           subtitle: l10n.featuresExperimentsDesc,
@@ -334,13 +335,13 @@ class SettingsScreen extends ConsumerWidget {
     return SettingsSection(
       title: 'Social',
       children: [
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.person_add_alt_1,
           title: 'Find Friends',
           subtitle: 'Search and send friend requests',
           onTap: () => context.pushNamed('friends-search'),
         ),
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.inbox_outlined,
           title: 'Open Inbox',
           subtitle: 'View updates and requests',
@@ -374,7 +375,7 @@ class SettingsScreen extends ConsumerWidget {
             final subtitle =
                 '${metadata?.platform ?? 'unknown'}'
                 ' • ${machine.active ? 'Online' : 'Offline'}';
-            return _SettingsRow(
+            return SettingsRow(
               icon: Icons.computer_outlined,
               iconColor: machine.active
                   ? cs.primary
@@ -392,7 +393,7 @@ class SettingsScreen extends ConsumerWidget {
     return SettingsSection(
       title: l10n.settingsDeveloper,
       children: [
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.build,
           title: 'Developer Options',
           subtitle: settings.developerModeEnabled
@@ -409,7 +410,7 @@ class SettingsScreen extends ConsumerWidget {
     return SettingsSection(
       title: l10n.settingsAccount,
       children: [
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.person,
           title: l10n.accountAccountSettings,
           subtitle: 'Backup key, devices, services',
@@ -428,7 +429,7 @@ class SettingsScreen extends ConsumerWidget {
           future: Future.value(CertificateProvider().hasUserCertificates()),
           builder: (context, snapshot) {
             final hasCerts = snapshot.data ?? false;
-            return _SettingsRow(
+            return SettingsRow(
               icon: hasCerts ? Icons.verified_user : Icons.info_outline,
               iconColor: hasCerts
                   ? Theme.of(context).colorScheme.primary
@@ -455,7 +456,7 @@ class SettingsScreen extends ConsumerWidget {
             final url = snapshot.data?['url'] as String? ?? 'Loading...';
             final isCustom = snapshot.data?['isCustom'] as bool? ?? false;
 
-            return _SettingsRow(
+            return SettingsRow(
               icon: isCustom ? Icons.edit : Icons.cloud_outlined,
               title: l10n.settingsServerUrl,
               subtitle: url,
@@ -607,34 +608,34 @@ class SettingsScreen extends ConsumerWidget {
     return SettingsSection(
       title: l10n.settingsAbout,
       children: [
-        _SettingsRow(
+        SettingsRow(
           icon: Icons.info_outline,
           title: l10n.commonVersion,
           subtitle: '1.0.0',
         ),
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.new_releases_outlined,
           title: "What's New",
           subtitle: 'Latest improvements and updates',
           onTap: () => context.pushNamed('changelog'),
         ),
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.code,
           title: 'GitHub',
           subtitle: 'slopus/happy',
           onTap: () => openUrl('https://github.com/slopus/happy'),
         ),
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.bug_report_outlined,
           title: 'Report an Issue',
           onTap: () => openUrl('https://github.com/slopus/happy/issues'),
         ),
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.privacy_tip_outlined,
           title: l10n.settingsPrivacyPolicy,
           onTap: () => openUrl('https://happy.dev/privacy'),
         ),
-        _SettingsNavRow(
+        SettingsNavRow(
           icon: Icons.gavel_outlined,
           title: l10n.settingsTermsOfService,
           onTap: () => openUrl('https://happy.dev/terms'),
@@ -809,201 +810,6 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-
-/// A plain setting row: icon container + title/subtitle + optional trailing.
-class _SettingsRow extends StatelessWidget {
-  const _SettingsRow({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    this.iconColor,
-    this.trailing,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final Color? iconColor;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(
-        height: subtitle != null ? null : 48,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            children: [
-              _IconContainer(icon: icon, color: iconColor),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: AppSpacing.sm),
-                trailing!,
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A setting row with a Switch.adaptive trailing widget.
-class _SettingsToggleRow extends StatelessWidget {
-  const _SettingsToggleRow({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.onChanged,
-    this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return InkWell(
-      onTap: () => onChanged(!value),
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.sm,
-        ),
-        child: Row(
-          children: [
-            _IconContainer(icon: icon),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Switch.adaptive(value: value, onChanged: onChanged),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A setting row that navigates somewhere — includes a right chevron.
-class _SettingsNavRow extends StatelessWidget {
-  const _SettingsNavRow({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-    this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return _SettingsRow(
-      icon: icon,
-      title: title,
-      subtitle: subtitle,
-      onTap: onTap,
-      trailing: Icon(
-        Icons.chevron_right,
-        size: 20,
-        color: cs.onSurface.withValues(alpha: 0.3),
-      ),
-    );
-  }
-}
-
-/// 36x36 rounded icon container used as the leading widget in rows.
-class _IconContainer extends StatelessWidget {
-  const _IconContainer({required this.icon, this.color});
-
-  final IconData icon;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final effectiveColor = color ?? cs.primary;
-
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      child: Icon(icon, size: 18, color: effectiveColor),
-    );
-  }
-}
-
 /// Sign-out / account management area at the bottom of the settings list.
 class _AccountSection extends ConsumerWidget {
   const _AccountSection();
@@ -1062,77 +868,5 @@ class _AccountSection extends ConsumerWidget {
         );
       },
     );
-  }
-}
-
-// ─── Public SettingsSection (kept for external use) ─────────────────────────
-
-/// Settings section wrapper (public API preserved for external callers).
-class SettingsSection extends StatelessWidget {
-  const SettingsSection({required this.children, super.key, this.title});
-
-  /// Optional section heading text.
-  final String? title;
-
-  /// Child widgets rendered inside the section card.
-  final List<Widget> children;
-
-  // Leading padding (16) + icon container width (36) + icon gap (12) = 64.
-  static const double _dividerIndent = AppSpacing.lg + 36 + AppSpacing.md;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (title != null)
-          Padding(
-            padding: const EdgeInsets.only(
-              left: AppSpacing.xs,
-              bottom: AppSpacing.xs,
-            ),
-            child: Text(
-              title!.toUpperCase(),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.8,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(color: cs.outlineVariant),
-          ),
-          child: Column(children: _intersperse(children, cs)),
-        ),
-      ],
-    );
-  }
-
-  /// Inserts a slim divider between children (but not before/after).
-  List<Widget> _intersperse(List<Widget> items, ColorScheme cs) {
-    if (items.length <= 1) return items;
-    final result = <Widget>[];
-    for (var i = 0; i < items.length; i++) {
-      result.add(items[i]);
-      if (i < items.length - 1) {
-        result.add(
-          Divider(
-            height: 1,
-            thickness: 0.5,
-            indent: _dividerIndent,
-            endIndent: 0,
-            color: cs.outlineVariant,
-          ),
-        );
-      }
-    }
-    return result;
   }
 }
