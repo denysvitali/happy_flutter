@@ -51,7 +51,6 @@ class AuthStateNotifier extends Notifier<AuthState> {
         if (credentials != null) {
           ApiClient().updateToken(credentials.token);
           await syncRestore(credentials);
-          ref.read(connectionNotifierProvider.notifier).listenToStatus();
           ref.read(sessionsNotifierProvider.notifier).loadFromSync();
           ref.read(machinesNotifierProvider.notifier).loadFromSync();
           ref.read(settingsNotifierProvider.notifier).loadFromSync();
@@ -300,8 +299,14 @@ class ConnectionNotifier
 
   @override
   socket_io.ConnectionStatus build() {
+    // Initialize subscription reactively in build() to avoid race condition
+    _unsubscribe = socket_io.socketIoClient.onStatusChange((status) {
+      state = status;
+    });
     ref.onDispose(() => _unsubscribe?.call());
-    return sync.connectionStatus;
+    // Return initial state; onStatusChange callback will update immediately
+    // with current status since it calls listener(_status) on registration
+    return socket_io.ConnectionStatus.disconnected;
   }
 
   void connect(String serverUrl, String token) {
@@ -310,13 +315,6 @@ class ConnectionNotifier
 
   void disconnect() {
     socket_io.socketIoClient.disconnect();
-  }
-
-  void listenToStatus() {
-    _unsubscribe?.call();
-    _unsubscribe = socket_io.socketIoClient.onStatusChange((status) {
-      state = status;
-    });
   }
 }
 
