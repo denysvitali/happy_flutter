@@ -12,6 +12,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/utils/backup_key_utils.dart';
 import '../auth/auth_screen.dart' show QRCodeDisplay;
 
@@ -127,33 +128,7 @@ class AccountScreen extends ConsumerWidget {
   Widget buildServicesSection(BuildContext context) {
     return SettingsSection(
       title: 'Connected Services',
-      children: [
-        Consumer(
-          builder: (context, ref, child) {
-            // Connected services are not yet exposed via a Riverpod provider;
-            // leaving as FutureBuilder until the provider is added.
-            return FutureBuilder<List<ConnectedServiceInfo>>(
-              future: AuthService().getConnectedServices(),
-              builder: (context, snapshot) {
-                final services = snapshot.data ?? [];
-
-                return Column(
-                  children: ConnectedService.values.map((service) {
-                    final info = services.firstWhere(
-                      (s) => s.service == service,
-                      orElse: () => ConnectedServiceInfo(
-                        service: service,
-                        isConnected: false,
-                      ),
-                    );
-                    return ServiceTile(service: info);
-                  }).toList(),
-                );
-              },
-            );
-          },
-        ),
-      ],
+      children: [const _ConnectedServicesLoader()],
     );
   }
 
@@ -237,6 +212,45 @@ class AccountScreen extends ConsumerWidget {
         SnackBar(content: Text('Error: $e')),
       );
     }
+  }
+}
+
+/// Loads connected services once in initState to avoid re-fetching on rebuild.
+class _ConnectedServicesLoader extends StatefulWidget {
+  const _ConnectedServicesLoader();
+
+  @override
+  State<_ConnectedServicesLoader> createState() =>
+      _ConnectedServicesLoaderState();
+}
+
+class _ConnectedServicesLoaderState extends State<_ConnectedServicesLoader> {
+  late final Future<List<ConnectedServiceInfo>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = AuthService().getConnectedServices();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<ConnectedServiceInfo>>(
+      future: _future,
+      builder: (context, snapshot) {
+        final services = snapshot.data ?? [];
+        return Column(
+          children: ConnectedService.values.map((service) {
+            final info = services.firstWhere(
+              (s) => s.service == service,
+              orElse: () =>
+                  ConnectedServiceInfo(service: service, isConnected: false),
+            );
+            return ServiceTile(service: info);
+          }).toList(),
+        );
+      },
+    );
   }
 }
 
@@ -958,7 +972,7 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
     try {
       _devices = await AuthService().getLinkedDevices();
     } catch (e) {
-      debugPrint('Error loading devices: $e');
+      logger.warning('Error loading devices: $e');
     } finally {
       if (mounted) {
         setState(() {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/storage_service.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Developer screen - Debug tools (10x click to enable)
@@ -68,7 +69,9 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               title: 'Encryption Debug',
               subtitle: 'View encryption keys and certificates',
               icon: Icons.security,
-              onTap: () {},
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Not yet implemented')),
+              ),
             ),
             const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
@@ -76,7 +79,9 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               title: 'Session Debug',
               subtitle: 'View active sessions and connections',
               icon: Icons.history,
-              onTap: () {},
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Not yet implemented')),
+              ),
             ),
             const SizedBox(height: AppSpacing.xxl),
             _buildSectionHeader('Testing'),
@@ -86,7 +91,9 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               title: 'Test Notifications',
               subtitle: 'Send a test push notification',
               icon: Icons.notifications,
-              onTap: () {},
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Not yet implemented')),
+              ),
             ),
             const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
@@ -94,7 +101,9 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               title: 'Test Error Reporting',
               subtitle: 'Trigger a test error',
               icon: Icons.bug_report,
-              onTap: () {},
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Not yet implemented')),
+              ),
             ),
             const SizedBox(height: AppSpacing.xxl),
             _buildSectionHeader('Cache & Storage'),
@@ -192,11 +201,14 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               child: Text(l10nDialog.commonCancel),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Cache cleared')),
-                );
+                await MMKVStorage().clearAll();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Cache cleared')),
+                  );
+                }
               },
               child: const Text('Clear'),
             ),
@@ -227,11 +239,19 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                 backgroundColor:
                     Theme.of(context).colorScheme.error,
               ),
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Settings reset')),
-                );
+                await SettingsStorage().clearSettings();
+                if (context.mounted) {
+                  await ref
+                      .read(settingsNotifierProvider.notifier)
+                      .loadSettings();
+                }
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Settings reset')),
+                  );
+                }
               },
               child: const Text('Reset'),
             ),

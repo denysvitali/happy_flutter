@@ -178,8 +178,10 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
     final sessionList = sessions.values.toList();
 
     // Mark as loaded once we get any data or sync is initialized.
-    if (sessionList.isNotEmpty || sync.isInitialized) {
-      _hasLoaded = true;
+    if (!_hasLoaded && (sessionList.isNotEmpty || sync.isInitialized)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _hasLoaded = true);
+      });
     }
 
     final activeSessions = sessionList.where(isSessionActive).toList()
@@ -1763,6 +1765,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final connectionStatus = ref.watch(connectionNotifierProvider);
     final machines = ref
         .watch(machinesNotifierProvider)
         .values
@@ -1933,7 +1936,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           onPressed:
               !_isCreating &&
                   (_selectedPath?.isNotEmpty ?? false) &&
-                  _selectedMachine != null
+                  _selectedMachine != null &&
+                  connectionStatus == ConnectionStatus.connected
               ? () => _createSession(context)
               : null,
           child: _isCreating

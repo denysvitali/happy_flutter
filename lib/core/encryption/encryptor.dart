@@ -1,13 +1,9 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
-import 'package:sodium/sodium.dart';
 
 import 'aes_gcm.dart';
-import 'crypto_box.dart';
 import 'crypto_secret_box.dart';
-import 'text.dart';
 
 /// Encryptor and Decryptor interface
 abstract interface class Encryptor {
@@ -40,56 +36,6 @@ class SecretBoxEncryption implements Encryptor {
     for (final item in data) {
       final decrypted = await CryptoSecretBox.decrypt(item, _secretKey);
       results.add(decrypted);
-    }
-    return results;
-  }
-}
-
-/// NaCl Box encryption (public key)
-class BoxEncryption implements Encryptor {
-
-  /// Legacy synchronous constructor - not supported, use create() instead
-  factory BoxEncryption(Uint8List seed) {
-    throw UnimplementedError('Use BoxEncryption.create(seed) instead');
-  }
-
-  BoxEncryption._(this._privateKey, this._publicKey);
-  late final SecureKey _privateKey;
-  late final Uint8List _publicKey;
-
-  /// Factory constructor that initializes async
-  static Future<BoxEncryption> create(Uint8List seed) async {
-    final keypair = await CryptoBox.keypairFromSeed(seed);
-    return BoxEncryption._(keypair.secretKey, keypair.publicKey);
-  }
-
-  @override
-  Future<List<Uint8List>> encrypt(List<dynamic> data) async {
-    final results = <Uint8List>[];
-    for (final item in data) {
-      final jsonBytes = TextUtils.encodeUtf8(jsonEncode(item));
-      final encrypted = await CryptoBox.encrypt(jsonBytes, _publicKey);
-      results.add(encrypted);
-    }
-    return results;
-  }
-
-  @override
-  Future<List<dynamic>> decrypt(List<Uint8List> data) async {
-    final results = <dynamic>[];
-    for (final item in data) {
-      final decrypted = await CryptoBox.decrypt(item, _privateKey);
-      if (decrypted == null) {
-        results.add(null);
-        continue;
-      }
-      try {
-        final jsonString = TextUtils.decodeUtf8(decrypted);
-        results.add(jsonDecode(jsonString));
-      } catch (e) {
-        if (kDebugMode) debugPrint('BoxEncryption.decrypt failed: $e');
-        results.add(null);
-      }
     }
     return results;
   }

@@ -87,15 +87,7 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
           ),
         );
       },
-      child: ColorFiltered(
-        colorFilter: const ColorFilter.matrix([
-          1, 0, 0, 0, 0,
-          0, 1, 0, 0, 0,
-          0, 0, 1, 0, 0,
-          0, 0, 0, 1, 0,
-        ]),
-        child: widget.child,
-      ),
+      child: widget.child,
     );
   }
 }
