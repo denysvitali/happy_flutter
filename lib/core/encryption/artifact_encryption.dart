@@ -44,9 +44,7 @@ class ArtifactEncryption {
         return null;
       }
 
-      return {
-        'title': header['title'] as String?,
-      };
+      return Map<String, dynamic>.from(header);
     } catch (e) {
       return null;
     }
