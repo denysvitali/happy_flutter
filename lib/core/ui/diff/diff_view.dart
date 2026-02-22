@@ -6,7 +6,6 @@ import 'diff_types.dart';
 
 /// Diff view widget for displaying code differences
 class DiffView extends StatefulWidget {
-
   const DiffView({
     required this.oldText,
     required this.newText,
@@ -26,7 +25,7 @@ class DiffView extends StatefulWidget {
 }
 
 class _DiffViewState extends State<DiffView> {
-  late final DiffResult _diffResult;
+  late DiffResult _diffResult;
 
   @override
   void initState() {
@@ -65,7 +64,7 @@ class _DiffViewState extends State<DiffView> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (widget.config.showDiffStats) _buildStatsHeader(theme),
-          Expanded(child: _buildDiffContent(theme)),
+          _buildDiffContent(theme),
         ],
       ),
     );
@@ -126,9 +125,7 @@ class _DiffViewState extends State<DiffView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHunkHeader(hunk, theme, colors),
-                  ...hunk.lines.map(
-                    (line) => _buildLine(line, theme, colors),
-                  ),
+                  ...hunk.lines.map((line) => _buildLine(line, theme, colors)),
                 ],
               ),
             );
@@ -148,7 +145,7 @@ class _DiffViewState extends State<DiffView> {
       color: colors.hunkHeaderBg,
       child: Text(
         '@@ -${hunk.oldStart},${hunk.oldLines}'
-            ' +${hunk.newStart},${hunk.newLines} @@',
+        ' +${hunk.newStart},${hunk.newLines} @@',
         style: theme.textTheme.bodySmall?.copyWith(
           color: colors.hunkHeaderText,
           fontFamily: 'monospace',
@@ -164,9 +161,8 @@ class _DiffViewState extends State<DiffView> {
     final textColor = isAdded
         ? colors.addedText
         : isRemoved
-            ? colors.removedText
-            : colors.contextText;
-
+        ? colors.removedText
+        : colors.contextText;
 
     return IntrinsicWidth(
       child: Row(
@@ -174,11 +170,8 @@ class _DiffViewState extends State<DiffView> {
         children: [
           if (widget.config.showLineNumbers)
             _buildLineNumber(line, theme, colors),
-          if (widget.config.showPlusMinusSymbols)
-            _buildSymbol(line, textColor),
-          Expanded(
-            child: _buildContent(line, theme, colors),
-          ),
+          if (widget.config.showPlusMinusSymbols) _buildSymbol(line, textColor),
+          Expanded(child: _buildContent(line, theme, colors)),
         ],
       ),
     );
@@ -188,8 +181,8 @@ class _DiffViewState extends State<DiffView> {
     final number = line.type == DiffLineType.remove
         ? line.oldLineNumber
         : line.type == DiffLineType.add
-            ? line.newLineNumber
-            : line.oldLineNumber;
+        ? line.newLineNumber
+        : line.oldLineNumber;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
@@ -211,8 +204,8 @@ class _DiffViewState extends State<DiffView> {
     final symbol = line.type == DiffLineType.add
         ? '+'
         : line.type == DiffLineType.remove
-            ? '-'
-            : ' ';
+        ? '-'
+        : ' ';
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
@@ -240,10 +233,9 @@ class _DiffViewState extends State<DiffView> {
     final leadingDots = leadingSpaces != null
         ? '\u00b7' * leadingSpaces.group(0)!.length
         : '';
-    final mainContent =
-        leadingSpaces != null ? formatted.substring(
-          leadingSpaces.group(0)!.length,
-        ) : formatted;
+    final mainContent = leadingSpaces != null
+        ? formatted.substring(leadingSpaces.group(0)!.length)
+        : formatted;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
@@ -262,8 +254,8 @@ class _DiffViewState extends State<DiffView> {
                 color: line.type == DiffLineType.add
                     ? colors.addedText
                     : line.type == DiffLineType.remove
-                        ? colors.removedText
-                        : colors.contextText,
+                    ? colors.removedText
+                    : colors.contextText,
                 fontFamily: 'monospace',
                 fontSize: 13,
                 height: 1.5,
@@ -286,13 +278,13 @@ class _DiffViewState extends State<DiffView> {
         backgroundColor: token.added
             ? colors.inlineAddedBg
             : token.removed
-                ? colors.inlineRemovedBg
-                : null,
+            ? colors.inlineRemovedBg
+            : null,
         color: token.added
             ? colors.inlineAddedText
             : token.removed
-                ? colors.inlineRemovedText
-                : colors.contextText,
+            ? colors.inlineRemovedText
+            : colors.contextText,
       );
 
       spans.add(TextSpan(text: token.value, style: style));
@@ -300,9 +292,7 @@ class _DiffViewState extends State<DiffView> {
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      child: RichText(
-        text: TextSpan(children: spans),
-      ),
+      child: RichText(text: TextSpan(children: spans)),
     );
   }
 
@@ -313,7 +303,6 @@ class _DiffViewState extends State<DiffView> {
 
 /// Simplified inline diff viewer
 class InlineDiffView extends StatelessWidget {
-
   const InlineDiffView({
     required this.oldText,
     required this.newText,
@@ -342,13 +331,13 @@ class InlineDiffView extends StatelessWidget {
                 backgroundColor: token.added
                     ? theme.inlineAddedBg
                     : token.removed
-                        ? theme.inlineRemovedBg
-                        : null,
+                    ? theme.inlineRemovedBg
+                    : null,
                 color: token.added
                     ? theme.inlineAddedText
                     : token.removed
-                        ? theme.inlineRemovedText
-                        : null,
+                    ? theme.inlineRemovedText
+                    : null,
                 fontFamily: 'monospace',
               ),
             );
@@ -377,7 +366,6 @@ class InlineDiffView extends StatelessWidget {
 
 /// Diff stats widget
 class DiffStatsView extends StatelessWidget {
-
   const DiffStatsView({
     required this.stats,
     this.theme = const DiffTheme(),
@@ -395,10 +383,7 @@ class DiffStatsView extends StatelessWidget {
       children: [
         Text(
           '+${stats.additions}',
-          style: TextStyle(
-            color: theme.addedText,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(color: theme.addedText, fontWeight: FontWeight.w600),
         ),
         const SizedBox(width: AppSpacing.sm),
         Text(
@@ -412,10 +397,7 @@ class DiffStatsView extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Text(
             '(${stats.totalChanges} changes)',
-            style: TextStyle(
-              color: theme.hunkHeaderText,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: theme.hunkHeaderText, fontSize: 12),
           ),
         ],
       ],

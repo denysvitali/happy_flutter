@@ -33,7 +33,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     final extra =
         GoRouterState.of(context).extra as Map<String, dynamic>?;
     _machineId = extra?['machineId'] as String?;
-    _cwd = extra?['terminalId'] as String? ?? '/';
+    _cwd = extra?['cwd'] as String? ?? '/';
   }
 
   static const _terminalTextStyle = TextStyle(

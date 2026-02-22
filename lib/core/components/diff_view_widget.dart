@@ -88,9 +88,9 @@ class DiffViewColors {
 }
 
 /// Configuration for diff view styling.
-class DiffViewConfig {
+class DiffWidgetConfig {
 
-  DiffViewConfig({
+  DiffWidgetConfig({
     this.fontSize = 13,
     this.lineHeight = 20,
     this.linePaddingHorizontal = 8,
@@ -157,7 +157,7 @@ class DiffView extends StatefulWidget {
   final DiffViewColors? colors;
 
   /// Custom configuration for styling
-  final DiffViewConfig? config;
+  final DiffWidgetConfig? config;
 
   /// Title for the old file (optional)
   final String? oldTitle;
@@ -178,7 +178,7 @@ class DiffView extends StatefulWidget {
 class _DiffViewState extends State<DiffView> {
   late DiffResult _diffResult;
   late DiffViewColors _colors;
-  late DiffViewConfig _config;
+  late DiffWidgetConfig _config;
 
   @override
   void initState() {
@@ -188,7 +188,7 @@ class _DiffViewState extends State<DiffView> {
       widget.newText,
       contextLines: widget.contextLines,
     );
-    _config = widget.config ?? DiffViewConfig();
+    _config = widget.config ?? DiffWidgetConfig();
   }
 
   @override
@@ -210,7 +210,7 @@ class _DiffViewState extends State<DiffView> {
       );
     }
     if (oldWidget.config != widget.config) {
-      _config = widget.config ?? DiffViewConfig();
+      _config = widget.config ?? DiffWidgetConfig();
     }
     if (oldWidget.colors != widget.colors) {
       _colors = _resolveColors(context);
