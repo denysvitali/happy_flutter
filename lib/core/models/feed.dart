@@ -88,6 +88,38 @@ class FeedItem {
       counter: counter ?? this.counter,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FeedItem &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          userId == other.userId &&
+          userName == other.userName &&
+          userAvatarUrl == other.userAvatarUrl &&
+          body == other.body &&
+          createdAt == other.createdAt &&
+          read == other.read &&
+          sessionId == other.sessionId &&
+          repeatKey == other.repeatKey &&
+          cursor == other.cursor &&
+          counter == other.counter;
+
+  @override
+  int get hashCode => Object.hash(
+        id,
+        userId,
+        userName,
+        userAvatarUrl,
+        body,
+        createdAt,
+        read,
+        sessionId,
+        repeatKey,
+        cursor,
+        counter,
+      );
 }
 
 /// Feed body content — discriminated union on [kind].
@@ -131,6 +163,18 @@ class FeedBody {
       text: text ?? this.text,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FeedBody &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          uid == other.uid &&
+          text == other.text;
+
+  @override
+  int get hashCode => Object.hash(kind, uid, text);
 }
 
 /// App notification

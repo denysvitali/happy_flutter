@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_tokens.dart';
+
 /// Represents a single autocomplete suggestion
 class AutocompleteSuggestion {
 
@@ -82,10 +84,10 @@ class _AutocompleteOverlayState extends State<AutocompleteOverlay> {
       constraints: BoxConstraints(maxHeight: widget.maxHeight),
       child: Material(
         elevation: 8,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         color: theme.colorScheme.surface,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           child: Scrollbar(
             controller: _scrollController,
             child: ListView.separated(
@@ -138,12 +140,12 @@ class _SuggestionItem extends StatelessWidget {
         onTap: onTap,
         child: Container(
           height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
           child: Row(
             children: [
               // Icon
               _buildIcon(context),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               // Label
               Expanded(
                 child: Column(
@@ -194,7 +196,7 @@ class _SuggestionItem extends StatelessWidget {
       height: 32,
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Icon(iconData, size: 18, color: iconColor),
     );
@@ -217,10 +219,10 @@ class _SuggestionItem extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xsm, vertical: AppSpacing.xxs),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Text(
         badgeText,

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -282,10 +283,10 @@ class _FriendTile extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundImage: friend.avatarUrl != null
-              ? ResizeImage(
-                  NetworkImage(friend.avatarUrl!),
-                  width: 108,
-                  height: 108,
+              ? CachedNetworkImageProvider(
+                  friend.avatarUrl!,
+                  maxWidth: 108,
+                  maxHeight: 108,
                 )
               : null,
           child: friend.avatarUrl == null
@@ -410,10 +411,10 @@ class _RequestTile extends StatelessWidget {
           children: [
             CircleAvatar(
               backgroundImage: request.fromUserAvatarUrl != null
-                  ? ResizeImage(
-                      NetworkImage(request.fromUserAvatarUrl!),
-                      width: 108,
-                      height: 108,
+                  ? CachedNetworkImageProvider(
+                      request.fromUserAvatarUrl!,
+                      maxWidth: 108,
+                      maxHeight: 108,
                     )
                   : null,
               child: request.fromUserAvatarUrl == null

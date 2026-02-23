@@ -14,6 +14,7 @@ import '../../core/models/auth.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/server_config.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
@@ -1207,7 +1208,9 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
           bytes.add(int.parse(hex.substring(i, i + 2), radix: 16));
         }
         return BackupKeyUtils.encodeKey(Uint8List.fromList(bytes));
-      } catch (_) {}
+      } catch (e, stack) {
+        logger.error('Failed to encode hex key', e, stack);
+      }
     }
 
     final b64 = s.replaceAll('-', '+').replaceAll('_', '/');
@@ -1217,7 +1220,9 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
     try {
       final bytes = base64Decode(padded);
       if (bytes.length == 32) return BackupKeyUtils.encodeKey(bytes);
-    } catch (_) {}
+    } catch (e, stack) {
+      logger.error('Failed to decode base64 key', e, stack);
+    }
     return null;
   }
 

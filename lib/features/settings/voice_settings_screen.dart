@@ -9,11 +9,35 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/voice_languages.dart';
 
 /// Voice settings screen - TTS and voice language selection
-class VoiceSettingsScreen extends ConsumerWidget {
+class VoiceSettingsScreen extends ConsumerStatefulWidget {
   const VoiceSettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VoiceSettingsScreen> createState() => _VoiceSettingsScreenState();
+}
+
+class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
+  List<Map<String, String>> _engines = [];
+  bool _enginesLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEngines();
+  }
+
+  Future<void> _loadEngines() async {
+    final engines = await TtsService().getEngines();
+    if (mounted) {
+      setState(() {
+        _engines = engines;
+        _enginesLoaded = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final settings = ref.watch(settingsNotifierProvider);
     final selectedLanguageCode =
@@ -53,7 +77,10 @@ class VoiceSettingsScreen extends ConsumerWidget {
               ),
               onTap: () async {
                 final tts = TtsService();
-                await tts.init();
+                await tts.init(
+                  language: settings.voiceAssistantLanguage,
+                  engine: settings.ttsEngine,
+                );
                 await tts.speak(
                   'Hello! Text to speech is working.',
                 );
@@ -61,6 +88,78 @@ class VoiceSettingsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
+          // TTS Engine selection
+          if (_enginesLoaded && _engines.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+              child: Text(
+                'Select the TTS engine.',
+                style: TextStyle(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurfaceVariant,
+                ),
+              ),
+            ),
+            // Default engine option
+            Card(
+              child: ListTile(
+                leading: Icon(
+                  Icons.settings_voice,
+                  color: settings.ttsEngine == null
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                ),
+                title: const Text('Default Engine'),
+                subtitle: const Text('Use system default'),
+                trailing: settings.ttsEngine == null
+                    ? Icon(
+                        Icons.check,
+                        color: Theme.of(context).colorScheme.primary,
+                      )
+                    : null,
+                onTap: () {
+                  ref
+                      .read(settingsNotifierProvider.notifier)
+                      .updateSetting('ttsEngine', null);
+                },
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            // Available engines
+            ..._engines.map((engine) {
+              final engineName = engine['name'] ?? 'Unknown';
+              final engineIdentifier = engine['identifier'] ?? '';
+              final isSelected = settings.ttsEngine == engineIdentifier;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Card(
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.settings_voice,
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                    title: Text(engineName),
+                    subtitle: Text(engineIdentifier),
+                    trailing: isSelected
+                        ? Icon(
+                            Icons.check,
+                            color: Theme.of(context).colorScheme.primary,
+                          )
+                        : null,
+                    onTap: () {
+                      ref
+                          .read(settingsNotifierProvider.notifier)
+                          .updateSetting('ttsEngine', engineIdentifier);
+                    },
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: AppSpacing.lg),
+          ],
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.lg),
             child: Text(

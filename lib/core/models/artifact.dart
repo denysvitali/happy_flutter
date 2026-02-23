@@ -2,6 +2,36 @@
 /// Matches React Native implementation in ../happy/sources/sync/artifactTypes.ts
 library;
 
+String _asApiString(dynamic value, String fieldName) {
+  if (value is String) return value;
+  throw FormatException(
+    'Expected String for $fieldName, got ${value.runtimeType}',
+  );
+}
+
+int _asApiInt(dynamic value, String fieldName) {
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
+  throw FormatException(
+    'Expected int for $fieldName, got ${value.runtimeType}',
+  );
+}
+
+String? _asApiStringOptional(dynamic value) {
+  if (value == null) return null;
+  if (value is String) return value;
+  return null;
+}
+
+int? _asApiIntOptional(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
+  return null;
+}
+
 /// Encrypted artifact from API (matches React Native Artifact interface)
 class Artifact {
 
@@ -19,15 +49,18 @@ class Artifact {
 
   factory Artifact.fromJson(Map<String, dynamic> json) {
     return Artifact(
-      id: json['id'] as String,
-      header: json['header'] as String,
-      headerVersion: json['headerVersion'] as int,
-      body: json['body'] as String?,
-      bodyVersion: json['bodyVersion'] as int?,
-      dataEncryptionKey: json['dataEncryptionKey'] as String,
-      seq: json['seq'] as int,
-      createdAt: json['createdAt'] as int,
-      updatedAt: json['updatedAt'] as int,
+      id: _asApiString(json['id'], 'id'),
+      header: _asApiString(json['header'], 'header'),
+      headerVersion: _asApiInt(json['headerVersion'], 'headerVersion'),
+      body: _asApiStringOptional(json['body']),
+      bodyVersion: _asApiIntOptional(json['bodyVersion']),
+      dataEncryptionKey: _asApiString(
+        json['dataEncryptionKey'],
+        'dataEncryptionKey',
+      ),
+      seq: _asApiInt(json['seq'], 'seq'),
+      createdAt: _asApiInt(json['createdAt'], 'createdAt'),
+      updatedAt: _asApiInt(json['updatedAt'], 'updatedAt'),
     );
   }
   final String id;
@@ -77,6 +110,34 @@ class Artifact {
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Artifact &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          header == other.header &&
+          headerVersion == other.headerVersion &&
+          body == other.body &&
+          bodyVersion == other.bodyVersion &&
+          dataEncryptionKey == other.dataEncryptionKey &&
+          seq == other.seq &&
+          createdAt == other.createdAt &&
+          updatedAt == other.updatedAt;
+
+  @override
+  int get hashCode => Object.hash(
+        id,
+        header,
+        headerVersion,
+        body,
+        bodyVersion,
+        dataEncryptionKey,
+        seq,
+        createdAt,
+        updatedAt,
+      );
 }
 
 /// Decrypted artifact header (matches React Native ArtifactHeader interface)
@@ -108,6 +169,18 @@ class ArtifactHeader {
       'draft': draft,
     };
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ArtifactHeader &&
+          runtimeType == other.runtimeType &&
+          title == other.title &&
+          sessions == other.sessions &&
+          draft == other.draft;
+
+  @override
+  int get hashCode => Object.hash(title, sessions, draft);
 }
 
 /// Decrypted artifact body (matches React Native ArtifactBody interface)
@@ -148,18 +221,18 @@ class DecryptedArtifact { // Whether decryption was successful
 
   factory DecryptedArtifact.fromJson(Map<String, dynamic> json) {
     return DecryptedArtifact(
-      id: json['id'] as String,
-      title: json['title'] as String?,
+      id: _asApiString(json['id'], 'id'),
+      title: _asApiStringOptional(json['title']),
       sessions: (json['sessions'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList(),
       draft: json['draft'] as bool?,
-      body: json['body'] as String?,
-      headerVersion: json['headerVersion'] as int,
-      bodyVersion: json['bodyVersion'] as int?,
-      seq: json['seq'] as int,
-      createdAt: json['createdAt'] as int,
-      updatedAt: json['updatedAt'] as int,
+      body: _asApiStringOptional(json['body']),
+      headerVersion: _asApiInt(json['headerVersion'], 'headerVersion'),
+      bodyVersion: _asApiIntOptional(json['bodyVersion']),
+      seq: _asApiInt(json['seq'], 'seq'),
+      createdAt: _asApiInt(json['createdAt'], 'createdAt'),
+      updatedAt: _asApiInt(json['updatedAt'], 'updatedAt'),
       isDecrypted: json['isDecrypted'] as bool? ?? true,
     );
   }
@@ -243,6 +316,38 @@ class DecryptedArtifact { // Whether decryption was successful
       isDecrypted: isDecrypted ?? this.isDecrypted,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DecryptedArtifact &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          sessions == other.sessions &&
+          draft == other.draft &&
+          body == other.body &&
+          headerVersion == other.headerVersion &&
+          bodyVersion == other.bodyVersion &&
+          seq == other.seq &&
+          createdAt == other.createdAt &&
+          updatedAt == other.updatedAt &&
+          isDecrypted == other.isDecrypted;
+
+  @override
+  int get hashCode => Object.hash(
+        id,
+        title,
+        sessions,
+        draft,
+        body,
+        headerVersion,
+        bodyVersion,
+        seq,
+        createdAt,
+        updatedAt,
+        isDecrypted,
+      );
 }
 
 /// Request to create a new artifact
@@ -362,12 +467,12 @@ class ArtifactFolder {
 
   factory ArtifactFolder.fromJson(Map<String, dynamic> json) {
     return ArtifactFolder(
-      id: json['id'] as String,
-      sessionId: json['sessionId'] as String,
-      parentId: json['parentId'] as String?,
-      name: json['name'] as String,
-      createdAt: json['createdAt'] as int,
-      updatedAt: json['updatedAt'] as int,
+      id: _asApiString(json['id'], 'id'),
+      sessionId: _asApiString(json['sessionId'], 'sessionId'),
+      parentId: _asApiStringOptional(json['parentId']),
+      name: _asApiString(json['name'], 'name'),
+      createdAt: _asApiInt(json['createdAt'], 'createdAt'),
+      updatedAt: _asApiInt(json['updatedAt'], 'updatedAt'),
     );
   }
   final String id;

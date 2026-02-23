@@ -2,6 +2,43 @@
 library;
 import 'package:happy_flutter/core/models/todo.dart' show TodoItem;
 
+String _asApiString(dynamic value, String fieldName) {
+  if (value is String) return value;
+  throw FormatException(
+    'Expected String for $fieldName, got ${value.runtimeType}',
+  );
+}
+
+int _asApiInt(dynamic value, String fieldName) {
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
+  throw FormatException(
+    'Expected int for $fieldName, got ${value.runtimeType}',
+  );
+}
+
+bool _asApiBool(dynamic value, String fieldName) {
+  if (value is bool) return value;
+  throw FormatException(
+    'Expected bool for $fieldName, got ${value.runtimeType}',
+  );
+}
+
+String? _asApiStringOptional(dynamic value) {
+  if (value == null) return null;
+  if (value is String) return value;
+  return null;
+}
+
+int? _asApiIntOptional(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
+  return null;
+}
+
 class Metadata {
 
   Metadata({
@@ -22,25 +59,25 @@ class Metadata {
 
   factory Metadata.fromJson(Map<String, dynamic> json) {
     return Metadata(
-      path: json['path'] as String?,
-      host: json['host'] as String,
-      version: json['version'] as String?,
-      name: json['name'] as String?,
-      os: json['os'] as String?,
+      path: _asApiStringOptional(json['path']),
+      host: _asApiString(json['host'], 'host'),
+      version: _asApiStringOptional(json['version']),
+      name: _asApiStringOptional(json['name']),
+      os: _asApiStringOptional(json['os']),
       summary: json['summary'] != null
           ? Summary.fromJson(json['summary'] as Map<String, dynamic>)
           : null,
-      machineId: json['machineId'] as String?,
-      claudeSessionId: json['claudeSessionId'] as String?,
+      machineId: _asApiStringOptional(json['machineId']),
+      claudeSessionId: _asApiStringOptional(json['claudeSessionId']),
       tools:
           (json['tools'] as List<dynamic>?)?.map((e) => e as String).toList(),
       slashCommands: (json['slashCommands'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList(),
-      homeDir: json['homeDir'] as String?,
-      happyHomeDir: json['happyHomeDir'] as String?,
-      hostPid: json['hostPid'] as int?,
-      flavor: json['flavor'] as String?,
+      homeDir: _asApiStringOptional(json['homeDir']),
+      happyHomeDir: _asApiStringOptional(json['happyHomeDir']),
+      hostPid: _asApiIntOptional(json['hostPid']),
+      flavor: _asApiStringOptional(json['flavor']),
     );
   }
   final String? path;
@@ -76,6 +113,44 @@ class Metadata {
       'flavor': flavor,
     };
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Metadata &&
+          runtimeType == other.runtimeType &&
+          path == other.path &&
+          host == other.host &&
+          version == other.version &&
+          name == other.name &&
+          os == other.os &&
+          summary == other.summary &&
+          machineId == other.machineId &&
+          claudeSessionId == other.claudeSessionId &&
+          tools == other.tools &&
+          slashCommands == other.slashCommands &&
+          homeDir == other.homeDir &&
+          happyHomeDir == other.happyHomeDir &&
+          hostPid == other.hostPid &&
+          flavor == other.flavor;
+
+  @override
+  int get hashCode => Object.hash(
+        path,
+        host,
+        version,
+        name,
+        os,
+        summary,
+        machineId,
+        claudeSessionId,
+        tools,
+        slashCommands,
+        homeDir,
+        happyHomeDir,
+        hostPid,
+        flavor,
+      );
 }
 
 class Summary {
@@ -84,8 +159,8 @@ class Summary {
 
   factory Summary.fromJson(Map<String, dynamic> json) {
     return Summary(
-      text: json['text'] as String,
-      updatedAt: json['updatedAt'] as int,
+      text: _asApiString(json['text'], 'text'),
+      updatedAt: _asApiInt(json['updatedAt'], 'updatedAt'),
     );
   }
   final String text;
@@ -147,21 +222,34 @@ class RequestInfo {
 
   factory RequestInfo.fromJson(Map<String, dynamic> json) {
     return RequestInfo(
-      tool: json['tool'] as String,
+      tool: _asApiString(json['tool'], 'tool'),
       arguments: json['arguments'],
-      createdAt: json['createdAt'] as int?,
+      createdAt: _asApiIntOptional(json['createdAt']),
     );
   }
   final String tool;
   final dynamic arguments;
   final int? createdAt;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RequestInfo &&
+          runtimeType == other.runtimeType &&
+          tool == other.tool &&
+          arguments == other.arguments &&
+          createdAt == other.createdAt;
+
+  @override
+  int get hashCode => Object.hash(tool, arguments, createdAt);
 }
 
 class CompletedRequestInfo {
 
   CompletedRequestInfo({
     required this.tool,
-    required this.status, this.arguments,
+    required this.status,
+    this.arguments,
     this.createdAt,
     this.completedAt,
     this.reason,
@@ -172,17 +260,17 @@ class CompletedRequestInfo {
 
   factory CompletedRequestInfo.fromJson(Map<String, dynamic> json) {
     return CompletedRequestInfo(
-      tool: json['tool'] as String,
+      tool: _asApiString(json['tool'], 'tool'),
       arguments: json['arguments'],
-      createdAt: json['createdAt'] as int?,
-      completedAt: json['completedAt'] as int?,
-      status: json['status'] as String,
-      reason: json['reason'] as String?,
-      mode: json['mode'] as String?,
+      createdAt: _asApiIntOptional(json['createdAt']),
+      completedAt: _asApiIntOptional(json['completedAt']),
+      status: _asApiString(json['status'], 'status'),
+      reason: _asApiStringOptional(json['reason']),
+      mode: _asApiStringOptional(json['mode']),
       allowedTools: (json['allowedTools'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList(),
-      decision: json['decision'] as String?,
+      decision: _asApiStringOptional(json['decision']),
     );
   }
   final String tool;
@@ -194,6 +282,34 @@ class CompletedRequestInfo {
   final String? mode;
   final List<String>? allowedTools;
   final String? decision;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CompletedRequestInfo &&
+          runtimeType == other.runtimeType &&
+          tool == other.tool &&
+          arguments == other.arguments &&
+          createdAt == other.createdAt &&
+          completedAt == other.completedAt &&
+          status == other.status &&
+          reason == other.reason &&
+          mode == other.mode &&
+          allowedTools == other.allowedTools &&
+          decision == other.decision;
+
+  @override
+  int get hashCode => Object.hash(
+        tool,
+        arguments,
+        createdAt,
+        completedAt,
+        status,
+        reason,
+        mode,
+        allowedTools,
+        decision,
+      );
 }
 
 /// Main Session model
@@ -223,33 +339,33 @@ class Session {
 
   factory Session.fromJson(Map<String, dynamic> json) {
     return Session(
-      id: json['id'] as String,
-      seq: json['seq'] as int,
-      createdAt: json['createdAt'] as int,
-      updatedAt: json['updatedAt'] as int,
-      active: json['active'] as bool,
-      activeAt: json['activeAt'] as int,
+      id: _asApiString(json['id'], 'id'),
+      seq: _asApiInt(json['seq'], 'seq'),
+      createdAt: _asApiInt(json['createdAt'], 'createdAt'),
+      updatedAt: _asApiInt(json['updatedAt'], 'updatedAt'),
+      active: _asApiBool(json['active'], 'active'),
+      activeAt: _asApiInt(json['activeAt'], 'activeAt'),
       metadata: json['metadata'] != null
           ? Metadata.fromJson(json['metadata'] as Map<String, dynamic>)
           : null,
-      metadataVersion: json['metadataVersion'] as int,
+      metadataVersion: _asApiInt(json['metadataVersion'], 'metadataVersion'),
       agentState: json['agentState'] != null
           ? AgentState.fromJson(json['agentState'] as Map<String, dynamic>)
           : null,
-      agentStateVersion: json['agentStateVersion'] as int,
-      thinking: json['thinking'] as bool,
-      thinkingAt: json['thinkingAt'] as int?,
+      agentStateVersion: _asApiInt(json['agentStateVersion'], 'agentStateVersion'),
+      thinking: _asApiBool(json['thinking'], 'thinking'),
+      thinkingAt: _asApiIntOptional(json['thinkingAt']),
       presence: json['presence'] is String ? json['presence'] as String : 'offline',
       todos: (json['todos'] as List<dynamic>?)
           ?.map((e) => TodoItem.fromJson(e as Map<String, dynamic>))
           .toList(),
-      draft: json['draft'] as String?,
-      permissionMode: json['permissionMode'] as String?,
-      modelMode: json['modelMode'] as String?,
+      draft: _asApiStringOptional(json['draft']),
+      permissionMode: _asApiStringOptional(json['permissionMode']),
+      modelMode: _asApiStringOptional(json['modelMode']),
       latestUsage: json['latestUsage'] != null
           ? UsageData.fromJson(json['latestUsage'] as Map<String, dynamic>)
           : null,
-      lastSeq: json['lastSeq'] as int?,
+      lastSeq: _asApiIntOptional(json['lastSeq']),
     );
   }
   final String id;
@@ -350,6 +466,54 @@ class Session {
       lastSeq: lastSeq ?? this.lastSeq,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Session &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          seq == other.seq &&
+          createdAt == other.createdAt &&
+          updatedAt == other.updatedAt &&
+          active == other.active &&
+          activeAt == other.activeAt &&
+          metadata == other.metadata &&
+          metadataVersion == other.metadataVersion &&
+          agentState == other.agentState &&
+          agentStateVersion == other.agentStateVersion &&
+          thinking == other.thinking &&
+          thinkingAt == other.thinkingAt &&
+          presence == other.presence &&
+          todos == other.todos &&
+          draft == other.draft &&
+          permissionMode == other.permissionMode &&
+          modelMode == other.modelMode &&
+          latestUsage == other.latestUsage &&
+          lastSeq == other.lastSeq;
+
+  @override
+  int get hashCode => Object.hash(
+        id,
+        seq,
+        createdAt,
+        updatedAt,
+        active,
+        activeAt,
+        metadata,
+        metadataVersion,
+        agentState,
+        agentStateVersion,
+        thinking,
+        thinkingAt,
+        presence,
+        todos,
+        draft,
+        permissionMode,
+        modelMode,
+        latestUsage,
+        lastSeq,
+      );
 }
 
 class UsageData {
@@ -365,12 +529,12 @@ class UsageData {
 
   factory UsageData.fromJson(Map<String, dynamic> json) {
     return UsageData(
-      inputTokens: json['inputTokens'] as int,
-      outputTokens: json['outputTokens'] as int,
-      cacheCreation: json['cacheCreation'] as int,
-      cacheRead: json['cacheRead'] as int,
-      contextSize: json['contextSize'] as int,
-      timestamp: json['timestamp'] as int,
+      inputTokens: _asApiInt(json['inputTokens'], 'inputTokens'),
+      outputTokens: _asApiInt(json['outputTokens'], 'outputTokens'),
+      cacheCreation: _asApiInt(json['cacheCreation'], 'cacheCreation'),
+      cacheRead: _asApiInt(json['cacheRead'], 'cacheRead'),
+      contextSize: _asApiInt(json['contextSize'], 'contextSize'),
+      timestamp: _asApiInt(json['timestamp'], 'timestamp'),
     );
   }
   final int inputTokens;

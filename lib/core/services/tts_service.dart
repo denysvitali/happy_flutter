@@ -16,7 +16,7 @@ class TtsService {
   bool _initialized = false;
 
   /// Initialise the TTS engine. Safe to call multiple times.
-  Future<void> init({String? language}) async {
+  Future<void> init({String? language, String? engine}) async {
     if (kIsWeb) return; // TTS not supported on web
     logger.info('[TTS] init called (initialized=$_initialized)');
     _tts ??= FlutterTts();
@@ -36,10 +36,54 @@ class TtsService {
       _initialized = true;
       logger.info('[TTS] Engine initialized');
     }
+    if (engine != null && engine.isNotEmpty) {
+      await _tts!.setEngine(engine);
+      logger.info('[TTS] Engine set to $engine');
+    }
     if (language != null && language.isNotEmpty) {
       await _tts!.setLanguage(language);
       logger.info('[TTS] Language set to $language');
     }
+  }
+
+  /// Update the TTS language. Must be called after init().
+  Future<void> setLanguage(String? language) async {
+    if (kIsWeb || _tts == null) return;
+    if (language != null && language.isNotEmpty) {
+      await _tts!.setLanguage(language);
+      logger.info('[TTS] Language updated to $language');
+    }
+  }
+
+  /// Update the TTS engine. Must be called after init().
+  Future<void> setEngine(String? engine) async {
+    if (kIsWeb || _tts == null) return;
+    if (engine != null && engine.isNotEmpty) {
+      await _tts!.setEngine(engine);
+      logger.info('[TTS] Engine updated to $engine');
+    }
+  }
+
+  /// Get available TTS engines.
+  Future<List<Map<String, String>>> getEngines() async {
+    if (kIsWeb || _tts == null) return [];
+    final engines = await _tts!.getEngines;
+    if (engines == null) return [];
+    return (engines as List).map((e) {
+      final map = e as Map<Object?, Object?>;
+      return map.map((k, v) => MapEntry(k.toString(), v.toString()));
+    }).toList();
+  }
+
+  /// Get available languages for the current engine.
+  Future<List<Map<String, String>>> getLanguages() async {
+    if (kIsWeb || _tts == null) return [];
+    final languages = await _tts!.getLanguages;
+    if (languages == null) return [];
+    return (languages as List).map((e) {
+      final map = e as Map<Object?, Object?>;
+      return map.map((k, v) => MapEntry(k.toString(), v.toString()));
+    }).toList();
   }
 
   /// Speak the given markdown text after stripping formatting.

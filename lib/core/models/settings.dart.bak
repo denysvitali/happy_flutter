@@ -30,7 +30,6 @@ class Settings {
       ..reviewPromptLikedApp = json['reviewPromptLikedApp'] as bool?
       ..ttsEnabled = json['ttsEnabled'] as bool? ?? false
       ..voiceAssistantLanguage = json['voiceAssistantLanguage'] as String?
-      ..ttsEngine = json['ttsEngine'] as String?
       ..preferredLanguage = json['preferredLanguage'] as String?
       ..recentMachinePaths = (json['recentMachinePaths'] as List<dynamic>?)
               ?.map(
@@ -81,7 +80,6 @@ class Settings {
   bool? reviewPromptLikedApp;
   bool ttsEnabled = false;
   String? voiceAssistantLanguage;
-  String? ttsEngine;
   String? preferredLanguage;
   /// Alias for preferredLanguage to maintain compatibility
   String get locale => preferredLanguage ?? '';
@@ -123,7 +121,6 @@ class Settings {
       'reviewPromptLikedApp': reviewPromptLikedApp,
       'ttsEnabled': ttsEnabled,
       'voiceAssistantLanguage': voiceAssistantLanguage,
-      'ttsEngine': ttsEngine,
       'preferredLanguage': preferredLanguage,
       'recentMachinePaths': recentMachinePaths.map((e) => e.toJson()).toList(),
       'lastUsedAgent': lastUsedAgent,
@@ -136,97 +133,6 @@ class Settings {
       'favoriteMachines': favoriteMachines,
       'dismissedCLIWarnings': dismissedCLIWarnings.toJson(),
     };
-  }
-
-  Settings copyWith({
-    int? schemaVersion,
-    String? themeMode,
-    bool? viewInline,
-    String? inferenceOpenAIKey,
-    bool? expandTodos,
-    bool? showLineNumbers,
-    bool? showLineNumbersInToolViews,
-    bool? wrapLinesInDiffs,
-    bool? analyticsOptOut,
-    bool? experiments,
-    bool? markdownCopyV2,
-    bool? useEnhancedSessionWizard,
-    bool? alwaysShowContextSize,
-    bool? agentInputEnterToSend,
-    bool? developerModeEnabled,
-    String? avatarStyle,
-    bool? showFlavorIcons,
-    bool? compactSessionView,
-    bool? hideInactiveSessions,
-    bool? reviewPromptAnswered,
-    bool? reviewPromptLikedApp,
-    bool? ttsEnabled,
-    String? voiceAssistantLanguage,
-    String? ttsEngine,
-    String? preferredLanguage,
-    List<RecentMachinePath>? recentMachinePaths,
-    String? lastUsedAgent,
-    String? lastUsedPermissionMode,
-    String? lastUsedModelMode,
-    List<AIBackendProfile>? profiles,
-    String? lastUsedProfile,
-    List<String>? favoriteDirectories,
-    List<String>? favoriteMachines,
-    DismissedCLIWarnings? dismissedCLIWarnings,
-  }) {
-    return Settings()
-      ..schemaVersion = schemaVersion ?? this.schemaVersion
-      ..themeMode = themeMode ?? this.themeMode
-      ..viewInline = viewInline ?? this.viewInline
-      ..inferenceOpenAIKey = inferenceOpenAIKey ?? this.inferenceOpenAIKey
-      ..expandTodos = expandTodos ?? this.expandTodos
-      ..showLineNumbers = showLineNumbers ?? this.showLineNumbers
-      ..showLineNumbersInToolViews =
-          showLineNumbersInToolViews ?? this.showLineNumbersInToolViews
-      ..wrapLinesInDiffs = wrapLinesInDiffs ?? this.wrapLinesInDiffs
-      ..analyticsOptOut = analyticsOptOut ?? this.analyticsOptOut
-      ..experiments = experiments ?? this.experiments
-      ..markdownCopyV2 = markdownCopyV2 ?? this.markdownCopyV2
-      ..useEnhancedSessionWizard =
-          useEnhancedSessionWizard ?? this.useEnhancedSessionWizard
-      ..alwaysShowContextSize =
-          alwaysShowContextSize ?? this.alwaysShowContextSize
-      ..agentInputEnterToSend =
-          agentInputEnterToSend ?? this.agentInputEnterToSend
-      ..developerModeEnabled =
-          developerModeEnabled ?? this.developerModeEnabled
-      ..avatarStyle = avatarStyle ?? this.avatarStyle
-      ..showFlavorIcons = showFlavorIcons ?? this.showFlavorIcons
-      ..compactSessionView = compactSessionView ?? this.compactSessionView
-      ..hideInactiveSessions = hideInactiveSessions ?? this.hideInactiveSessions
-      ..reviewPromptAnswered =
-          reviewPromptAnswered ?? this.reviewPromptAnswered
-      ..reviewPromptLikedApp =
-          reviewPromptLikedApp ?? this.reviewPromptLikedApp
-      ..ttsEnabled = ttsEnabled ?? this.ttsEnabled
-      ..voiceAssistantLanguage =
-          voiceAssistantLanguage ?? this.voiceAssistantLanguage
-      ..ttsEngine = ttsEngine ?? this.ttsEngine
-      ..preferredLanguage = preferredLanguage ?? this.preferredLanguage
-      ..recentMachinePaths = recentMachinePaths != null
-          ? List<RecentMachinePath>.from(recentMachinePaths)
-          : List<RecentMachinePath>.from(this.recentMachinePaths)
-      ..lastUsedAgent = lastUsedAgent ?? this.lastUsedAgent
-      ..lastUsedPermissionMode =
-          lastUsedPermissionMode ?? this.lastUsedPermissionMode
-      ..lastUsedModelMode = lastUsedModelMode ?? this.lastUsedModelMode
-      ..profiles = profiles != null
-          ? List<AIBackendProfile>.from(profiles)
-          : List<AIBackendProfile>.from(this.profiles)
-      ..lastUsedProfile = lastUsedProfile ?? this.lastUsedProfile
-      ..favoriteDirectories = favoriteDirectories != null
-          ? List<String>.from(favoriteDirectories)
-          : List<String>.from(this.favoriteDirectories)
-      ..favoriteMachines = favoriteMachines != null
-          ? List<String>.from(favoriteMachines)
-          : List<String>.from(this.favoriteMachines)
-      ..dismissedCLIWarnings =
-          dismissedCLIWarnings ?? this.dismissedCLIWarnings;
   }
 }
 

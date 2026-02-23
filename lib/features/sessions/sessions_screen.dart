@@ -20,6 +20,7 @@ import '../../core/components/app_status_dot.dart';
 import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
 import 'session_avatar.dart';
+import 'widgets/widgets.dart';
 
 // ─── Stagger constants ───────────────────────────────────────────────────────
 const _kStaggerStep = 30; // ms between each card
@@ -27,19 +28,22 @@ const _kSlideDuration = 250; // ms for slide+fade
 
 /// Sessions list screen with date grouping and enhanced status display.
 class SessionsScreen extends ConsumerStatefulWidget {
-  const SessionsScreen({super.key});
+  const SessionsScreen({super.key, this.initialTab});
+
+  final String? initialTab;
 
   @override
   ConsumerState<SessionsScreen> createState() => _SessionsScreenState();
 }
 
 class _SessionsScreenState extends ConsumerState<SessionsScreen> {
-  AppTab _activeTab = AppTab.sessions;
+  late AppTab _activeTab;
   StreamSubscription<void>? _syncSubscription;
 
   @override
   void initState() {
     super.initState();
+    _activeTab = _parseTab(widget.initialTab);
     Future<void>.microtask(() async {
       await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
       await ref.read(friendsNotifierProvider.notifier).refreshFromSync();
@@ -55,11 +59,46 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     });
   }
 
+  AppTab _parseTab(String? tab) {
+    return switch (tab) {
+      'inbox' => AppTab.inbox,
+      'settings' => AppTab.settings,
+      'sessions' => AppTab.sessions,
+      _ => AppTab.sessions,
+    };
+  }
+
+  String _tabToString(AppTab tab) {
+    return switch (tab) {
+      AppTab.inbox => 'inbox',
+      AppTab.sessions => 'sessions',
+      AppTab.settings => 'settings',
+    };
+  }
+
+  void _updateUrlTab(AppTab tab) {
+    final router = GoRouter.of(context);
+    final currentUri = router.routeInformationProvider.value.uri;
+
+    // Only update if we're on the sessions route
+    if (currentUri.path == '/sessions') {
+      final newTab = _tabToString(tab);
+      final newUri = currentUri.replace(
+        queryParameters: newTab == 'sessions' ? {} : {'tab': newTab},
+      );
+
+      // Use replace to avoid adding to history stack for tab switches
+      router.replace(newUri.toString());
+    }
+  }
+
   @override
   void dispose() {
     _syncSubscription?.cancel();
     super.dispose();
   }
+
+  DateTime? _lastBackPressTime;
 
   @override
   Widget build(BuildContext context) {
@@ -75,14 +114,39 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       ),
     );
 
-    return Scaffold(
-      appBar: _buildAppBar(context, l10n),
-      body: _buildCurrentTabContent(),
-      bottomNavigationBar: TabBar(
-        activeTab: _activeTab,
-        onTabPress: (tab) => setState(() => _activeTab = tab),
-        inboxBadgeCount: inboxBadgeCount,
-        showInboxBadge: showInboxDot,
+    return PopScope(
+      canPop: _activeTab == AppTab.sessions,
+      onPopInvoked: (didPop) {
+        if (!didPop && _activeTab != AppTab.sessions) {
+          setState(() => _activeTab = AppTab.sessions);
+          _updateUrlTab(AppTab.sessions);
+        } else if (!didPop && _activeTab == AppTab.sessions) {
+          final now = DateTime.now();
+          if (_lastBackPressTime == null ||
+              now.difference(_lastBackPressTime!) >
+                  const Duration(seconds: 2)) {
+            _lastBackPressTime = now;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Press back again to exit'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: _buildAppBar(context, l10n),
+        body: _buildCurrentTabContent(),
+        bottomNavigationBar: TabBar(
+          activeTab: _activeTab,
+          onTabPress: (tab) {
+            setState(() => _activeTab = tab);
+            _updateUrlTab(tab);
+          },
+          inboxBadgeCount: inboxBadgeCount,
+          showInboxBadge: showInboxDot,
+        ),
       ),
     );
   }

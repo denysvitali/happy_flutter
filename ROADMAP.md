@@ -222,24 +222,7 @@ This roadmap tracks the work needed to achieve full feature parity between **hap
   - `test/encryption/web_crypto_test.dart` - 20+ test cases for web crypto
   - Tests for encryption/decryption roundtrip, edge cases, and cross-platform compatibility
 - **JS Interop**: Proper dart:js_interop_unsafe for Web Crypto API bindings
-
-### 2025-01-25 - Authentication (P1 #4) ✅ COMPLETED
-- **Link Device Feature**: Full parity with React Native implementation
-  - QR code generation and scanning
-  - Device linking via QR code and URL input
-  - Deep link handling (`happy://` protocol)
-- **Account Management**:
-  - Secret key backup with Crockford's base32 encoding (`XXXXX-XXXXX-XXXXX...`)
-  - Account restoration from backup key
-  - Linked devices management (view/unlink)
-  - Connected services display (Claude, GitHub, Gemini, OpenAI)
-- **Tests**: 80+ comprehensive tests added
-  - `test/services/auth_service_test.dart` - Auth URL parsing, credentials, exceptions
-  - `test/encryption/crypto_box_test.dart` - Encryption/decryption roundtrip
-  - `test/utils/backup_key_utils_test.dart` - Backup key encoding/decoding
-- **Documentation**: `docs/LINK_DEVICE_FEATURE_PARITY.md` - Detailed analysis
-
----
+**Last Updated**: 2026-02-22
 
 ## Project Context
 
@@ -301,7 +284,8 @@ This roadmap tracks the work needed to achieve full feature parity between **hap
 - [rn-encryption npm package](https://www.npmjs.com/package/rn-encryption)
 - [cryptography package](https://pub.dev/packages/cryptography)
 
-### 2. libsodium Integration - IN PROGRESS
+### 2. libsodium Integration ✅ **COMPLETED**
+**Status**: Full libsodium integration with 24-byte nonce alignment completed
 **Issue**: Different nonce sizes and algorithms (24 bytes vs 16 bytes)
 **Impact**: Cannot decrypt React Native session/machine data
 
@@ -637,16 +621,22 @@ This roadmap tracks the work needed to achieve full feature parity between **hap
 
 ## P2: Enhanced Features
 
-### 11. Sessions - Feature Parity
-**Missing**: Date grouping, avatars, enhanced status, vibing messages
+### 11. Sessions - Feature Parity 🔄 **PARTIAL**
+**Status**: Core functionality complete, UI polish remaining
 
-| Task | Description |
-|------|-------------|
-| Date headers | Group sessions by "Today", "Yesterday", etc. |
-| Session avatars | Support brutalist, gradient, pixelated styles |
-| Enhanced status states | disconnected, thinking, waiting, permission_required |
-| Vibing messages | "Accomplishing...", "Actioning..." animations |
-| Active sessions section | Separate group for currently active sessions |
+| Task | Description | Status |
+|------|-------------|--------|
+| Date headers | Group sessions by "Today", "Yesterday", etc. | ⏳ Pending |
+| Session avatars | Support brutalist, gradient, pixelated styles | ✅ Done |
+| Enhanced status states | disconnected, thinking, waiting, permission_required | ✅ Done |
+| Vibing messages | "Accomplishing...", "Actioning..." animations | ⏳ Pending |
+| Active sessions section | Separate group for currently active sessions | ✅ Done |
+
+**What's Implemented**:
+- `lib/features/sessions/session_avatar.dart` - Multiple avatar styles (brutalist, gradient, pixelated, circle)
+- `lib/core/components/app_status_dot.dart` - Enhanced status indicators
+- `lib/core/ui/status_bar/` - Status bar provider for dynamic theming
+- Active sessions grouping in session list
 
 **References**:
 - React Native: `/../happy/sources/app/(app)/session/recent.tsx`, `/../happy/sources/sync/storage.ts`

@@ -544,8 +544,22 @@ class AppLocalizations {
 
   // Common (extended)
   String get commonUnknown => 'unknown';
+  String get commonPressBackAgainToExit => 'Press back again to exit';
   String authError(String error) =>
       'Error: $error';
+
+  // Back button confirmation
+  String get commonUnsavedChanges => 'Unsaved Changes';
+  String get commonUnsavedChangesMessage =>
+      'You have unsaved changes. Are you sure you want to leave?';
+  String get commonLeave => 'Leave';
+  String get commonStay => 'Stay';
+  String get commonUnsentMessage => 'Unsent Message';
+  String get commonUnsentMessageConfirm =>
+      'You have an unsent message. Are you sure you want to leave?';
+  String get commonOperationInProgress => 'Operation In Progress';
+  String get commonOperationInProgressConfirm =>
+      'An operation is in progress. Are you sure you want to leave?';
 }
 
 /// Localizations delegate

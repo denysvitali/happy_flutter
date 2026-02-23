@@ -97,7 +97,21 @@ class _EditArtifactScreenState
     // Populate fields once on first build after artifact loads.
     _initFromArtifact(artifact);
 
-    return Scaffold(
+    // Check for unsaved changes
+    final originalTitle = artifact.title ?? '';
+    final originalContent = artifact.body ?? '';
+    final currentTitle = _titleController.text.trim();
+    final currentContent = _contentController.text.trim();
+    final hasUnsavedChanges = currentTitle != originalTitle || currentContent != originalContent;
+
+    return PopScope(
+      canPop: !hasUnsavedChanges,
+      onPopInvoked: (didPop) {
+        if (!didPop && hasUnsavedChanges) {
+          _showUnsavedChangesDialog(context);
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text(l10n.artifactsEdit),
         actions: [
@@ -169,6 +183,33 @@ class _EditArtifactScreenState
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showUnsavedChangesDialog(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unsaved Changes'),
+        content: const Text(
+          'You have unsaved changes. Are you sure you want to leave?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Stay'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: cs.error),
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.of(this.context).pop();
+            },
+            child: const Text('Leave'),
+          ),
+        ],
       ),
     );
   }

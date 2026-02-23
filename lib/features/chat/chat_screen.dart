@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
@@ -19,6 +18,11 @@ import '../../core/theme/app_tokens.dart';
 import 'chat_input.dart';
 import 'message_widget.dart';
 import 'widgets/permission_mode_selector.dart';
+import 'widgets/chat_app_bar.dart';
+import 'widgets/empty_chat_view.dart';
+import 'widgets/permission_required_banner.dart';
+import 'widgets/scroll_to_bottom_pill.dart';
+import 'widgets/typing_indicator.dart';
 
 /// Chat screen for a session
 class ChatScreen extends ConsumerStatefulWidget {
@@ -57,7 +61,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _scrollController.addListener(_onScroll);
     _loadSavedPermissionMode();
     _initializeSyncBackedChat();
-    unawaited(TtsService().init());
+    final settings = ref.read(settingsNotifierProvider);
+    unawaited(TtsService().init(
+      language: settings.voiceAssistantLanguage,
+      engine: settings.ttsEngine,
+    ));
   }
 
   Future<void> _loadSavedPermissionMode() async {
@@ -331,9 +339,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final isThinking = _session?.thinking ?? false;
+    final hasUnsentMessage = _controller.text.trim().isNotEmpty;
 
-    return Scaffold(
-      appBar: _ChatAppBar(
+    return PopScope(
+      canPop: !hasUnsentMessage,
+      onPopInvoked: (didPop) {
+        if (!didPop && hasUnsentMessage) {
+          _showUnsentMessageDialog(context);
+        }
+      },
+      child: Scaffold(
+      appBar: ChatAppBar(
         session: _session,
         sessionTitle: _getSessionTitle(),
         relativePath: _formatRelativePath(_session?.metadata?.path),
@@ -366,7 +382,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           ),
                         )
                       : _messages.isEmpty
-                      ? const _EmptyChatView(key: ValueKey('empty'))
+                      ? const EmptyChatView(key: ValueKey('empty'))
                       : _buildMessageList(),
                 ),
                 // Scroll-to-bottom pill
@@ -403,7 +419,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             bottom: AppSpacing.md,
                           ),
                           child:
-                              _ScrollToBottomPill(
+                              ScrollToBottomPill(
                             onTap: () {
                               HapticFeedback
                                   .lightImpact();
@@ -447,7 +463,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 right: AppSpacing.lg,
                                 bottom: 8,
                               ),
-                              child: _TypingIndicator(),
+                              child: TypingIndicator(),
                             ),
                           )
                         : const SizedBox.shrink(key: ValueKey('no-typing')),
@@ -457,7 +473,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
           if (_session?.agentState?.requests?.isNotEmpty ?? false)
-            _PermissionRequiredBanner(onTap: () => _scrollToBottom()),
+            PermissionRequiredBanner(onTap: () => _scrollToBottom()),
           ChatInput(
             sessionId: widget.sessionId,
             controller: _controller,
@@ -778,6 +794,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  void _showUnsentMessageDialog(BuildContext context) {
+    final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unsent Message'),
+        content: const Text(
+          'You have an unsent message. Are you sure you want to leave?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Stay'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: cs.error),
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.of(this.context).pop();
+            },
+            child: const Text('Leave'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _confirmDelete(BuildContext context) {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
@@ -820,10 +864,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 }
 
-// ─── _ChatAppBar ──────────────────────────────────────────────────────────
+// ─── ChatAppBar ──────────────────────────────────────────────────────────
 
-class _ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _ChatAppBar({
+class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const ChatAppBar({
     required this.session,
     required this.sessionTitle,
     required this.relativePath,
@@ -951,10 +995,10 @@ class _PathChip extends StatelessWidget {
   }
 }
 
-// ─── _ScrollToBottomPill ──────────────────────────────────────────────────
+// ─── ScrollToBottomPill ──────────────────────────────────────────────────
 
-class _ScrollToBottomPill extends StatelessWidget {
-  const _ScrollToBottomPill({required this.onTap});
+class ScrollToBottomPill extends StatelessWidget {
+  const ScrollToBottomPill({required this.onTap});
   final VoidCallback onTap;
 
   @override
@@ -996,10 +1040,10 @@ class _ScrollToBottomPill extends StatelessWidget {
   }
 }
 
-// ─── _PermissionRequiredBanner ────────────────────────────────────────────
+// ─── PermissionRequiredBanner ────────────────────────────────────────────
 
-class _PermissionRequiredBanner extends StatelessWidget {
-  const _PermissionRequiredBanner({required this.onTap});
+class PermissionRequiredBanner extends StatelessWidget {
+  const PermissionRequiredBanner({required this.onTap});
   final VoidCallback onTap;
 
   @override
@@ -1055,10 +1099,10 @@ class _PermissionRequiredBanner extends StatelessWidget {
   }
 }
 
-// ─── _EmptyChatView ───────────────────────────────────────────────────────
+// ─── EmptyChatView ───────────────────────────────────────────────────────
 
-class _EmptyChatView extends StatelessWidget {
-  const _EmptyChatView({super.key});
+class EmptyChatView extends StatelessWidget {
+  const EmptyChatView({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -1100,16 +1144,16 @@ class _EmptyChatView extends StatelessWidget {
   }
 }
 
-// ─── _TypingIndicator ─────────────────────────────────────────────────────
+// ─── TypingIndicator ─────────────────────────────────────────────────────
 
-class _TypingIndicator extends StatefulWidget {
-  const _TypingIndicator();
+class TypingIndicator extends StatefulWidget {
+  const TypingIndicator();
 
   @override
-  State<_TypingIndicator> createState() => _TypingIndicatorState();
+  State<TypingIndicator> createState() => TypingIndicatorState();
 }
 
-class _TypingIndicatorState extends State<_TypingIndicator>
+class TypingIndicatorState extends State<TypingIndicator>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _dot1;

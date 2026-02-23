@@ -205,68 +205,53 @@ class SettingsNotifier extends Notifier<Settings> {
   }
 
   Settings _updateSetting(Settings settings, String key, dynamic value) {
-    // Mutate fields then return new instance via JSON roundtrip so Riverpod
-    // detects the change (object reference must differ).
-    final updated = settings;
-    switch (key) {
-      case 'schemaVersion':
-        updated.schemaVersion = value as int;
-      case 'themeMode':
-        updated.themeMode = value as String;
-      case 'viewInline':
-        updated.viewInline = value as bool;
-      case 'inferenceOpenAIKey':
-        updated.inferenceOpenAIKey = value as String?;
-      case 'expandTodos':
-        updated.expandTodos = value as bool;
-      case 'showLineNumbers':
-        updated.showLineNumbers = value as bool;
-      case 'showLineNumbersInToolViews':
-        updated.showLineNumbersInToolViews = value as bool;
-      case 'wrapLinesInDiffs':
-        updated.wrapLinesInDiffs = value as bool;
-      case 'analyticsOptOut':
-        updated.analyticsOptOut = value as bool;
-      case 'experiments':
-        updated.experiments = value as bool;
-      case 'markdownCopyV2':
-        updated.markdownCopyV2 = value as bool;
-      case 'useEnhancedSessionWizard':
-        updated.useEnhancedSessionWizard = value as bool;
-      case 'alwaysShowContextSize':
-        updated.alwaysShowContextSize = value as bool;
-      case 'agentInputEnterToSend':
-        updated.agentInputEnterToSend = value as bool;
-      case 'developerModeEnabled':
-        updated.developerModeEnabled = value as bool;
-      case 'avatarStyle':
-        updated.avatarStyle = value as String;
-      case 'showFlavorIcons':
-        updated.showFlavorIcons = value as bool;
-      case 'compactSessionView':
-        updated.compactSessionView = value as bool;
-      case 'hideInactiveSessions':
-        updated.hideInactiveSessions = value as bool;
-      case 'reviewPromptAnswered':
-        updated.reviewPromptAnswered = value as bool;
-      case 'reviewPromptLikedApp':
-        updated.reviewPromptLikedApp = value as bool?;
-      case 'ttsEnabled':
-        updated.ttsEnabled = value as bool;
-      case 'voiceAssistantLanguage':
-        updated.voiceAssistantLanguage = value as String?;
-      case 'preferredLanguage':
-        updated.preferredLanguage = value as String?;
-      case 'lastUsedAgent':
-        updated.lastUsedAgent = value as String?;
-      case 'lastUsedPermissionMode':
-        updated.lastUsedPermissionMode = value as String?;
-      case 'lastUsedModelMode':
-        updated.lastUsedModelMode = value as String?;
-      case 'lastUsedProfile':
-        updated.lastUsedProfile = value as String?;
-    }
-    return Settings.fromJson(updated.toJson());
+    // Use copyWith for immutable state updates
+    return switch (key) {
+      'schemaVersion' => settings.copyWith(schemaVersion: value as int),
+      'themeMode' => settings.copyWith(themeMode: value as String),
+      'viewInline' => settings.copyWith(viewInline: value as bool),
+      'inferenceOpenAIKey' =>
+          settings.copyWith(inferenceOpenAIKey: value as String?),
+      'expandTodos' => settings.copyWith(expandTodos: value as bool),
+      'showLineNumbers' => settings.copyWith(showLineNumbers: value as bool),
+      'showLineNumbersInToolViews' =>
+          settings.copyWith(showLineNumbersInToolViews: value as bool),
+      'wrapLinesInDiffs' => settings.copyWith(wrapLinesInDiffs: value as bool),
+      'analyticsOptOut' => settings.copyWith(analyticsOptOut: value as bool),
+      'experiments' => settings.copyWith(experiments: value as bool),
+      'markdownCopyV2' => settings.copyWith(markdownCopyV2: value as bool),
+      'useEnhancedSessionWizard' =>
+          settings.copyWith(useEnhancedSessionWizard: value as bool),
+      'alwaysShowContextSize' =>
+          settings.copyWith(alwaysShowContextSize: value as bool),
+      'agentInputEnterToSend' =>
+          settings.copyWith(agentInputEnterToSend: value as bool),
+      'developerModeEnabled' =>
+          settings.copyWith(developerModeEnabled: value as bool),
+      'avatarStyle' => settings.copyWith(avatarStyle: value as String),
+      'showFlavorIcons' => settings.copyWith(showFlavorIcons: value as bool),
+      'compactSessionView' =>
+          settings.copyWith(compactSessionView: value as bool),
+      'hideInactiveSessions' =>
+          settings.copyWith(hideInactiveSessions: value as bool),
+      'reviewPromptAnswered' =>
+          settings.copyWith(reviewPromptAnswered: value as bool),
+      'reviewPromptLikedApp' =>
+          settings.copyWith(reviewPromptLikedApp: value as bool?),
+      'ttsEnabled' => settings.copyWith(ttsEnabled: value as bool),
+      'voiceAssistantLanguage' =>
+          settings.copyWith(voiceAssistantLanguage: value as String?),
+      'preferredLanguage' =>
+          settings.copyWith(preferredLanguage: value as String?),
+      'lastUsedAgent' => settings.copyWith(lastUsedAgent: value as String?),
+      'lastUsedPermissionMode' =>
+          settings.copyWith(lastUsedPermissionMode: value as String?),
+      'lastUsedModelMode' =>
+          settings.copyWith(lastUsedModelMode: value as String?),
+      'lastUsedProfile' =>
+          settings.copyWith(lastUsedProfile: value as String?),
+      _ => settings,
+    };
   }
 }
 

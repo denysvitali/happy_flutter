@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 /// Avatar style options
@@ -964,25 +965,22 @@ class Avatar extends StatelessWidget {
         MediaQuery.devicePixelRatioOf(context)).toInt();
     final imageElement = ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
-      child: Image.network(
-        imageUrl!,
+      child: CachedNetworkImage(
+        imageUrl: imageUrl!,
         width: size,
         height: size,
         fit: BoxFit.cover,
-        cacheWidth: cacheSize,
-        cacheHeight: cacheSize,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            width: size,
-            height: size,
-            color: Theme.of(context)
-                .colorScheme
-                .surfaceContainerHighest,
-            child: const Center(child: CircularProgressIndicator()),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) => Container(
+        memCacheWidth: cacheSize,
+        memCacheHeight: cacheSize,
+        placeholder: (context, url) => Container(
+          width: size,
+          height: size,
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest,
+          child: const Center(child: CircularProgressIndicator()),
+        ),
+        errorWidget: (context, url, error) => Container(
           width: size,
           height: size,
           color: Theme.of(context)

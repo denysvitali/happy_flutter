@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/services/tts_service.dart';
 import 'markdown/markdown.dart';
 import 'tools/known_tools.dart';
 import 'tools/tool_status_indicator.dart';
@@ -12,7 +15,7 @@ import 'tools/tool_status_indicator.dart';
 /// Shows the sidechain messages (children) of the Task as a scrollable
 /// chat-like feed. Updates live as new sidechain messages stream in from
 /// the background agent output watcher.
-class AgentConversationScreen extends StatefulWidget {
+class AgentConversationScreen extends ConsumerStatefulWidget {
   /// Creates an [AgentConversationScreen].
   const AgentConversationScreen({
     required this.sessionId,
@@ -31,12 +34,12 @@ class AgentConversationScreen extends StatefulWidget {
   final Map<String, dynamic>? taskData;
 
   @override
-  State<AgentConversationScreen> createState() =>
+  ConsumerState<AgentConversationScreen> createState() =>
       _AgentConversationScreenState();
 }
 
 class _AgentConversationScreenState
-    extends State<AgentConversationScreen> {
+    extends ConsumerState<AgentConversationScreen> {
   final ScrollController _scroll = ScrollController();
   StreamSubscription<String>? _messageSubscription;
   Map<String, dynamic>? _taskMsg;
@@ -49,6 +52,11 @@ class _AgentConversationScreenState
     _messageSubscription = sync.onSessionMessagesChanged
         .where((id) => id == widget.sessionId)
         .listen((_) => _refresh());
+    final settings = ref.read(settingsNotifierProvider);
+    unawaited(TtsService().init(
+      language: settings.voiceAssistantLanguage,
+      engine: settings.ttsEngine,
+    ));
     _refresh(); // initial load
   }
 
@@ -61,6 +69,8 @@ class _AgentConversationScreenState
         final children = msg['children'] as List<dynamic>?;
         final count = children?.length ?? 0;
         if (count != _prevChildCount) {
+          // Speak new text messages via TTS when enabled.
+          _speakNewMessages(children);
           setState(() {
             _taskMsg = Map<String, dynamic>.from(msg);
             _prevChildCount = count;
@@ -81,10 +91,29 @@ class _AgentConversationScreenState
     }
   }
 
+  void _speakNewMessages(List<dynamic>? children) {
+    final settings = ref.read(settingsNotifierProvider);
+    if (!settings.ttsEnabled || children == null || children.isEmpty) return;
+
+    // Get the latest child message
+    final latestChild = children.last;
+    if (latestChild is Map<String, dynamic>) {
+      final kind = latestChild['kind'] as String?;
+      final content = latestChild['content'] as String? ?? '';
+      final isThinking = latestChild['isThinking'] == true;
+
+      // Only speak text messages that are not thinking
+      if (kind == 'text' && content.isNotEmpty && !isThinking) {
+        unawaited(TtsService().speak(content));
+      }
+    }
+  }
+
   @override
   void dispose() {
     _messageSubscription?.cancel();
     _scroll.dispose();
+    TtsService().stop();
     super.dispose();
   }
 
@@ -243,10 +272,10 @@ class _ThinkingRow extends StatelessWidget {
 
 class _ToolRow extends StatelessWidget {
   const _ToolRow({
-    super.key,
     required this.theme,
     required this.msg,
     required this.metadata,
+    super.key,
   });
   final ThemeData theme;
   final Map<String, dynamic> msg;
@@ -318,9 +347,9 @@ class _ToolRow extends StatelessWidget {
 
 class _ErrorRow extends StatelessWidget {
   const _ErrorRow({
-    super.key,
     required this.theme,
     required this.msg,
+    super.key,
   });
 
   final ThemeData theme;

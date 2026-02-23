@@ -447,7 +447,7 @@ class _DefaultSessionContent extends ConsumerWidget {
 
 class _SessionListItem extends StatelessWidget {
 
-  const _SessionListItem({super.key, required this.session});
+  const _SessionListItem({required this.session, super.key});
   final Session session;
 
   @override

@@ -201,15 +201,23 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/',
           name: 'auth',
-          builder: (context, state) => AuthGate(
-            initialDeepLink: widget.initialDeepLink,
-            child: SessionsScreen(),
-          ),
+          builder: (context, state) {
+            final tabParam = state.uri.queryParameters['tab'];
+            return AuthGate(
+              initialDeepLink: widget.initialDeepLink,
+              child: SessionsScreen(initialTab: tabParam),
+            );
+          },
         ),
         GoRoute(
           path: '/sessions',
           name: 'sessions',
-          builder: (context, state) => AuthGate(child: SessionsScreen()),
+          builder: (context, state) {
+            final tabParam = state.uri.queryParameters['tab'];
+            return AuthGate(
+              child: SessionsScreen(initialTab: tabParam),
+            );
+          },
         ),
         GoRoute(
           path: '/chat/:sessionId',

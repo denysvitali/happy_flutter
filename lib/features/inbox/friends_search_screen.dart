@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/models/friend.dart';
@@ -133,10 +134,10 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundImage: user.avatarUrl != null
-                                  ? ResizeImage(
-                                      NetworkImage(user.avatarUrl!),
-                                      width: 108,
-                                      height: 108,
+                                  ? CachedNetworkImageProvider(
+                                      user.avatarUrl!,
+                                      maxWidth: 108,
+                                      maxHeight: 108,
                                     )
                                   : null,
                               child: user.avatarUrl == null

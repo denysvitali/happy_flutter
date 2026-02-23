@@ -128,7 +128,9 @@ class SocketIoClient {
 
       final handlers = _messageHandlers[event];
       if (handlers != null) {
-        for (final h in List.of(handlers)) h(data);
+        for (final h in List.of(handlers)) {
+        h(data);
+      }
       }
 
       if (event == 'update' && data is Map<String, dynamic>) {

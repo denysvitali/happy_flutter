@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,7 +12,6 @@ import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/profile.dart';
-import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/certificate_provider.dart';
 import '../../core/services/server_config.dart';
@@ -25,7 +25,36 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(settingsNotifierProvider);
+    final themeMode = ref.watch(
+      settingsNotifierProvider.select((s) => s.themeMode),
+    );
+    final locale = ref.watch(
+      settingsNotifierProvider.select((s) => s.locale),
+    );
+    final showFlavorIcons = ref.watch(
+      settingsNotifierProvider.select((s) => s.showFlavorIcons),
+    );
+    final avatarStyle = ref.watch(
+      settingsNotifierProvider.select((s) => s.avatarStyle),
+    );
+    final viewInline = ref.watch(
+      settingsNotifierProvider.select((s) => s.viewInline),
+    );
+    final expandTodos = ref.watch(
+      settingsNotifierProvider.select((s) => s.expandTodos),
+    );
+    final showLineNumbers = ref.watch(
+      settingsNotifierProvider.select((s) => s.showLineNumbers),
+    );
+    final wrapLinesInDiffs = ref.watch(
+      settingsNotifierProvider.select((s) => s.wrapLinesInDiffs),
+    );
+    final ttsEnabled = ref.watch(
+      settingsNotifierProvider.select((s) => s.ttsEnabled),
+    );
+    final developerModeEnabled = ref.watch(
+      settingsNotifierProvider.select((s) => s.developerModeEnabled),
+    );
     final profile = ref.watch(profileNotifierProvider);
     final machines = ref.watch(machinesNotifierProvider);
     final l10n = AppLocalizations.of(context);
@@ -40,11 +69,29 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           _ProfileHeader(profile: profile),
           const SizedBox(height: AppSpacing.xl),
-          _buildAppearanceSection(context, settings, ref),
+          _buildAppearanceSection(
+            context,
+            themeMode: themeMode,
+            locale: locale,
+            showFlavorIcons: showFlavorIcons,
+            avatarStyle: avatarStyle,
+            ref: ref,
+          ),
           const SizedBox(height: AppSpacing.lg),
-          _buildBehaviorSection(context, settings, ref),
+          _buildBehaviorSection(
+            context,
+            viewInline: viewInline,
+            expandTodos: expandTodos,
+            showLineNumbers: showLineNumbers,
+            wrapLinesInDiffs: wrapLinesInDiffs,
+            ref: ref,
+          ),
           const SizedBox(height: AppSpacing.lg),
-          _buildVoiceSection(context, settings, ref),
+          _buildVoiceSection(
+            context,
+            ttsEnabled: ttsEnabled,
+            ref: ref,
+          ),
           const SizedBox(height: AppSpacing.lg),
           _buildConnectedAccountsSection(context, ref, profile),
           const SizedBox(height: AppSpacing.lg),
@@ -64,7 +111,10 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           _buildServerSection(context),
           const SizedBox(height: AppSpacing.lg),
-          _buildDeveloperSection(context, settings),
+          _buildDeveloperSection(
+            context,
+            developerModeEnabled: developerModeEnabled,
+          ),
           const SizedBox(height: AppSpacing.lg),
           _buildAboutSection(context),
           const SizedBox(height: AppSpacing.xl),
@@ -155,12 +205,15 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildAppearanceSection(
-    BuildContext context,
-    Settings settings,
-    WidgetRef ref,
-  ) {
+    BuildContext context, {
+    required String themeMode,
+    required String locale,
+    required bool showFlavorIcons,
+    required String avatarStyle,
+    required WidgetRef ref,
+  }) {
     final l10n = AppLocalizations.of(context);
-    final themeModeLabel = switch (settings.themeMode) {
+    final themeModeLabel = switch (themeMode) {
       'light' => l10n.appearanceThemeLight,
       'dark' => l10n.appearanceThemeDark,
       'adaptive' => l10n.appearanceThemeAdaptive,
@@ -179,16 +232,16 @@ class SettingsScreen extends ConsumerWidget {
         SettingsNavRow(
           icon: Icons.language,
           title: l10n.settingsLanguage,
-          subtitle: settings.locale.isEmpty
+          subtitle: locale.isEmpty
               ? l10n.settingsLanguageAutomatic
-              : _getLocaleDisplayName(settings.locale),
+              : _getLocaleDisplayName(locale),
           onTap: () => context.pushNamed('language'),
         ),
         SettingsToggleRow(
           icon: Icons.emoji_emotions_outlined,
           title: l10n.settingsShowFlavorIcons,
           subtitle: l10n.settingsShowFlavorIconsSubtitle,
-          value: settings.showFlavorIcons,
+          value: showFlavorIcons,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('showFlavorIcons', value),
@@ -196,8 +249,8 @@ class SettingsScreen extends ConsumerWidget {
         SettingsNavRow(
           icon: Icons.account_circle_outlined,
           title: l10n.settingsAvatarStyle,
-          subtitle: settings.avatarStyle,
-          onTap: () => showAvatarStyleDialog(context, settings, ref),
+          subtitle: avatarStyle,
+          onTap: () => showAvatarStyleDialog(context, avatarStyle, ref),
         ),
       ],
     );
@@ -214,10 +267,13 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildBehaviorSection(
-    BuildContext context,
-    Settings settings,
-    WidgetRef ref,
-  ) {
+    BuildContext context, {
+    required bool viewInline,
+    required bool expandTodos,
+    required bool showLineNumbers,
+    required bool wrapLinesInDiffs,
+    required WidgetRef ref,
+  }) {
     final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsBehavior,
@@ -226,7 +282,7 @@ class SettingsScreen extends ConsumerWidget {
           icon: Icons.open_in_new_outlined,
           title: l10n.settingsViewInline,
           subtitle: l10n.settingsViewInlineSubtitle,
-          value: settings.viewInline,
+          value: viewInline,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('viewInline', value),
@@ -234,7 +290,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsToggleRow(
           icon: Icons.check_box_outlined,
           title: l10n.settingsExpandTodos,
-          value: settings.expandTodos,
+          value: expandTodos,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('expandTodos', value),
@@ -242,7 +298,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsToggleRow(
           icon: Icons.format_list_numbered,
           title: l10n.settingsShowLineNumbers,
-          value: settings.showLineNumbers,
+          value: showLineNumbers,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('showLineNumbers', value),
@@ -250,7 +306,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsToggleRow(
           icon: Icons.wrap_text,
           title: l10n.settingsWrapLinesInDiffs,
-          value: settings.wrapLinesInDiffs,
+          value: wrapLinesInDiffs,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('wrapLinesInDiffs', value),
@@ -260,10 +316,10 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildVoiceSection(
-    BuildContext context,
-    Settings settings,
-    WidgetRef ref,
-  ) {
+    BuildContext context, {
+    required bool ttsEnabled,
+    required WidgetRef ref,
+  }) {
     return SettingsSection(
       title: 'Voice',
       children: [
@@ -271,7 +327,7 @@ class SettingsScreen extends ConsumerWidget {
           icon: Icons.volume_up_outlined,
           title: 'Text-to-Speech',
           subtitle: 'Read assistant messages aloud',
-          value: settings.ttsEnabled,
+          value: ttsEnabled,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('ttsEnabled', value),
@@ -388,7 +444,10 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDeveloperSection(BuildContext context, Settings settings) {
+  Widget _buildDeveloperSection(
+    BuildContext context, {
+    required bool developerModeEnabled,
+  }) {
     final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsDeveloper,
@@ -396,7 +455,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsNavRow(
           icon: Icons.build,
           title: 'Developer Options',
-          subtitle: settings.developerModeEnabled
+          subtitle: developerModeEnabled
               ? 'Enabled'
               : 'Tap 10 times to enable',
           onTap: () => context.pushNamed('developer'),
@@ -653,7 +712,7 @@ class SettingsScreen extends ConsumerWidget {
 
   void showAvatarStyleDialog(
     BuildContext context,
-    Settings settings,
+    String currentAvatarStyle,
     WidgetRef ref,
   ) {
     showDialog(
@@ -663,7 +722,7 @@ class SettingsScreen extends ConsumerWidget {
         return AlertDialog(
           title: Text(l10nDialog.settingsAvatarStyle),
           content: RadioGroup<String>(
-            groupValue: settings.avatarStyle,
+            groupValue: currentAvatarStyle,
             onChanged: (value) {
               ref
                   .read(settingsNotifierProvider.notifier)
@@ -770,10 +829,10 @@ class _ProfileHeader extends StatelessWidget {
                 radius: 36,
                 backgroundColor: cs.primaryContainer,
                 backgroundImage: avatarUrl != null
-                    ? ResizeImage(
-                        NetworkImage(avatarUrl),
-                        width: 216,
-                        height: 216,
+                    ? CachedNetworkImageProvider(
+                        avatarUrl,
+                        maxWidth: 216,
+                        maxHeight: 216,
                       )
                     : null,
                 child: avatarUrl == null

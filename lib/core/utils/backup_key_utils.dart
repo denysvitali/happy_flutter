@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'dart:typed_data';
 
+import '../services/logger_service.dart';
+
 /// Utility for backing up and restoring secret keys using base32 with dashes
 /// format.
 ///
@@ -53,7 +55,8 @@ class BackupKeyUtils {
     try {
       decodeKey(formattedKey);
       return true;
-    } catch (_) {
+    } catch (e, stack) {
+      logger.error('Failed to validate backup key', e, stack);
       return false;
     }
   }

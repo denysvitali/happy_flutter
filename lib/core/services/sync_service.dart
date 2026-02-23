@@ -15,8 +15,8 @@ import '../encryption/encryption_cache.dart';
 import '../encryption/encryption_manager.dart';
 import '../models/api_update.dart';
 import '../models/artifact.dart';
-import '../models/built_in_profiles.dart';
 import '../models/auth.dart';
+import '../models/built_in_profiles.dart';
 import '../models/feed.dart';
 import '../models/friend.dart';
 import '../models/machine.dart';
@@ -339,7 +339,9 @@ what you have, you must use the options mode.
   /// Handle incoming updates
   void handleUpdate(dynamic data) {
     if (data is! Map<String, dynamic>) {
-      if (kDebugMode) debugPrint('handleUpdate: unexpected data type: ${data.runtimeType}');
+      if (kDebugMode) {
+        debugPrint('handleUpdate: unexpected data type: ${data.runtimeType}');
+      }
       return;
     }
     try {
@@ -833,11 +835,12 @@ what you have, you must use the options mode.
             rawData['machines'] is List) {
           data = rawData['machines'] as List;
         } else {
-          if (kDebugMode)
+          if (kDebugMode) {
             debugPrint(
               'Unexpected response format for machines: '
               '${rawData?.runtimeType}',
             );
+          }
           return;
         }
 
@@ -2320,10 +2323,11 @@ what you have, you must use the options mode.
 
     final sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint(
           'Session encryption not initialized for $sessionId, skipping fetch',
         );
+      }
       return;
     }
 

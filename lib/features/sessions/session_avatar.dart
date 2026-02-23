@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/ui/avatars/avatar_brutalist.dart';
@@ -87,18 +88,20 @@ class SessionAvatar extends StatelessWidget {
       borderRadius: square ? BorderRadius.zero : BorderRadius.circular(
         size / 2,
       ),
-      child: Image.network(
-        imageUrl!,
+      child: CachedNetworkImage(
+        imageUrl: imageUrl!,
         width: size,
         height: size,
         fit: BoxFit.cover,
-        cacheWidth: (size * 3).toInt(),
-        cacheHeight: (size * 3).toInt(),
-        errorBuilder: (
-          context,
-          error,
-          stackTrace,
-        ) => _buildFallbackAvatar(context),
+        memCacheWidth: (size * 3).toInt(),
+        memCacheHeight: (size * 3).toInt(),
+        placeholder: (context, url) => Container(
+          width: size,
+          height: size,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: const Center(child: CircularProgressIndicator()),
+        ),
+        errorWidget: (context, url, error) => _buildFallbackAvatar(context),
       ),
     );
 

@@ -103,133 +103,165 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       );
     }
 
+    // Build a unified list of all items for lazy loading with ListView.builder
+    final items = _buildUnifiedList(
+      feedState.items,
+      incoming,
+      requested,
+      friends,
+    );
+
     return RefreshIndicator(
       onRefresh: _refresh,
-      child: ListView(
+      child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.md,
           AppSpacing.md,
           AppSpacing.md,
           AppSpacing.xl,
         ),
-        children: [
-          _InboxHeader(onFindFriends: _showFindFriendsSheet),
-          if (feedState.items.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            _Section(
-              title: 'Updates',
-              child: Column(
-                children: feedState.items
-                    .map(
-                      (item) => _FeedCard(
-                        key: ValueKey(item.id),
-                        item: item,
-                        l10n: context.l10n,
-                        onTap: () {
-                          ref
-                              .read(feedNotifierProvider.notifier)
-                              .markAsRead(item.id);
-                          final sid = item.sessionId;
-                          if (sid != null) {
-                            context.pushNamed(
-                              'chat',
-                              pathParameters: {'sessionId': sid},
-                            );
-                          }
-                        },
-                      ),
-                    )
-                    .toList(growable: false),
-              ),
-            ),
-          ],
-          if (incoming.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            _Section(
-              title: 'Pending Requests',
-              child: Column(
-                children: incoming
-                    .map(
-                      (request) => _FriendRequestCard(
-                        key: ValueKey(request.fromUserId),
-                        request: request,
-                        disabled: _isBusy,
-                        onAccept: () => _runFriendAction(
-                          () => _socialService.addFriend(
-                            request.fromUserId,
-                          ),
-                          context.l10n.friendsRequestAccepted,
-                        ),
-                        onReject: () => _runFriendAction(
-                          () => _socialService.removeFriend(
-                            request.fromUserId,
-                          ),
-                          context.l10n.friendsRequestRejected,
-                        ),
-                      ),
-                    )
-                    .toList(growable: false),
-              ),
-            ),
-          ],
-          if (requested.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            _Section(
-              title: 'Sent Requests',
-              child: Column(
-                children: requested
-                    .map(
-                      (friend) => _UserRow(
-                        key: ValueKey(friend.id),
-                        title: friend.name ?? friend.id,
-                        subtitle: 'Request pending',
-                        userId: friend.id,
-                        avatarUrl: friend.avatarUrl,
-                        trailing: TextButton(
-                          onPressed: _isBusy
-                              ? null
-                              : () => _runFriendAction(
-                                    () => _socialService.removeFriend(
-                                      friend.id,
-                                    ),
-                                    'Request canceled',
-                                  ),
-                          child: Text(context.l10n.commonCancel),
-                        ),
-                      ),
-                    )
-                    .toList(growable: false),
-              ),
-            ),
-          ],
-          if (friends.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            _Section(
-              title: 'My Friends',
-              child: Column(
-                children: friends
-                    .map(
-                      (friend) => _UserRow(
-                        key: ValueKey(friend.id),
-                        title: friend.name ?? friend.id,
-                        subtitle: 'Friend',
-                        userId: friend.id,
-                        avatarUrl: friend.avatarUrl,
-                        trailing: TextButton(
-                          onPressed: _isBusy
-                              ? null
-                              : () => _showRemoveFriendDialog(friend),
-                          child: Text(context.l10n.friendsRemoveAction),
-                        ),
-                      ),
-                    )
-                    .toList(growable: false),
-              ),
-            ),
-          ],
-        ],
+        itemCount: items.length + 1, // +1 for header
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return _InboxHeader(onFindFriends: _showFindFriendsSheet);
+          }
+          return items[index - 1];
+        },
       ),
     );
+  }
+
+  /// Builds a unified list of widgets representing all inbox sections and items.
+  ///
+  /// This enables lazy loading via ListView.builder instead of building all
+  /// items at once with Column+map, which was O(N) and slow for large
+  /// inboxes.
+  List<Widget> _buildUnifiedList(
+    List<FeedItem> feedItems,
+    List<FriendRequest> incoming,
+    List<UserProfile> requested,
+    List<UserProfile> friends,
+  ) {
+    final items = <Widget>[];
+
+    // Feed section
+    if (feedItems.isNotEmpty) {
+      items.add(const SizedBox(height: AppSpacing.sm));
+      items.add(
+        _SectionHeader(
+          key: const ValueKey('feed_header'),
+          title: 'Updates',
+        ),
+      );
+      items.addAll(
+        feedItems.map(
+          (item) => _FeedCard(
+            key: ValueKey('feed_${item.id}'),
+            item: item,
+            l10n: context.l10n,
+            onTap: () {
+              ref.read(feedNotifierProvider.notifier).markAsRead(item.id);
+              final sid = item.sessionId;
+              if (sid != null) {
+                context.pushNamed(
+                  'chat',
+                  pathParameters: {'sessionId': sid},
+                );
+              }
+            },
+          ),
+        ),
+      );
+    }
+
+    // Incoming requests section
+    if (incoming.isNotEmpty) {
+      items.add(const SizedBox(height: AppSpacing.sm));
+      items.add(
+        _SectionHeader(
+          key: const ValueKey('incoming_header'),
+          title: 'Pending Requests',
+        ),
+      );
+      items.addAll(
+        incoming.map(
+          (request) => _FriendRequestCard(
+            key: ValueKey('incoming_${request.fromUserId}'),
+            request: request,
+            disabled: _isBusy,
+            onAccept: () => _runFriendAction(
+              () => _socialService.addFriend(request.fromUserId),
+              context.l10n.friendsRequestAccepted,
+            ),
+            onReject: () => _runFriendAction(
+              () => _socialService.removeFriend(request.fromUserId),
+              context.l10n.friendsRequestRejected,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Sent requests section
+    if (requested.isNotEmpty) {
+      items.add(const SizedBox(height: AppSpacing.sm));
+      items.add(
+        _SectionHeader(
+          key: const ValueKey('requested_header'),
+          title: 'Sent Requests',
+        ),
+      );
+      items.addAll(
+        requested.map(
+          (friend) => _UserRow(
+            key: ValueKey('requested_${friend.id}'),
+            title: friend.name ?? friend.id,
+            subtitle: 'Request pending',
+            userId: friend.id,
+            avatarUrl: friend.avatarUrl,
+            trailing: TextButton(
+              onPressed: _isBusy
+                  ? null
+                  : () => _runFriendAction(
+                        () => _socialService.removeFriend(friend.id),
+                        'Request canceled',
+                      ),
+              child: Text(context.l10n.commonCancel),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Friends section
+    if (friends.isNotEmpty) {
+      items.add(const SizedBox(height: AppSpacing.sm));
+      items.add(
+        _SectionHeader(
+          key: const ValueKey('friends_header'),
+          title: 'My Friends',
+        ),
+      );
+      items.addAll(
+        friends.map(
+          (friend) => _UserRow(
+            key: ValueKey('friend_${friend.id}'),
+            title: friend.name ?? friend.id,
+            subtitle: 'Friend',
+            userId: friend.id,
+            avatarUrl: friend.avatarUrl,
+            trailing: TextButton(
+              onPressed: _isBusy
+                  ? null
+                  : () => _showRemoveFriendDialog(friend),
+              child: Text(context.l10n.friendsRemoveAction),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return items;
   }
 
   Future<void> _showRemoveFriendDialog(UserProfile friend) async {
@@ -341,46 +373,29 @@ class _InboxEmptyView extends StatelessWidget {
   }
 }
 
-// ── Section container ──────────────────────────────────────────────────────
+// ── Section header ─────────────────────────────────────────────────────────
 
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.child});
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required Key key, required this.title})
+      : super(key: key);
 
   final String title;
-  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.35,
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.xs,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.md,
-              AppSpacing.lg,
-              AppSpacing.xs,
-            ),
-            child: Text(
-              title,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          child,
-        ],
+      child: Text(
+        title,
+        style: theme.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

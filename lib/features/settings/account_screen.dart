@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,10 +56,10 @@ class AccountScreen extends ConsumerWidget {
         ListTile(
           leading: profile?.avatarUrl != null
               ? CircleAvatar(
-                  backgroundImage: ResizeImage(
-                    NetworkImage(profile!.avatarUrl!),
-                    width: (48 * 3).toInt(),
-                    height: (48 * 3).toInt(),
+                  backgroundImage: CachedNetworkImageProvider(
+                    profile!.avatarUrl!,
+                    maxWidth: (48 * 3).toInt(),
+                    maxHeight: (48 * 3).toInt(),
                   ),
                 )
               : const CircleAvatar(

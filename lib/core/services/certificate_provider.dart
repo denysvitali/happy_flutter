@@ -77,7 +77,7 @@ class CertificateProvider {
 
   /// Get bundled certificates from assets
   Future<Uint8List?> _getBundledCertificates() async {
-    // TODO: Implement actual certificate pinning using bundled server
+    // TODO(user): Implement actual certificate pinning using bundled server
     // certificates. Bundle CA certs in assets/certs/ for enterprise
     // deployments.
     return null;

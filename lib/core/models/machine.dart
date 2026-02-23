@@ -1,3 +1,40 @@
+String _asApiString(dynamic value, String fieldName) {
+  if (value is String) return value;
+  throw FormatException(
+    'Expected String for $fieldName, got ${value.runtimeType}',
+  );
+}
+
+int _asApiInt(dynamic value, String fieldName) {
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
+  throw FormatException(
+    'Expected int for $fieldName, got ${value.runtimeType}',
+  );
+}
+
+bool _asApiBool(dynamic value, String fieldName) {
+  if (value is bool) return value;
+  throw FormatException(
+    'Expected bool for $fieldName, got ${value.runtimeType}',
+  );
+}
+
+String? _asApiStringOptional(dynamic value) {
+  if (value == null) return null;
+  if (value is String) return value;
+  return null;
+}
+
+int? _asApiIntOptional(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
+  return null;
+}
+
 /// Machine metadata schema
 class MachineMetadata {
 
@@ -18,18 +55,18 @@ class MachineMetadata {
 
   factory MachineMetadata.fromJson(Map<String, dynamic> json) {
     return MachineMetadata(
-      host: json['host'] as String,
-      platform: json['platform'] as String,
-      happyCliVersion: json['happyCliVersion'] as String,
-      happyHomeDir: json['happyHomeDir'] as String,
-      homeDir: json['homeDir'] as String,
-      username: json['username'] as String?,
-      arch: json['arch'] as String?,
-      displayName: json['displayName'] as String?,
-      daemonLastKnownStatus: json['daemonLastKnownStatus'] as String?,
-      daemonLastKnownPid: json['daemonLastKnownPid'] as int?,
-      shutdownRequestedAt: json['shutdownRequestedAt'] as int?,
-      shutdownSource: json['shutdownSource'] as String?,
+      host: _asApiString(json['host'], 'host'),
+      platform: _asApiString(json['platform'], 'platform'),
+      happyCliVersion: _asApiString(json['happyCliVersion'], 'happyCliVersion'),
+      happyHomeDir: _asApiString(json['happyHomeDir'], 'happyHomeDir'),
+      homeDir: _asApiString(json['homeDir'], 'homeDir'),
+      username: _asApiStringOptional(json['username']),
+      arch: _asApiStringOptional(json['arch']),
+      displayName: _asApiStringOptional(json['displayName']),
+      daemonLastKnownStatus: _asApiStringOptional(json['daemonLastKnownStatus']),
+      daemonLastKnownPid: _asApiIntOptional(json['daemonLastKnownPid']),
+      shutdownRequestedAt: _asApiIntOptional(json['shutdownRequestedAt']),
+      shutdownSource: _asApiStringOptional(json['shutdownSource']),
     );
   }
   final String host;
@@ -61,6 +98,40 @@ class MachineMetadata {
       'shutdownSource': shutdownSource,
     };
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MachineMetadata &&
+          runtimeType == other.runtimeType &&
+          host == other.host &&
+          platform == other.platform &&
+          happyCliVersion == other.happyCliVersion &&
+          happyHomeDir == other.happyHomeDir &&
+          homeDir == other.homeDir &&
+          username == other.username &&
+          arch == other.arch &&
+          displayName == other.displayName &&
+          daemonLastKnownStatus == other.daemonLastKnownStatus &&
+          daemonLastKnownPid == other.daemonLastKnownPid &&
+          shutdownRequestedAt == other.shutdownRequestedAt &&
+          shutdownSource == other.shutdownSource;
+
+  @override
+  int get hashCode => Object.hash(
+        host,
+        platform,
+        happyCliVersion,
+        happyHomeDir,
+        homeDir,
+        username,
+        arch,
+        displayName,
+        daemonLastKnownStatus,
+        daemonLastKnownPid,
+        shutdownRequestedAt,
+        shutdownSource,
+      );
 }
 
 /// Machine model
@@ -81,18 +152,18 @@ class Machine {
 
   factory Machine.fromJson(Map<String, dynamic> json) {
     return Machine(
-      id: json['id'] as String,
-      seq: json['seq'] as int,
-      createdAt: json['createdAt'] as int,
-      updatedAt: json['updatedAt'] as int,
-      active: json['active'] as bool,
-      activeAt: json['activeAt'] as int,
+      id: _asApiString(json['id'], 'id'),
+      seq: _asApiInt(json['seq'], 'seq'),
+      createdAt: _asApiInt(json['createdAt'], 'createdAt'),
+      updatedAt: _asApiInt(json['updatedAt'], 'updatedAt'),
+      active: _asApiBool(json['active'], 'active'),
+      activeAt: _asApiInt(json['activeAt'], 'activeAt'),
       metadata: json['metadata'] != null
           ? MachineMetadata.fromJson(json['metadata'] as Map<String, dynamic>)
           : null,
-      metadataVersion: json['metadataVersion'] as int,
+      metadataVersion: _asApiInt(json['metadataVersion'], 'metadataVersion'),
       daemonState: json['daemonState'] as Map<String, dynamic>?,
-      daemonStateVersion: json['daemonStateVersion'] as int,
+      daemonStateVersion: _asApiInt(json['daemonStateVersion'], 'daemonStateVersion'),
     );
   }
   final String id;
@@ -120,6 +191,36 @@ class Machine {
       'daemonStateVersion': daemonStateVersion,
     };
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Machine &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          seq == other.seq &&
+          createdAt == other.createdAt &&
+          updatedAt == other.updatedAt &&
+          active == other.active &&
+          activeAt == other.activeAt &&
+          metadata == other.metadata &&
+          metadataVersion == other.metadataVersion &&
+          daemonState == other.daemonState &&
+          daemonStateVersion == other.daemonStateVersion;
+
+  @override
+  int get hashCode => Object.hash(
+        id,
+        seq,
+        createdAt,
+        updatedAt,
+        active,
+        activeAt,
+        metadata,
+        metadataVersion,
+        daemonState,
+        daemonStateVersion,
+      );
 }
 
 /// Git status model
@@ -245,4 +346,48 @@ class GitStatus {
       stashCount: stashCount ?? this.stashCount,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GitStatus &&
+          runtimeType == other.runtimeType &&
+          branch == other.branch &&
+          isDirty == other.isDirty &&
+          modifiedCount == other.modifiedCount &&
+          untrackedCount == other.untrackedCount &&
+          stagedCount == other.stagedCount &&
+          lastUpdatedAt == other.lastUpdatedAt &&
+          stagedLinesAdded == other.stagedLinesAdded &&
+          stagedLinesRemoved == other.stagedLinesRemoved &&
+          unstagedLinesAdded == other.unstagedLinesAdded &&
+          unstagedLinesRemoved == other.unstagedLinesRemoved &&
+          linesAdded == other.linesAdded &&
+          linesRemoved == other.linesRemoved &&
+          linesChanged == other.linesChanged &&
+          upstreamBranch == other.upstreamBranch &&
+          aheadCount == other.aheadCount &&
+          behindCount == other.behindCount &&
+          stashCount == other.stashCount;
+
+  @override
+  int get hashCode => Object.hash(
+        branch,
+        isDirty,
+        modifiedCount,
+        untrackedCount,
+        stagedCount,
+        lastUpdatedAt,
+        stagedLinesAdded,
+        stagedLinesRemoved,
+        unstagedLinesAdded,
+        unstagedLinesRemoved,
+        linesAdded,
+        linesRemoved,
+        linesChanged,
+        upstreamBranch,
+        aheadCount,
+        behindCount,
+        stashCount,
+      );
 }
