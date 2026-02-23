@@ -2985,13 +2985,15 @@ what you have, you must use the options mode.
     }
 
     if (dataType == 'tool-call-result') {
+      // Support both 'output' and 'content' fields for tool result
+      final result = data['output'] ?? data['content'];
       return (
         [],
         [
           {
             'toolUseId': data['callId'],
-            'result': data['output'],
-            'isError': false,
+            'result': result,
+            'isError': data['isError'] == true || data['is_error'] == true,
             'createdAt': createdAt,
           },
         ],
@@ -3072,13 +3074,15 @@ what you have, you must use the options mode.
     }
 
     if (dataType == 'tool-result' || dataType == 'tool-call-result') {
+      // Support both 'output' and 'content' fields for tool result
+      final result = data['output'] ?? data['content'];
       return (
         [],
         [
           {
             'toolUseId': data['callId'],
-            'result': data['output'],
-            'isError': data['isError'] == true,
+            'result': result,
+            'isError': data['isError'] == true || data['is_error'] == true,
             'createdAt': createdAt,
           },
         ],
