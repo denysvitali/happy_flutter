@@ -261,37 +261,40 @@ class _MarkdownParser {
         );
       }
 
-      // Bold: **text**
-      if (match.group(1) != null) {
-        final boldText = match.group(2)!;
-        spans.add(MarkdownSpan(
-          styles: isHeader ? [] : [MarkdownTextStyle.bold],
-          text: boldText,
-          url: null,
-        ));
-      }
-      // Italic: *text*
-      else if (match.group(3) != null) {
-        final italicText = match.group(4)!;
-        spans.add(MarkdownSpan(
-          styles: isHeader ? [] : [MarkdownTextStyle.italic],
-          text: italicText,
-          url: null,
-        ));
-      }
       // Link: [text](url) or incomplete link [text]
-      else if (match.group(5) != null) {
-        final linkText = match.group(6)!;
-        final url = match.group(7);
+      if (match.group(1) != null) {
+        final linkText = match.group(2)!;
+        final url = match.group(3);
         spans.add(MarkdownSpan(
           styles: const [],
           text: url != null ? linkText : '[$linkText]',
           url: url,
         ));
       }
-      // Inline code: `text`
-      else if (match.group(8) != null) {
-        final codeText = match.group(9)!;
+      // Bold: **text** - strip the ** delimiters
+      else if (match.group(4) != null) {
+        final boldMatch = match.group(4)!;
+        final boldText = boldMatch.substring(2, boldMatch.length - 2);
+        spans.add(MarkdownSpan(
+          styles: isHeader ? [] : [MarkdownTextStyle.bold],
+          text: boldText,
+          url: null,
+        ));
+      }
+      // Italic: *text* - strip the * delimiters
+      else if (match.group(6) != null) {
+        final italicMatch = match.group(6)!;
+        final italicText = italicMatch.substring(1, italicMatch.length - 1);
+        spans.add(MarkdownSpan(
+          styles: isHeader ? [] : [MarkdownTextStyle.italic],
+          text: italicText,
+          url: null,
+        ));
+      }
+      // Inline code: `text` - strip backticks
+      else if (match.group(7) != null) {
+        final codeMatch = match.group(7)!;
+        final codeText = codeMatch.substring(1, codeMatch.length - 1);
         spans.add(MarkdownSpan(
           styles: [MarkdownTextStyle.code],
           text: codeText,
@@ -314,8 +317,17 @@ class _MarkdownParser {
     return spans;
   }
 
+  /// Regex for parsing inline spans (links, bold, italic, code).
+  ///
+  /// IMPORTANT: Links must be matched BEFORE bold/italic to handle cases
+  /// like `**[link](url)**` - otherwise the entire thing is captured
+  /// as bold. Bold/italic patterns use negative lookahead to avoid
+  /// matching when link syntax is present inside.
   static final _spanPattern = RegExp(
-    r'(\*\*(.*?)(?:\*\*|$))|(\*(.*?)(?:\*|$))|(\[([^\]]+)\](?:\(([^)]+)\))?)|(`(.*?)(?:`|$))',
+    r'(\[([^\]]+)\](?:\(([^)]+)\))?)'
+    r'|(\*\*(?:(?!\[[^\]]+\]\([^)]+\)).)+?\*\*)'
+    r'|(\*(?:(?!\[[^\]]+\]\([^)]+\)).)+?\*)'
+    r'|(\`.+?\`)',
   );
 
   String get trimmed => lines[index].trim();
