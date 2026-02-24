@@ -66,6 +66,8 @@ dependencies:
 
 dependency_overrides:
   sodium_libs: 3.4.6+3
+  # Fix for webview_flutter_android Pigeon API compatibility with Flutter 3.38.7
+  webview_flutter_android: 3.16.3
 
 dev_dependencies:
   flutter_test:
