@@ -766,3 +766,49 @@ class TodoListState {
   int get completedCount =>
       allTodos.where((t) => t.status == TodoState.completed).length;
 }
+
+/// Session git status provider
+final sessionGitStatusNotifierProvider =
+    NotifierProvider<SessionGitStatusNotifier, Map<String, GitStatus>>(() {
+      return SessionGitStatusNotifier();
+    });
+
+class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
+  @override
+  Map<String, GitStatus> build() => {};
+
+  void loadFromSync() {
+    if (!sync.isInitialized) {
+      return;
+    }
+    // Load from sync if available (future compatibility)
+    // For now, the git status is managed locally by this provider
+    state = Map<String, GitStatus>.from(sync.sessionGitStatus);
+  }
+
+  Future<void> refreshFromSync() async {
+    if (!sync.isInitialized) {
+      return;
+    }
+    await sync.sessionGitStatusSync.invalidateAndAwait();
+    loadFromSync();
+  }
+
+  void setGitStatus(String sessionId, GitStatus status) {
+    state = {...state, sessionId: status};
+  }
+
+  void clearGitStatus(String sessionId) {
+    state = Map<String, GitStatus>.from(state)..remove(sessionId);
+  }
+
+  void setAllGitStatuses(Map<String, GitStatus> statuses) {
+    state = Map<String, GitStatus>.from(statuses);
+  }
+
+  GitStatus? getGitStatus(String sessionId) => state[sessionId];
+
+  void clear() {
+    state = {};
+  }
+}
