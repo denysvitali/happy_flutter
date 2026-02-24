@@ -25,7 +25,7 @@ class Settings {
       ..avatarStyle = json['avatarStyle'] as String? ?? 'brutalist'
       ..showFlavorIcons = json['showFlavorIcons'] as bool? ?? false
       ..compactSessionView = json['compactSessionView'] as bool? ?? false
-      ..hideInactiveSessions = json['hideInactiveSessions'] as bool? ?? false
+      ..hideInactiveSessions = json['hideInactiveSessions'] as bool? ?? true
       ..reviewPromptAnswered = json['reviewPromptAnswered'] as bool? ?? false
       ..reviewPromptLikedApp = json['reviewPromptLikedApp'] as bool?
       ..ttsEnabled = json['ttsEnabled'] as bool? ?? false
@@ -77,7 +77,7 @@ class Settings {
   String avatarStyle = 'brutalist';
   bool showFlavorIcons = false;
   bool compactSessionView = false;
-  bool hideInactiveSessions = false;
+  bool hideInactiveSessions = true;
   bool reviewPromptAnswered = false;
   bool? reviewPromptLikedApp;
   bool ttsEnabled = false;

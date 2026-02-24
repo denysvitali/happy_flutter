@@ -57,7 +57,7 @@ void main() {
       expect(settings.alwaysShowContextSize, isFalse);
       expect(settings.developerModeEnabled, isFalse);
       expect(settings.showFlavorIcons, isFalse);
-      expect(settings.hideInactiveSessions, isFalse);
+      expect(settings.hideInactiveSessions, isTrue);
       expect(settings.reviewPromptAnswered, isFalse);
     });
 
