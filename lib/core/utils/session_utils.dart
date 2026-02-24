@@ -9,6 +9,25 @@ import '../models/session.dart';
 // consumers of session_utils.dart continue to work without modification.
 export 'utils.dart' show formatTimestamp;
 
+/// Formats a date for display as a date header.
+/// Returns "Today", "Yesterday", or "X days ago" (localized).
+String formatDateHeader(DateTime date) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final yesterday = today.subtract(const Duration(days: 1));
+  final sessionDate = DateTime(date.year, date.month, date.day);
+
+  if (sessionDate.isAtSameMomentAs(today)) {
+    return 'Today';
+  } else if (sessionDate.isAtSameMomentAs(yesterday)) {
+    return 'Yesterday';
+  } else {
+    final diffTime = today.difference(sessionDate);
+    final diffDays = diffTime.inDays;
+    return '$diffDays days ago';
+  }
+}
+
 /// Date grouping categories for session history
 enum DateGroup { today, yesterday, lastSevenDays, older }
 
@@ -111,6 +130,71 @@ List<SessionHistoryItem> createSessionHistoryList(
 
     for (final session in sessions) {
       items.add(SessionHistorySession(session));
+    }
+  }
+
+  return items;
+}
+
+/// Groups sessions by exact date and creates a flat list with date headers.
+/// Sessions are sorted by updatedAt in descending order (most recent first).
+///
+/// Returns a list of [SessionHistoryItem] containing alternating date headers
+/// and session items, similar to the React Native implementation.
+List<SessionHistoryItem> groupSessionsByExactDate(
+  List<Session> sessions,
+) {
+  if (sessions.isEmpty) {
+    return [];
+  }
+
+  // Sort sessions by updatedAt descending
+  final sortedSessions = List<Session>.from(sessions)
+    ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
+  final items = <SessionHistoryItem>[];
+  List<Session> currentDateGroup = [];
+  String? currentDateString;
+
+  for (final session in sortedSessions) {
+    final sessionDate =
+        DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
+    final dateString = sessionDate.toIso8601String();
+
+    if (currentDateString != dateString) {
+      // Process previous group
+      if (currentDateGroup.isNotEmpty) {
+        items.add(
+          SessionHistoryDateHeader(
+            formatDateHeader(
+              DateTime.parse(currentDateString!),
+            ),
+          ),
+        );
+        for (final sess in currentDateGroup) {
+          items.add(SessionHistorySession(sess));
+        }
+      }
+
+      // Start new group
+      currentDateString = dateString;
+      currentDateGroup = [session];
+    } else {
+      currentDateGroup.add(session);
+    }
+  }
+
+  // Process final group
+  if (currentDateGroup.isNotEmpty) {
+    items.add(
+      SessionHistoryDateHeader(
+        formatDateHeader(
+          DateTime.parse(currentDateString!),
+        ),
+      ),
+    );
+    for (final sess in currentDateGroup) {
+      items.add(SessionHistorySession(sess));
     }
   }
 

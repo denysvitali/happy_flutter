@@ -422,84 +422,85 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
     required Set<String> collapsedFolderKeys,
     required void Function(String) onToggleFolder,
   }) {
-    final folderItems = groupSessionsByFolder(sessions, machines);
+    // Group sessions by exact date (Today, Yesterday, X days ago)
+    final dateItems = groupSessionsByExactDate(sessions);
 
     var itemIndex = startIndex;
     final widgets = <Widget>[];
-    String? currentFolderKey;
 
-    for (final item in folderItems) {
+    // Pre-calculate session positions within each date group
+    final sessionPositions = <int, (int, int)>{};
+    for (int i = 0; i < dateItems.length; i++) {
+      if (dateItems[i] is SessionHistorySession) {
+        // Count total sessions
+        int totalInGroup = 0;
+        int indexInGroup = 0;
+        for (int j = 0; j < dateItems.length; j++) {
+          if (dateItems[j] is SessionHistorySession) {
+            if (j <= i) indexInGroup = totalInGroup;
+            totalInGroup++;
+          }
+        }
+        sessionPositions[i] = (indexInGroup, totalInGroup);
+      }
+    }
+
+    for (final item in dateItems) {
       switch (item) {
-        case SessionFolderHeader(
-          :final displayPath,
-          :final machineName,
-          :final sessionCount,
-          :final folderKey,
-        ):
-          currentFolderKey = folderKey;
-          final isCollapsed = collapsedFolderKeys.contains(folderKey);
+        case SessionHistoryDateHeader(:final date):
           widgets.add(
             _FadeInSection(
               delay: Duration(milliseconds: _kStaggerStep * itemIndex),
-              child: _FolderSectionHeader(
-                displayPath: displayPath,
-                machineName: machineName,
-                sessionCount: sessionCount,
-                isCollapsed: isCollapsed,
-                onToggle: () => onToggleFolder(folderKey),
+              child: _DateSectionHeader(date: date),
+            ),
+          );
+        case SessionHistorySession(:final session):
+          final capturedIndex = itemIndex;
+          final sessionIndex = dateItems.indexOf(item);
+          final (posInGroup, totalInGroup) =
+              sessionPositions[sessionIndex] ?? (0, 1);
+          final isFirst = posInGroup == 0;
+          final isLast = posInGroup == totalInGroup - 1;
+          final isSingle = totalInGroup == 1;
+
+          widgets.add(
+            _StaggeredSlideIn(
+              index: capturedIndex,
+              animate: animate,
+              child: _DismissibleInactiveSession(
+                session: session,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SessionCard(
+                      session: session,
+                      onTap: () => unawaited(
+                        context.pushNamed(
+                          'chat',
+                          pathParameters: {'sessionId': session.id},
+                        ),
+                      ),
+                      isFirst: isFirst,
+                      isLast: isLast,
+                      isSingle: isSingle,
+                      compact: true,
+                      showFlavorIcon: showFlavorIcons,
+                      avatarStyle: avatarStyle,
+                    ),
+                    if (!isLast && !isSingle)
+                      Divider(
+                        height: 1,
+                        indent: 64,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.outlineVariant.withAlpha(50),
+                      ),
+                  ],
+                ),
               ),
             ),
           );
-        case SessionFolderEntry(
-          :final session,
-          :final isFirst,
-          :final isLast,
-          :final isSingle,
-        ):
-          final collapsed =
-              currentFolderKey != null &&
-              collapsedFolderKeys.contains(currentFolderKey);
-          if (!collapsed) {
-            final capturedIndex = itemIndex;
-            widgets.add(
-              _StaggeredSlideIn(
-                index: capturedIndex,
-                animate: animate,
-                child: _DismissibleInactiveSession(
-                  session: session,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SessionCard(
-                        session: session,
-                        onTap: () => unawaited(
-                          context.pushNamed(
-                            'chat',
-                            pathParameters: {'sessionId': session.id},
-                          ),
-                        ),
-                        isFirst: isFirst,
-                        isLast: isLast,
-                        isSingle: isSingle,
-                        compact: true,
-                        showFlavorIcon: showFlavorIcons,
-                        avatarStyle: avatarStyle,
-                      ),
-                      if (!isLast && !isSingle)
-                        Divider(
-                          height: 1,
-                          indent: 64,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.outlineVariant.withAlpha(50),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-            itemIndex++;
-          }
+          itemIndex++;
       }
     }
 
@@ -882,6 +883,34 @@ class _SectionHeader extends StatelessWidget {
         title,
         style: theme.textTheme.labelSmall?.copyWith(
           color: cs.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+}
+
+/// Date section header for grouping sessions by date (Today, Yesterday, X days ago).
+class _DateSectionHeader extends StatelessWidget {
+  const _DateSectionHeader({required this.date});
+  final String date;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.xs,
+      ),
+      child: Text(
+        date,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: cs.primary,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
         ),
