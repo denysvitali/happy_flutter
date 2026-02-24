@@ -12,7 +12,7 @@ typedef OptionPressedCallback = void Function(String option);
 ///
 /// Supports:
 /// - All standard markdown (headers, lists, code blocks, tables, etc.)
-/// - <options> blocks with interactive chips
+/// - `\<options\>` blocks with interactive chips
 /// - GitHub Flavored Markdown
 class MarkdownView extends StatelessWidget {
   /// Creates a [MarkdownView].
@@ -91,14 +91,14 @@ class SimpleMarkdownView extends StatelessWidget {
   }
 }
 
-/// A custom block syntax for parsing <options> blocks.
+/// A custom block syntax for parsing `\<options\>` blocks.
 ///
 /// Syntax:
 /// ```
-/// <options>
-/// <option>Option 1</option>
-/// <option>Option 2</option>
-/// </options>
+/// \<options\>
+/// \<option\>Option 1\</option\>
+/// \<option\>Option 2\</option\>
+/// \</options\>
 /// ```
 class OptionsBlockSyntax extends md.BlockSyntax {
   /// Creates an [OptionsBlockSyntax].
@@ -138,7 +138,7 @@ class OptionsBlockSyntax extends md.BlockSyntax {
   }
 }
 
-/// Builder for rendering <options> elements as interactive chips.
+/// Builder for rendering `\<options\>` elements as interactive chips.
 class OptionsElementBuilder extends MarkdownElementBuilder {
   /// Creates an [OptionsElementBuilder].
   OptionsElementBuilder({this.onOptionPress});
@@ -149,7 +149,8 @@ class OptionsElementBuilder extends MarkdownElementBuilder {
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     // Parse the items from the element text content
-    final items = element.textContent.split('\n').where((s) => s.isNotEmpty).toList();
+    final items =
+        element.textContent.split('\n').where((s) => s.isNotEmpty).toList();
 
     return _OptionsChips(
       items: items,
