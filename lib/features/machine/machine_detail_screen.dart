@@ -1,18 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
 import '../../core/components/app_section_header.dart';
 import '../../core/components/app_status_dot.dart';
+import '../../core/components/app_tappable.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_tokens.dart'
-    show AppSpacing, AppRadius, AppElevation;
+import '../../core/theme/app_tokens.dart';
 
 /// Detail screen for a single machine.
 ///
@@ -54,7 +55,7 @@ class _MachineDetailScreenState
 
   bool _isMachineOnline(int activeAt) {
     final now = DateTime.now().millisecondsSinceEpoch;
-    const onlineThresholdMs = 60 * 1000; // 1 minute
+    const onlineThresholdMs = 60 * 1000;
     return now - activeAt < onlineThresholdMs;
   }
 
@@ -148,9 +149,8 @@ class _MachineDetailScreenState
         body: Center(
           child: Text(
             context.l10n.errorNotFound,
-            style: TextStyle(
-              fontSize: 16,
-              color: theme.colorScheme.onSurfaceVariant,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: cs.onSurfaceVariant,
             ),
           ),
         ),
@@ -162,11 +162,8 @@ class _MachineDetailScreenState
         metadata?.host ??
         machine.id;
     final isOnline = _isMachineOnline(machine.activeAt);
-    final statusColor = isOnline
-        ? AppColors.success
-        : cs.onSurfaceVariant;
 
-    // Sessions for this machine, sorted by most recently updated
+    // Sessions for this machine, sorted by most recently updated.
     final machineSessions = sessions.values
         .where((s) => s.metadata?.machineId == widget.machineId)
         .toList()
@@ -176,53 +173,14 @@ class _MachineDetailScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              machineName,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: AppSpacing.xsm),
-            Row(
-              children: [
-                AppStatusDot(
-                  color: statusColor,
-                  size: 8,
-                  pulse: isOnline,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  isOnline
-                      ? context.l10n.settingsOnline
-                      : context.l10n.settingsOffline,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: statusColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.delete_outline,
-              color: cs.error,
-            ),
-            tooltip: context.l10n.commonDelete,
-            onPressed: () => _confirmDelete(
-              context,
-              widget.machineId,
-              machineName,
-            ),
+        title: Text(
+          machineName,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
-        ],
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: () =>
@@ -230,153 +188,324 @@ class _MachineDetailScreenState
         child: ListView(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg,
+            AppSpacing.sm,
             AppSpacing.lg,
-            AppSpacing.lg,
-            AppSpacing.xxl,
+            AppSpacing.xxxl,
           ),
           children: [
-            // Machine info section
-            AppSectionHeader(
-              title: context.l10n.machineHost,
-              padding: const EdgeInsets.only(
-                left: AppSpacing.xs,
-                bottom: AppSpacing.sm,
-              ),
+            // ── Status hero ──
+            _StatusBanner(
+              isOnline: isOnline,
+              lastSeen: _formatTimestamp(machine.activeAt),
             ),
-            _InfoCard(
+            const SizedBox(height: AppSpacing.xxl),
+
+            // ── Machine info ──
+            const AppSectionHeader(title: 'Info'),
+            const SizedBox(height: AppSpacing.xs),
+            _GroupedList(
               children: [
                 if (metadata?.host != null)
-                  _InfoRow(
+                  _GroupedRow(
                     label: context.l10n.machineHost,
                     value: metadata!.host,
                   ),
-                _InfoRow(
-                  label: context.l10n.machineMachineId,
-                  value: widget.machineId,
-                  mono: true,
-                ),
                 if (metadata?.username != null)
-                  _InfoRow(
+                  _GroupedRow(
                     label: context.l10n.machineUsername,
                     value: metadata!.username!,
                   ),
                 if (metadata?.platform != null)
-                  _InfoRow(
+                  _GroupedRow(
                     label: context.l10n.machinePlatform,
                     value: metadata!.platform,
                   ),
                 if (metadata?.arch != null)
-                  _InfoRow(
+                  _GroupedRow(
                     label: context.l10n.machineArchitecture,
                     value: metadata!.arch!,
                   ),
                 if (metadata?.happyCliVersion != null)
-                  _InfoRow(
+                  _GroupedRow(
                     label: context.l10n.machineCliVersion,
                     value: metadata!.happyCliVersion,
                     mono: true,
                   ),
                 if (metadata?.homeDir != null)
-                  _InfoRow(
+                  _GroupedRow(
                     label: context.l10n.machineHomeDir,
                     value: metadata!.homeDir,
                     mono: true,
                   ),
-                _InfoRow(
-                  label: context.l10n.machineLastSeen,
-                  value: _formatTimestamp(machine.activeAt),
-                  isLast: true,
+                _GroupedRow(
+                  label: context.l10n.machineMachineId,
+                  value: widget.machineId,
+                  mono: true,
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.xxl),
 
-            // Daemon status section
-            AppSectionHeader(
-              title: context.l10n.machineStatus,
-              padding: const EdgeInsets.only(
-                left: AppSpacing.xs,
-                bottom: AppSpacing.sm,
-              ),
-            ),
-            _InfoCard(
+            // ── Daemon status ──
+            const AppSectionHeader(title: 'Daemon'),
+            const SizedBox(height: AppSpacing.xs),
+            _GroupedList(
               children: [
-                _InfoRow(
+                _GroupedRow(
                   label: context.l10n.machineStatus,
-                  value: isOnline ? 'likely alive' : 'stopped',
-                  valueColor: isOnline
-                      ? AppColors.success
-                      : AppColors.warning,
-                  isLast: metadata?.daemonLastKnownStatus == null &&
-                      metadata?.daemonLastKnownPid == null,
+                  value: isOnline ? 'Running' : 'Stopped',
+                  trailing: AppStatusDot(
+                    color: isOnline
+                        ? AppColors.success
+                        : cs.onSurfaceVariant,
+                    size: 8,
+                    pulse: isOnline,
+                  ),
                 ),
                 if (metadata?.daemonLastKnownStatus != null)
-                  _InfoRow(
-                    label:
-                        context.l10n.machineLastKnownStatus,
+                  _GroupedRow(
+                    label: context.l10n.machineLastKnownStatus,
                     value: metadata!.daemonLastKnownStatus!,
-                    isLast: metadata.daemonLastKnownPid == null,
                   ),
                 if (metadata?.daemonLastKnownPid != null)
-                  _InfoRow(
-                    label:
-                        context.l10n.machineLastKnownPid,
-                    value: metadata!.daemonLastKnownPid
-                        .toString(),
+                  _GroupedRow(
+                    label: context.l10n.machineLastKnownPid,
+                    value: metadata!.daemonLastKnownPid.toString(),
                     mono: true,
-                    isLast: true,
                   ),
               ],
             ),
-            const SizedBox(height: AppSpacing.lg),
 
-            // Sessions section
+            // ── Sessions ──
             if (machineSessions.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xxl),
               AppSectionHeader(
                 title: 'Sessions (${machineSessions.length})',
-                padding: const EdgeInsets.only(
-                  left: AppSpacing.xs,
-                  bottom: AppSpacing.sm,
-                ),
               ),
-              _InfoCard(
+              const SizedBox(height: AppSpacing.xs),
+              _GroupedList(
                 children: [
                   for (int i = 0;
                       i < machineSessions.length && i < 5;
                       i++)
-                    _SessionTile(
-                      session: machineSessions[i],
-                      name: _getSessionName(
-                        machineSessions[i],
-                      ),
-                      subtitle: _getSessionSubtitle(
-                        machineSessions[i],
-                      ),
-                      showDivider: i <
-                          (machineSessions.length > 5
-                                  ? 5
-                                  : machineSessions.length) -
-                              1,
+                    _SessionRow(
+                      name: _getSessionName(machineSessions[i]),
+                      subtitle: _getSessionSubtitle(machineSessions[i]),
+                      isOnline:
+                          machineSessions[i].isPresenceOnline,
                       onTap: () => context.push(
                         '/chat/${machineSessions[i].id}',
                       ),
                     ),
                   if (machineSessions.length > 5)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.lg,
-                        vertical: AppSpacing.md,
-                      ),
-                      child: Text(
-                        '+ ${machineSessions.length - 5} more sessions',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                    _GroupedRow(
+                      label: '',
+                      value:
+                          '+ ${machineSessions.length - 5} more',
+                      valueColor: cs.onSurfaceVariant,
                     ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.lg),
+            ],
+
+            // ── Delete button ──
+            const SizedBox(height: AppSpacing.xxxl),
+            Center(
+              child: TextButton(
+                onPressed: () => _confirmDelete(
+                  context,
+                  widget.machineId,
+                  machineName,
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: cs.error,
+                ),
+                child: Text(
+                  'Remove Machine',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: cs.error,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Status banner — prominent online/offline hero
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _StatusBanner extends StatelessWidget {
+  const _StatusBanner({
+    required this.isOnline,
+    required this.lastSeen,
+  });
+
+  final bool isOnline;
+  final String lastSeen;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final statusColor =
+        isOnline ? AppColors.success : cs.onSurfaceVariant;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          AppStatusDot(
+            color: statusColor,
+            size: 10,
+            pulse: isOnline,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isOnline ? 'Online' : 'Offline',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  isOnline ? 'Connected now' : 'Last seen $lastSeen',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// iOS-style grouped list container
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _GroupedList extends StatelessWidget {
+  const _GroupedList({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
+      ),
+      child: Column(
+        children: [
+          for (int i = 0; i < children.length; i++) ...[
+            children[i],
+            if (i < children.length - 1)
+              Divider(
+                height: 0.5,
+                indent: AppSpacing.lg,
+                color: cs.outlineVariant.withValues(alpha: 0.5),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Key–value row inside a grouped list
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _GroupedRow extends StatelessWidget {
+  const _GroupedRow({
+    required this.label,
+    required this.value,
+    this.mono = false,
+    this.valueColor,
+    this.trailing,
+  });
+
+  final String label;
+  final String value;
+  final bool mono;
+  final Color? valueColor;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return ConstrainedBox(
+      constraints:
+          const BoxConstraints(minHeight: AppTouchTarget.min),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            if (label.isNotEmpty)
+              SizedBox(
+                width: 100,
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            if (label.isNotEmpty)
+              const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                value,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontFamily: mono ? 'monospace' : null,
+                  fontSize: mono ? 13 : null,
+                  color: valueColor,
+                  fontWeight: mono ? FontWeight.w500 : null,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (trailing != null) ...[
+              const SizedBox(width: AppSpacing.sm),
+              trailing!,
             ],
           ],
         ),
@@ -385,175 +514,90 @@ class _MachineDetailScreenState
   }
 }
 
-/// A card container for grouped info rows.
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.children});
+// ─────────────────────────────────────────────────────────────────────────────
+// Session row inside a grouped list
+// ─────────────────────────────────────────────────────────────────────────────
 
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      elevation: AppElevation.none,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-        ),
-      ),
-      child: Column(children: children),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.label,
-    required this.value,
-    this.mono = false,
-    this.valueColor,
-    this.isLast = false,
-  });
-
-  final String label;
-  final String? value;
-  final bool mono;
-  final Color? valueColor;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    if (value == null) return const SizedBox.shrink();
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.md,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 110,
-                child: Text(
-                  label,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Text(
-                  value!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontFamily: mono ? 'monospace' : null,
-                    fontSize: mono ? 12 : 14,
-                    color: valueColor,
-                    fontWeight: mono ? FontWeight.w500 : null,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 2,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (!isLast)
-          Divider(
-            height: 1,
-            indent: AppSpacing.lg,
-            endIndent: AppSpacing.lg,
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-          ),
-      ],
-    );
-  }
-}
-
-class _SessionTile extends StatelessWidget {
-  const _SessionTile({
-    required this.session,
+class _SessionRow extends StatelessWidget {
+  const _SessionRow({
     required this.name,
     required this.subtitle,
-    required this.showDivider,
+    required this.isOnline,
     required this.onTap,
   });
 
-  final Session session;
   final String name;
   final String subtitle;
-  final bool showDivider;
+  final bool isOnline;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: AppSpacing.md,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                        if (subtitle.isNotEmpty) ...[
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            subtitle,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color:
-                                  theme.colorScheme.onSurfaceVariant,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                        ],
-                      ],
+    final cs = theme.colorScheme;
+
+    return AppTappable(
+      onTap: onTap,
+      borderRadius: BorderRadius.zero,
+      child: ConstrainedBox(
+        constraints:
+            const BoxConstraints(minHeight: AppTouchTarget.min),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      name,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Icon(
-                    Icons.chevron_right,
-                    color: theme.colorScheme.onSurfaceVariant,
-                    size: 20,
-                  ),
-                ],
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        subtitle,
+                        style:
+                            theme.textTheme.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
+              const SizedBox(width: AppSpacing.sm),
+              if (isOnline)
+                Padding(
+                  padding: const EdgeInsets.only(
+                    right: AppSpacing.xs,
+                  ),
+                  child: AppStatusDot(
+                    color: AppColors.success,
+                    size: 7,
+                    pulse: true,
+                  ),
+                ),
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: cs.onSurfaceVariant,
+              ),
+            ],
           ),
         ),
-        if (showDivider)
-          Divider(
-            height: 1,
-            indent: AppSpacing.lg,
-            endIndent: AppSpacing.lg,
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-          ),
-      ],
+      ),
     );
   }
 }

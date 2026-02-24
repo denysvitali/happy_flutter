@@ -320,7 +320,7 @@ what you have, you must use the options mode.
   /// Batches rapid successive emissions within 16ms window.
   void _notifyDataChanged() {
     _dataChangeDebounceTimer?.cancel();
-    _dataChangeDebounceTimer = Timer(const Duration(milliseconds: 16), () {
+    _dataChangeDebounceTimer = Timer(const Duration(milliseconds: 100), () {
       _dataChangeController.add(null);
     });
   }

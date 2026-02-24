@@ -87,9 +87,12 @@ class InvalidateSync {
     }
   }
 
+  static final Random _jitterRng = Random();
+
   void _scheduleRetry() {
     final delay = (baseDelayMs * pow(2, _retryCount - 1)).toInt();
-    final clampedDelay = min(delay, maxDelayMs);
+    final jitter = _jitterRng.nextInt(251); // 0–250ms
+    final clampedDelay = min(delay + jitter, maxDelayMs);
     logger.debug(
       'InvalidateSync: retry $_retryCount in ${clampedDelay}ms',
     );

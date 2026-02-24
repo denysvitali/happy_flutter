@@ -51,10 +51,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _visibleCount = _pageSize;
   bool _isLoadingMore = false;
 
+  // Cached slicing / index data for _buildMessageList.
+  List<Map<String, dynamic>>? _cachedVisibleMessages;
+  Map<String, int>? _cachedKeyToListIndex;
+  int _cachedMessagesLength = -1;
+  int _cachedVisibleCount = -1;
+
   @override
   void initState() {
     super.initState();
-    _controller.addListener(_onControllerChanged);
     _scrollController.addListener(_onScroll);
     _loadSavedPermissionMode();
     _initializeSyncBackedChat();
@@ -80,18 +85,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void dispose() {
     _dataSyncSubscription?.cancel();
     _messageSyncSubscription?.cancel();
-    _controller.removeListener(_onControllerChanged);
     _controller.dispose();
     _scrollController.dispose();
     TtsService().stop();
     super.dispose();
   }
 
-  void _onControllerChanged() {
-    // Rebuild so PopScope.canPop stays in sync with the
-    // current text content.
-    setState(() {});
-  }
+  // _onControllerChanged removed — PopScope now uses
+  // ValueListenableBuilder to avoid rebuilding the entire screen
+  // on every keystroke.
 
   Future<void> _initializeSyncBackedChat() async {
     _messageSyncSubscription = sync.onSessionMessagesChanged
@@ -349,14 +351,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final isThinking = _session?.thinking ?? false;
-    final hasUnsentMessage = _controller.text.trim().isNotEmpty;
 
-    return PopScope(
-      canPop: !hasUnsentMessage,
-      onPopInvoked: (didPop) {
-        if (!didPop && hasUnsentMessage) {
-          _showUnsentMessageDialog(context);
-        }
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: _controller,
+      builder: (context, value, child) {
+        final hasUnsentMessage = value.text.trim().isNotEmpty;
+        return PopScope(
+          canPop: !hasUnsentMessage,
+          onPopInvoked: (didPop) {
+            if (!didPop && hasUnsentMessage) {
+              _showUnsentMessageDialog(context);
+            }
+          },
+          child: child!,
+        );
       },
       child: Scaffold(
         appBar: ChatAppBar(
@@ -446,39 +454,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       ),
                     ),
                   ),
-                  // Typing indicator
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 250),
-                      transitionBuilder: (child, animation) => FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.3),
-                            end: Offset.zero,
-                          ).animate(animation),
-                          child: child,
-                        ),
-                      ),
-                      child: isThinking && !_isLoadingMessages
-                          ? const Align(
-                              key: ValueKey('typing'),
-                              alignment: Alignment.bottomLeft,
-                              child: Padding(
-                                padding: EdgeInsets.only(
-                                  left: AppSpacing.lg,
-                                  right: AppSpacing.lg,
-                                  bottom: 8,
-                                ),
-                                child: TypingIndicator(),
-                              ),
-                            )
-                          : const SizedBox.shrink(key: ValueKey('no-typing')),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -498,6 +473,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               isPermissionPending:
                   _session?.agentState?.requests?.isNotEmpty ?? false,
               isSessionOnline: _session?.isPresenceOnline ?? false,
+              isAgentThinking: _session?.thinking ?? false,
               onAbort: _abortSession,
             ),
           ],
@@ -591,7 +567,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget _buildMessageList() {
     final totalCount = _messages.length;
     final startIndex = (totalCount - _visibleCount).clamp(0, totalCount);
-    final visibleMessages = _messages.sublist(startIndex);
+
+    // Reuse cached sublist + key index when messages haven't changed.
+    if (totalCount != _cachedMessagesLength ||
+        _visibleCount != _cachedVisibleCount) {
+      _cachedMessagesLength = totalCount;
+      _cachedVisibleCount = _visibleCount;
+      _cachedVisibleMessages = _messages.sublist(startIndex);
+      final idx = <String, int>{};
+      for (var i = 0; i < _cachedVisibleMessages!.length; i++) {
+        final m = _cachedVisibleMessages![i];
+        final k = m['id'] as String? ?? m['toolUseId'] as String?;
+        if (k != null) {
+          idx[k] = _cachedVisibleMessages!.length - 1 - i;
+        }
+      }
+      _cachedKeyToListIndex = idx;
+    }
+    final visibleMessages = _cachedVisibleMessages!;
+    final keyToListIndex = _cachedKeyToListIndex!;
 
     final hasLocalMore = startIndex > 0;
 
@@ -605,15 +599,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         hasLocalMore ||
         isLoadingFromServer ||
         (!hasServerMore && allLocalVisible && totalCount > 0);
-
-    final keyToListIndex = <String, int>{};
-    for (var i = 0; i < visibleMessages.length; i++) {
-      final m = visibleMessages[i];
-      final k = m['id'] as String? ?? m['toolUseId'] as String?;
-      if (k != null) {
-        keyToListIndex[k] = visibleMessages.length - 1 - i;
-      }
-    }
 
     final metadataJson = _metadataJson;
 
@@ -1161,132 +1146,6 @@ class EmptyChatView extends StatelessWidget {
   }
 }
 
-// ─── TypingIndicator ─────────────────────────────────────────────────────
-
-class TypingIndicator extends StatefulWidget {
-  const TypingIndicator();
-
-  @override
-  State<TypingIndicator> createState() => TypingIndicatorState();
-}
-
-class TypingIndicatorState extends State<TypingIndicator>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _dot1;
-  late Animation<double> _dot2;
-  late Animation<double> _dot3;
-
-  static const double _cycleMs = 900;
-  static const double _stagger1 = 0 / _cycleMs;
-  static const double _stagger2 = 150 / _cycleMs;
-  static const double _stagger3 = 300 / _cycleMs;
-  static const double _dotSpan = 330 / _cycleMs;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 900),
-      vsync: this,
-    )..repeat();
-
-    _dot1 = _buildDotAnimation(_stagger1, _stagger1 + _dotSpan);
-    _dot2 = _buildDotAnimation(_stagger2, _stagger2 + _dotSpan);
-    _dot3 = _buildDotAnimation(_stagger3, _stagger3 + _dotSpan);
-  }
-
-  Animation<double> _buildDotAnimation(double start, double end) {
-    return TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: 0,
-          end: -4,
-        ).chain(CurveTween(curve: Curves.easeOutCubic)),
-        weight: 45,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: -4,
-          end: 0.5,
-        ).chain(CurveTween(curve: Curves.easeInCubic)),
-        weight: 30,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: 0.5,
-          end: 0,
-        ).chain(CurveTween(curve: Curves.easeOut)),
-        weight: 25,
-      ),
-    ]).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Interval(
-          start.clamp(0.0, 1.0),
-          end.clamp(0.0, 1.0),
-          curve: Curves.linear,
-        ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final dotColor = cs.onSurfaceVariant.withValues(alpha: 0.35);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: 8,
-      ),
-      decoration: BoxDecoration(
-        color: cs.onSurface.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _Dot(offset: _dot1.value, color: dotColor),
-              SizedBox(width: AppSpacing.xs),
-              _Dot(offset: _dot2.value, color: dotColor),
-              SizedBox(width: AppSpacing.xs),
-              _Dot(offset: _dot3.value, color: dotColor),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _Dot extends StatelessWidget {
-  const _Dot({required this.offset, required this.color});
-  final double offset;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Transform.translate(
-      offset: Offset(0, offset),
-      child: Container(
-        width: 6,
-        height: 6,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      ),
-    );
-  }
-}
 
 // ─── _SessionHeaderChip ───────────────────────────────────────────────────
 
