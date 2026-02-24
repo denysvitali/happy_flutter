@@ -20,6 +20,7 @@ class MarkdownView extends StatelessWidget {
     required this.markdown,
     super.key,
     this.onOptionPress,
+    this.textColor,
   });
 
   /// The raw markdown text to render.
@@ -27,6 +28,9 @@ class MarkdownView extends StatelessWidget {
 
   /// Optional callback when an option in an options block is pressed.
   final OptionPressedCallback? onOptionPress;
+
+  /// Optional text color override for the markdown content.
+  final Color? textColor;
 
   @override
   Widget build(BuildContext context) {
@@ -36,12 +40,23 @@ class MarkdownView extends StatelessWidget {
       data: markdown,
       extensionSet: md.ExtensionSet.gitHubFlavored,
       builders: {
-        'options': OptionsElementBuilder(onOptionPress: onOptionPress),
+        'options': OptionsElementBuilder(
+          onOptionPress: onOptionPress,
+          textColor: textColor,
+        ),
       },
       blockSyntaxes: const [
         OptionsBlockSyntax(),
       ],
       styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+        p: theme.textTheme.bodyMedium?.copyWith(color: textColor),
+        h1: theme.textTheme.headlineLarge?.copyWith(color: textColor),
+        h2: theme.textTheme.headlineMedium?.copyWith(color: textColor),
+        h3: theme.textTheme.headlineSmall?.copyWith(color: textColor),
+        h4: theme.textTheme.titleLarge?.copyWith(color: textColor),
+        h5: theme.textTheme.titleMedium?.copyWith(color: textColor),
+        h6: theme.textTheme.titleSmall?.copyWith(color: textColor),
+        listBullet: theme.textTheme.bodyMedium?.copyWith(color: textColor),
         codeblockDecoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(8),
@@ -141,10 +156,13 @@ class OptionsBlockSyntax extends md.BlockSyntax {
 /// Builder for rendering `\<options\>` elements as interactive chips.
 class OptionsElementBuilder extends MarkdownElementBuilder {
   /// Creates an [OptionsElementBuilder].
-  OptionsElementBuilder({this.onOptionPress});
+  OptionsElementBuilder({this.onOptionPress, this.textColor});
 
   /// Callback when an option is pressed.
   final OptionPressedCallback? onOptionPress;
+
+  /// Optional text color for non-interactive option chips.
+  final Color? textColor;
 
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
@@ -155,6 +173,7 @@ class OptionsElementBuilder extends MarkdownElementBuilder {
     return _OptionsChips(
       items: items,
       onOptionPress: onOptionPress,
+      textColor: textColor,
     );
   }
 }
@@ -164,10 +183,12 @@ class _OptionsChips extends StatelessWidget {
   const _OptionsChips({
     required this.items,
     this.onOptionPress,
+    this.textColor,
   });
 
   final List<String> items;
   final OptionPressedCallback? onOptionPress;
+  final Color? textColor;
 
   @override
   Widget build(BuildContext context) {
@@ -189,7 +210,7 @@ class _OptionsChips extends StatelessWidget {
               item,
               style: TextStyle(
                 fontSize: 14,
-                color: theme.colorScheme.onSurface,
+                color: textColor ?? theme.colorScheme.onSurface,
                 fontWeight: FontWeight.w500,
               ),
             ),

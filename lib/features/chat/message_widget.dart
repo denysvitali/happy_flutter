@@ -177,9 +177,10 @@ class _UserBubble extends StatelessWidget {
                 bottomRight: Radius.circular(6),
               ),
             ),
-            child: DefaultTextStyle.merge(
-              style: TextStyle(color: theme.colorScheme.onPrimary),
-              child: MarkdownView(markdown: text, onOptionPress: onOptionPress),
+            child: MarkdownView(
+              markdown: text,
+              onOptionPress: onOptionPress,
+              textColor: Colors.white,
             ),
           ),
         ),
