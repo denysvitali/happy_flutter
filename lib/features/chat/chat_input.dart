@@ -604,6 +604,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.contextSize,
     this.isPermissionPending = false,
     this.isSessionOnline = false,
+    this.isAgentThinking = false,
     this.onAbort,
   });
 
@@ -663,8 +664,10 @@ class ChatInput extends ConsumerStatefulWidget {
   final bool isPermissionPending;
 
   /// Whether the session CLI is currently connected (presence == 'online').
-  /// Controls visibility of the abort button in the toolbar.
   final bool isSessionOnline;
+
+  /// Whether the agent is actively thinking / processing a request.
+  final bool isAgentThinking;
 
   /// Called when the user taps the abort button.  Must return a [Future]
   /// so the button can show a spinner until the RPC completes.
@@ -947,7 +950,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
   Widget _buildInputContainer(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return ClipRect(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.xl),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
@@ -989,8 +993,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
                         ? _showModelPicker(context)
                         : null,
                     contextSize: widget.contextSize,
-                    showAbort:
-                        widget.isSessionOnline && !widget.isPermissionPending,
+                    showAbort: widget.isSessionOnline &&
+                        widget.isAgentThinking &&
+                        !widget.isPermissionPending,
                     isAborting: _isAborting,
                     onAbort: _onAbortTap,
                   ),
