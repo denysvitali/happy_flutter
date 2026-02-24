@@ -629,42 +629,46 @@ class OptionsBlockWidget extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: items.map((item) {
-        final child = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            border: Border.all(
-              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
-            ),
-            borderRadius: BorderRadius.circular(100),
-          ),
-          child: Text(
-            item,
-            style: TextStyle(
-              fontSize: 14,
-              color: onOptionPress != null
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        );
+        final isInteractive = onOptionPress != null;
 
-        if (onOptionPress != null) {
-          return Material(
-            color: Colors.transparent,
-            elevation: 1,
-            shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(100),
-            child: InkWell(
+        if (!isInteractive) {
+          // Non-interactive: just show a styled chip
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(100),
-              onTap: () => onOptionPress!(item),
-              child: child,
+            ),
+            child: Text(
+              item,
+              style: TextStyle(
+                fontSize: 14,
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           );
         }
 
-        return child;
+        // Interactive: use OutlinedButton for proper button behavior
+        return OutlinedButton(
+          onPressed: () => onOptionPress!(item),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: theme.colorScheme.primary,
+            side: BorderSide(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.8),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(100),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          child: Text(item),
+        );
       }).toList(),
     );
   }
