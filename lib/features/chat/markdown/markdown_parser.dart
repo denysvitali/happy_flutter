@@ -323,11 +323,13 @@ class _MarkdownParser {
   /// like `**[link](url)**` - otherwise the entire thing is captured
   /// as bold. Bold/italic patterns use negative lookahead to avoid
   /// matching when link syntax is present inside.
+  ///
+  /// Uses [\s\S] instead of . to match newlines within bold/italic.
   static final _spanPattern = RegExp(
     r'(\[([^\]]+)\](?:\(([^)]+)\))?)'
-    r'|(\*\*(?:(?!\[[^\]]+\]\([^)]+\)).)+?\*\*)'
-    r'|(\*(?:(?!\[[^\]]+\]\([^)]+\)).)+?\*)'
-    r'|(\`.+?\`)',
+    r'|(\*\*(?:(?!\[[^\]]+\]\([^)]+\))[\s\S])+?\*\*)'
+    r'|(\*(?:(?!\[[^\]]+\]\([^)]+\))[\s\S])+?\*)'
+    r'|(\`[\s\S]+?\`)',
   );
 
   String get trimmed => lines[index].trim();
