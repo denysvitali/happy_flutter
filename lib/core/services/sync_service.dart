@@ -313,6 +313,7 @@ what you have, you must use the options mode.
     artifactsSync.invalidate();
     feedSync.invalidate();
     todosSync.invalidate();
+    sessionGitStatusSync.invalidate();
   }
 
   /// Debounced data change notification.
@@ -3208,6 +3209,107 @@ what you have, you must use the options mode.
 
     _sessionMessages[sessionId] = filtered;
     _sessionMessagesCache = null;
+
+    // Pass 4: Recursively group nested Task children.
+    // After pass 3, inner Task tool-calls appear in their
+    // parent Task's children array but their own sidechain
+    // children are also flattened there. Re-group them so
+    // each nested Task gets its own children array.
+    for (final msg in filtered) {
+      final children =
+          msg['children'] as List<dynamic>?;
+      if (children != null && children.isNotEmpty) {
+        _regroupNestedTasks(
+          children.cast<Map<String, dynamic>>(),
+        );
+      }
+    }
+  }
+
+  /// Recursively regroup sidechain children so nested
+  /// Task tool-calls within a children array get their
+  /// own children sub-arrays.
+  void _regroupNestedTasks(
+    List<Map<String, dynamic>> children,
+  ) {
+    // Find inner Task tool-calls and their prompts.
+    final promptToTask = <String, Map<String, dynamic>>{};
+    for (final child in children) {
+      if (child['kind'] == 'tool-call' &&
+          child['name'] == 'Task') {
+        final input =
+            child['input'] as Map<String, dynamic>?;
+        final prompt = input?['prompt'] as String?;
+        if (prompt != null) {
+          promptToTask[prompt] = child;
+        }
+      }
+    }
+    if (promptToTask.isEmpty) return;
+
+    // Find sidechain-root messages matching inner Tasks.
+    final uuidToTask = <String, Map<String, dynamic>>{};
+    final toRemove = <int>{};
+
+    for (var i = 0; i < children.length; i++) {
+      final child = children[i];
+      if (child['kind'] == 'sidechain-root') {
+        final prompt = child['prompt'] as String?;
+        final uuid = child['uuid'] as String?;
+        if (prompt != null &&
+            promptToTask.containsKey(prompt) &&
+            uuid != null) {
+          uuidToTask[uuid] = promptToTask[prompt]!;
+          toRemove.add(i);
+        }
+      }
+    }
+
+    if (uuidToTask.isEmpty) return;
+
+    // Group sidechain children under their inner Tasks.
+    final taskChildren =
+        <String, List<Map<String, dynamic>>>{};
+    for (var i = 0; i < children.length; i++) {
+      if (toRemove.contains(i)) continue;
+      final child = children[i];
+      if (child['isSidechain'] == true) {
+        final parentUuid =
+            child['parentUuid'] as String?;
+        final uuid = child['uuid'] as String?;
+        if (parentUuid != null &&
+            uuidToTask.containsKey(parentUuid)) {
+          final task = uuidToTask[parentUuid]!;
+          final taskId = task['id'] as String;
+          taskChildren
+              .putIfAbsent(taskId, () => [])
+              .add(child);
+          if (uuid != null) {
+            uuidToTask[uuid] = task;
+          }
+          toRemove.add(i);
+        }
+      }
+    }
+
+    // Attach children to inner Tasks.
+    for (final entry in taskChildren.entries) {
+      for (final child in children) {
+        if (child['id'] == entry.key) {
+          child['children'] = entry.value;
+          // Recurse for deeper nesting.
+          _regroupNestedTasks(entry.value);
+          break;
+        }
+      }
+    }
+
+    // Remove regrouped messages (reverse order).
+    final indices = toRemove.toList()
+      ..sort((a, b) => b.compareTo(a));
+    for (final i in indices) {
+      children.removeAt(i);
+    }
   }
 
   /// Apply tool results to existing tool-call messages in a session.
@@ -3512,6 +3614,12 @@ what you have, you must use the options mode.
     friendRequestsSync.dispose();
     feedSync.dispose();
     todosSync.dispose();
+    sessionGitStatusSync.dispose();
+
+    for (final timer in _presenceTimers.values) {
+      timer.cancel();
+    }
+    _presenceTimers.clear();
 
     _sessionDataKeys.clear();
     _machineDataKeys.clear();
@@ -3526,6 +3634,7 @@ what you have, you must use the options mode.
     _sessions.clear();
     _lastSessionsFetchedAt = null;
     _machines.clear();
+    _sessionGitStatus.clear();
     _profile = null;
     _settingsSnapshot = Settings();
     _settingsVersion = 0;

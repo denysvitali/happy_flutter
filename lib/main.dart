@@ -4,7 +4,6 @@ import 'dart:convert' show base64;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -19,7 +18,6 @@ import 'core/services/storage_service.dart' as storage;
 import 'core/utils/theme_helper.dart';
 import 'core/widgets/error_boundary.dart';
 import 'features/artifacts/artifact_detail_screen.dart';
-// Agent 3 — artifacts screens
 import 'features/artifacts/artifacts_list_screen.dart';
 import 'features/artifacts/edit_artifact_screen.dart';
 import 'features/artifacts/new_artifact_screen.dart';
@@ -31,7 +29,6 @@ import 'features/chat/message_detail_screen.dart';
 import 'features/chat/session_file_viewer_screen.dart';
 import 'features/chat/session_files_screen.dart';
 import 'features/chat/session_info_screen.dart';
-// Agent 1 — session enhancement screens
 import 'features/chat/session_recent_screen.dart';
 import 'features/dev/dev_logs_screen.dart';
 import 'features/dev/network_inspector_screen.dart';
@@ -39,7 +36,6 @@ import 'features/inbox/friends_screen.dart';
 import 'features/inbox/friends_search_screen.dart';
 import 'features/inbox/inbox_screen.dart';
 import 'features/machine/machine_detail_screen.dart';
-// Agent 2 — new session + machine/user screens
 import 'features/sessions/new_session_screen.dart';
 import 'features/sessions/pick_machine_screen.dart';
 import 'features/sessions/pick_path_screen.dart';
@@ -58,11 +54,9 @@ import 'features/settings/theme_settings_screen.dart';
 import 'features/settings/usage_screen.dart';
 import 'features/settings/voice_language_settings_screen.dart';
 import 'features/settings/voice_settings_screen.dart';
-// Agent 5 — terminal + additional settings screens
 import 'features/terminal/terminal_connect_screen.dart';
 import 'features/terminal/terminal_screen.dart';
 import 'features/user/user_profile_screen.dart';
-// Agent 4 — zen + friends screens
 import 'features/zen/zen_home_screen.dart';
 import 'features/zen/zen_new_screen.dart';
 import 'features/zen/zen_view_screen.dart';
@@ -325,7 +319,6 @@ class _HappyAppState extends ConsumerState<HappyApp>
             ),
           ],
         ),
-        // ── Agent 1: session enhancement screens ─────────────────────────
         GoRoute(
           path: '/session/recent',
           name: 'session-recent',
@@ -352,8 +345,6 @@ class _HappyAppState extends ConsumerState<HappyApp>
           path: '/chat/:sessionId/file',
           name: 'session-file',
           builder: (context, state) {
-            // ignore: unused_local_variable
-            final sessionId = state.pathParameters['sessionId'] ?? '';
             final path2 = state.uri.queryParameters['path'] ?? '';
             final content = state.uri.queryParameters['content'];
             return AuthGate(
@@ -393,7 +384,6 @@ class _HappyAppState extends ConsumerState<HappyApp>
             );
           },
         ),
-        // ── Agent 2: new session + machine/user screens ───────────────────
         GoRoute(
           path: '/new',
           name: 'new-session',
@@ -433,7 +423,6 @@ class _HappyAppState extends ConsumerState<HappyApp>
             return AuthGate(child: UserProfileScreen(userId: id));
           },
         ),
-        // ── Agent 3: artifacts screens ────────────────────────────────────
         GoRoute(
           path: '/artifacts',
           name: 'artifacts',
@@ -462,7 +451,6 @@ class _HappyAppState extends ConsumerState<HappyApp>
             return AuthGate(child: EditArtifactScreen(artifactId: id));
           },
         ),
-        // ── Agent 4: zen + friends screens ───────────────────────────────
         GoRoute(
           path: '/zen',
           name: 'zen',
@@ -492,7 +480,6 @@ class _HappyAppState extends ConsumerState<HappyApp>
           name: 'friends',
           builder: (context, state) => const AuthGate(child: FriendsScreen()),
         ),
-        // ── Agent 5: terminal + additional settings screens ───────────────
         GoRoute(
           path: '/terminal/connect',
           name: 'terminal-connect',

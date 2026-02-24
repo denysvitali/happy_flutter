@@ -20,8 +20,6 @@ import '../../core/components/app_status_dot.dart';
 import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
 import 'session_avatar.dart';
-import 'widgets/widgets.dart';
-
 // ─── Stagger constants ───────────────────────────────────────────────────────
 const _kStaggerStep = 30; // ms between each card
 const _kSlideDuration = 250; // ms for slide+fade
@@ -913,117 +911,6 @@ class _DateSectionHeader extends StatelessWidget {
           color: cs.primary,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
-}
-
-/// Folder section header for grouping inactive sessions by directory + machine.
-///
-/// Shows the folder path (monospace) with the machine name on the right,
-/// and a session count label. Styled more subdued than [_PathHeader] since
-/// these are archived sessions. Tappable to collapse/expand the group.
-class _FolderSectionHeader extends StatelessWidget {
-  const _FolderSectionHeader({
-    required this.displayPath,
-    required this.machineName,
-    required this.sessionCount,
-    required this.isCollapsed,
-    required this.onToggle,
-  });
-
-  /// The folder path to display (with ~ substitution).
-  final String displayPath;
-
-  /// The machine display name.
-  final String machineName;
-
-  /// Number of sessions in this folder group.
-  final int sessionCount;
-
-  /// Whether the group is currently collapsed.
-  final bool isCollapsed;
-
-  /// Called when the header is tapped.
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final mutedColor = cs.onSurfaceVariant.withValues(alpha: 0.7);
-    final badgeColor = cs.onSurfaceVariant.withValues(alpha: 0.08);
-
-    return InkWell(
-      onTap: onToggle,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.md,
-          2,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    displayPath.split('/').last.toUpperCase(),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: mutedColor,
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.8,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: badgeColor,
-                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                  ),
-                  child: Text(
-                    machineName,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                AnimatedRotation(
-                  turns: isCollapsed ? -0.25 : 0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    Icons.keyboard_arrow_down,
-                    size: 18,
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(
-              context.l10n.sessionsCount(sessionCount),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.45),
-                fontSize: 10,
-              ),
-            ),
-          ],
         ),
       ),
     );

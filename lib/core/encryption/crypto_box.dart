@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:sodium/sodium.dart';
 
 import 'sodium_loader.dart';
@@ -129,6 +130,9 @@ class CryptoBox {
 
       return decrypted;
     } catch (e) {
+      if (kDebugMode) {
+        debugPrint('CryptoBox.decrypt failed: $e');
+      }
       return null;
     }
   }
@@ -150,6 +154,10 @@ class KeyPair {
   /// Call this when the keypair is no longer needed.
   void dispose() {
     privateKey.dispose();
-    secretKey.dispose();
+    // Only dispose secretKey if it's a different object from privateKey
+    // to avoid double-dispose of the same native memory.
+    if (!identical(privateKey, secretKey)) {
+      secretKey.dispose();
+    }
   }
 }

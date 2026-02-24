@@ -677,8 +677,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
   _ChatInputState()
     : _draftAutoSave = DraftAutoSave(sessionId: '', onSave: (_) {});
   final FocusNode _focusNode = FocusNode();
-  final FocusNode _keyboardListenerFocusNode =
-      FocusNode(skipTraversal: true);
   final AutocompleteController _autocompleteController =
       AutocompleteController();
   final DraftAutoSave _draftAutoSave;
@@ -709,7 +707,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
     _loadDraft();
     widget.controller.addListener(_onTextChanged);
-    _focusNode.addListener(_onFocusChanged);
+    _focusNode
+      ..addListener(_onFocusChanged)
+      ..onKeyEvent = _handleFocusKeyEvent;
   }
 
   @override
@@ -727,8 +727,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
     _sendScaleController.dispose();
     _draftAutoSave.dispose();
     widget.controller.removeListener(_onTextChanged);
+    _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
-    _keyboardListenerFocusNode.dispose();
     super.dispose();
   }
 
@@ -850,23 +850,36 @@ class _ChatInputState extends ConsumerState<ChatInput>
     _focusNode.requestFocus();
   }
 
-  void _handleKeyPress(KeyEvent event) {
-    if (!_showAutocomplete) return;
-    if (event is! KeyDownEvent) return;
+  /// Handles key events from the TextField's own FocusNode.
+  /// Returns [KeyEventResult.handled] when autocomplete consumes the
+  /// event, so the TextField does not also act on it.
+  KeyEventResult _handleFocusKeyEvent(
+    FocusNode node,
+    KeyEvent event,
+  ) {
+    if (!_showAutocomplete) return KeyEventResult.ignored;
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
       _autocompleteController.moveSelectionUp();
       setState(() {});
+      return KeyEventResult.handled;
     } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
       _autocompleteController.moveSelectionDown();
       setState(() {});
+      return KeyEventResult.handled;
     } else if (event.logicalKey == LogicalKeyboardKey.enter ||
         event.logicalKey == LogicalKeyboardKey.tab) {
       final selected = _autocompleteController.selectedSuggestion;
-      if (selected != null) _applySuggestion(selected);
+      if (selected != null) {
+        _applySuggestion(selected);
+        return KeyEventResult.handled;
+      }
     } else if (event.logicalKey == LogicalKeyboardKey.escape) {
       _clearAutocomplete();
+      return KeyEventResult.handled;
     }
+    return KeyEventResult.ignored;
   }
 
   void _onSendTap() {
@@ -1049,10 +1062,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         : 'Message';
     final hintColor = cs.onSurface.withValues(alpha: 0.3);
 
-    return KeyboardListener(
-      focusNode: _keyboardListenerFocusNode,
-      onKeyEvent: _handleKeyPress,
-      child: TextField(
+    return TextField(
         controller: widget.controller,
         focusNode: _focusNode,
         enabled: !pending,
@@ -1081,7 +1091,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
         onSubmitted: defaultTargetPlatform == TargetPlatform.android
             ? null
             : (_) => widget.onSend(),
-      ),
     );
   }
 

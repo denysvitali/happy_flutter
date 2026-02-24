@@ -108,6 +108,11 @@ class AuthStateNotifier extends Notifier<AuthState> {
     ref.read(profileNotifierProvider.notifier).clear();
     ref.read(friendsNotifierProvider.notifier).clear();
     ref.read(feedNotifierProvider.notifier).clear();
+    ref.read(settingsNotifierProvider.notifier).clear();
+    ref.read(currentSessionNotifierProvider.notifier).clear();
+    ref.read(artifactsNotifierProvider.notifier).clear();
+    ref.read(todoStateNotifierProvider.notifier).clear();
+    ref.read(sessionGitStatusNotifierProvider.notifier).clear();
     state = AuthState.unauthenticated;
     Sentry.configureScope((scope) => scope.setUser(null));
   }
@@ -179,6 +184,10 @@ class SettingsNotifier extends Notifier<Settings> {
   Future<void> loadSettings() async {
     final settings = await _storage.getSettings();
     state = settings;
+  }
+
+  void clear() {
+    state = Settings();
   }
 
   void loadFromSync() {
@@ -307,6 +316,10 @@ class CurrentSessionNotifier extends Notifier<Session?> {
     if (state != null) {
       state = state!.copyWith(modelMode: mode);
     }
+  }
+
+  void clear() {
+    state = null;
   }
 }
 
@@ -443,14 +456,9 @@ class ArtifactsNotifier
     loadFromSync();
   }
 
-  // NOTE: Cannot filter by sessionId without decrypting headers first
-  // The sessionId is stored in the encrypted header, not on the Artifact model
-  //
-  // List<DecryptedArtifact> getBySession(String sessionId) {
-  //   return state.values
-  //       .where((a) => a.sessions?.contains(sessionId) ?? false)
-  //       .toList();
-  // }
+  void clear() {
+    state = {};
+  }
 }
 
 /// Friends/social provider

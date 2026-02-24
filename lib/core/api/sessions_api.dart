@@ -1,8 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
-
-import '../models/session.dart';
 import 'api_client.dart';
 import 'base_api_exception.dart';
 

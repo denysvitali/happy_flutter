@@ -7,7 +7,6 @@ import 'package:sentry_dio/sentry_dio.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../services/http_request_logger.dart';
-import '../services/logger_service.dart';
 import '../services/server_config.dart';
 import 'native_adapter_helper.dart'
     if (dart.library.js_interop) 'native_adapter_helper_web.dart';

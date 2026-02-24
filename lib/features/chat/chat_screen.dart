@@ -19,11 +19,6 @@ import '../../core/theme/app_tokens.dart';
 import 'chat_input.dart';
 import 'message_widget.dart';
 import 'widgets/permission_mode_selector.dart';
-import 'widgets/chat_app_bar.dart';
-import 'widgets/empty_chat_view.dart';
-import 'widgets/permission_required_banner.dart';
-import 'widgets/scroll_to_bottom_pill.dart';
-import 'widgets/typing_indicator.dart';
 
 /// Chat screen for a session
 class ChatScreen extends ConsumerStatefulWidget {
@@ -797,7 +792,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _showUnsentMessageDialog(BuildContext context) {
-    final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
     showDialog(
       context: context,
