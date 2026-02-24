@@ -8,7 +8,8 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
-import '../../core/theme/app_tokens.dart';
+import '../../core/theme/app_tokens.dart'
+    show AppSpacing, AppRadius, AppDuration;
 
 /// Screen for creating a new Zen todo item.
 class ZenNewScreen extends ConsumerStatefulWidget {
@@ -137,9 +138,9 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl,
-          AppSpacing.xl,
-          AppSpacing.xl,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
           AppSpacing.xxl,
         ),
         child: Column(
@@ -153,6 +154,9 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
               textInputAction: TextInputAction.newline,
               decoration: InputDecoration(
                 hintText: l10n.zenDescriptionHint,
+                hintStyle: TextStyle(
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
@@ -174,39 +178,45 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
               ),
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: AppSpacing.xxl),
+            const SizedBox(height: AppSpacing.xxxl),
             Text(
               l10n.zenPriorityLabel,
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.md),
             Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.xs,
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.sm,
               children: _priorities.map((p) {
                 final selected = p == _priority;
                 final color = _priorityColor(p, cs);
                 return ChoiceChip(
                   label: Text(p),
                   selected: selected,
-                  selectedColor: color.withValues(alpha: 0.18),
+                  selectedColor: color.withValues(alpha: 0.15),
                   labelStyle: theme.textTheme.labelSmall?.copyWith(
                     color: selected ? color : cs.onSurfaceVariant,
                     fontWeight: selected
                         ? FontWeight.w700
-                        : FontWeight.w400,
+                        : FontWeight.w500,
+                    fontSize: 12,
                   ),
                   side: selected
-                      ? BorderSide(color: color.withValues(alpha: 0.6))
+                      ? BorderSide(color: color.withValues(alpha: 0.5))
                       : BorderSide(
-                          color: cs.outlineVariant.withValues(alpha: 0.5),
+                          color: cs.outlineVariant.withValues(alpha: 0.4),
                         ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   onSelected: (_) => setState(() => _priority = p),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.xs,
+                  ),
                 );
               }).toList(growable: false),
             ),

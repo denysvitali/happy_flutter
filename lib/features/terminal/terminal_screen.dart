@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/sync_service.dart';
-import '../../core/theme/app_tokens.dart';
+import '../../core/theme/app_tokens.dart'
+    show AppSpacing, AppDuration, AppCurve;
 
 /// Terminal emulator screen — displays terminal output with a dark
 /// background and allows entering commands.
@@ -55,8 +56,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
+          duration: AppDuration.fast,
+          curve: AppCurve.enter,
         );
       }
     });
@@ -163,9 +164,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.sm,
               ),
               itemCount: lines.length,
               itemBuilder: (context, index) {
@@ -173,7 +176,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                 final isCommand = line.startsWith('> ');
                 return Padding(
                   key: ValueKey(index),
-                  padding: const EdgeInsets.symmetric(vertical: 1),
+                  padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Text(
                     line,
                     style: _terminalTextStyle.copyWith(
@@ -189,7 +192,15 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
 
           // Command input bar
           Container(
-            color: const Color(0xFF2D2D2D),
+            decoration: const BoxDecoration(
+              color: Color(0xFF2D2D2D),
+              border: Border(
+                top: BorderSide(
+                  color: Color(0xFF3C3C3C),
+                  width: 0.5,
+                ),
+              ),
+            ),
             padding: EdgeInsets.only(
               left: AppSpacing.md,
               right: AppSpacing.sm,
@@ -212,14 +223,18 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                     controller: _commandController,
                     style: _terminalTextStyle,
                     enabled: !_isSending,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       border: InputBorder.none,
                       isDense: true,
                       hintText: 'Enter command...',
                       hintStyle: TextStyle(
-                        color: Color(0xFF6B6B6B),
+                        color: const Color(0xFF6B6B6B),
                         fontFamily: 'monospace',
                         fontSize: 13,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
                       ),
                     ),
                     cursorColor: const Color(0xFFD4D4D4),
@@ -241,14 +256,19 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                     ),
                   )
                 else
-                  IconButton(
-                    icon: const Icon(
-                      Icons.send,
-                      color: Color(0xFF4EC94E),
-                      size: 20,
+                  SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.send,
+                        color: Color(0xFF4EC94E),
+                        size: 20,
+                      ),
+                      onPressed: () =>
+                          _submitCommand(_commandController.text),
+                      tooltip: 'Send command',
                     ),
-                    onPressed: () =>
-                        _submitCommand(_commandController.text),
                   ),
               ],
             ),

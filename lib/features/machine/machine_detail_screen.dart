@@ -11,7 +11,8 @@ import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_tokens.dart';
+import '../../core/theme/app_tokens.dart'
+    show AppSpacing, AppRadius, AppElevation, AppTouchTarget;
 
 /// Detail screen for a single machine.
 ///
@@ -183,22 +184,25 @@ class _MachineDetailScreenState
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: AppSpacing.xsm),
             Row(
               children: [
                 AppStatusDot(
                   color: statusColor,
-                  size: 7,
+                  size: 8,
                   pulse: isOnline,
                 ),
-                const SizedBox(width: AppSpacing.xs),
+                const SizedBox(width: AppSpacing.sm),
                 Text(
                   isOnline
                       ? context.l10n.settingsOnline
                       : context.l10n.settingsOffline,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: statusColor,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -224,9 +228,11 @@ class _MachineDetailScreenState
         onRefresh: () =>
             ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
         child: ListView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.md,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.xxl,
           ),
           children: [
             // Machine info section
@@ -387,9 +393,16 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Card(
-      elevation: 0,
+      elevation: AppElevation.none,
       margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+        ),
+      ),
       child: Column(children: children),
     );
   }
@@ -425,23 +438,25 @@ class _InfoRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
-                width: 120,
+                width: 110,
                 child: Text(
                   label,
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                     fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Text(
                   value!,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontFamily: mono ? 'monospace' : null,
-                    fontSize: mono ? 13 : 14,
+                    fontSize: mono ? 12 : 14,
                     color: valueColor,
+                    fontWeight: mono ? FontWeight.w500 : null,
                   ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 2,
@@ -454,7 +469,8 @@ class _InfoRow extends StatelessWidget {
           Divider(
             height: 1,
             indent: AppSpacing.lg,
-            color: theme.colorScheme.outlineVariant,
+            endIndent: AppSpacing.lg,
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
           ),
       ],
     );
@@ -481,45 +497,52 @@ class _SessionTile extends StatelessWidget {
     final theme = Theme.of(context);
     return Column(
       children: [
-        InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.md,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      if (subtitle.isNotEmpty)
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          subtitle,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                          name,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
                           ),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                         ),
-                    ],
+                        if (subtitle.isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            subtitle,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color:
+                                  theme.colorScheme.onSurfaceVariant,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  color: theme.colorScheme.onSurfaceVariant,
-                  size: 20,
-                ),
-              ],
+                  const SizedBox(width: AppSpacing.sm),
+                  Icon(
+                    Icons.chevron_right,
+                    color: theme.colorScheme.onSurfaceVariant,
+                    size: 20,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -527,7 +550,8 @@ class _SessionTile extends StatelessWidget {
           Divider(
             height: 1,
             indent: AppSpacing.lg,
-            color: theme.colorScheme.outlineVariant,
+            endIndent: AppSpacing.lg,
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
           ),
       ],
     );

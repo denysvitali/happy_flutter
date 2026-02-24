@@ -8,7 +8,8 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
-import '../../core/theme/app_tokens.dart';
+import '../../core/theme/app_tokens.dart'
+    show AppSpacing, AppRadius, AppLineHeight, AppTouchTarget;
 
 /// Screen that shows the details of a single Zen todo item.
 class ZenViewScreen extends ConsumerStatefulWidget {
@@ -174,9 +175,9 @@ class _ZenViewBodyState extends ConsumerState<_ZenViewBody> {
       appBar: AppBar(title: Text(l10n.zenTaskTitle)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl,
-          AppSpacing.xl,
-          AppSpacing.xl,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
           AppSpacing.xxxl,
         ),
         children: [
@@ -187,16 +188,14 @@ class _ZenViewBodyState extends ConsumerState<_ZenViewBody> {
               decoration: isDone ? TextDecoration.lineThrough : null,
               decorationColor: cs.onSurface,
               color: isDone ? cs.onSurfaceVariant : cs.onSurface,
-              height: 1.4,
+              height: AppLineHeight.normal,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: AppSpacing.xxl),
+          const SizedBox(height: AppSpacing.xxxl),
           // Meta card
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
+            padding: EdgeInsets.zero,
             decoration: BoxDecoration(
               color: cs.surfaceContainerLowest,
               borderRadius: BorderRadius.circular(AppRadius.md),
@@ -252,6 +251,11 @@ class _ZenViewBodyState extends ConsumerState<_ZenViewBody> {
               onPressed: _isBusy ? null : _markDone,
               icon: const Icon(Icons.check),
               label: Text(l10n.zenMarkDone),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppSpacing.sm,
+                ),
+              ),
             ),
           const SizedBox(height: AppSpacing.md),
           OutlinedButton.icon(
@@ -266,6 +270,9 @@ class _ZenViewBodyState extends ConsumerState<_ZenViewBody> {
             ),
             style: OutlinedButton.styleFrom(
               side: BorderSide(color: cs.error),
+              padding: const EdgeInsets.symmetric(
+                vertical: AppSpacing.sm,
+              ),
             ),
           ),
         ],
@@ -306,19 +313,24 @@ class _MetaRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
       child: Row(
         children: [
           SizedBox(
-            width: 96,
+            width: 100,
             child: Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
+                fontSize: 12,
               ),
             ),
           ),
+          const SizedBox(width: AppSpacing.lg),
           Expanded(child: child),
         ],
       ),
@@ -351,18 +363,19 @@ class _PriorityChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs / 2,
+        vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Text(
         priority,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
           fontWeight: FontWeight.w600,
           color: color,
+          fontSize: 11,
         ),
       ),
     );

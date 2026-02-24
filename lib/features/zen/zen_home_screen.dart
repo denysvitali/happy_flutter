@@ -159,7 +159,7 @@ class _TaskCountBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs / 2,
+        vertical: AppSpacing.xxs,
       ),
       decoration: BoxDecoration(
         color: theme.colorScheme.primaryContainer,
@@ -185,12 +185,13 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Text(
         title,
         style: theme.textTheme.titleSmall?.copyWith(
           fontWeight: FontWeight.w700,
           color: theme.colorScheme.onSurfaceVariant,
+          letterSpacing: 0.3,
         ),
       ),
     );
@@ -208,22 +209,22 @@ class _TodoItemCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDone = item.status.isTerminal;
 
-    return Opacity(
-      opacity: isDone ? 0.55 : 1.0,
-      child: Card(
-        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-        elevation: AppElevation.none,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          side: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-          ),
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      elevation: AppElevation.none,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
         ),
+      ),
+      child: Opacity(
+        opacity: isDone ? 0.6 : 1.0,
         child: ListTile(
           onTap: onTap,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs,
+            vertical: AppSpacing.sm,
           ),
           leading: _StatusIcon(status: item.status),
           title: Text(
@@ -239,6 +240,7 @@ class _TodoItemCard extends StatelessWidget {
             ),
           ),
           trailing: _PriorityDot(priority: item.priority),
+          minVerticalPadding: AppTouchTarget.min / 2,
         ),
       ),
     );
