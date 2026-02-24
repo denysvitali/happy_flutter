@@ -32,6 +32,7 @@ class Settings {
       ..voiceAssistantLanguage = json['voiceAssistantLanguage'] as String?
       ..ttsEngine = json['ttsEngine'] as String?
       ..preferredLanguage = json['preferredLanguage'] as String?
+      ..usagePeriod = json['usagePeriod'] as String? ?? 'thirtyDays'
       ..recentMachinePaths = (json['recentMachinePaths'] as List<dynamic>?)
               ?.map(
                   (e) => RecentMachinePath.fromJson(e as Map<String, dynamic>))
@@ -83,6 +84,7 @@ class Settings {
   String? voiceAssistantLanguage;
   String? ttsEngine;
   String? preferredLanguage;
+  String usagePeriod = 'thirtyDays';
   /// Alias for preferredLanguage to maintain compatibility
   String get locale => preferredLanguage ?? '';
   set locale(String value) {
@@ -125,6 +127,7 @@ class Settings {
       'voiceAssistantLanguage': voiceAssistantLanguage,
       'ttsEngine': ttsEngine,
       'preferredLanguage': preferredLanguage,
+      'usagePeriod': usagePeriod,
       'recentMachinePaths': recentMachinePaths.map((e) => e.toJson()).toList(),
       'lastUsedAgent': lastUsedAgent,
       'lastUsedPermissionMode': lastUsedPermissionMode,
@@ -164,6 +167,7 @@ class Settings {
     String? voiceAssistantLanguage,
     String? ttsEngine,
     String? preferredLanguage,
+    String? usagePeriod,
     List<RecentMachinePath>? recentMachinePaths,
     String? lastUsedAgent,
     String? lastUsedPermissionMode,
@@ -208,6 +212,7 @@ class Settings {
           voiceAssistantLanguage ?? this.voiceAssistantLanguage
       ..ttsEngine = ttsEngine ?? this.ttsEngine
       ..preferredLanguage = preferredLanguage ?? this.preferredLanguage
+      ..usagePeriod = usagePeriod ?? this.usagePeriod
       ..recentMachinePaths = recentMachinePaths != null
           ? List<RecentMachinePath>.from(recentMachinePaths)
           : List<RecentMachinePath>.from(this.recentMachinePaths)
