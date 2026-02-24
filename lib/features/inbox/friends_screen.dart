@@ -237,7 +237,7 @@ class _FriendsTab extends StatelessWidget {
           AppSpacing.md,
           AppSpacing.sm,
           AppSpacing.md,
-          80,
+          AppSpacing.xxxl,
         ),
         itemCount: friends.length,
         itemBuilder: (context, index) {
@@ -270,8 +270,8 @@ class _FriendTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = friend.name ?? friend.id;
     return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      elevation: AppElevation.none,
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
         side: BorderSide(
@@ -280,24 +280,73 @@ class _FriendTile extends StatelessWidget {
           ).colorScheme.outlineVariant.withValues(alpha: 0.4),
         ),
       ),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundImage: friend.avatarUrl != null
-              ? CachedNetworkImageProvider(
-                  friend.avatarUrl!,
-                  maxWidth: 108,
-                  maxHeight: 108,
-                )
-              : null,
-          child: friend.avatarUrl == null
-              ? Text(name.isNotEmpty ? name[0].toUpperCase() : '?')
-              : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
         ),
-        title: Text(name),
-        subtitle: friend.bio != null ? Text(friend.bio!) : null,
-        trailing: TextButton(
-          onPressed: isBusy ? null : onRemove,
-          child: Text(context.l10n.friendsRemoveAction),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: Theme.of(context)
+                  .colorScheme
+                  .primaryContainer,
+              backgroundImage: friend.avatarUrl != null
+                  ? CachedNetworkImageProvider(
+                      friend.avatarUrl!,
+                      maxWidth: 108,
+                      maxHeight: 108,
+                    )
+                  : null,
+              child: friend.avatarUrl == null
+                  ? Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : '?',
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (friend.bio != null) ...[
+                    const SizedBox(height: AppSpacing.xsm),
+                    Text(
+                      friend.bio!,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            TextButton(
+              onPressed: isBusy ? null : onRemove,
+              child: Text(context.l10n.friendsRemoveAction),
+            ),
+          ],
         ),
       ),
     );
@@ -354,7 +403,7 @@ class _RequestsTab extends StatelessWidget {
           AppSpacing.md,
           AppSpacing.sm,
           AppSpacing.md,
-          80,
+          AppSpacing.xxxl,
         ),
         itemCount: requests.length,
         itemBuilder: (context, index) {
@@ -390,8 +439,8 @@ class _RequestTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      elevation: AppElevation.none,
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
         side: BorderSide(
@@ -401,15 +450,16 @@ class _RequestTile extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.sm,
-          AppSpacing.md,
-          AppSpacing.sm,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
         ),
         child: Row(
           children: [
             CircleAvatar(
+              backgroundColor: Theme.of(context)
+                  .colorScheme
+                  .primaryContainer,
               backgroundImage: request.fromUserAvatarUrl != null
                   ? CachedNetworkImageProvider(
                       request.fromUserAvatarUrl!,
@@ -422,6 +472,12 @@ class _RequestTile extends StatelessWidget {
                       request.fromUserName.isNotEmpty
                           ? request.fromUserName[0].toUpperCase()
                           : '?',
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
                     )
                   : null,
             ),
@@ -432,21 +488,27 @@ class _RequestTile extends StatelessWidget {
                 children: [
                   Text(
                     request.fromUserName,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
+                  const SizedBox(height: AppSpacing.xsm),
                   Text(
                     l10n.friendsWantsToConnect,
-                    style: Theme.of(context).textTheme.bodySmall,
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(
+                      color:
+                          Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
+            const SizedBox(width: AppSpacing.md),
             TextButton(
               onPressed: isBusy ? null : onReject,
               child: Text(l10n.friendsReject),
             ),
-            const SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: AppSpacing.xsm),
             FilledButton(
               onPressed: isBusy ? null : onAccept,
               child: Text(l10n.friendsAccept),
@@ -472,8 +534,8 @@ class _CountBadge extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: 1,
+        horizontal: AppSpacing.xsm,
+        vertical: AppSpacing.xsm,
       ),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary,
@@ -484,6 +546,7 @@ class _CountBadge extends StatelessWidget {
         style: theme.textTheme.labelSmall?.copyWith(
           color: theme.colorScheme.onPrimary,
           fontWeight: FontWeight.w700,
+          fontSize: 11,
         ),
       ),
     );

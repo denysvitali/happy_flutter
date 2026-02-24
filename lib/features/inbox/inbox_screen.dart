@@ -146,7 +146,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
     // Feed section
     if (feedItems.isNotEmpty) {
-      items.add(const SizedBox(height: AppSpacing.sm));
+      items.add(const SizedBox(height: AppSpacing.md));
       items.add(
         _SectionHeader(
           key: const ValueKey('feed_header'),
@@ -176,7 +176,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
     // Incoming requests section
     if (incoming.isNotEmpty) {
-      items.add(const SizedBox(height: AppSpacing.sm));
+      items.add(const SizedBox(height: AppSpacing.md));
       items.add(
         _SectionHeader(
           key: const ValueKey('incoming_header'),
@@ -204,7 +204,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
     // Sent requests section
     if (requested.isNotEmpty) {
-      items.add(const SizedBox(height: AppSpacing.sm));
+      items.add(const SizedBox(height: AppSpacing.md));
       items.add(
         _SectionHeader(
           key: const ValueKey('requested_header'),
@@ -235,7 +235,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
     // Friends section
     if (friends.isNotEmpty) {
-      items.add(const SizedBox(height: AppSpacing.sm));
+      items.add(const SizedBox(height: AppSpacing.md));
       items.add(
         _SectionHeader(
           key: const ValueKey('friends_header'),
@@ -468,7 +468,7 @@ class _FeedCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (item.body.text != null) ...[
-                    const SizedBox(height: AppSpacing.xs / 2),
+                    const SizedBox(height: AppSpacing.xsm),
                     Text(
                       item.body.text!,
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -604,7 +604,7 @@ class _InboxItem extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: AppSpacing.xs / 2),
+                  const SizedBox(height: AppSpacing.xsm),
                   Text(
                     subtitle,
                     style: theme.textTheme.bodySmall?.copyWith(

@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/models/friend.dart';
 import '../../core/services/social_service.dart';
 import '../../core/theme/app_tokens.dart';
@@ -81,8 +82,10 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('Find Friends')),
+      appBar: AppBar(title: Text(l10n.friendsAddFriend)),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg,
@@ -99,26 +102,59 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
                     controller: _controller,
                     textInputAction: TextInputAction.search,
                     onSubmitted: (_) => _search(),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'Search by username',
-                      prefixIcon: Icon(Icons.search),
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppRadius.md),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.sm,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 FilledButton(
                   onPressed: _isSearching ? null : _search,
-                  child: const Text('Search'),
+                  child: Text(l10n.commonSearch),
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.lg),
             Expanded(
               child: _isSearching
                   ? const Center(child: CircularProgressIndicator())
                   : _results.isEmpty
-                  ? const Center(
-                      child: Text('Search for a username to connect'),
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.person_search,
+                            size: 64,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          Text(
+                            'Search for friends',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            'Search for a username to connect',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(
+                              color:
+                                  theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
                     )
                   : ListView.builder(
                       itemCount: _results.length,
@@ -130,33 +166,105 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
 
                         return Card(
                           key: ValueKey(user.id),
-                          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: user.avatarUrl != null
-                                  ? CachedNetworkImageProvider(
-                                      user.avatarUrl!,
-                                      maxWidth: 108,
-                                      maxHeight: 108,
-                                    )
-                                  : null,
-                              child: user.avatarUrl == null
-                                  ? Text(_initials(user.name ?? user.id))
-                                  : null,
+                          elevation: AppElevation.none,
+                          margin:
+                              const EdgeInsets.only(bottom: AppSpacing.sm),
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.md),
+                            side: BorderSide(
+                              color: theme.colorScheme.outlineVariant
+                                  .withValues(alpha: 0.4),
                             ),
-                            title: Text(user.name ?? user.id),
-                            subtitle: Text(_statusLabel(user.status)),
-                            trailing: FilledButton.tonal(
-                              onPressed: isFriend || isPending || _isMutating
-                                  ? null
-                                  : () => _sendRequest(user.id),
-                              child: Text(
-                                isFriend
-                                    ? 'Friends'
-                                    : isPending
-                                    ? 'Pending'
-                                    : 'Add',
-                              ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.sm,
+                            ),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: theme
+                                      .colorScheme
+                                      .primaryContainer,
+                                  backgroundImage: user.avatarUrl != null
+                                      ? CachedNetworkImageProvider(
+                                          user.avatarUrl!,
+                                          maxWidth: 108,
+                                          maxHeight: 108,
+                                        )
+                                      : null,
+                                  child: user.avatarUrl == null
+                                      ? Text(
+                                          _initials(
+                                            user.name ?? user.id,
+                                          ),
+                                          style: TextStyle(
+                                            color: theme.colorScheme
+                                                .onPrimaryContainer,
+                                            fontWeight:
+                                                FontWeight.w600,
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                                const SizedBox(
+                                  width: AppSpacing.md,
+                                ),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        user.name ?? user.id,
+                                        style: theme.textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                          fontWeight:
+                                              FontWeight.w600,
+                                        ),
+                                        maxLines: 1,
+                                        overflow:
+                                            TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(
+                                        height: AppSpacing.xsm,
+                                      ),
+                                      Text(
+                                        _statusLabel(user.status),
+                                        style: theme.textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                          color: theme.colorScheme
+                                              .onSurfaceVariant,
+                                        ),
+                                        maxLines: 1,
+                                        overflow:
+                                            TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(
+                                  width: AppSpacing.md,
+                                ),
+                                FilledButton.tonal(
+                                  onPressed: isFriend ||
+                                          isPending ||
+                                          _isMutating
+                                      ? null
+                                      : () => _sendRequest(user.id),
+                                  child: Text(
+                                    isFriend
+                                        ? 'Friends'
+                                        : isPending
+                                        ? 'Pending'
+                                        : 'Add',
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         );
