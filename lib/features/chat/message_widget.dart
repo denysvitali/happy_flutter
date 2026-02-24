@@ -47,17 +47,11 @@ class _MessageWidgetState extends State<MessageWidget>
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-    _opacity = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    );
+    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
     _slide = Tween<Offset>(
       begin: const Offset(0, 0.04),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
     _controller.forward();
   }
 
@@ -96,8 +90,7 @@ class _MessageWidgetState extends State<MessageWidget>
           sessionId: widget.sessionId,
           onPress: (widget.sessionId != null && messageId != null)
               ? () {
-                  final isTask =
-                      widget.messageData['name'] == 'Task';
+                  final isTask = widget.messageData['name'] == 'Task';
                   final route = isTask
                       ? '/chat/${widget.sessionId}'
                             '/agent/$messageId'
@@ -131,14 +124,8 @@ class _MessageWidgetState extends State<MessageWidget>
       child: SlideTransition(
         position: _slide,
         child: widget.isFromCurrentUser
-            ? _UserBubble(
-                text: text,
-                onOptionPress: widget.onOptionPress,
-              )
-            : _BotMessage(
-                text: text,
-                onOptionPress: widget.onOptionPress,
-              ),
+            ? _UserBubble(text: text, onOptionPress: widget.onOptionPress)
+            : _BotMessage(text: text, onOptionPress: widget.onOptionPress),
       ),
     );
   }
@@ -149,10 +136,7 @@ class _MessageWidgetState extends State<MessageWidget>
 // ---------------------------------------------------------------------------
 
 class _UserBubble extends StatelessWidget {
-  const _UserBubble({
-    required this.text,
-    this.onOptionPress,
-  });
+  const _UserBubble({required this.text, this.onOptionPress});
 
   final String text;
   final void Function(String)? onOptionPress;
@@ -182,8 +166,7 @@ class _UserBubble extends StatelessWidget {
               vertical: AppSpacing.sm + 2,
             ),
             constraints: BoxConstraints(
-              maxWidth:
-                  MediaQuery.sizeOf(context).width * 0.80,
+              maxWidth: MediaQuery.sizeOf(context).width * 0.80,
             ),
             decoration: BoxDecoration(
               color: color,
@@ -195,13 +178,8 @@ class _UserBubble extends StatelessWidget {
               ),
             ),
             child: DefaultTextStyle.merge(
-              style: TextStyle(
-                color: theme.colorScheme.onPrimary,
-              ),
-              child: MarkdownView(
-                markdown: text,
-                onOptionPress: onOptionPress,
-              ),
+              style: TextStyle(color: theme.colorScheme.onPrimary),
+              child: MarkdownView(markdown: text, onOptionPress: onOptionPress),
             ),
           ),
         ),
@@ -215,10 +193,7 @@ class _UserBubble extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _BotMessage extends StatelessWidget {
-  const _BotMessage({
-    required this.text,
-    this.onOptionPress,
-  });
+  const _BotMessage({required this.text, this.onOptionPress});
 
   final String text;
   final void Function(String)? onOptionPress;
@@ -242,10 +217,7 @@ class _BotMessage extends StatelessWidget {
         ),
         child: DefaultTextStyle.merge(
           style: TextStyle(color: textColor),
-          child: MarkdownView(
-            markdown: text,
-            onOptionPress: onOptionPress,
-          ),
+          child: MarkdownView(markdown: text, onOptionPress: onOptionPress),
         ),
       ),
     );
@@ -313,88 +285,93 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
 
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
+        horizontal: AppSpacing.lg,
         vertical: AppSpacing.xs,
       ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: cs.onSurface.withValues(alpha: 0.03),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: cs.outlineVariant.withValues(alpha: 0.3),
-            width: 0.5,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: cs.outlineVariant.withValues(alpha: 0.2),
+              width: 0.5,
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header row — always visible, tap to toggle.
-            GestureDetector(
-              onTap: _toggle,
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm + 2,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.psychology_outlined,
-                      size: 14,
-                      color: cs.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Thinking',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header — always visible, tap to toggle.
+              GestureDetector(
+                onTap: _toggle,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm + 2,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.psychology_outlined,
+                        size: 14,
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                       ),
-                    ),
-                    const Spacer(),
-                    AnimatedRotation(
-                      turns: _expanded ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Icon(
-                        Icons.expand_more_rounded,
-                        size: 16,
-                        color: cs.onSurfaceVariant
-                            .withValues(alpha: 0.6),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Thinking',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.3,
+                        ),
                       ),
-                    ),
-                  ],
+                      const Spacer(),
+                      AnimatedRotation(
+                        turns: _expanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          Icons.expand_more_rounded,
+                          size: 16,
+                          color: cs.onSurfaceVariant.withValues(alpha: 0.35),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            // Expanded content with animation.
-            SizeTransition(
-              sizeFactor: _expandAnimation,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Divider(
-                    height: 0.5,
-                    color: cs.outlineVariant.withValues(alpha: 0.3),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: DefaultTextStyle.merge(
-                      style: TextStyle(
-                        color: cs.onSurfaceVariant,
-                        fontStyle: FontStyle.italic,
+              // Expanded content — ClipRect prevents overflow during animation.
+              ClipRect(
+                child: SizeTransition(
+                  sizeFactor: _expandAnimation,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Divider(
+                        height: 0.5,
+                        thickness: 0.5,
+                        color: cs.outlineVariant.withValues(alpha: 0.2),
                       ),
-                      child: MarkdownView(
-                        markdown: _getCleanContent(),
+                      Padding(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        child: DefaultTextStyle.merge(
+                          style: TextStyle(
+                            color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                            fontStyle: FontStyle.italic,
+                            fontSize: 13,
+                            height: 1.5,
+                          ),
+                          child: MarkdownView(markdown: _getCleanContent()),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -424,8 +401,7 @@ class _AgentEventWidget extends StatelessWidget {
         child: Text(
           label,
           style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant
-                .withValues(alpha: 0.6),
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
           ),
           textAlign: TextAlign.center,
         ),
@@ -458,10 +434,7 @@ class _AgentEventWidget extends StatelessWidget {
 /// and a copy-all button. This provides a reliable way to
 /// copy message content on Android where SelectionArea can
 /// be unreliable.
-void _showRawMarkdownSheet(
-  BuildContext context,
-  String markdown,
-) {
+void _showRawMarkdownSheet(BuildContext context, String markdown) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
   final l10n = context.l10n;
@@ -472,9 +445,7 @@ void _showRawMarkdownSheet(
     useSafeArea: true,
     backgroundColor: cs.surface,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(16),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
     builder: (ctx) => DraggableScrollableSheet(
       initialChildSize: 0.55,
@@ -485,78 +456,54 @@ void _showRawMarkdownSheet(
         children: [
           // Drag handle
           Container(
-            margin: const EdgeInsets.symmetric(
-              vertical: AppSpacing.sm,
-            ),
+            margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             width: 32,
             height: 4,
             decoration: BoxDecoration(
-              color: cs.onSurfaceVariant
-                  .withValues(alpha: 0.3),
-              borderRadius:
-                  BorderRadius.circular(2),
+              color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
           // Header row
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     l10n.chatCopyMessage,
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(
+                    style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
                 TextButton.icon(
                   onPressed: () {
-                    Clipboard.setData(
-                      ClipboardData(text: markdown),
-                    );
+                    Clipboard.setData(ClipboardData(text: markdown));
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(
+                    ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(
-                          l10n.commonCopy,
-                        ),
-                        duration: const Duration(
-                          seconds: 1,
-                        ),
+                        content: Text(l10n.commonCopy),
+                        duration: const Duration(seconds: 1),
                       ),
                     );
                   },
-                  icon: const Icon(
-                    Icons.copy,
-                    size: 18,
-                  ),
+                  icon: const Icon(Icons.copy, size: 18),
                   label: Text(l10n.commonCopy),
                 ),
               ],
             ),
           ),
-          Divider(
-            color: cs.outlineVariant
-                .withValues(alpha: 0.3),
-          ),
+          Divider(color: cs.outlineVariant.withValues(alpha: 0.3)),
           // Selectable content
           Expanded(
             child: ListView(
               controller: scrollController,
-              padding: const EdgeInsets.all(
-                AppSpacing.lg,
-              ),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
                 SelectableText(
                   markdown,
-                  style:
-                      theme.textTheme.bodyMedium
-                          ?.copyWith(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     fontFamily: 'monospace',
                     fontSize: 13,
                     height: 1.5,
@@ -603,11 +550,7 @@ class _ErrorMessageWidget extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 18,
-                color: cs.onErrorContainer,
-              ),
+              Icon(Icons.error_outline, size: 18, color: cs.onErrorContainer),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
@@ -673,9 +616,7 @@ class _ErrorMessageWidget extends StatelessWidget {
       useSafeArea: true,
       backgroundColor: cs.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(16),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (ctx) => DraggableScrollableSheet(
         initialChildSize: 0.55,
@@ -725,9 +666,7 @@ class _ErrorMessageWidget extends StatelessWidget {
                 ],
               ),
             ),
-            Divider(
-              color: cs.outlineVariant.withValues(alpha: 0.3),
-            ),
+            Divider(color: cs.outlineVariant.withValues(alpha: 0.3)),
             // Error details
             Expanded(
               child: ListView(
@@ -772,8 +711,9 @@ class _ErrorMessageWidget extends StatelessWidget {
                     ),
                     child: SelectableText(
                       debugData != null
-                          ? const JsonEncoder.withIndent('  ')
-                              .convert(debugData)
+                          ? const JsonEncoder.withIndent(
+                              '  ',
+                            ).convert(debugData)
                           : 'No debug data',
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontFamily: 'monospace',

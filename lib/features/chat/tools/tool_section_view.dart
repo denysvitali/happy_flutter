@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_tokens.dart';
 
 /// Section container for displaying tool content with an optional title.
 class ToolSectionView extends StatelessWidget {
@@ -59,9 +60,9 @@ class _SectionHeader extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.only(
-        bottom: 6,
-        left: fullWidth ? 0 : 8,
-        right: fullWidth ? 0 : 8,
+        bottom: AppSpacing.xsm,
+        left: fullWidth ? 0 : AppSpacing.sm,
+        right: fullWidth ? 0 : AppSpacing.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,7 +78,7 @@ class _SectionHeader extends StatelessWidget {
               fontFamilyFallback: const ['Courier New', 'Courier'],
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Container(
             height: 1,
             decoration: BoxDecoration(
