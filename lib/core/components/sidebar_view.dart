@@ -161,17 +161,17 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
         padding: EdgeInsets.only(
           top: MediaQuery.paddingOf(context).top,
           left: AppSpacing.lg,
-          right: 8,
+          right: AppSpacing.sm,
         ),
         child: Row(
           children: [
             // Logo (using icon since assets don't exist yet)
             SizedBox(
-              width: 32,
-              height: 24,
+              width: AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
+              height: AppSpacing.xxxl - AppSpacing.lg,
               child: Icon(
                 Icons.terminal,
-                size: 24,
+                size: AppSpacing.xxxl - AppSpacing.lg,
                 color: headerTintColor,
               ),
             ),
@@ -197,7 +197,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                           AppStatusDot(
                             color: connectionInfo.color,
                             pulse: connectionInfo.isPulsing,
-                            size: 6,
+                            size: AppSpacing.xs + AppSpacing.xs,
                           ),
                           const SizedBox(width: AppSpacing.xs),
                           Text(
@@ -277,9 +277,9 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                           AppStatusDot(
                             color: connectionInfo.color,
                             pulse: connectionInfo.isPulsing,
-                            size: 6,
+                            size: AppSpacing.xs + AppSpacing.xs,
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: AppSpacing.xs),
                           Text(
                             connectionInfo.text,
                             style: TextStyle(
@@ -304,13 +304,13 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
     required IconData icon,
     required VoidCallback onTap,
     required Color tintColor,
-    double size = 32,
+    double size = AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
   }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Padding(
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.all(AppSpacing.xs + AppSpacing.xs),
         child: Icon(
           icon,
           size: size,
@@ -334,10 +334,10 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
           onTap: () => context.push('/inbox'),
           borderRadius: BorderRadius.circular(AppRadius.sm),
           child: Padding(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(AppSpacing.xs + AppSpacing.xs),
             child: Icon(
               Icons.inbox_outlined,
-              size: 32,
+              size: AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
               color: tintColor,
             ),
           ),
@@ -345,17 +345,20 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
         // Badge for friend requests
         if (friendRequestCount > 0)
           Positioned(
-            top: -4,
-            right: -4,
+            top: -AppSpacing.sm,
+            right: -AppSpacing.sm,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: AppSpacing.xxs,
+              ),
               decoration: BoxDecoration(
                 color: cs.error,
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               constraints: const BoxConstraints(
-                minWidth: 16,
-                minHeight: 16,
+                minWidth: AppSpacing.md,
+                minHeight: AppSpacing.md,
               ),
               child: Text(
                 friendRequestCount > 99 ? '99+' : friendRequestCount.toString(),
@@ -372,10 +375,10 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
         if (hasContent && friendRequestCount == 0)
           Positioned(
             top: 0,
-            right: -2,
+            right: -AppSpacing.xs,
             child: Container(
-              width: 6,
-              height: 6,
+              width: AppSpacing.xs + AppSpacing.xs,
+              height: AppSpacing.xs + AppSpacing.xs,
               decoration: BoxDecoration(
                 color: cs.onSurface,
                 shape: BoxShape.circle,
@@ -456,7 +459,10 @@ class _SessionListItem extends StatelessWidget {
     final cs = theme.colorScheme;
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.xxs,
+      ),
       elevation: 0,
       color: cs.surface,
       child: InkWell(
@@ -468,8 +474,8 @@ class _SessionListItem extends StatelessWidget {
             children: [
               // Status indicator
               Container(
-                width: 10,
-                height: 10,
+                width: AppSpacing.sm + AppSpacing.xs,
+                height: AppSpacing.sm + AppSpacing.xs,
                 decoration: BoxDecoration(
                   color: session.active
                       ? AppColors.success

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_tokens.dart';
+
 /// Displays a colored dot indicator with optional pulse animation.
 ///
 /// Used to show connection/activity status throughout the app.
@@ -15,7 +17,7 @@ class AppStatusDot extends StatefulWidget {
   const AppStatusDot({
     required this.color,
     super.key,
-    this.size = 8,
+    this.size = AppSpacing.xs,
     this.pulse = false,
     this.pulseColor,
     this.margin,
@@ -52,7 +54,7 @@ class _AppStatusDotState extends State<AppStatusDot>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1500), // 1.5s pulse loop
       vsync: this,
     );
     _opacity = Tween<double>(begin: 1.0, end: 0.2).animate(

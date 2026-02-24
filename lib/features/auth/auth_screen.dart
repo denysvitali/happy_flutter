@@ -32,7 +32,7 @@ class RoundButton extends StatelessWidget {
     this.onPressed,
     this.isPrimary = true,
     this.isLoading = false,
-    this.height = 52.0,
+    this.height = AppTouchTarget.comfortable + 4,
   });
 
   final String title;
@@ -70,7 +70,7 @@ class RoundButton extends StatelessWidget {
         ),
         child: isLoading
             ? AppLoadingIndicator(
-                size: 20,
+                size: AppSpacing.xl - AppSpacing.sm,
                 strokeWidth: 2,
                 color: isPrimary
                     ? theme.colorScheme.onPrimary
@@ -98,7 +98,7 @@ class QRCodeDisplay extends StatelessWidget {
   const QRCodeDisplay({
     required this.data,
     super.key,
-    this.size = 250,
+    this.size = 250, // Fixed size for QR code; consider AppSpacing-aligned
   });
 
   final String data;
@@ -113,14 +113,7 @@ class QRCodeDisplay extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        boxShadow: [
-          BoxShadow(
-            color: primary.withValues(alpha: 0.20),
-            blurRadius: 20,
-            spreadRadius: 0,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppShadow.card,
       ),
       child: CustomPaint(
         size: Size(size, size),
@@ -439,7 +432,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       barrierLabel:
           MaterialLocalizations.of(ctx).modalBarrierDismissLabel,
       barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: AppDuration.slow,
       transitionBuilder: (ctx2, animation, secondaryAnimation, child) {
         return SlideTransition(
           position: Tween<Offset>(
@@ -448,13 +441,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           ).animate(
             CurvedAnimation(
               parent: animation,
-              curve: Curves.easeOut,
+              curve: AppCurve.enter,
             ),
           ),
           child: FadeTransition(
             opacity: CurvedAnimation(
               parent: animation,
-              curve: Curves.easeOut,
+              curve: AppCurve.enter,
             ),
             child: child,
           ),
@@ -807,8 +800,8 @@ class _AuthHeader extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: 88,
-          height: 88,
+          width: AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.xxl,
+          height: AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.xxl,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
@@ -826,14 +819,14 @@ class _AuthHeader extends StatelessWidget {
             boxShadow: [
               BoxShadow(
                 color: theme.colorScheme.primary.withValues(alpha: 0.30),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
+                blurRadius: AppSpacing.xxxl,
+                offset: const Offset(0, AppSpacing.lg),
               ),
             ],
           ),
           child: Icon(
             Icons.android,
-            size: 48,
+            size: AppSpacing.xxxl + AppSpacing.xxxl,
             color: theme.colorScheme.onPrimary,
           ),
         ),
@@ -867,8 +860,8 @@ class _LandingLogoMark extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      width: 100,
-      height: 100,
+      width: AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.xs,
+      height: AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.xs,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
@@ -886,14 +879,14 @@ class _LandingLogoMark extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: theme.colorScheme.primary.withValues(alpha: 0.30),
-            blurRadius: 32,
-            offset: const Offset(0, 10),
+            blurRadius: AppSpacing.xxxl + AppSpacing.xxl,
+            offset: const Offset(0, AppSpacing.xl - AppSpacing.sm),
           ),
         ],
       ),
       child: Icon(
         Icons.android,
-        size: 56,
+        size: AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.lg,
         color: theme.colorScheme.onPrimary,
       ),
     );

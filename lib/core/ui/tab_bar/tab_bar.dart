@@ -45,8 +45,10 @@ class _TabBadge extends StatelessWidget {
     final label = count > 99 ? '99+' : count.toString();
     final isMultiDigit = count > 9;
     return Container(
-      height: 16,
-      constraints: BoxConstraints(minWidth: isMultiDigit ? 22 : 16),
+      height: AppSpacing.md + AppSpacing.xs,
+      constraints: BoxConstraints(
+        minWidth: isMultiDigit ? AppSpacing.md + AppSpacing.xsm : AppSpacing.md,
+      ),
       padding: EdgeInsets.symmetric(
         horizontal: isMultiDigit ? AppSpacing.xs : 0,
       ),
@@ -97,14 +99,14 @@ class _TabIndicator extends StatelessWidget {
         return Stack(
           children: [
             AnimatedPositioned(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
+              duration: AppDuration.fast,
+              curve: AppCurve.standard,
               left: leftOffset,
               top: 0,
               bottom: 0,
               width: pillWidth,
               child: Container(
-                height: 40,
+                height: AppTouchTarget.min - 4,
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(AppRadius.xl),
@@ -162,7 +164,7 @@ class _TabItem extends StatelessWidget {
                 children: [
                   Icon(
                     isActive ? tab.activeIcon : tab.icon,
-                    size: 24,
+                    size: AppSpacing.xxxl - AppSpacing.lg,
                     color: itemColor,
                   ),
                   // Count badge
@@ -170,8 +172,8 @@ class _TabItem extends StatelessWidget {
                       badgeCount != null &&
                       badgeCount! > 0)
                     Positioned(
-                      top: -5,
-                      right: -10,
+                      top: -AppSpacing.sm - AppSpacing.xs,
+                      right: -AppSpacing.lg - AppSpacing.md,
                       child: _TabBadge(count: badgeCount!),
                     ),
                   // Dot badge (unread but no count)
@@ -179,11 +181,11 @@ class _TabItem extends StatelessWidget {
                       showDot &&
                       (badgeCount == null || badgeCount! == 0))
                     Positioned(
-                      top: -3,
-                      right: -2,
+                      top: -AppSpacing.sm,
+                      right: -AppSpacing.xs,
                       child: Container(
-                        width: 6,
-                        height: 6,
+                        width: AppSpacing.xs + AppSpacing.xs,
+                        height: AppSpacing.xs + AppSpacing.xs,
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.error,
                           shape: BoxShape.circle,
@@ -192,7 +194,7 @@ class _TabItem extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: AppSpacing.xsm),
               Text(
                 label,
                 style: theme.textTheme.labelSmall?.copyWith(
@@ -262,6 +264,9 @@ class TabBar extends StatefulWidget {
   final Color? unselectedItemColor;
   final Color? indicatorColor;
 
+  /// Default height matches iOS tab bar standards.
+  static const double defaultHeight = AppTouchTarget.comfortable + 12;
+
   @override
   State<TabBar> createState() => _TabBarState();
 }
@@ -297,21 +302,7 @@ class _TabBarState extends State<TabBar> {
           ),
         ),
         // Frosted glass elevation on iOS; clean card on Android
-        boxShadow: onIOS
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 20,
-                  offset: const Offset(0, -4),
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
-                ),
-              ],
+        boxShadow: onIOS ? AppShadow.floating : AppShadow.card,
       ),
       child: SafeArea(
         top: false,
@@ -322,7 +313,9 @@ class _TabBarState extends State<TabBar> {
               // Animated pill indicator layer (behind the items)
               Positioned.fill(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSpacing.sm + AppSpacing.xs,
+                  ),
                   child: _TabIndicator(
                     activeIndex: _activeIndex,
                     tabCount: _kAppTabs.length,
@@ -465,22 +458,22 @@ class SegmentTabBar extends StatelessWidget {
             children: [
               // Sliding active segment pill
               AnimatedPositioned(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
+                duration: AppDuration.fast,
+                curve: AppCurve.standard,
                 left: selectedIndex * segmentWidth,
                 top: 0,
                 bottom: 0,
                 width: segmentWidth,
                 child: Container(
-                  margin: const EdgeInsets.all(2),
+                  margin: const EdgeInsets.all(AppSpacing.xxs),
                   decoration: BoxDecoration(
                     color: colorScheme.surface,
                     borderRadius: BorderRadius.circular(AppRadius.sm),
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.10),
-                        blurRadius: 6,
-                        offset: const Offset(0, 1),
+                        color: Color(0x1A000000),
+                        blurRadius: AppSpacing.xs + AppSpacing.xs,
+                        offset: Offset(0, 1),
                       ),
                     ],
                   ),
@@ -498,7 +491,7 @@ class SegmentTabBar extends StatelessWidget {
                       width: segmentWidth,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                          vertical: 7,
+                          vertical: AppSpacing.xsm + AppSpacing.xs,
                         ),
                         child: Text(
                           entry.value,
@@ -508,7 +501,7 @@ class SegmentTabBar extends StatelessWidget {
                                   const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    height: 1.2,
+                                    height: AppLineHeight.tight,
                                   ))
                               : (unselectedTextStyle ??
                                   TextStyle(
@@ -516,7 +509,7 @@ class SegmentTabBar extends StatelessWidget {
                                     fontWeight: FontWeight.w500,
                                     color: colorScheme.onSurface
                                         .withValues(alpha: 0.6),
-                                    height: 1.2,
+                                    height: AppLineHeight.tight,
                                   )),
                         ),
                       ),

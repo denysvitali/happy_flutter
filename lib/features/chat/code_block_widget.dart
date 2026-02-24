@@ -202,14 +202,14 @@ class _CodeHeader extends StatelessWidget {
           // Language dot indicator
           if (displayName != null) ...[
             Container(
-              width: 8,
-              height: 8,
+              width: AppSpacing.xs,
+              height: AppSpacing.xs,
               decoration: BoxDecoration(
                 color: _languageColor(language),
                 shape: BoxShape.circle,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: AppSpacing.xsm),
           ],
           // Language / file name label
           if (displayName != null)
