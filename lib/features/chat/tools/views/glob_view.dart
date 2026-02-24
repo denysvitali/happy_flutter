@@ -187,6 +187,7 @@ class _GlobViewState extends State<GlobView> {
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: ClipRRect(
+                  clipBehavior: Clip.hardEdge,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

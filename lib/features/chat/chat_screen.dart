@@ -369,7 +369,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               child: Stack(
                 children: [
                   AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
+                    duration: AppDuration.normal,
                     child: _isLoadingMessages
                         ? Center(
                             key: const ValueKey('loading'),
@@ -614,7 +614,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return ListView.builder(
       controller: _scrollController,
       reverse: true,
-      padding: const EdgeInsets.only(top: 6, bottom: 80),
+      padding: const EdgeInsets.only(
+        top: AppSpacing.xsm,
+        bottom: AppSpacing.xxxl,
+      ),
       itemCount: visibleMessages.length + (showHeader ? 1 : 0),
       findChildIndexCallback: (key) {
         if (key is! ValueKey<String>) return null;

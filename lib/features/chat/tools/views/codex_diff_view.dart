@@ -363,6 +363,7 @@ class _DiffBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
+      clipBehavior: Clip.hardEdge,
       borderRadius: const BorderRadius.only(
         bottomLeft: Radius.circular(8),
         bottomRight: Radius.circular(8),

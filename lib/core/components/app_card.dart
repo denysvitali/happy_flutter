@@ -70,6 +70,7 @@ class _AppCardState extends State<AppCard> {
     // DecoratedBox handles the visual decoration (shadow, border, bg)
     // outside the clipping region so box shadows are not clipped.
     final Widget inner = ClipRRect(
+      clipBehavior: Clip.hardEdge,
       borderRadius: AppCard._radius,
       child: DecoratedBox(
         decoration: BoxDecoration(
