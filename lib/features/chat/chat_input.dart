@@ -994,7 +994,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
                         : null,
                     contextSize: widget.contextSize,
                     showAbort: widget.isSessionOnline &&
-                        widget.isAgentThinking &&
                         !widget.isPermissionPending,
                     isAborting: _isAborting,
                     onAbort: _onAbortTap,
