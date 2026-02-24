@@ -243,6 +243,7 @@ class SettingsNotifier extends Notifier<Settings> {
           settings.copyWith(voiceAssistantLanguage: value as String?),
       'preferredLanguage' =>
           settings.copyWith(preferredLanguage: value as String?),
+      'usagePeriod' => settings.copyWith(usagePeriod: value as String),
       'lastUsedAgent' => settings.copyWith(lastUsedAgent: value as String?),
       'lastUsedPermissionMode' =>
           settings.copyWith(lastUsedPermissionMode: value as String?),

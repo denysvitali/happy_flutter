@@ -169,6 +169,25 @@ class AppLocalizations {
   String get settingsProfilesSubtitle => 'Manage AI profiles';
   String get settingsUsage => 'Usage';
   String get settingsUsageSubtitle => 'View usage statistics';
+
+  // Usage Screen
+  String get usageTitle => 'Usage';
+  String get timePeriod => 'Time Period';
+  String get totals => 'Totals';
+  String get byModel => 'By Model';
+  String get statistics => 'Statistics';
+  String get today => 'Today';
+  String get sevenDays => '7 Days';
+  String get thirtyDays => '30 Days';
+  String get totalTokens => 'Total Tokens';
+  String get totalCost => 'Total Cost';
+  String get reports => 'Reports';
+  String get avgCostPerDay => 'Avg. Cost/Day';
+  String get avgTokensPerDay => 'Avg. Tokens/Day';
+  String get noUsageData => 'No usage data';
+  String get noUsageDataSubtitle => 'Start using Happy to see your usage stats';
+  String get failedToLoad => 'Failed to load usage data';
+
   String get settingsFeatures => 'Features';
   String get featuresExperiments => 'Experiments';
   String get featuresExperimentsDesc => 'Try experimental features';
