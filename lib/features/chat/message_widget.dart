@@ -364,14 +364,7 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
                             fontSize: 13,
                             height: 1.5,
                           ),
-                          child: Theme(
-                            data: theme.copyWith(
-                              colorScheme: cs.copyWith(
-                                surfaceContainerHighest: cs.surface,
-                              ),
-                            ),
-                            child: MarkdownView(markdown: _getCleanContent()),
-                          ),
+                          child: SimpleMarkdownView(markdown: _getCleanContent()),
                         ),
                       ),
                     ],
