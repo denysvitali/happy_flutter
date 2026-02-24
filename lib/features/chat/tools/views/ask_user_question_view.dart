@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/services/sync_service.dart';
+import '../../../../core/theme/app_tokens.dart';
 
 /// Question option model.
 class QuestionOption {
@@ -146,11 +147,14 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md + AppSpacing.xxs,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
           color: theme.colorScheme.outlineVariant
               .withAlpha(80),
@@ -167,7 +171,7 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
                 size: 16,
                 color: theme.colorScheme.primary,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.xsm),
               Text(
                 'Answered',
                 style: theme.textTheme.labelMedium
@@ -178,7 +182,7 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.md + AppSpacing.xxs),
           ...questions.asMap().entries.map((entry) {
             final qIndex = entry.key;
             final q = entry.value;
@@ -605,7 +609,7 @@ class _QuestionSection extends StatelessWidget {
                 ),
               ),
               if (question.multiSelect) ...[
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.xsm),
                 Text(
                   'Select all that apply',
                   style:
@@ -631,7 +635,7 @@ class _QuestionSection extends StatelessWidget {
                 color: theme
                     .colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.xsm),
               Expanded(
                 child: Text(
                   question.question,
