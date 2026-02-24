@@ -115,14 +115,25 @@ class _EditArtifactScreenState
         appBar: AppBar(
           title: Text(l10n.artifactsEdit),
           actions: [
-            TextButton(
-              onPressed: _isBusy ? null : _handleSave,
-              child: _isBusy
-                  ? const SizedBox.square(
-                      dimension: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(l10n.commonSave),
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: TextButton(
+                onPressed: _isBusy ? null : _handleSave,
+                child: _isBusy
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        l10n.commonSave,
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelLarge
+                            ?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+              ),
             ),
           ],
         ),
@@ -145,12 +156,41 @@ class _EditArtifactScreenState
                     hintText: l10n.artifactsEnterTitle,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
+                      borderSide: BorderSide(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outlineVariant
+                            .withValues(alpha: 0.5),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      borderSide: BorderSide(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outlineVariant
+                            .withValues(alpha: 0.5),
+                      ),
                     ),
                     filled: true,
+                    fillColor: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerLow,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.md,
+                    ),
+                    hintStyle:
+                        Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                   ),
                   textCapitalization: TextCapitalization.sentences,
                   textInputAction: TextInputAction.next,
                   maxLines: 1,
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: AppSpacing.xxl),
                 _SectionLabel(label: l10n.artifactsContentLabel),
@@ -161,24 +201,66 @@ class _EditArtifactScreenState
                     hintText: l10n.artifactsEnterContent,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
+                      borderSide: BorderSide(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outlineVariant
+                            .withValues(alpha: 0.5),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      borderSide: BorderSide(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outlineVariant
+                            .withValues(alpha: 0.5),
+                      ),
                     ),
                     filled: true,
+                    fillColor: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerLow,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.md,
+                    ),
                     alignLabelWithHint: true,
+                    hintStyle:
+                        Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                   ),
                   textCapitalization: TextCapitalization.sentences,
                   maxLines: 10,
                   minLines: 6,
                   keyboardType: TextInputType.multiline,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        height: AppLineHeight.normal,
+                      ),
                 ),
                 const SizedBox(height: AppSpacing.xxxl),
-                FilledButton(
-                  onPressed: _isBusy ? null : _handleSave,
-                  child: _isBusy
-                      ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(l10n.commonSave),
+                SizedBox(
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: _isBusy ? null : _handleSave,
+                    child: _isBusy
+                        ? const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                          )
+                        : Text(
+                            l10n.commonSave,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                  ),
                 ),
               ],
             ),
@@ -221,33 +303,36 @@ class _EncryptionNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
       decoration: BoxDecoration(
-        color: Theme.of(
-          context,
-        ).colorScheme.secondaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        color: cs.secondaryContainer.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+          color: cs.secondaryContainer.withValues(alpha: 0.4),
+          width: 1,
         ),
       ),
       child: Row(
         children: [
           Icon(
             Icons.lock_outline,
-            size: 16,
-            color: Theme.of(context).colorScheme.onSecondaryContainer,
+            size: 18,
+            color: cs.onSecondaryContainer,
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
               'The existing content is encrypted. '
               'Fields below will replace it once saved.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSecondaryContainer,
+                    color: cs.onSecondaryContainer,
+                    fontWeight: FontWeight.w500,
+                    height: AppLineHeight.normal,
                   ),
             ),
           ),
@@ -268,8 +353,9 @@ class _SectionLabel extends StatelessWidget {
       label,
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.2,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+            fontSize: 12,
           ),
     );
   }

@@ -58,20 +58,22 @@ class _ArtifactDetailScreenState
         body: Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xxxl,
+              horizontal: AppSpacing.lg,
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.error_outline,
-                  size: AppSpacing.xxxl * 2,
+                  size: 56,
                   color: Theme.of(context).colorScheme.error,
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Text(
                   l10n.errorNotFound,
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -248,7 +250,8 @@ class _MetadataCard extends StatelessWidget {
             if (i < rows.length - 1)
               Divider(
                 height: 1,
-                color: cs.outlineVariant.withValues(alpha: 0.6),
+                thickness: 1,
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
           ],
         ],
@@ -282,23 +285,27 @@ class _MetaRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 80,
+            width: AppSpacing.xxxl,
             child: Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
               value,
               style: monospace
                   ? theme.textTheme.bodyMedium?.copyWith(
                       fontFamily: 'monospace',
+                      height: AppLineHeight.normal,
                     )
-                  : theme.textTheme.bodyMedium,
+                  : theme.textTheme.bodyMedium?.copyWith(
+                      height: AppLineHeight.normal,
+                    ),
             ),
           ),
         ],
@@ -346,7 +353,8 @@ class _ContentBlockState extends State<_ContentBlock> {
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.6),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
+          width: 1,
         ),
       ),
       child: Column(
@@ -355,8 +363,8 @@ class _ContentBlockState extends State<_ContentBlock> {
           // Toolbar row.
           Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.xs,
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
             ),
             child: Row(
               children: [
@@ -365,6 +373,7 @@ class _ContentBlockState extends State<_ContentBlock> {
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: cs.onSurfaceVariant,
                     fontFamily: 'monospace',
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const Spacer(),
@@ -378,7 +387,8 @@ class _ContentBlockState extends State<_ContentBlock> {
           ),
           Divider(
             height: 1,
-            color: cs.outlineVariant.withValues(alpha: 0.6),
+            thickness: 1,
+            color: cs.outlineVariant.withValues(alpha: 0.5),
           ),
           // Content.
           Padding(
@@ -388,11 +398,12 @@ class _ContentBlockState extends State<_ContentBlock> {
               style: hasBody
                   ? theme.textTheme.bodyMedium?.copyWith(
                       fontFamily: 'monospace',
-                      height: 1.6,
+                      height: AppLineHeight.loose,
                     )
                   : theme.textTheme.bodyMedium?.copyWith(
                       fontStyle: FontStyle.italic,
                       color: cs.onSurfaceVariant,
+                      height: AppLineHeight.normal,
                     ),
             ),
           ),
@@ -413,10 +424,10 @@ class _CopyButton extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.xs),
+      borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
+          horizontal: AppSpacing.md,
           vertical: AppSpacing.xs,
         ),
         child: Row(
@@ -424,7 +435,7 @@ class _CopyButton extends StatelessWidget {
           children: [
             Icon(
               copied ? Icons.check : Icons.copy_outlined,
-              size: AppSpacing.lg,
+              size: 18,
               color: copied ? cs.primary : cs.onSurfaceVariant,
             ),
             const SizedBox(width: AppSpacing.xs),
@@ -434,6 +445,7 @@ class _CopyButton extends StatelessWidget {
                   : context.l10n.commonCopy,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: copied ? cs.primary : cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
                   ),
             ),
           ],

@@ -122,16 +122,18 @@ class _ArtifactListCard extends StatelessWidget {
         children: [
           // Leading icon container.
           Container(
-            width: AppSpacing.xxxl + AppSpacing.lg, // 48 px
-            height: AppSpacing.xxxl + AppSpacing.lg,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: cs.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(
-              Icons.description_outlined,
-              size: AppSpacing.xl,
-              color: cs.onSurfaceVariant,
+            child: Center(
+              child: Icon(
+                Icons.description_outlined,
+                size: 24,
+                color: cs.onSurfaceVariant,
+              ),
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -146,7 +148,8 @@ class _ArtifactListCard extends StatelessWidget {
                       child: Text(
                         title,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
+                          height: AppLineHeight.tight,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -166,6 +169,7 @@ class _ArtifactListCard extends StatelessWidget {
                   dateStr,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: cs.onSurfaceVariant,
+                    height: AppLineHeight.tight,
                   ),
                 ),
               ],
@@ -174,7 +178,7 @@ class _ArtifactListCard extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Icon(
             Icons.chevron_right,
-            size: AppSpacing.xl,
+            size: 20,
             color: cs.onSurfaceVariant,
           ),
         ],
@@ -199,18 +203,23 @@ class _TypeBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
+        horizontal: AppSpacing.md,
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(
+          color: color.withValues(alpha: 0.25),
+          width: 0.5,
+        ),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: color,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
             ),
       ),
     );

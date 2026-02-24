@@ -74,14 +74,22 @@ class _NewArtifactScreenState
       appBar: AppBar(
         title: Text(l10n.artifactsNew),
         actions: [
-          TextButton(
-            onPressed: _isBusy ? null : _handleCreate,
-            child: _isBusy
-                ? const SizedBox.square(
-                    dimension: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(l10n.commonCreate),
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.sm),
+            child: TextButton(
+              onPressed: _isBusy ? null : _handleCreate,
+              child: _isBusy
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      l10n.commonCreate,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+            ),
           ),
         ],
       ),
@@ -102,12 +110,40 @@ class _NewArtifactScreenState
                   hintText: l10n.artifactsEnterTitle,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderSide: BorderSide(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outlineVariant
+                          .withValues(alpha: 0.5),
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderSide: BorderSide(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outlineVariant
+                          .withValues(alpha: 0.5),
+                    ),
                   ),
                   filled: true,
+                  fillColor: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerLow,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.md,
+                  ),
+                  hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant,
+                      ),
                 ),
                 textCapitalization: TextCapitalization.sentences,
                 textInputAction: TextInputAction.next,
                 maxLines: 1,
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: AppSpacing.xxl),
               _SectionLabel(label: l10n.artifactsContentLabel),
@@ -118,24 +154,65 @@ class _NewArtifactScreenState
                   hintText: l10n.artifactsEnterContent,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderSide: BorderSide(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outlineVariant
+                          .withValues(alpha: 0.5),
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderSide: BorderSide(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outlineVariant
+                          .withValues(alpha: 0.5),
+                    ),
                   ),
                   filled: true,
+                  fillColor: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerLow,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.md,
+                  ),
                   alignLabelWithHint: true,
+                  hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant,
+                      ),
                 ),
                 textCapitalization: TextCapitalization.sentences,
                 maxLines: 10,
                 minLines: 6,
                 keyboardType: TextInputType.multiline,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      height: AppLineHeight.normal,
+                    ),
               ),
               const SizedBox(height: AppSpacing.xxxl),
-              FilledButton(
-                onPressed: _isBusy ? null : _handleCreate,
-                child: _isBusy
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(l10n.commonCreate),
+              SizedBox(
+                height: 48,
+                child: FilledButton(
+                  onPressed: _isBusy ? null : _handleCreate,
+                  child: _isBusy
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        )
+                      : Text(
+                          l10n.commonCreate,
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelLarge
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                ),
               ),
             ],
           ),
@@ -156,8 +233,9 @@ class _SectionLabel extends StatelessWidget {
       label,
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.2,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+            fontSize: 12,
           ),
     );
   }
