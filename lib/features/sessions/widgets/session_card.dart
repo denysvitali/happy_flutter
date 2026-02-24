@@ -24,6 +24,7 @@ class SessionCard extends StatelessWidget {
     this.showDateHeader = false,
     this.compact = false,
     this.avatarStyle,
+    this.lastMessageTimestamp,
   });
 
   /// The session to display.
@@ -52,6 +53,10 @@ class SessionCard extends StatelessWidget {
 
   /// The avatar style to use (null = hash-based selection).
   final AvatarStyle? avatarStyle;
+
+  /// Timestamp of the last message in the session (ms since epoch).
+  /// If null, falls back to session.updatedAt.
+  final int? lastMessageTimestamp;
 
   @override
   Widget build(BuildContext context) {
@@ -183,7 +188,10 @@ class SessionCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            formatTimestamp(session.updatedAt, relative: true),
+                            formatTimestamp(
+                              lastMessageTimestamp ?? session.updatedAt,
+                              relative: true,
+                            ),
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: cs.onSurfaceVariant,
                               fontSize: 11,

@@ -361,6 +361,17 @@ what you have, you must use the options mode.
   List<Map<String, dynamic>> messagesForSession(String sessionId) =>
       List.unmodifiable(_sessionMessages[sessionId] ?? const []);
 
+  /// Returns the timestamp of the last message in a session, or null if
+  /// there are no messages.
+  int? getLastMessageTimestamp(String sessionId) {
+    final messages = _sessionMessages[sessionId];
+    if (messages == null || messages.isEmpty) return null;
+    // Messages are stored in ascending seq order, so the last one has the
+    // highest seq (most recent).
+    final lastMessage = messages.last;
+    return lastMessage['createdAt'] as int?;
+  }
+
   /// Returns true when there are older messages available for [sessionId]
   /// that have not yet been loaded.
   bool hasOlderMessages(String sessionId) {

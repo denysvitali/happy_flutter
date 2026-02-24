@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../i18n/app_localizations.dart';
@@ -442,7 +443,11 @@ class _DefaultSessionContent extends ConsumerWidget {
       itemCount: sessionList.length,
       itemBuilder: (context, index) {
         final session = sessionList[index];
-        return _SessionListItem(key: ValueKey(session.id), session: session);
+        return _SessionListItem(
+          key: ValueKey(session.id),
+          session: session,
+          lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
+        );
       },
     );
   }
@@ -450,8 +455,9 @@ class _DefaultSessionContent extends ConsumerWidget {
 
 class _SessionListItem extends StatelessWidget {
 
-  const _SessionListItem({required this.session, super.key});
+  const _SessionListItem({required this.session, required this.lastMessageTimestamp, super.key});
   final Session session;
+  final int? lastMessageTimestamp;
 
   @override
   Widget build(BuildContext context) {
@@ -512,7 +518,7 @@ class _SessionListItem extends StatelessWidget {
               ),
               // Timestamp
               Text(
-                _formatTimestamp(session.updatedAt),
+                _formatTimestamp(lastMessageTimestamp ?? session.updatedAt),
                 style: TextStyle(
                   fontSize: 11,
                   color: cs.onSurfaceVariant,
