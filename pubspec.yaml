@@ -53,6 +53,8 @@ dependencies:
   url_launcher: ^6.3.1
   qr: ^3.0.2
   web: ^1.1.1
+  flutter_markdown_plus: ^1.0.0
+  markdown: ^7.3.0
 
   flutter_user_certificates_android: ^0.0.1
 

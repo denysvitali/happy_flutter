@@ -1,15 +1,9 @@
-/// Main markdown view widget that renders parsed markdown content.
-///
-/// This widget parses markdown text into blocks and renders each block
-/// with the appropriate widget. Supports text selection on long-press.
+/// Markdown view widgets using flutter_markdown_plus with custom extensions.
 library;
 
 import 'package:flutter/material.dart';
-
-import 'block_widgets.dart';
-import 'markdown_models.dart';
-import 'markdown_parser.dart';
-import 'mermaid_renderer.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:markdown/markdown.dart' as md;
 
 /// Callback type for when an option is pressed in an options block.
 typedef OptionPressedCallback = void Function(String option);
@@ -17,17 +11,16 @@ typedef OptionPressedCallback = void Function(String option);
 /// A widget that renders markdown content with full formatting support.
 ///
 /// Supports:
-/// - Headers (H1-H6)
-/// - Plain text with bold, italic, and inline code
-/// - Ordered and unordered lists
-/// - Code blocks with language labels
-/// - Mermaid diagrams
-/// - Tables with headers and data rows
-/// - Horizontal rules
-/// - Interactive options blocks
-/// - Text selection via long-press
-class MarkdownView extends StatefulWidget {
-  const MarkdownView({required this.markdown, super.key, this.onOptionPress});
+/// - All standard markdown (headers, lists, code blocks, tables, etc.)
+/// - <options> blocks with interactive chips
+/// - GitHub Flavored Markdown
+class MarkdownView extends StatelessWidget {
+  /// Creates a [MarkdownView].
+  const MarkdownView({
+    required this.markdown,
+    super.key,
+    this.onOptionPress,
+  });
 
   /// The raw markdown text to render.
   final String markdown;
@@ -36,434 +29,191 @@ class MarkdownView extends StatefulWidget {
   final OptionPressedCallback? onOptionPress;
 
   @override
-  State<MarkdownView> createState() => _MarkdownViewState();
-}
-
-class _MarkdownViewState extends State<MarkdownView> {
-  late List<MarkdownBlock> _blocks;
-
-  @override
-  void initState() {
-    super.initState();
-    _blocks = parseMarkdown(widget.markdown);
-  }
-
-  @override
-  void didUpdateWidget(MarkdownView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.markdown != widget.markdown) {
-      setState(() {
-        _blocks = parseMarkdown(widget.markdown);
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: _blocks.asMap().entries.map((entry) {
-        final index = entry.key;
-        final block = entry.value;
-        final isFirst = index == 0;
-        final isLast = index == _blocks.length - 1;
+    final theme = Theme.of(context);
 
-        return _buildBlock(block, isFirst, isLast);
-      }).toList(),
+    return MarkdownBody(
+      data: markdown,
+      extensionSet: md.ExtensionSet.gitHubFlavored,
+      builders: {
+        'options': OptionsElementBuilder(onOptionPress: onOptionPress),
+      },
+      blockSyntaxes: const [
+        OptionsBlockSyntax(),
+      ],
+      styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+        codeblockDecoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        codeblockPadding: const EdgeInsets.all(12),
+        code: TextStyle(
+          fontFamily: 'monospace',
+          fontSize: 14,
+          backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+        ),
+      ),
     );
-  }
-
-  Widget _buildBlock(MarkdownBlock block, bool isFirst, bool isLast) {
-    switch (block) {
-      case TextBlock(:final content):
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: TextBlockWidget(
-            content: content,
-            isFirst: isFirst,
-            isLast: isLast,
-          ),
-        );
-      case HeaderBlock(:final level, :final content):
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: HeaderBlockWidget(
-            level: level,
-            content: content,
-            isFirst: isFirst,
-            isLast: isLast,
-          ),
-        );
-      case ListBlock(:final items):
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: ListBlockWidget(
-            items: items,
-            isFirst: isFirst,
-            isLast: isLast,
-          ),
-        );
-      case NumberedListBlock(:final items):
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: NumberedListBlockWidget(
-            items: items,
-            isFirst: isFirst,
-            isLast: isLast,
-          ),
-        );
-      case CodeBlock(:final language, :final content):
-        return CodeBlockWidget(
-          content: content,
-          language: language,
-          isFirst: isFirst,
-          isLast: isLast,
-        );
-      case MermaidBlock(:final content):
-        return MermaidBlockWidget(content: content);
-      case HorizontalRuleBlock():
-        return const HorizontalRuleBlockWidget();
-      case OptionsBlock(:final items):
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: OptionsBlockWidget(
-            items: items,
-            isFirst: isFirst,
-            isLast: isLast,
-            onOptionPress: widget.onOptionPress,
-          ),
-        );
-      case TableBlock(:final headers, :final rows):
-        return TableBlockWidget(
-          headers: headers,
-          rows: rows,
-          isFirst: isFirst,
-          isLast: isLast,
-        );
-      // Sealed class ensures all cases are covered above
-    }
   }
 }
 
 /// A simpler markdown view widget for basic text rendering.
 ///
 /// This is a convenience widget that renders markdown without
-/// additional styling wrapper.
-class SimpleMarkdownView extends StatefulWidget {
+/// the interactive options block support.
+class SimpleMarkdownView extends StatelessWidget {
+  /// Creates a [SimpleMarkdownView].
   const SimpleMarkdownView({required this.markdown, super.key});
 
   /// The markdown text to render.
   final String markdown;
 
   @override
-  State<SimpleMarkdownView> createState() => _SimpleMarkdownViewState();
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return MarkdownBody(
+      data: markdown,
+      extensionSet: md.ExtensionSet.gitHubFlavored,
+      styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+        codeblockDecoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        codeblockPadding: const EdgeInsets.all(12),
+        code: TextStyle(
+          fontFamily: 'monospace',
+          fontSize: 14,
+          backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+        ),
+      ),
+    );
+  }
 }
 
-class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
-  late List<MarkdownBlock> _blocks;
+/// A custom block syntax for parsing <options> blocks.
+///
+/// Syntax:
+/// ```
+/// <options>
+/// <option>Option 1</option>
+/// <option>Option 2</option>
+/// </options>
+/// ```
+class OptionsBlockSyntax extends md.BlockSyntax {
+  /// Creates an [OptionsBlockSyntax].
+  const OptionsBlockSyntax();
 
   @override
-  void initState() {
-    super.initState();
-    _blocks = parseMarkdown(widget.markdown);
-  }
+  RegExp get pattern => RegExp(r'^\s*\u003coptions\u003e\s*$');
 
   @override
-  void didUpdateWidget(SimpleMarkdownView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.markdown != widget.markdown) {
-      _blocks = parseMarkdown(widget.markdown);
+  md.Node parse(md.BlockParser parser) {
+    final items = <String>[];
+
+    // Skip the opening tag
+    parser.advance();
+
+    // Parse option tags until we hit the closing tag
+    while (!parser.isDone) {
+      final line = parser.current.content;
+
+      // Check for closing tag
+      if (RegExp(r'^\s*\u003c/options\u003e\s*$').hasMatch(line)) {
+        parser.advance();
+        break;
+      }
+
+      // Extract content from <option> tags
+      final match = RegExp(r'\u003coption\u003e(.*?)\u003c/option\u003e').firstMatch(line);
+      if (match != null) {
+        items.add(match.group(1) ?? '');
+      }
+
+      parser.advance();
     }
+
+    // Create a custom element that will be rendered by OptionsElementBuilder
+    return md.Element('options', [md.Text(items.join('\n'))]);
   }
+}
+
+/// Builder for rendering <options> elements as interactive chips.
+class OptionsElementBuilder extends MarkdownElementBuilder {
+  /// Creates an [OptionsElementBuilder].
+  OptionsElementBuilder({this.onOptionPress});
+
+  /// Callback when an option is pressed.
+  final OptionPressedCallback? onOptionPress;
+
+  @override
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    // Parse the items from the element text content
+    final items = element.textContent.split('\n').where((s) => s.isNotEmpty).toList();
+
+    return _OptionsChips(
+      items: items,
+      onOptionPress: onOptionPress,
+    );
+  }
+}
+
+/// Widget that displays options as interactive chips.
+class _OptionsChips extends StatelessWidget {
+  const _OptionsChips({
+    required this.items,
+    this.onOptionPress,
+  });
+
+  final List<String> items;
+  final OptionPressedCallback? onOptionPress;
 
   @override
   Widget build(BuildContext context) {
-    return SelectionArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: _blocks.asMap().entries.map((entry) {
-          final index = entry.key;
-          final block = entry.value;
-          final isFirst = index == 0;
-          final isLast = index == _blocks.length - 1;
-
-          return _buildBlock(block, isFirst, isLast, context);
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildBlock(
-    MarkdownBlock block,
-    bool isFirst,
-    bool isLast,
-    BuildContext context,
-  ) {
     final theme = Theme.of(context);
+    final isInteractive = onOptionPress != null;
 
-    switch (block) {
-      case TextBlock(:final content):
-        return _buildRichText(content, theme);
-      case HeaderBlock(:final level, :final content):
-        final fontSize = switch (level) {
-          1 => 20.0,
-          2 => 18.0,
-          3 => 16.0,
-          4 => 15.0,
-          _ => 15.0,
-        };
-        final fontWeight = switch (level) {
-          1 => FontWeight.w700,
-          2 || 3 => FontWeight.w600,
-          _ => FontWeight.w600,
-        };
-        return _buildRichText(
-          content,
-          theme,
-          fontSize: fontSize,
-          fontWeight: fontWeight,
-        );
-      case ListBlock(:final items):
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: items.map((item) {
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('•  '),
-                Expanded(child: _buildRichText(item, theme)),
-              ],
-            );
-          }).toList(),
-        );
-      case NumberedListBlock(:final items):
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: items.map((item) {
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${item.number}. '),
-                Expanded(child: _buildRichText(item.spans, theme)),
-              ],
-            );
-          }).toList(),
-        );
-      case CodeBlock(:final content):
-        return Container(
-          padding: const EdgeInsets.all(12),
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: RichText(
-              text: TextSpan(
-                text: content,
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 14,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: items.map((item) {
+        if (!isInteractive) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(100),
+            ),
+            child: Text(
+              item,
+              style: TextStyle(
+                fontSize: 14,
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w500,
               ),
             ),
-          ),
-        );
-      case MermaidBlock(:final content):
-        return MermaidBlockWidget(content: content);
-      case HorizontalRuleBlock():
-        return Container(
-          margin: const EdgeInsets.symmetric(vertical: 12),
-          height: 1,
-          color: theme.colorScheme.outlineVariant,
-        );
-      case OptionsBlock(:final items):
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: items.map((item) {
-            return Container(
-              margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                border: Border.all(color: theme.colorScheme.outlineVariant),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(item),
-            );
-          }).toList(),
-        );
-      case TableBlock(:final headers, :final rows):
-        return _buildTable(headers, rows, theme);
-      // Sealed class ensures all cases are covered above
-    }
-  }
-
-  Widget _buildRichText(
-    List<MarkdownSpan> spans,
-    ThemeData theme, {
-    double? fontSize,
-    FontWeight? fontWeight,
-  }) {
-    return Text.rich(
-      TextSpan(
-        style: TextStyle(
-          fontSize: fontSize ?? 14,
-          fontWeight: fontWeight,
-          height: 1.5,
-          color: theme.colorScheme.onSurface,
-        ),
-        children: spans.map((span) {
-          final style = TextStyle(
-            fontStyle: span.styles.contains(MarkdownTextStyle.italic)
-                ? FontStyle.italic
-                : null,
-            fontWeight: span.styles.contains(MarkdownTextStyle.bold)
-                ? FontWeight.bold
-                : span.styles.contains(MarkdownTextStyle.semibold)
-                ? FontWeight.w600
-                : fontWeight,
-            fontSize: fontSize ?? 14,
-            color: span.styles.contains(MarkdownTextStyle.code)
-                ? Colors.pink.shade300
-                : theme.colorScheme.onSurface,
-            fontFamily: span.styles.contains(MarkdownTextStyle.code)
-                ? 'monospace'
-                : null,
-            backgroundColor: span.styles.contains(MarkdownTextStyle.code)
-                ? theme.colorScheme.primary.withValues(alpha: 0.1)
-                : null,
           );
+        }
 
-          if (span.url != null) {
-            return WidgetSpan(
-              alignment: PlaceholderAlignment.baseline,
-              baseline: TextBaseline.alphabetic,
-              child: InlineLinkWidget(
-                text: span.text,
-                url: span.url!,
-                baseStyle: style.copyWith(
-                  color: Colors.blue,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            );
-          }
-
-          return TextSpan(text: span.text, style: style);
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildTable(
-    List<String> headers,
-    List<List<String>> rows,
-    ThemeData theme,
-  ) {
-    final columnCount = headers.length;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final available = constraints.maxWidth;
-        final colWidth = columnCount > 0
-            ? (available / columnCount).clamp(72.0, double.infinity)
-            : available;
-        final tableWidth = colWidth * columnCount;
-
-        final tableContent = Container(
-          width: tableWidth,
-          decoration: BoxDecoration(
-            border: Border.all(color: theme.colorScheme.outlineVariant),
-            borderRadius: BorderRadius.circular(8),
+        return OutlinedButton(
+          onPressed: () => onOptionPress!(item),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: theme.colorScheme.primary,
+            side: BorderSide(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.8),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(100),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Container(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(7),
-                  ),
-                ),
-                child: Row(
-                  children: headers.map((header) {
-                    return SizedBox(
-                      width: colWidth,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        child: Text(
-                          header,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              // Rows
-              ...rows.asMap().entries.map((entry) {
-                final rowIndex = entry.key;
-                final row = entry.value;
-                final isLastRow = rowIndex == rows.length - 1;
-
-                return Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: isLastRow
-                          ? BorderSide.none
-                          : BorderSide(color: theme.colorScheme.outlineVariant),
-                    ),
-                  ),
-                  child: Row(
-                    children: headers.asMap().entries.map((cellEntry) {
-                      final cellIndex = cellEntry.key;
-                      final cellText = row.length > cellIndex
-                          ? row[cellIndex]
-                          : '';
-
-                      return SizedBox(
-                        width: colWidth,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Text(
-                            cellText,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                );
-              }),
-            ],
-          ),
+          child: Text(item),
         );
-
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: tableContent,
-        );
-      },
+      }).toList(),
     );
   }
 }

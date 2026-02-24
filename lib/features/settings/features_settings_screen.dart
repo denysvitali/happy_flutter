@@ -4,7 +4,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
 
-/// Features settings screen - Experiments toggles
+/// Features settings screen
 class FeaturesSettingsScreen extends ConsumerWidget {
   const FeaturesSettingsScreen({super.key});
 
@@ -22,37 +22,8 @@ class FeaturesSettingsScreen extends ConsumerWidget {
         children: [
           _buildSectionHeader(
             context,
-            l10n.featuresExperimentalTitle,
+            l10n.featuresHideInactiveSessions,
           ),
-          _buildToggle(
-            context: context,
-            title: l10n.featuresExperimentalTitle,
-            subtitle: settings.experiments
-                ? 'Enabled'
-                : 'Disabled - Try new features',
-            value: settings.experiments,
-            onChanged: (value) {
-              ref
-                  .read(settingsNotifierProvider.notifier)
-                  .updateSetting('experiments', value);
-            },
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _buildToggle(
-            context: context,
-            title: l10n.featuresEnhancedSessionWizard,
-            subtitle: l10n.featuresEnhancedSessionWizardDesc,
-            value: settings.useEnhancedSessionWizard,
-            onChanged: (value) {
-              ref
-                  .read(settingsNotifierProvider.notifier)
-                  .updateSetting(
-                    'useEnhancedSessionWizard',
-                    value,
-                  );
-            },
-          ),
-          const SizedBox(height: AppSpacing.sm),
           _buildToggle(
             context: context,
             title: l10n.featuresHideInactiveSessions,
