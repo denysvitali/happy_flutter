@@ -589,12 +589,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
                 darkTheme: ThemeHelper.buildDarkTheme(),
                 themeMode: _getThemeMode(themeMode),
                 locale: _resolveLocale(settings.preferredLanguage),
-                localizationsDelegates: const [
-                  AppLocalizationsDelegate(),
-                  GlobalMaterialLocalizations.delegate,
-                  GlobalWidgetsLocalizations.delegate,
-                  GlobalCupertinoLocalizations.delegate,
-                ],
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
                 supportedLocales: supportedLocales,
                 routerConfig: _router,
               ),

@@ -2,7 +2,6 @@
   "appTitle": "Happy",
   "appSubtitle": "Mobile client for Claude Code & Codex",
   "@appTitle": {},
-  "appSubtitle": {},
   "commonCancel": "Cancel",
   "@commonCancel": {},
   "commonAuthenticate": "Authenticate",
@@ -90,10 +89,6 @@
   },
   "timeHoursAgo": "{count} hour(s) ago",
   "@timeHoursAgo": {
-    "placeholders": {
-      "count": {
-        "type": "int",
-        "format": "decimalPattern"
       }
     }
   },
@@ -362,9 +357,7 @@
   "@newSessionDirectoryDoesNotExist": {},
   "newSessionCreateDirectoryConfirm": "The directory {directory} does not exist. Do you want to create it?",
   "@newSessionCreateDirectoryConfirm": {
-    "placeholders": {
       "directory": {
-        "type": "String"
       }
     }
   },
@@ -398,9 +391,7 @@
   "@newSessionTypeComingSoon": {},
   "newSessionWorktreeCreating": "Creating worktree '{name}'...",
   "@newSessionWorktreeCreating": {
-    "placeholders": {
       "name": {
-        "type": "String"
       }
     }
   },
@@ -408,9 +399,7 @@
   "@newSessionWorktreeNotGitRepo": {},
   "newSessionWorktreeFailed": "Failed to create worktree: {error}",
   "@newSessionWorktreeFailed": {
-    "placeholders": {
       "error": {
-        "type": "String"
       }
     }
   },
@@ -426,10 +415,6 @@
   "@sessionHistoryYesterday": {},
   "sessionHistoryDaysAgo": "{count} day(s) ago",
   "@sessionHistoryDaysAgo": {
-    "placeholders": {
-      "count": {
-        "type": "int",
-        "format": "decimalPattern"
       }
     }
   },
@@ -553,12 +538,9 @@
   "@sessionInfoCliUpdateRequired": {},
   "sessionInfoCliVersionMessage": "Version {currentVersion} installed. Update to {requiredVersion} or later",
   "@sessionInfoCliVersionMessage": {
-    "placeholders": {
       "currentVersion": {
-        "type": "String"
       },
       "requiredVersion": {
-        "type": "String"
       }
     }
   },
@@ -590,9 +572,6 @@
   "@chatDeleteSessionConfirm": {},
   "chatFailedToSend": "Failed to send: {error}",
   "@chatFailedToSend": {
-    "placeholders": {
-      "error": {
-        "type": "String"
       }
     }
   },
@@ -614,17 +593,12 @@
   "@authAccessDenied": {},
   "authClientError": "Client Error ({statusCode})",
   "@authClientError": {
-    "placeholders": {
       "statusCode": {
-        "type": "int"
       }
     }
   },
   "authServerError": "Server Error ({statusCode})",
   "@authServerError": {
-    "placeholders": {
-      "statusCode": {
-        "type": "int"
       }
     }
   },
@@ -714,10 +688,6 @@
   "@filesTryDifferentTerm": {},
   "filesSearchResults": "Search Results ({count})",
   "@filesSearchResults": {
-    "placeholders": {
-      "count": {
-        "type": "int",
-        "format": "decimalPattern"
       }
     }
   },
@@ -725,9 +695,7 @@
   "@filesProjectRoot": {},
   "filesLoadingFile": "Loading {fileName}...",
   "@filesLoadingFile": {
-    "placeholders": {
       "fileName": {
-        "type": "String"
       }
     }
   },
@@ -797,9 +765,7 @@
   "@accountNotAvailable": {},
   "accountGithubConnected": "Connected as @{login}",
   "@accountGithubConnected": {
-    "placeholders": {
       "login": {
-        "type": "String"
       }
     }
   },
@@ -867,17 +833,12 @@
   "@modalsDisconnectGithubConfirm": {},
   "modalsDisconnectService": "Disconnect {service}",
   "@modalsDisconnectService": {
-    "placeholders": {
       "service": {
-        "type": "String"
       }
     }
   },
   "modalsDisconnectServiceConfirm": "Are you sure you want to disconnect {service} from your account?",
   "@modalsDisconnectServiceConfirm": {
-    "placeholders": {
-      "service": {
-        "type": "String"
       }
     }
   },
@@ -935,9 +896,7 @@
   "@updateBannerTapToUpdatePlayStore": {},
   "changelogVersion": "Version {version}",
   "@changelogVersion": {
-    "placeholders": {
       "version": {
-        "type": "int"
       }
     }
   },
@@ -975,10 +934,6 @@
   "@machineDaemonStateVersion": {},
   "machineActiveSessions": "Active Sessions ({count})",
   "@machineActiveSessions": {
-    "placeholders": {
-      "count": {
-        "type": "int",
-        "format": "decimalPattern"
       }
     }
   },
@@ -1006,9 +961,7 @@
   "@machineUntitledSession": {},
   "messageSwitchedToMode": "Switched to {mode} mode",
   "@messageSwitchedToMode": {
-    "placeholders": {
       "mode": {
-        "type": "String"
       }
     }
   },
@@ -1016,9 +969,7 @@
   "@messageUnknownEvent": {},
   "messageUsageLimitUntil": "Usage limit reached until {time}",
   "@messageUsageLimitUntil": {
-    "placeholders": {
       "time": {
-        "type": "String"
       }
     }
   },
@@ -1060,10 +1011,6 @@
   "@artifactsCountSingular": {},
   "artifactsCountPlural": "{count} artifacts",
   "@artifactsCountPlural": {
-    "placeholders": {
-      "count": {
-        "type": "int",
-        "format": "decimalPattern"
       }
     }
   },
@@ -1125,9 +1072,7 @@
   "@friendsPendingRequest": {},
   "friendsSentOn": "Sent on {date}",
   "@friendsSentOn": {
-    "placeholders": {
       "date": {
-        "type": "String"
       }
     }
   },
@@ -1189,17 +1134,11 @@
   "@friendsRemoveFriend": {},
   "friendsRemoveFriendConfirm": "Are you sure you want to remove {name} as a friend?",
   "@friendsRemoveFriendConfirm": {
-    "placeholders": {
-      "name": {
-        "type": "String"
       }
     }
   },
   "friendsRequestSentDesc": "Your friend request has been sent to {name}",
   "@friendsRequestSentDesc": {
-    "placeholders": {
-      "name": {
-        "type": "String"
       }
     }
   },
@@ -1209,9 +1148,6 @@
   "@friendsCancelRequest": {},
   "friendsCancelRequestConfirm": "Cancel your friendship request to {name}?",
   "@friendsCancelRequestConfirm": {
-    "placeholders": {
-      "name": {
-        "type": "String"
       }
     }
   },
@@ -1219,9 +1155,6 @@
   "@friendsDenyRequest": {},
   "friendsNowFriendsWith": "You are now friends with {name}",
   "@friendsNowFriendsWith": {
-    "placeholders": {
-      "name": {
-        "type": "String"
       }
     }
   },
@@ -1247,9 +1180,6 @@
   "@usageNoData": {},
   "feedFriendRequestFrom": "{name} sent you a friend request",
   "@feedFriendRequestFrom": {
-    "placeholders": {
-      "name": {
-        "type": "String"
       }
     }
   },
@@ -1257,9 +1187,6 @@
   "@feedFriendRequestGeneric": {},
   "feedFriendAccepted": "You are now friends with {name}",
   "@feedFriendAccepted": {
-    "placeholders": {
-      "name": {
-        "type": "String"
       }
     }
   },
@@ -1303,9 +1230,6 @@
   "@profilesNameRequired": {},
   "profilesDeleteConfirm": "Are you sure you want to delete the profile \"{name}\"?",
   "@profilesDeleteConfirm": {
-    "placeholders": {
-      "name": {
-        "type": "String"
       }
     }
   },
@@ -1317,13 +1241,9 @@
   "@profilesDeleteTitle": {},
   "profilesDeleteMessage": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
   "@profilesDeleteMessage": {
-    "placeholders": {
-      "name": {
-        "type": "String"
       }
     }
   },
-  "profilesDeleteConfirm": "Delete",
   "@profilesDeleteConfirm": {},
   "tabsInbox": "Inbox",
   "@tabsInbox": {},
@@ -1359,9 +1279,7 @@
   "@modelConfigureInCli": {},
   "contextRemaining": "{percent}% left",
   "@contextRemaining": {
-    "placeholders": {
       "percent": {
-        "type": "int"
       }
     }
   },
@@ -1375,10 +1293,6 @@
   "@machineLauncherShowLess": {},
   "machineLauncherShowAll": "Show all ({count} paths)",
   "@machineLauncherShowAll": {
-    "placeholders": {
-      "count": {
-        "type": "int",
-        "format": "decimalPattern"
       }
     }
   },
@@ -1400,9 +1314,7 @@
   "@emptyMainScreenOpenCamera": {},
   "itemsCopiedToClipboard": "{label} copied to clipboard",
   "@itemsCopiedToClipboard": {
-    "placeholders": {
       "label": {
-        "type": "String"
       }
     }
   },
@@ -1424,10 +1336,6 @@
   "@voiceSettingsSearchPlaceholder": {},
   "voiceSettingsLanguagesAvailable": "{count} languages available",
   "@voiceSettingsLanguagesAvailable": {
-    "placeholders": {
-      "count": {
-        "type": "int",
-        "format": "decimalPattern"
       }
     }
   },

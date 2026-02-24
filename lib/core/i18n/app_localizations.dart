@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 /// Stub AppLocalizations class for CI compatibility
 /// Replace with proper generated localizations (pending implementation)
@@ -7,6 +8,28 @@ class AppLocalizations {
 
   AppLocalizations(this.locale);
   final Locale locale;
+
+  /// Localizations delegate
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      AppLocalizationsDelegate();
+
+  /// A list of this localizations delegate along with the default localizations
+  /// delegates.
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
+
+  /// Supported locales
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('en'),
+    Locale('es'),
+    Locale('fr'),
+    Locale('de'),
+  ];
 
   /// Get the AppLocalizations instance for the given context.
   /// Always returns a non-null instance.
