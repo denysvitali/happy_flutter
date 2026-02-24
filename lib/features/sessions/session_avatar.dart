@@ -85,7 +85,6 @@ class SessionAvatar extends StatelessWidget {
             : (effectiveSize * 0.35).round();
 
     final avatarWidget = ClipRRect(
-      clipBehavior: Clip.hardEdge,
       borderRadius: square ? BorderRadius.zero : BorderRadius.circular(
         size / 2,
       ),

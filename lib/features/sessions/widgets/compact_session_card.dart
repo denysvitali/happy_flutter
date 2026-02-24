@@ -48,7 +48,7 @@ class CompactActiveSessionCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs,
+        vertical: 1,
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -69,7 +69,7 @@ class CompactActiveSessionCard extends StatelessWidget {
           },
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: SizedBox(
-            height: AppTouchTarget.min,
+            height: 56,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -208,7 +208,7 @@ class _TodoProgressBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs,
+        vertical: 2,
       ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
@@ -218,7 +218,7 @@ class _TodoProgressBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.lightbulb_outline, size: 10, color: cs.onSurfaceVariant),
-          const SizedBox(width: AppSpacing.xxs),
+          const SizedBox(width: 2),
           Text(
             '$completed/$total',
             style: TextStyle(

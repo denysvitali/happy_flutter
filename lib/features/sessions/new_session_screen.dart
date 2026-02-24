@@ -455,7 +455,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
 
           // Create button
           SizedBox(
-            height: AppTouchTarget.min,
+            height: 48,
             child: FilledButton(
               onPressed:
                   _canCreate(connectionStatus) ? _createSession : null,

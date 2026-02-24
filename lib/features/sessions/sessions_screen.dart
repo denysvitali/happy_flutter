@@ -844,7 +844,7 @@ class _PathHeader extends StatelessWidget {
                 fontSize: 11,
               ),
             ),
-            const SizedBox(width: AppSpacing.xxs),
+            const SizedBox(width: 2),
             AnimatedRotation(
               turns: isCollapsed ? -0.25 : 0,
               duration: const Duration(milliseconds: 200),
@@ -959,7 +959,7 @@ class _TodoProgressBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs,
+        vertical: 2,
       ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
@@ -969,7 +969,7 @@ class _TodoProgressBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.lightbulb_outline, size: 10, color: cs.onSurfaceVariant),
-          const SizedBox(width: AppSpacing.xxs),
+          const SizedBox(width: 2),
           Text(
             '$completed/$total',
             style: TextStyle(
@@ -1046,7 +1046,7 @@ class ActiveSessionCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs,
+        vertical: 2,
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -1243,7 +1243,7 @@ class CompactActiveSessionCard extends StatelessWidget {
           },
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: SizedBox(
-            height: AppTouchTarget.min,
+            height: 56,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -1524,7 +1524,7 @@ class SessionCard extends StatelessWidget {
                               fontSize: 11,
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.xsm),
+                          const SizedBox(height: 6),
                           if (todoProgress != null) ...[
                             const SizedBox(height: AppSpacing.xs),
                             _TodoProgressBadge(
@@ -1560,7 +1560,7 @@ class EmptySessionsView extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxxl),
+        padding: const EdgeInsets.symmetric(horizontal: 48),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -1607,7 +1607,7 @@ class EmptySessionsView extends StatelessWidget {
               onPressed: () =>
                   _SessionsListContent.showNewSessionDialog(context),
               style: FilledButton.styleFrom(
-                minimumSize: const Size(160, AppTouchTarget.min),
+                minimumSize: const Size(160, 44),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),

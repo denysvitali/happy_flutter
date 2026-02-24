@@ -495,7 +495,6 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
                 borderRadius: BorderRadius.circular(12),
                 color: theme.colorScheme.surface,
                 child: ClipRRect(
-                  clipBehavior: Clip.hardEdge,
                   borderRadius: BorderRadius.circular(12),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

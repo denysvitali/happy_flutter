@@ -13,8 +13,7 @@ class VoiceSettingsScreen extends ConsumerStatefulWidget {
   const VoiceSettingsScreen({super.key});
 
   @override
-  ConsumerState<VoiceSettingsScreen> createState() =>
-      _VoiceSettingsScreenState();
+  ConsumerState<VoiceSettingsScreen> createState() => _VoiceSettingsScreenState();
 }
 
 class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {

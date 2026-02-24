@@ -31,7 +31,6 @@ class AvatarBrutalist extends BaseAvatar {
         ],
       ),
       child: ClipRRect(
-        clipBehavior: Clip.hardEdge,
         borderRadius: BorderRadius.circular(size / 2 - 3),
         child: Container(
           color: color.withValues(alpha: 0.1),

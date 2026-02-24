@@ -111,7 +111,7 @@ class SessionCard extends StatelessWidget {
                 child: Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: AppSpacing.md,
-                    vertical: compact ? AppSpacing.xsm : AppSpacing.sm,
+                    vertical: compact ? 6 : AppSpacing.sm,
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,7 +189,7 @@ class SessionCard extends StatelessWidget {
                               fontSize: 11,
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.xsm),
+                          const SizedBox(height: 6),
                           if (todoProgress != null) ...[
                             const SizedBox(height: AppSpacing.xs),
                             _TodoProgressBadge(
@@ -251,7 +251,7 @@ class _TodoProgressBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs,
+        vertical: 2,
       ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
@@ -261,7 +261,7 @@ class _TodoProgressBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.lightbulb_outline, size: 10, color: cs.onSurfaceVariant),
-          const SizedBox(width: AppSpacing.xxs),
+          const SizedBox(width: 2),
           Text(
             '$completed/$total',
             style: TextStyle(

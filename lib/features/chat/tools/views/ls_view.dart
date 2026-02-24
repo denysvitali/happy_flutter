@@ -208,7 +208,6 @@ class _LSViewState extends State<LSView> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: ClipRRect(
-                  clipBehavior: Clip.hardEdge,
                   borderRadius: BorderRadius.circular(8),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

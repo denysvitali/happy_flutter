@@ -807,7 +807,6 @@ class _ProfileHeader extends StatelessWidget {
     final bio = profile?.bio ?? 'Secure mobile companion for your sessions';
 
     return ClipRRect(
-      clipBehavior: Clip.hardEdge,
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),

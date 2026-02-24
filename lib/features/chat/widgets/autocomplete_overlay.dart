@@ -87,7 +87,6 @@ class _AutocompleteOverlayState extends State<AutocompleteOverlay> {
         borderRadius: BorderRadius.circular(AppRadius.md),
         color: theme.colorScheme.surface,
         child: ClipRRect(
-          clipBehavior: Clip.hardEdge,
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Scrollbar(
             controller: _scrollController,

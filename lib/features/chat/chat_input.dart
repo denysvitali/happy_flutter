@@ -335,7 +335,6 @@ class _ContextSizeIndicator extends StatelessWidget {
           width: 24,
           height: 2,
           child: ClipRRect(
-            clipBehavior: Clip.hardEdge,
             borderRadius: BorderRadius.circular(1),
             child: LinearProgressIndicator(
               value: pctUsed / 100,
@@ -437,7 +436,6 @@ class _FileAutocomplete extends StatelessWidget {
             boxShadow: AppShadow.floating,
           ),
           child: ClipRRect(
-            clipBehavior: Clip.hardEdge,
             borderRadius: BorderRadius.circular(AppRadius.md),
             child: AutocompleteOverlay(
               suggestions: suggestions,

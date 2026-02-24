@@ -12,7 +12,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart'
-    show AppSpacing, AppRadius, AppElevation;
+    show AppSpacing, AppRadius, AppElevation, AppTouchTarget;
 
 /// Detail screen for a single machine.
 ///

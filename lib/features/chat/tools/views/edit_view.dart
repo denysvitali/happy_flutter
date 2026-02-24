@@ -120,7 +120,6 @@ class _EditViewState extends State<EditView> {
             curve: Curves.easeInOut,
             child: show
                 ? ClipRRect(
-                    clipBehavior: Clip.hardEdge,
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                     child: dw.DiffView(
                       oldText: oldString,

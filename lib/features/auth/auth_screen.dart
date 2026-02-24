@@ -807,8 +807,8 @@ class _AuthHeader extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: AppSpacing.xxxl + AppSpacing.xxl + AppSpacing.xxl,
-          height: AppSpacing.xxxl + AppSpacing.xxl + AppSpacing.xxl,
+          width: 88,
+          height: 88,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
@@ -827,13 +827,13 @@ class _AuthHeader extends StatelessWidget {
               BoxShadow(
                 color: theme.colorScheme.primary.withValues(alpha: 0.30),
                 blurRadius: 24,
-                offset: const Offset(0, AppSpacing.lg),
+                offset: const Offset(0, 8),
               ),
             ],
           ),
           child: Icon(
             Icons.android,
-            size: AppSpacing.xxxl + AppSpacing.lg,
+            size: 48,
             color: theme.colorScheme.onPrimary,
           ),
         ),
@@ -867,8 +867,8 @@ class _LandingLogoMark extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      width: AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.lg,
-      height: AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.lg,
+      width: 100,
+      height: 100,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
@@ -887,13 +887,13 @@ class _LandingLogoMark extends StatelessWidget {
           BoxShadow(
             color: theme.colorScheme.primary.withValues(alpha: 0.30),
             blurRadius: 32,
-            offset: const Offset(0, AppSpacing.xl),
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Icon(
         Icons.android,
-        size: AppSpacing.xxxl + AppSpacing.xxl + AppSpacing.sm,
+        size: 56,
         color: theme.colorScheme.onPrimary,
       ),
     );

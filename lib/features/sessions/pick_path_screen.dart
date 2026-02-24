@@ -181,7 +181,7 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
 
           const SizedBox(height: AppSpacing.xxl),
           SizedBox(
-            height: AppTouchTarget.min,
+            height: 48,
             child: FilledButton(
               onPressed: hasText ? _confirm : null,
               child: Text(l10n.commonConfirm),

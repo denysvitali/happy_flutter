@@ -9,7 +9,7 @@ import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart'
-    show AppSpacing, AppRadius;
+    show AppSpacing, AppRadius, AppDuration;
 
 /// Screen for creating a new Zen todo item.
 class ZenNewScreen extends ConsumerStatefulWidget {

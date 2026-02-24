@@ -185,7 +185,6 @@ class _MermaidBlockWidgetState extends State<MermaidBlockWidget> {
       child: const SizedBox(
         height: 240,
         child: ClipRRect(
-          clipBehavior: Clip.hardEdge,
           borderRadius: BorderRadius.all(Radius.circular(8)),
           child: _MermaidHtmlView(),
         ),

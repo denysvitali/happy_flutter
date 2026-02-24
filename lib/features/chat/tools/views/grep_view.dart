@@ -256,7 +256,6 @@ class _GrepViewState extends State<GrepView> {
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: ClipRRect(
-            clipBehavior: Clip.hardEdge,
             borderRadius: BorderRadius.circular(AppRadius.sm),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -598,7 +597,6 @@ class _FileMatchGroup extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.xs + 2),
             ),
             child: ClipRRect(
-              clipBehavior: Clip.hardEdge,
               borderRadius: BorderRadius.circular(AppRadius.xs + 2),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
