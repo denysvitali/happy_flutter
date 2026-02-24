@@ -26,6 +26,7 @@ import 'features/artifacts/new_artifact_screen.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/chat/agent_conversation_screen.dart';
 import 'features/chat/chat_screen.dart';
+import 'features/command_palette/command_palette.dart';
 import 'features/chat/message_detail_screen.dart';
 import 'features/chat/session_file_viewer_screen.dart';
 import 'features/chat/session_files_screen.dart';
@@ -578,21 +579,29 @@ class _HappyAppState extends ConsumerState<HappyApp>
           });
         }
 
-        return MaterialApp.router(
-          title: 'Happy',
-          debugShowCheckedModeBanner: false,
-          theme: ThemeHelper.buildLightTheme(),
-          darkTheme: ThemeHelper.buildDarkTheme(),
-          themeMode: _getThemeMode(themeMode),
-          locale: _resolveLocale(settings.preferredLanguage),
-          localizationsDelegates: const [
-            AppLocalizationsDelegate(),
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: supportedLocales,
-          routerConfig: _router,
+        return CommandPaletteKeyboardHandler(
+          child: Stack(
+            children: [
+              MaterialApp.router(
+                title: 'Happy',
+                debugShowCheckedModeBanner: false,
+                theme: ThemeHelper.buildLightTheme(),
+                darkTheme: ThemeHelper.buildDarkTheme(),
+                themeMode: _getThemeMode(themeMode),
+                locale: _resolveLocale(settings.preferredLanguage),
+                localizationsDelegates: const [
+                  AppLocalizationsDelegate(),
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                supportedLocales: supportedLocales,
+                routerConfig: _router,
+              ),
+              // Command palette overlay
+              const CommandPaletteOverlayWrapper(),
+            ],
+          ),
         );
       },
     );
