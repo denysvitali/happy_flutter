@@ -7,6 +7,8 @@ library;
 import 'dart:async';
 import 'dart:math';
 
+import '../services/logger_service.dart';
+
 class ExponentialBackoff {
 
   ExponentialBackoff({
@@ -197,8 +199,7 @@ BackoffFunc<T> createBackoff<T>(
 final backoff = createBackoff<Object>(
   BackoffOptions(
     onError: (e, _) {
-      // ignore: avoid_print
-      print('Backoff retry: $e');
+      logger.warning('Backoff retry: $e');
     },
   ),
 );
