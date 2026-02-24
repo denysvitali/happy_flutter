@@ -622,7 +622,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       reverse: true,
       padding: const EdgeInsets.only(
         top: AppSpacing.xsm,
-        bottom: AppSpacing.xxxl,
+        bottom: AppSpacing.xs,
       ),
       itemCount: visibleMessages.length + (showHeader ? 1 : 0),
       findChildIndexCallback: (key) {
