@@ -161,6 +161,17 @@ class KnownTools {
       title: 'Task',
       isMutable: true,
       minimal: false,
+      extractSubtitle: (tool, _) {
+        final input =
+            tool['input'] as Map<String, dynamic>?;
+        return input?['subagent_type'] as String?;
+      },
+      extractStatus: (tool, _) {
+        final children =
+            tool['children'] as List<dynamic>?;
+        final count = children?.length ?? 0;
+        return count > 0 ? '$count steps' : null;
+      },
     ),
     'Bash': ToolDefinition(
       icon: bashIcon,

@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_tokens.dart';
+import '../known_tools.dart';
 import '../tool_status_indicator.dart';
+
+/// Max number of child tool calls shown inline.
+const int _kMaxToolsShown = 3;
 
 /// Compact view for a Task (sub-agent) tool call.
 ///
-/// Renders as a small tappable block that navigates to the full
-/// agent conversation screen when tapped. The inline sub-chat
-/// timeline has been replaced with navigation to keep the chat
-/// feed clean.
+/// Shows the last [_kMaxToolsShown] tool calls from the
+/// children with status indicators, plus a sub-agent type
+/// badge when available. Tapping navigates to the full
+/// agent conversation screen.
 class TaskView extends StatelessWidget {
-
   /// Creates a [TaskView].
   const TaskView({
     required this.tool,
@@ -22,13 +26,13 @@ class TaskView extends StatelessWidget {
   /// The tool call data.
   final Map<String, dynamic> tool;
 
-  /// Called when the user taps the block to open the agent conversation.
+  /// Called when the user taps to open the agent conversation.
   final VoidCallback onNavigate;
 
   /// Optional metadata.
   final Map<String, dynamic>? metadata;
 
-  /// All session messages (legacy fallback, unused in this widget).
+  /// All session messages (unused in this widget).
   final List<Map<String, dynamic>>? messages;
 
   @override
@@ -39,20 +43,33 @@ class TaskView extends StatelessWidget {
         input?['description'] as String? ??
         input?['prompt'] as String? ??
         'Task';
-    final toolState = tool['state'] as String? ?? 'pending';
+    final subagentType =
+        input?['subagent_type'] as String?;
+    final toolState =
+        tool['state'] as String? ?? 'pending';
     final parsedState = _parseState(toolState);
 
     final children = tool['children'] as List<dynamic>?;
-    final childCount = children?.length ?? 0;
+    final toolCalls = _extractToolCalls(children);
+    final shownTools = toolCalls.length > _kMaxToolsShown
+        ? toolCalls.sublist(
+            toolCalls.length - _kMaxToolsShown,
+          )
+        : toolCalls;
+    final remainingCount =
+        toolCalls.length - shownTools.length;
 
     final Color borderColor;
     switch (parsedState) {
       case ToolState.running:
-        borderColor = theme.colorScheme.primary.withAlpha(100);
+        borderColor =
+            theme.colorScheme.primary.withAlpha(100);
       case ToolState.completed:
-        borderColor = const Color(0xFF34C759).withAlpha(100);
+        borderColor =
+            const Color(0xFF34C759).withAlpha(100);
       case ToolState.error:
-        borderColor = theme.colorScheme.error.withAlpha(100);
+        borderColor =
+            theme.colorScheme.error.withAlpha(100);
       case ToolState.pending:
         borderColor = theme.colorScheme.outlineVariant;
     }
@@ -62,74 +79,250 @@ class TaskView extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 4),
         padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
+          horizontal: AppSpacing.sm + 4,
+          vertical: AppSpacing.sm,
         ),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: borderColor, width: 1),
+          borderRadius:
+              BorderRadius.circular(AppRadius.sm + 2),
+          border: Border.all(
+            color: borderColor,
+            width: 1,
+          ),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // State indicator
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: ToolStatusIndicator(state: parsedState, size: 16),
-            ),
-            const SizedBox(width: 8),
-
-            // Description
-            Expanded(
-              child: Text(
-                description,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                  fontWeight: FontWeight.w500,
-                  height: 1.4,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-
-            // Child count badge (if any)
-            if (childCount > 0)
-              Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Text(
-                  '$childCount',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.6),
+            // Header row: status + description + badge
+            Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: ToolStatusIndicator(
+                    state: parsedState,
+                    size: 16,
                   ),
                 ),
-              ),
-
-            // Chevron
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    description,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w500,
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (subagentType != null) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  _SubAgentBadge(type: subagentType),
+                ],
+                const SizedBox(width: AppSpacing.xs),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant
+                      .withValues(alpha: 0.5),
+                ),
+              ],
             ),
+            // Inline tool call list
+            if (shownTools.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xs + 2),
+              ...shownTools.map(
+                (t) => _InlineToolRow(
+                  key: ValueKey(t['toolUseId'] ?? t['id']),
+                  tool: t,
+                  metadata: metadata,
+                ),
+              ),
+              if (remainingCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: 24,
+                    top: 2,
+                  ),
+                  child: Text(
+                    'and $remainingCount more...',
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(
+                      color: theme
+                          .colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.5),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  ToolState _parseState(String state) {
-    switch (state) {
-      case 'running':
-        return ToolState.running;
-      case 'completed':
-        return ToolState.completed;
-      case 'error':
-        return ToolState.error;
+  List<Map<String, dynamic>> _extractToolCalls(
+    List<dynamic>? children,
+  ) {
+    if (children == null) return [];
+    return children
+        .whereType<Map<String, dynamic>>()
+        .where((c) => c['kind'] == 'tool-call')
+        .toList();
+  }
+}
+
+// ----------------------------------------------------------
+// Sub-agent type badge
+// ----------------------------------------------------------
+
+class _SubAgentBadge extends StatelessWidget {
+  const _SubAgentBadge({required this.type});
+
+  final String type;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final icon = _iconForType(type);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 6,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer
+            .withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 10,
+            color: theme.colorScheme.onPrimaryContainer,
+          ),
+          const SizedBox(width: 3),
+          Text(
+            type,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color:
+                  theme.colorScheme.onPrimaryContainer,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _iconForType(String type) {
+    switch (type.toLowerCase()) {
+      case 'explore':
+        return Icons.explore;
+      case 'bash':
+        return Icons.terminal;
+      case 'plan':
+        return Icons.architecture;
+      case 'general-purpose':
+        return Icons.auto_awesome;
       default:
-        return ToolState.pending;
+        return Icons.rocket_launch;
     }
+  }
+}
+
+// ----------------------------------------------------------
+// Inline tool call row (compact, shown inside TaskView)
+// ----------------------------------------------------------
+
+class _InlineToolRow extends StatelessWidget {
+  const _InlineToolRow({
+    required this.tool,
+    super.key,
+    this.metadata,
+  });
+
+  final Map<String, dynamic> tool;
+  final Map<String, dynamic>? metadata;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final toolName = tool['name'] as String? ?? '';
+    final state =
+        tool['state'] as String? ?? 'pending';
+    final toolState = _parseState(state);
+
+    final knownTool = KnownTools.get(toolName);
+    var title = toolName;
+    if (knownTool?.extractDescription != null) {
+      title =
+          knownTool!.extractDescription!(tool, metadata)
+              ?? toolName;
+    } else if (knownTool?.title is String) {
+      title = knownTool!.title as String;
+    }
+
+    final icon = KnownTools.iconFor(
+      toolName,
+      12,
+      theme.colorScheme.onSurfaceVariant,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1.5),
+      child: Row(
+        children: [
+          const SizedBox(width: 24),
+          SizedBox(width: 12, height: 12, child: icon),
+          const SizedBox(width: AppSpacing.xs + 2),
+          Expanded(
+            child: Text(
+              title,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color:
+                    theme.colorScheme.onSurfaceVariant,
+                fontFamily: 'monospace',
+                fontSize: 11,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          SizedBox(
+            width: 12,
+            height: 12,
+            child: ToolStatusIndicator(
+              state: toolState,
+              size: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+ToolState _parseState(String state) {
+  switch (state) {
+    case 'running':
+      return ToolState.running;
+    case 'completed':
+      return ToolState.completed;
+    case 'error':
+      return ToolState.error;
+    default:
+      return ToolState.pending;
   }
 }
