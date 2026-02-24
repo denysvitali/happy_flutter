@@ -100,6 +100,62 @@ class Settings {
   List<String> favoriteMachines = [];
   DismissedCLIWarnings dismissedCLIWarnings = DismissedCLIWarnings();
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Settings &&
+          schemaVersion == other.schemaVersion &&
+          themeMode == other.themeMode &&
+          viewInline == other.viewInline &&
+          inferenceOpenAIKey == other.inferenceOpenAIKey &&
+          expandTodos == other.expandTodos &&
+          showLineNumbers == other.showLineNumbers &&
+          showLineNumbersInToolViews ==
+              other.showLineNumbersInToolViews &&
+          wrapLinesInDiffs == other.wrapLinesInDiffs &&
+          analyticsOptOut == other.analyticsOptOut &&
+          experiments == other.experiments &&
+          markdownCopyV2 == other.markdownCopyV2 &&
+          useEnhancedSessionWizard ==
+              other.useEnhancedSessionWizard &&
+          alwaysShowContextSize ==
+              other.alwaysShowContextSize &&
+          agentInputEnterToSend ==
+              other.agentInputEnterToSend &&
+          developerModeEnabled == other.developerModeEnabled &&
+          avatarStyle == other.avatarStyle &&
+          showFlavorIcons == other.showFlavorIcons &&
+          compactSessionView == other.compactSessionView &&
+          hideInactiveSessions ==
+              other.hideInactiveSessions &&
+          ttsEnabled == other.ttsEnabled &&
+          voiceAssistantLanguage ==
+              other.voiceAssistantLanguage &&
+          ttsEngine == other.ttsEngine &&
+          preferredLanguage == other.preferredLanguage &&
+          usagePeriod == other.usagePeriod &&
+          lastUsedAgent == other.lastUsedAgent &&
+          lastUsedPermissionMode ==
+              other.lastUsedPermissionMode &&
+          lastUsedModelMode == other.lastUsedModelMode &&
+          lastUsedProfile == other.lastUsedProfile;
+
+  @override
+  int get hashCode => Object.hash(
+        schemaVersion,
+        themeMode,
+        viewInline,
+        expandTodos,
+        showLineNumbers,
+        analyticsOptOut,
+        avatarStyle,
+        compactSessionView,
+        hideInactiveSessions,
+        ttsEnabled,
+        preferredLanguage,
+        usagePeriod,
+      );
+
   Map<String, dynamic> toJson() {
     return {
       'schemaVersion': schemaVersion,

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint, listEquals;
 import 'package:riverpod/riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -22,6 +22,16 @@ import '../services/sync_service.dart';
 
 // Sentinel for distinguishing 'not provided' from null
 const Object _unset = Object();
+
+/// Shallow map equality using the models' own == operator.
+bool _mapEquals<K, V>(Map<K, V> a, Map<K, V> b) {
+  if (identical(a, b)) return true;
+  if (a.length != b.length) return false;
+  for (final key in a.keys) {
+    if (!b.containsKey(key) || a[key] != b[key]) return false;
+  }
+  return true;
+}
 
 /// App state providers
 
@@ -128,10 +138,10 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   }
 
   void loadFromSync() {
-    if (!sync.isInitialized) {
-      return;
-    }
-    state = Map<String, Session>.from(sync.sessions);
+    if (!sync.isInitialized) return;
+    final next = sync.sessions;
+    if (_mapEquals(state, next)) return;
+    state = Map<String, Session>.from(next);
   }
 
   Future<void> refreshFromSync() async {
@@ -155,10 +165,10 @@ class MachinesNotifier extends Notifier<Map<String, Machine>> {
   Map<String, Machine> build() => {};
 
   void loadFromSync() {
-    if (!sync.isInitialized) {
-      return;
-    }
-    state = Map<String, Machine>.from(sync.machines);
+    if (!sync.isInitialized) return;
+    final next = sync.machines;
+    if (_mapEquals(state, next)) return;
+    state = Map<String, Machine>.from(next);
   }
 
   Future<void> refreshFromSync() async {
@@ -191,10 +201,10 @@ class SettingsNotifier extends Notifier<Settings> {
   }
 
   void loadFromSync() {
-    if (!sync.isInitialized) {
-      return;
-    }
-    state = sync.settingsSnapshot;
+    if (!sync.isInitialized) return;
+    final next = sync.settingsSnapshot;
+    if (state == next) return;
+    state = next;
   }
 
   Future<void> refreshFromSync() async {
@@ -364,10 +374,10 @@ class ProfileNotifier extends Notifier<Profile?> {
   Profile? build() => null;
 
   void loadFromSync() {
-    if (!sync.isInitialized) {
-      return;
-    }
-    state = sync.profile;
+    if (!sync.isInitialized) return;
+    final next = sync.profile;
+    if (state == next) return;
+    state = next;
   }
 
   Future<void> refreshFromSync() async {
@@ -442,10 +452,13 @@ class ArtifactsNotifier
   }
 
   void loadFromSync() {
-    if (!sync.isInitialized) {
+    if (!sync.isInitialized) return;
+    final next = sync.artifacts;
+    if (next.length == state.length &&
+        next.every((a) => state.containsKey(a.id))) {
       return;
     }
-    state = {for (final a in sync.artifacts) a.id: a};
+    state = {for (final a in next) a.id: a};
   }
 
   Future<void> refreshFromSync() async {
@@ -473,12 +486,16 @@ class FriendsNotifier extends Notifier<FriendsState> {
   FriendsState build() => FriendsState();
 
   void loadFromSync() {
-    if (!sync.isInitialized) {
+    if (!sync.isInitialized) return;
+    final nextFriends = sync.friends;
+    final nextRequests = sync.friendRequests;
+    if (listEquals(state.friends, nextFriends) &&
+        listEquals(state.pendingRequests, nextRequests)) {
       return;
     }
     state = state.copyWith(
-      friends: sync.friends,
-      pendingRequests: sync.friendRequests,
+      friends: nextFriends,
+      pendingRequests: nextRequests,
     );
   }
 
@@ -544,6 +561,10 @@ class FriendsState {
   final List<UserProfile> friends;
   final List<FriendRequest> pendingRequests;
 
+  // Cached computed lists — populated lazily on first access.
+  List<UserProfile>? _friendList;
+  List<FriendRequest>? _incomingRequests;
+
   FriendsState copyWith({
     List<UserProfile>? friends,
     List<FriendRequest>? pendingRequests,
@@ -554,11 +575,14 @@ class FriendsState {
     );
   }
 
-  List<UserProfile> get friendList =>
-      friends.where((f) => f.status == RelationshipStatus.friend).toList();
+  List<UserProfile> get friendList => _friendList ??= friends
+      .where((f) => f.status == RelationshipStatus.friend)
+      .toList();
 
   List<FriendRequest> get incomingRequests =>
-      pendingRequests.where((r) => r.status == 'pending').toList();
+      _incomingRequests ??= pendingRequests
+          .where((r) => r.status == 'pending')
+          .toList();
 }
 
 /// Feed/activity provider
@@ -571,10 +595,10 @@ class FeedNotifier extends Notifier<FeedState> {
   FeedState build() => FeedState();
 
   void loadFromSync() {
-    if (!sync.isInitialized) {
-      return;
-    }
-    state = state.copyWith(items: sync.feedItems);
+    if (!sync.isInitialized) return;
+    final next = sync.feedItems;
+    if (listEquals(state.items, next)) return;
+    state = state.copyWith(items: next);
   }
 
   Future<void> refreshFromSync() async {
@@ -633,11 +657,11 @@ class TodoStateNotifier extends Notifier<TodoListState> {
   TodoListState build() => TodoListState();
 
   void loadFromSync() {
-    if (!sync.isInitialized) {
-      return;
-    }
+    if (!sync.isInitialized) return;
+    final next = sync.todoLists;
+    if (_mapEquals(state.lists, next)) return;
     final mapped = <String?, TodoList>{};
-    for (final entry in sync.todoLists.entries) {
+    for (final entry in next.entries) {
       mapped[entry.key] = entry.value;
     }
     state = TodoListState(lists: mapped);
@@ -786,12 +810,10 @@ class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
   Map<String, GitStatus> build() => {};
 
   void loadFromSync() {
-    if (!sync.isInitialized) {
-      return;
-    }
-    // Load from sync if available (future compatibility)
-    // For now, the git status is managed locally by this provider
-    state = Map<String, GitStatus>.from(sync.sessionGitStatus);
+    if (!sync.isInitialized) return;
+    final next = sync.sessionGitStatus;
+    if (_mapEquals(state, next)) return;
+    state = Map<String, GitStatus>.from(next);
   }
 
   Future<void> refreshFromSync() async {

@@ -1264,18 +1264,28 @@ what you have, you must use the options mode.
       final items = await KvApi().getByPrefix('todo.', limit: 1000);
       final decryptedByKey = <String, Map<String, dynamic>>{};
 
-      for (final item in items) {
-        try {
-          final decrypted = await encryption.decryptRaw(item.value);
-          if (decrypted is Map<String, dynamic>) {
-            decryptedByKey[item.key] = decrypted;
+      final results = await Future.wait(
+        items.map((item) async {
+          try {
+            final decrypted =
+                await encryption.decryptRaw(item.value);
+            if (decrypted is Map<String, dynamic>) {
+              return MapEntry(item.key, decrypted);
+            }
+          } catch (error) {
+            if (kDebugMode) {
+              debugPrint(
+                'Failed to decrypt todo item'
+                ' ${item.key}: $error',
+              );
+            }
           }
-        } catch (error) {
-          if (kDebugMode) {
-            debugPrint(
-              'Failed to decrypt todo item ${item.key}: $error',
-            );
-          }
+          return null;
+        }),
+      );
+      for (final entry in results) {
+        if (entry != null) {
+          decryptedByKey[entry.key] = entry.value;
         }
       }
 
@@ -1767,7 +1777,7 @@ what you have, you must use the options mode.
   /// Refresh friends and pending requests from server.
   Future<void> refreshFriends() async {
     await friendsSync.invalidateAndAwait();
-    await friendRequestsSync.invalidateAndAwait();
+    // friendRequestsSync is a no-op (requests come with friends).
   }
 
   /// Refresh feed items from server.

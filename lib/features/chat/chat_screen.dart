@@ -104,7 +104,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (!_didStartInitialLoad && sync.isInitialized) {
         _doInitialLoad();
       } else {
-        _refreshFromSync();
+        // Only refresh for session-level changes (name, presence,
+        // agentState); message changes arrive via
+        // onSessionMessagesChanged to avoid duplicate work.
+        final latest = sync.sessions[widget.sessionId];
+        if (latest != _session) {
+          _refreshFromSync();
+        }
       }
     });
 

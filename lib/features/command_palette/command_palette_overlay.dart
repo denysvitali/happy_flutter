@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/theme/app_tokens.dart';
 import 'command_item.dart';
 
 /// Modal overlay that displays the command palette with search and navigation.
@@ -27,7 +28,7 @@ class CommandPaletteOverlay extends StatefulWidget {
       barrierDismissible: true,
       barrierLabel: 'Dismiss',
       barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 150),
+      transitionDuration: AppDuration.fast,
       pageBuilder: (context, animation, secondaryAnimation) {
         return CommandPaletteOverlay(
           commands: commands,
@@ -44,6 +45,7 @@ class CommandPaletteOverlay extends StatefulWidget {
 class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final FocusNode _keyboardFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
 
   String _searchQuery = '';
@@ -66,6 +68,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _keyboardFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -145,14 +148,14 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
       if (targetOffset < currentOffset) {
         _scrollController.animateTo(
           targetOffset,
-          duration: const Duration(milliseconds: 100),
-          curve: Curves.easeOut,
+          duration: AppDuration.fast,
+          curve: AppCurve.enter,
         );
       } else if (targetOffset > currentOffset + viewportHeight - itemHeight) {
         _scrollController.animateTo(
           targetOffset - viewportHeight + itemHeight,
-          duration: const Duration(milliseconds: 100),
-          curve: Curves.easeOut,
+          duration: AppDuration.fast,
+          curve: AppCurve.enter,
         );
       }
     }
@@ -172,7 +175,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
     final isDark = theme.brightness == Brightness.dark;
 
     return KeyboardListener(
-      focusNode: FocusNode(),
+      focusNode: _keyboardFocusNode,
       onKeyEvent: _handleKeyEvent,
       child: Center(
         child: Material(
@@ -182,17 +185,11 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
               maxWidth: 640,
               maxHeight: 500,
             ),
-            margin: const EdgeInsets.symmetric(horizontal: 16),
+            margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.25),
-                  blurRadius: 40,
-                  offset: const Offset(0, 20),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              boxShadow: AppShadow.modal,
               border: Border.all(
                 color: isDark
                     ? Colors.white.withOpacity(0.08)
@@ -204,7 +201,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
               children: [
                 // Search input
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(
@@ -219,9 +216,9 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
                       Icon(
                         Icons.search,
                         color: isDark ? Colors.white54 : Colors.black54,
-                        size: 20,
+                        size: AppSpacing.xl - AppSpacing.sm,
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: TextField(
                           controller: _searchController,
@@ -249,14 +246,14 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                          horizontal: AppSpacing.sm,
+                          vertical: AppSpacing.xxs,
                         ),
                         decoration: BoxDecoration(
                           color: isDark
                               ? Colors.white.withOpacity(0.08)
                               : Colors.black.withOpacity(0.04),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(AppRadius.xs),
                         ),
                         child: Text(
                           'ESC',
@@ -288,16 +285,16 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
 
   Widget _buildEmptyState(bool isDark) {
     return Padding(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(AppSpacing.xxxl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             Icons.search_off,
-            size: 48,
+            size: AppSpacing.xxxl + AppSpacing.xxxl,
             color: isDark ? Colors.white38 : Colors.black38,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           Text(
             'No commands found',
             style: TextStyle(
@@ -305,7 +302,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
               color: isDark ? Colors.white54 : Colors.black54,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             'Try a different search term',
             style: TextStyle(
@@ -322,7 +319,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
     return ListView.builder(
       controller: _scrollController,
       shrinkWrap: true,
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       itemCount: _filteredCategories.length,
       itemBuilder: (context, categoryIndex) {
         final category = _filteredCategories[categoryIndex];
@@ -332,8 +329,8 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
             // Category header
             Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.sm,
               ),
               child: Text(
                 category.title,
@@ -420,15 +417,21 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          margin: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xxs,
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
           decoration: BoxDecoration(
             color: isSelected
                 ? (widget.isDark
                     ? const Color(0xFF0A84FF).withOpacity(0.15)
                     : const Color(0xFFF0F7FF))
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
             border: Border.all(
               color: isSelected
                   ? const Color(0xFF007AFF).withOpacity(0.2)
@@ -441,18 +444,18 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
               // Icon
               if (widget.command.icon != null)
                 Container(
-                  width: 32,
-                  height: 32,
-                  margin: const EdgeInsets.only(right: 12),
+                  width: AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
+                  height: AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
+                  margin: const EdgeInsets.only(right: AppSpacing.md),
                   decoration: BoxDecoration(
                     color: widget.isDark
                         ? Colors.white.withOpacity(0.04)
                         : Colors.black.withOpacity(0.04),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Icon(
                     widget.command.icon,
-                    size: 20,
+                    size: AppSpacing.xl - AppSpacing.sm,
                     color: isSelected
                         ? const Color(0xFF007AFF)
                         : (widget.isDark ? Colors.white54 : Colors.black54),
@@ -475,7 +478,7 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
                       ),
                     ),
                     if (widget.command.subtitle != null) ...[
-                      const SizedBox(height: 2),
+                      const SizedBox(height: AppSpacing.xxs),
                       Text(
                         widget.command.subtitle!,
                         style: TextStyle(
@@ -493,14 +496,14 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
               if (widget.command.shortcut != null)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
                   ),
                   decoration: BoxDecoration(
                     color: widget.isDark
                         ? Colors.white.withOpacity(0.04)
                         : Colors.black.withOpacity(0.04),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                   ),
                   child: Text(
                     widget.command.shortcut!,
