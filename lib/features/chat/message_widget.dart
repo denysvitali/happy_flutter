@@ -292,6 +292,7 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Container(
           decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
             border: Border.all(
               color: cs.outlineVariant.withValues(alpha: 0.2),
               width: 0.5,
@@ -358,12 +359,19 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
                         padding: const EdgeInsets.all(AppSpacing.md),
                         child: DefaultTextStyle.merge(
                           style: TextStyle(
-                            color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                            color: cs.onSurfaceVariant.withValues(alpha: 0.85),
                             fontStyle: FontStyle.italic,
                             fontSize: 13,
                             height: 1.5,
                           ),
-                          child: MarkdownView(markdown: _getCleanContent()),
+                          child: Theme(
+                            data: theme.copyWith(
+                              colorScheme: cs.copyWith(
+                                surfaceContainerHighest: cs.surface,
+                              ),
+                            ),
+                            child: MarkdownView(markdown: _getCleanContent()),
+                          ),
                         ),
                       ),
                     ],
