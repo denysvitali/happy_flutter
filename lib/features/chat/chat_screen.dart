@@ -54,6 +54,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    _controller.addListener(_onControllerChanged);
     _scrollController.addListener(_onScroll);
     _loadSavedPermissionMode();
     _initializeSyncBackedChat();
@@ -79,10 +80,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void dispose() {
     _dataSyncSubscription?.cancel();
     _messageSyncSubscription?.cancel();
+    _controller.removeListener(_onControllerChanged);
     _controller.dispose();
     _scrollController.dispose();
     TtsService().stop();
     super.dispose();
+  }
+
+  void _onControllerChanged() {
+    // Rebuild so PopScope.canPop stays in sync with the
+    // current text content.
+    setState(() {});
   }
 
   Future<void> _initializeSyncBackedChat() async {
@@ -808,6 +816,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           TextButton(
             style: TextButton.styleFrom(foregroundColor: cs.error),
             onPressed: () {
+              _controller.clear();
+              unawaited(
+                DraftStorage().removeDraft(widget.sessionId),
+              );
               Navigator.pop(context);
               Navigator.of(this.context).pop();
             },
