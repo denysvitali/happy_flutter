@@ -111,6 +111,7 @@ what you have, you must use the options mode.
   late InvalidateSync friendRequestsSync;
   late InvalidateSync feedSync;
   late InvalidateSync todosSync;
+  late InvalidateSync sessionGitStatusSync;
 
   // State tracking
   bool revenueCatInitialized = false;
@@ -140,6 +141,7 @@ what you have, you must use the options mode.
   // Timers that drop presence back to 'offline' if no activity arrives.
   final Map<String, Timer> _presenceTimers = {};
   Profile? _profile;
+  final Map<String, GitStatus> _sessionGitStatus = <String, GitStatus>{};
 
   // Change notification streams
   final _dataChangeController = StreamController<void>.broadcast();
@@ -165,6 +167,8 @@ what you have, you must use the options mode.
   ConnectionStatus get connectionStatus => _connectionStatus;
   String? get nativeUpdateUrl => _nativeUpdateUrl;
   bool get hasNativeUpdate => _nativeUpdateUrl != null;
+  Map<String, GitStatus> get sessionGitStatus =>
+      Map.unmodifiable(_sessionGitStatus);
   Map<String, List<Map<String, dynamic>>>
       get sessionMessages {
     _sessionMessagesCache ??= Map.unmodifiable(
@@ -267,6 +271,7 @@ what you have, you must use the options mode.
     friendRequestsSync = InvalidateSync(fetchFriendRequests);
     feedSync = InvalidateSync(fetchFeed);
     todosSync = InvalidateSync(fetchTodos);
+    sessionGitStatusSync = InvalidateSync(_fetchSessionGitStatus);
 
     // Setup socket connection
     final serverUrl = getServerUrl();
@@ -1292,6 +1297,14 @@ what you have, you must use the options mode.
       if (kDebugMode) debugPrint('Failed to fetch todos: $error');
       unawaited(Sentry.captureException(error, stackTrace: stack));
     }
+  }
+
+  /// Fetch session git status from server
+  /// Git status is managed locally and updated via socket events
+  Future<void> _fetchSessionGitStatus() async {
+    // Git status is currently managed locally via the provider
+    // This sync can be extended to fetch from server when needed
+    if (kDebugMode) debugPrint('Session git status sync triggered');
   }
 
   @visibleForTesting
