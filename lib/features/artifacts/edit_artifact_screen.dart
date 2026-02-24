@@ -112,75 +112,76 @@ class _EditArtifactScreenState
         }
       },
       child: Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.artifactsEdit),
-        actions: [
-          TextButton(
-            onPressed: _isBusy ? null : _handleSave,
-            child: _isBusy
-                ? const SizedBox.square(
-                    dimension: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(l10n.commonSave),
-          ),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          keyboardDismissBehavior:
-              ScrollViewKeyboardDismissBehavior.onDrag,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const _EncryptionNote(),
-              const SizedBox(height: AppSpacing.xl),
-              _SectionLabel(label: l10n.artifactsTitleLabel),
-              const SizedBox(height: AppSpacing.sm),
-              TextFormField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  hintText: l10n.artifactsEnterTitle,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+        appBar: AppBar(
+          title: Text(l10n.artifactsEdit),
+          actions: [
+            TextButton(
+              onPressed: _isBusy ? null : _handleSave,
+              child: _isBusy
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(l10n.commonSave),
+            ),
+          ],
+        ),
+        body: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            keyboardDismissBehavior:
+                ScrollViewKeyboardDismissBehavior.onDrag,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _EncryptionNote(),
+                const SizedBox(height: AppSpacing.xl),
+                _SectionLabel(label: l10n.artifactsTitleLabel),
+                const SizedBox(height: AppSpacing.sm),
+                TextFormField(
+                  controller: _titleController,
+                  decoration: InputDecoration(
+                    hintText: l10n.artifactsEnterTitle,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    filled: true,
                   ),
-                  filled: true,
+                  textCapitalization: TextCapitalization.sentences,
+                  textInputAction: TextInputAction.next,
+                  maxLines: 1,
                 ),
-                textCapitalization: TextCapitalization.sentences,
-                textInputAction: TextInputAction.next,
-                maxLines: 1,
-              ),
-              const SizedBox(height: AppSpacing.xxl),
-              _SectionLabel(label: l10n.artifactsContentLabel),
-              const SizedBox(height: AppSpacing.sm),
-              TextFormField(
-                controller: _contentController,
-                decoration: InputDecoration(
-                  hintText: l10n.artifactsEnterContent,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+                const SizedBox(height: AppSpacing.xxl),
+                _SectionLabel(label: l10n.artifactsContentLabel),
+                const SizedBox(height: AppSpacing.sm),
+                TextFormField(
+                  controller: _contentController,
+                  decoration: InputDecoration(
+                    hintText: l10n.artifactsEnterContent,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    filled: true,
+                    alignLabelWithHint: true,
                   ),
-                  filled: true,
-                  alignLabelWithHint: true,
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLines: 10,
+                  minLines: 6,
+                  keyboardType: TextInputType.multiline,
                 ),
-                textCapitalization: TextCapitalization.sentences,
-                maxLines: 10,
-                minLines: 6,
-                keyboardType: TextInputType.multiline,
-              ),
-              const SizedBox(height: AppSpacing.xxxl),
-              FilledButton(
-                onPressed: _isBusy ? null : _handleSave,
-                child: _isBusy
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(l10n.commonSave),
-              ),
-            ],
+                const SizedBox(height: AppSpacing.xxxl),
+                FilledButton(
+                  onPressed: _isBusy ? null : _handleSave,
+                  child: _isBusy
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(l10n.commonSave),
+                ),
+              ],
+            ),
           ),
         ),
       ),

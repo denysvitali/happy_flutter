@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -349,148 +350,149 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
       },
       child: Scaffold(
-      appBar: ChatAppBar(
-        session: _session,
-        sessionTitle: _getSessionTitle(),
-        relativePath: _formatRelativePath(_session?.metadata?.path),
-        machine: _getMachine(),
-        statusText: _getStatusText(context),
-        statusColor: _getStatusColor(context),
-        isThinking: isThinking,
-        onMenuTap: () => _showSessionMenu(context),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Stack(
-              children: [
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: _isLoadingMessages
-                      ? Center(
-                          key: const ValueKey('loading'),
-                          child: SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant
-                                  .withValues(alpha: 0.4),
+        appBar: ChatAppBar(
+          session: _session,
+          sessionTitle: _getSessionTitle(),
+          relativePath: _formatRelativePath(_session?.metadata?.path),
+          machine: _getMachine(),
+          statusText: _getStatusText(context),
+          statusColor: _getStatusColor(context),
+          isThinking: isThinking,
+          onMenuTap: () => _showSessionMenu(context),
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _isLoadingMessages
+                        ? Center(
+                            key: const ValueKey('loading'),
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant
+                                    .withValues(alpha: 0.4),
+                              ),
                             ),
-                          ),
-                        )
-                      : _messages.isEmpty
-                      ? const EmptyChatView(key: ValueKey('empty'))
-                      : _buildMessageList(),
-                ),
-                // Scroll-to-bottom pill
-                IgnorePointer(
-                  ignoring:
-                      _autoScroll || _isLoadingMessages,
-                  child: AnimatedOpacity(
-                    opacity:
-                        (!_autoScroll &&
-                                !_isLoadingMessages)
-                            ? 1.0
-                            : 0.0,
-                    duration:
-                        const Duration(
-                          milliseconds: 200,
-                        ),
-                    curve: Curves.easeInOut,
-                    child: AnimatedScale(
-                      scale:
+                          )
+                        : _messages.isEmpty
+                        ? const EmptyChatView(key: ValueKey('empty'))
+                        : _buildMessageList(),
+                  ),
+                  // Scroll-to-bottom pill
+                  IgnorePointer(
+                    ignoring:
+                        _autoScroll || _isLoadingMessages,
+                    child: AnimatedOpacity(
+                      opacity:
                           (!_autoScroll &&
                                   !_isLoadingMessages)
                               ? 1.0
-                              : 0.8,
+                              : 0.0,
                       duration:
                           const Duration(
                             milliseconds: 200,
                           ),
                       curve: Curves.easeInOut,
-                      child: Align(
-                        alignment:
-                            Alignment.bottomCenter,
-                        child: Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: AppSpacing.md,
-                          ),
-                          child:
-                              ScrollToBottomPill(
-                            onTap: () {
-                              HapticFeedback
-                                  .lightImpact();
-                              setState(
-                                () =>
-                                    _autoScroll =
-                                        true,
-                              );
-                              _scrollToBottom();
-                            },
+                      child: AnimatedScale(
+                        scale:
+                            (!_autoScroll &&
+                                    !_isLoadingMessages)
+                                ? 1.0
+                                : 0.8,
+                        duration:
+                            const Duration(
+                              milliseconds: 200,
+                            ),
+                        curve: Curves.easeInOut,
+                        child: Align(
+                          alignment:
+                              Alignment.bottomCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.md,
+                            ),
+                            child:
+                                ScrollToBottomPill(
+                              onTap: () {
+                                HapticFeedback
+                                    .lightImpact();
+                                setState(
+                                  () =>
+                                      _autoScroll =
+                                          true,
+                                );
+                                _scrollToBottom();
+                              },
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                // Typing indicator
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    transitionBuilder: (child, animation) => FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, 0.3),
-                          end: Offset.zero,
-                        ).animate(animation),
-                        child: child,
+                  // Typing indicator
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      transitionBuilder: (child, animation) => FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.3),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
                       ),
-                    ),
-                    child: isThinking && !_isLoadingMessages
-                        ? const Align(
-                            key: ValueKey('typing'),
-                            alignment: Alignment.bottomLeft,
-                            child: Padding(
-                              padding: EdgeInsets.only(
-                                left: AppSpacing.lg,
-                                right: AppSpacing.lg,
-                                bottom: 8,
+                      child: isThinking && !_isLoadingMessages
+                          ? const Align(
+                              key: ValueKey('typing'),
+                              alignment: Alignment.bottomLeft,
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                  left: AppSpacing.lg,
+                                  right: AppSpacing.lg,
+                                  bottom: 8,
+                                ),
+                                child: TypingIndicator(),
                               ),
-                              child: TypingIndicator(),
-                            ),
-                          )
-                        : const SizedBox.shrink(key: ValueKey('no-typing')),
+                            )
+                          : const SizedBox.shrink(key: ValueKey('no-typing')),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          if (_session?.agentState?.requests?.isNotEmpty ?? false)
-            PermissionRequiredBanner(onTap: () => _scrollToBottom()),
-          ChatInput(
-            sessionId: widget.sessionId,
-            controller: _controller,
-            onSend: _sendMessage,
-            isSending: _isSending,
-            permissionMode: _permissionMode,
-            onPermissionModeChanged: _onPermissionModeChanged,
-            modelMode: _modelMode,
-            onModelModeChanged: _onModelModeChanged,
-            contextSize:
-                sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
-            isPermissionPending:
-                _session?.agentState?.requests?.isNotEmpty ?? false,
-            isSessionOnline: _session?.isPresenceOnline ?? false,
-            onAbort: _abortSession,
-          ),
-        ],
+            if (_session?.agentState?.requests?.isNotEmpty ?? false)
+              PermissionRequiredBanner(onTap: () => _scrollToBottom()),
+            ChatInput(
+              sessionId: widget.sessionId,
+              controller: _controller,
+              onSend: _sendMessage,
+              isSending: _isSending,
+              permissionMode: _permissionMode,
+              onPermissionModeChanged: _onPermissionModeChanged,
+              modelMode: _modelMode,
+              onModelModeChanged: _onModelModeChanged,
+              contextSize:
+                  sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
+              isPermissionPending:
+                  _session?.agentState?.requests?.isNotEmpty ?? false,
+              isSessionOnline: _session?.isPresenceOnline ?? false,
+              onAbort: _abortSession,
+            ),
+          ],
+        ),
       ),
     );
   }

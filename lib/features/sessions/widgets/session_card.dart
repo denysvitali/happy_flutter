@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/models/session.dart';
+import '../../../core/models/todo.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';

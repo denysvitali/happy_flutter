@@ -114,27 +114,41 @@ class SettingsStorage {
 
       // Clear API keys from settings and save
       settings.inferenceOpenAIKey = null;
+
+      // Create new profiles list with cleared API keys
+      final updatedProfiles = <AIBackendProfile>[];
       for (final profile in settings.profiles) {
-        // Create new config instances without API keys
+        // Create new config instances without API keys using copyWith
+        OpenAIConfig? newOpenAIConfig;
+        AzureOpenAIConfig? newAzureConfig;
+        TogetherAIConfig? newTogetherConfig;
+
         if (profile.openaiConfig != null) {
-          profile.openaiConfig = OpenAIConfig(
+          newOpenAIConfig = OpenAIConfig(
             baseUrl: profile.openaiConfig!.baseUrl,
             model: profile.openaiConfig!.model,
           );
         }
         if (profile.azureOpenAIConfig != null) {
-          profile.azureOpenAIConfig = AzureOpenAIConfig(
+          newAzureConfig = AzureOpenAIConfig(
             endpoint: profile.azureOpenAIConfig!.endpoint,
             apiVersion: profile.azureOpenAIConfig!.apiVersion,
             deploymentName: profile.azureOpenAIConfig!.deploymentName,
           );
         }
         if (profile.togetherAIConfig != null) {
-          profile.togetherAIConfig = TogetherAIConfig(
+          newTogetherConfig = TogetherAIConfig(
             model: profile.togetherAIConfig!.model,
           );
         }
+
+        updatedProfiles.add(profile.copyWith(
+          openaiConfig: newOpenAIConfig,
+          azureOpenAIConfig: newAzureConfig,
+          togetherAIConfig: newTogetherConfig,
+        ));
       }
+      settings.profiles = updatedProfiles;
 
       // Save the cleaned settings back to MMKV
       await _storage.saveSettings(settings);
@@ -147,12 +161,17 @@ class SettingsStorage {
     // Load inference OpenAI key
     settings.inferenceOpenAIKey = await _apiKeyStorage.getInferenceOpenAIKey();
 
-    // Load profile-specific API keys
+    // Load profile-specific API keys using copyWith
+    final updatedProfiles = <AIBackendProfile>[];
     for (final profile in settings.profiles) {
+      OpenAIConfig? newOpenAIConfig;
+      AzureOpenAIConfig? newAzureConfig;
+      TogetherAIConfig? newTogetherConfig;
+
       if (profile.openaiConfig != null) {
         final apiKey = await _apiKeyStorage.getOpenAIConfigKey(profile.id);
         if (apiKey != null) {
-          profile.openaiConfig = OpenAIConfig(
+          newOpenAIConfig = OpenAIConfig(
             apiKey: apiKey,
             baseUrl: profile.openaiConfig!.baseUrl,
             model: profile.openaiConfig!.model,
@@ -162,7 +181,7 @@ class SettingsStorage {
       if (profile.azureOpenAIConfig != null) {
         final apiKey = await _apiKeyStorage.getAzureOpenAIConfigKey(profile.id);
         if (apiKey != null) {
-          profile.azureOpenAIConfig = AzureOpenAIConfig(
+          newAzureConfig = AzureOpenAIConfig(
             apiKey: apiKey,
             endpoint: profile.azureOpenAIConfig!.endpoint,
             apiVersion: profile.azureOpenAIConfig!.apiVersion,
@@ -173,13 +192,20 @@ class SettingsStorage {
       if (profile.togetherAIConfig != null) {
         final apiKey = await _apiKeyStorage.getTogetherAIConfigKey(profile.id);
         if (apiKey != null) {
-          profile.togetherAIConfig = TogetherAIConfig(
+          newTogetherConfig = TogetherAIConfig(
             apiKey: apiKey,
             model: profile.togetherAIConfig!.model,
           );
         }
       }
+
+      updatedProfiles.add(profile.copyWith(
+        openaiConfig: newOpenAIConfig,
+        azureOpenAIConfig: newAzureConfig,
+        togetherAIConfig: newTogetherConfig,
+      ));
     }
+    settings.profiles = updatedProfiles;
   }
 
   /// Save settings to storage
