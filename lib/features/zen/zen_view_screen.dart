@@ -9,7 +9,7 @@ import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart'
-    show AppSpacing, AppRadius, AppLineHeight, AppTouchTarget;
+    show AppSpacing, AppRadius, AppLineHeight;
 
 /// Screen that shows the details of a single Zen todo item.
 class ZenViewScreen extends ConsumerStatefulWidget {

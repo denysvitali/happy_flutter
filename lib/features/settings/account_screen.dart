@@ -811,6 +811,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                     child: AspectRatio(
                       aspectRatio: 1,
                       child: ClipRRect(
+                        clipBehavior: Clip.hardEdge,
                         borderRadius: BorderRadius.circular(AppRadius.md),
                         child: MobileScanner(
                           controller: _scanController,

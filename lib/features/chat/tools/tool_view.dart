@@ -665,6 +665,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs / 2),
           child: ClipRRect(
+            clipBehavior: Clip.hardEdge,
             borderRadius: BorderRadius.circular(AppRadius.sm),
             child: Container(
               decoration: BoxDecoration(

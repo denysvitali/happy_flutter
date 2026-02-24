@@ -15,7 +15,7 @@ class EmptySessionsView extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 48),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -61,7 +61,7 @@ class EmptySessionsView extends StatelessWidget {
             FilledButton.tonal(
               onPressed: () => _showNewSessionDialog(context),
               style: FilledButton.styleFrom(
-                minimumSize: const Size(160, 44),
+                minimumSize: const Size(160, AppTouchTarget.min),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),

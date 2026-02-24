@@ -659,6 +659,7 @@ class AvatarGradient extends StatelessWidget {
     final borderRadius = square ? 0.0 : size / 2;
 
     return ClipRRect(
+      clipBehavior: Clip.hardEdge,
       borderRadius: BorderRadius.circular(borderRadius),
       child: Image.asset(
         imagePath,
@@ -721,6 +722,7 @@ class AvatarSkia extends StatelessWidget {
     final borderRadius = square ? 0.0 : size / 2;
 
     return ClipRRect(
+      clipBehavior: Clip.hardEdge,
       borderRadius: BorderRadius.circular(borderRadius),
       child: SizedBox(
         width: size,
@@ -964,6 +966,7 @@ class Avatar extends StatelessWidget {
     final cacheSize = (size *
         MediaQuery.devicePixelRatioOf(context)).toInt();
     final imageElement = ClipRRect(
+      clipBehavior: Clip.hardEdge,
       borderRadius: BorderRadius.circular(borderRadius),
       child: CachedNetworkImage(
         imageUrl: imageUrl!,
