@@ -1028,6 +1028,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     return AnimatedContainer(
       duration: _kBorderAnim,
       curve: Curves.easeInOut,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(AppRadius.xl),
