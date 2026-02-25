@@ -48,7 +48,7 @@ dependencies:
   # UI and navigation
   go_router: ^17.0.1
   google_fonts: ^8.0.2
-  webview_flutter: 4.8.0
+  webview_flutter: 4.4.2
   flutter_tts: ^4.2.0
   url_launcher: ^6.3.1
   qr: ^3.0.2
@@ -66,8 +66,6 @@ dependencies:
 
 dependency_overrides:
   sodium_libs: 3.4.6+3
-  # Fix for webview_flutter_android Pigeon API compatibility with Flutter 3.38.7
-  webview_flutter_android: 3.16.3
 
 dev_dependencies:
   flutter_test:
