@@ -180,7 +180,7 @@ class _UserBubble extends StatelessWidget {
             child: MarkdownView(
               markdown: text,
               onOptionPress: onOptionPress,
-              textColor: Colors.white,
+              textColor: theme.colorScheme.onPrimary,
             ),
           ),
         ),

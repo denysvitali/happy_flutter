@@ -633,6 +633,8 @@ class ThemeHelper {
       seedColor: effectiveSeed,
       brightness: Brightness.light,
     ).copyWith(
+      primary: effectiveSeed,
+      onPrimary: Colors.white,
       surface: _kLightSurface,
       surfaceContainerHighest: _kLightSurfaceVariant,
       onSurface: const Color(0xFF1E293B),
