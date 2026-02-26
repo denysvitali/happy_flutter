@@ -322,6 +322,7 @@ what you have, you must use the options mode.
   final _sessionMessageChangeController =
       StreamController<String>.broadcast();
   Timer? _dataChangeDebounceTimer;
+  Timer? _saveSeqDebounceTimer;
 
   Map<String?, TodoList> get todoLists => Map.unmodifiable(_todoLists);
   List<UserProfile> get friends => List.unmodifiable(_friends);
@@ -501,6 +502,22 @@ what you have, you must use the options mode.
     });
   }
 
+  /// Debounced MMKV persist for session seq cursors.
+  ///
+  /// [saveSessionLastSeq] does a synchronous jsonEncode + MMKV disk write on
+  /// the main thread. Called on every pagination page during [fetchMessages],
+  /// it was the single biggest cause of jank when opening large sessions.
+  /// We debounce to a 500ms window so rapid page fetches batch into one write.
+  void _scheduleSaveSeq() {
+    _saveSeqDebounceTimer?.cancel();
+    _saveSeqDebounceTimer =
+        Timer(const Duration(milliseconds: 500), () {
+      MMKVStorage().saveSessionLastSeq(
+        Map.unmodifiable(_sessionLastSeq),
+      );
+    });
+  }
+
   /// Subscribe to socket updates
   void subscribeToUpdates() {
     socketIoClient
@@ -509,8 +526,13 @@ what you have, you must use the options mode.
       ..onReconnected(() {
         if (kDebugMode) debugPrint('Socket reconnected');
         _invalidateAllSyncs();
-        for (final sync in messagesSync.values) {
-          sync.invalidate();
+        // Only re-fetch messages for the currently visible session.
+        // All other sessions will be lazily refreshed when the user
+        // navigates to them via onSessionVisible(). Invalidating every
+        // messagesSync entry caused a thundering herd of concurrent
+        // fetchMessages calls on reconnect, blocking the main thread.
+        if (_visibleSessionId != null) {
+          messagesSync[_visibleSessionId]?.invalidate();
         }
       })
       ..onStatusChange((status) {
@@ -804,7 +826,13 @@ what you have, you must use the options mode.
       return;
     }
 
-    if (messagesSync.containsKey(sessionId)) {
+    // Only invalidate if this session is currently open — ephemeral updates
+    // for non-visible sessions are not urgent and can wait until the user
+    // navigates to them. Invalidating all sessions caused a thundering herd
+    // of fetchMessages calls (one per active typing/tool event × every session
+    // the user had previously opened), blocking the main thread.
+    if (sessionId == _visibleSessionId &&
+        messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId]?.invalidate();
     }
   }
@@ -2747,9 +2775,10 @@ what you have, you must use the options mode.
           afterSeq = processed.maxSeq;
         }
         _sessionLastSeq[sessionId] = afterSeq;
-        MMKVStorage().saveSessionLastSeq(
-          Map.unmodifiable(_sessionLastSeq),
-        );
+        // Debounced: batches rapid page fetches into a single disk write
+        // instead of blocking the main thread with jsonEncode + MMKV I/O
+        // on every pagination page.
+        _scheduleSaveSeq();
 
         unawaited(Sentry.captureMessage(
           'fetchMessages page $page done',
@@ -3909,6 +3938,10 @@ what you have, you must use the options mode.
 
     _dataChangeDebounceTimer?.cancel();
     _dataChangeDebounceTimer = null;
+    // Flush any pending seq write before shutdown so cursors aren't lost.
+    _saveSeqDebounceTimer?.cancel();
+    _saveSeqDebounceTimer = null;
+    MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
 
     unawaited(_dataChangeController.close());
     unawaited(_sessionMessageChangeController.close());
