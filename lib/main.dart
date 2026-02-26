@@ -566,7 +566,9 @@ class _HappyAppState extends ConsumerState<HappyApp>
           });
         }
 
-        return CommandPaletteKeyboardHandler(
+        return Directionality(
+          textDirection: TextDirection.ltr,
+          child: CommandPaletteKeyboardHandler(
           child: Stack(
             children: [
               MaterialApp.router(
@@ -583,6 +585,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
               // Command palette overlay
               const CommandPaletteOverlayWrapper(),
             ],
+          ),
           ),
         );
       },
