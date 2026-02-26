@@ -226,6 +226,22 @@ class SocketIoClient {
     }
   }
 
+  /// Update server URL and reconnect if already connected.
+  void refreshServerUrl(String newUrl) {
+    if (_serverUrl != newUrl) {
+      _serverUrl = newUrl;
+
+      if (_socket != null && _authToken != null) {
+        disconnect();
+        connect(
+          serverUrl: newUrl,
+          token: _authToken!,
+          clientType: _clientType ?? 'user-scoped',
+        );
+      }
+    }
+  }
+
   void _updateStatus(ConnectionStatus status) {
     if (_status != status) {
       _status = status;

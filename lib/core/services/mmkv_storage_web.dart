@@ -378,15 +378,18 @@ class ServerConfigStorage {
   }
 
   Future<void> setServerUrl(String? url) async {
+    // Update the in-memory cache immediately so that synchronous callers
+    // (e.g. getServerUrl() right after setServerUrl()) see the new value
+    // without waiting for the async SharedPreferences write to complete.
+    _cachedServerUrl =
+        (url != null && url.trim().isNotEmpty) ? url.trim() : null;
     try {
       final prefs = await _getPrefs();
       final key = _prefixedKey(_Keys.serverUrl);
-      if (url != null && url.trim().isNotEmpty) {
-        await prefs.setString(key, url.trim());
-        _cachedServerUrl = url.trim();
+      if (_cachedServerUrl != null) {
+        await prefs.setString(key, _cachedServerUrl!);
       } else {
         await prefs.remove(key);
-        _cachedServerUrl = null;
       }
     } catch (e) {
       debugPrint('WebStorage: failed to set server URL: $e');

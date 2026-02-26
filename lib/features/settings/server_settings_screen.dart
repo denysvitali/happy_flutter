@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
+import '../../core/api/socket_io_client.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/server_config.dart';
 import '../../core/theme/app_tokens.dart';
@@ -102,6 +103,7 @@ class _ServerSettingsScreenState
 
     setServerUrl(url);
     await ApiClient().refreshServerUrl();
+    socketIoClient.refreshServerUrl(url);
 
     if (!mounted) {
       return;
@@ -141,6 +143,7 @@ class _ServerSettingsScreenState
       setServerUrl(null);
       await ApiClient().refreshServerUrl();
       final defaultUrl = getServerUrl();
+      socketIoClient.refreshServerUrl(defaultUrl);
       if (!mounted) {
         return;
       }

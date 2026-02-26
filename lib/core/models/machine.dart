@@ -40,10 +40,10 @@ class MachineMetadata {
 
   MachineMetadata({
     this.host,
-    required this.platform,
-    required this.happyCliVersion,
-    required this.happyHomeDir,
-    required this.homeDir,
+    this.platform,
+    this.happyCliVersion,
+    this.happyHomeDir,
+    this.homeDir,
     this.username,
     this.arch,
     this.displayName,
@@ -56,10 +56,10 @@ class MachineMetadata {
   factory MachineMetadata.fromJson(Map<String, dynamic> json) {
     return MachineMetadata(
       host: _asApiStringOptional(json['host']),
-      platform: _asApiString(json['platform'], 'platform'),
-      happyCliVersion: _asApiString(json['happyCliVersion'], 'happyCliVersion'),
-      happyHomeDir: _asApiString(json['happyHomeDir'], 'happyHomeDir'),
-      homeDir: _asApiString(json['homeDir'], 'homeDir'),
+      platform: _asApiStringOptional(json['platform']),
+      happyCliVersion: _asApiStringOptional(json['happyCliVersion']),
+      happyHomeDir: _asApiStringOptional(json['happyHomeDir']),
+      homeDir: _asApiStringOptional(json['homeDir']),
       username: _asApiStringOptional(json['username']),
       arch: _asApiStringOptional(json['arch']),
       displayName: _asApiStringOptional(json['displayName']),
@@ -70,10 +70,10 @@ class MachineMetadata {
     );
   }
   final String? host;
-  final String platform;
-  final String happyCliVersion;
-  final String happyHomeDir;
-  final String homeDir;
+  final String? platform;
+  final String? happyCliVersion;
+  final String? happyHomeDir;
+  final String? homeDir;
   final String? username;
   final String? arch;
   final String? displayName;

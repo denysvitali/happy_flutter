@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr/qr.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/api/socket_io_client.dart';
 import '../../core/components/app_loading_indicator.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
@@ -1420,6 +1421,7 @@ class _ServerUrlDialogState extends State<_ServerUrlDialog> {
 
     setServerUrl(url);
     unawaited(ApiClient().refreshServerUrl());
+    socketIoClient.refreshServerUrl(url);
 
     if (mounted) {
       Navigator.pop(context);

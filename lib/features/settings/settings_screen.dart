@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/api/api_client.dart';
+import '../../core/api/socket_io_client.dart';
 import '../../core/api/github_api.dart';
 import '../../core/api/services_api.dart';
 import '../../core/components/settings_section.dart';
@@ -592,6 +593,7 @@ class SettingsScreen extends ConsumerWidget {
                   onPressed: () {
                     setServerUrl(null);
                     ApiClient().refreshServerUrl();
+                    socketIoClient.refreshServerUrl(getServerUrl());
                     Navigator.pop(dialogContext);
                     ScaffoldMessenger.of(dialogContext).showSnackBar(
                       SnackBar(
@@ -636,6 +638,7 @@ class SettingsScreen extends ConsumerWidget {
 
                         setServerUrl(url);
                         unawaited(ApiClient().refreshServerUrl());
+                        socketIoClient.refreshServerUrl(url);
 
                         if (dialogContext.mounted) {
                           Navigator.pop(dialogContext);

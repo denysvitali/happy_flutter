@@ -218,7 +218,7 @@ class _MachineDetailScreenState
                 if (metadata?.platform != null)
                   _GroupedRow(
                     label: context.l10n.machinePlatform,
-                    value: metadata!.platform,
+                    value: metadata!.platform!,
                   ),
                 if (metadata?.arch != null)
                   _GroupedRow(
@@ -228,13 +228,13 @@ class _MachineDetailScreenState
                 if (metadata?.happyCliVersion != null)
                   _GroupedRow(
                     label: context.l10n.machineCliVersion,
-                    value: metadata!.happyCliVersion,
+                    value: metadata!.happyCliVersion!,
                     mono: true,
                   ),
                 if (metadata?.homeDir != null)
                   _GroupedRow(
                     label: context.l10n.machineHomeDir,
-                    value: metadata!.homeDir,
+                    value: metadata!.homeDir!,
                     mono: true,
                   ),
                 _GroupedRow(
