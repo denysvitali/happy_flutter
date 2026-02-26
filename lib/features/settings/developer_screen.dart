@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/storage_service.dart';
@@ -98,12 +99,38 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
-              title: 'Test Error Reporting',
-              subtitle: 'Trigger a test error',
+              title: 'Test Sentry (Exception)',
+              subtitle: 'Capture a test exception via Sentry',
               icon: Icons.bug_report,
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Not yet implemented')),
-              ),
+              onTap: () async {
+                try {
+                  throw StateError('Sentry test exception');
+                } catch (e, st) {
+                  final eventId = await Sentry.captureException(
+                    e,
+                    stackTrace: st,
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Sent to Sentry: $eventId'),
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _buildDebugOption(
+              context: context,
+              title: 'Test Sentry (Unhandled)',
+              subtitle: 'Throw an unhandled error',
+              icon: Icons.error,
+              onTap: () {
+                throw StateError(
+                  'Sentry unhandled test error',
+                );
+              },
             ),
             const SizedBox(height: AppSpacing.xxl),
             _buildSectionHeader('Cache & Storage'),

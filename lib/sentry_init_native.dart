@@ -1,5 +1,5 @@
 // Native platform Sentry initialization
-import 'package:flutter/foundation.dart' show kReleaseMode;
+import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 Future<void> initSentryForPlatform(Future<void> Function() appRunner) async {
@@ -11,6 +11,9 @@ Future<void> initSentryForPlatform(Future<void> Function() appRunner) async {
       options.tracesSampleRate = kReleaseMode ? 0.2 : 1.0;
       options.release = 'happy_flutter@1.0.0+1';
       options.environment = kReleaseMode ? 'production' : 'debug';
+      // Print Sentry diagnostics to console in debug builds so
+      // we can verify events are actually being sent.
+      options.debug = kDebugMode;
     },
     appRunner: appRunner,
   );
