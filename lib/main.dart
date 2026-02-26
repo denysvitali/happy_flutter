@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert' show base64;
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -100,6 +101,10 @@ Future<void> _runApp() async {
       final pem = _derToPem(derBytes);
       SecurityContext.defaultContext.setTrustedCertificatesBytes(pem);
     }
+  }
+
+  if (!kIsWeb) {
+    await Firebase.initializeApp();
   }
 
   await storage.Storage().initialize();

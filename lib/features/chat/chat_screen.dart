@@ -129,7 +129,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     sync.onSessionVisible(widget.sessionId);
     try {
-      await sync.messagesSync[widget.sessionId]?.awaitQueue();
+      await sync.messagesSync[widget.sessionId]
+          ?.awaitQueue()
+          .timeout(const Duration(seconds: 5));
     } catch (_) {
       // Fall through so we still clear the spinner.
     }

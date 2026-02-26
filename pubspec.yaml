@@ -60,6 +60,7 @@ dependencies:
 
   # Native platform integrations
   geolocator: ^13.0.1
+  firebase_core: ^4.4.0
   firebase_messaging: ^16.1.1
   mobile_scanner: ^7.2.0
   cached_network_image: ^3.4.1
