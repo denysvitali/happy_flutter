@@ -519,14 +519,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             children: [
               const Expanded(child: Center(child: _LandingLogoMark())),
               Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ...notices,
-                    header,
-                    const SizedBox(height: AppSpacing.xxxl),
-                    SizedBox(width: 280, child: buttons),
-                  ],
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ...notices,
+                      header,
+                      const SizedBox(height: AppSpacing.xxxl),
+                      SizedBox(width: 280, child: buttons),
+                    ],
+                  ),
                 ),
               ),
             ],
