@@ -13,6 +13,7 @@ import 'core/i18n/app_localizations.dart';
 import 'core/i18n/supported_locales.dart';
 import 'core/models/auth.dart';
 import 'core/providers/app_providers.dart';
+import 'core/services/logger_service.dart';
 import 'core/services/remote_logger.dart';
 import 'core/services/server_config.dart';
 import 'core/services/storage_service.dart' as storage;
@@ -104,7 +105,14 @@ Future<void> _runApp() async {
   }
 
   if (!kIsWeb) {
-    await Firebase.initializeApp();
+    try {
+      await Firebase.initializeApp();
+    } catch (e) {
+      // Firebase is optional — only needed for push notifications.
+      // If google-services.json is absent (e.g. unsigned builds),
+      // the app still works; background push notifications won't fire.
+      logger.warning('Firebase.initializeApp() failed: $e');
+    }
   }
 
   await storage.Storage().initialize();
