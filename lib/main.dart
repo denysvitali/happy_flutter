@@ -64,7 +64,7 @@ import 'platform_io.dart' if (dart.library.js_interop) 'platform_stub.dart';
 import 'security_context_io.dart'
     if (dart.library.js_interop) 'security_context_stub.dart';
 import 'sentry_init_native.dart'
-    if (dart.library.js_interop) 'sentry_init_stub.dart';
+    if (dart.library.js_interop) 'sentry_init_web.dart';
 import 'sentry_widget.dart'
     if (dart.library.js_interop) 'sentry_widget_stub.dart';
 import 'user_certs_io.dart' if (dart.library.js_interop) 'user_certs_stub.dart';
