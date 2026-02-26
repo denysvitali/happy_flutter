@@ -50,78 +50,89 @@ Future<List<dynamic>> _batchDecryptInIsolate(
   return results;
 }
 
-/// Top-level function that decrypts **and** processes messages in a
-/// background isolate, returning display-ready results.
+/// Lightweight wire data sent to the isolate.
+/// Only the fields needed for decrypt + process — NOT the full API maps.
+class _IsolateWireMessage {
+  const _IsolateWireMessage({
+    required this.id,
+    required this.seq,
+    required this.createdAt,
+    this.localId,
+    this.base64Content,
+    this.isEncrypted = false,
+  });
+
+  final String id;
+  final int seq;
+  final dynamic createdAt;
+  final String? localId;
+
+  /// Base64-encoded encrypted payload (content.c), or null if not
+  /// encrypted.
+  final String? base64Content;
+  final bool isEncrypted;
+}
+
+/// Top-level function that does base64 decode + decrypt + process
+/// entirely inside a background isolate.
+///
+/// Receives only minimal wire data (not the full API response maps)
+/// to minimise isolate serialization overhead.
 Future<ProcessedMessages> _batchDecryptAndProcessInIsolate(
   ({
-    List<Uint8List> encrypted,
+    List<_IsolateWireMessage> wireData,
     Uint8List secretKey,
     bool isAes,
-    List<Map<String, dynamic>> wireMessages,
-    List<int> toDecryptIndices,
     String sessionId,
   }) args,
 ) async {
-  // Step 1: decrypt
-  final decryptedRaw = <dynamic>[];
-  for (final item in args.encrypted) {
-    if (args.isAes) {
-      if (item.isEmpty || item[0] != 0) {
-        decryptedRaw.add(null);
-        continue;
-      }
-      try {
-        final decrypted = await AesGcmEncryption.decrypt(
-          item.sublist(1),
-          args.secretKey,
-        );
-        decryptedRaw.add(decrypted);
-      } catch (e) {
-        decryptedRaw.add(null);
-      }
-    } else {
-      final decrypted = await CryptoSecretBox.decrypt(
-        item,
-        args.secretKey,
-      );
-      decryptedRaw.add(decrypted);
-    }
-  }
-
-  // Step 2: build per-message decrypted content list aligned with
-  // wireMessages (null for non-encrypted / failed).
   final decryptedJsonList = List<dynamic>.filled(
-    args.wireMessages.length,
+    args.wireData.length,
     null,
   );
-  for (var i = 0; i < args.toDecryptIndices.length; i++) {
-    decryptedJsonList[args.toDecryptIndices[i]] = decryptedRaw[i];
-  }
-  // For non-encrypted messages that have content (not encrypted), the
-  // content is already null in decryptedJsonList — processDecryptedMessages
-  // treats null as decryption failure.  We need to mark them specially.
-  // Actually, unencrypted messages with no content also appear as null.
-  // We set them to a sentinel so processDecryptedMessages can distinguish.
-  // Instead, we pass the wire content directly for unencrypted messages.
-  for (var i = 0; i < args.wireMessages.length; i++) {
-    if (decryptedJsonList[i] != null) continue;
-    final wire = args.wireMessages[i];
-    if (wire.isEmpty) continue;
-    final content = wire['content'] as Map<String, dynamic>?;
-    if (content == null || content['t'] != 'encrypted') {
-      // Not encrypted — mark with null content (decryption "succeeded"
-      // but there's nothing to decrypt).  processDecryptedMessages will
-      // emit an error placeholder which is correct for these.
-      // Actually we need to NOT process these as errors — they are
-      // unencrypted messages with null content.  Skip them from
-      // processing by keeping null — the caller handles them.
+
+  // Decrypt every encrypted message (base64 decode + crypto).
+  for (var i = 0; i < args.wireData.length; i++) {
+    final wire = args.wireData[i];
+    if (!wire.isEncrypted || wire.base64Content == null) continue;
+
+    final encrypted = Base64Utils.decode(
+      wire.base64Content!,
+      Encoding.base64,
+    );
+
+    if (args.isAes) {
+      if (encrypted.isEmpty || encrypted[0] != 0) continue;
+      try {
+        decryptedJsonList[i] = await AesGcmEncryption.decrypt(
+          encrypted.sublist(1),
+          args.secretKey,
+        );
+      } catch (_) {
+        // leave null — will show as decryption error
+      }
+    } else {
+      decryptedJsonList[i] = await CryptoSecretBox.decrypt(
+        encrypted,
+        args.secretKey,
+      );
     }
   }
 
-  // Step 3: process
+  // Rebuild minimal wireMessages maps for processDecryptedMessages.
+  final wireMessages = <Map<String, dynamic>>[];
+  for (final w in args.wireData) {
+    wireMessages.add({
+      'id': w.id,
+      'seq': w.seq,
+      'localId': w.localId,
+      'createdAt': w.createdAt,
+    });
+  }
+
   return processDecryptedMessages(
     decryptedJsonList: decryptedJsonList,
-    wireMessages: args.wireMessages,
+    wireMessages: wireMessages,
     sessionId: args.sessionId,
   );
 }
@@ -247,74 +258,100 @@ class SessionEncryption {
   /// Decrypt messages **and** run message processing in a single
   /// isolate call, returning display-ready results.
   ///
-  /// Falls back to main-thread decryption + processing for small
-  /// batches or unsupported decryptor types.
+  /// All heavy work (base64 decode, crypto, message type parsing)
+  /// runs in the isolate.  The main thread only builds a
+  /// lightweight descriptor list and receives the processed result.
   Future<ProcessedMessages> decryptAndProcessMessages(
     List<Map<String, dynamic>> messages,
     String sessionId,
   ) async {
-    // Separate cached / unencrypted / to-decrypt, same as decryptMessages
-    final toDecrypt = <({int index, Map<String, dynamic> message})>[];
+    // Build lightweight wire data — extract only the fields the
+    // isolate needs.  This keeps isolate-boundary serialisation
+    // small (ids + seq + base64 string) instead of copying the
+    // entire API response maps.
+    var toDecryptCount = 0;
+    var cachedCount = 0;
+    final wireData = <_IsolateWireMessage>[];
     final cachedContent = List<dynamic>.filled(messages.length, null);
-    final hasCachedContent = List<bool>.filled(messages.length, false);
+    final hasCached = List<bool>.filled(messages.length, false);
 
     for (var i = 0; i < messages.length; i++) {
-      final message = messages[i];
-      if (message.isEmpty) continue;
+      final msg = messages[i];
+      if (msg.isEmpty) {
+        wireData.add(const _IsolateWireMessage(
+          id: '',
+          seq: 0,
+          createdAt: 0,
+        ));
+        continue;
+      }
 
-      final messageId = message['id'] as String?;
-      if (messageId != null) {
+      final messageId = msg['id'] as String? ?? '';
+      final seq = msg['seq'] as int? ?? 0;
+      final localId = msg['localId'] as String?;
+      final createdAt = msg['createdAt'];
+      final content = msg['content'] as Map<String, dynamic>?;
+      final isEncrypted =
+          content != null && content['t'] == 'encrypted';
+
+      // Check cache
+      if (messageId.isNotEmpty) {
         final cached = _cache.getCachedMessage(messageId);
         if (cached != null) {
           cachedContent[i] = cached.content;
-          hasCachedContent[i] = true;
+          hasCached[i] = true;
+          cachedCount++;
+          wireData.add(_IsolateWireMessage(
+            id: messageId,
+            seq: seq,
+            localId: localId,
+            createdAt: createdAt,
+          ));
           continue;
         }
       }
 
-      final content = message['content'] as Map<String, dynamic>?;
-      if (content != null && content['t'] == 'encrypted') {
-        toDecrypt.add((index: i, message: message));
-      } else {
-        // Not encrypted — content is null
-        hasCachedContent[i] = true;
-        cachedContent[i] = null;
+      if (isEncrypted) {
+        toDecryptCount++;
       }
+
+      wireData.add(_IsolateWireMessage(
+        id: messageId,
+        seq: seq,
+        localId: localId,
+        createdAt: createdAt,
+        base64Content:
+            isEncrypted ? content['c'] as String? : null,
+        isEncrypted: isEncrypted,
+      ));
     }
 
-    // Offload to isolate if large enough
-    if (toDecrypt.length >= _isolateThreshold &&
-        _canOffloadToIsolate) {
-      final encrypted = toDecrypt
-          .map((item) => Base64Utils.decode(
-                item.message['content']['c'] as String,
-                Encoding.base64,
-              ))
-          .toList();
+    if (kDebugMode) {
+      debugPrint(
+        '[fetchMessages] session=$sessionId '
+        'total=${messages.length} '
+        'toDecrypt=$toDecryptCount '
+        'cached=$cachedCount',
+      );
+    }
 
+    // Offload to isolate if enough messages need decryption
+    if (toDecryptCount >= _isolateThreshold &&
+        _canOffloadToIsolate) {
       final result = await Isolate.run(
         () => _batchDecryptAndProcessInIsolate((
-          encrypted: encrypted,
+          wireData: wireData,
           secretKey: _extractSecretKey()!,
           isAes: _decryptor is AES256Encryption,
-          wireMessages: messages,
-          toDecryptIndices:
-              toDecrypt.map((item) => item.index).toList(),
           sessionId: sessionId,
         )),
       );
 
-      // Update cache with decrypted messages that came back
-      // (we can't do this in the isolate since the cache is
-      // main-isolate only)
-      _updateCacheFromProcessed(messages, toDecrypt, result);
-
       return result;
     }
 
-    // Small batch: decrypt on main thread then process
+    // Small batch / unsupported decryptor: main-thread path
     final decryptedList = await decryptMessages(messages);
-    // Build content list for processDecryptedMessages
     final contentList = <dynamic>[];
     for (final dm in decryptedList) {
       contentList.add(dm?.content);
@@ -325,19 +362,6 @@ class SessionEncryption {
       wireMessages: messages,
       sessionId: sessionId,
     );
-  }
-
-  /// Update the encryption cache after isolate processing.
-  void _updateCacheFromProcessed(
-    List<Map<String, dynamic>> wireMessages,
-    List<({int index, Map<String, dynamic> message})> toDecrypt,
-    ProcessedMessages result,
-  ) {
-    // We can't easily recover individual decrypted content from
-    // ProcessedMessages, but we can at least mark messages as
-    // "seen" so the next call to decryptMessages can use the cache.
-    // For now this is a no-op — the cache is populated on the next
-    // call to decryptMessages for any re-fetched page.
   }
 
   /// Whether the decryptor type supports isolate offloading.

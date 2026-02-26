@@ -2393,11 +2393,34 @@ what you have, you must use the options mode.
         afterSeq = _sessionLastSeq[sessionId]!;
       }
 
+      var page = 0;
       while (true) {
+        // ── Check visibility BEFORE network call ──
+        if (page > 0 && _visibleSessionId != sessionId) {
+          if (kDebugMode) {
+            debugPrint(
+              '[fetchMessages] $sessionId no longer visible '
+              'after page $page — aborting',
+            );
+          }
+          unawaited(Sentry.addBreadcrumb(Breadcrumb(
+            message: 'fetchMessages aborted — session not visible',
+            category: 'sync',
+            data: {
+              'sessionId': sessionId,
+              'page': page,
+              'afterSeq': afterSeq,
+            },
+          )));
+          break;
+        }
+
+        final fetchStart = Stopwatch()..start();
         final response = await apiClient.get(
           '/v3/sessions/$sessionId/messages',
           queryParameters: {'after_seq': afterSeq, 'limit': 100},
         );
+        final fetchMs = fetchStart.elapsedMilliseconds;
 
         if (!apiClient.isSuccess(response)) {
           if (kDebugMode) {
@@ -2414,21 +2437,45 @@ what you have, you must use the options mode.
             .toList();
         final hasMore = data['hasMore'] as bool? ?? false;
 
-        // Decrypt + process in a background isolate (or main
-        // thread for small batches).
+        unawaited(Sentry.addBreadcrumb(Breadcrumb(
+          message: 'fetchMessages page $page',
+          category: 'sync',
+          data: {
+            'sessionId': sessionId,
+            'messageCount': messages.length,
+            'hasMore': hasMore,
+            'afterSeq': afterSeq,
+            'fetchMs': fetchMs,
+          },
+        )));
+
+        if (kDebugMode) {
+          debugPrint(
+            '[fetchMessages] $sessionId page=$page '
+            'msgs=${messages.length} hasMore=$hasMore '
+            'fetchMs=$fetchMs',
+          );
+        }
+
+        // ── Decrypt + process (isolate for large batches) ──
+        final decryptStart = Stopwatch()..start();
         final processed =
             await sessionEncryption.decryptAndProcessMessages(
           messages,
           sessionId,
         );
+        final decryptMs = decryptStart.elapsedMilliseconds;
 
+        // ── Yield before main-thread merge/group work ──
+        await Future<void>.delayed(Duration.zero);
+
+        final mergeStart = Stopwatch()..start();
         if (processed.messages.isNotEmpty) {
           _upsertSessionMessages(sessionId, processed.messages);
         }
         if (processed.toolResults.isNotEmpty) {
           _applyToolResults(sessionId, processed.toolResults);
         }
-        // Apply usage updates collected from isolate
         for (final u in processed.usageUpdates) {
           _updateSessionUsage(
             u['sessionId'] as String,
@@ -2438,6 +2485,7 @@ what you have, you must use the options mode.
         }
         _groupSidechainMessages(sessionId);
         _applyPermissionRequests(sessionId);
+        final mergeMs = mergeStart.elapsedMilliseconds;
 
         if (processed.maxSeq > afterSeq) {
           afterSeq = processed.maxSeq;
@@ -2447,22 +2495,30 @@ what you have, you must use the options mode.
           Map.unmodifiable(_sessionLastSeq),
         );
 
-        if (!hasMore) break;
+        unawaited(Sentry.addBreadcrumb(Breadcrumb(
+          message: 'fetchMessages page $page done',
+          category: 'sync',
+          data: {
+            'sessionId': sessionId,
+            'decryptMs': decryptMs,
+            'mergeMs': mergeMs,
+            'processedMsgs': processed.messages.length,
+            'toolResults': processed.toolResults.length,
+          },
+        )));
 
-        // User navigated away — stop processing pages for this
-        // session to avoid ANR from background work.
-        if (_visibleSessionId != sessionId) {
-          if (kDebugMode) {
-            debugPrint(
-              'Session $sessionId no longer visible, '
-              'stopping page fetch',
-            );
-          }
-          break;
+        if (kDebugMode) {
+          debugPrint(
+            '[fetchMessages] $sessionId page=$page '
+            'decryptMs=$decryptMs mergeMs=$mergeMs '
+            'processed=${processed.messages.length}',
+          );
         }
 
-        // Yield to the event loop between pages so Android
-        // system callbacks can execute (prevents ANR).
+        if (!hasMore) break;
+        page++;
+
+        // ── Yield between pages ──
         await Future<void>.delayed(Duration.zero);
       }
       _sessionMessageChangeController.add(sessionId);
@@ -2515,11 +2571,21 @@ what you have, you must use the options mode.
           .whereType<Map<String, dynamic>>()
           .toList();
 
+      if (kDebugMode) {
+        debugPrint(
+          '[fetchOlderMessages] $sessionId '
+          'msgs=${messages.length}',
+        );
+      }
+
       final processed =
           await sessionEncryption.decryptAndProcessMessages(
         messages,
         sessionId,
       );
+
+      // Yield before main-thread merge work
+      await Future<void>.delayed(Duration.zero);
 
       if (processed.messages.isNotEmpty) {
         _upsertSessionMessages(sessionId, processed.messages);
