@@ -1,7 +1,7 @@
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kIsWeb;
 
 import 'aes_gcm.dart';
 import 'base64.dart';
@@ -366,8 +366,9 @@ class SessionEncryption {
 
   /// Whether the decryptor type supports isolate offloading.
   bool get _canOffloadToIsolate =>
-      _decryptor is SecretBoxEncryption ||
-      _decryptor is AES256Encryption;
+      !kIsWeb &&
+      (_decryptor is SecretBoxEncryption ||
+          _decryptor is AES256Encryption);
 
   /// Extract the secret key from known decryptor types.
   Uint8List? _extractSecretKey() {
