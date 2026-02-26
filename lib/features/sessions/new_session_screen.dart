@@ -254,7 +254,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                                         .metadata?.host !=
                                     null)
                                   Text(
-                                    _selectedMachine!.metadata!.host,
+                                    _selectedMachine!.metadata!.host!,
                                     style: theme.textTheme.bodySmall
                                         ?.copyWith(
                                       color: theme

@@ -495,7 +495,9 @@ what you have, you must use the options mode.
   void _notifyDataChanged() {
     _dataChangeDebounceTimer?.cancel();
     _dataChangeDebounceTimer = Timer(const Duration(milliseconds: 100), () {
-      _dataChangeController.add(null);
+      if (!_dataChangeController.isClosed) {
+        _dataChangeController.add(null);
+      }
     });
   }
 
@@ -2780,7 +2782,9 @@ what you have, you must use the options mode.
         // ── Yield between pages ──
         await Future<void>.delayed(Duration.zero);
       }
-      _sessionMessageChangeController.add(sessionId);
+      if (!_sessionMessageChangeController.isClosed) {
+        _sessionMessageChangeController.add(sessionId);
+      }
       _notifyDataChanged();
     } catch (error, stack) {
       if (kDebugMode) debugPrint('Error fetching messages: $error');
@@ -2869,7 +2873,9 @@ what you have, you must use the options mode.
         Map.unmodifiable(_sessionFirstLoadedSeq),
       );
 
-      _sessionMessageChangeController.add(sessionId);
+      if (!_sessionMessageChangeController.isClosed) {
+        _sessionMessageChangeController.add(sessionId);
+      }
       _notifyDataChanged();
     } catch (error, stack) {
       if (kDebugMode) {

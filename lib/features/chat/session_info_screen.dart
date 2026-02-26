@@ -428,7 +428,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 _InfoRow(
                   icon: Icons.computer,
                   label: 'Host',
-                  value: meta.host,
+                  value: meta.host ?? '',
                 ),
                 if (meta.path != null) ...[
                   const Divider(height: 1, indent: 52),

@@ -39,7 +39,7 @@ int? _asApiIntOptional(dynamic value) {
 class MachineMetadata {
 
   MachineMetadata({
-    required this.host,
+    this.host,
     required this.platform,
     required this.happyCliVersion,
     required this.happyHomeDir,
@@ -55,7 +55,7 @@ class MachineMetadata {
 
   factory MachineMetadata.fromJson(Map<String, dynamic> json) {
     return MachineMetadata(
-      host: _asApiString(json['host'], 'host'),
+      host: _asApiStringOptional(json['host']),
       platform: _asApiString(json['platform'], 'platform'),
       happyCliVersion: _asApiString(json['happyCliVersion'], 'happyCliVersion'),
       happyHomeDir: _asApiString(json['happyHomeDir'], 'happyHomeDir'),
@@ -69,7 +69,7 @@ class MachineMetadata {
       shutdownSource: _asApiStringOptional(json['shutdownSource']),
     );
   }
-  final String host;
+  final String? host;
   final String platform;
   final String happyCliVersion;
   final String happyHomeDir;

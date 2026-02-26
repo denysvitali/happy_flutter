@@ -208,7 +208,7 @@ class _MachineDetailScreenState
                 if (metadata?.host != null)
                   _GroupedRow(
                     label: context.l10n.machineHost,
-                    value: metadata!.host,
+                    value: metadata!.host!,
                   ),
                 if (metadata?.username != null)
                   _GroupedRow(
