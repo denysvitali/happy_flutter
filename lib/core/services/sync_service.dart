@@ -2469,10 +2469,20 @@ what you have, you must use the options mode.
         // ── Yield before main-thread merge/group work ──
         await Future<void>.delayed(Duration.zero);
 
-        final mergeStart = Stopwatch()..start();
+        // ── Upsert messages ──
+        final existingCount =
+            _sessionMessages[sessionId]?.length ?? 0;
+        final upsertStart = Stopwatch()..start();
         if (processed.messages.isNotEmpty) {
           _upsertSessionMessages(sessionId, processed.messages);
         }
+        final upsertMs = upsertStart.elapsedMilliseconds;
+
+        // ── Yield ──
+        await Future<void>.delayed(Duration.zero);
+
+        // ── Apply tool results + usage ──
+        final toolStart = Stopwatch()..start();
         if (processed.toolResults.isNotEmpty) {
           _applyToolResults(sessionId, processed.toolResults);
         }
@@ -2483,9 +2493,26 @@ what you have, you must use the options mode.
             u['timestamp'] as int,
           );
         }
+        final toolMs = toolStart.elapsedMilliseconds;
+
+        // ── Yield ──
+        await Future<void>.delayed(Duration.zero);
+
+        // ── Group sidechain messages ──
+        final groupStart = Stopwatch()..start();
         _groupSidechainMessages(sessionId);
+        final groupMs = groupStart.elapsedMilliseconds;
+
+        // ── Yield ──
+        await Future<void>.delayed(Duration.zero);
+
+        // ── Apply permission requests ──
+        final permStart = Stopwatch()..start();
         _applyPermissionRequests(sessionId);
-        final mergeMs = mergeStart.elapsedMilliseconds;
+        final permMs = permStart.elapsedMilliseconds;
+
+        final mergeMs =
+            upsertMs + toolMs + groupMs + permMs;
 
         if (processed.maxSeq > afterSeq) {
           afterSeq = processed.maxSeq;
@@ -2500,18 +2527,23 @@ what you have, you must use the options mode.
           level: SentryLevel.info,
           params: [
             'sessionId=$sessionId',
+            'existing=$existingCount',
+            'newMsgs=${processed.messages.length}',
             'decryptMs=$decryptMs',
+            'upsertMs=$upsertMs',
+            'toolMs=$toolMs',
+            'groupMs=$groupMs',
+            'permMs=$permMs',
             'mergeMs=$mergeMs',
-            'processedMsgs=${processed.messages.length}',
-            'toolResults=${processed.toolResults.length}',
           ],
         ));
 
         if (kDebugMode) {
           debugPrint(
             '[fetchMessages] $sessionId page=$page '
-            'decryptMs=$decryptMs mergeMs=$mergeMs '
-            'processed=${processed.messages.length}',
+            'decryptMs=$decryptMs '
+            'upsert=$upsertMs tool=$toolMs '
+            'group=$groupMs perm=$permMs',
           );
         }
 
