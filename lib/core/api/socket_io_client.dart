@@ -153,6 +153,18 @@ class SocketIoClient {
     _updateStatus(ConnectionStatus.disconnected);
   }
 
+  /// Reconnect using previously stored credentials.
+  ///
+  /// No-op if [connect] was never called (no credentials stored).
+  void reconnect() {
+    final url = _serverUrl;
+    final token = _authToken;
+    final clientType = _clientType;
+    if (url == null || token == null || clientType == null) return;
+    disconnect();
+    connect(serverUrl: url, token: token, clientType: clientType);
+  }
+
   /// Emit event through Socket.IO
   void send(String event, dynamic data) {
     if (_socket == null || _status != ConnectionStatus.connected) {

@@ -3929,6 +3929,36 @@ what you have, you must use the options mode.
     _sessionMessagesCache = null;
   }
 
+  /// Suspend the sync engine when the app goes to the background.
+  ///
+  /// Disconnects the socket so the OS does not keep reporting connection
+  /// errors while the app is backgrounded (which previously caused a
+  /// reconnect loop that saturated the main thread on resume). Pending
+  /// debounce writes are flushed to MMKV so no cursor data is lost.
+  void suspend() {
+    if (!isInitialized) return;
+    if (kDebugMode) debugPrint('[Sync] suspending — disconnecting socket');
+    _dataChangeDebounceTimer?.cancel();
+    _saveSeqDebounceTimer?.cancel();
+    MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
+    socketIoClient.disconnect();
+  }
+
+  /// Resume the sync engine when the app returns to the foreground.
+  ///
+  /// Reconnects the socket and invalidates all syncs so any server-side
+  /// changes that happened while the app was backgrounded are fetched.
+  void resume() {
+    if (!isInitialized) return;
+    if (kDebugMode) debugPrint('[Sync] resuming — reconnecting socket');
+    socketIoClient.reconnect();
+    _invalidateAllSyncs();
+    // Only re-fetch the visible session's messages; all others are lazy.
+    if (_visibleSessionId != null) {
+      messagesSync[_visibleSessionId]?.invalidate();
+    }
+  }
+
   /// Shutdown sync engine and clear volatile state.
   Future<void> shutdown() async {
     socketIoClient

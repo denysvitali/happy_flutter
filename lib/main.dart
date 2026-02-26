@@ -17,6 +17,7 @@ import 'core/services/logger_service.dart';
 import 'core/services/remote_logger.dart';
 import 'core/services/server_config.dart';
 import 'core/services/storage_service.dart' as storage;
+import 'core/services/sync_service.dart';
 import 'core/utils/theme_helper.dart';
 import 'core/widgets/error_boundary.dart';
 import 'features/artifacts/artifact_detail_screen.dart';
@@ -558,9 +559,21 @@ class _HappyAppState extends ConsumerState<HappyApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Re-apply theme when app resumes (helps with theme changes
-    if (state == AppLifecycleState.resumed) {
-      _applyThemeFromSettings();
+    switch (state) {
+      case AppLifecycleState.paused:
+        // App is fully backgrounded — disconnect the socket so the OS
+        // does not keep firing reconnect callbacks (which saturate the
+        // main thread and cause ANRs when Tailscale / VPN drops).
+        sync.suspend();
+      case AppLifecycleState.resumed:
+        // App is foregrounded — reconnect and catch up on missed events.
+        sync.resume();
+        // Re-apply theme in case system dark/light mode changed.
+        _applyThemeFromSettings();
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        break;
     }
   }
 
