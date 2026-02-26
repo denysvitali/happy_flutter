@@ -688,9 +688,13 @@ what you have, you must use the options mode.
         return;
       }
 
-      // Initialize session encryptions
+      // Initialize session encryptions — yield between each session
+      // so the Android main looper can service the ANR watchdog.
       final sessionKeys = <String, Uint8List?>{};
       for (final session in allSessions) {
+        // Yield to event queue before each crypto operation.
+        await Future<void>.delayed(Duration.zero);
+
         final sessionId = session['id'] as String;
         final dataEncryptionKey = session['dataEncryptionKey'] as String?;
 
@@ -708,9 +712,13 @@ what you have, you must use the options mode.
 
       await encryption.initializeSessions(sessionKeys);
 
-      // Decrypt sessions
+      // Decrypt sessions — yield between each so the looper stays
+      // responsive even when processing many sessions.
       final decryptedSessions = <Session>[];
       for (final session in allSessions) {
+        // Yield to event queue before each session decrypt.
+        await Future<void>.delayed(Duration.zero);
+
         final sessionId = session['id'] as String;
         final sessionEncryption = encryption.getSessionEncryption(sessionId);
 
@@ -810,9 +818,12 @@ what you have, you must use the options mode.
         }
       }
 
-      // Re-apply permission data now that agentState is fresh.
-      for (final sessionId in _sessionMessages.keys) {
-        _applyPermissionRequests(sessionId);
+      // Re-apply permission data only for sessions that changed,
+      // not all sessions — avoids O(sessions × messages) on every fetch.
+      for (final session in decryptedSessions) {
+        if (_sessionMessages.containsKey(session.id)) {
+          _applyPermissionRequests(session.id);
+        }
       }
 
       if (kDebugMode) {
