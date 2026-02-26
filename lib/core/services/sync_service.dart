@@ -1089,9 +1089,11 @@ what you have, you must use the options mode.
         }
 
         // Decrypt all machine payloads off the main thread.
-        final machineIsolateResults = await Isolate.run(
-          () => _decryptMachinesInIsolate(machineIsolateItems),
-        );
+        final machineIsolateResults = kIsWeb
+            ? await _decryptMachinesInIsolate(machineIsolateItems)
+            : await Isolate.run(
+                () => _decryptMachinesInIsolate(machineIsolateItems),
+              );
         final machineResultById = {
           for (final r in machineIsolateResults) r.id: r,
         };
@@ -1222,9 +1224,11 @@ what you have, you must use the options mode.
           );
         }).toList();
 
-        final artifactIsolateResults = await Isolate.run(
-          () => _decryptArtifactsInIsolate(artifactIsolateItems),
-        );
+        final artifactIsolateResults = kIsWeb
+            ? await _decryptArtifactsInIsolate(artifactIsolateItems)
+            : await Isolate.run(
+                () => _decryptArtifactsInIsolate(artifactIsolateItems),
+              );
         final artifactResultById = {
           for (final r in artifactIsolateResults) r.id: r,
         };
