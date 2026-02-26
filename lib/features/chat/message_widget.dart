@@ -21,6 +21,7 @@ class MessageWidget extends StatefulWidget {
     this.messages,
     this.sessionId,
     this.onOptionPress,
+    this.animate = true,
   });
 
   final Map<String, dynamic> messageData;
@@ -29,6 +30,13 @@ class MessageWidget extends StatefulWidget {
   final List<Map<String, dynamic>>? messages;
   final String? sessionId;
   final void Function(String)? onOptionPress;
+
+  /// Whether to play the entrance fade+slide animation.
+  ///
+  /// Set to [false] for messages that were already present when the screen
+  /// opened (bulk-loaded history) so that 50 simultaneous
+  /// [AnimationController]s don't all compete for frame time on open.
+  final bool animate;
 
   @override
   State<MessageWidget> createState() => _MessageWidgetState();
@@ -52,7 +60,14 @@ class _MessageWidgetState extends State<MessageWidget>
       begin: const Offset(0, 0.04),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    _controller.forward();
+    if (widget.animate) {
+      _controller.forward();
+    } else {
+      // Historical message — skip animation entirely so bulk-loaded
+      // messages don't all animate at once (50 AnimationControllers
+      // competing for frame time caused jank on chat open).
+      _controller.value = 1.0;
+    }
   }
 
   @override

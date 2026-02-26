@@ -14,7 +14,11 @@ typedef OptionPressedCallback = void Function(String option);
 /// - All standard markdown (headers, lists, code blocks, tables, etc.)
 /// - `\<options\>` blocks with interactive chips
 /// - GitHub Flavored Markdown
-class MarkdownView extends StatelessWidget {
+///
+/// The [MarkdownStyleSheet] is built once and cached; it is only rebuilt
+/// when the theme or [textColor] changes. This prevents [MarkdownBody] from
+/// re-parsing the document on every parent rebuild (e.g. sync events).
+class MarkdownView extends StatefulWidget {
   /// Creates a [MarkdownView].
   const MarkdownView({
     required this.markdown,
@@ -33,41 +37,62 @@ class MarkdownView extends StatelessWidget {
   final Color? textColor;
 
   @override
+  State<MarkdownView> createState() => _MarkdownViewState();
+}
+
+class _MarkdownViewState extends State<MarkdownView> {
+  MarkdownStyleSheet? _styleSheet;
+  ThemeData? _lastTheme;
+  Color? _lastTextColor;
+
+  MarkdownStyleSheet _buildStyleSheet(ThemeData theme) {
+    return MarkdownStyleSheet.fromTheme(theme).copyWith(
+      p: theme.textTheme.bodyMedium?.copyWith(color: widget.textColor),
+      h1: theme.textTheme.headlineLarge?.copyWith(color: widget.textColor),
+      h2: theme.textTheme.headlineMedium?.copyWith(color: widget.textColor),
+      h3: theme.textTheme.headlineSmall?.copyWith(color: widget.textColor),
+      h4: theme.textTheme.titleLarge?.copyWith(color: widget.textColor),
+      h5: theme.textTheme.titleMedium?.copyWith(color: widget.textColor),
+      h6: theme.textTheme.titleSmall?.copyWith(color: widget.textColor),
+      listBullet:
+          theme.textTheme.bodyMedium?.copyWith(color: widget.textColor),
+      codeblockDecoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      codeblockPadding: const EdgeInsets.all(12),
+      code: TextStyle(
+        fontFamily: 'monospace',
+        fontSize: 14,
+        backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    if (_styleSheet == null ||
+        !identical(theme, _lastTheme) ||
+        widget.textColor != _lastTextColor) {
+      _styleSheet = _buildStyleSheet(theme);
+      _lastTheme = theme;
+      _lastTextColor = widget.textColor;
+    }
 
     return MarkdownBody(
-      data: markdown,
+      data: widget.markdown,
       extensionSet: md.ExtensionSet.gitHubFlavored,
       builders: {
         'options': OptionsElementBuilder(
-          onOptionPress: onOptionPress,
-          textColor: textColor,
+          onOptionPress: widget.onOptionPress,
+          textColor: widget.textColor,
         ),
       },
       blockSyntaxes: const [
         OptionsBlockSyntax(),
       ],
-      styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
-        p: theme.textTheme.bodyMedium?.copyWith(color: textColor),
-        h1: theme.textTheme.headlineLarge?.copyWith(color: textColor),
-        h2: theme.textTheme.headlineMedium?.copyWith(color: textColor),
-        h3: theme.textTheme.headlineSmall?.copyWith(color: textColor),
-        h4: theme.textTheme.titleLarge?.copyWith(color: textColor),
-        h5: theme.textTheme.titleMedium?.copyWith(color: textColor),
-        h6: theme.textTheme.titleSmall?.copyWith(color: textColor),
-        listBullet: theme.textTheme.bodyMedium?.copyWith(color: textColor),
-        codeblockDecoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        codeblockPadding: const EdgeInsets.all(12),
-        code: TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 14,
-          backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-        ),
-      ),
+      styleSheet: _styleSheet!,
     );
   }
 }
@@ -75,8 +100,9 @@ class MarkdownView extends StatelessWidget {
 /// A simpler markdown view widget for basic text rendering.
 ///
 /// This is a convenience widget that renders markdown without
-/// the interactive options block support.
-class SimpleMarkdownView extends StatelessWidget {
+/// the interactive options block support. Like [MarkdownView], the
+/// [MarkdownStyleSheet] is cached and rebuilt only on theme changes.
+class SimpleMarkdownView extends StatefulWidget {
   /// Creates a [SimpleMarkdownView].
   const SimpleMarkdownView({required this.markdown, super.key});
 
@@ -84,24 +110,40 @@ class SimpleMarkdownView extends StatelessWidget {
   final String markdown;
 
   @override
+  State<SimpleMarkdownView> createState() => _SimpleMarkdownViewState();
+}
+
+class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
+  MarkdownStyleSheet? _styleSheet;
+  ThemeData? _lastTheme;
+
+  MarkdownStyleSheet _buildStyleSheet(ThemeData theme) {
+    return MarkdownStyleSheet.fromTheme(theme).copyWith(
+      codeblockDecoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      codeblockPadding: const EdgeInsets.all(12),
+      code: TextStyle(
+        fontFamily: 'monospace',
+        fontSize: 14,
+        backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    if (_styleSheet == null || !identical(theme, _lastTheme)) {
+      _styleSheet = _buildStyleSheet(theme);
+      _lastTheme = theme;
+    }
 
     return MarkdownBody(
-      data: markdown,
+      data: widget.markdown,
       extensionSet: md.ExtensionSet.gitHubFlavored,
-      styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
-        codeblockDecoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        codeblockPadding: const EdgeInsets.all(12),
-        code: TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 14,
-          backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-        ),
-      ),
+      styleSheet: _styleSheet!,
     );
   }
 }

@@ -58,6 +58,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _cachedMessagesLength = -1;
   int _cachedVisibleCount = -1;
 
+  // Tracks which message IDs were already present when the screen first
+  // loaded. These messages skip the entrance animation so that bulk-loading
+  // 50 messages on open doesn't spawn 50 simultaneous AnimationControllers.
+  bool _initialLoadComplete = false;
+  final Set<String> _seenMessageIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -194,6 +200,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
       if (markLoaded) {
         _isLoadingMessages = false;
+        _initialLoadComplete = true;
+        // Seed the seen-set with all messages present at open time so they
+        // don't animate. Messages that arrive after this point are new.
+        for (final m in latestMessages) {
+          _seenMessageIds.add(_messageKey(m));
+        }
+      } else if (_initialLoadComplete) {
+        // Incrementally track every message we render so that if a message
+        // re-appears (e.g. after a reconnect diff) it still doesn't animate.
+        for (final m in latestMessages) {
+          _seenMessageIds.add(_messageKey(m));
+        }
       }
     });
 
@@ -222,6 +240,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     }
   }
+
+  String _messageKey(Map<String, dynamic> m) =>
+      m['id'] as String? ?? m['toolUseId'] as String? ?? '';
 
   bool _sameMessages(
     List<Map<String, dynamic>> a,
@@ -700,16 +721,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             message['id'] as String? ??
             message['toolUseId'] as String? ??
             'msg-$reversedIndex';
-        return Padding(
+        // RepaintBoundary isolates each message's paint layer so that
+        // animations (ToolView pulse, entrance fade/slide) only repaint
+        // that one item instead of the entire ListView.
+        return RepaintBoundary(
           key: ValueKey(messageKey),
-          padding: EdgeInsets.only(bottom: bottomPad),
-          child: MessageWidget(
-            messageData: message,
-            isFromCurrentUser: message['role'] == 'user',
-            metadata: metadataJson,
-            messages: _messages,
-            sessionId: widget.sessionId,
-            onOptionPress: _onOptionPress,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: bottomPad),
+            child: MessageWidget(
+              messageData: message,
+              isFromCurrentUser: message['role'] == 'user',
+              metadata: metadataJson,
+              messages: _messages,
+              sessionId: widget.sessionId,
+              onOptionPress: _onOptionPress,
+              animate: _initialLoadComplete &&
+                  !_seenMessageIds.contains(messageKey),
+            ),
           ),
         );
       },
