@@ -197,7 +197,9 @@ jobs:
           flutter build apk --debug --no-pub \
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
             --target-platform android-arm64 \
-            --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }}
+            --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
+            --split-debug-info=build/debug-info \
+            --obfuscate
         env:
           APP_ENV: ${{ steps.flavor.outputs.FLAVOR }}
           KEYSTORE_PATH: ${{ steps.debug_keystore.outputs.KEYSTORE_PATH }}
@@ -205,12 +207,28 @@ jobs:
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
           KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
 
+      - name: Upload debug symbols to Sentry
+        if: env.SENTRY_AUTH_TOKEN != ''
+        run: |
+          flutter pub run sentry_dart_plugin
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_DIST: ${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          SENTRY_RELEASE: happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
+
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: happy-flutter-debug-${{ steps.flavor.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
           path: build/app/outputs/flutter-apk/app-${{ steps.flavor.outputs.FLAVOR }}-debug.apk
           retention-days: 14
+
+      - name: Upload debug info artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-info-debug-${{ steps.flavor.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          path: build/debug-info/
+          retention-days: 90
 
   build-release:
     name: Build Release APK
@@ -358,13 +376,24 @@ jobs:
         run: |
           flutter build apk --release --no-pub \
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
-            --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }}
+            --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
+            --split-debug-info=build/debug-info \
+            --obfuscate
         env:
           APP_ENV: ${{ steps.flavor.outputs.FLAVOR }}
           KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.jks
           KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
           KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
+
+      - name: Upload debug symbols to Sentry
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' && env.SENTRY_AUTH_TOKEN != '' }}
+        run: |
+          flutter pub run sentry_dart_plugin
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_DIST: ${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          SENTRY_RELEASE: happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
 
       - name: Upload Release APK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
@@ -373,6 +402,14 @@ jobs:
           name: happy-flutter-release-${{ steps.flavor.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
           path: build/app/outputs/flutter-apk/app-${{ steps.flavor.outputs.FLAVOR }}-release.apk
           retention-days: 14
+
+      - name: Upload debug info artifact
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-info-release-${{ steps.flavor.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          path: build/debug-info/
+          retention-days: 90
 
       - name: Determine release version
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}

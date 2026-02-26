@@ -18,6 +18,10 @@
 -keep class riverpod.** { *; }
 -keep class flutter_riverpod.** { *; }
 
+# Keep Sentry
+-keep class io.sentry.** { *; }
+-dontwarn io.sentry.**
+
 # Keep Dio
 -keep class dio.** { *; }
 

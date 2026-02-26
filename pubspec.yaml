@@ -74,6 +74,7 @@ dev_dependencies:
   test: ^1.26.3
   mockito: ^5.4.4
   build_runner: ^2.4.0
+  sentry_dart_plugin: ^2.3.0
 
 flutter:
   uses-material-design: true
@@ -84,3 +85,12 @@ flutter:
     - google_fonts/
 
   generate: true
+
+sentry:
+  upload_debug_symbols: true
+  upload_source_maps: true
+  upload_sources: true
+  project: happy_flutter
+  org: denvit-hv
+  wait_for_processing: false
+  log_level: warning

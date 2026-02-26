@@ -2403,15 +2403,15 @@ what you have, you must use the options mode.
               'after page $page — aborting',
             );
           }
-          unawaited(Sentry.addBreadcrumb(Breadcrumb(
-            message: 'fetchMessages aborted — session not visible',
-            category: 'sync',
-            data: {
-              'sessionId': sessionId,
-              'page': page,
-              'afterSeq': afterSeq,
-            },
-          )));
+          unawaited(Sentry.captureMessage(
+            'fetchMessages aborted — session not visible',
+            level: SentryLevel.info,
+            params: [
+              'sessionId=$sessionId',
+              'page=$page',
+              'afterSeq=$afterSeq',
+            ],
+          ));
           break;
         }
 
@@ -2437,17 +2437,17 @@ what you have, you must use the options mode.
             .toList();
         final hasMore = data['hasMore'] as bool? ?? false;
 
-        unawaited(Sentry.addBreadcrumb(Breadcrumb(
-          message: 'fetchMessages page $page',
-          category: 'sync',
-          data: {
-            'sessionId': sessionId,
-            'messageCount': messages.length,
-            'hasMore': hasMore,
-            'afterSeq': afterSeq,
-            'fetchMs': fetchMs,
-          },
-        )));
+        unawaited(Sentry.captureMessage(
+          'fetchMessages page $page',
+          level: SentryLevel.info,
+          params: [
+            'sessionId=$sessionId',
+            'msgs=${messages.length}',
+            'hasMore=$hasMore',
+            'afterSeq=$afterSeq',
+            'fetchMs=$fetchMs',
+          ],
+        ));
 
         if (kDebugMode) {
           debugPrint(
@@ -2495,17 +2495,17 @@ what you have, you must use the options mode.
           Map.unmodifiable(_sessionLastSeq),
         );
 
-        unawaited(Sentry.addBreadcrumb(Breadcrumb(
-          message: 'fetchMessages page $page done',
-          category: 'sync',
-          data: {
-            'sessionId': sessionId,
-            'decryptMs': decryptMs,
-            'mergeMs': mergeMs,
-            'processedMsgs': processed.messages.length,
-            'toolResults': processed.toolResults.length,
-          },
-        )));
+        unawaited(Sentry.captureMessage(
+          'fetchMessages page $page done',
+          level: SentryLevel.info,
+          params: [
+            'sessionId=$sessionId',
+            'decryptMs=$decryptMs',
+            'mergeMs=$mergeMs',
+            'processedMsgs=${processed.messages.length}',
+            'toolResults=${processed.toolResults.length}',
+          ],
+        ));
 
         if (kDebugMode) {
           debugPrint(
