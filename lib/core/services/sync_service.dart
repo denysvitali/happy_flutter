@@ -869,6 +869,7 @@ what you have, you must use the options mode.
         // Initialize machine encryptions
         final machineKeys = <String, Uint8List?>{};
         for (final machine in data) {
+          await Future<void>.delayed(Duration.zero); // yield to event queue
           final machineId = machine['id'] as String;
           final dataEncryptionKey = machine['dataEncryptionKey'] as String?;
 
@@ -889,6 +890,7 @@ what you have, you must use the options mode.
         // Decrypt machines
         final decryptedMachines = <Machine>[];
         for (final machine in data) {
+          await Future<void>.delayed(Duration.zero); // yield to event queue
           final machineId = machine['id'] as String;
           final machineEncryption = encryption.getMachineEncryption(machineId);
 
@@ -986,6 +988,7 @@ what you have, you must use the options mode.
 
       final decryptedArtifacts = <DecryptedArtifact>[];
       for (final raw in rawArtifacts) {
+        await Future<void>.delayed(Duration.zero); // yield to event queue
         if (raw is! Map<String, dynamic>) {
           continue;
         }
