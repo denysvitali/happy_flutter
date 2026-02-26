@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -9,8 +11,10 @@ import '../api/api_client.dart';
 import '../api/kv_api.dart';
 import '../api/push_api.dart';
 import '../api/socket_io_client.dart';
+import '../encryption/aes_gcm.dart';
 import '../encryption/artifact_encryption.dart';
 import '../encryption/base64.dart';
+import '../encryption/crypto_secret_box.dart';
 import '../encryption/encryption_cache.dart';
 import '../encryption/encryption_manager.dart';
 import '../models/api_update.dart';
@@ -29,6 +33,171 @@ import '../services/mmkv_storage.dart';
 import '../services/server_config.dart';
 import '../utils/invalidate_sync.dart';
 import '../utils/parse_token.dart';
+
+// ── Isolate helpers: machine payload decryption ──────────────────────────
+
+class _MachineIsolateItem {
+  const _MachineIsolateItem({
+    required this.id,
+    required this.secretKey,
+    required this.isAes,
+    required this.metadataVersion,
+    required this.daemonStateVersion,
+    this.encryptedMetadata,
+    this.encryptedDaemonState,
+  });
+
+  final String id;
+  final Uint8List secretKey;
+  final bool isAes;
+  final Uint8List? encryptedMetadata;
+  final int metadataVersion;
+  final Uint8List? encryptedDaemonState;
+  final int daemonStateVersion;
+}
+
+class _MachineIsolateResult {
+  const _MachineIsolateResult({
+    required this.id,
+    this.metadata,
+    this.daemonState,
+  });
+
+  final String id;
+  final Map<String, dynamic>? metadata;
+  final dynamic daemonState;
+}
+
+// ── Isolate helpers: artifact payload decryption ──────────────────────────
+
+class _ArtifactIsolateItem {
+  const _ArtifactIsolateItem({
+    required this.id,
+    required this.secretKey,
+    required this.encryptedHeader,
+    this.encryptedBody,
+  });
+
+  final String id;
+  final Uint8List secretKey;
+  final Uint8List encryptedHeader;
+  final Uint8List? encryptedBody;
+}
+
+class _ArtifactIsolateResult {
+  const _ArtifactIsolateResult({
+    required this.id,
+    this.header,
+    this.body,
+  });
+
+  final String id;
+  final Map<String, dynamic>? header;
+  final Map<String, dynamic>? body;
+}
+
+/// Decrypt machine metadata and daemonState in a background isolate.
+/// Handles both AES-256-GCM (isAes=true) and NaCl SecretBox
+/// (isAes=false, legacy machines).
+Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
+  List<_MachineIsolateItem> items,
+) async {
+  final results = <_MachineIsolateResult>[];
+  for (final item in items) {
+    Map<String, dynamic>? metadata;
+    dynamic daemonState;
+
+    final encMeta = item.encryptedMetadata;
+    if (encMeta != null) {
+      try {
+        if (item.isAes) {
+          if (encMeta.isNotEmpty && encMeta[0] == 0) {
+            final d = await AesGcmEncryption.decrypt(
+              encMeta.sublist(1),
+              item.secretKey,
+            );
+            if (d is Map<String, dynamic>) metadata = d;
+          }
+        } else {
+          final d = await CryptoSecretBox.decrypt(
+            encMeta,
+            item.secretKey,
+          );
+          if (d is Map<String, dynamic>) metadata = d;
+        }
+      } catch (_) {}
+    }
+
+    final encDs = item.encryptedDaemonState;
+    if (encDs != null) {
+      try {
+        if (item.isAes) {
+          if (encDs.isNotEmpty && encDs[0] == 0) {
+            daemonState = await AesGcmEncryption.decrypt(
+              encDs.sublist(1),
+              item.secretKey,
+            );
+          }
+        } else {
+          daemonState = await CryptoSecretBox.decrypt(
+            encDs,
+            item.secretKey,
+          );
+        }
+      } catch (_) {}
+    }
+
+    results.add(_MachineIsolateResult(
+      id: item.id,
+      metadata: metadata,
+      daemonState: daemonState,
+    ));
+  }
+  return results;
+}
+
+/// Decrypt artifact headers and bodies in a background isolate.
+/// Artifacts always use AES-256-GCM.
+Future<List<_ArtifactIsolateResult>> _decryptArtifactsInIsolate(
+  List<_ArtifactIsolateItem> items,
+) async {
+  final results = <_ArtifactIsolateResult>[];
+  for (final item in items) {
+    Map<String, dynamic>? header;
+    Map<String, dynamic>? body;
+
+    final hRaw = item.encryptedHeader;
+    if (hRaw.isNotEmpty && hRaw[0] == 0) {
+      try {
+        final d = await AesGcmEncryption.decrypt(
+          hRaw.sublist(1),
+          item.secretKey,
+        );
+        if (d is Map<String, dynamic>) header = d;
+      } catch (_) {}
+    }
+
+    final bRaw = item.encryptedBody;
+    if (bRaw != null && bRaw.isNotEmpty && bRaw[0] == 0) {
+      try {
+        final d = await AesGcmEncryption.decrypt(
+          bRaw.sublist(1),
+          item.secretKey,
+        );
+        if (d is Map<String, dynamic>) {
+          body = {'body': d['body'] as String?};
+        }
+      } catch (_) {}
+    }
+
+    results.add(_ArtifactIsolateResult(
+      id: item.id,
+      header: header,
+      body: body,
+    ));
+  }
+  return results;
+}
 
 int? _asSessionInt(dynamic value) {
   if (value is int) return value;
@@ -887,56 +1056,68 @@ what you have, you must use the options mode.
 
         await encryption.initializeMachines(machineKeys);
 
-        // Decrypt machines
+        // Build isolate payloads for machine decryption.
+        final legacyKey = encryption.legacySecretKey;
+        final machineIsolateItems = <_MachineIsolateItem>[];
+        for (final machine in data) {
+          final machineId = machine['id'] as String;
+          if (!machineKeys.containsKey(machineId)) continue;
+
+          final dataKey = machineKeys[machineId];
+          final rawMeta = machine['metadata'];
+          final encMeta =
+              (rawMeta is String && rawMeta.isNotEmpty)
+                  ? Base64Utils.decode(rawMeta, Encoding.base64)
+                  : null;
+          final rawDs = machine['daemonState'] as String?;
+          final encDs =
+              (rawDs != null && rawDs.isNotEmpty)
+                  ? Base64Utils.decode(rawDs, Encoding.base64)
+                  : null;
+
+          machineIsolateItems.add(_MachineIsolateItem(
+            id: machineId,
+            secretKey: dataKey ?? legacyKey,
+            isAes: dataKey != null,
+            encryptedMetadata: encMeta,
+            metadataVersion:
+                _asSessionInt(machine['metadataVersion']) ?? 0,
+            encryptedDaemonState: encDs,
+            daemonStateVersion:
+                _asSessionInt(machine['daemonStateVersion']) ?? 0,
+          ));
+        }
+
+        // Decrypt all machine payloads off the main thread.
+        final machineIsolateResults = await Isolate.run(
+          () => _decryptMachinesInIsolate(machineIsolateItems),
+        );
+        final machineResultById = {
+          for (final r in machineIsolateResults) r.id: r,
+        };
+
         final decryptedMachines = <Machine>[];
         for (final machine in data) {
-          await Future<void>.delayed(Duration.zero); // yield to event queue
           final machineId = machine['id'] as String;
-          final machineEncryption = encryption.getMachineEncryption(machineId);
+          final result = machineResultById[machineId];
+          if (result == null) continue;
 
-          if (machineEncryption != null) {
-            try {
-              // Decrypt metadata - may be null/absent for new machines
-              final rawMetadata = machine['metadata'];
-              Map<String, dynamic>? metadata;
-              if (rawMetadata is String && rawMetadata.isNotEmpty) {
-                metadata = await machineEncryption.decryptMetadata(
-                  _asSessionInt(machine['metadataVersion']) ?? 0,
-                  rawMetadata,
-                );
-              }
-
-              final daemonState = await machineEncryption.decryptDaemonState(
+          decryptedMachines.add(Machine(
+            id: machineId,
+            seq: _asSessionInt(machine['seq']) ?? 0,
+            createdAt: _asSessionInt(machine['createdAt']) ?? 0,
+            updatedAt: _asSessionInt(machine['updatedAt']) ?? 0,
+            active: machine['active'] as bool? ?? false,
+            activeAt: _asSessionInt(machine['activeAt']) ?? 0,
+            metadata: result.metadata != null
+                ? MachineMetadata.fromJson(result.metadata!)
+                : null,
+            metadataVersion:
+                _asSessionInt(machine['metadataVersion']) ?? 0,
+            daemonState: result.daemonState,
+            daemonStateVersion:
                 _asSessionInt(machine['daemonStateVersion']) ?? 0,
-                machine['daemonState'] as String?,
-              );
-
-              final processedMachine = Machine(
-                id: machineId,
-                seq: _asSessionInt(machine['seq']) ?? 0,
-                createdAt: _asSessionInt(machine['createdAt']) ?? 0,
-                updatedAt: _asSessionInt(machine['updatedAt']) ?? 0,
-                active: machine['active'] as bool? ?? false,
-                activeAt: _asSessionInt(machine['activeAt']) ?? 0,
-                metadata: metadata != null
-                    ? MachineMetadata.fromJson(metadata)
-                    : null,
-                metadataVersion:
-                    _asSessionInt(machine['metadataVersion']) ?? 0,
-                daemonState: daemonState,
-                daemonStateVersion:
-                    _asSessionInt(machine['daemonStateVersion']) ?? 0,
-              );
-
-              decryptedMachines.add(processedMachine);
-            } catch (error) {
-              if (kDebugMode) {
-                debugPrint(
-                  'Failed to decrypt machine $machineId: $error',
-                );
-              }
-            }
-          }
+          ));
         }
 
         _machines
@@ -986,12 +1167,14 @@ what you have, you must use the options mode.
         return;
       }
 
+      // Phase 1: Decrypt artifact data keys on the main thread.
+      // CryptoBox.decrypt is fast (single NaCl call per artifact).
+      final keyedArtifacts =
+          <({Artifact artifact, Uint8List key})>[];
       final decryptedArtifacts = <DecryptedArtifact>[];
       for (final raw in rawArtifacts) {
         await Future<void>.delayed(Duration.zero); // yield to event queue
-        if (raw is! Map<String, dynamic>) {
-          continue;
-        }
+        if (raw is! Map<String, dynamic>) continue;
         try {
           final artifact = Artifact.fromJson(raw);
           final decryptedKey = await encryption.decryptEncryptionKey(
@@ -999,47 +1182,73 @@ what you have, you must use the options mode.
           );
           if (decryptedKey != null) {
             _artifactDataKeys[artifact.id] = decryptedKey;
-            final artifactEncryption = ArtifactEncryption(decryptedKey);
-            final header =
-                await artifactEncryption.decryptHeader(artifact.header);
-            final body = artifact.body != null
-                ? await artifactEncryption.decryptBody(artifact.body!)
-                : null;
-
-            decryptedArtifacts.add(
-              DecryptedArtifact(
-                id: artifact.id,
-                title: header?['title'] as String?,
-                sessions: (header?['sessions'] as List<dynamic>?)
-                    ?.whereType<String>()
-                    .toList(),
-                draft: header?['draft'] as bool?,
-                body: body?['body'] as String?,
-                headerVersion: artifact.headerVersion,
-                bodyVersion: artifact.bodyVersion,
-                seq: artifact.seq,
-                createdAt: artifact.createdAt,
-                updatedAt: artifact.updatedAt,
-                isDecrypted: header != null,
-              ),
+            keyedArtifacts.add(
+              (artifact: artifact, key: decryptedKey),
             );
           } else {
-            decryptedArtifacts.add(
-              DecryptedArtifact(
-                id: artifact.id,
-                title: null,
-                body: null,
-                headerVersion: artifact.headerVersion,
-                bodyVersion: artifact.bodyVersion,
-                seq: artifact.seq,
-                createdAt: artifact.createdAt,
-                updatedAt: artifact.updatedAt,
-                isDecrypted: false,
-              ),
-            );
+            decryptedArtifacts.add(DecryptedArtifact(
+              id: artifact.id,
+              headerVersion: artifact.headerVersion,
+              bodyVersion: artifact.bodyVersion,
+              seq: artifact.seq,
+              createdAt: artifact.createdAt,
+              updatedAt: artifact.updatedAt,
+              isDecrypted: false,
+            ));
           }
         } catch (error) {
-          if (kDebugMode) debugPrint('Failed to decrypt artifact: $error');
+          if (kDebugMode) {
+            debugPrint('Failed to parse artifact key: $error');
+          }
+        }
+      }
+
+      // Phase 2: Decrypt headers + bodies off the main thread.
+      // AES-GCM pure-Dart decryption can be slow for many artifacts.
+      if (keyedArtifacts.isNotEmpty) {
+        final artifactIsolateItems = keyedArtifacts.map((e) {
+          final encHeader = Base64Utils.decode(
+            e.artifact.header,
+            Encoding.base64,
+          );
+          final encBody = e.artifact.body != null
+              ? Base64Utils.decode(e.artifact.body!, Encoding.base64)
+              : null;
+          return _ArtifactIsolateItem(
+            id: e.artifact.id,
+            secretKey: e.key,
+            encryptedHeader: encHeader,
+            encryptedBody: encBody,
+          );
+        }).toList();
+
+        final artifactIsolateResults = await Isolate.run(
+          () => _decryptArtifactsInIsolate(artifactIsolateItems),
+        );
+        final artifactResultById = {
+          for (final r in artifactIsolateResults) r.id: r,
+        };
+
+        for (final e in keyedArtifacts) {
+          final artifact = e.artifact;
+          final result = artifactResultById[artifact.id];
+          final header = result?.header;
+          final body = result?.body;
+          decryptedArtifacts.add(DecryptedArtifact(
+            id: artifact.id,
+            title: header?['title'] as String?,
+            sessions: (header?['sessions'] as List<dynamic>?)
+                ?.whereType<String>()
+                .toList(),
+            draft: header?['draft'] as bool?,
+            body: body?['body'] as String?,
+            headerVersion: artifact.headerVersion,
+            bodyVersion: artifact.bodyVersion,
+            seq: artifact.seq,
+            createdAt: artifact.createdAt,
+            updatedAt: artifact.updatedAt,
+            isDecrypted: header != null,
+          ));
         }
       }
 

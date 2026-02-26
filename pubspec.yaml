@@ -94,3 +94,4 @@ sentry:
   org: denvit-hv
   wait_for_processing: false
   log_level: warning
+  debug_symbols_path: build/debug-info

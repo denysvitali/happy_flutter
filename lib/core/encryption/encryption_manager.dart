@@ -206,4 +206,7 @@ class Encryption {
   void clearAllCaches() {
     _cache.clearAll();
   }
+
+  /// Expose legacy secret key bytes for isolate-based decryption.
+  Uint8List get legacySecretKey => _legacyEncryption.secretKey;
 }
