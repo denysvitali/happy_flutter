@@ -1,8 +1,53 @@
+import 'dart:isolate';
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
+import 'aes_gcm.dart';
 import 'base64.dart';
+import 'crypto_secret_box.dart';
 import 'encryption_cache.dart';
 import 'encryptor.dart';
+
+/// Top-level function for batch decryption in a background isolate.
+///
+/// Must be top-level (not a closure or instance method) so it can be
+/// passed to [Isolate.run].
+Future<List<dynamic>> _batchDecryptInIsolate(
+  ({
+    List<Uint8List> encrypted,
+    Uint8List secretKey,
+    bool isAes,
+  }) args,
+) async {
+  final results = <dynamic>[];
+  for (final item in args.encrypted) {
+    if (args.isAes) {
+      // AES256Encryption format: version byte + encrypted payload
+      if (item.isEmpty || item[0] != 0) {
+        results.add(null);
+        continue;
+      }
+      try {
+        final decrypted = await AesGcmEncryption.decrypt(
+          item.sublist(1),
+          args.secretKey,
+        );
+        results.add(decrypted);
+      } catch (e) {
+        results.add(null);
+      }
+    } else {
+      // NaCl SecretBox decryption
+      final decrypted = await CryptoSecretBox.decrypt(
+        item,
+        args.secretKey,
+      );
+      results.add(decrypted);
+    }
+  }
+  return results;
+}
 
 /// Session-specific encryption management
 class SessionEncryption {
@@ -20,6 +65,9 @@ class SessionEncryption {
   final Encryptor _encryptor;
   final Decryptor _decryptor;
   final EncryptionCache _cache;
+
+  /// Minimum batch size to justify isolate overhead.
+  static const int _isolateThreshold = 5;
 
   /// Batch decrypt messages
   Future<List<DecryptedMessage?>> decryptMessages(
@@ -72,7 +120,21 @@ class SessionEncryption {
               ))
           .toList();
 
-      final decrypted = await _decryptor.decrypt(encrypted);
+      List<dynamic> decrypted;
+
+      // Offload to background isolate if batch is large enough
+      if (toDecrypt.length >= _isolateThreshold &&
+          _canOffloadToIsolate) {
+        decrypted = await Isolate.run(
+          () => _batchDecryptInIsolate((
+            encrypted: encrypted,
+            secretKey: _extractSecretKey()!,
+            isAes: _decryptor is AES256Encryption,
+          )),
+        );
+      } else {
+        decrypted = await _decryptor.decrypt(encrypted);
+      }
 
       for (var i = 0; i < toDecrypt.length; i++) {
         final decryptedData = decrypted[i];
@@ -103,6 +165,19 @@ class SessionEncryption {
     }
 
     return results;
+  }
+
+  /// Whether the decryptor type supports isolate offloading.
+  bool get _canOffloadToIsolate =>
+      _decryptor is SecretBoxEncryption ||
+      _decryptor is AES256Encryption;
+
+  /// Extract the secret key from known decryptor types.
+  Uint8List? _extractSecretKey() {
+    final dec = _decryptor;
+    if (dec is SecretBoxEncryption) return dec.secretKey;
+    if (dec is AES256Encryption) return dec.secretKey;
+    return null;
   }
 
   /// Single message convenience method

@@ -20,6 +20,9 @@ class SecretBoxEncryption implements Encryptor {
   SecretBoxEncryption(this._secretKey);
   final Uint8List _secretKey;
 
+  /// Expose key for isolate-based decryption.
+  Uint8List get secretKey => _secretKey;
+
   @override
   Future<List<Uint8List>> encrypt(List<dynamic> data) async {
     final results = <Uint8List>[];
@@ -49,6 +52,9 @@ class AES256Encryption implements Encryptor {
 
   AES256Encryption(this._secretKey);
   final Uint8List _secretKey;
+
+  /// Expose key for isolate-based decryption.
+  Uint8List get secretKey => _secretKey;
 
   @override
   Future<List<Uint8List>> encrypt(List<dynamic> data) async {
