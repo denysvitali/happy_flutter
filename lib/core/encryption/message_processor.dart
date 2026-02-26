@@ -1,0 +1,582 @@
+/// Pure-Dart message processing functions that can run inside an isolate.
+///
+/// These are top-level functions (not methods on a class) so they can be
+/// passed to [Isolate.run].  They have **no** Flutter, FFI, or shared-state
+/// dependencies — only plain Dart map/list manipulation.
+library;
+
+/// Result of processing a batch of decrypted messages.
+class ProcessedMessages {
+  const ProcessedMessages({
+    required this.messages,
+    required this.toolResults,
+    required this.usageUpdates,
+    required this.maxSeq,
+  });
+
+  /// Display-ready message maps.
+  final List<Map<String, dynamic>> messages;
+
+  /// Tool-result maps used to update existing tool-call states.
+  final List<Map<String, dynamic>> toolResults;
+
+  /// Usage data extracted from assistant messages.
+  /// Each entry: `{sessionId, usage, timestamp}`.
+  final List<Map<String, dynamic>> usageUpdates;
+
+  /// Highest `seq` seen in this batch (-1 if empty).
+  final int maxSeq;
+}
+
+/// Process a list of decrypted message JSON maps into display messages,
+/// tool results, and usage updates.
+///
+/// [decryptedJsonList] contains the raw decrypted content for each message
+/// in the same order as the original encrypted list.  Entries that failed
+/// decryption should be `null`.
+///
+/// [wireMessages] is the original list of wire-format message maps (used
+/// to extract `id`, `seq`, `localId`, `createdAt`).
+///
+/// [sessionId] is passed through for context but is **not** used to
+/// mutate any shared state.
+ProcessedMessages processDecryptedMessages({
+  required List<dynamic> decryptedJsonList,
+  required List<Map<String, dynamic>> wireMessages,
+  required String sessionId,
+}) {
+  final messages = <Map<String, dynamic>>[];
+  final toolResults = <Map<String, dynamic>>[];
+  final usageUpdates = <Map<String, dynamic>>[];
+  var maxSeq = -1;
+
+  for (var i = 0; i < wireMessages.length; i++) {
+    final wire = wireMessages[i];
+    final id = wire['id'] as String? ?? '';
+    final seq = wire['seq'] as int? ?? 0;
+    final localId = wire['localId'] as String?;
+    final rawCreatedAt = wire['createdAt'];
+    final createdAt = _parseCreatedAtMs(rawCreatedAt);
+
+    final decrypted = i < decryptedJsonList.length
+        ? decryptedJsonList[i]
+        : null;
+
+    if (decrypted == null) {
+      // Decryption failed — emit error placeholder
+      if (seq > maxSeq) maxSeq = seq;
+      messages.add({
+        'id': 'error-${id.isEmpty ? 'unknown-$i' : id}',
+        'seq': seq,
+        'createdAt': createdAt,
+        'role': 'system',
+        'kind': 'error',
+        'errorType': 'decryption_failed',
+        'errorMessage': 'Failed to decrypt message',
+        'debugData': {
+          'messageId': id,
+          'seq': seq,
+          'localId': localId,
+        },
+      });
+      continue;
+    }
+
+    if (seq > maxSeq) maxSeq = seq;
+
+    final content = decrypted;
+    if (content is! Map<String, dynamic>) {
+      messages.add({
+        'id': id,
+        'localId': localId,
+        'seq': seq,
+        'createdAt': createdAt,
+        'kind': 'text',
+        'content': content?.toString() ?? '',
+        'raw': content,
+      });
+      continue;
+    }
+
+    final role = content['role'] as String?;
+    final nestedContent = content['content'];
+
+    if (role == 'user') {
+      _processUserMessage(
+        id: id,
+        localId: localId,
+        seq: seq,
+        createdAt: createdAt,
+        content: content,
+        nestedContent: nestedContent,
+        messages: messages,
+      );
+      continue;
+    }
+
+    if (role == 'agent') {
+      if (nestedContent is! Map<String, dynamic>) {
+        messages.add({
+          'id': 'error-${id}_parse',
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'system',
+          'kind': 'error',
+          'errorType': 'agent_content_not_map',
+          'errorMessage': 'Agent message content is not '
+              'a valid structure',
+          'debugData': {
+            'messageId': id,
+            'seq': seq,
+            'contentType': '${nestedContent.runtimeType}',
+          },
+        });
+        continue;
+      }
+
+      final contentType = nestedContent['type'] as String?;
+
+      if (contentType == 'output') {
+        _processOutputContent(
+          id: id,
+          localId: localId,
+          seq: seq,
+          createdAt: createdAt,
+          outerContent: content,
+          nestedContent: nestedContent,
+          sessionId: sessionId,
+          messages: messages,
+          toolResults: toolResults,
+          usageUpdates: usageUpdates,
+        );
+      } else if (contentType == 'event') {
+        _processEventContent(
+          id: id,
+          localId: localId,
+          seq: seq,
+          createdAt: createdAt,
+          outerContent: content,
+          nestedContent: nestedContent,
+          messages: messages,
+        );
+      } else if (contentType == 'codex') {
+        _processCodexContent(
+          id: id,
+          localId: localId,
+          seq: seq,
+          createdAt: createdAt,
+          outerContent: content,
+          nestedContent: nestedContent,
+          messages: messages,
+          toolResults: toolResults,
+        );
+      } else if (contentType == 'acp') {
+        _processAcpContent(
+          id: id,
+          localId: localId,
+          seq: seq,
+          createdAt: createdAt,
+          outerContent: content,
+          nestedContent: nestedContent,
+          messages: messages,
+          toolResults: toolResults,
+        );
+      }
+      continue;
+    }
+
+    // Unknown role
+    messages.add({
+      'id': 'error-${id}_parse',
+      'seq': seq,
+      'createdAt': createdAt,
+      'role': 'system',
+      'kind': 'error',
+      'errorType': 'unknown_role',
+      'errorMessage': 'Unrecognized message role: $role',
+      'debugData': {
+        'messageId': id,
+        'seq': seq,
+        'role': role,
+      },
+    });
+  }
+
+  return ProcessedMessages(
+    messages: messages,
+    toolResults: toolResults,
+    usageUpdates: usageUpdates,
+    maxSeq: maxSeq,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Private helpers
+// ---------------------------------------------------------------------------
+
+int _parseCreatedAtMs(dynamic raw) {
+  if (raw is int) return raw;
+  if (raw is String) {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed != null) return parsed.millisecondsSinceEpoch;
+  }
+  return DateTime.now().millisecondsSinceEpoch;
+}
+
+void _processUserMessage({
+  required String id,
+  required String? localId,
+  required int seq,
+  required int createdAt,
+  required Map<String, dynamic> content,
+  required dynamic nestedContent,
+  required List<Map<String, dynamic>> messages,
+}) {
+  if (nestedContent is Map<String, dynamic> &&
+      nestedContent['type'] == 'text') {
+    messages.add({
+      'id': id,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': createdAt,
+      'role': 'user',
+      'kind': 'text',
+      'content': nestedContent['text']?.toString() ?? '',
+      'raw': content,
+    });
+  } else {
+    messages.add({
+      'id': id,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': createdAt,
+      'role': 'user',
+      'kind': 'text',
+      'content': content.toString(),
+      'raw': content,
+    });
+  }
+}
+
+void _processOutputContent({
+  required String id,
+  required String? localId,
+  required int seq,
+  required int createdAt,
+  required Map<String, dynamic> outerContent,
+  required Map<String, dynamic> nestedContent,
+  required String sessionId,
+  required List<Map<String, dynamic>> messages,
+  required List<Map<String, dynamic>> toolResults,
+  required List<Map<String, dynamic>> usageUpdates,
+}) {
+  final data = nestedContent['data'];
+  if (data is! Map<String, dynamic>) return;
+
+  if (data['isMeta'] == true || data['isCompactSummary'] == true) return;
+
+  final isSidechain = data['isSidechain'] == true;
+  final dataUuid = data['uuid'] as String?;
+  final dataParentUuid = data['parentUuid'] as String?;
+  final dataType = data['type'] as String?;
+
+  if (dataType == 'assistant') {
+    final agentMsg = data['message'];
+    if (agentMsg is! Map<String, dynamic>) return;
+
+    final usageData = agentMsg['usage'] as Map<String, dynamic>?;
+    if (usageData != null) {
+      usageUpdates.add({
+        'sessionId': sessionId,
+        'usage': usageData,
+        'timestamp': createdAt,
+      });
+    }
+
+    final agentContentList = agentMsg['content'];
+    if (agentContentList is! List) return;
+
+    var i = 0;
+    for (final c in agentContentList) {
+      if (c is! Map<String, dynamic>) {
+        i++;
+        continue;
+      }
+      final type = c['type'] as String?;
+
+      if (type == 'text') {
+        messages.add({
+          'id': '${id}_t$i',
+          'localId': localId,
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'text',
+          'content': c['text']?.toString() ?? '',
+          'raw': outerContent,
+          if (isSidechain) 'isSidechain': true,
+          if (dataUuid != null) 'uuid': dataUuid,
+          if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+        });
+      } else if (type == 'thinking') {
+        messages.add({
+          'id': '${id}_k$i',
+          'localId': localId,
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'text',
+          'isThinking': true,
+          'content': '*Thinking...*\n\n*${c['thinking']}*',
+          'raw': outerContent,
+          if (isSidechain) 'isSidechain': true,
+          if (dataUuid != null) 'uuid': dataUuid,
+          if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+        });
+      } else if (type == 'tool_use') {
+        messages.add({
+          'id': '${id}_u$i',
+          'localId': localId,
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'tool-call',
+          'name': c['name'],
+          'input': c['input'],
+          'toolUseId': c['id'],
+          'state': 'running',
+          'content': c,
+          'raw': outerContent,
+          if (isSidechain) 'isSidechain': true,
+          if (dataUuid != null) 'uuid': dataUuid,
+          if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+        });
+      }
+      i++;
+    }
+    return;
+  }
+
+  if (dataType == 'user') {
+    if (isSidechain) {
+      final msgContent = data['message']?['content'];
+      if (msgContent is String) {
+        messages.add({
+          'id': '${id}_sc',
+          'seq': seq,
+          'createdAt': createdAt,
+          'kind': 'sidechain-root',
+          'isSidechain': true,
+          'prompt': msgContent,
+          if (dataUuid != null) 'uuid': dataUuid,
+          if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+        });
+        return;
+      }
+    }
+
+    final msgContent = data['message']?['content'];
+    if (msgContent is List) {
+      for (final c in msgContent) {
+        if (c is Map<String, dynamic> && c['type'] == 'tool_result') {
+          toolResults.add({
+            'toolUseId': c['tool_use_id'],
+            'result': c['content'],
+            'isError': c['is_error'] == true,
+            'createdAt': createdAt,
+            'permissions': c['permissions'],
+            if (isSidechain) 'isSidechain': true,
+            if (dataUuid != null) 'uuid': dataUuid,
+            if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+          });
+        }
+      }
+    }
+    return;
+  }
+
+  // Skip system, result, summary messages
+}
+
+void _processEventContent({
+  required String id,
+  required String? localId,
+  required int seq,
+  required int createdAt,
+  required Map<String, dynamic> outerContent,
+  required Map<String, dynamic> nestedContent,
+  required List<Map<String, dynamic>> messages,
+}) {
+  final data = nestedContent['data'];
+  if (data is! Map<String, dynamic>) return;
+  if (data['type'] == 'ready') return;
+
+  messages.add({
+    'id': id,
+    'localId': localId,
+    'seq': seq,
+    'createdAt': createdAt,
+    'role': 'agent',
+    'kind': 'agent-event',
+    'event': data,
+    'content': '',
+    'raw': outerContent,
+  });
+}
+
+void _processCodexContent({
+  required String id,
+  required String? localId,
+  required int seq,
+  required int createdAt,
+  required Map<String, dynamic> outerContent,
+  required Map<String, dynamic> nestedContent,
+  required List<Map<String, dynamic>> messages,
+  required List<Map<String, dynamic>> toolResults,
+}) {
+  final data = nestedContent['data'];
+  if (data is! Map<String, dynamic>) return;
+
+  final dataType = data['type'] as String?;
+
+  if (dataType == 'message' || dataType == 'reasoning') {
+    messages.add({
+      'id': id,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': createdAt,
+      'role': 'agent',
+      'kind': 'text',
+      'content': data['message']?.toString() ?? '',
+      'raw': outerContent,
+    });
+    return;
+  }
+
+  if (dataType == 'tool-call') {
+    messages.add({
+      'id': id,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': createdAt,
+      'role': 'agent',
+      'kind': 'tool-call',
+      'name': data['name'],
+      'input': data['input'],
+      'toolUseId': data['callId'],
+      'state': 'running',
+      'content': data,
+      'raw': outerContent,
+    });
+    return;
+  }
+
+  if (dataType == 'tool-call-result') {
+    final result = data['output'] ?? data['content'];
+    toolResults.add({
+      'toolUseId': data['callId'],
+      'result': result,
+      'isError': data['isError'] == true || data['is_error'] == true,
+      'createdAt': createdAt,
+    });
+  }
+}
+
+void _processAcpContent({
+  required String id,
+  required String? localId,
+  required int seq,
+  required int createdAt,
+  required Map<String, dynamic> outerContent,
+  required Map<String, dynamic> nestedContent,
+  required List<Map<String, dynamic>> messages,
+  required List<Map<String, dynamic>> toolResults,
+}) {
+  final data = nestedContent['data'];
+  if (data is! Map<String, dynamic>) return;
+
+  final dataType = data['type'] as String?;
+
+  if (dataType == 'message' || dataType == 'reasoning') {
+    messages.add({
+      'id': id,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': createdAt,
+      'role': 'agent',
+      'kind': 'text',
+      'content': data['message']?.toString() ?? '',
+      'raw': outerContent,
+    });
+    return;
+  }
+
+  if (dataType == 'thinking') {
+    messages.add({
+      'id': id,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': createdAt,
+      'role': 'agent',
+      'kind': 'text',
+      'isThinking': true,
+      'content': '*Thinking...*\n\n*${data['text']}*',
+      'raw': outerContent,
+    });
+    return;
+  }
+
+  if (dataType == 'tool-call') {
+    messages.add({
+      'id': id,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': createdAt,
+      'role': 'agent',
+      'kind': 'tool-call',
+      'name': data['name'],
+      'input': data['input'],
+      'toolUseId': data['callId'],
+      'state': 'running',
+      'content': data,
+      'raw': outerContent,
+    });
+    return;
+  }
+
+  if (dataType == 'tool-result' || dataType == 'tool-call-result') {
+    final result = data['output'] ?? data['content'];
+    toolResults.add({
+      'toolUseId': data['callId'],
+      'result': result,
+      'isError': data['isError'] == true || data['is_error'] == true,
+      'createdAt': createdAt,
+    });
+    return;
+  }
+
+  if (dataType == 'file-edit') {
+    messages.add({
+      'id': id,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': createdAt,
+      'role': 'agent',
+      'kind': 'tool-call',
+      'name': 'file-edit',
+      'input': {
+        'filePath': data['filePath'],
+        'description': data['description'],
+        'diff': data['diff'],
+        'oldContent': data['oldContent'],
+        'newContent': data['newContent'],
+      },
+      'toolUseId': data['id'],
+      'state': 'running',
+      'content': data,
+      'raw': outerContent,
+    });
+  }
+
+  // Skip task lifecycle events
+}

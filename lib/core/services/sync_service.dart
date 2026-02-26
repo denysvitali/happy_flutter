@@ -98,6 +98,11 @@ what you have, you must use the options mode.
   /// we have loaded from the very beginning (no older messages exist).
   final Map<String, int> _sessionFirstLoadedSeq = {};
 
+  /// The session the user is currently viewing.  Updated by
+  /// [onSessionVisible].  Used by [fetchMessages] to bail out
+  /// early when the user navigates away mid-fetch.
+  String? _visibleSessionId;
+
   /// Sessions currently being paginated backwards (older-message loads).
   final Set<String> _loadingOlderMessages = {};
   late InvalidateSync settingsSync;
@@ -2328,8 +2333,10 @@ what you have, you must use the options mode.
 
   /// On session visible handler
   void onSessionVisible(String sessionId) {
+    _visibleSessionId = sessionId;
     if (!messagesSync.containsKey(sessionId)) {
-      messagesSync[sessionId] = InvalidateSync(() => fetchMessages(sessionId));
+      messagesSync[sessionId] =
+          InvalidateSync(() => fetchMessages(sessionId));
     }
     messagesSync[sessionId]?.invalidate();
   }
@@ -2407,59 +2414,56 @@ what you have, you must use the options mode.
             .toList();
         final hasMore = data['hasMore'] as bool? ?? false;
 
-        final decryptedMessages = await sessionEncryption.decryptMessages(
+        // Decrypt + process in a background isolate (or main
+        // thread for small batches).
+        final processed =
+            await sessionEncryption.decryptAndProcessMessages(
           messages,
+          sessionId,
         );
 
-        final mappedMessages = <Map<String, dynamic>>[];
-        final toolResults = <Map<String, dynamic>>[];
-        for (var i = 0; i < decryptedMessages.length; i++) {
-          final decrypted = decryptedMessages[i];
-          if (decrypted == null || decrypted.content == null) {
-            if (kDebugMode) {
-              debugPrint(
-                'Decryption failed for message index $i '
-                '(id=${decrypted?.id}, seq=${decrypted?.seq})',
-              );
-            }
-            if (decrypted != null && decrypted.seq > afterSeq) {
-              afterSeq = decrypted.seq;
-            }
-            mappedMessages.add({
-              'id': 'error-${decrypted?.id ?? 'unknown-$i'}',
-              'seq': decrypted?.seq ?? 0,
-              'createdAt':
-                  decrypted?.createdAt.millisecondsSinceEpoch ?? 0,
-              'role': 'system',
-              'kind': 'error',
-              'errorType': 'decryption_failed',
-              'errorMessage': 'Failed to decrypt message',
-              'debugData': {
-                'messageId': decrypted?.id,
-                'seq': decrypted?.seq,
-                'localId': decrypted?.localId,
-              },
-            });
-            continue;
-          }
-          if (decrypted.seq > afterSeq) afterSeq = decrypted.seq;
-          final (msgs, results) =
-              _processDecryptedMessage(decrypted, sessionId);
-          mappedMessages.addAll(msgs);
-          toolResults.addAll(results);
+        if (processed.messages.isNotEmpty) {
+          _upsertSessionMessages(sessionId, processed.messages);
         }
-
-        if (mappedMessages.isNotEmpty) {
-          _upsertSessionMessages(sessionId, mappedMessages);
+        if (processed.toolResults.isNotEmpty) {
+          _applyToolResults(sessionId, processed.toolResults);
         }
-        if (toolResults.isNotEmpty) {
-          _applyToolResults(sessionId, toolResults);
+        // Apply usage updates collected from isolate
+        for (final u in processed.usageUpdates) {
+          _updateSessionUsage(
+            u['sessionId'] as String,
+            u['usage'] as Map<String, dynamic>,
+            u['timestamp'] as int,
+          );
         }
         _groupSidechainMessages(sessionId);
         _applyPermissionRequests(sessionId);
+
+        if (processed.maxSeq > afterSeq) {
+          afterSeq = processed.maxSeq;
+        }
         _sessionLastSeq[sessionId] = afterSeq;
-        MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
+        MMKVStorage().saveSessionLastSeq(
+          Map.unmodifiable(_sessionLastSeq),
+        );
+
         if (!hasMore) break;
+
+        // User navigated away — stop processing pages for this
+        // session to avoid ANR from background work.
+        if (_visibleSessionId != sessionId) {
+          if (kDebugMode) {
+            debugPrint(
+              'Session $sessionId no longer visible, '
+              'stopping page fetch',
+            );
+          }
+          break;
+        }
+
+        // Yield to the event loop between pages so Android
+        // system callbacks can execute (prevents ANR).
+        await Future<void>.delayed(Duration.zero);
       }
       _sessionMessageChangeController.add(sessionId);
       _notifyDataChanged();
@@ -2511,48 +2515,24 @@ what you have, you must use the options mode.
           .whereType<Map<String, dynamic>>()
           .toList();
 
-      final decryptedMessages =
-          await sessionEncryption.decryptMessages(messages);
+      final processed =
+          await sessionEncryption.decryptAndProcessMessages(
+        messages,
+        sessionId,
+      );
 
-      final mappedMessages = <Map<String, dynamic>>[];
-      final toolResults = <Map<String, dynamic>>[];
-      for (var i = 0; i < decryptedMessages.length; i++) {
-        final decrypted = decryptedMessages[i];
-        if (decrypted == null || decrypted.content == null) {
-          if (kDebugMode) {
-            debugPrint(
-              'Decryption failed for older message index $i '
-              '(id=${decrypted?.id}, seq=${decrypted?.seq})',
-            );
-          }
-          mappedMessages.add({
-            'id': 'error-${decrypted?.id ?? 'unknown-$i'}',
-            'seq': decrypted?.seq ?? 0,
-            'createdAt':
-                decrypted?.createdAt.millisecondsSinceEpoch ?? 0,
-            'role': 'system',
-            'kind': 'error',
-            'errorType': 'decryption_failed',
-            'errorMessage': 'Failed to decrypt message',
-            'debugData': {
-              'messageId': decrypted?.id,
-              'seq': decrypted?.seq,
-              'localId': decrypted?.localId,
-            },
-          });
-          continue;
-        }
-        final (msgs, results) =
-            _processDecryptedMessage(decrypted, sessionId);
-        mappedMessages.addAll(msgs);
-        toolResults.addAll(results);
+      if (processed.messages.isNotEmpty) {
+        _upsertSessionMessages(sessionId, processed.messages);
       }
-
-      if (mappedMessages.isNotEmpty) {
-        _upsertSessionMessages(sessionId, mappedMessages);
+      if (processed.toolResults.isNotEmpty) {
+        _applyToolResults(sessionId, processed.toolResults);
       }
-      if (toolResults.isNotEmpty) {
-        _applyToolResults(sessionId, toolResults);
+      for (final u in processed.usageUpdates) {
+        _updateSessionUsage(
+          u['sessionId'] as String,
+          u['usage'] as Map<String, dynamic>,
+          u['timestamp'] as int,
+        );
       }
       _groupSidechainMessages(sessionId);
       _applyPermissionRequests(sessionId);
