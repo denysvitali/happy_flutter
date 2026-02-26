@@ -105,12 +105,18 @@ class RemoteLogger {
     };
 
     // PlatformDispatcher.onError handles native platform errors
+    final originalPlatformError = PlatformDispatcher.instance.onError;
     PlatformDispatcher.instance.onError = (error, stack) {
       logger.error(
         'Platform Error: $error',
         error,
         stack,
       );
+      // Chain to the previous handler (e.g. Sentry) so errors are
+      // still reported upstream before the app crashes.
+      if (originalPlatformError != null) {
+        return originalPlatformError(error, stack);
+      }
       return false; // Don't prevent app from crashing
     };
   }
