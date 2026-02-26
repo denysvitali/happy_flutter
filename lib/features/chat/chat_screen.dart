@@ -36,6 +36,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   StreamSubscription<String>? _messageSyncSubscription;
   bool _isSending = false;
   bool _isLoadingMessages = true;
+  bool _loadFailed = false;
 
   bool _didStartInitialLoad = false;
   int _prevMessagesLength = 0;
@@ -128,16 +129,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _didStartInitialLoad = true;
 
     sync.onSessionVisible(widget.sessionId);
+    var success = true;
     try {
       await sync.messagesSync[widget.sessionId]
           ?.awaitQueue()
           .timeout(const Duration(seconds: 5));
     } catch (_) {
-      // Fall through so we still clear the spinner.
+      success = false;
     }
-    if (mounted) {
-      _refreshFromSync(markLoaded: true);
+    if (!mounted) return;
+    _refreshFromSync(markLoaded: true);
+    if (!success && _messages.isEmpty) {
+      setState(() => _loadFailed = true);
     }
+  }
+
+  Future<void> _retry() async {
+    if (!mounted) return;
+    setState(() {
+      _loadFailed = false;
+      _isLoadingMessages = true;
+      _didStartInitialLoad = false;
+    });
+    await _doInitialLoad();
   }
 
   void _refreshFromSync({bool markLoaded = false}) {
@@ -402,7 +416,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             ),
                           )
                         : _messages.isEmpty
-                        ? const EmptyChatView(key: ValueKey('empty'))
+                        ? (_loadFailed
+                            ? _buildRetryView()
+                            : const EmptyChatView(
+                                key: ValueKey('empty'),
+                              ))
                         : _buildMessageList(),
                   ),
                   // Scroll-to-bottom pill
@@ -562,6 +580,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildRetryView() {
+    return Center(
+      key: const ValueKey('retry'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Failed to load messages',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          FilledButton.tonal(
+            onPressed: _retry,
+            child: const Text('Retry'),
+          ),
+        ],
       ),
     );
   }

@@ -27,6 +27,12 @@ class InvalidateSync {
       return;
     }
 
+    // Reset retry count when starting a fresh operation so that
+    // a previously-exhausted InvalidateSync can recover on the
+    // next call (e.g. after a socket reconnect).
+    if (_currentOperation == null) {
+      _retryCount = 0;
+    }
     _currentOperation ??= Completer<void>();
     unawaited(_run());
   }
