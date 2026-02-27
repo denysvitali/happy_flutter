@@ -2409,6 +2409,40 @@ what you have, you must use the options mode.
       ],
     );
 
+    // Auto-restore: if the session's agent is offline but the machine is
+    // reachable, spawn a new agent so the message can be delivered.
+    if (!session.isOnline) {
+      final machineId = session.metadata?.machineId;
+      final path = session.metadata?.path;
+      if (machineId != null &&
+          machineId.isNotEmpty &&
+          path != null &&
+          path.isNotEmpty) {
+        if (kDebugMode) {
+          debugPrint(
+            'Session $sessionId is offline, attempting auto-restore '
+            'on machine $machineId at $path',
+          );
+        }
+        try {
+          await machineRPC(
+            machineId,
+            'spawn-happy-session',
+            <String, dynamic>{
+              'type': 'spawn-in-directory',
+              'directory': path,
+              'sessionId': sessionId,
+              'agent': session.metadata?.flavor ?? 'claude',
+            },
+          );
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('Auto-restore failed for $sessionId: $e');
+          }
+        }
+      }
+    }
+
     final ready = await waitForAgentReady(sessionId);
     if (!ready) {
       if (kDebugMode) {
