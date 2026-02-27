@@ -2100,6 +2100,7 @@ what you have, you must use the options mode.
         : <String, String>{};
     final agent = _settingsSnapshot.lastUsedAgent;
     final startupScript = profile?.startupBashScript;
+    final permissionMode = _settingsSnapshot.lastUsedPermissionMode;
 
     final result = await machineRPC(
       machineId,
@@ -2112,6 +2113,7 @@ what you have, you must use the options mode.
         if (envVars.isNotEmpty) 'environmentVariables': envVars,
         if (startupScript != null && startupScript.isNotEmpty)
           'startupBashScript': startupScript,
+        if (permissionMode != null) 'permissionMode': permissionMode,
       },
     );
 

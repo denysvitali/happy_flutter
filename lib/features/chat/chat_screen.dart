@@ -526,6 +526,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _onPermissionModeChanged(PermissionMode mode) {
     setState(() => _permissionMode = mode);
     DraftStorage().savePermissionMode(widget.sessionId, mode.toModeString());
+    // Persist as the default for new sessions.
+    sync.applySettings({'lastUsedPermissionMode': mode.toModeString()});
   }
 
   void _onModelModeChanged(ClaudeModel model) {
