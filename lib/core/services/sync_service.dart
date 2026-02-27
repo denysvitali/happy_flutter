@@ -963,12 +963,13 @@ what you have, you must use the options mode.
               agentStateVersion: session['agentStateVersion'] as int,
               thinking: false,
               thinkingAt: null,
-              // Compute presence locally from the active flag, exactly as
-              // the reference implementation does with
-              // resolveSessionOnlineState. The server may send a stale
-              // presence value (or no presence value at all), so we
-              // never trust it directly.
-              presence: (session['active'] as bool) ? 'online' : 'offline',
+              // REST fetches cannot tell us whether the CLI process is
+              // actually running — the server's `active` flag is
+              // persistent (true until archived) and stale.  Default
+              // to 'offline'; only real-time WebSocket activity events
+              // should promote a session to 'online'.  For delta
+              // fetches, preserve the existing presence if known.
+              presence: _sessions[sessionId]?.presence ?? 'offline',
               lastSeq: session['lastSeq'] as int?,
             );
 

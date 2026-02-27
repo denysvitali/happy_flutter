@@ -213,8 +213,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     final sessionSubtitle = getSessionSubtitle(session);
     final meta = session.metadata;
 
-    final isOnline =
-        session.active == true || session.presence == 'online';
+    final isOnline = session.presence == 'online';
     final isCliOutdated = meta?.version != null &&
         !_isVersionSupported(meta!.version!);
 
@@ -254,7 +253,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
-                _StatusChip(isActive: session.active),
+                _StatusChip(isActive: session.isOnline),
               ],
             ),
           ),
