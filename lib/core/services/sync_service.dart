@@ -2433,6 +2433,8 @@ what you have, you must use the options mode.
               'directory': path,
               'sessionId': sessionId,
               'agent': session.metadata?.flavor ?? 'claude',
+              if (session.permissionMode != null)
+                'permissionMode': session.permissionMode!,
             },
           );
         } catch (e) {
