@@ -486,6 +486,12 @@ what you have, you must use the options mode.
 
   /// Invalidate all sync managers
   void _invalidateAllSyncs() {
+    // Reset the delta-fetch timestamp so reconnect / foreground-resume always
+    // triggers a full session list fetch.  Without this, a clock adjustment
+    // (NTP, DST, timezone change) while offline can push _lastSessionsFetchedAt
+    // ahead of any sessions created during the offline period, causing them to
+    // be permanently missed by every subsequent delta fetch.
+    _lastSessionsFetchedAt = null;
     sessionsSync.invalidate();
     settingsSync.invalidate();
     profileSync.invalidate();
@@ -622,7 +628,17 @@ what you have, you must use the options mode.
   /// Handle new session update
   void _handleNewSession(Map<String, dynamic> data) {
     if (kDebugMode) debugPrint('New session received');
-    sessionsSync.invalidate();
+    final sessionId = data['id'] as String? ?? data['sid'] as String?;
+    sessionsSync.invalidateAndAwait().then((_) {
+      // Apply the same guard used in createSession: if the delta fetch missed
+      // the new session (clock skew between client and server), force a full
+      // (non-delta) fetch so the session's encryption is initialized.
+      if (sessionId != null &&
+          encryption.getSessionEncryption(sessionId) == null) {
+        _lastSessionsFetchedAt = null;
+        sessionsSync.invalidateAndAwait();
+      }
+    });
   }
 
   /// Handle session deletion
@@ -2039,7 +2055,9 @@ what you have, you must use the options mode.
 
   /// Refresh machines from server
   Future<void> refreshMachines() async {
-    await fetchMachines();
+    // Route through machinesSync so concurrent calls are coalesced rather than
+    // firing two parallel GET /v1/machines requests.
+    await machinesSync.invalidateAndAwait();
   }
 
   /// Refresh sessions from server
