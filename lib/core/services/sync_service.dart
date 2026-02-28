@@ -2141,6 +2141,17 @@ what you have, you must use the options mode.
         throw StateError('Machine returned empty session ID');
       }
       await refreshSessions();
+
+      // Guard: a concurrent fetch that started before the session was created
+      // but completed after it may have bumped _lastSessionsFetchedAt past
+      // the session's updatedAt, causing every subsequent delta fetch to miss
+      // it.  Force a full (non-delta) fetch so the new session is guaranteed
+      // to be returned and its encryption initialized.
+      if (encryption.getSessionEncryption(sessionId) == null) {
+        _lastSessionsFetchedAt = null;
+        await sessionsSync.invalidateAndAwait();
+      }
+
       return sessionId;
     }
 
@@ -2366,6 +2377,13 @@ what you have, you must use the options mode.
       await sessionsSync.invalidateAndAwait();
       sessionEncryption = encryption.getSessionEncryption(sessionId);
       if (sessionEncryption == null) {
+        // Last resort: force a full (non-delta) fetch to bypass any
+        // changedSince race that may have caused the session to be skipped.
+        _lastSessionsFetchedAt = null;
+        await sessionsSync.invalidateAndAwait();
+        sessionEncryption = encryption.getSessionEncryption(sessionId);
+      }
+      if (sessionEncryption == null) {
         throw StateError(
           'Session encryption not initialized for $sessionId',
         );
@@ -2569,6 +2587,12 @@ what you have, you must use the options mode.
       await sessionsSync.invalidateAndAwait();
       sessionEncryption = encryption.getSessionEncryption(sessionId);
       if (sessionEncryption == null) {
+        // Force a full fetch in case changedSince race skipped the session.
+        _lastSessionsFetchedAt = null;
+        await sessionsSync.invalidateAndAwait();
+        sessionEncryption = encryption.getSessionEncryption(sessionId);
+      }
+      if (sessionEncryption == null) {
         throw StateError(
           'Session encryption not found for $sessionId',
         );
@@ -2674,6 +2698,12 @@ what you have, you must use the options mode.
       // Encryption may not be initialized yet — wait for pending fetch.
       await sessionsSync.invalidateAndAwait();
       sessionEncryption = encryption.getSessionEncryption(sessionId);
+      if (sessionEncryption == null) {
+        // Force a full fetch in case changedSince race skipped the session.
+        _lastSessionsFetchedAt = null;
+        await sessionsSync.invalidateAndAwait();
+        sessionEncryption = encryption.getSessionEncryption(sessionId);
+      }
       if (sessionEncryption == null) {
         if (kDebugMode) {
           debugPrint(
