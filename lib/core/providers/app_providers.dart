@@ -60,6 +60,10 @@ class AuthStateNotifier extends Notifier<AuthState> {
         final credentials = await TokenStorage().getCredentials();
         if (credentials != null) {
           ApiClient().updateToken(credentials.token);
+          // Keep the WebSocket token in sync with the HTTP token.
+          // syncRestore() is a no-op when sync is already initialized,
+          // so the socket would keep a stale token after re-linking.
+          socket_io.socketIoClient.updateToken(credentials.token);
           await syncRestore(credentials);
           ref.read(sessionsNotifierProvider.notifier).loadFromSync();
           ref.read(machinesNotifierProvider.notifier).loadFromSync();
