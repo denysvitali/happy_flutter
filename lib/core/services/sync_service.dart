@@ -924,11 +924,35 @@ what you have, you must use the options mode.
         final dataEncryptionKey = session['dataEncryptionKey'] as String?;
 
         if (dataEncryptionKey != null) {
-          final decryptedKey =
-              await encryption.decryptEncryptionKey(dataEncryptionKey);
-          if (decryptedKey != null) {
-            sessionKeys[sessionId] = decryptedKey;
-            _sessionDataKeys[sessionId] = decryptedKey;
+          try {
+            final decryptedKey =
+                await encryption.decryptEncryptionKey(dataEncryptionKey);
+            if (decryptedKey != null) {
+              sessionKeys[sessionId] = decryptedKey;
+              _sessionDataKeys[sessionId] = decryptedKey;
+            } else {
+              // DEK decryption returned null — key mismatch or wrong format.
+              // Fall back to legacy so the session is still visible in the UI
+              // and "Session encryption not initialized" is avoided.  Messages
+              // will not decrypt until the user re-authenticates.
+              if (kDebugMode) {
+                debugPrint(
+                  '[Encryption] DEK decryption failed for session $sessionId '
+                  '(returned null) — falling back to legacy encryption. '
+                  'Run `happy auth debug` and test the printed vector in '
+                  'Flutter to confirm key mismatch.',
+                );
+              }
+              sessionKeys[sessionId] = null;
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              debugPrint(
+                '[Encryption] DEK decryption threw for session $sessionId: $e '
+                '— falling back to legacy encryption.',
+              );
+            }
+            sessionKeys[sessionId] = null;
           }
         } else {
           sessionKeys[sessionId] = null;
@@ -1100,11 +1124,30 @@ what you have, you must use the options mode.
           final dataEncryptionKey = machine['dataEncryptionKey'] as String?;
 
           if (dataEncryptionKey != null) {
-            final decryptedKey =
-                await encryption.decryptEncryptionKey(dataEncryptionKey);
-            if (decryptedKey != null) {
-              machineKeys[machineId] = decryptedKey;
-              _machineDataKeys[machineId] = decryptedKey;
+            try {
+              final decryptedKey =
+                  await encryption.decryptEncryptionKey(dataEncryptionKey);
+              if (decryptedKey != null) {
+                machineKeys[machineId] = decryptedKey;
+                _machineDataKeys[machineId] = decryptedKey;
+              } else {
+                if (kDebugMode) {
+                  debugPrint(
+                    '[Encryption] DEK decryption failed for machine $machineId '
+                    '(returned null) — falling back to legacy encryption. '
+                    'Run `happy auth debug` to diagnose key mismatch.',
+                  );
+                }
+                machineKeys[machineId] = null;
+              }
+            } catch (e) {
+              if (kDebugMode) {
+                debugPrint(
+                  '[Encryption] DEK decryption threw for machine $machineId: $e '
+                  '— falling back to legacy encryption.',
+                );
+              }
+              machineKeys[machineId] = null;
             }
           } else {
             machineKeys[machineId] = null;
