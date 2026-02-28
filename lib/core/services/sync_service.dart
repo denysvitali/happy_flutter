@@ -2359,11 +2359,17 @@ what you have, you must use the options mode.
     String? permissionMode,
     String? modelMode,
   }) async {
-    final sessionEncryption = encryption.getSessionEncryption(sessionId);
+    var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
-      throw StateError(
-        'Session encryption not initialized for $sessionId',
-      );
+      // Encryption may not be initialized yet if a new-session event arrived
+      // but fetchSessions() hasn't completed. Wait for the pending fetch.
+      await sessionsSync.invalidateAndAwait();
+      sessionEncryption = encryption.getSessionEncryption(sessionId);
+      if (sessionEncryption == null) {
+        throw StateError(
+          'Session encryption not initialized for $sessionId',
+        );
+      }
     }
 
     final session = _sessions[sessionId];
@@ -2557,11 +2563,16 @@ what you have, you must use the options mode.
     String method,
     Map<String, dynamic> params,
   ) async {
-    final sessionEncryption = encryption.getSessionEncryption(sessionId);
+    var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
-      throw StateError(
-        'Session encryption not found for $sessionId',
-      );
+      // Encryption may not be initialized yet — wait for pending fetch.
+      await sessionsSync.invalidateAndAwait();
+      sessionEncryption = encryption.getSessionEncryption(sessionId);
+      if (sessionEncryption == null) {
+        throw StateError(
+          'Session encryption not found for $sessionId',
+        );
+      }
     }
 
     final encrypted = await sessionEncryption.encryptRaw(params);
@@ -2658,14 +2669,19 @@ what you have, you must use the options mode.
       debugPrint('Fetching messages for session: $sessionId');
     }
 
-    final sessionEncryption = encryption.getSessionEncryption(sessionId);
+    var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
-      if (kDebugMode) {
-        debugPrint(
-          'Session encryption not initialized for $sessionId, skipping fetch',
-        );
+      // Encryption may not be initialized yet — wait for pending fetch.
+      await sessionsSync.invalidateAndAwait();
+      sessionEncryption = encryption.getSessionEncryption(sessionId);
+      if (sessionEncryption == null) {
+        if (kDebugMode) {
+          debugPrint(
+            'Session encryption not initialized for $sessionId, skipping fetch',
+          );
+        }
+        return;
       }
-      return;
     }
 
     try {
