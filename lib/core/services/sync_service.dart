@@ -4022,8 +4022,10 @@ what you have, you must use the options mode.
     _saveSeqDebounceTimer = null;
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
 
-    unawaited(_dataChangeController.close());
-    unawaited(_sessionMessageChangeController.close());
+    // Do NOT close these broadcast controllers — the Sync singleton is reused
+    // after logout+login, and closing a final StreamController is permanent.
+    // Listeners (screens that subscribe to onDataChanged) would never receive
+    // events again, silently breaking all real-time updates.
 
     for (final sync in messagesSync.values) {
       sync.dispose();
