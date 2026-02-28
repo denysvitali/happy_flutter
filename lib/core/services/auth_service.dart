@@ -803,9 +803,12 @@ Timestamp: ${DateTime.now().toIso8601String()}
               statusResponse.data as Map<String, dynamic>;
           supportsV2 = statusData['supportsV2'] == true;
 
-          // If not pending, nothing to approve.
+          // If already authorized, nothing more to do.
+          // If not_found, the request doesn't exist — fall through and
+          // attempt the approval POST anyway (the server will return an
+          // error if the request truly doesn't exist).
           final status = statusData['status'] as String?;
-          if (status == 'authorized' || status == 'not_found') {
+          if (status == 'authorized') {
             return true;
           }
         }
