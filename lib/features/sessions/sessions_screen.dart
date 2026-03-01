@@ -1983,7 +1983,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         path: sessionPath,
       );
       if (!mounted) return;
-      ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+      // Use refreshFromSync to ensure we fetch the latest session data from server
+      await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
+      if (!mounted) return;
       navigator.pop();
       unawaited(
         router.pushNamed('chat', pathParameters: {'sessionId': sessionId}),

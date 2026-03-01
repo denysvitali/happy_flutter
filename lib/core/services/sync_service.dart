@@ -2227,17 +2227,14 @@ what you have, you must use the options mode.
         ? _profileEnvironmentVariables(profile)
         : <String, String>{};
     final agent = _settingsSnapshot.lastUsedAgent;
-    final startupScript = profile?.startupBashScript;
-    final permissionMode = _settingsSnapshot.lastUsedPermissionMode;
-
     final req = SpawnSessionRequest(
       type: 'spawn-in-directory',
       directory: path,
-      approvedNewDirectoryCreation: approvedNewDirectoryCreation,
+      approvedNewDirectoryCreation: true, // Always approve like React Native
       agent: agent,
       environmentVariables: envVars.isNotEmpty ? envVars : null,
-      startupBashScript: startupScript,
-      permissionMode: permissionMode,
+      // Note: startupBashScript removed to match React Native behavior
+      // Note: permissionMode is set via storage after spawn, not in request
     );
 
     final result = await _typedMachineRPC(
