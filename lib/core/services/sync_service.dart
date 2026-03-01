@@ -311,6 +311,7 @@ what you have, you must use the options mode.
   Purchases _purchases = Purchases.defaults;
   final Map<String, Session> _sessions = <String, Session>{};
   int? _lastSessionsFetchedAt;
+  bool _forceFullFetchNext = false;
   final Map<String, Machine> _machines = <String, Machine>{};
   // Timers that drop presence back to 'offline' if no activity arrives.
   final Map<String, Timer> _presenceTimers = {};
@@ -636,7 +637,7 @@ what you have, you must use the options mode.
       // (non-delta) fetch so the session's encryption is initialized.
       if (sessionId != null &&
           encryption.getSessionEncryption(sessionId) == null) {
-        _lastSessionsFetchedAt = null;
+        _forceFullFetchNext = true;
         sessionsSync.invalidateAndAwait();
       }
     });
@@ -869,7 +870,9 @@ what you have, you must use the options mode.
     if (kDebugMode) debugPrint('Fetching sessions...');
 
     final fetchStartMs = DateTime.now().millisecondsSinceEpoch;
-    final changedSince = _lastSessionsFetchedAt;
+    final forceFullFetch = _forceFullFetchNext;
+    if (forceFullFetch) _forceFullFetchNext = false;
+    final changedSince = forceFullFetch ? null : _lastSessionsFetchedAt;
 
     try {
       final apiClient = ApiClient();
@@ -2214,7 +2217,7 @@ what you have, you must use the options mode.
       // Guard: if inline DEK wasn't available (legacy encryption or older
       // daemon), fall back to the full-fetch approach.
       if (encryption.getSessionEncryption(sessionId) == null) {
-        _lastSessionsFetchedAt = null;
+        _forceFullFetchNext = true;
         await sessionsSync.invalidateAndAwait();
       }
 
@@ -2431,7 +2434,7 @@ what you have, you must use the options mode.
       if (sessionEncryption == null) {
         // Last resort: force a full (non-delta) fetch to bypass any
         // changedSince race that may have caused the session to be skipped.
-        _lastSessionsFetchedAt = null;
+        _forceFullFetchNext = true;
         await sessionsSync.invalidateAndAwait();
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
@@ -2445,8 +2448,10 @@ what you have, you must use the options mode.
     var session = _sessions[sessionId];
     if (session == null) {
       // Retry: the session may not be in _sessions due to the changedSince
-      // delta-fetch race. Force a full fetch to ensure we have it.
-      _lastSessionsFetchedAt = null;
+      // delta-fetch race. Use _forceFullFetchNext flag (not _lastSessionsFetchedAt
+      // = null) to avoid TOCTOU: a concurrent fetch completing can overwrite
+      // _lastSessionsFetchedAt before the forced fetch reads it.
+      _forceFullFetchNext = true;
       await sessionsSync.invalidateAndAwait();
       session = _sessions[sessionId];
     }
@@ -2655,7 +2660,7 @@ what you have, you must use the options mode.
       sessionEncryption = encryption.getSessionEncryption(sessionId);
       if (sessionEncryption == null) {
         // Force a full fetch in case changedSince race skipped the session.
-        _lastSessionsFetchedAt = null;
+        _forceFullFetchNext = true;
         await sessionsSync.invalidateAndAwait();
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
@@ -2822,7 +2827,7 @@ what you have, you must use the options mode.
       sessionEncryption = encryption.getSessionEncryption(sessionId);
       if (sessionEncryption == null) {
         // Force a full fetch in case changedSince race skipped the session.
-        _lastSessionsFetchedAt = null;
+        _forceFullFetchNext = true;
         await sessionsSync.invalidateAndAwait();
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
