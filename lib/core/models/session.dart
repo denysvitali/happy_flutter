@@ -55,6 +55,7 @@ class Metadata {
     this.happyHomeDir,
     this.hostPid,
     this.flavor,
+    this.lifecycleState,
   });
 
   factory Metadata.fromJson(Map<String, dynamic> json) {
@@ -78,6 +79,7 @@ class Metadata {
       happyHomeDir: _asApiStringOptional(json['happyHomeDir']),
       hostPid: _asApiIntOptional(json['hostPid']),
       flavor: _asApiStringOptional(json['flavor']),
+      lifecycleState: _asApiStringOptional(json['lifecycleState']),
     );
   }
   final String? path;
@@ -94,6 +96,7 @@ class Metadata {
   final String? happyHomeDir;
   final int? hostPid;
   final String? flavor;
+  final String? lifecycleState;
 
   Map<String, dynamic> toJson() {
     return {
@@ -111,6 +114,7 @@ class Metadata {
       'happyHomeDir': happyHomeDir,
       'hostPid': hostPid,
       'flavor': flavor,
+      'lifecycleState': lifecycleState,
     };
   }
 
@@ -132,7 +136,8 @@ class Metadata {
           homeDir == other.homeDir &&
           happyHomeDir == other.happyHomeDir &&
           hostPid == other.hostPid &&
-          flavor == other.flavor;
+          flavor == other.flavor &&
+          lifecycleState == other.lifecycleState;
 
   @override
   int get hashCode => Object.hash(
@@ -150,6 +155,7 @@ class Metadata {
         happyHomeDir,
         hostPid,
         flavor,
+        lifecycleState,
       );
 }
 

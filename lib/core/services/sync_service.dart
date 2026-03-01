@@ -2509,7 +2509,13 @@ what you have, you must use the options mode.
 
     // Auto-restore: if the session's agent is offline but the machine is
     // reachable, spawn a new agent so the message can be delivered.
-    if (!session.isOnline) {
+    // Skip if the session's lifecycleState is 'starting' or 'running' —
+    // the daemon just created it and the agent hasn't sent its first keep-alive
+    // yet, so presence appears offline even though the process is live.
+    final lifecycleState = session.metadata?.lifecycleState;
+    final agentIsStartingOrRunning =
+        lifecycleState == 'starting' || lifecycleState == 'running';
+    if (!session.isOnline && !agentIsStartingOrRunning) {
       final machineId = session.metadata?.machineId;
       final path = session.metadata?.path;
       if (machineId != null &&
@@ -2518,8 +2524,8 @@ what you have, you must use the options mode.
           path.isNotEmpty) {
         if (kDebugMode) {
           debugPrint(
-            'Session $sessionId is offline, attempting auto-restore '
-            'on machine $machineId at $path',
+            'Session $sessionId is offline (lifecycleState=$lifecycleState), '
+            'attempting auto-restore on machine $machineId at $path',
           );
         }
         try {
@@ -3080,7 +3086,12 @@ what you have, you must use the options mode.
     final timeoutAt = DateTime.now().millisecondsSinceEpoch + timeoutMs;
     while (DateTime.now().millisecondsSinceEpoch < timeoutAt) {
       final session = _sessions[sessionId];
-      if (session != null && session.agentStateVersion > 0) {
+      // Consider the session ready if:
+      // 1. agentStateVersion > 0 (permission request or agent state set), OR
+      // 2. presence is 'online' (Go's session-alive keep-alives arrived, meaning
+      //    the daemon is running and connected — typically within 2 seconds).
+      if (session != null &&
+          (session.agentStateVersion > 0 || session.isOnline)) {
         return true;
       }
       await Future<void>.delayed(const Duration(milliseconds: 200));
