@@ -33,6 +33,7 @@ import '../services/mmkv_storage.dart';
 import '../services/server_config.dart';
 import '../utils/invalidate_sync.dart';
 import '../utils/parse_token.dart';
+import 'logger_service.dart';
 
 // ── Isolate helpers: machine payload decryption ──────────────────────────
 
@@ -940,7 +941,15 @@ what you have, you must use the options mode.
         // Yield to event queue before each crypto operation.
         await Future<void>.delayed(Duration.zero);
 
-        final sessionId = session['id'] as String;
+        // Safe cast for session ID - skip session if missing ID
+        final sessionId = session['id'] as String?;
+        if (sessionId == null || sessionId.isEmpty) {
+          logger.warning(
+            'Skipping session with missing/empty ID',
+            'Session data: $session',
+          );
+          continue;
+        }
         final dataEncryptionKey = session['dataEncryptionKey'] as String?;
 
         if (dataEncryptionKey != null) {
@@ -994,38 +1003,64 @@ what you have, you must use the options mode.
         // Always add the session, even if encryption isn't available.
         // This prevents the "Session not loaded" bug where sessions are
         // silently skipped when sessionEncryption is null.
+        //
+        // Use safe casts with defaults to prevent session from being silently
+        // skipped when server returns malformed data. Previously, direct casts
+        // like `session['seq'] as int` would throw TypeError on null/wrong type
+        // and the session would be silently dropped.
         try {
+          // Safe casts with defaults for required fields
+          final seq = session['seq'] as int? ?? 0;
+          final createdAt = session['createdAt'] as int? ??
+              DateTime.now().millisecondsSinceEpoch;
+          final updatedAt = session['updatedAt'] as int? ??
+              DateTime.now().millisecondsSinceEpoch;
+          final active = session['active'] as bool? ?? false;
+          final activeAt = session['activeAt'] as int? ??
+              DateTime.now().millisecondsSinceEpoch;
+          final metadataVersion = session['metadataVersion'] as int? ?? 0;
+          final agentStateVersion = session['agentStateVersion'] as int? ?? 0;
+          final lastSeq = session['lastSeq'] as int?;
+
           Map<String, dynamic>? metadata;
           Map<String, dynamic>? agentState;
 
           if (sessionEncryption != null) {
             // Decrypt metadata
-            metadata = await sessionEncryption.decryptMetadata(
-              session['metadataVersion'] as int,
-              session['metadata'] as String,
-            );
+            try {
+              metadata = await sessionEncryption.decryptMetadata(
+                session['metadataVersion'] as int? ?? 0,
+                session['metadata'] as String? ?? '',
+              );
+            } catch (e) {
+              logger.warning('Failed to decrypt session metadata', e);
+            }
 
             // Decrypt agent state
-            agentState = await sessionEncryption.decryptAgentState(
-              session['agentStateVersion'] as int,
-              session['agentState'] as String?,
-            );
+            try {
+              agentState = await sessionEncryption.decryptAgentState(
+                session['agentStateVersion'] as int? ?? 0,
+                session['agentState'] as String?,
+              );
+            } catch (e) {
+              logger.warning('Failed to decrypt session agentState', e);
+            }
           }
 
           // Create session object
           final processedSession = Session(
             id: sessionId,
-            seq: session['seq'] as int,
-            createdAt: session['createdAt'] as int,
-            updatedAt: session['updatedAt'] as int,
-            active: session['active'] as bool,
-            activeAt: session['activeAt'] as int,
+            seq: seq,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            active: active,
+            activeAt: activeAt,
             metadata: metadata != null ? Metadata.fromJson(metadata) : null,
-            metadataVersion: session['metadataVersion'] as int,
+            metadataVersion: metadataVersion,
             agentState: agentState != null && agentState.isNotEmpty
                 ? AgentState.fromJson(agentState)
                 : null,
-            agentStateVersion: session['agentStateVersion'] as int,
+            agentStateVersion: agentStateVersion,
             thinking: false,
             thinkingAt: null,
             // REST fetches cannot tell us whether the CLI process is
@@ -1035,16 +1070,14 @@ what you have, you must use the options mode.
             // should promote a session to 'online'.  For delta
             // fetches, preserve the existing presence if known.
             presence: _sessions[sessionId]?.presence ?? 'offline',
-            lastSeq: session['lastSeq'] as int?,
+            lastSeq: lastSeq,
           );
 
           decryptedSessions.add(processedSession);
         } catch (error) {
-          if (kDebugMode) {
-            debugPrint(
-              'Failed to process session $sessionId: $error',
-            );
-          }
+          // Log error in ALL builds (not just debug) so we can detect
+          // malformed session data in production
+          logger.error('Failed to process session $sessionId', error);
         }
       }
 
