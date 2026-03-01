@@ -127,15 +127,7 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
 
-      - name: Cache Android NDK
-        id: ndk-cache
-        uses: actions/cache@v4
-        with:
-          path: /usr/local/lib/android/sdk/ndk/28.2.13676358
-          key: ${{ runner.os }}-android-ndk-28.2.13676358
-
       - name: Setup Android NDK
-        if: steps.ndk-cache.outputs.cache-hit != 'true'
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses || true
@@ -149,35 +141,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches/modules-2
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-deps-${{ hashFiles('android/**/build.gradle.kts', 'android/**/gradle.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-deps-
-
-      - name: Cache Gradle build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches/build-cache-1
-            android/.gradle
-          key: ${{ runner.os }}-gradle-build-${{ github.run_id }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-build-
-
-      - name: Cache Flutter build
-        uses: actions/cache@v4
-        with:
-          path: |
-            .dart_tool/
-            build/
-          key: ${{ runner.os }}-flutter-build-${{ hashFiles('**/pubspec.lock', 'lib/**/*.dart') }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-build-
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Get dependencies
         run: flutter pub get
@@ -197,9 +162,7 @@ jobs:
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
-            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }} \
-            --split-debug-info=build/debug-info \
-            --obfuscate
+            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
         env:
           APP_ENV: ${{ steps.flavor.outputs.FLAVOR }}
           KEYSTORE_PATH: ${{ steps.debug_keystore.outputs.KEYSTORE_PATH }}
@@ -207,28 +170,12 @@ jobs:
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
           KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
 
-      - name: Upload debug symbols to Sentry
-        if: env.SENTRY_AUTH_TOKEN != ''
-        run: |
-          flutter pub run sentry_dart_plugin
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_DIST: ${{ steps.build_meta.outputs.BUILD_NUMBER }}
-          SENTRY_RELEASE: happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
-
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: happy-flutter-debug-${{ steps.flavor.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
           path: build/app/outputs/flutter-apk/app-${{ steps.flavor.outputs.FLAVOR }}-debug.apk
           retention-days: 14
-
-      - name: Upload debug info artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-info-debug-${{ steps.flavor.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
-          path: build/debug-info/
-          retention-days: 90
 
   build-release:
     name: Build Release APK
@@ -298,18 +245,8 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
 
-      - name: Cache Android NDK
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        id: ndk-cache
-        uses: actions/cache@v4
-        with:
-          path: /usr/local/lib/android/sdk/ndk/28.2.13676358
-          key: ${{ runner.os }}-android-ndk-28.2.13676358
-
       - name: Setup Android NDK
-        if: >-
-          steps.check_keystore.outputs.skip_release != 'true' &&
-          steps.ndk-cache.outputs.cache-hit != 'true'
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses || true
@@ -324,38 +261,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      - name: Cache Gradle dependencies
+      - name: Setup Gradle
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches/modules-2
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-deps-${{ hashFiles('android/**/build.gradle.kts', 'android/**/gradle.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-deps-
-
-      - name: Cache Gradle build cache
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches/build-cache-1
-            android/.gradle
-          key: ${{ runner.os }}-gradle-build-${{ github.run_id }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-build-
-
-      - name: Cache Flutter build
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        uses: actions/cache@v4
-        with:
-          path: |
-            .dart_tool/
-            build/
-          key: ${{ runner.os }}-flutter-build-${{ hashFiles('**/pubspec.lock', 'lib/**/*.dart') }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-build-
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Get dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
