@@ -2200,13 +2200,22 @@ what you have, you must use the options mode.
       if (sessionId == null || sessionId.isEmpty) {
         throw StateError('Machine returned empty session ID');
       }
+
+      // Initialize encryption from the DEK included in the spawn response,
+      // avoiding the sync race condition where delta fetches miss the new
+      // session's dataEncryptionKey.
+      final dek = result['dataEncryptionKey'] as String?;
+      if (dek != null && dek.isNotEmpty) {
+        final decryptedKey = await encryption.decryptEncryptionKey(dek);
+        if (decryptedKey != null) {
+          await encryption.initializeSessions({sessionId: decryptedKey});
+        }
+      }
+
       await refreshSessions();
 
-      // Guard: a concurrent fetch that started before the session was created
-      // but completed after it may have bumped _lastSessionsFetchedAt past
-      // the session's updatedAt, causing every subsequent delta fetch to miss
-      // it.  Force a full (non-delta) fetch so the new session is guaranteed
-      // to be returned and its encryption initialized.
+      // Guard: if inline DEK wasn't available (legacy encryption or older
+      // daemon), fall back to the full-fetch approach.
       if (encryption.getSessionEncryption(sessionId) == null) {
         _lastSessionsFetchedAt = null;
         await sessionsSync.invalidateAndAwait();
