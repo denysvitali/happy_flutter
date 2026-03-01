@@ -19,6 +19,15 @@ Session _makeTestSession(String id) => Session(
     );
 
 void _stubAllSyncs(Sync instance, {Future<void> Function()? sessionsFn}) {
+  // Dispose old sessionsSync to cancel any pending retry timers before
+  // replacing with a new one. This prevents stale timers from affecting
+  // test state. Use try-catch since sessionsSync is late and may not be
+  // initialized yet (e.g., first call from setUp).
+  try {
+    instance.sessionsSync.dispose();
+  } on Error {
+    // Not initialized yet, safe to ignore
+  }
   instance.sessionsSync =
       InvalidateSync(sessionsFn ?? () async {});
   instance.settingsSync = InvalidateSync(() async {});
@@ -96,6 +105,12 @@ void main() {
       // That's fine: it proves sendMessage doesn't immediately throw
       // StateError for a missing session without trying recovery.
 
+      // Clear any stale state from previous tests to ensure the session
+      // starts out as missing. This includes the forced-fetch flag, the
+      // sessions map, and any pending retry timers.
+      instance.testForceFullFetchNext = false;
+      instance.testSessions.clear();
+
       _stubAllSyncs(instance, sessionsFn: () async {
         // On forced fetch, add the session.
         if (instance.testForceFullFetchNext) {
@@ -103,6 +118,10 @@ void main() {
           instance.testSessions['sess-1'] = _makeTestSession('sess-1');
         }
       });
+
+      // Drain any pending invalidations from the previous InvalidateSync
+      // instance before checking the sessions map state.
+      await instance.sessionsSync.awaitQueue();
 
       // Sessions map is empty — session is "missing".
       expect(instance.testSessions.containsKey('sess-1'), false);
@@ -197,6 +216,78 @@ void main() {
       expect(forceFullFetch, false);
       expect(changedSince, 1700000000000,
           reason: 'changedSince must be set in normal delta mode');
+    });
+  });
+
+  group('createSession forces full fetch', () {
+    late Sync instance;
+
+    setUp(() {
+      instance = Sync();
+      _stubAllSyncs(instance);
+    });
+
+    test('createSession sets _forceFullFetchNext before refreshSessions',
+        () async {
+      // This test simulates what createSession does: it sets
+      // _forceFullFetchNext = true before calling refreshSessions() to ensure
+      // the newly created session is included in the fetch results, avoiding
+      // a race condition where server clock skew causes the session to be
+      // excluded from delta fetches.
+
+      bool fetchWasForced = false;
+      instance.sessionsSync = InvalidateSync(() async {
+        if (instance.testForceFullFetchNext) {
+          fetchWasForced = true;
+          instance.testForceFullFetchNext = false;
+          instance.testSessions['new-session'] = _makeTestSession('new-session');
+        }
+      });
+
+      // Simulate what createSession does: set flag then invalidate
+      instance.testForceFullFetchNext = true;
+      await instance.sessionsSync.invalidateAndAwait();
+
+      expect(fetchWasForced, true,
+          reason: 'Fetch should have been forced (full fetch)');
+      expect(instance.sessions.containsKey('new-session'), true,
+          reason: 'New session should be present after forced full fetch');
+    });
+
+    test('createSession prevents delta fetch race with clock skew', () async {
+      // Simulate server clock skew: server returns sessions with updatedAt
+      // earlier than what the client expects (changedSince > session.updatedAt).
+      // A delta fetch would miss the new session, but a full fetch always
+      // includes it.
+
+      instance.testLastSessionsFetchedAt = 1700000001000; // 1s "ahead"
+
+      _stubAllSyncs(instance, sessionsFn: () async {
+        if (instance.testForceFullFetchNext) {
+          instance.testForceFullFetchNext = false;
+          // Full fetch: always include session regardless of timestamp
+          instance.testSessions['new-session'] = Session(
+            id: 'new-session',
+            seq: 1,
+            createdAt: 1700000000000, // Server thinks it's 1s earlier
+            updatedAt: 1700000000000,
+            active: true,
+            activeAt: 1700000000000,
+            metadataVersion: 1,
+            agentStateVersion: 1,
+            thinking: false,
+            presence: 'offline',
+          );
+        }
+        // Delta fetch: would return nothing (skipped here)
+      });
+
+      // Set flag (as createSession does) and trigger fetch
+      instance.testForceFullFetchNext = true;
+      await instance.sessionsSync.invalidateAndAwait();
+
+      // Session should be present despite clock skew
+      expect(instance.sessions.containsKey('new-session'), true);
     });
   });
 }

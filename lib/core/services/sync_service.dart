@@ -2228,14 +2228,12 @@ what you have, you must use the options mode.
         }
       }
 
+      // Force a full fetch (not delta) to ensure the newly created session
+      // is included in the results. This prevents a race condition where
+      // server clock skew causes the session to be excluded from delta
+      // fetches (changedSince > session.updatedAt).
+      _forceFullFetchNext = true;
       await refreshSessions();
-
-      // Guard: if inline DEK wasn't available (legacy encryption or older
-      // daemon), fall back to the full-fetch approach.
-      if (encryption.getSessionEncryption(sessionId) == null) {
-        _forceFullFetchNext = true;
-        await sessionsSync.invalidateAndAwait();
-      }
 
       return sessionId;
     }
