@@ -28,6 +28,7 @@ import '../models/purchases.dart';
 import '../models/session.dart';
 import '../models/settings.dart';
 import '../models/todo.dart';
+import '../rpc/rpc_types.dart';
 import '../services/mmkv_storage.dart';
 import '../services/server_config.dart';
 import '../utils/invalidate_sync.dart';
@@ -2174,29 +2175,25 @@ what you have, you must use the options mode.
     final startupScript = profile?.startupBashScript;
     final permissionMode = _settingsSnapshot.lastUsedPermissionMode;
 
-    final result = await machineRPC(
-      machineId,
-      'spawn-happy-session',
-      <String, dynamic>{
-        'type': 'spawn-in-directory',
-        'directory': path,
-        'approvedNewDirectoryCreation': approvedNewDirectoryCreation,
-        if (agent != null) 'agent': agent,
-        if (envVars.isNotEmpty) 'environmentVariables': envVars,
-        if (startupScript != null && startupScript.isNotEmpty)
-          'startupBashScript': startupScript,
-        if (permissionMode != null) 'permissionMode': permissionMode,
-      },
+    final req = SpawnSessionRequest(
+      type: 'spawn-in-directory',
+      directory: path,
+      approvedNewDirectoryCreation: approvedNewDirectoryCreation,
+      agent: agent,
+      environmentVariables: envVars.isNotEmpty ? envVars : null,
+      startupBashScript: startupScript,
+      permissionMode: permissionMode,
     );
 
-    if (result is! Map) {
-      throw StateError('Unexpected response from machine');
-    }
+    final result = await _typedMachineRPC(
+      machineId,
+      'spawn-happy-session',
+      req.toJson(),
+      SpawnSessionResponse.fromJson,
+    );
 
-    final resultType = result['type'] as String?;
-
-    if (resultType == 'success') {
-      final sessionId = result['sessionId'] as String?;
+    if (result.type == 'success') {
+      final sessionId = result.sessionId;
       if (sessionId == null || sessionId.isEmpty) {
         throw StateError('Machine returned empty session ID');
       }
@@ -2204,7 +2201,7 @@ what you have, you must use the options mode.
       // Initialize encryption from the DEK included in the spawn response,
       // avoiding the sync race condition where delta fetches miss the new
       // session's dataEncryptionKey.
-      final dek = result['dataEncryptionKey'] as String?;
+      final dek = result.dataEncryptionKey;
       if (dek != null && dek.isNotEmpty) {
         final decryptedKey = await encryption.decryptEncryptionKey(dek);
         if (decryptedKey != null) {
@@ -2224,7 +2221,7 @@ what you have, you must use the options mode.
       return sessionId;
     }
 
-    if (resultType == 'requestToApproveDirectoryCreation') {
+    if (result.type == 'requestToApproveDirectoryCreation') {
       return createSession(
         machineId: machineId,
         path: path,
@@ -2232,42 +2229,29 @@ what you have, you must use the options mode.
       );
     }
 
-    final errorMsg =
-        result['errorMessage'] as String? ?? 'unknown error';
-    throw StateError(errorMsg);
+    throw StateError(result.errorMessage ?? 'unknown error');
   }
 
   /// Execute a bash command on a machine.
-  ///
-  /// Returns a map with keys: `success` (bool), `stdout` (String),
-  /// `stderr` (String), `exitCode` (int).
-  Future<Map<String, dynamic>> machineBash({
+  Future<BashResponse> machineBash({
     required String machineId,
     required String command,
     required String cwd,
   }) async {
     try {
-      final result = await machineRPC(machineId, 'bash', {
-        'command': command,
-        'cwd': cwd,
-      });
-      if (result is Map) {
-        return {
-          'success': result['success'] ?? false,
-          'stdout': result['stdout'] ?? '',
-          'stderr': result['stderr'] ?? '',
-          'exitCode': result['exitCode'] ?? -1,
-        };
-      }
+      return await _typedMachineRPC(
+        machineId,
+        'bash',
+        BashRequest(command: command, cwd: cwd).toJson(),
+        BashResponse.fromJson,
+      );
     } catch (error) {
       if (kDebugMode) debugPrint('machineBash error: $error');
     }
-    return {
-      'success': false,
-      'stdout': '',
-      'stderr': 'RPC call failed',
-      'exitCode': -1,
-    };
+    return const BashResponse(
+      success: false,
+      stderr: 'RPC call failed',
+    );
   }
 
   /// Create a git worktree on a machine under `.dev/worktree/<name>` relative
@@ -2285,7 +2269,7 @@ what you have, you must use the options mode.
       command: 'git rev-parse --git-dir',
       cwd: basePath,
     );
-    if (gitCheck['success'] != true) {
+    if (!gitCheck.success) {
       throw StateError('Not a Git repository');
     }
 
@@ -2296,12 +2280,11 @@ what you have, you must use the options mode.
       command: 'git worktree add -b $name $worktreePath',
       cwd: basePath,
     );
-    if (result['success'] == true) {
+    if (result.success) {
       return '$basePath/$worktreePath';
     }
 
-    final stderr = result['stderr'] as String? ?? '';
-    if (stderr.contains('already exists')) {
+    if (result.stderr.contains('already exists')) {
       for (var i = 2; i <= 4; i++) {
         final newName = '$name-$i';
         final newPath = '.dev/worktree/$newName';
@@ -2310,14 +2293,14 @@ what you have, you must use the options mode.
           command: 'git worktree add -b $newName $newPath',
           cwd: basePath,
         );
-        if (result['success'] == true) {
+        if (result.success) {
           return '$basePath/$newPath';
         }
       }
     }
 
     throw StateError(
-      result['stderr'] as String? ?? 'Failed to create worktree',
+      result.stderr.isNotEmpty ? result.stderr : 'Failed to create worktree',
     );
   }
 
@@ -2538,16 +2521,18 @@ what you have, you must use the options mode.
           );
         }
         try {
-          await machineRPC(
+          final req = SpawnSessionRequest(
+            type: 'spawn-in-directory',
+            directory: path,
+            sessionId: sessionId,
+            agent: session.metadata?.flavor ?? 'claude',
+            permissionMode: effectivePermissionMode,
+          );
+          await _typedMachineRPC(
             machineId,
             'spawn-happy-session',
-            <String, dynamic>{
-              'type': 'spawn-in-directory',
-              'directory': path,
-              'sessionId': sessionId,
-              'agent': session.metadata?.flavor ?? 'claude',
-              'permissionMode': effectivePermissionMode,
-            },
+            req.toJson(),
+            SpawnSessionResponse.fromJson,
           );
         } catch (e) {
           if (kDebugMode) {
@@ -2689,6 +2674,28 @@ what you have, you must use the options mode.
     throw StateError('RPC call failed');
   }
 
+  /// Typed wrapper around [machineRPC] that deserialises the response.
+  Future<Resp> _typedMachineRPC<Resp>(
+    String machineId,
+    String method,
+    Map<String, dynamic> params,
+    Resp Function(Map<String, dynamic>) fromJson,
+  ) async {
+    final raw = await machineRPC(machineId, method, params);
+    return fromJson(raw as Map<String, dynamic>);
+  }
+
+  /// Typed wrapper around [sessionRPC] that deserialises the response.
+  Future<Resp> _typedSessionRPC<Resp>(
+    String sessionId,
+    String method,
+    Map<String, dynamic> params,
+    Resp Function(Map<String, dynamic>) fromJson,
+  ) async {
+    final raw = await sessionRPC(sessionId, method, params);
+    return fromJson(raw as Map<String, dynamic>);
+  }
+
   /// Allow a permission request for a session.
   Future<void> sessionAllow(
     String sessionId,
@@ -2697,13 +2704,18 @@ what you have, you must use the options mode.
     List<String>? allowTools,
     String? decision,
   }) async {
-    await sessionRPC(sessionId, 'permission', {
-      'id': permissionId,
-      'approved': true,
-      if (mode != null) 'mode': mode,
-      if (allowTools != null) 'allowTools': allowTools,
-      if (decision != null) 'decision': decision,
-    });
+    await _typedSessionRPC(
+      sessionId,
+      'permission',
+      PermissionRequest(
+        id: permissionId,
+        approved: true,
+        mode: mode,
+        allowTools: allowTools,
+        decision: decision,
+      ).toJson(),
+      PermissionResponse.fromJson,
+    );
   }
 
   /// Deny a permission request for a session.
@@ -2712,11 +2724,39 @@ what you have, you must use the options mode.
     String permissionId, {
     String? decision,
   }) async {
-    await sessionRPC(sessionId, 'permission', {
-      'id': permissionId,
-      'approved': false,
-      if (decision != null) 'decision': decision,
-    });
+    await _typedSessionRPC(
+      sessionId,
+      'permission',
+      PermissionRequest(
+        id: permissionId,
+        approved: false,
+        decision: decision,
+      ).toJson(),
+      PermissionResponse.fromJson,
+    );
+  }
+
+  /// Kill a session's agent process.
+  Future<KillSessionResponse> killSession(String sessionId) async {
+    return _typedSessionRPC(
+      sessionId,
+      'killSession',
+      const {},
+      KillSessionResponse.fromJson,
+    );
+  }
+
+  /// Abort the current agent turn without killing the session.
+  Future<AbortResponse> abortSession(
+    String sessionId, {
+    String reason = '',
+  }) async {
+    return _typedSessionRPC(
+      sessionId,
+      'abort',
+      {'reason': reason},
+      AbortResponse.fromJson,
+    );
   }
 
   /// Apply settings delta

@@ -578,7 +578,7 @@ class _DismissibleActiveSession extends ConsumerWidget {
     if (confirmed != true) return false;
 
     try {
-      await sync.sessionRPC(session.id, 'killSession', {});
+      await sync.killSession(session.id);
       await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
       return true;
     } catch (e) {

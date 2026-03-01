@@ -90,8 +90,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
         command: trimmed,
         cwd: _cwd ?? '/',
       );
-      final stdout = (result['stdout'] as String? ?? '').trim();
-      final stderr = (result['stderr'] as String? ?? '').trim();
+      final stdout = result.stdout.trim();
+      final stderr = result.stderr.trim();
       setState(() {
         if (stdout.isNotEmpty) lines.addAll(stdout.split('\n'));
         if (stderr.isNotEmpty) lines.addAll(stderr.split('\n'));

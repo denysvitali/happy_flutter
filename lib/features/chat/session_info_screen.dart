@@ -149,7 +149,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
     setState(() => _isArchiving = true);
     try {
-      await sync.sessionRPC(widget.session.id, 'killSession', {});
+      await sync.killSession(widget.session.id);
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (e) {

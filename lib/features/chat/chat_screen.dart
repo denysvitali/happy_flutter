@@ -542,7 +542,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _abortSession() async {
     if (!sync.isInitialized) return;
-    await sync.sessionRPC(widget.sessionId, 'abort', {'reason': _abortReason});
+    await sync.abortSession(widget.sessionId, reason: _abortReason);
   }
 
   void _showSessionMenu(BuildContext context) {
