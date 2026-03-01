@@ -991,54 +991,59 @@ what you have, you must use the options mode.
         final sessionId = session['id'] as String;
         final sessionEncryption = encryption.getSessionEncryption(sessionId);
 
-        if (sessionEncryption != null) {
-          try {
+        // Always add the session, even if encryption isn't available.
+        // This prevents the "Session not loaded" bug where sessions are
+        // silently skipped when sessionEncryption is null.
+        try {
+          Map<String, dynamic>? metadata;
+          Map<String, dynamic>? agentState;
+
+          if (sessionEncryption != null) {
             // Decrypt metadata
-            final metadata = await sessionEncryption.decryptMetadata(
+            metadata = await sessionEncryption.decryptMetadata(
               session['metadataVersion'] as int,
               session['metadata'] as String,
             );
 
             // Decrypt agent state
-            final agentState = await sessionEncryption.decryptAgentState(
+            agentState = await sessionEncryption.decryptAgentState(
               session['agentStateVersion'] as int,
               session['agentState'] as String?,
             );
+          }
 
-            // Create session object
-            final processedSession = Session(
-              id: sessionId,
-              seq: session['seq'] as int,
-              createdAt: session['createdAt'] as int,
-              updatedAt: session['updatedAt'] as int,
-              active: session['active'] as bool,
-              activeAt: session['activeAt'] as int,
-              metadata:
-                  metadata != null ? Metadata.fromJson(metadata) : null,
-              metadataVersion: session['metadataVersion'] as int,
-              agentState: agentState.isNotEmpty
-                  ? AgentState.fromJson(agentState)
-                  : null,
-              agentStateVersion: session['agentStateVersion'] as int,
-              thinking: false,
-              thinkingAt: null,
-              // REST fetches cannot tell us whether the CLI process is
-              // actually running — the server's `active` flag is
-              // persistent (true until archived) and stale.  Default
-              // to 'offline'; only real-time WebSocket activity events
-              // should promote a session to 'online'.  For delta
-              // fetches, preserve the existing presence if known.
-              presence: _sessions[sessionId]?.presence ?? 'offline',
-              lastSeq: session['lastSeq'] as int?,
+          // Create session object
+          final processedSession = Session(
+            id: sessionId,
+            seq: session['seq'] as int,
+            createdAt: session['createdAt'] as int,
+            updatedAt: session['updatedAt'] as int,
+            active: session['active'] as bool,
+            activeAt: session['activeAt'] as int,
+            metadata: metadata != null ? Metadata.fromJson(metadata) : null,
+            metadataVersion: session['metadataVersion'] as int,
+            agentState: agentState != null && agentState.isNotEmpty
+                ? AgentState.fromJson(agentState)
+                : null,
+            agentStateVersion: session['agentStateVersion'] as int,
+            thinking: false,
+            thinkingAt: null,
+            // REST fetches cannot tell us whether the CLI process is
+            // actually running — the server's `active` flag is
+            // persistent (true until archived) and stale.  Default
+            // to 'offline'; only real-time WebSocket activity events
+            // should promote a session to 'online'.  For delta
+            // fetches, preserve the existing presence if known.
+            presence: _sessions[sessionId]?.presence ?? 'offline',
+            lastSeq: session['lastSeq'] as int?,
+          );
+
+          decryptedSessions.add(processedSession);
+        } catch (error) {
+          if (kDebugMode) {
+            debugPrint(
+              'Failed to process session $sessionId: $error',
             );
-
-            decryptedSessions.add(processedSession);
-          } catch (error) {
-            if (kDebugMode) {
-              debugPrint(
-                'Failed to decrypt session $sessionId: $error',
-              );
-            }
           }
         }
       }
