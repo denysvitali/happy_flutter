@@ -18,6 +18,10 @@ class ApiClient {
   static final ApiClient _instance = ApiClient._();
 
   Dio? _dio;
+
+  @visibleForTesting
+  Dio? get testDio => _dio;
+
   String? _authToken;
   String? _cachedServerUrl;
 

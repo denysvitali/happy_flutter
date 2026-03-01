@@ -337,6 +337,22 @@ what you have, you must use the options mode.
   int get settingsVersion => _settingsVersion;
   Purchases get purchases => _purchases;
   Map<String, Session> get sessions => Map.unmodifiable(_sessions);
+
+  @visibleForTesting
+  Map<String, Session> get testSessions => _sessions;
+
+  @visibleForTesting
+  int? get testLastSessionsFetchedAt => _lastSessionsFetchedAt;
+
+  @visibleForTesting
+  set testLastSessionsFetchedAt(int? value) => _lastSessionsFetchedAt = value;
+
+  @visibleForTesting
+  bool get testForceFullFetchNext => _forceFullFetchNext;
+
+  @visibleForTesting
+  set testForceFullFetchNext(bool value) => _forceFullFetchNext = value;
+
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
   Profile? get profile => _profile;
   bool get isReady => _isReady;
