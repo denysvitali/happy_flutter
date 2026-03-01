@@ -309,7 +309,7 @@ what you have, you must use the options mode.
   Settings _settingsSnapshot = Settings();
   int _settingsVersion = 0;
   Purchases _purchases = Purchases.defaults;
-  final Map<String, Session> _sessions = <String, Session>{};
+  Map<String, Session> _sessions = <String, Session>{};
   int? _lastSessionsFetchedAt;
   bool _forceFullFetchNext = false;
   final Map<String, Machine> _machines = <String, Machine>{};
@@ -1049,13 +1049,11 @@ what you have, you must use the options mode.
           timer.cancel();
         }
         _presenceTimers.clear();
-        _sessions
-          ..clear()
-          ..addEntries(
-            decryptedSessions.map(
-              (session) => MapEntry(session.id, session),
-            ),
-          );
+        // Atomic update: build new map then swap to avoid the clear()
+        // window where concurrent operations see an empty _sessions.
+        _sessions = Map<String, Session>.fromEntries(
+          decryptedSessions.map((s) => MapEntry(s.id, s)),
+        );
       } else {
         // Delta fetch: merge updated sessions, cancel their stale timers.
         for (final session in decryptedSessions) {
