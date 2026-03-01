@@ -21,36 +21,47 @@ This roadmap tracks the work needed to achieve full feature parity between **hap
 
 ---
 
-## Completed Features
+## P0: Critical Bugs
 
-All P0 and P1 features are complete:
+### 1. Session Creation Failure
 
-- ✅ **Encryption**: AES-256-GCM, libsodium, Web Crypto API
-- ✅ **Authentication**: QR auth, device linking, account restore, backup key
-- ✅ **Chat**: Full markdown rendering, syntax highlighting, code blocks
-- ✅ **Storage**: MMKV migration, session drafts, permission modes
-- ✅ **State Management**: Profile, git status, artifacts, friends, feed, todos
-- ✅ **WebSocket**: Socket.io protocol, exponential backoff, auto-reconnect
-- ✅ **API Coverage**: KV store, push notifications, GitHub, services, usage
+**Status**: 🚨 **BLOCKING** - Sessions cannot be created or used
+
+**Issue**: Creating a new session fails to properly initialize the session state. When attempting to send a message, the app throws:
+
+```
+Failed to send message: Bad state: Session cb28ed0b17eda800a5bcf6b1b not loaded
+```
+
+**Impact**: Users cannot use the core chat functionality. The app appears to create a session but it is not properly loaded into the sync state, causing all subsequent operations to fail.
+
+**Likely Causes**:
+- Race condition between session creation and sync state update
+- Session not being added to `sessionsNotifierProvider` after creation
+- Missing or failed `refreshFromSync()` call after session creation
+- Sync singleton not properly handling new session events from WebSocket
+
+**Files to Investigate**:
+- `lib/core/services/sync_service.dart` - Session creation and sync logic
+- `lib/core/providers/app_providers.dart` - Sessions notifier
+- `lib/features/sessions/sessions_screen.dart` - Session creation flow
+- `lib/features/chat/chat_screen.dart` - Message sending logic
 
 ---
 
 ## P2: Enhanced Features
 
-### 1. Sessions - Feature Parity 🔄 **PARTIAL**
+### 2. Sessions - Feature Parity
 
-| Task | Description | Status |
-|------|-------------|--------|
-| Date headers | Group sessions by "Today", "Yesterday", etc. | ⏳ Pending |
-| Session avatars | Support brutalist, gradient, pixelated styles | ✅ Done |
-| Enhanced status states | disconnected, thinking, waiting, permission_required | ✅ Done |
-| Vibing messages | "Accomplishing...", "Actioning..." animations | ⏳ Pending |
-| Active sessions section | Separate group for currently active sessions | ✅ Done |
+| Task | Description |
+|------|-------------|
+| Date headers | Group sessions by "Today", "Yesterday", etc. |
+| Vibing messages | "Accomplishing...", "Actioning..." animations |
 
 **References**:
 - React Native: `/../happy/sources/app/(app)/session/recent.tsx`, `/../happy/sources/sync/storage.ts`
 
-### 2. Chat - Input Enhancements
+### 3. Chat - Input Enhancements
 
 | Task | Description |
 |------|-------------|
@@ -63,7 +74,7 @@ All P0 and P1 features are complete:
 **References**:
 - React Native: `/../happy/sources/components/AgentInputAutocomplete.tsx`, `/../happy/sources/components/PermissionModeSelector.tsx`
 
-### 3. Settings - Full Implementation
+### 4. Settings - Full Implementation
 
 | Task | Description |
 |------|-------------|
@@ -72,14 +83,13 @@ All P0 and P1 features are complete:
 | Voice settings | ElevenLabs voice assistant language |
 | Features toggles | Experiments, markdown copy v2, etc. |
 | Profiles management | AI backend profiles (Claude, Gemini, OpenAI) |
-| Account screen | Profile, connected services, secret key backup |
 | Usage statistics | Token usage, costs, limits display |
 | Developer mode | 10x click to enable, debug tools |
 
 **References**:
-- React Native: `/../happy/sources/app/(app)/settings/appearance.tsx`, `/../happy/sources/app/(app)/settings/language.tsx`, `/../happy/sources/app/(app)/settings/features.tsx`, `/../happy/sources/app/(app)/settings/account.tsx`, `/../happy/sources/app/(app)/settings/profiles.tsx`, `/../happy/sources/app/(app)/settings/usage.tsx`
+- React Native: `/../happy/sources/app/(app)/settings/appearance.tsx`, `/../happy/sources/app/(app)/settings/language.tsx`, `/../happy/sources/app/(app)/settings/features.tsx`, `/../happy/sources/app/(app)/settings/profiles.tsx`, `/../happy/sources/app/(app)/settings/usage.tsx`
 
-### 4. Tool Call Rendering
+### 5. Tool Call Rendering
 
 | Task | Description |
 |------|-------------|
@@ -93,11 +103,10 @@ All P0 and P1 features are complete:
 **References**:
 - React Native: `/../happy/sources/components/tools/knownTools.tsx`, `/../happy/sources/components/tools/ToolView.tsx`
 
-### 5. UI Components
+### 6. UI Components
 
 | Task | Description |
 |------|-------------|
-| Avatar component | Multiple styles: brutalist, gradient, pixelated, circle |
 | Sidebar navigation | Collapsible sidebar with navigation |
 | Shimmer loading | Loading skeleton states |
 | Command palette | Modal command search |
@@ -112,7 +121,7 @@ All P0 and P1 features are complete:
 
 ## P2: Error Handling & Diagnostics
 
-### 6. Logging System
+### 7. Logging System
 
 | Task | Description |
 |------|-------------|
@@ -129,7 +138,7 @@ All P0 and P1 features are complete:
 
 ## P3: Polish Features
 
-### 7. Native Platform Integrations
+### 8. Native Platform Integrations
 
 | Task | Description |
 |------|-------------|
@@ -145,14 +154,13 @@ All P0 and P1 features are complete:
 **References**:
 - React Native: `@livekit/react-native-webrtc`, `expo-camera`, `expo-notifications`, `expo-local-authentication`
 
-### 8. Utilities Parity
+### 9. Utilities Parity
 
 | Task | Description |
 |------|-------------|
 | Device utilities | Phone/tablet detection, header height |
 | Advanced debounce | Cancel/reset/flush methods |
 | Path utilities | Resolve ~ paths, relative paths |
-| Exponential backoff | Delay calculation with backoff |
 | AsyncLock | Async mutex/locking |
 | Version utilities | Compare semantic versions |
 | Message utilities | Strip markdown, get preview |
@@ -160,12 +168,11 @@ All P0 and P1 features are complete:
 **References**:
 - React Native: `/../happy/sources/utils/calculateDeviceDimensions.ts`, `/../happy/sources/utils/path.ts`
 
-### 9. CI/CD Enhancements
+### 10. CI/CD Enhancements
 
 | Task | Description |
 |------|-------------|
 | Dependency caching | Cache pub-cache, Gradle builds |
-| Build flavors | development/preview/production environments |
 | Workflow dispatch | Manual trigger with build type selection |
 | Version tags | Auto-build on `v*` tags |
 | Artifact retention | Set retention-days |
@@ -174,7 +181,7 @@ All P0 and P1 features are complete:
 **References**:
 - React Native: `/../happy/.github/workflows/`, `/../happy/eas.json`
 
-### 10. Internationalization (i18n)
+### 11. Internationalization (i18n)
 
 | Task | Description |
 |------|-------------|
@@ -192,30 +199,31 @@ All P0 and P1 features are complete:
 
 | Category | Status | Notes |
 |----------|--------|-------|
-| Authentication | ✅ Done | QR auth, device linking, account restore, backup key all implemented |
-| Encryption | ✅ Done | AES-256-GCM, libsodium, Web Crypto API |
-| Chat | ✅ Done | Full markdown, syntax highlighting, code blocks |
-| Sessions | 🔄 Partial | Date headers, vibing messages pending |
-| Settings | 🔄 Partial | Account screen done, other settings stub |
-| Storage | ✅ Done | MMKV with migration, drafts, permission modes |
-| State | ✅ Done | All providers implemented with 63+ tests |
-| WebSocket | ✅ Done | Socket.io protocol with exponential backoff |
-| API | ✅ Done | All endpoints implemented with 250+ tests |
-| UI Components | 🔄 Partial | Needs sidebar, autocomplete, command palette |
-| Tool Rendering | ⏳ Not Started | 15+ tool views needed |
-| Error Handling | 🔄 Partial | Error types exist, logging missing |
-| Native | ⏳ Not Started | WebRTC/camera/notifications not started |
-| CI/CD | 🔄 Partial | Debug/release builds, needs enhancement |
-| i18n | ⏳ Not Started | Not started |
+| Session Creation | 🚨 **BLOCKING BUG** | Sessions fail to initialize, message sending throws "not loaded" error |
+| Authentication | Done | QR auth, device linking, account restore, backup key |
+| Encryption | Done | AES-256-GCM, libsodium, Web Crypto API |
+| Chat | Done | Full markdown, syntax highlighting, code blocks |
+| Storage | Done | MMKV with migration, drafts, permission modes |
+| State | Done | All providers implemented with 63+ tests |
+| WebSocket | Done | Socket.io protocol with exponential backoff |
+| API | Done | All endpoints implemented with 250+ tests |
+| Sessions | Partial | Date headers, vibing messages pending |
+| Settings | Partial | Account screen done, other settings stub |
+| UI Components | Partial | Needs sidebar, autocomplete, command palette |
+| Tool Rendering | Not Started | 15+ tool views needed |
+| Logging | Not Started | In-memory logger, dev logs screen |
+| Native | Not Started | WebRTC/camera/notifications not started |
+| CI/CD | Partial | Debug/release builds, needs enhancement |
+| i18n | Not Started | Not started |
 
 ---
 
 ## Next Steps
 
-1. **This sprint**: Settings screens (theme, language, features)
-2. **Next sprint**: Sessions UI - date headers, vibing messages
-3. **This quarter**: Tool call rendering and UI components
-4. **This quarter**: Logging system and error handling
+1. **URGENT**: Fix session creation bug (P0) - investigate sync state, session initialization
+2. **This sprint**: Settings screens (theme, language, features)
+3. **Next sprint**: Sessions UI - date headers, vibing messages
+4. **This quarter**: Tool call rendering and UI components
 
 ---
 
