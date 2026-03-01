@@ -71,7 +71,6 @@ jobs:
 
   build-debug:
     name: Build Debug APK
-    needs: analyze
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Run on push/PR events (but not tags), or workflow_dispatch with debug or both selected
@@ -233,7 +232,6 @@ jobs:
 
   build-release:
     name: Build Release APK
-    needs: analyze
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Run on main pushes, workflow_dispatch (release/both), and version tags.
@@ -377,6 +375,7 @@ jobs:
         run: |
           flutter build apk --release --no-pub \
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
+            --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
             --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }} \
             --split-debug-info=build/debug-info \
@@ -437,7 +436,6 @@ jobs:
 
   build-web:
     name: Build Web
-    needs: analyze
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
