@@ -2442,7 +2442,14 @@ what you have, you must use the options mode.
       }
     }
 
-    final session = _sessions[sessionId];
+    var session = _sessions[sessionId];
+    if (session == null) {
+      // Retry: the session may not be in _sessions due to the changedSince
+      // delta-fetch race. Force a full fetch to ensure we have it.
+      _lastSessionsFetchedAt = null;
+      await sessionsSync.invalidateAndAwait();
+      session = _sessions[sessionId];
+    }
     if (session == null) {
       throw StateError('Session $sessionId not loaded');
     }
