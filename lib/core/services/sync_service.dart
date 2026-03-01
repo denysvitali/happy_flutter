@@ -2238,6 +2238,35 @@ what you have, you must use the options mode.
       _forceFullFetchNext = true;
       await refreshSessions();
 
+      // Optimistic insert: if the server's /v2/sessions endpoint hasn't
+      // propagated the new session yet (replication lag between the RPC
+      // endpoint that created it and the REST endpoint that lists it),
+      // add a placeholder directly to _sessions. This prevents
+      // "Session X not loaded" errors in sendMessage(). The placeholder
+      // will be replaced with full server data on the next successful
+      // fetch that includes this session.
+      if (!_sessions.containsKey(sessionId)) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        _sessions[sessionId] = Session(
+          id: sessionId,
+          seq: 0,
+          createdAt: now,
+          updatedAt: now,
+          active: true,
+          activeAt: now,
+          metadata: Metadata(
+            host: '',
+            machineId: machineId,
+            path: path,
+          ),
+          metadataVersion: 0,
+          agentStateVersion: 0,
+          thinking: false,
+          presence: 'online',
+        );
+        _notifyDataChanged();
+      }
+
       return sessionId;
     }
 
@@ -2473,7 +2502,25 @@ what you have, you must use the options mode.
       session = _sessions[sessionId];
     }
     if (session == null) {
-      throw StateError('Session $sessionId not loaded');
+      // Last resort: the server's REST endpoint still hasn't propagated
+      // the session (replication lag). Since encryption IS available
+      // (we passed the guard above), the session definitely exists —
+      // create a placeholder so the message can be sent.
+      final now = DateTime.now().millisecondsSinceEpoch;
+      session = Session(
+        id: sessionId,
+        seq: 0,
+        createdAt: now,
+        updatedAt: now,
+        active: true,
+        activeAt: now,
+        metadataVersion: 0,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'online',
+      );
+      _sessions[sessionId] = session;
+      _notifyDataChanged();
     }
 
     final effectivePermissionMode =
