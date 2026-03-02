@@ -2738,8 +2738,8 @@ what you have, you must use the options mode.
         throw StateError('Machine RPC $method returned null result');
       }
       final decrypted = await machineEncryption.decryptRaw(encryptedResult);
-      if (kDebugMode && decrypted == null) {
-        debugPrint('machineRPC $method: decryption returned null');
+      if (decrypted == null) {
+        logger.warning('machineRPC $method: decryption returned null');
       }
       return decrypted;
     }
@@ -2784,8 +2784,8 @@ what you have, you must use the options mode.
         throw StateError('Session RPC $method returned null result');
       }
       final decrypted = await sessionEncryption.decryptRaw(encryptedResult);
-      if (kDebugMode && decrypted == null) {
-        debugPrint('sessionRPC $method: decryption returned null');
+      if (decrypted == null) {
+        logger.warning('sessionRPC $method: decryption returned null');
       }
       return decrypted;
     }
