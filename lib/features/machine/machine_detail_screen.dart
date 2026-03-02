@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
@@ -29,17 +28,14 @@ class MachineDetailScreen extends ConsumerStatefulWidget {
       _MachineDetailScreenState();
 }
 
-class _MachineDetailScreenState
-    extends ConsumerState<MachineDetailScreen> {
+class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
   StreamSubscription<void>? _syncSubscription;
 
   @override
   void initState() {
     super.initState();
     Future<void>.microtask(() async {
-      await ref
-          .read(machinesNotifierProvider.notifier)
-          .refreshFromSync();
+      await ref.read(machinesNotifierProvider.notifier).refreshFromSync();
     });
     _syncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
@@ -97,9 +93,7 @@ class _MachineDetailScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(context.l10n.commonDelete),
-        content: Text(
-          'Are you sure you want to remove "$machineName"?',
-        ),
+        content: Text('Are you sure you want to remove "$machineName"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -117,8 +111,7 @@ class _MachineDetailScreenState
     );
 
     if (confirmed ?? false) {
-      final response =
-          await ApiClient().delete('/v1/machines/$machineId');
+      final response = await ApiClient().delete('/v1/machines/$machineId');
       if (!context.mounted) return;
       if (ApiClient().isSuccess(response)) {
         sync.machinesSync.invalidate();
@@ -126,9 +119,7 @@ class _MachineDetailScreenState
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Failed to delete machine (${response.statusCode})',
-            ),
+            content: Text('Failed to delete machine (${response.statusCode})'),
           ),
         );
       }
@@ -158,18 +149,15 @@ class _MachineDetailScreenState
     }
 
     final metadata = machine.metadata;
-    final machineName = metadata?.displayName ??
-        metadata?.host ??
-        machine.id;
+    final machineName = metadata?.displayName ?? metadata?.host ?? machine.id;
     final isOnline = _isMachineOnline(machine.activeAt);
 
     // Sessions for this machine, sorted by most recently updated.
-    final machineSessions = sessions.values
-        .where((s) => s.metadata?.machineId == widget.machineId)
-        .toList()
-      ..sort(
-        (a, b) => b.updatedAt.compareTo(a.updatedAt),
-      );
+    final machineSessions =
+        sessions.values
+            .where((s) => s.metadata?.machineId == widget.machineId)
+            .toList()
+          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
     return Scaffold(
       appBar: AppBar(
@@ -255,9 +243,7 @@ class _MachineDetailScreenState
                   label: context.l10n.machineStatus,
                   value: isOnline ? 'Running' : 'Stopped',
                   trailing: AppStatusDot(
-                    color: isOnline
-                        ? AppColors.success
-                        : cs.onSurfaceVariant,
+                    color: isOnline ? AppColors.success : cs.onSurfaceVariant,
                     size: 8,
                     pulse: isOnline,
                   ),
@@ -279,29 +265,22 @@ class _MachineDetailScreenState
             // ── Sessions ──
             if (machineSessions.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xxl),
-              AppSectionHeader(
-                title: 'Sessions (${machineSessions.length})',
-              ),
+              AppSectionHeader(title: 'Sessions (${machineSessions.length})'),
               const SizedBox(height: AppSpacing.xs),
               _GroupedList(
                 children: [
-                  for (int i = 0;
-                      i < machineSessions.length && i < 5;
-                      i++)
+                  for (int i = 0; i < machineSessions.length && i < 5; i++)
                     _SessionRow(
                       name: _getSessionName(machineSessions[i]),
                       subtitle: _getSessionSubtitle(machineSessions[i]),
-                      isOnline:
-                          machineSessions[i].isPresenceOnline,
-                      onTap: () => context.push(
-                        '/chat/${machineSessions[i].id}',
-                      ),
+                      isOnline: machineSessions[i].isPresenceOnline,
+                      onTap: () =>
+                          context.push('/chat/${machineSessions[i].id}'),
                     ),
                   if (machineSessions.length > 5)
                     _GroupedRow(
                       label: '',
-                      value:
-                          '+ ${machineSessions.length - 5} more',
+                      value: '+ ${machineSessions.length - 5} more',
                       valueColor: cs.onSurfaceVariant,
                     ),
                 ],
@@ -312,14 +291,9 @@ class _MachineDetailScreenState
             const SizedBox(height: AppSpacing.xxxl),
             Center(
               child: TextButton(
-                onPressed: () => _confirmDelete(
-                  context,
-                  widget.machineId,
-                  machineName,
-                ),
-                style: TextButton.styleFrom(
-                  foregroundColor: cs.error,
-                ),
+                onPressed: () =>
+                    _confirmDelete(context, widget.machineId, machineName),
+                style: TextButton.styleFrom(foregroundColor: cs.error),
                 child: Text(
                   'Remove Machine',
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -341,10 +315,7 @@ class _MachineDetailScreenState
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _StatusBanner extends StatelessWidget {
-  const _StatusBanner({
-    required this.isOnline,
-    required this.lastSeen,
-  });
+  const _StatusBanner({required this.isOnline, required this.lastSeen});
 
   final bool isOnline;
   final String lastSeen;
@@ -353,8 +324,7 @@ class _StatusBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final statusColor =
-        isOnline ? AppColors.success : cs.onSurfaceVariant;
+    final statusColor = isOnline ? AppColors.success : cs.onSurfaceVariant;
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -371,11 +341,7 @@ class _StatusBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          AppStatusDot(
-            color: statusColor,
-            size: 10,
-            pulse: isOnline,
-          ),
+          AppStatusDot(color: statusColor, size: 10, pulse: isOnline),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -469,8 +435,7 @@ class _GroupedRow extends StatelessWidget {
     final cs = theme.colorScheme;
 
     return ConstrainedBox(
-      constraints:
-          const BoxConstraints(minHeight: AppTouchTarget.min),
+      constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
@@ -488,8 +453,7 @@ class _GroupedRow extends StatelessWidget {
                   ),
                 ),
               ),
-            if (label.isNotEmpty)
-              const SizedBox(width: AppSpacing.md),
+            if (label.isNotEmpty) const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
                 value,
@@ -540,8 +504,7 @@ class _SessionRow extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.zero,
       child: ConstrainedBox(
-        constraints:
-            const BoxConstraints(minHeight: AppTouchTarget.min),
+        constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
@@ -566,8 +529,7 @@ class _SessionRow extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
                         subtitle,
-                        style:
-                            theme.textTheme.bodySmall?.copyWith(
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: cs.onSurfaceVariant,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -580,20 +542,14 @@ class _SessionRow extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               if (isOnline)
                 Padding(
-                  padding: const EdgeInsets.only(
-                    right: AppSpacing.xs,
-                  ),
+                  padding: const EdgeInsets.only(right: AppSpacing.xs),
                   child: AppStatusDot(
                     color: AppColors.success,
                     size: 7,
                     pulse: true,
                   ),
                 ),
-              Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: cs.onSurfaceVariant,
-              ),
+              Icon(Icons.chevron_right, size: 20, color: cs.onSurfaceVariant),
             ],
           ),
         ),

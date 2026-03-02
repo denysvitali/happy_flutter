@@ -14,8 +14,8 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/auth_service.dart';
-import '../../core/services/server_config.dart';
 import '../../core/services/logger_service.dart';
+import '../../core/services/server_config.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
@@ -60,11 +60,7 @@ class RoundButton extends StatelessWidget {
               : theme.colorScheme.onSurface,
           elevation: 0,
           shadowColor: Colors.transparent,
-          side: isPrimary
-              ? null
-              : BorderSide(
-                  color: theme.colorScheme.outline,
-                ),
+          side: isPrimary ? null : BorderSide(color: theme.colorScheme.outline),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
@@ -81,8 +77,7 @@ class RoundButton extends StatelessWidget {
                 title,
                 style: TextStyle(
                   fontSize: isPrimary ? 18 : 16,
-                  fontWeight:
-                      isPrimary ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: isPrimary ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
       ),
@@ -107,7 +102,6 @@ class QRCodeDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -147,12 +141,7 @@ class QRCodePainter extends CustomPainter {
       for (var col = 0; col < moduleCount; col++) {
         if (qrImage.isDark(row, col)) {
           canvas.drawRect(
-            Rect.fromLTWH(
-              col * cellSize,
-              row * cellSize,
-              cellSize,
-              cellSize,
-            ),
+            Rect.fromLTWH(col * cellSize, row * cellSize, cellSize, cellSize),
             paint,
           );
         }
@@ -172,11 +161,7 @@ class QRCodePainter extends CustomPainter {
 
 /// Authentication screen with landing page pattern
 class AuthScreen extends ConsumerStatefulWidget {
-  const AuthScreen({
-    super.key,
-    this.initialDeepLink,
-    this.showError = false,
-  });
+  const AuthScreen({super.key, this.initialDeepLink, this.showError = false});
 
   final String? initialDeepLink;
 
@@ -266,8 +251,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
       if (success) {
         setState(() {
-          _linkSuccessMessage =
-              context.l10n.authDeviceLinkedSuccess;
+          _linkSuccessMessage = context.l10n.authDeviceLinkedSuccess;
           _isProcessingLink = false;
         });
       } else {
@@ -278,9 +262,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       }
     } catch (e) {
       setState(() {
-        _error = context.l10n.authErrorLinkingDevice(
-          e.toString(),
-        );
+        _error = context.l10n.authErrorLinkingDevice(e.toString());
         _isProcessingLink = false;
       });
     }
@@ -308,9 +290,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       await AuthService().createAccount();
       logger.info('Account created successfully');
       if (mounted) {
-        unawaited(
-          ref.read(authStateNotifierProvider.notifier).checkAuth(),
-        );
+        unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
       }
     } catch (e) {
       logger.warning('Create account error: $e');
@@ -337,9 +317,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           await AuthService().restoreAccount(normalized);
           if (!mounted) return;
           Navigator.of(context).pop();
-          unawaited(
-            ref.read(authStateNotifierProvider.notifier).checkAuth(),
-          );
+          unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
         },
         formatError: (e) => _formatErrorMessage(e, context),
       ),
@@ -412,9 +390,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       await AuthService().waitForAuthApproval(publicKey);
       if (mounted) {
         setState(() => _isPolling = false);
-        unawaited(
-          ref.read(authStateNotifierProvider.notifier).checkAuth(),
-        );
+        unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
       }
     } catch (e) {
       if (mounted) {
@@ -430,8 +406,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     showGeneralDialog<void>(
       context: ctx,
       barrierDismissible: true,
-      barrierLabel:
-          MaterialLocalizations.of(ctx).modalBarrierDismissLabel,
+      barrierLabel: MaterialLocalizations.of(ctx).modalBarrierDismissLabel,
       barrierColor: Colors.black54,
       transitionDuration: AppDuration.slow,
       transitionBuilder: (ctx2, animation, secondaryAnimation, child) {
@@ -439,17 +414,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           position: Tween<Offset>(
             begin: const Offset(0, -0.3),
             end: Offset.zero,
-          ).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: AppCurve.enter,
-            ),
-          ),
+          ).animate(CurvedAnimation(parent: animation, curve: AppCurve.enter)),
           child: FadeTransition(
-            opacity: CurvedAnimation(
-              parent: animation,
-              curve: AppCurve.enter,
-            ),
+            opacity: CurvedAnimation(parent: animation, curve: AppCurve.enter),
             child: child,
           ),
         );
@@ -479,10 +446,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   // ── landing screen ────────────────────────────────────────────────────────
 
-  Widget _buildLandingScreen(
-    BuildContext context,
-    bool isLandscape,
-  ) {
+  Widget _buildLandingScreen(BuildContext context, bool isLandscape) {
     final theme = Theme.of(context);
     final padding = MediaQuery.of(context).padding;
 
@@ -862,9 +826,11 @@ class _LandingLogoMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final logoSize =
+        AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.xs;
     return Container(
-      width: AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.xs,
-      height: AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.xs,
+      width: logoSize,
+      height: logoSize,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
@@ -993,10 +959,7 @@ class _StatusBanner extends StatelessWidget {
               color: color,
               onPressed: onDismiss,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(
-                minWidth: 28,
-                minHeight: 28,
-              ),
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             ),
         ],
       ),
@@ -1070,7 +1033,8 @@ class _QRCodeSection extends StatelessWidget {
           ),
         if (isPolling && publicKey != null)
           QRCodeDisplay(
-            data: 'happy:///account?'
+            data:
+                'happy:///account?'
                 '${base64Url.encode(publicKey!).replaceAll('=', '')}',
             size: 250,
           )
@@ -1165,10 +1129,7 @@ class _PollingView extends StatelessWidget {
 
 /// Dialog for signing in with a backup / secret key.
 class _RestoreKeyDialog extends StatefulWidget {
-  const _RestoreKeyDialog({
-    required this.onRestore,
-    required this.formatError,
-  });
+  const _RestoreKeyDialog({required this.onRestore, required this.formatError});
 
   /// Called with the normalised key string; should throw on failure.
   final Future<void> Function(String normalized) onRestore;
@@ -1211,8 +1172,7 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
 
     final b64 = s.replaceAll('-', '+').replaceAll('_', '/');
     final rem = b64.length % 4;
-    final padded =
-        rem == 0 ? b64 : b64.padRight(b64.length + (4 - rem), '=');
+    final padded = rem == 0 ? b64 : b64.padRight(b64.length + (4 - rem), '=');
     try {
       final bytes = base64Decode(padded);
       if (bytes.length == 32) return BackupKeyUtils.encodeKey(bytes);
@@ -1226,9 +1186,7 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
     final input = _controller.text.trim();
     final l10n = context.l10n;
     if (input.isEmpty) {
-      setState(
-        () => _errorText = l10n.authPleaseEnterSecretKey,
-      );
+      setState(() => _errorText = l10n.authPleaseEnterSecretKey);
       return;
     }
     final normalized = _normalize(input);
@@ -1262,9 +1220,7 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            l10n.authSecretKeyInstruction,
-          ),
+          Text(l10n.authSecretKeyInstruction),
           const SizedBox(height: AppSpacing.md),
           TextField(
             controller: _controller,
@@ -1292,10 +1248,7 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
               ),
               focusedErrorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.pill),
-                borderSide: const BorderSide(
-                  color: Colors.red,
-                  width: 2,
-                ),
+                borderSide: const BorderSide(color: Colors.red, width: 2),
               ),
             ),
             maxLines: 2,
@@ -1313,8 +1266,7 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
           onPressed: _isSubmitting
               ? null
               : () async {
-                  final clip =
-                      await Clipboard.getData(Clipboard.kTextPlain);
+                  final clip = await Clipboard.getData(Clipboard.kTextPlain);
                   final text = clip?.text?.trim();
                   if (text == null || text.isEmpty) return;
                   _controller.text = text;
@@ -1323,9 +1275,7 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
           child: Text(l10n.authPaste),
         ),
         TextButton(
-          onPressed: _isSubmitting
-              ? null
-              : () => Navigator.pop(context),
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
           child: Text(l10n.commonCancel),
         ),
         FilledButton(
@@ -1347,10 +1297,7 @@ class _RestoreKeyDialogState extends State<_RestoreKeyDialog> {
 
 /// Dialog for configuring the server URL.
 class _ServerUrlDialog extends StatefulWidget {
-  const _ServerUrlDialog({
-    required this.initialUrl,
-    required this.defaultUrl,
-  });
+  const _ServerUrlDialog({required this.initialUrl, required this.defaultUrl});
 
   final String initialUrl;
   final String defaultUrl;
@@ -1498,16 +1445,13 @@ class _ServerUrlDialogState extends State<_ServerUrlDialog> {
                         prefixIcon: const Icon(Icons.link_outlined),
                         errorText: _errorText,
                         border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.pill),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.pill),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.pill),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
                           borderSide: BorderSide(
                             color: Theme.of(context).colorScheme.primary,
                             width: 2,
@@ -1552,10 +1496,9 @@ class _ServerUrlDialogState extends State<_ServerUrlDialog> {
               vertical: AppSpacing.md,
             ),
             decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest
-                  .withValues(alpha: 0.5),
+              color: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -1573,9 +1516,7 @@ class _ServerUrlDialogState extends State<_ServerUrlDialog> {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(
-                            l10n.settingsServerResetSuccess,
-                          ),
+                          content: Text(l10n.settingsServerResetSuccess),
                           duration: const Duration(seconds: 3),
                         ),
                       );
@@ -1680,14 +1621,10 @@ class _ErrorDetailBox extends StatelessWidget {
             children: [
               TextButton.icon(
                 onPressed: () {
-                  Clipboard.setData(
-                    ClipboardData(text: errorMessage),
-                  );
+                  Clipboard.setData(ClipboardData(text: errorMessage));
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        l10n.authErrorDetailsCopied,
-                      ),
+                      content: Text(l10n.authErrorDetailsCopied),
                       duration: const Duration(seconds: 2),
                     ),
                   );
@@ -1719,11 +1656,7 @@ class _ErrorDetailBox extends StatelessWidget {
 
 /// Authentication gate widget
 class AuthGate extends ConsumerWidget {
-  const AuthGate({
-    required this.child,
-    super.key,
-    this.initialDeepLink,
-  });
+  const AuthGate({required this.child, super.key, this.initialDeepLink});
 
   final Widget child;
   final String? initialDeepLink;
@@ -1732,8 +1665,7 @@ class AuthGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateNotifierProvider);
 
-    if (initialDeepLink != null &&
-        authState == AuthState.authenticated) {
+    if (initialDeepLink != null && authState == AuthState.authenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref
             .read(authStateNotifierProvider.notifier)
@@ -1743,13 +1675,12 @@ class AuthGate extends ConsumerWidget {
 
     return switch (authState) {
       AuthState.authenticated => child,
-      AuthState.unauthenticated =>
-        AuthScreen(initialDeepLink: initialDeepLink),
-      AuthState.authenticating => const Scaffold(
-          body: AppLoadingIndicator(),
-        ),
-      AuthState.error =>
-        AuthScreen(initialDeepLink: initialDeepLink, showError: true),
+      AuthState.unauthenticated => AuthScreen(initialDeepLink: initialDeepLink),
+      AuthState.authenticating => const Scaffold(body: AppLoadingIndicator()),
+      AuthState.error => AuthScreen(
+        initialDeepLink: initialDeepLink,
+        showError: true,
+      ),
     };
   }
 }

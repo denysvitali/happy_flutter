@@ -88,11 +88,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(ctx.l10n.friendsRemoveTitle),
-        content: Text(
-          ctx.l10n.friendsRemoveConfirm(
-            friend.name ?? friend.id,
-          ),
-        ),
+        content: Text(ctx.l10n.friendsRemoveConfirm(friend.name ?? friend.id)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -256,10 +252,10 @@ class _FriendsTab extends StatelessWidget {
 
 class _FriendTile extends StatelessWidget {
   const _FriendTile({
-    super.key,
     required this.friend,
     required this.isBusy,
     required this.onRemove,
+    super.key,
   });
 
   final UserProfile friend;
@@ -288,9 +284,7 @@ class _FriendTile extends StatelessWidget {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: Theme.of(context)
-                  .colorScheme
-                  .primaryContainer,
+              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
               backgroundImage: friend.avatarUrl != null
                   ? CachedNetworkImageProvider(
                       friend.avatarUrl!,
@@ -302,9 +296,7 @@ class _FriendTile extends StatelessWidget {
                   ? Text(
                       name.isNotEmpty ? name[0].toUpperCase() : '?',
                       style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onPrimaryContainer,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                         fontWeight: FontWeight.w600,
                       ),
                     )
@@ -317,8 +309,9 @@ class _FriendTile extends StatelessWidget {
                 children: [
                   Text(
                     name,
-                    style: Theme.of(context).textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -326,14 +319,9 @@ class _FriendTile extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xsm),
                     Text(
                       friend.bio!,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
-                          ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -423,11 +411,11 @@ class _RequestsTab extends StatelessWidget {
 
 class _RequestTile extends StatelessWidget {
   const _RequestTile({
-    super.key,
     required this.request,
     required this.isBusy,
     required this.onAccept,
     required this.onReject,
+    super.key,
   });
 
   final FriendRequest request;
@@ -457,9 +445,7 @@ class _RequestTile extends StatelessWidget {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: Theme.of(context)
-                  .colorScheme
-                  .primaryContainer,
+              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
               backgroundImage: request.fromUserAvatarUrl != null
                   ? CachedNetworkImageProvider(
                       request.fromUserAvatarUrl!,
@@ -473,9 +459,7 @@ class _RequestTile extends StatelessWidget {
                           ? request.fromUserName[0].toUpperCase()
                           : '?',
                       style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onPrimaryContainer,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                         fontWeight: FontWeight.w600,
                       ),
                     )
@@ -488,16 +472,15 @@ class _RequestTile extends StatelessWidget {
                 children: [
                   Text(
                     request.fromUserName,
-                    style: Theme.of(context).textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.xsm),
                   Text(
                     l10n.friendsWantsToConnect,
-                    style: Theme.of(context).textTheme.bodySmall
-                        ?.copyWith(
-                      color:
-                          Theme.of(context).colorScheme.onSurfaceVariant,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],

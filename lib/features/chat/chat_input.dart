@@ -732,8 +732,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
     _sendScaleController.dispose();
     _draftAutoSave.dispose();
     widget.controller.removeListener(_onTextChanged);
-    _focusNode.removeListener(_onFocusChanged);
-    _focusNode.dispose();
+    _focusNode
+      ..removeListener(_onFocusChanged)
+      ..dispose();
     super.dispose();
   }
 
@@ -858,10 +859,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   /// Handles key events from the TextField's own FocusNode.
   /// Returns [KeyEventResult.handled] when autocomplete consumes the
   /// event, so the TextField does not also act on it.
-  KeyEventResult _handleFocusKeyEvent(
-    FocusNode node,
-    KeyEvent event,
-  ) {
+  KeyEventResult _handleFocusKeyEvent(FocusNode node, KeyEvent event) {
     if (!_showAutocomplete) return KeyEventResult.ignored;
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
@@ -993,8 +991,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
                         ? _showModelPicker(context)
                         : null,
                     contextSize: widget.contextSize,
-                    showAbort: widget.isSessionOnline &&
-                        !widget.isPermissionPending,
+                    showAbort:
+                        widget.isSessionOnline && !widget.isPermissionPending,
                     isAborting: _isAborting,
                     onAbort: _onAbortTap,
                   ),
@@ -1070,34 +1068,34 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final hintColor = cs.onSurface.withValues(alpha: 0.3);
 
     return TextField(
-        controller: widget.controller,
-        focusNode: _focusNode,
-        enabled: !pending,
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: theme.textTheme.bodyMedium?.copyWith(color: hintColor),
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.sm + 2,
-            AppSpacing.sm,
-            AppSpacing.sm + 2,
-          ),
+      controller: widget.controller,
+      focusNode: _focusNode,
+      enabled: !pending,
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: theme.textTheme.bodyMedium?.copyWith(color: hintColor),
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        disabledBorder: InputBorder.none,
+        contentPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.sm + 2,
+          AppSpacing.sm,
+          AppSpacing.sm + 2,
         ),
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: pending ? cs.onSurface.withValues(alpha: 0.38) : null,
-        ),
-        maxLines: 4,
-        minLines: 1,
-        textInputAction: defaultTargetPlatform == TargetPlatform.android
-            ? TextInputAction.newline
-            : TextInputAction.send,
-        onSubmitted: defaultTargetPlatform == TargetPlatform.android
-            ? null
-            : (_) => widget.onSend(),
+      ),
+      style: theme.textTheme.bodyMedium?.copyWith(
+        color: pending ? cs.onSurface.withValues(alpha: 0.38) : null,
+      ),
+      maxLines: 4,
+      minLines: 1,
+      textInputAction: defaultTargetPlatform == TargetPlatform.android
+          ? TextInputAction.newline
+          : TextInputAction.send,
+      onSubmitted: defaultTargetPlatform == TargetPlatform.android
+          ? null
+          : (_) => widget.onSend(),
     );
   }
 

@@ -1,15 +1,14 @@
 import 'dart:async';
+
+import '../services/logger_service.dart' show logger;
 import 'api_client.dart';
 import 'base_api_exception.dart';
-import '../services/logger_service.dart' show logger;
 
 /// GitHub Integration API client
 /// Handles GitHub OAuth and profile operations
 /// Based on React Native's apiGithub.ts
 class GitHubApi {
-
-  GitHubApi({ApiClient? client})
-      : _client = client ?? ApiClient();
+  GitHubApi({ApiClient? client}) : _client = client ?? ApiClient();
   final ApiClient _client;
 
   /// Get GitHub OAuth parameters from the server
@@ -33,9 +32,7 @@ class GitHubApi {
     }
 
     try {
-      return GitHubOAuthParams.fromJson(
-        response.data as Map<String, dynamic>,
-      );
+      return GitHubOAuthParams.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
       throw GitHubApiException('Failed to parse OAuth params: $e');
     }
@@ -54,9 +51,7 @@ class GitHubApi {
     }
 
     try {
-      return AccountProfile.fromJson(
-        response.data as Map<String, dynamic>,
-      );
+      return AccountProfile.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
       throw GitHubApiException('Failed to parse account profile: $e');
     }
@@ -138,13 +133,10 @@ class GitHubApiException extends BaseApiException {
 
 /// GitHub OAuth parameters
 class GitHubOAuthParams {
-
   const GitHubOAuthParams({required this.url});
 
   factory GitHubOAuthParams.fromJson(Map<String, dynamic> json) {
-    return GitHubOAuthParams(
-      url: json['url'] as String,
-    );
+    return GitHubOAuthParams(url: json['url'] as String);
   }
   final String url;
 
@@ -158,7 +150,6 @@ class GitHubOAuthParams {
 
 /// Account profile information
 class AccountProfile {
-
   const AccountProfile({
     required this.id,
     required this.timestamp,
@@ -170,9 +161,7 @@ class AccountProfile {
       id: json['id'] as String,
       timestamp: json['timestamp'] as int,
       github: json['github'] != null
-          ? GitHubProfileInfo.fromJson(
-              json['github'] as Map<String, dynamic>,
-            )
+          ? GitHubProfileInfo.fromJson(json['github'] as Map<String, dynamic>)
           : null,
     );
   }
@@ -181,11 +170,7 @@ class AccountProfile {
   final GitHubProfileInfo? github;
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'timestamp': timestamp,
-      'github': github?.toJson(),
-    };
+    return {'id': id, 'timestamp': timestamp, 'github': github?.toJson()};
   }
 
   @override
@@ -195,7 +180,6 @@ class AccountProfile {
 
 /// GitHub profile information
 class GitHubProfileInfo {
-
   const GitHubProfileInfo({
     required this.id,
     required this.login,
@@ -230,6 +214,5 @@ class GitHubProfileInfo {
   }
 
   @override
-  String toString() =>
-      'GitHubProfileInfo(id: $id, login: $login, name: $name)';
+  String toString() => 'GitHubProfileInfo(id: $id, login: $login, name: $name)';
 }

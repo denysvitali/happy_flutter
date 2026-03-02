@@ -7,9 +7,9 @@ import 'command_item.dart';
 /// Modal overlay that displays the command palette with search and navigation.
 class CommandPaletteOverlay extends StatefulWidget {
   const CommandPaletteOverlay({
-    super.key,
     required this.commands,
     required this.onClose,
+    super.key,
   });
 
   /// List of available commands
@@ -19,10 +19,7 @@ class CommandPaletteOverlay extends StatefulWidget {
   final VoidCallback onClose;
 
   /// Shows the command palette as an overlay
-  static Future<void> show(
-    BuildContext context,
-    List<CommandItem> commands,
-  ) {
+  static Future<void> show(BuildContext context, List<CommandItem> commands) {
     return showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
@@ -82,7 +79,8 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
     } else {
       filtered = widget.commands.where((command) {
         final titleMatch = command.title.toLowerCase().contains(query);
-        final subtitleMatch = command.subtitle != null &&
+        final subtitleMatch =
+            command.subtitle != null &&
             command.subtitle!.toLowerCase().contains(query);
         return titleMatch || subtitleMatch;
       }).toList();
@@ -99,11 +97,13 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
     }
 
     _filteredCategories = grouped.entries
-        .map((entry) => CommandCategory(
-              id: entry.key.toLowerCase().replaceAll(' ', '-'),
-              title: entry.key,
-              commands: entry.value,
-            ))
+        .map(
+          (entry) => CommandCategory(
+            id: entry.key.toLowerCase().replaceAll(' ', '-'),
+            title: entry.key,
+            commands: entry.value,
+          ),
+        )
         .toList();
 
     // Reset selection if out of bounds
@@ -181,10 +181,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
         child: Material(
           color: Colors.transparent,
           child: Container(
-            constraints: const BoxConstraints(
-              maxWidth: 640,
-              maxHeight: 500,
-            ),
+            constraints: const BoxConstraints(maxWidth: 640, maxHeight: 500),
             margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
@@ -192,8 +189,8 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
               boxShadow: AppShadow.modal,
               border: Border.all(
                 color: isDark
-                    ? Colors.white.withOpacity(0.08)
-                    : Colors.black.withOpacity(0.08),
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.08),
               ),
             ),
             child: Column(
@@ -206,8 +203,8 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
                     border: Border(
                       bottom: BorderSide(
                         color: isDark
-                            ? Colors.white.withOpacity(0.08)
-                            : Colors.black.withOpacity(0.08),
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.08),
                       ),
                     ),
                   ),
@@ -251,8 +248,8 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
                         ),
                         decoration: BoxDecoration(
                           color: isDark
-                              ? Colors.white.withOpacity(0.08)
-                              : Colors.black.withOpacity(0.04),
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.black.withValues(alpha: 0.04),
                           borderRadius: BorderRadius.circular(AppRadius.xs),
                         ),
                         child: Text(
@@ -349,7 +346,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
               final command = entry.value;
 
               // Calculate global index
-              int globalIndex = 0;
+              var globalIndex = 0;
               for (var i = 0; i < categoryIndex; i++) {
                 globalIndex += _filteredCategories[i].commands.length;
               }
@@ -428,13 +425,13 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
           decoration: BoxDecoration(
             color: isSelected
                 ? (widget.isDark
-                    ? const Color(0xFF0A84FF).withOpacity(0.15)
-                    : const Color(0xFFF0F7FF))
+                      ? const Color(0xFF0A84FF).withValues(alpha: 0.15)
+                      : const Color(0xFFF0F7FF))
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadius.sm),
             border: Border.all(
               color: isSelected
-                  ? const Color(0xFF007AFF).withOpacity(0.2)
+                  ? const Color(0xFF007AFF).withValues(alpha: 0.2)
                   : Colors.transparent,
               width: 2,
             ),
@@ -449,8 +446,8 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
                   margin: const EdgeInsets.only(right: AppSpacing.md),
                   decoration: BoxDecoration(
                     color: widget.isDark
-                        ? Colors.white.withOpacity(0.04)
-                        : Colors.black.withOpacity(0.04),
+                        ? Colors.white.withValues(alpha: 0.04)
+                        : Colors.black.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Icon(
@@ -483,7 +480,9 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
                         widget.command.subtitle!,
                         style: TextStyle(
                           fontSize: 13,
-                          color: widget.isDark ? Colors.white54 : Colors.black54,
+                          color: widget.isDark
+                              ? Colors.white54
+                              : Colors.black54,
                           letterSpacing: -0.1,
                         ),
                       ),
@@ -501,8 +500,8 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
                   ),
                   decoration: BoxDecoration(
                     color: widget.isDark
-                        ? Colors.white.withOpacity(0.04)
-                        : Colors.black.withOpacity(0.04),
+                        ? Colors.white.withValues(alpha: 0.04)
+                        : Colors.black.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(AppRadius.xs),
                   ),
                   child: Text(

@@ -1,14 +1,16 @@
 import 'dart:async';
 import 'dart:ui';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../../core/api/api_client.dart';
-import '../../core/api/socket_io_client.dart';
 import '../../core/api/github_api.dart';
 import '../../core/api/services_api.dart';
+import '../../core/api/socket_io_client.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
@@ -29,9 +31,7 @@ class SettingsScreen extends ConsumerWidget {
     final themeMode = ref.watch(
       settingsNotifierProvider.select((s) => s.themeMode),
     );
-    final locale = ref.watch(
-      settingsNotifierProvider.select((s) => s.locale),
-    );
+    final locale = ref.watch(settingsNotifierProvider.select((s) => s.locale));
     final showFlavorIcons = ref.watch(
       settingsNotifierProvider.select((s) => s.showFlavorIcons),
     );
@@ -88,11 +88,7 @@ class SettingsScreen extends ConsumerWidget {
             ref: ref,
           ),
           const SizedBox(height: AppSpacing.lg),
-          _buildVoiceSection(
-            context,
-            ttsEnabled: ttsEnabled,
-            ref: ref,
-          ),
+          _buildVoiceSection(context, ttsEnabled: ttsEnabled, ref: ref),
           const SizedBox(height: AppSpacing.lg),
           _buildConnectedAccountsSection(context, ref, profile),
           const SizedBox(height: AppSpacing.lg),
@@ -456,9 +452,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsNavRow(
           icon: Icons.build,
           title: 'Developer Options',
-          subtitle: developerModeEnabled
-              ? 'Enabled'
-              : 'Tap 10 times to enable',
+          subtitle: developerModeEnabled ? 'Enabled' : 'Tap 10 times to enable',
           onTap: () => context.pushNamed('developer'),
         ),
       ],

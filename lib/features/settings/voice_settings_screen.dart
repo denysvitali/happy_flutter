@@ -13,7 +13,8 @@ class VoiceSettingsScreen extends ConsumerStatefulWidget {
   const VoiceSettingsScreen({super.key});
 
   @override
-  ConsumerState<VoiceSettingsScreen> createState() => _VoiceSettingsScreenState();
+  ConsumerState<VoiceSettingsScreen> createState() =>
+      _VoiceSettingsScreenState();
 }
 
 class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
@@ -40,15 +41,11 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final settings = ref.watch(settingsNotifierProvider);
-    final selectedLanguageCode =
-        settings.voiceAssistantLanguage ?? '';
-    final selectedLanguage =
-        findVoiceLanguageByCode(selectedLanguageCode);
+    final selectedLanguageCode = settings.voiceAssistantLanguage ?? '';
+    final selectedLanguage = findVoiceLanguageByCode(selectedLanguageCode);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.voiceTitle),
-      ),
+      appBar: AppBar(title: Text(l10n.voiceTitle)),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
@@ -57,9 +54,7 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
             child: SwitchListTile(
               secondary: const Icon(Icons.volume_up_outlined),
               title: const Text('Text-to-Speech'),
-              subtitle: const Text(
-                'Read assistant messages aloud',
-              ),
+              subtitle: const Text('Read assistant messages aloud'),
               value: settings.ttsEnabled,
               onChanged: (value) => ref
                   .read(settingsNotifierProvider.notifier)
@@ -72,18 +67,14 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
             child: ListTile(
               leading: const Icon(Icons.play_arrow),
               title: const Text('Test TTS'),
-              subtitle: const Text(
-                'Tap to hear a test phrase',
-              ),
+              subtitle: const Text('Tap to hear a test phrase'),
               onTap: () async {
                 final tts = TtsService();
                 await tts.init(
                   language: settings.voiceAssistantLanguage,
                   engine: settings.ttsEngine,
                 );
-                await tts.speak(
-                  'Hello! Text to speech is working.',
-                );
+                await tts.speak('Hello! Text to speech is working.');
               },
             ),
           ),
@@ -95,9 +86,7 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
               child: Text(
                 'Select the TTS engine.',
                 style: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurfaceVariant,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -165,9 +154,7 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
             child: Text(
               'Select the language for voice output.',
               style: TextStyle(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -186,10 +173,7 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
           // Navigate to language selection
           Card(
             child: ListTile(
-              leading: const Icon(
-                Icons.language,
-                color: AppColors.iosBlue,
-              ),
+              leading: const Icon(Icons.language, color: AppColors.iosBlue),
               title: const Text('Voice Language'),
               subtitle: Text(selectedLanguage?.displayName ?? 'Auto-detect'),
               trailing: const Icon(Icons.chevron_right),
@@ -213,17 +197,12 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
       child: ListTile(
         leading: Icon(
           Icons.record_voice_over,
-          color: isSelected
-              ? Theme.of(context).colorScheme.primary
-              : null,
+          color: isSelected ? Theme.of(context).colorScheme.primary : null,
         ),
         title: Text(language.name),
         subtitle: Text(language.region ?? language.nativeName),
         trailing: isSelected
-            ? Icon(
-                Icons.check,
-                color: Theme.of(context).colorScheme.primary,
-              )
+            ? Icon(Icons.check, color: Theme.of(context).colorScheme.primary)
             : null,
         onTap: onTap,
       ),
@@ -344,10 +323,12 @@ class _VoiceLanguageSelectionScreenState
   }
 
   void _selectLanguage(VoiceLanguage language) {
-    ref.read(settingsNotifierProvider.notifier).updateSetting(
-      'voiceAssistantLanguage',
-      language.code.isEmpty ? null : language.code,
-    );
+    ref
+        .read(settingsNotifierProvider.notifier)
+        .updateSetting(
+          'voiceAssistantLanguage',
+          language.code.isEmpty ? null : language.code,
+        );
     Navigator.pop(context);
   }
 }

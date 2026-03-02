@@ -1,15 +1,14 @@
 import 'dart:async';
+
+import '../services/logger_service.dart' show logger;
 import 'api_client.dart';
 import 'base_api_exception.dart';
-import '../services/logger_service.dart' show logger;
 
 /// Push Notifications API client
 /// Handles push notification token registration
 /// Based on React Native's apiPush.ts
 class PushApi {
-
-  PushApi({ApiClient? client})
-      : _client = client ?? ApiClient();
+  PushApi({ApiClient? client}) : _client = client ?? ApiClient();
   final ApiClient _client;
 
   /// Register a push notification token with the server
@@ -45,9 +44,7 @@ class PushApi {
       throw const PushApiException('Push token cannot be empty');
     }
 
-    final response = await _client.delete(
-      '/v1/push-tokens/$token',
-    );
+    final response = await _client.delete('/v1/push-tokens/$token');
 
     if (response.statusCode != 200 && response.statusCode != 204) {
       throw PushApiException(

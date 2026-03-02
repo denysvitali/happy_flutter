@@ -2,10 +2,11 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../../core/components/app_status_dot.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
@@ -71,10 +72,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _loadSavedPermissionMode();
     _initializeSyncBackedChat();
     final settings = ref.read(settingsNotifierProvider);
-    unawaited(TtsService().init(
-      language: settings.voiceAssistantLanguage,
-      engine: settings.ttsEngine,
-    ));
+    unawaited(
+      TtsService().init(
+        language: settings.voiceAssistantLanguage,
+        engine: settings.ttsEngine,
+      ),
+    );
   }
 
   Future<void> _loadSavedPermissionMode() async {
@@ -137,9 +140,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     sync.onSessionVisible(widget.sessionId);
     var success = true;
     try {
-      await sync.messagesSync[widget.sessionId]
-          ?.awaitQueue()
-          .timeout(const Duration(seconds: 5));
+      await sync.messagesSync[widget.sessionId]?.awaitQueue().timeout(
+        const Duration(seconds: 5),
+      );
     } catch (_) {
       success = false;
     }
@@ -231,8 +234,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (role == 'assistant' && kind != 'tool-call') {
         final ttsOn = ref.read(settingsNotifierProvider).ttsEnabled;
         if (ttsOn) {
-          final text = (last['content'] ?? last['text'] ?? '')
-              .toString();
+          final text = (last['content'] ?? last['text'] ?? '').toString();
           if (text.isNotEmpty) {
             unawaited(TtsService().speak(text));
           }
@@ -395,7 +397,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         final hasUnsentMessage = value.text.trim().isNotEmpty;
         return PopScope(
           canPop: !hasUnsentMessage,
-          onPopInvoked: (didPop) {
+          onPopInvokedWithResult: (didPop, _) {
             if (!didPop && hasUnsentMessage) {
               _showUnsentMessageDialog(context);
             }
@@ -438,55 +440,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           )
                         : _messages.isEmpty
                         ? (_loadFailed
-                            ? _buildRetryView()
-                            : const EmptyChatView(
-                                key: ValueKey('empty'),
-                              ))
+                              ? _buildRetryView()
+                              : const EmptyChatView(key: ValueKey('empty')))
                         : _buildMessageList(),
                   ),
                   // Scroll-to-bottom pill
                   IgnorePointer(
-                    ignoring:
-                        _autoScroll || _isLoadingMessages,
+                    ignoring: _autoScroll || _isLoadingMessages,
                     child: AnimatedOpacity(
-                      opacity:
-                          (!_autoScroll &&
-                                  !_isLoadingMessages)
-                              ? 1.0
-                              : 0.0,
-                      duration:
-                          const Duration(
-                            milliseconds: 200,
-                          ),
+                      opacity: (!_autoScroll && !_isLoadingMessages)
+                          ? 1.0
+                          : 0.0,
+                      duration: const Duration(milliseconds: 200),
                       curve: Curves.easeInOut,
                       child: AnimatedScale(
-                        scale:
-                            (!_autoScroll &&
-                                    !_isLoadingMessages)
-                                ? 1.0
-                                : 0.8,
-                        duration:
-                            const Duration(
-                              milliseconds: 200,
-                            ),
+                        scale: (!_autoScroll && !_isLoadingMessages)
+                            ? 1.0
+                            : 0.8,
+                        duration: const Duration(milliseconds: 200),
                         curve: Curves.easeInOut,
                         child: Align(
-                          alignment:
-                              Alignment.bottomCenter,
+                          alignment: Alignment.bottomCenter,
                           child: Padding(
                             padding: const EdgeInsets.only(
                               bottom: AppSpacing.md,
                             ),
-                            child:
-                                ScrollToBottomPill(
+                            child: ScrollToBottomPill(
                               onTap: () {
-                                HapticFeedback
-                                    .lightImpact();
-                                setState(
-                                  () =>
-                                      _autoScroll =
-                                          true,
-                                );
+                                HapticFeedback.lightImpact();
+                                setState(() => _autoScroll = true);
                                 _scrollToBottom();
                               },
                             ),
@@ -583,9 +565,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 Navigator.pop(context);
                 context.pushNamed(
                   'session-info',
-                  pathParameters: {
-                    'sessionId': widget.sessionId,
-                  },
+                  pathParameters: {'sessionId': widget.sessionId},
                 );
               },
             ),
@@ -616,16 +596,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Text(
             'Failed to load messages',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurfaceVariant,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          FilledButton.tonal(
-            onPressed: _retry,
-            child: const Text('Retry'),
-          ),
+          FilledButton.tonal(onPressed: _retry, child: const Text('Retry')),
         ],
       ),
     );
@@ -737,8 +712,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               messages: _messages,
               sessionId: widget.sessionId,
               onOptionPress: _onOptionPress,
-              animate: _initialLoadComplete &&
-                  !_seenMessageIds.contains(messageKey),
+              animate:
+                  _initialLoadComplete && !_seenMessageIds.contains(messageKey),
             ),
           ),
         );
@@ -818,13 +793,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       } catch (e) {
         if (mounted) {
           setState(() => _controller.text = text);
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                context.l10n.chatFailedToClear(e.toString()),
-              ),
+              content: Text(context.l10n.chatFailedToClear(e.toString())),
             ),
           );
         }
@@ -885,9 +856,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             style: TextButton.styleFrom(foregroundColor: cs.error),
             onPressed: () {
               _controller.clear();
-              unawaited(
-                DraftStorage().removeDraft(widget.sessionId),
-              );
+              unawaited(DraftStorage().removeDraft(widget.sessionId));
               Navigator.pop(context);
               Navigator.of(this.context).pop();
             },
@@ -925,11 +894,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 return;
               }
               ScaffoldMessenger.of(this.context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    failedL10n.chatFailedToDeleteSession,
-                  ),
-                ),
+                SnackBar(content: Text(failedL10n.chatFailedToDeleteSession)),
               );
             },
             child: Text(l10n.commonDelete),
@@ -952,6 +917,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.statusColor,
     required this.isThinking,
     required this.onMenuTap,
+    super.key,
   });
 
   final Session? session;
@@ -1074,7 +1040,7 @@ class _PathChip extends StatelessWidget {
 // ─── ScrollToBottomPill ──────────────────────────────────────────────────
 
 class ScrollToBottomPill extends StatelessWidget {
-  const ScrollToBottomPill({required this.onTap});
+  const ScrollToBottomPill({required this.onTap, super.key});
   final VoidCallback onTap;
 
   @override
@@ -1119,7 +1085,7 @@ class ScrollToBottomPill extends StatelessWidget {
 // ─── PermissionRequiredBanner ────────────────────────────────────────────
 
 class PermissionRequiredBanner extends StatelessWidget {
-  const PermissionRequiredBanner({required this.onTap});
+  const PermissionRequiredBanner({required this.onTap, super.key});
   final VoidCallback onTap;
 
   @override
@@ -1219,7 +1185,6 @@ class EmptyChatView extends StatelessWidget {
     );
   }
 }
-
 
 // ─── _SessionHeaderChip ───────────────────────────────────────────────────
 

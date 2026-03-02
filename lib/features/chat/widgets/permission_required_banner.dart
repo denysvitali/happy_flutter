@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/i18n/app_localizations.dart';
 
 /// A banner shown when permission is required from the user
 class PermissionRequiredBanner extends StatelessWidget {

@@ -8,9 +8,10 @@ import 'command_item.dart';
 import 'command_palette_overlay.dart';
 
 /// Provider for command palette visibility state
-final commandPaletteVisibleProvider = NotifierProvider<CommandPaletteVisibleNotifier, bool>(
-  CommandPaletteVisibleNotifier.new,
-);
+final commandPaletteVisibleProvider =
+    NotifierProvider<CommandPaletteVisibleNotifier, bool>(
+      CommandPaletteVisibleNotifier.new,
+    );
 
 /// Notifier for command palette visibility
 class CommandPaletteVisibleNotifier extends Notifier<bool> {
@@ -168,19 +169,21 @@ class CommandPaletteController {
 
     for (var i = 0; i < recentCount; i++) {
       final session = recentSessions[i];
-      final sessionName = session.metadata?.name ??
-          'Session ${session.id.substring(0, 6)}';
+      final sessionName =
+          session.metadata?.name ?? 'Session ${session.id.substring(0, 6)}';
 
-      commands.add(CommandItem(
-        id: 'session-${session.id}',
-        title: sessionName,
-        subtitle: session.metadata?.path ?? 'Switch to session',
-        icon: Icons.access_time,
-        category: 'Recent Sessions',
-        action: () {
-          router.go('/chat/${session.id}');
-        },
-      ));
+      commands.add(
+        CommandItem(
+          id: 'session-${session.id}',
+          title: sessionName,
+          subtitle: session.metadata?.path ?? 'Switch to session',
+          icon: Icons.access_time,
+          category: 'Recent Sessions',
+          action: () {
+            router.go('/chat/${session.id}');
+          },
+        ),
+      );
     }
 
     return commands;
@@ -194,10 +197,7 @@ final commandPaletteControllerProvider = Provider<CommandPaletteController>(
 
 /// Global keyboard shortcut handler for command palette
 class CommandPaletteKeyboardHandler extends ConsumerStatefulWidget {
-  const CommandPaletteKeyboardHandler({
-    required this.child,
-    super.key,
-  });
+  const CommandPaletteKeyboardHandler({required this.child, super.key});
 
   final Widget child;
 
@@ -225,8 +225,7 @@ class _CommandPaletteKeyboardHandlerState
 
     // Check for Ctrl+K or Cmd+K to open command palette
     if (isCommandPressed && event.logicalKey == LogicalKeyboardKey.keyK) {
-      final controller = ref.read(commandPaletteControllerProvider);
-      controller.show();
+      ref.read(commandPaletteControllerProvider).show();
       return KeyEventResult.handled;
     }
 

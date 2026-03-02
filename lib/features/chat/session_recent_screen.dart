@@ -38,9 +38,7 @@ class SessionRecentScreen extends ConsumerWidget {
           ? const _EmptyRecentView()
           : RefreshIndicator(
               onRefresh: () =>
-                  ref
-                      .read(sessionsNotifierProvider.notifier)
-                      .refreshFromSync(),
+                  ref.read(sessionsNotifierProvider.notifier).refreshFromSync(),
               child: _SessionRecentList(
                 sessionList: sessionList,
                 localizeDateGroup: localizeDateGroup,
@@ -91,8 +89,10 @@ class _SessionRecentList extends StatelessWidget {
       itemBuilder: (context, index) {
         final item = groupedItems[index];
         return switch (item) {
-          SessionHistoryDateHeader(:final date) =>
-            _DateHeader(key: ValueKey(date), date: date),
+          SessionHistoryDateHeader(:final date) => _DateHeader(
+            key: ValueKey(date),
+            date: date,
+          ),
           SessionHistorySession(:final session) => _buildSessionCard(
             context,
             session,
@@ -133,7 +133,7 @@ class _SessionRecentList extends StatelessWidget {
 }
 
 class _DateHeader extends StatelessWidget {
-  const _DateHeader({super.key, required this.date});
+  const _DateHeader({required this.date, super.key});
 
   final String date;
 
@@ -164,11 +164,7 @@ class _EmptyRecentView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.history,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.history, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             'No recent sessions',

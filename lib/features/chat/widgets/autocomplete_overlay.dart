@@ -4,11 +4,11 @@ import '../../../core/theme/app_tokens.dart';
 
 /// Represents a single autocomplete suggestion
 class AutocompleteSuggestion {
-
   AutocompleteSuggestion({
     required this.id,
     required this.label,
-    required this.type, this.description,
+    required this.type,
+    this.description,
     this.icon,
   });
   final String id;
@@ -23,9 +23,10 @@ enum SuggestionType { file, folder, command }
 
 /// Autocomplete overlay widget for @file mentions and /commands
 class AutocompleteOverlay extends StatefulWidget {
-
   const AutocompleteOverlay({
-    required this.suggestions, required this.onSelect, super.key,
+    required this.suggestions,
+    required this.onSelect,
+    super.key,
     this.selectedIndex = -1,
     this.itemHeight = 48,
     this.maxHeight = 240,
@@ -119,7 +120,6 @@ class _AutocompleteOverlayState extends State<AutocompleteOverlay> {
 }
 
 class _SuggestionItem extends StatelessWidget {
-
   const _SuggestionItem({
     required this.suggestion,
     required this.isSelected,
@@ -141,7 +141,10 @@ class _SuggestionItem extends StatelessWidget {
         onTap: onTap,
         child: Container(
           height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
           child: Row(
             children: [
               // Icon
@@ -220,7 +223,10 @@ class _SuggestionItem extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xsm, vertical: AppSpacing.xxs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xsm,
+        vertical: AppSpacing.xxs,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.xs),

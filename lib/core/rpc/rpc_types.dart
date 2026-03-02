@@ -3,21 +3,13 @@
 /// Field names use camelCase to match the `protojson` wire format produced by
 /// the Go CLI's `MakeTypedHandler` (which serialises proto messages via
 /// `protojson.MarshalOptions{UseProtoNames: false}`).
+library;
 
 // ---------------------------------------------------------------------------
 // spawn-happy-session
 // ---------------------------------------------------------------------------
 
 class SpawnSessionRequest {
-  final String type;
-  final String directory;
-  final String? sessionId;
-  final String? agent;
-  final bool approvedNewDirectoryCreation;
-  final Map<String, String>? environmentVariables;
-  final String? startupBashScript;
-  final String? permissionMode;
-
   const SpawnSessionRequest({
     required this.type,
     required this.directory,
@@ -28,6 +20,14 @@ class SpawnSessionRequest {
     this.startupBashScript,
     this.permissionMode,
   });
+  final String type;
+  final String directory;
+  final String? sessionId;
+  final String? agent;
+  final bool approvedNewDirectoryCreation;
+  final Map<String, String>? environmentVariables;
+  final String? startupBashScript;
+  final String? permissionMode;
 
   Map<String, dynamic> toJson() => {
     'type': type,
@@ -44,12 +44,6 @@ class SpawnSessionRequest {
 }
 
 class SpawnSessionResponse {
-  final String? type;
-  final String? sessionId;
-  final String? errorMessage;
-  final String? directory;
-  final String? dataEncryptionKey;
-
   const SpawnSessionResponse({
     this.type,
     this.sessionId,
@@ -68,6 +62,11 @@ class SpawnSessionResponse {
     dataEncryptionKey:
         (json['dataEncryptionKey'] ?? json['data_encryption_key']) as String?,
   );
+  final String? type;
+  final String? sessionId;
+  final String? errorMessage;
+  final String? directory;
+  final String? dataEncryptionKey;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,21 +74,14 @@ class SpawnSessionResponse {
 // ---------------------------------------------------------------------------
 
 class BashRequest {
+  const BashRequest({required this.command, required this.cwd});
   final String command;
   final String cwd;
-
-  const BashRequest({required this.command, required this.cwd});
 
   Map<String, dynamic> toJson() => {'command': command, 'cwd': cwd};
 }
 
 class BashResponse {
-  final bool success;
-  final String stdout;
-  final String stderr;
-  final int exitCode;
-  final String? error;
-
   const BashResponse({
     required this.success,
     this.stdout = '',
@@ -105,6 +97,11 @@ class BashResponse {
     exitCode: json['exitCode'] as int? ?? -1,
     error: json['error'] as String?,
   );
+  final bool success;
+  final String stdout;
+  final String stderr;
+  final int exitCode;
+  final String? error;
 }
 
 // ---------------------------------------------------------------------------
@@ -112,12 +109,6 @@ class BashResponse {
 // ---------------------------------------------------------------------------
 
 class PermissionRequest {
-  final String id;
-  final bool approved;
-  final String? mode;
-  final List<String>? allowTools;
-  final String? decision;
-
   const PermissionRequest({
     required this.id,
     required this.approved,
@@ -125,6 +116,11 @@ class PermissionRequest {
     this.allowTools,
     this.decision,
   });
+  final String id;
+  final bool approved;
+  final String? mode;
+  final List<String>? allowTools;
+  final String? decision;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -136,9 +132,6 @@ class PermissionRequest {
 }
 
 class PermissionResponse {
-  final bool success;
-  final String? error;
-
   const PermissionResponse({required this.success, this.error});
 
   factory PermissionResponse.fromJson(Map<String, dynamic> json) =>
@@ -146,6 +139,8 @@ class PermissionResponse {
         success: json['success'] as bool? ?? false,
         error: json['error'] as String?,
       );
+  final bool success;
+  final String? error;
 }
 
 // ---------------------------------------------------------------------------
@@ -153,9 +148,6 @@ class PermissionResponse {
 // ---------------------------------------------------------------------------
 
 class KillSessionResponse {
-  final bool success;
-  final String? message;
-
   const KillSessionResponse({required this.success, this.message});
 
   factory KillSessionResponse.fromJson(Map<String, dynamic> json) =>
@@ -163,6 +155,8 @@ class KillSessionResponse {
         success: json['success'] as bool? ?? false,
         message: json['message'] as String?,
       );
+  final bool success;
+  final String? message;
 }
 
 // ---------------------------------------------------------------------------
@@ -170,13 +164,12 @@ class KillSessionResponse {
 // ---------------------------------------------------------------------------
 
 class AbortResponse {
-  final bool success;
-  final String? message;
-
   const AbortResponse({required this.success, this.message});
 
   factory AbortResponse.fromJson(Map<String, dynamic> json) => AbortResponse(
     success: json['success'] as bool? ?? false,
     message: json['message'] as String?,
   );
+  final bool success;
+  final String? message;
 }

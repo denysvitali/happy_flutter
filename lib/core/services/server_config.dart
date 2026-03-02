@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
-import 'mmkv_storage.dart';
+
 import 'logger_service.dart' show logger;
+import 'mmkv_storage.dart';
 
 const String defaultServerUrl = 'https://api.cluster-fluster.com';
 const String _defaultServerUrl = defaultServerUrl;
@@ -51,7 +52,6 @@ String? getLastServerUrlError() {
 
 /// Server URL verification result with diagnostic details
 class ServerUrlVerificationResult {
-
   const ServerUrlVerificationResult({
     required this.isValid,
     this.errorMessage,
@@ -60,7 +60,7 @@ class ServerUrlVerificationResult {
 
   /// Create a successful result
   const ServerUrlVerificationResult.success()
-      : this(isValid: true, errorMessage: null, errorType: null);
+    : this(isValid: true, errorMessage: null, errorType: null);
 
   /// Create a failed result with details
   factory ServerUrlVerificationResult.failed(String message, [String? type]) {
@@ -77,7 +77,6 @@ class ServerUrlVerificationResult {
 
 /// Server URL validation result
 class ServerUrlValidation {
-
   const ServerUrlValidation({required this.valid, this.error});
   final bool valid;
   final String? error;
@@ -104,16 +103,14 @@ ServerUrlValidation validateServerUrl(String url) {
     if (uri.host.isEmpty) {
       return const ServerUrlValidation(
         valid: false,
-        error: 'Server URL must include a hostname'
+        error:
+            'Server URL must include a hostname'
             ' (e.g. https://example.com)',
       );
     }
     return const ServerUrlValidation(valid: true);
   } catch (e) {
-    return ServerUrlValidation(
-      valid: false,
-      error: 'Invalid URL format: $e',
-    );
+    return ServerUrlValidation(valid: false, error: 'Invalid URL format: $e');
   }
 }
 
@@ -169,8 +166,10 @@ Future<ServerUrlVerificationResult> verifyServerUrl(String url) async {
       errorType = 'Timeout';
     } else if (e.type == DioExceptionType.connectionError) {
       final errorStr = e.error.toString().toLowerCase();
-      if (errorStr.contains('tls') || errorStr.contains('ssl') ||
-          errorStr.contains('handshake') || errorStr.contains('certificate')) {
+      if (errorStr.contains('tls') ||
+          errorStr.contains('ssl') ||
+          errorStr.contains('handshake') ||
+          errorStr.contains('certificate')) {
         errorType = 'SSL/TLS';
       } else if (errorStr.contains('connection refused')) {
         errorType = 'Connection Refused';

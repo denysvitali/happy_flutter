@@ -61,9 +61,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(successMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(successMessage)));
     } catch (error) {
       if (!mounted) {
         return;
@@ -85,9 +85,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     final friends = friendsState.friendList;
     final incoming = friendsState.incomingRequests;
     final requested = friendsState.friends
-        .where(
-          (friend) => friend.status == RelationshipStatus.requested,
-        )
+        .where((friend) => friend.status == RelationshipStatus.requested)
         .toList(growable: false);
 
     final isEmpty =
@@ -131,7 +129,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     );
   }
 
-  /// Builds a unified list of widgets representing all inbox sections and items.
+  /// Builds a unified list of widgets representing all inbox sections
+  /// and items.
   ///
   /// This enables lazy loading via ListView.builder instead of building all
   /// items at once with Column+map, which was O(N) and slow for large
@@ -146,119 +145,117 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
     // Feed section
     if (feedItems.isNotEmpty) {
-      items.add(const SizedBox(height: AppSpacing.md));
-      items.add(
-        _SectionHeader(
-          key: const ValueKey('feed_header'),
-          title: 'Updates',
-        ),
-      );
-      items.addAll(
-        feedItems.map(
-          (item) => _FeedCard(
-            key: ValueKey('feed_${item.id}'),
-            item: item,
-            l10n: context.l10n,
-            onTap: () {
-              ref.read(feedNotifierProvider.notifier).markAsRead(item.id);
-              final sid = item.sessionId;
-              if (sid != null) {
-                context.pushNamed(
-                  'chat',
-                  pathParameters: {'sessionId': sid},
-                );
-              }
-            },
+      items
+        ..add(const SizedBox(height: AppSpacing.md))
+        ..add(
+          _SectionHeader(key: const ValueKey('feed_header'), title: 'Updates'),
+        )
+        ..addAll(
+          feedItems.map(
+            (item) => _FeedCard(
+              key: ValueKey('feed_${item.id}'),
+              item: item,
+              l10n: context.l10n,
+              onTap: () {
+                ref.read(feedNotifierProvider.notifier).markAsRead(item.id);
+                final sid = item.sessionId;
+                if (sid != null) {
+                  context.pushNamed('chat', pathParameters: {'sessionId': sid});
+                }
+              },
+            ),
           ),
-        ),
-      );
+        );
     }
 
     // Incoming requests section
     if (incoming.isNotEmpty) {
-      items.add(const SizedBox(height: AppSpacing.md));
-      items.add(
-        _SectionHeader(
-          key: const ValueKey('incoming_header'),
-          title: 'Pending Requests',
-        ),
-      );
-      items.addAll(
-        incoming.map(
-          (request) => _FriendRequestCard(
-            key: ValueKey('incoming_${request.fromUserId}'),
-            request: request,
-            disabled: _isBusy,
-            onAccept: () => _runFriendAction(
-              () => _socialService.addFriend(request.fromUserId),
-              context.l10n.friendsRequestAccepted,
-            ),
-            onReject: () => _runFriendAction(
-              () => _socialService.removeFriend(request.fromUserId),
-              context.l10n.friendsRequestRejected,
+      items
+        ..add(const SizedBox(height: AppSpacing.md))
+        ..add(
+          _SectionHeader(
+            key: const ValueKey('incoming_header'),
+            title: 'Pending Requests',
+          ),
+        )
+        ..addAll(
+          incoming.map(
+            (request) => _FriendRequestCard(
+              key: ValueKey('incoming_${request.fromUserId}'),
+              request: request,
+              disabled: _isBusy,
+              onAccept: () => _runFriendAction(
+                () => _socialService.addFriend(request.fromUserId),
+                context.l10n.friendsRequestAccepted,
+              ),
+              onReject: () => _runFriendAction(
+                () => _socialService.removeFriend(request.fromUserId),
+                context.l10n.friendsRequestRejected,
+              ),
             ),
           ),
-        ),
-      );
+        );
     }
 
     // Sent requests section
     if (requested.isNotEmpty) {
-      items.add(const SizedBox(height: AppSpacing.md));
-      items.add(
-        _SectionHeader(
-          key: const ValueKey('requested_header'),
-          title: 'Sent Requests',
-        ),
-      );
-      items.addAll(
-        requested.map(
-          (friend) => _UserRow(
-            key: ValueKey('requested_${friend.id}'),
-            title: friend.name ?? friend.id,
-            subtitle: 'Request pending',
-            userId: friend.id,
-            avatarUrl: friend.avatarUrl,
-            trailing: TextButton(
-              onPressed: _isBusy
-                  ? null
-                  : () => _runFriendAction(
+      items
+        ..add(const SizedBox(height: AppSpacing.md))
+        ..add(
+          _SectionHeader(
+            key: const ValueKey('requested_header'),
+            title: 'Sent Requests',
+          ),
+        )
+        ..addAll(
+          requested.map(
+            (friend) => _UserRow(
+              key: ValueKey('requested_${friend.id}'),
+              title: friend.name ?? friend.id,
+              subtitle: 'Request pending',
+              userId: friend.id,
+              avatarUrl: friend.avatarUrl,
+              trailing: TextButton(
+                onPressed: _isBusy
+                    ? null
+                    : () => _runFriendAction(
                         () => _socialService.removeFriend(friend.id),
                         'Request canceled',
                       ),
-              child: Text(context.l10n.commonCancel),
+                child: Text(context.l10n.commonCancel),
+              ),
             ),
           ),
-        ),
-      );
+        );
     }
 
     // Friends section
     if (friends.isNotEmpty) {
-      items.add(const SizedBox(height: AppSpacing.md));
-      items.add(
-        _SectionHeader(
-          key: const ValueKey('friends_header'),
-          title: 'My Friends',
-        ),
-      );
-      items.addAll(
-        friends.map(
-          (friend) => _UserRow(
-            key: ValueKey('friend_${friend.id}'),
-            title: friend.name ?? friend.id,
-            subtitle: 'Friend',
-            userId: friend.id,
-            avatarUrl: friend.avatarUrl,
-            trailing: TextButton(
-              onPressed: _isBusy
-                  ? null
-                  : () => _showRemoveFriendDialog(friend),
-              child: Text(context.l10n.friendsRemoveAction),
+      items
+        ..add(const SizedBox(height: AppSpacing.md))
+        ..add(
+          _SectionHeader(
+            key: const ValueKey('friends_header'),
+            title: 'My Friends',
+          ),
+        )
+        ..addAll(
+          friends.map(
+            (friend) => _UserRow(
+              key: ValueKey('friend_${friend.id}'),
+              title: friend.name ?? friend.id,
+              subtitle: 'Friend',
+              userId: friend.id,
+              avatarUrl: friend.avatarUrl,
+              trailing: TextButton(
+                onPressed: _isBusy
+                    ? null
+                    : () => _showRemoveFriendDialog(friend),
+                child: Text(context.l10n.friendsRemoveAction),
+              ),
             ),
           ),
-        ),
-      );
+        );
     }
 
     return items;
@@ -270,9 +267,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(l10n.friendsRemoveTitle),
-        content: Text(
-          'Remove ${friend.name ?? friend.id} from your friends?',
-        ),
+        content: Text('Remove ${friend.name ?? friend.id} from your friends?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -335,10 +330,7 @@ class _InboxHeader extends StatelessWidget {
 // ── Empty state ────────────────────────────────────────────────────────────
 
 class _InboxEmptyView extends StatelessWidget {
-  const _InboxEmptyView({
-    required this.onFindFriends,
-    required this.onRefresh,
-  });
+  const _InboxEmptyView({required this.onFindFriends, required this.onRefresh});
 
   final VoidCallback onFindFriends;
   final Future<void> Function() onRefresh;
@@ -377,7 +369,7 @@ class _InboxEmptyView extends StatelessWidget {
 
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required Key key, required this.title})
-      : super(key: key);
+    : super(key: key);
 
   final String title;
 
@@ -460,9 +452,7 @@ class _FeedCard extends StatelessWidget {
                   Text(
                     _bodyTitle(item.body),
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: isUnread
-                          ? FontWeight.w600
-                          : FontWeight.w500,
+                      fontWeight: isUnread ? FontWeight.w600 : FontWeight.w500,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -491,9 +481,7 @@ class _FeedCard extends StatelessWidget {
                   style: theme.textTheme.labelSmall?.copyWith(
                     fontSize: 12,
                     color: isUnread ? cs.primary : cs.onSurfaceVariant,
-                    fontWeight: isUnread
-                        ? FontWeight.w600
-                        : FontWeight.w400,
+                    fontWeight: isUnread ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
                 if (isUnread) ...[
@@ -585,11 +573,7 @@ class _InboxItem extends StatelessWidget {
         child: Row(
           children: [
             // 40 px avatar
-            Avatar(
-              id: userId,
-              size: 40,
-              imageUrl: avatarUrl,
-            ),
+            Avatar(id: userId, size: 40, imageUrl: avatarUrl),
             const SizedBox(width: AppSpacing.md),
             // Name + subtitle
             Expanded(

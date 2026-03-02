@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
-import '../services/logger_service.dart' show logger;
 import 'package:sodium/sodium.dart';
 
+import '../services/logger_service.dart' show logger;
 import 'sodium_loader.dart';
 
 /// Constants for encryption (libsodium compatible)
@@ -79,17 +79,18 @@ class CryptoBox {
       );
 
       // Bundle: ephemeral public key (32 bytes) + nonce (24 bytes) + ciphertext
-      final result = Uint8List(
-        CryptoBoxConstants.publicKeyBytes +
-            CryptoBoxConstants.nonceBytes +
-            encrypted.length,
-      )
-        ..setAll(0, ephemeralKeyPair.publicKey)
-        ..setAll(CryptoBoxConstants.publicKeyBytes, nonce)
-        ..setAll(
-          CryptoBoxConstants.publicKeyBytes + CryptoBoxConstants.nonceBytes,
-          encrypted,
-        );
+      final result =
+          Uint8List(
+              CryptoBoxConstants.publicKeyBytes +
+                  CryptoBoxConstants.nonceBytes +
+                  encrypted.length,
+            )
+            ..setAll(0, ephemeralKeyPair.publicKey)
+            ..setAll(CryptoBoxConstants.publicKeyBytes, nonce)
+            ..setAll(
+              CryptoBoxConstants.publicKeyBytes + CryptoBoxConstants.nonceBytes,
+              encrypted,
+            );
 
       return result;
     } finally {
@@ -138,7 +139,6 @@ class CryptoBox {
 
 /// KeyPair for box encryption
 class KeyPair {
-
   KeyPair({
     required this.privateKey,
     required this.publicKey,

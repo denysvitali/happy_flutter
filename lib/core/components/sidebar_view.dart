@@ -22,12 +22,8 @@ import 'voice_assistant_status_bar.dart';
 /// - Voice assistant status bar (conditionally shown)
 /// - Content area for session list
 class SidebarView extends ConsumerStatefulWidget {
+  const SidebarView({super.key, this.onNewSession, this.content});
 
-  const SidebarView({
-    super.key,
-    this.onNewSession,
-    this.content,
-  });
   /// Callback when new session is requested
   final VoidCallback? onNewSession;
 
@@ -49,12 +45,13 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
 
     // Calculate sidebar width - same formula as SidebarNavigator.tsx
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final sidebarWidth =
-        _calculateSidebarWidth(screenWidth, settings.experiments);
+    final sidebarWidth = _calculateSidebarWidth(
+      screenWidth,
+      settings.experiments,
+    );
 
     // Determine title positioning
-    final shouldLeftJustify =
-        settings.experiments || sidebarWidth < 340;
+    final shouldLeftJustify = settings.experiments || sidebarWidth < 340;
 
     // Connection status info
     final cs = Theme.of(context).colorScheme;
@@ -64,10 +61,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
       width: sidebarWidth,
       decoration: BoxDecoration(
         border: Border(
-          right: BorderSide(
-            color: Theme.of(context).dividerColor,
-            width: 1,
-          ),
+          right: BorderSide(color: Theme.of(context).dividerColor, width: 1),
         ),
         color: Theme.of(context).scaffoldBackgroundColor,
       ),
@@ -90,9 +84,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
             VoiceAssistantStatusBar(variant: 'sidebar'),
 
           // Content area for session list
-          Expanded(
-            child: widget.content ?? const _DefaultSessionContent(),
-          ),
+          Expanded(child: widget.content ?? const _DefaultSessionContent()),
         ],
       ),
     );
@@ -153,8 +145,8 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
     bool inboxHasContent,
   ) {
     final theme = Theme.of(context);
-    final headerTintColor = theme.appBarTheme.titleTextStyle?.color ??
-        theme.colorScheme.onSurface;
+    final headerTintColor =
+        theme.appBarTheme.titleTextStyle?.color ?? theme.colorScheme.onSurface;
 
     return SizedBox(
       height: kToolbarHeight + MediaQuery.paddingOf(context).top,
@@ -250,7 +242,8 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                 _buildNavIcon(
                   context,
                   icon: Icons.add,
-                  onTap: widget.onNewSession ??
+                  onTap:
+                      widget.onNewSession ??
                       () => _showNewSessionDialog(context),
                   tintColor: headerTintColor,
                   size: 28,
@@ -312,11 +305,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xs + AppSpacing.xs),
-        child: Icon(
-          icon,
-          size: size,
-          color: tintColor,
-        ),
+        child: Icon(icon, size: size, color: tintColor),
       ),
     );
   }
@@ -417,18 +406,11 @@ class _DefaultSessionContent extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.computer_outlined,
-              size: 48,
-              color: cs.onSurfaceVariant,
-            ),
+            Icon(Icons.computer_outlined, size: 48, color: cs.onSurfaceVariant),
             const SizedBox(height: AppSpacing.lg),
             Text(
               l10n.sessionNoSessionsYet,
-              style: TextStyle(
-                fontSize: 14,
-                color: cs.onSurfaceVariant,
-              ),
+              style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
             ),
           ],
         ),
@@ -454,8 +436,11 @@ class _DefaultSessionContent extends ConsumerWidget {
 }
 
 class _SessionListItem extends StatelessWidget {
-
-  const _SessionListItem({required this.session, required this.lastMessageTimestamp, super.key});
+  const _SessionListItem({
+    required this.session,
+    required this.lastMessageTimestamp,
+    super.key,
+  });
   final Session session;
   final int? lastMessageTimestamp;
 
@@ -519,10 +504,7 @@ class _SessionListItem extends StatelessWidget {
               // Timestamp
               Text(
                 _formatTimestamp(lastMessageTimestamp ?? session.updatedAt),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: cs.onSurfaceVariant,
-                ),
+                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
               ),
             ],
           ),
@@ -551,7 +533,6 @@ class _SessionListItem extends StatelessWidget {
 }
 
 class _ConnectionInfo {
-
   _ConnectionInfo({
     required this.color,
     required this.isPulsing,

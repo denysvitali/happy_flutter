@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 
-import 'logger_service.dart' show logger;
 import '../../platform_io.dart'
     if (dart.library.js_interop) '../../platform_stub.dart';
+import 'logger_service.dart' show logger;
 
 /// Certificate provider for user-added CA certificates on Android
 /// This allows the app to trust certificates installed in the

@@ -27,12 +27,12 @@ import 'features/artifacts/new_artifact_screen.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/chat/agent_conversation_screen.dart';
 import 'features/chat/chat_screen.dart';
-import 'features/command_palette/command_palette.dart';
 import 'features/chat/message_detail_screen.dart';
 import 'features/chat/session_file_viewer_screen.dart';
 import 'features/chat/session_files_screen.dart';
 import 'features/chat/session_info_screen.dart';
 import 'features/chat/session_recent_screen.dart';
+import 'features/command_palette/command_palette.dart';
 import 'features/dev/dev_logs_screen.dart';
 import 'features/dev/network_inspector_screen.dart';
 import 'features/inbox/friends_screen.dart';
@@ -223,9 +223,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
           name: 'sessions',
           builder: (context, state) {
             final tabParam = state.uri.queryParameters['tab'];
-            return AuthGate(
-              child: SessionsScreen(initialTab: tabParam),
-            );
+            return AuthGate(child: SessionsScreen(initialTab: tabParam));
           },
         ),
         GoRoute(
@@ -479,11 +477,9 @@ class _HappyAppState extends ConsumerState<HappyApp>
           path: '/zen/view',
           name: 'zen-view',
           builder: (context, state) {
-            final extra =
-                state.extra as Map<String, dynamic>?;
+            final extra = state.extra as Map<String, dynamic>?;
             final todoId = extra?['todoId'] as String? ?? '';
-            final sessionId =
-                extra?['sessionId'] as String? ?? 'global';
+            final sessionId = extra?['sessionId'] as String? ?? 'global';
             return AuthGate(
               child: ZenViewScreen(todoId: todoId, sessionId: sessionId),
             );
@@ -595,23 +591,24 @@ class _HappyAppState extends ConsumerState<HappyApp>
         return Directionality(
           textDirection: TextDirection.ltr,
           child: CommandPaletteKeyboardHandler(
-          child: Stack(
-            children: [
-              MaterialApp.router(
-                title: 'Happy',
-                debugShowCheckedModeBanner: false,
-                theme: ThemeHelper.buildLightTheme(),
-                darkTheme: ThemeHelper.buildDarkTheme(),
-                themeMode: _getThemeMode(themeMode),
-                locale: _resolveLocale(settings.preferredLanguage),
-                localizationsDelegates: AppLocalizations.localizationsDelegates,
-                supportedLocales: supportedLocales,
-                routerConfig: _router,
-              ),
-              // Command palette overlay
-              const CommandPaletteOverlayWrapper(),
-            ],
-          ),
+            child: Stack(
+              children: [
+                MaterialApp.router(
+                  title: 'Happy',
+                  debugShowCheckedModeBanner: false,
+                  theme: ThemeHelper.buildLightTheme(),
+                  darkTheme: ThemeHelper.buildDarkTheme(),
+                  themeMode: _getThemeMode(themeMode),
+                  locale: _resolveLocale(settings.preferredLanguage),
+                  localizationsDelegates:
+                      AppLocalizations.localizationsDelegates,
+                  supportedLocales: supportedLocales,
+                  routerConfig: _router,
+                ),
+                // Command palette overlay
+                const CommandPaletteOverlayWrapper(),
+              ],
+            ),
           ),
         );
       },

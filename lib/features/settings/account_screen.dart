@@ -1,19 +1,21 @@
 import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
 import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/services/logger_service.dart';
 import '../../core/utils/backup_key_utils.dart';
 import '../auth/auth_screen.dart' show QRCodeDisplay;
 
@@ -62,9 +64,7 @@ class AccountScreen extends ConsumerWidget {
                     maxHeight: (48 * 3).toInt(),
                   ),
                 )
-              : const CircleAvatar(
-                  child: Icon(Icons.person),
-                ),
+              : const CircleAvatar(child: Icon(Icons.person)),
           title: Text(profile?.displayName ?? 'Loading...'),
           subtitle: Text(profile?.github?.email ?? 'Not loaded'),
         ),
@@ -138,65 +138,62 @@ class AccountScreen extends ConsumerWidget {
     try {
       final key = await AuthService().generateBackupKey();
       if (!context.mounted) return;
-      unawaited(showDialog(
-        context: context,
-        builder: (context) {
-          final cs = Theme.of(context).colorScheme;
-          return AlertDialog(
-          title: const Text('Backup Key'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Save this key in a safe place. You can use it'
-                ' to restore your account.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  border: Border.all(color: cs.outlineVariant),
-                ),
-                child: SelectableText(
-                  key,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 16,
-                    letterSpacing: 1.0,
+      unawaited(
+        showDialog(
+          context: context,
+          builder: (context) {
+            final cs = Theme.of(context).colorScheme;
+            return AlertDialog(
+              title: const Text('Backup Key'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Save this key in a safe place. You can use it'
+                    ' to restore your account.',
+                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
                   ),
-                ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      border: Border.all(color: cs.outlineVariant),
+                    ),
+                    child: SelectableText(
+                      key,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 16,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-            ElevatedButton.icon(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: key));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Backup key copied')),
-                );
-              },
-              icon: const Icon(Icons.content_copy),
-              label: const Text('Copy'),
-            ),
-          ],
-        );
-        },
-      ));
-    } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: key));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Backup key copied')),
+                    );
+                  },
+                  icon: const Icon(Icons.content_copy),
+                  label: const Text('Copy'),
+                ),
+              ],
+            );
+          },
+        ),
       );
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -209,9 +206,7 @@ class AccountScreen extends ConsumerWidget {
         const SnackBar(content: Text('Backup key copied to clipboard')),
       );
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 }
@@ -257,7 +252,6 @@ class _ConnectedServicesLoaderState extends State<_ConnectedServicesLoader> {
 
 /// Service tile for connected services
 class ServiceTile extends StatelessWidget {
-
   const ServiceTile({required this.service, super.key});
   final ConnectedServiceInfo service;
 
@@ -417,10 +411,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          Icons.error_outline,
-                          color: cs.onErrorContainer,
-                        ),
+                        Icon(Icons.error_outline, color: cs.onErrorContainer),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(
@@ -452,8 +443,9 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
             SizedBox(
               height: 48,
               child: OutlinedButton(
-                onPressed:
-                    _isLoading ? null : () => _pasteFromClipboard(context),
+                onPressed: _isLoading
+                    ? null
+                    : () => _pasteFromClipboard(context),
                 child: const Text('Paste from Clipboard'),
               ),
             ),
@@ -555,9 +547,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
   @override
   void initState() {
     super.initState();
-    _scanController = MobileScannerController(
-      formats: [BarcodeFormat.qrCode],
-    );
+    _scanController = MobileScannerController(formats: [BarcodeFormat.qrCode]);
   }
 
   @override
@@ -734,8 +724,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                   ),
                 ],
                 selected: {_mode},
-                onSelectionChanged: (modes) =>
-                    _setMode(modes.first),
+                onSelectionChanged: (modes) => _setMode(modes.first),
               ),
               const SizedBox(height: AppSpacing.lg),
               if (_error != null)
@@ -745,9 +734,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                   decoration: BoxDecoration(
                     color: cs.errorContainer,
                     borderRadius: BorderRadius.circular(AppRadius.sm),
-                    border: Border.all(
-                      color: cs.error.withValues(alpha: 0.3),
-                    ),
+                    border: Border.all(color: cs.error.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
@@ -771,9 +758,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                     ],
                   ),
                 ),
-              Expanded(
-                child: _buildModeContent(cs, l10n),
-              ),
+              Expanded(child: _buildModeContent(cs, l10n)),
             ],
           ),
         ),
@@ -781,10 +766,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
     );
   }
 
-  Widget _buildModeContent(
-    ColorScheme cs,
-    AppLocalizations l10n,
-  ) {
+  Widget _buildModeContent(ColorScheme cs, AppLocalizations l10n) {
     return switch (_mode) {
       _LinkMode.scan => _buildScanContent(cs),
       _LinkMode.showQR => _buildShowQRContent(cs, l10n),
@@ -834,10 +816,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
     );
   }
 
-  Widget _buildShowQRContent(
-    ColorScheme cs,
-    AppLocalizations l10n,
-  ) {
+  Widget _buildShowQRContent(ColorScheme cs, AppLocalizations l10n) {
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -901,10 +880,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
     );
   }
 
-  Widget _buildEnterURLContent(
-    ColorScheme cs,
-    AppLocalizations l10n,
-  ) {
+  Widget _buildEnterURLContent(ColorScheme cs, AppLocalizations l10n) {
     return Column(
       children: [
         Text(
@@ -935,9 +911,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : Text(l10n.accountApproveLinking),
           ),
@@ -994,9 +968,7 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
         final cs = Theme.of(context).colorScheme;
         return AlertDialog(
           title: Text(l10nDialog.accountUnlinkDevice),
-          content: Text(
-            'Are you sure you want to unlink "${device.name}"?',
-          ),
+          content: Text('Are you sure you want to unlink "${device.name}"?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -1017,15 +989,12 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
 
     if (confirmed != true) return;
 
-    final success =
-        await AuthService().unlinkDevice(device.id);
+    final success = await AuthService().unlinkDevice(device.id);
     if (success) {
       unawaited(_loadDevices());
     } else {
       scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(l10n.accountFailedToUnlink),
-        ),
+        SnackBar(content: Text(l10n.accountFailedToUnlink)),
       );
     }
   }
@@ -1044,52 +1013,49 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _devices.isEmpty
-              ? Center(
-                  child: Builder(
-                    builder: (context) {
-                      final cs = Theme.of(context).colorScheme;
-                      return Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.devices,
-                            size: 64,
-                            color: cs.onSurface.withValues(alpha: 0.3),
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          Text(
-                            'No linked devices',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  itemCount: _devices.length,
-                  itemBuilder: (context, index) {
-                    final device = _devices[index];
-                    return DeviceTile(
-                      device: device,
-                      onUnlink: () => _unlinkDevice(device),
-                    );
-                  },
-                ),
+          ? Center(
+              child: Builder(
+                builder: (context) {
+                  final cs = Theme.of(context).colorScheme;
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.devices,
+                        size: 64,
+                        color: cs.onSurface.withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(
+                        'No linked devices',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              itemCount: _devices.length,
+              itemBuilder: (context, index) {
+                final device = _devices[index];
+                return DeviceTile(
+                  device: device,
+                  onUnlink: () => _unlinkDevice(device),
+                );
+              },
+            ),
     );
   }
 }
 
 /// Device tile widget
 class DeviceTile extends StatelessWidget {
-
-  const DeviceTile({
-    required this.device, required this.onUnlink, super.key,
-  });
+  const DeviceTile({required this.device, required this.onUnlink, super.key});
   final DeviceInfo device;
   final VoidCallback onUnlink;
 
@@ -1115,10 +1081,7 @@ class DeviceTile extends StatelessWidget {
                 ),
                 child: Text(
                   'This Device',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: cs.onPrimaryContainer,
-                  ),
+                  style: TextStyle(fontSize: 11, color: cs.onPrimaryContainer),
                 ),
               ),
           ],

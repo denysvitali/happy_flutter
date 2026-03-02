@@ -143,7 +143,8 @@ class SessionsApi {
 
     if (!_isSuccess(response)) {
       throw SessionsApiException(
-        'Failed to ${archived ? 'archive' : 'unarchive'} session: ${response.statusCode}',
+        'Failed to ${archived ? 'archive' : 'unarchive'} session: '
+        '${response.statusCode}',
         statusCode: response.statusCode,
       );
     }

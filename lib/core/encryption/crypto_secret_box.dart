@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import '../services/logger_service.dart' show logger;
 import 'package:sodium/sodium.dart';
 
+import '../services/logger_service.dart' show logger;
 import 'sodium_loader.dart';
 
 /// CryptoSecretBox encryption using libsodium (crypto_secretbox_easy)
@@ -20,10 +20,7 @@ class CryptoSecretBox {
     return _sodium!;
   }
 
-  static Future<Uint8List> encrypt(
-    dynamic data,
-    Uint8List secretKey,
-  ) async {
+  static Future<Uint8List> encrypt(dynamic data, Uint8List secretKey) async {
     final sodium = await _sodiumInstance;
     final nonce = sodium.randombytes.buf(_nonceSize);
     final jsonData = jsonEncode(data);

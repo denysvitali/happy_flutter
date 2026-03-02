@@ -42,8 +42,9 @@ class _LanguageSettingsScreenState
 
   @override
   void dispose() {
-    _searchController.removeListener(_onSearchChanged);
-    _searchController.dispose();
+    _searchController
+      ..removeListener(_onSearchChanged)
+      ..dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
@@ -65,10 +66,9 @@ class _LanguageSettingsScreenState
     final filteredCodes = filterLanguages(_searchQuery);
 
     // Current selection
-    final currentSelection =
-        preferredLanguage?.isEmpty ?? true
-            ? autoLanguageCode
-            : preferredLanguage;
+    final currentSelection = preferredLanguage?.isEmpty ?? true
+        ? autoLanguageCode
+        : preferredLanguage;
 
     Future<void> handleLanguageChange(String newLanguage) async {
       if (newLanguage == currentSelection) {
@@ -81,8 +81,9 @@ class _LanguageSettingsScreenState
       // Show confirmation dialog
       final confirmed = await _showRestartDialog(context, l10n);
       if (confirmed && mounted) {
-        final newPreference =
-            newLanguage == autoLanguageCode ? '' : newLanguage;
+        final newPreference = newLanguage == autoLanguageCode
+            ? ''
+            : newLanguage;
         unawaited(
           ref
               .read(settingsNotifierProvider.notifier)
@@ -118,9 +119,9 @@ class _LanguageSettingsScreenState
                 hintText: l10n.searchLanguages,
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
-                fillColor: Theme.of(context)
-                    .colorScheme
-                    .surfaceContainerHighest,
+                fillColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.md),
                   borderSide: BorderSide.none,
@@ -207,10 +208,7 @@ class _LanguageSettingsScreenState
         title: Text(title),
         subtitle: Text(subtitle),
         trailing: isSelected
-            ? Icon(
-                Icons.check,
-                color: Theme.of(context).colorScheme.primary,
-              )
+            ? Icon(Icons.check, color: Theme.of(context).colorScheme.primary)
             : null,
         onTap: onTap,
       ),

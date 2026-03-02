@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/socket_io_client.dart' show ConnectionStatus;
+import '../../core/components/app_status_dot.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
@@ -16,7 +17,6 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
 import '../../core/utils/session_status.dart';
 import '../../core/utils/session_utils.dart';
-import '../../core/components/app_status_dot.dart';
 import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
 import 'session_avatar.dart';
@@ -121,7 +121,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
     return PopScope(
       canPop: _activeTab == AppTab.sessions,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _activeTab != AppTab.sessions) {
           setState(() => _activeTab = AppTab.sessions);
           _updateUrlTab(AppTab.sessions);
@@ -433,12 +433,12 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
 
     // Pre-calculate session positions within each date group
     final sessionPositions = <int, (int, int)>{};
-    for (int i = 0; i < dateItems.length; i++) {
+    for (var i = 0; i < dateItems.length; i++) {
       if (dateItems[i] is SessionHistorySession) {
         // Count total sessions
-        int totalInGroup = 0;
-        int indexInGroup = 0;
-        for (int j = 0; j < dateItems.length; j++) {
+        var totalInGroup = 0;
+        var indexInGroup = 0;
+        for (var j = 0; j < dateItems.length; j++) {
           if (dateItems[j] is SessionHistorySession) {
             if (j <= i) indexInGroup = totalInGroup;
             totalInGroup++;
@@ -893,7 +893,8 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// Date section header for grouping sessions by date (Today, Yesterday, X days ago).
+/// Date section header for grouping sessions by date
+/// (Today, Yesterday, X days ago).
 class _DateSectionHeader extends StatelessWidget {
   const _DateSectionHeader({required this.date});
   final String date;
@@ -1974,7 +1975,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         path: sessionPath,
       );
       if (!mounted) return;
-      // Use refreshFromSync to ensure we fetch the latest session data from server
+      // Use refreshFromSync to ensure we fetch the latest
+      // session data from server.
       await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
       if (!mounted) return;
       navigator.pop();

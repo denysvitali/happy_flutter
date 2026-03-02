@@ -37,7 +37,6 @@ int? _asApiIntOptional(dynamic value) {
 
 /// Machine metadata schema
 class MachineMetadata {
-
   MachineMetadata({
     this.host,
     this.platform,
@@ -63,7 +62,9 @@ class MachineMetadata {
       username: _asApiStringOptional(json['username']),
       arch: _asApiStringOptional(json['arch']),
       displayName: _asApiStringOptional(json['displayName']),
-      daemonLastKnownStatus: _asApiStringOptional(json['daemonLastKnownStatus']),
+      daemonLastKnownStatus: _asApiStringOptional(
+        json['daemonLastKnownStatus'],
+      ),
       daemonLastKnownPid: _asApiIntOptional(json['daemonLastKnownPid']),
       shutdownRequestedAt: _asApiIntOptional(json['shutdownRequestedAt']),
       shutdownSource: _asApiStringOptional(json['shutdownSource']),
@@ -119,24 +120,23 @@ class MachineMetadata {
 
   @override
   int get hashCode => Object.hash(
-        host,
-        platform,
-        happyCliVersion,
-        happyHomeDir,
-        homeDir,
-        username,
-        arch,
-        displayName,
-        daemonLastKnownStatus,
-        daemonLastKnownPid,
-        shutdownRequestedAt,
-        shutdownSource,
-      );
+    host,
+    platform,
+    happyCliVersion,
+    happyHomeDir,
+    homeDir,
+    username,
+    arch,
+    displayName,
+    daemonLastKnownStatus,
+    daemonLastKnownPid,
+    shutdownRequestedAt,
+    shutdownSource,
+  );
 }
 
 /// Machine model
 class Machine {
-
   Machine({
     required this.id,
     required this.seq,
@@ -163,7 +163,10 @@ class Machine {
           : null,
       metadataVersion: _asApiInt(json['metadataVersion'], 'metadataVersion'),
       daemonState: json['daemonState'] as Map<String, dynamic>?,
-      daemonStateVersion: _asApiInt(json['daemonStateVersion'], 'daemonStateVersion'),
+      daemonStateVersion: _asApiInt(
+        json['daemonStateVersion'],
+        'daemonStateVersion',
+      ),
     );
   }
   final String id;
@@ -210,22 +213,21 @@ class Machine {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        seq,
-        createdAt,
-        updatedAt,
-        active,
-        activeAt,
-        metadata,
-        metadataVersion,
-        daemonState,
-        daemonStateVersion,
-      );
+    id,
+    seq,
+    createdAt,
+    updatedAt,
+    active,
+    activeAt,
+    metadata,
+    metadataVersion,
+    daemonState,
+    daemonStateVersion,
+  );
 }
 
 /// Git status model
 class GitStatus {
-
   GitStatus({
     required this.isDirty,
     required this.modifiedCount,
@@ -372,22 +374,22 @@ class GitStatus {
 
   @override
   int get hashCode => Object.hash(
-        branch,
-        isDirty,
-        modifiedCount,
-        untrackedCount,
-        stagedCount,
-        lastUpdatedAt,
-        stagedLinesAdded,
-        stagedLinesRemoved,
-        unstagedLinesAdded,
-        unstagedLinesRemoved,
-        linesAdded,
-        linesRemoved,
-        linesChanged,
-        upstreamBranch,
-        aheadCount,
-        behindCount,
-        stashCount,
-      );
+    branch,
+    isDirty,
+    modifiedCount,
+    untrackedCount,
+    stagedCount,
+    lastUpdatedAt,
+    stagedLinesAdded,
+    stagedLinesRemoved,
+    unstagedLinesAdded,
+    unstagedLinesRemoved,
+    linesAdded,
+    linesRemoved,
+    linesChanged,
+    upstreamBranch,
+    aheadCount,
+    behindCount,
+    stashCount,
+  );
 }

@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import '../models/auth.dart';
 import '../models/settings.dart';
-import 'mmkv_storage.dart';
 import 'logger_service.dart' show logger;
+import 'mmkv_storage.dart';
 
 /// Secure storage for authentication credentials
 class TokenStorage {
-
   factory TokenStorage() => _instance;
   TokenStorage._();
   static final TokenStorage _instance = TokenStorage._();
@@ -73,7 +74,6 @@ class TokenStorage {
 
 /// Settings storage with persistence using MMKV
 class SettingsStorage {
-
   factory SettingsStorage() => _instance;
   SettingsStorage._();
   static final SettingsStorage _instance = SettingsStorage._();
@@ -102,11 +102,14 @@ class SettingsStorage {
   /// Check if migration is needed and perform it
   Future<void> _performMigrationIfNeeded(Settings settings) async {
     // Check if there are API keys in the settings (old format)
-    final needsMigration = settings.inferenceOpenAIKey != null ||
-        settings.profiles.any((p) =>
-            p.openaiConfig?.apiKey != null ||
-            p.azureOpenAIConfig?.apiKey != null ||
-            p.togetherAIConfig?.apiKey != null);
+    final needsMigration =
+        settings.inferenceOpenAIKey != null ||
+        settings.profiles.any(
+          (p) =>
+              p.openaiConfig?.apiKey != null ||
+              p.azureOpenAIConfig?.apiKey != null ||
+              p.togetherAIConfig?.apiKey != null,
+        );
 
     if (needsMigration) {
       logger.info('SettingsStorage: Migrating API keys to secure storage');
@@ -142,11 +145,13 @@ class SettingsStorage {
           );
         }
 
-        updatedProfiles.add(profile.copyWith(
-          openaiConfig: newOpenAIConfig,
-          azureOpenAIConfig: newAzureConfig,
-          togetherAIConfig: newTogetherConfig,
-        ));
+        updatedProfiles.add(
+          profile.copyWith(
+            openaiConfig: newOpenAIConfig,
+            azureOpenAIConfig: newAzureConfig,
+            togetherAIConfig: newTogetherConfig,
+          ),
+        );
       }
       settings.profiles = updatedProfiles;
 
@@ -199,11 +204,13 @@ class SettingsStorage {
         }
       }
 
-      updatedProfiles.add(profile.copyWith(
-        openaiConfig: newOpenAIConfig,
-        azureOpenAIConfig: newAzureConfig,
-        togetherAIConfig: newTogetherConfig,
-      ));
+      updatedProfiles.add(
+        profile.copyWith(
+          openaiConfig: newOpenAIConfig,
+          azureOpenAIConfig: newAzureConfig,
+          togetherAIConfig: newTogetherConfig,
+        ),
+      );
     }
     settings.profiles = updatedProfiles;
   }
@@ -280,7 +287,9 @@ class SettingsStorage {
       ..lastUsedAgent = settings.lastUsedAgent
       ..lastUsedPermissionMode = settings.lastUsedPermissionMode
       ..lastUsedModelMode = settings.lastUsedModelMode
-      ..profiles = settings.profiles.map((p) => _createProfileWithoutApiKeys(p)).toList()
+      ..profiles = settings.profiles
+          .map((p) => _createProfileWithoutApiKeys(p))
+          .toList()
       ..lastUsedProfile = settings.lastUsedProfile
       ..favoriteDirectories = settings.favoriteDirectories
       ..favoriteMachines = settings.favoriteMachines
@@ -419,7 +428,6 @@ class SettingsStorage {
 
 /// Session drafts storage with MMKV
 class SessionDraftsStorage {
-
   factory SessionDraftsStorage() => _instance;
   SessionDraftsStorage._();
   static final SessionDraftsStorage _instance = SessionDraftsStorage._();
@@ -454,7 +462,6 @@ class SessionDraftsStorage {
 
 /// Session permission modes storage with MMKV
 class SessionPermissionModesStorage {
-
   factory SessionPermissionModesStorage() => _instance;
   SessionPermissionModesStorage._();
   static final SessionPermissionModesStorage _instance =
@@ -490,7 +497,6 @@ class SessionPermissionModesStorage {
 
 /// Secure storage for API keys
 class APIKeyStorage {
-
   factory APIKeyStorage() => _instance;
   APIKeyStorage._();
   static final APIKeyStorage _instance = APIKeyStorage._();
@@ -669,7 +675,6 @@ class APIKeyStorage {
 
 /// Combined storage for app data
 class Storage {
-
   factory Storage() => _instance;
   Storage._();
   static final Storage _instance = Storage._();

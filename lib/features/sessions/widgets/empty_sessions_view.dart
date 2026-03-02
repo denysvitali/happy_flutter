@@ -87,7 +87,8 @@ class EmptySessionsView extends StatelessWidget {
 }
 
 /// Placeholder for the new session dialog.
-/// This should be replaced with the actual NewSessionDialog from sessions_screen.dart
+/// This should be replaced with the actual NewSessionDialog
+/// from sessions_screen.dart.
 /// or the dialog should be extracted to its own file.
 class _NewSessionDialogPlaceholder extends StatelessWidget {
   const _NewSessionDialogPlaceholder();

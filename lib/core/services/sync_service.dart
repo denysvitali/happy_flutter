@@ -2450,8 +2450,9 @@ what you have, you must use the options mode.
     var session = _sessions[sessionId];
     if (session == null) {
       // Retry: the session may not be in _sessions due to the changedSince
-      // delta-fetch race. Use _forceFullFetchNext flag (not _lastSessionsFetchedAt
-      // = null) to avoid TOCTOU: a concurrent fetch completing can overwrite
+      // delta-fetch race. Use _forceFullFetchNext flag
+      // (not _lastSessionsFetchedAt = null) to avoid TOCTOU:
+      // a concurrent fetch completing can overwrite
       // _lastSessionsFetchedAt before the forced fetch reads it.
       _forceFullFetchNext = true;
       await sessionsSync.invalidateAndAwait();
@@ -3157,8 +3158,9 @@ what you have, you must use the options mode.
       final session = _sessions[sessionId];
       // Consider the session ready if:
       // 1. agentStateVersion > 0 (permission request or agent state set), OR
-      // 2. presence is 'online' (Go's session-alive keep-alives arrived, meaning
-      //    the daemon is running and connected — typically within 2 seconds).
+      // 2. presence is 'online'
+      //    (Go's session-alive keep-alives arrived, meaning the daemon
+      //    is running and connected — typically within 2 seconds).
       if (session != null &&
           (session.agentStateVersion > 0 || session.isOnline)) {
         return true;

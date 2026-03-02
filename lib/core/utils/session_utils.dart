@@ -151,7 +151,7 @@ List<SessionHistoryItem> groupSessionsByExactDate(List<Session> sessions) {
     ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
   final items = <SessionHistoryItem>[];
-  List<Session> currentDateGroup = [];
+  var currentDateGroup = <Session>[];
   String? currentDateString;
 
   for (final session in sortedSessions) {

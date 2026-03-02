@@ -380,7 +380,9 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
                             fontSize: 13,
                             height: 1.5,
                           ),
-                          child: SimpleMarkdownView(markdown: _getCleanContent()),
+                          child: SimpleMarkdownView(
+                            markdown: _getCleanContent(),
+                          ),
                         ),
                       ),
                     ],

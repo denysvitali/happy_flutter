@@ -7,7 +7,11 @@ void main() async {
 
   final dataBytes = utf8.encode('{"hello":"world"}');
   final nonce = cipher.newNonce();
-  final box = await cipher.encrypt(dataBytes, secretKey: secretKey, nonce: nonce);
+  final box = await cipher.encrypt(
+    dataBytes,
+    secretKey: secretKey,
+    nonce: nonce,
+  );
   // ignore: avoid_print
   print('Encrypted successfully: ${box.cipherText.length} bytes');
 }

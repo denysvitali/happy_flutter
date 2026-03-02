@@ -1,23 +1,19 @@
 import 'dart:async';
+
+import '../services/logger_service.dart' show logger;
 import 'api_client.dart';
 import 'base_api_exception.dart';
-import '../services/logger_service.dart' show logger;
 
 /// Connected Services API client
 /// Handles connecting/disconnecting third-party services (Claude, GitHub, Gemini, OpenAI)
 /// Based on React Native's apiServices.ts
 class ServicesApi {
-
-  ServicesApi({ApiClient? client})
-      : _client = client ?? ApiClient();
+  ServicesApi({ApiClient? client}) : _client = client ?? ApiClient();
   final ApiClient _client;
 
   /// Connect a service to the user's account
   /// Used after OAuth flow completion or direct token registration
-  Future<void> connectService(
-    String service,
-    String token,
-  ) async {
+  Future<void> connectService(String service, String token) async {
     if (service.isEmpty) {
       throw const ServicesApiException('Service name cannot be empty');
     }
