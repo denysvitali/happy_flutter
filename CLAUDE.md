@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Workflow Rules
 
@@ -36,24 +36,18 @@ devenv shell -- flutter analyze
 devenv shell -- flutter test
 devenv shell -- flutter test test/services/sync_service_test.dart
 
-# Code generation (after API class changes)
+# Code generation (after changing ApiClient public API)
 devenv shell -- flutter pub run build_runner build
 
 # Build APK (flavors: development, preview, production)
 devenv shell -- flutter build apk --debug --flavor development
 devenv shell -- flutter build apk --release --flavor production
 
-# iOS build (macOS only)
-devenv shell -- flutter build ios --release
-
 # Run on device/emulator
 devenv shell -- flutter run
 ```
 
-**Build Flavors:**
-- `development` — localhost, verbose logging
-- `preview` — staging, reduced logging
-- `production` — api.cluster-fluster.com
+**Build Flavors:** `development` (localhost), `preview` (staging), `production` (api.cluster-fluster.com)
 
 ## Architecture
 
@@ -87,6 +81,14 @@ lib/
 | `sessionsNotifierProvider` | `Map<String, Session>` |
 | `machinesNotifierProvider` | `Map<String, Machine>` |
 | `settingsNotifierProvider` | `Settings` |
+| `connectionNotifierProvider` | `ConnectionStatus` |
+| `currentSessionNotifierProvider` | `Session?` |
+| `profileNotifierProvider` | `Profile?` |
+| `artifactsNotifierProvider` | `Map<String, DecryptedArtifact>` |
+| `friendsNotifierProvider` | `FriendsState` |
+| `feedNotifierProvider` | `FeedState` |
+| `todoStateNotifierProvider` | `TodoListState` |
+| `sessionGitStatusNotifierProvider` | `Map<String, GitStatus>` |
 
 **Immutable updates:** Always use spread copies: `{...state, id: value}`, `[...state.list, item]`
 
@@ -177,11 +179,6 @@ ProviderContainer(overrides: [
 
 **Widget tests:** Call `TestWidgetsFlutterBinding.ensureInitialized()` at top of `main()`. Include `requestOptions: RequestOptions(path: '')` in mock `Response` objects.
 
-**Mock regeneration:** After changing `ApiClient` public API:
-```bash
-devenv shell -- flutter pub run build_runner build
-```
-
 ## Coding Standards
 
 - **Strict typing:** `implicit-casts: false`, `implicit-dynamic: false`
@@ -189,29 +186,12 @@ devenv shell -- flutter pub run build_runner build
 - **CI-blocking errors:** `missing_required_param`, `missing_return`, `must_be_immutable`
 - **Prefer:** const constructors, final fields, single quotes, spread collections
 - **Avoid:** `print` — use `logger.info/warning/error()`; `unawaited()` for fire-and-forget
+- **Web build disabled** — `sodium` and `mmkv` are not web-compatible
+- **Platform code:** `lib/platform_io.dart` (native) / `lib/platform_stub.dart` (stubs) via conditional exports
 
 **Analysis:** `test/**/*.dart` excluded. CI runs `flutter analyze --no-fatal-infos --no-fatal-warnings` (only errors block build).
 
-## Security
-
-- **Encryption:** NaCl/libsodium for existing data; **AES-256-GCM** for new session/machine data
-- **Auth:** Ed25519 signatures
-- **Credentials:** `flutter_secure_storage`; app data: MMKV
-- **Web:** Build disabled — `sodium` and `mmkv` are not web-compatible
-
-## Platform-Specific Code
-
-Conditional exports for platform-specific implementations:
-
-| File | Purpose |
-|------|---------|
-| `lib/platform_io.dart` | Native (Android/iOS) implementations |
-| `lib/platform_stub.dart` | Stub for unsupported platforms |
-
-For Android/iOS, `lib/`-level files export `_io` variants; `_stub` provides no-ops.
-
 ## Additional Documentation
 
-- Detailed patterns: @docs/CLAUDE_MD_BEST_PRACTICES.md
 - Sync patterns: @docs/SYNC_PATTERNS.md
 - Feature parity: @ROADMAP.md
