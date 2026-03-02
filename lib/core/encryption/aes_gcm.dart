@@ -3,7 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
+import '../services/logger_service.dart' show logger;
 import 'base64.dart';
 
 /// True AES-256-GCM encryption implementation.
@@ -145,7 +145,7 @@ class AesGcmEncryption {
       final jsonString = utf8.decode(decrypted);
       return jsonDecode(jsonString);
     } catch (e) {
-      if (kDebugMode) debugPrint('AesGcmEncryption.decrypt failed: $e');
+      logger.warning('AesGcmEncryption.decrypt failed', e);
       return null;
     }
   }

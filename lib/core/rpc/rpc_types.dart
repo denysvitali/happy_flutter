@@ -30,17 +30,17 @@ class SpawnSessionRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        'type': type,
-        'directory': directory,
-        if (sessionId != null) 'sessionId': sessionId,
-        if (agent != null) 'agent': agent,
-        'approvedNewDirectoryCreation': approvedNewDirectoryCreation,
-        if (environmentVariables != null && environmentVariables!.isNotEmpty)
-          'environmentVariables': environmentVariables,
-        if (startupBashScript != null && startupBashScript!.isNotEmpty)
-          'startupBashScript': startupBashScript,
-        if (permissionMode != null) 'permissionMode': permissionMode,
-      };
+    'type': type,
+    'directory': directory,
+    if (sessionId != null) 'sessionId': sessionId,
+    if (agent != null) 'agent': agent,
+    'approvedNewDirectoryCreation': approvedNewDirectoryCreation,
+    if (environmentVariables != null && environmentVariables!.isNotEmpty)
+      'environmentVariables': environmentVariables,
+    if (startupBashScript != null && startupBashScript!.isNotEmpty)
+      'startupBashScript': startupBashScript,
+    if (permissionMode != null) 'permissionMode': permissionMode,
+  };
 }
 
 class SpawnSessionResponse {
@@ -58,14 +58,16 @@ class SpawnSessionResponse {
     this.dataEncryptionKey,
   });
 
-  factory SpawnSessionResponse.fromJson(Map<String, dynamic> json) =>
-      SpawnSessionResponse(
-        type: json['type'] as String?,
-        sessionId: json['sessionId'] as String?,
-        errorMessage: json['errorMessage'] as String?,
-        directory: json['directory'] as String?,
-        dataEncryptionKey: json['dataEncryptionKey'] as String?,
-      );
+  factory SpawnSessionResponse.fromJson(
+    Map<String, dynamic> json,
+  ) => SpawnSessionResponse(
+    type: json['type'] as String?,
+    sessionId: (json['sessionId'] ?? json['session_id']) as String?,
+    errorMessage: (json['errorMessage'] ?? json['error_message']) as String?,
+    directory: json['directory'] as String?,
+    dataEncryptionKey:
+        (json['dataEncryptionKey'] ?? json['data_encryption_key']) as String?,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -78,10 +80,7 @@ class BashRequest {
 
   const BashRequest({required this.command, required this.cwd});
 
-  Map<String, dynamic> toJson() => {
-        'command': command,
-        'cwd': cwd,
-      };
+  Map<String, dynamic> toJson() => {'command': command, 'cwd': cwd};
 }
 
 class BashResponse {
@@ -100,12 +99,12 @@ class BashResponse {
   });
 
   factory BashResponse.fromJson(Map<String, dynamic> json) => BashResponse(
-        success: json['success'] as bool? ?? false,
-        stdout: json['stdout'] as String? ?? '',
-        stderr: json['stderr'] as String? ?? '',
-        exitCode: json['exitCode'] as int? ?? -1,
-        error: json['error'] as String?,
-      );
+    success: json['success'] as bool? ?? false,
+    stdout: json['stdout'] as String? ?? '',
+    stderr: json['stderr'] as String? ?? '',
+    exitCode: json['exitCode'] as int? ?? -1,
+    error: json['error'] as String?,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -128,12 +127,12 @@ class PermissionRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'approved': approved,
-        if (mode != null) 'mode': mode,
-        if (allowTools != null) 'allowTools': allowTools,
-        if (decision != null) 'decision': decision,
-      };
+    'id': id,
+    'approved': approved,
+    if (mode != null) 'mode': mode,
+    if (allowTools != null) 'allowTools': allowTools,
+    if (decision != null) 'decision': decision,
+  };
 }
 
 class PermissionResponse {
@@ -177,7 +176,7 @@ class AbortResponse {
   const AbortResponse({required this.success, this.message});
 
   factory AbortResponse.fromJson(Map<String, dynamic> json) => AbortResponse(
-        success: json['success'] as bool? ?? false,
-        message: json['message'] as String?,
-      );
+    success: json['success'] as bool? ?? false,
+    message: json['message'] as String?,
+  );
 }

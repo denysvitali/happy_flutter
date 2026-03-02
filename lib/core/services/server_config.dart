@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'mmkv_storage.dart';
+import 'logger_service.dart' show logger;
 
 const String defaultServerUrl = 'https://api.cluster-fluster.com';
 const String _defaultServerUrl = defaultServerUrl;
@@ -123,7 +123,7 @@ ServerUrlValidation validateServerUrl(String url) {
 Future<ServerUrlVerificationResult> verifyServerUrl(String url) async {
   final validation = validateServerUrl(url);
   if (!validation.valid) {
-    debugPrint('Server URL validation failed: ${validation.error}');
+    logger.warning('Server URL validation failed: ${validation.error}');
     final errorMsg = 'Invalid server URL: ${validation.error}';
     saveServerUrlError(errorMsg);
     return ServerUrlVerificationResult.failed(errorMsg, 'Validation');
@@ -150,7 +150,7 @@ Future<ServerUrlVerificationResult> verifyServerUrl(String url) async {
       return const ServerUrlVerificationResult.success();
     } else {
       final errorMsg = 'Server returned error: HTTP ${response.statusCode}';
-      debugPrint('Server verification failed: $errorMsg');
+      logger.warning('Server verification failed: $errorMsg');
       saveServerUrlError(errorMsg);
       return ServerUrlVerificationResult.failed(
         errorMsg,
@@ -159,7 +159,7 @@ Future<ServerUrlVerificationResult> verifyServerUrl(String url) async {
     }
   } on DioException catch (e) {
     final errorMsg = 'Connection failed: ${_formatDioError(e)}';
-    debugPrint('Server verification failed: $e');
+    logger.warning('Server verification failed: $e');
     saveServerUrlError(errorMsg);
 
     // Categorize common Dio errors
@@ -186,7 +186,7 @@ Future<ServerUrlVerificationResult> verifyServerUrl(String url) async {
     return ServerUrlVerificationResult.failed(errorMsg, errorType);
   } catch (e) {
     final errorMsg = 'Connection failed: ${e.toString()}';
-    debugPrint('Server verification failed: $e');
+    logger.warning('Server verification failed: $e');
     saveServerUrlError(errorMsg);
     return ServerUrlVerificationResult.failed(errorMsg, 'Unknown');
   } finally {

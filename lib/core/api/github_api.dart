@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'api_client.dart';
 import 'base_api_exception.dart';
+import '../services/logger_service.dart' show logger;
 
 /// GitHub Integration API client
 /// Handles GitHub OAuth and profile operations
@@ -86,7 +86,7 @@ class GitHubApi {
       throw const GitHubApiException('Failed to disconnect GitHub account');
     }
 
-    debugPrint('GitHub account disconnected successfully');
+    logger.info('GitHub account disconnected successfully');
   }
 
   /// Register a GitHub OAuth callback token
@@ -113,7 +113,7 @@ class GitHubApi {
       throw const GitHubApiException('Failed to register GitHub token');
     }
 
-    debugPrint('GitHub OAuth token registered successfully');
+    logger.info('GitHub OAuth token registered successfully');
   }
 
   /// Check if GitHub account is connected
@@ -122,7 +122,7 @@ class GitHubApi {
       final profile = await getAccountProfile();
       return profile.github != null;
     } catch (e) {
-      debugPrint('Error checking GitHub connection: $e');
+      logger.warning('Error checking GitHub connection: $e');
       return false;
     }
   }

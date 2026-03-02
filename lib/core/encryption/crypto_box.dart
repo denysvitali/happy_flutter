@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
+import '../services/logger_service.dart' show logger;
 import 'package:sodium/sodium.dart';
 
 import 'sodium_loader.dart';
@@ -130,9 +130,7 @@ class CryptoBox {
 
       return decrypted;
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('CryptoBox.decrypt failed: $e');
-      }
+      logger.warning('CryptoBox.decrypt failed', e);
       return null;
     }
   }

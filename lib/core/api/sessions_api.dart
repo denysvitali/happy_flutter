@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
+
 import 'api_client.dart';
 import 'base_api_exception.dart';
 
@@ -10,6 +12,11 @@ class SessionsApi {
   SessionsApi({ApiClient? client}) : _client = client ?? ApiClient();
   final ApiClient _client;
 
+  bool _isSuccess(Response<dynamic> response) {
+    final statusCode = response.statusCode;
+    return statusCode != null && statusCode >= 200 && statusCode < 300;
+  }
+
   /// Fetch sessions with optional pagination and delta sync
   /// Returns a list of session data maps (encrypted)
   Future<List<dynamic>> fetchSessions({
@@ -17,8 +24,33 @@ class SessionsApi {
     String? cursor,
     int? changedSince,
   }) async {
+    // Prefer v2 for pagination + delta fetches. Fall back to v1 during a full
+    // fetch if v2 is unavailable or unexpectedly empty (server compatibility).
+    final isInitialFullFetch = cursor == null && changedSince == null;
+
+    try {
+      final v2Sessions = await _fetchSessionsV2(
+        limit: limit,
+        cursor: cursor,
+        changedSince: changedSince,
+      );
+      if (!isInitialFullFetch || v2Sessions.isNotEmpty) {
+        return v2Sessions;
+      }
+    } on SessionsApiException {
+      if (!isInitialFullFetch) rethrow;
+    }
+
+    return _fetchSessionsV1();
+  }
+
+  Future<List<dynamic>> _fetchSessionsV2({
+    required int limit,
+    String? cursor,
+    int? changedSince,
+  }) async {
     final allSessions = <dynamic>[];
-    String? nextCursor = cursor;
+    var nextCursor = cursor;
 
     while (true) {
       final response = await _client.get(
@@ -30,7 +62,7 @@ class SessionsApi {
         },
       );
 
-      if (!_client.isSuccess(response)) {
+      if (!_isSuccess(response)) {
         throw SessionsApiException(
           'Failed to fetch sessions: ${response.statusCode}',
           statusCode: response.statusCode,
@@ -50,11 +82,30 @@ class SessionsApi {
     return allSessions;
   }
 
+  Future<List<dynamic>> _fetchSessionsV1() async {
+    final response = await _client.get('/v1/sessions');
+    if (!_isSuccess(response)) {
+      throw SessionsApiException(
+        'Failed to fetch sessions: ${response.statusCode}',
+        statusCode: response.statusCode,
+      );
+    }
+
+    final data = response.data;
+    if (data is! Map<String, dynamic>) {
+      throw const SessionsApiException(
+        'Failed to fetch sessions: invalid response format',
+      );
+    }
+
+    return data['sessions'] as List? ?? [];
+  }
+
   /// Delete a session by ID
   Future<void> deleteSession(String sessionId) async {
     final response = await _client.delete('/v1/sessions/$sessionId');
 
-    if (!_client.isSuccess(response)) {
+    if (!_isSuccess(response)) {
       throw SessionsApiException(
         'Failed to delete session: ${response.statusCode}',
         statusCode: response.statusCode,
@@ -70,13 +121,10 @@ class SessionsApi {
   }) async {
     final response = await _client.post(
       '/v1/sessions/$sessionId/metadata',
-      data: {
-        'metadata': encryptedMetadata,
-        'expectedVersion': expectedVersion,
-      },
+      data: {'metadata': encryptedMetadata, 'expectedVersion': expectedVersion},
     );
 
-    if (!_client.isSuccess(response)) {
+    if (!_isSuccess(response)) {
       throw SessionsApiException(
         'Failed to update session metadata: ${response.statusCode}',
         statusCode: response.statusCode,
@@ -92,13 +140,10 @@ class SessionsApi {
   }) async {
     final response = await _client.post(
       '/v1/sessions/$sessionId/agent-state',
-      data: {
-        'agentState': encryptedState,
-        'expectedVersion': expectedVersion,
-      },
+      data: {'agentState': encryptedState, 'expectedVersion': expectedVersion},
     );
 
-    if (!_client.isSuccess(response)) {
+    if (!_isSuccess(response)) {
       throw SessionsApiException(
         'Failed to update session agent state: ${response.statusCode}',
         statusCode: response.statusCode,
@@ -107,16 +152,13 @@ class SessionsApi {
   }
 
   /// Rename a session
-  Future<void> renameSession(
-    String sessionId,
-    String newName,
-  ) async {
+  Future<void> renameSession(String sessionId, String newName) async {
     final response = await _client.post(
       '/v1/sessions/$sessionId/rename',
       data: {'name': newName},
     );
 
-    if (!_client.isSuccess(response)) {
+    if (!_isSuccess(response)) {
       throw SessionsApiException(
         'Failed to rename session: ${response.statusCode}',
         statusCode: response.statusCode,
@@ -125,16 +167,13 @@ class SessionsApi {
   }
 
   /// Set session archive status
-  Future<void> setSessionArchived(
-    String sessionId,
-    bool archived,
-  ) async {
+  Future<void> setSessionArchived(String sessionId, bool archived) async {
     final response = await _client.post(
       '/v1/sessions/$sessionId/archive',
       data: {'archived': archived},
     );
 
-    if (!_client.isSuccess(response)) {
+    if (!_isSuccess(response)) {
       throw SessionsApiException(
         'Failed to ${archived ? 'archive' : 'unarchive'} session: ${response.statusCode}',
         statusCode: response.statusCode,

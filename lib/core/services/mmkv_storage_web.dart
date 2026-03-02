@@ -2,11 +2,11 @@
 // This file must NOT import dart:io.
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/profile.dart' as models;
 import '../models/settings.dart';
+import 'logger_service.dart' show logger;
 
 /// Storage key constants (mirrors mmkv_storage_native.dart)
 class _Keys {
@@ -48,7 +48,7 @@ class MMKVStorage {
       // Eagerly populate synchronous caches.
       _instance._loadSeqCaches();
     } catch (e) {
-      debugPrint('WebStorage(MMKVStorage): init failed: $e');
+      logger.warning('WebStorage(MMKVStorage): init failed: $e');
       rethrow;
     }
   }
@@ -66,7 +66,7 @@ class MMKVStorage {
         return decoded.map((k, v) => MapEntry(k, v as int));
       }
     } catch (e) {
-      debugPrint('WebStorage: failed to read int map "$key": $e');
+      logger.warning('WebStorage: failed to read int map "$key": $e');
     }
     return {};
   }
@@ -87,7 +87,7 @@ class MMKVStorage {
         return Settings.fromJson(decoded);
       }
     } catch (e) {
-      debugPrint('WebStorage: failed to load settings: $e');
+      logger.warning('WebStorage: failed to load settings: $e');
     }
     return Settings();
   }
@@ -97,7 +97,7 @@ class MMKVStorage {
       final prefs = await _getPrefs();
       await prefs.setString(_Keys.settings, jsonEncode(settings.toJson()));
     } catch (e) {
-      debugPrint('WebStorage: failed to save settings: $e');
+      logger.warning('WebStorage: failed to save settings: $e');
       rethrow;
     }
   }
@@ -107,7 +107,7 @@ class MMKVStorage {
       final prefs = await _getPrefs();
       await prefs.remove(_Keys.settings);
     } catch (e) {
-      debugPrint('WebStorage: failed to clear settings: $e');
+      logger.warning('WebStorage: failed to clear settings: $e');
     }
   }
 
@@ -122,7 +122,7 @@ class MMKVStorage {
         return map[sessionId] as String?;
       }
     } catch (e) {
-      debugPrint('WebStorage: failed to get session draft: $e');
+      logger.warning('WebStorage: failed to get session draft: $e');
     }
     return null;
   }
@@ -137,7 +137,7 @@ class MMKVStorage {
       map[sessionId] = draft;
       await prefs.setString(_Keys.sessionDrafts, jsonEncode(map));
     } catch (e) {
-      debugPrint('WebStorage: failed to save session draft: $e');
+      logger.warning('WebStorage: failed to save session draft: $e');
       rethrow;
     }
   }
@@ -152,7 +152,7 @@ class MMKVStorage {
         await prefs.setString(_Keys.sessionDrafts, jsonEncode(map));
       }
     } catch (e) {
-      debugPrint('WebStorage: failed to remove session draft: $e');
+      logger.warning('WebStorage: failed to remove session draft: $e');
     }
   }
 
@@ -165,7 +165,7 @@ class MMKVStorage {
         return map.map((k, v) => MapEntry(k, v as String));
       }
     } catch (e) {
-      debugPrint('WebStorage: failed to get session drafts: $e');
+      logger.warning('WebStorage: failed to get session drafts: $e');
     }
     return {};
   }
@@ -175,7 +175,7 @@ class MMKVStorage {
       final prefs = await _getPrefs();
       await prefs.remove(_Keys.sessionDrafts);
     } catch (e) {
-      debugPrint('WebStorage: failed to clear session drafts: $e');
+      logger.warning('WebStorage: failed to clear session drafts: $e');
     }
   }
 
@@ -190,7 +190,7 @@ class MMKVStorage {
         return map[sessionId] as String?;
       }
     } catch (e) {
-      debugPrint('WebStorage: failed to get session permission mode: $e');
+      logger.warning('WebStorage: failed to get session permission mode: $e');
     }
     return null;
   }
@@ -208,7 +208,7 @@ class MMKVStorage {
       map[sessionId] = mode;
       await prefs.setString(_Keys.sessionPermissionModes, jsonEncode(map));
     } catch (e) {
-      debugPrint('WebStorage: failed to save session permission mode: $e');
+      logger.warning('WebStorage: failed to save session permission mode: $e');
       rethrow;
     }
   }
@@ -226,8 +226,8 @@ class MMKVStorage {
         );
       }
     } catch (e) {
-      debugPrint(
-        'WebStorage: failed to remove session permission mode: $e',
+      logger.warning(
+        'WebStorage: failed to remove session permission mode', e,
       );
     }
   }
@@ -241,7 +241,7 @@ class MMKVStorage {
         return map.map((k, v) => MapEntry(k, v as String));
       }
     } catch (e) {
-      debugPrint('WebStorage: failed to get session permission modes: $e');
+      logger.warning('WebStorage: failed to get session permission modes: $e');
     }
     return {};
   }
@@ -251,8 +251,8 @@ class MMKVStorage {
       final prefs = await _getPrefs();
       await prefs.remove(_Keys.sessionPermissionModes);
     } catch (e) {
-      debugPrint(
-        'WebStorage: failed to clear session permission modes: $e',
+      logger.warning(
+        'WebStorage: failed to clear session permission modes', e,
       );
     }
   }
@@ -291,7 +291,7 @@ class MMKVStorage {
     _getPrefs().then((prefs) {
       prefs.setString(key, jsonEncode(map));
     }).catchError((Object e) {
-      debugPrint('WebStorage: failed to persist "$key": $e');
+      logger.warning('WebStorage: failed to persist "$key": $e');
     });
   }
 
@@ -315,7 +315,7 @@ class MMKVStorage {
       _sessionLastSeq = {};
       _sessionFirstLoadedSeq = {};
     } catch (e) {
-      debugPrint('WebStorage: failed to clear all: $e');
+      logger.warning('WebStorage: failed to clear all: $e');
     }
   }
 
@@ -353,7 +353,7 @@ class ServerConfigStorage {
       _instance._initialized = true;
       _instance._loadCache();
     } catch (e) {
-      debugPrint('WebStorage(ServerConfigStorage): init failed: $e');
+      logger.warning('WebStorage(ServerConfigStorage): init failed: $e');
       rethrow;
     }
   }
@@ -392,7 +392,7 @@ class ServerConfigStorage {
         await prefs.remove(key);
       }
     } catch (e) {
-      debugPrint('WebStorage: failed to set server URL: $e');
+      logger.warning('WebStorage: failed to set server URL: $e');
       rethrow;
     }
   }
@@ -408,7 +408,7 @@ class ServerConfigStorage {
       await prefs.setString(_prefixedKey(_Keys.serverUrlError), error);
       _cachedServerUrlError = error;
     } catch (e) {
-      debugPrint('WebStorage: failed to save server URL error: $e');
+      logger.warning('WebStorage: failed to save server URL error: $e');
     }
   }
 
@@ -423,7 +423,7 @@ class ServerConfigStorage {
       await prefs.remove(_prefixedKey(_Keys.serverUrlError));
       _cachedServerUrlError = null;
     } catch (e) {
-      debugPrint('WebStorage: failed to clear server URL error: $e');
+      logger.warning('WebStorage: failed to clear server URL error: $e');
     }
   }
 
@@ -435,7 +435,7 @@ class ServerConfigStorage {
       _cachedServerUrl = null;
       _cachedServerUrlError = null;
     } catch (e) {
-      debugPrint('WebStorage: failed to clear server config: $e');
+      logger.warning('WebStorage: failed to clear server config: $e');
     }
   }
 }
@@ -468,7 +468,7 @@ class ProfileStorage {
         );
       }
     } catch (e) {
-      debugPrint('WebStorage(ProfileStorage): failed to load profile: $e');
+      logger.warning('WebStorage(ProfileStorage): failed to load profile: $e');
     }
     return models.Profile.defaults;
   }
@@ -487,7 +487,7 @@ class ProfileStorage {
         }),
       );
     } catch (e) {
-      debugPrint('WebStorage(ProfileStorage): failed to save profile: $e');
+      logger.warning('WebStorage(ProfileStorage): failed to save profile: $e');
       rethrow;
     }
   }
@@ -497,8 +497,8 @@ class ProfileStorage {
       final prefs = await _storage._getPrefs();
       await prefs.remove(_profileKey);
     } catch (e) {
-      debugPrint(
-        'WebStorage(ProfileStorage): failed to clear profile: $e',
+      logger.warning(
+        'WebStorage(ProfileStorage): failed to clear profile', e,
       );
     }
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'logger_service.dart' show logger;
 import '../../platform_io.dart'
     if (dart.library.js_interop) '../../platform_stub.dart';
 
@@ -40,7 +41,7 @@ class CertificateProvider {
       // We return true to indicate user CAs should be supported
       return true;
     } catch (e) {
-      debugPrint('Error checking Android user certificates: $e');
+      logger.warning('Error checking Android user certificates: $e');
       return false;
     }
   }
@@ -70,7 +71,7 @@ class CertificateProvider {
       // Alternative: Check if we have bundled certificates
       return await _getBundledCertificates();
     } catch (e) {
-      debugPrint('Error getting Android user certificates: $e');
+      logger.warning('Error getting Android user certificates: $e');
       return null;
     }
   }

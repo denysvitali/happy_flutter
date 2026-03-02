@@ -7,6 +7,7 @@ import 'package:sentry_dio/sentry_dio.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../services/http_request_logger.dart';
+import '../services/logger_service.dart' show logger;
 import '../services/server_config.dart';
 import 'native_adapter_helper.dart'
     if (dart.library.js_interop) 'native_adapter_helper_web.dart';
@@ -57,14 +58,14 @@ class ApiClient {
         },
         onResponse: (response, handler) {
           if (response.statusCode == 403) {
-            debugPrint('Received 403 - Forbidden: ${response.realUri}');
+            logger.info('Received 403 - Forbidden: ${response.realUri}');
           }
           return handler.next(response);
         },
         onError: (DioException error, handler) {
-          debugPrint('Dio error: ${error.type} - ${error.message}');
+          logger.warning('Dio error: ${error.type} - ${error.message}');
           if (error.response?.statusCode == 403) {
-            debugPrint('403 Forbidden response: ${error.response?.data}');
+            logger.warning('403 Forbidden response: ${error.response?.data}');
           }
           return handler.next(error);
         },
@@ -171,7 +172,7 @@ class ApiClient {
       _dio?.close(force: true);
       _dio = null;
       await _configureDio(newUrl);
-      debugPrint('Server URL refreshed to: $newUrl');
+      logger.info('Server URL refreshed to: $newUrl');
     }
   }
 
@@ -188,11 +189,11 @@ class ApiClient {
       // and user-installed CA certificates in the Android trust store
       final nativeAdapter = createNativeAdapter();
       _dio!.httpClientAdapter = nativeAdapter;
-      debugPrint(
+      logger.info(
         'Native HTTP adapter configured for platform-specific CA support',
       );
     } catch (e, s) {
-      debugPrint('Error configuring HTTP client: $e');
+      logger.warning('Error configuring HTTP client: $e');
       unawaited(Sentry.captureException(e, stackTrace: s));
     }
   }

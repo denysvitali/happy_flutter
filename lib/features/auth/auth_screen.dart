@@ -304,18 +304,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     });
 
     try {
-      debugPrint('Creating account...');
+      logger.info('Creating account...');
       await AuthService().createAccount();
-      debugPrint('Account created successfully');
+      logger.info('Account created successfully');
       if (mounted) {
         unawaited(
           ref.read(authStateNotifierProvider.notifier).checkAuth(),
         );
       }
     } catch (e) {
-      debugPrint('Create account error: $e');
+      logger.warning('Create account error: $e');
       if (e is Error) {
-        debugPrint('Stack trace: ${e.stackTrace}');
+        logger.info('Stack trace: ${e.stackTrace}');
       }
       setState(() {
         _error = _formatErrorMessage(e, context);

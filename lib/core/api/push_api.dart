@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'api_client.dart';
 import 'base_api_exception.dart';
+import '../services/logger_service.dart' show logger;
 
 /// Push Notifications API client
 /// Handles push notification token registration
@@ -36,7 +36,7 @@ class PushApi {
       throw const PushApiException('Failed to register push token');
     }
 
-    debugPrint('Push token registered successfully');
+    logger.info('Push token registered successfully');
   }
 
   /// Unregister a push notification token
@@ -56,7 +56,7 @@ class PushApi {
       );
     }
 
-    debugPrint('Push token unregistered successfully');
+    logger.info('Push token unregistered successfully');
   }
 
   /// Update an existing push notification token
@@ -82,7 +82,7 @@ class PushApi {
       throw const PushApiException('Failed to update push token');
     }
 
-    debugPrint('Push token updated successfully');
+    logger.info('Push token updated successfully');
   }
 }
 

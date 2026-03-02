@@ -9,6 +9,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import '../api/api_client.dart';
 import '../api/kv_api.dart';
 import '../api/push_api.dart';
+import '../api/sessions_api.dart';
 import '../api/socket_io_client.dart';
 import '../encryption/aes_gcm.dart';
 import '../encryption/artifact_encryption.dart';
@@ -33,6 +34,7 @@ import '../services/mmkv_storage.dart';
 import '../services/server_config.dart';
 import '../utils/invalidate_sync.dart';
 import '../utils/parse_token.dart';
+import '../utils/wire_parsers.dart';
 import 'logger_service.dart';
 
 // ── Isolate helpers: machine payload decryption ──────────────────────────
@@ -86,11 +88,7 @@ class _ArtifactIsolateItem {
 }
 
 class _ArtifactIsolateResult {
-  const _ArtifactIsolateResult({
-    required this.id,
-    this.header,
-    this.body,
-  });
+  const _ArtifactIsolateResult({required this.id, this.header, this.body});
 
   final String id;
   final Map<String, dynamic>? header;
@@ -120,10 +118,7 @@ Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
             if (d is Map<String, dynamic>) metadata = d;
           }
         } else {
-          final d = await CryptoSecretBox.decrypt(
-            encMeta,
-            item.secretKey,
-          );
+          final d = await CryptoSecretBox.decrypt(encMeta, item.secretKey);
           if (d is Map<String, dynamic>) metadata = d;
         }
       } catch (_) {}
@@ -140,19 +135,18 @@ Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
             );
           }
         } else {
-          daemonState = await CryptoSecretBox.decrypt(
-            encDs,
-            item.secretKey,
-          );
+          daemonState = await CryptoSecretBox.decrypt(encDs, item.secretKey);
         }
       } catch (_) {}
     }
 
-    results.add(_MachineIsolateResult(
-      id: item.id,
-      metadata: metadata,
-      daemonState: daemonState,
-    ));
+    results.add(
+      _MachineIsolateResult(
+        id: item.id,
+        metadata: metadata,
+        daemonState: daemonState,
+      ),
+    );
   }
   return results;
 }
@@ -191,20 +185,19 @@ Future<List<_ArtifactIsolateResult>> _decryptArtifactsInIsolate(
       } catch (_) {}
     }
 
-    results.add(_ArtifactIsolateResult(
-      id: item.id,
-      header: header,
-      body: body,
-    ));
+    results.add(
+      _ArtifactIsolateResult(id: item.id, header: header, body: body),
+    );
   }
   return results;
 }
 
 int? _asSessionInt(dynamic value) {
-  if (value is int) return value;
-  if (value is double) return value.toInt();
-  if (value is num) return value.toInt();
-  return null;
+  return WireParsers.parseInt(value);
+}
+
+bool? _asSessionBool(dynamic value) {
+  return WireParsers.parseBool(value);
 }
 
 // Global singleton instance
@@ -304,8 +297,7 @@ what you have, you must use the options mode.
   final List<FeedItem> _feedItems = <FeedItem>[];
   final List<DecryptedArtifact> _artifacts = <DecryptedArtifact>[];
   final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
-  Map<String, List<Map<String, dynamic>>>?
-      _sessionMessagesCache;
+  Map<String, List<Map<String, dynamic>>>? _sessionMessagesCache;
   final Map<String, Map<String, dynamic>> _sessionUsage = {};
   Settings _settingsSnapshot = Settings();
   int _settingsVersion = 0;
@@ -321,8 +313,7 @@ what you have, you must use the options mode.
 
   // Change notification streams
   final _dataChangeController = StreamController<void>.broadcast();
-  final _sessionMessageChangeController =
-      StreamController<String>.broadcast();
+  final _sessionMessageChangeController = StreamController<String>.broadcast();
   Timer? _dataChangeDebounceTimer;
   Timer? _saveSeqDebounceTimer;
 
@@ -331,6 +322,7 @@ what you have, you must use the options mode.
   List<FriendRequest> get friendRequests => List.unmodifiable(_friendRequests);
   List<FeedItem> get feedItems => List.unmodifiable(_feedItems);
   List<DecryptedArtifact> get artifacts => List.unmodifiable(_artifacts);
+
   /// Get usage data for a session (contextSize, inputTokens, outputTokens).
   Map<String, Map<String, dynamic>> get sessionUsage =>
       Map.unmodifiable(_sessionUsage);
@@ -362,14 +354,11 @@ what you have, you must use the options mode.
   bool get hasNativeUpdate => _nativeUpdateUrl != null;
   Map<String, GitStatus> get sessionGitStatus =>
       Map.unmodifiable(_sessionGitStatus);
-  Map<String, List<Map<String, dynamic>>>
-      get sessionMessages {
+  Map<String, List<Map<String, dynamic>>> get sessionMessages {
     _sessionMessagesCache ??= Map.unmodifiable(
       _sessionMessages.map(
-        (key, value) => MapEntry(
-          key,
-          List<Map<String, dynamic>>.unmodifiable(value),
-        ),
+        (key, value) =>
+            MapEntry(key, List<Map<String, dynamic>>.unmodifiable(value)),
       ),
     );
     return _sessionMessagesCache!;
@@ -415,7 +404,7 @@ what you have, you must use the options mode.
     Encryption encryption,
   ) async {
     if (isInitialized) {
-      if (kDebugMode) debugPrint('Sync already initialized');
+      logger.info('Sync already initialized');
       return;
     }
 
@@ -439,7 +428,7 @@ what you have, you must use the options mode.
     Encryption encryption,
   ) async {
     if (isInitialized) {
-      if (kDebugMode) debugPrint('Sync already initialized');
+      logger.info('Sync already initialized');
       return;
     }
 
@@ -493,13 +482,10 @@ what you have, you must use the options mode.
 
     // Wait for sessions and machines to load before marking as ready.
     try {
-      await Future.wait([
-        sessionsSync.awaitQueue(),
-        machinesSync.awaitQueue(),
-      ]);
+      await Future.wait([sessionsSync.awaitQueue(), machinesSync.awaitQueue()]);
       _isReady = true;
     } catch (error) {
-      if (kDebugMode) debugPrint('Failed initial ready sync: $error');
+      logger.warning('Failed initial ready sync', error);
     }
   }
 
@@ -545,11 +531,8 @@ what you have, you must use the options mode.
   /// We debounce to a 500ms window so rapid page fetches batch into one write.
   void _scheduleSaveSeq() {
     _saveSeqDebounceTimer?.cancel();
-    _saveSeqDebounceTimer =
-        Timer(const Duration(milliseconds: 500), () {
-      MMKVStorage().saveSessionLastSeq(
-        Map.unmodifiable(_sessionLastSeq),
-      );
+    _saveSeqDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+      MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     });
   }
 
@@ -559,7 +542,7 @@ what you have, you must use the options mode.
       ..onMessage('update', handleUpdate)
       ..onMessage('ephemeral', handleEphemeralUpdate)
       ..onReconnected(() {
-        if (kDebugMode) debugPrint('Socket reconnected');
+        logger.info('Socket reconnected');
         _invalidateAllSyncs();
         // Only re-fetch messages for the currently visible session.
         // All other sessions will be lazily refreshed when the user
@@ -578,9 +561,7 @@ what you have, you must use the options mode.
   /// Handle incoming updates
   void handleUpdate(dynamic data) {
     if (data is! Map<String, dynamic>) {
-      if (kDebugMode) {
-        debugPrint('handleUpdate: unexpected data type: ${data.runtimeType}');
-      }
+      logger.warning('handleUpdate: unexpected data type: ${data.runtimeType}');
       return;
     }
     try {
@@ -625,8 +606,7 @@ what you have, you must use the options mode.
           break;
       }
     } catch (error, stack) {
-      if (kDebugMode) debugPrint('Failed to handle update: $error');
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Failed to handle update', error, stack);
     }
   }
 
@@ -636,17 +616,15 @@ what you have, you must use the options mode.
     if (sessionId != null && messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId]?.invalidate();
     }
-    if (kDebugMode) {
-      debugPrint(
-        'New message received'
-        '${sessionId != null ? ': $sessionId' : ''}',
-      );
-    }
+    logger.info(
+      'New message received'
+      '${sessionId != null ? ': $sessionId' : ''}',
+    );
   }
 
   /// Handle new session update
   void _handleNewSession(Map<String, dynamic> data) {
-    if (kDebugMode) debugPrint('New session received');
+    logger.info('New session received');
     final sessionId = data['id'] as String? ?? data['sid'] as String?;
     sessionsSync.invalidateAndAwait().then((_) {
       // Apply the same guard used in createSession: if the delta fetch missed
@@ -674,9 +652,7 @@ what you have, you must use the options mode.
       _sessionDataKeys.remove(sessionId);
       if (isInitialized) {
         _sessionLastSeq.remove(sessionId);
-        MMKVStorage().saveSessionLastSeq(
-          Map.unmodifiable(_sessionLastSeq),
-        );
+        MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
         _sessionFirstLoadedSeq.remove(sessionId);
         MMKVStorage().saveSessionFirstLoadedSeq(
           Map.unmodifiable(_sessionFirstLoadedSeq),
@@ -685,12 +661,10 @@ what you have, you must use the options mode.
       }
     }
     sessionsSync.invalidate();
-    if (kDebugMode) {
-      debugPrint(
-        'Session deletion received'
-        '${sessionId != null ? ': $sessionId' : ''}',
-      );
-    }
+    logger.info(
+      'Session deletion received'
+      '${sessionId != null ? ': $sessionId' : ''}',
+    );
   }
 
   /// Handle session update
@@ -700,30 +674,28 @@ what you have, you must use the options mode.
     if (sessionId != null && messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId]?.invalidate();
     }
-    if (kDebugMode) {
-      debugPrint(
-        'Session update received'
-        '${sessionId != null ? ': $sessionId' : ''}',
-      );
-    }
+    logger.info(
+      'Session update received'
+      '${sessionId != null ? ': $sessionId' : ''}',
+    );
   }
 
   /// Handle account update
   void _handleUpdateAccount(Map<String, dynamic> data) {
-    if (kDebugMode) debugPrint('Account update received');
+    logger.info('Account update received');
     profileSync.invalidate();
     settingsSync.invalidate();
   }
 
   /// Handle machine update
   void _handleUpdateMachine(Map<String, dynamic> data) {
-    if (kDebugMode) debugPrint('Machine update received');
+    logger.info('Machine update received');
     machinesSync.invalidate();
   }
 
   /// Handle relationship update
   void _handleRelationshipUpdated(Map<String, dynamic> data) {
-    if (kDebugMode) debugPrint('Relationship update received');
+    logger.info('Relationship update received');
     friendsSync.invalidate();
     friendRequestsSync.invalidate();
     feedSync.invalidate();
@@ -731,38 +703,34 @@ what you have, you must use the options mode.
 
   /// Handle new artifact update
   void _handleNewArtifact(Map<String, dynamic> data) {
-    if (kDebugMode) debugPrint('New artifact received');
+    logger.info('New artifact received');
     artifactsSync.invalidate();
   }
 
   /// Handle artifact update
   void _handleUpdateArtifact(Map<String, dynamic> data) {
-    if (kDebugMode) debugPrint('Artifact update received');
+    logger.info('Artifact update received');
     artifactsSync.invalidate();
   }
 
   /// Handle artifact deletion
   void _handleDeleteArtifact(Map<String, dynamic> data) {
-    if (kDebugMode) debugPrint('Artifact deletion received');
+    logger.info('Artifact deletion received');
     artifactsSync.invalidate();
   }
 
   /// Handle new feed post
   void _handleNewFeedPost(Map<String, dynamic> data) {
-    if (kDebugMode) debugPrint('New feed post received');
+    logger.info('New feed post received');
     feedSync.invalidate();
   }
 
   /// Check if data contains a key matching the search string
   /// without full JSON serialization.
-  bool _containsKeyRecursive(
-    dynamic data,
-    String key,
-  ) {
+  bool _containsKeyRecursive(dynamic data, String key) {
     if (data is Map) {
       for (final k in data.keys) {
-        if (k is String &&
-            k.toLowerCase().contains(key)) {
+        if (k is String && k.toLowerCase().contains(key)) {
           return true;
         }
         if (_containsKeyRecursive(data[k], key)) {
@@ -783,25 +751,23 @@ what you have, you must use the options mode.
   void _handleKvBatchUpdate(Map<String, dynamic> data) {
     final changes = data['changes'];
     if (changes is List &&
-        changes.any((change) =>
-            change is Map<String, dynamic> &&
-            ((change['key'] as String?)?.startsWith('todo.') ?? false))) {
+        changes.any(
+          (change) =>
+              change is Map<String, dynamic> &&
+              ((change['key'] as String?)?.startsWith('todo.') ?? false),
+        )) {
       todosSync.invalidate();
-      if (kDebugMode) {
-        debugPrint('KV batch update received (todos)');
-      }
+      logger.info('KV batch update received (todos)');
       return;
     }
 
     if (_containsKeyRecursive(data, 'todo')) {
       todosSync.invalidate();
-      if (kDebugMode) {
-        debugPrint('KV batch update received (todos-fallback)');
-      }
+      logger.info('KV batch update received (todos-fallback)');
       return;
     }
 
-    if (kDebugMode) debugPrint('KV batch update received (non-todo)');
+    logger.info('KV batch update received (non-todo)');
   }
 
   /// Handle ephemeral updates
@@ -812,8 +778,7 @@ what you have, you must use the options mode.
 
     final type = data['type'] as String?;
     // Activity events use 'id'; fall back to 'sid' for other shapes.
-    final sessionId =
-        data['id'] as String? ?? data['sid'] as String?;
+    final sessionId = data['id'] as String? ?? data['sid'] as String?;
     if (sessionId == null) {
       return;
     }
@@ -841,20 +806,17 @@ what you have, you must use the options mode.
           // 60 s, drop presence back to inactive so the session stops
           // appearing in the Active section.
           _presenceTimers[sessionId]?.cancel();
-          _presenceTimers[sessionId] = Timer(
-            const Duration(seconds: 60),
-            () {
-              _presenceTimers.remove(sessionId);
-              final current = _sessions[sessionId];
-              if (current != null && current.presence == 'online') {
-                _sessions[sessionId] = current.copyWith(
-                  presence: 'offline',
-                  thinking: false,
-                );
-                _notifyDataChanged();
-              }
-            },
-          );
+          _presenceTimers[sessionId] = Timer(const Duration(seconds: 60), () {
+            _presenceTimers.remove(sessionId);
+            final current = _sessions[sessionId];
+            if (current != null && current.presence == 'online') {
+              _sessions[sessionId] = current.copyWith(
+                presence: 'offline',
+                thinking: false,
+              );
+              _notifyDataChanged();
+            }
+          });
         } else {
           // Session explicitly went offline — cancel any timer and
           // immediately mark it inactive.
@@ -876,15 +838,14 @@ what you have, you must use the options mode.
     // navigates to them. Invalidating all sessions caused a thundering herd
     // of fetchMessages calls (one per active typing/tool event × every session
     // the user had previously opened), blocking the main thread.
-    if (sessionId == _visibleSessionId &&
-        messagesSync.containsKey(sessionId)) {
+    if (sessionId == _visibleSessionId && messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId]?.invalidate();
     }
   }
 
   /// Fetch sessions from server
   Future<void> fetchSessions() async {
-    if (kDebugMode) debugPrint('Fetching sessions...');
+    logger.info('Fetching sessions...');
 
     final fetchStartMs = DateTime.now().millisecondsSinceEpoch;
     final forceFullFetch = _forceFullFetchNext;
@@ -893,39 +854,11 @@ what you have, you must use the options mode.
 
     try {
       final apiClient = ApiClient();
-      final allSessions = <dynamic>[];
-      String? cursor;
+      final allSessions = await SessionsApi(
+        client: apiClient,
+      ).fetchSessions(limit: 50, changedSince: changedSince);
 
-      while (true) {
-        final response = await apiClient.get(
-          '/v2/sessions',
-          queryParameters: {
-            'limit': 50,
-            if (cursor != null) 'cursor': cursor,
-            if (changedSince != null) 'changedSince': changedSince,
-          },
-        );
-
-        if (!apiClient.isSuccess(response)) {
-          if (kDebugMode) {
-            debugPrint(
-              'Failed to fetch sessions: ${response.statusCode}',
-            );
-          }
-          break;
-        }
-
-        final data = response.data as Map<String, dynamic>;
-        final page = data['sessions'] as List? ?? [];
-        allSessions.addAll(page);
-
-        final hasNext = data['hasNext'] as bool? ?? false;
-        if (!hasNext) break;
-        cursor = data['nextCursor'] as String?;
-        if (cursor == null) break;
-      }
-
-      if (allSessions.isEmpty && cursor == null) {
+      if (allSessions.isEmpty) {
         if (changedSince != null) {
           // Delta fetch with no changes — update timestamp and return.
           _lastSessionsFetchedAt = fetchStartMs;
@@ -941,8 +874,16 @@ what you have, you must use the options mode.
         // Yield to event queue before each crypto operation.
         await Future<void>.delayed(Duration.zero);
 
+        if (session is! Map<String, dynamic>) {
+          logger.warning(
+            'Skipping session with invalid payload type',
+            'Session data: $session',
+          );
+          continue;
+        }
+
         // Safe cast for session ID - skip session if missing ID
-        final sessionId = session['id'] as String?;
+        final sessionId = WireParsers.parseString(session['id']);
         if (sessionId == null || sessionId.isEmpty) {
           logger.warning(
             'Skipping session with missing/empty ID',
@@ -950,12 +891,15 @@ what you have, you must use the options mode.
           );
           continue;
         }
-        final dataEncryptionKey = session['dataEncryptionKey'] as String?;
+        final dataEncryptionKey = WireParsers.parseString(
+          session['dataEncryptionKey'],
+        );
 
         if (dataEncryptionKey != null) {
           try {
-            final decryptedKey =
-                await encryption.decryptEncryptionKey(dataEncryptionKey);
+            final decryptedKey = await encryption.decryptEncryptionKey(
+              dataEncryptionKey,
+            );
             if (decryptedKey != null) {
               sessionKeys[sessionId] = decryptedKey;
               _sessionDataKeys[sessionId] = decryptedKey;
@@ -964,23 +908,19 @@ what you have, you must use the options mode.
               // Fall back to legacy so the session is still visible in the UI
               // and "Session encryption not initialized" is avoided.  Messages
               // will not decrypt until the user re-authenticates.
-              if (kDebugMode) {
-                debugPrint(
-                  '[Encryption] DEK decryption failed for session $sessionId '
-                  '(returned null) — falling back to legacy encryption. '
-                  'Run `happy auth debug` and test the printed vector in '
-                  'Flutter to confirm key mismatch.',
-                );
-              }
+              logger.warning(
+                '[Encryption] DEK decryption failed for session $sessionId '
+                '(returned null) — falling back to legacy encryption. '
+                'Run `happy auth debug` and test the printed vector in '
+                'Flutter to confirm key mismatch.',
+              );
               sessionKeys[sessionId] = null;
             }
           } catch (e) {
-            if (kDebugMode) {
-              debugPrint(
-                '[Encryption] DEK decryption threw for session $sessionId: $e '
-                '— falling back to legacy encryption.',
-              );
-            }
+            logger.info(
+              '[Encryption] DEK decryption threw for session $sessionId: $e '
+              '— falling back to legacy encryption.',
+            );
             sessionKeys[sessionId] = null;
           }
         } else {
@@ -997,7 +937,22 @@ what you have, you must use the options mode.
         // Yield to event queue before each session decrypt.
         await Future<void>.delayed(Duration.zero);
 
-        final sessionId = session['id'] as String;
+        if (session is! Map<String, dynamic>) {
+          logger.warning(
+            'Skipping session with invalid payload type',
+            'Session data: $session',
+          );
+          continue;
+        }
+
+        final sessionId = WireParsers.parseString(session['id']);
+        if (sessionId == null || sessionId.isEmpty) {
+          logger.warning(
+            'Skipping session with missing/empty ID',
+            'Session data: $session',
+          );
+          continue;
+        }
         final sessionEncryption = encryption.getSessionEncryption(sessionId);
 
         // Always add the session, even if encryption isn't available.
@@ -1010,17 +965,22 @@ what you have, you must use the options mode.
         // and the session would be silently dropped.
         try {
           // Safe casts with defaults for required fields
-          final seq = session['seq'] as int? ?? 0;
-          final createdAt = session['createdAt'] as int? ??
+          final seq = _asSessionInt(session['seq']) ?? 0;
+          final createdAt =
+              _asSessionInt(session['createdAt']) ??
               DateTime.now().millisecondsSinceEpoch;
-          final updatedAt = session['updatedAt'] as int? ??
+          final updatedAt =
+              _asSessionInt(session['updatedAt']) ??
               DateTime.now().millisecondsSinceEpoch;
-          final active = session['active'] as bool? ?? false;
-          final activeAt = session['activeAt'] as int? ??
+          final active = _asSessionBool(session['active']) ?? false;
+          final activeAt =
+              _asSessionInt(session['activeAt']) ??
               DateTime.now().millisecondsSinceEpoch;
-          final metadataVersion = session['metadataVersion'] as int? ?? 0;
-          final agentStateVersion = session['agentStateVersion'] as int? ?? 0;
-          final lastSeq = session['lastSeq'] as int?;
+          final metadataVersion =
+              _asSessionInt(session['metadataVersion']) ?? 0;
+          final agentStateVersion =
+              _asSessionInt(session['agentStateVersion']) ?? 0;
+          final lastSeq = _asSessionInt(session['lastSeq']);
 
           Map<String, dynamic>? metadata;
           Map<String, dynamic>? agentState;
@@ -1029,8 +989,8 @@ what you have, you must use the options mode.
             // Decrypt metadata
             try {
               metadata = await sessionEncryption.decryptMetadata(
-                session['metadataVersion'] as int? ?? 0,
-                session['metadata'] as String? ?? '',
+                metadataVersion,
+                WireParsers.parseString(session['metadata']) ?? '',
               );
             } catch (e) {
               logger.warning('Failed to decrypt session metadata', e);
@@ -1039,8 +999,8 @@ what you have, you must use the options mode.
             // Decrypt agent state
             try {
               agentState = await sessionEncryption.decryptAgentState(
-                session['agentStateVersion'] as int? ?? 0,
-                session['agentState'] as String?,
+                agentStateVersion,
+                WireParsers.parseString(session['agentState']),
               );
             } catch (e) {
               logger.warning('Failed to decrypt session agentState', e);
@@ -1107,20 +1067,17 @@ what you have, you must use the options mode.
       // indefinitely (matches the reference implementation's behaviour).
       for (final s in decryptedSessions) {
         if (s.presence == 'online') {
-          _presenceTimers[s.id] = Timer(
-            const Duration(seconds: 60),
-            () {
-              _presenceTimers.remove(s.id);
-              final current = _sessions[s.id];
-              if (current != null && current.presence == 'online') {
-                _sessions[s.id] = current.copyWith(
-                  presence: 'offline',
-                  thinking: false,
-                );
-                _notifyDataChanged();
-              }
-            },
-          );
+          _presenceTimers[s.id] = Timer(const Duration(seconds: 60), () {
+            _presenceTimers.remove(s.id);
+            final current = _sessions[s.id];
+            if (current != null && current.presence == 'online') {
+              _sessions[s.id] = current.copyWith(
+                presence: 'offline',
+                thinking: false,
+              );
+              _notifyDataChanged();
+            }
+          });
         }
       }
 
@@ -1132,22 +1089,17 @@ what you have, you must use the options mode.
         }
       }
 
-      if (kDebugMode) {
-        debugPrint(
-          'Fetched and decrypted ${decryptedSessions.length} sessions',
-        );
-      }
+      logger.info('Fetched and decrypted ${decryptedSessions.length} sessions');
       _lastSessionsFetchedAt = fetchStartMs;
       _notifyDataChanged();
     } catch (error, stack) {
-      if (kDebugMode) debugPrint('Error fetching sessions: $error');
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Error fetching sessions', error, stack);
     }
   }
 
   /// Fetch machines from server
   Future<void> fetchMachines() async {
-    if (kDebugMode) debugPrint('Fetching machines...');
+    logger.info('Fetching machines...');
 
     try {
       final apiClient = ApiClient();
@@ -1163,12 +1115,10 @@ what you have, you must use the options mode.
             rawData['machines'] is List) {
           data = rawData['machines'] as List;
         } else {
-          if (kDebugMode) {
-            debugPrint(
-              'Unexpected response format for machines: '
-              '${rawData?.runtimeType}',
-            );
-          }
+          logger.warning(
+            'Unexpected response format for machines: '
+            '${rawData?.runtimeType}',
+          );
           return;
         }
 
@@ -1181,28 +1131,25 @@ what you have, you must use the options mode.
 
           if (dataEncryptionKey != null) {
             try {
-              final decryptedKey =
-                  await encryption.decryptEncryptionKey(dataEncryptionKey);
+              final decryptedKey = await encryption.decryptEncryptionKey(
+                dataEncryptionKey,
+              );
               if (decryptedKey != null) {
                 machineKeys[machineId] = decryptedKey;
                 _machineDataKeys[machineId] = decryptedKey;
               } else {
-                if (kDebugMode) {
-                  debugPrint(
-                    '[Encryption] DEK decryption failed for machine $machineId '
-                    '(returned null) — falling back to legacy encryption. '
-                    'Run `happy auth debug` to diagnose key mismatch.',
-                  );
-                }
+                logger.warning(
+                  '[Encryption] DEK decryption failed for machine $machineId '
+                  '(returned null) — falling back to legacy encryption. '
+                  'Run `happy auth debug` to diagnose key mismatch.',
+                );
                 machineKeys[machineId] = null;
               }
             } catch (e) {
-              if (kDebugMode) {
-                debugPrint(
-                  '[Encryption] DEK decryption threw for machine $machineId: $e '
-                  '— falling back to legacy encryption.',
-                );
-              }
+              logger.info(
+                '[Encryption] DEK decryption threw for machine $machineId: $e '
+                '— falling back to legacy encryption.',
+              );
               machineKeys[machineId] = null;
             }
           } else {
@@ -1221,27 +1168,26 @@ what you have, you must use the options mode.
 
           final dataKey = machineKeys[machineId];
           final rawMeta = machine['metadata'];
-          final encMeta =
-              (rawMeta is String && rawMeta.isNotEmpty)
-                  ? Base64Utils.decode(rawMeta, Encoding.base64)
-                  : null;
+          final encMeta = (rawMeta is String && rawMeta.isNotEmpty)
+              ? Base64Utils.decode(rawMeta, Encoding.base64)
+              : null;
           final rawDs = machine['daemonState'] as String?;
-          final encDs =
-              (rawDs != null && rawDs.isNotEmpty)
-                  ? Base64Utils.decode(rawDs, Encoding.base64)
-                  : null;
+          final encDs = (rawDs != null && rawDs.isNotEmpty)
+              ? Base64Utils.decode(rawDs, Encoding.base64)
+              : null;
 
-          machineIsolateItems.add(_MachineIsolateItem(
-            id: machineId,
-            secretKey: dataKey ?? legacyKey,
-            isAes: dataKey != null,
-            encryptedMetadata: encMeta,
-            metadataVersion:
-                _asSessionInt(machine['metadataVersion']) ?? 0,
-            encryptedDaemonState: encDs,
-            daemonStateVersion:
-                _asSessionInt(machine['daemonStateVersion']) ?? 0,
-          ));
+          machineIsolateItems.add(
+            _MachineIsolateItem(
+              id: machineId,
+              secretKey: dataKey ?? legacyKey,
+              isAes: dataKey != null,
+              encryptedMetadata: encMeta,
+              metadataVersion: _asSessionInt(machine['metadataVersion']) ?? 0,
+              encryptedDaemonState: encDs,
+              daemonStateVersion:
+                  _asSessionInt(machine['daemonStateVersion']) ?? 0,
+            ),
+          );
         }
 
         // Decrypt all machine payloads off the main thread.
@@ -1260,22 +1206,23 @@ what you have, you must use the options mode.
           final result = machineResultById[machineId];
           if (result == null) continue;
 
-          decryptedMachines.add(Machine(
-            id: machineId,
-            seq: _asSessionInt(machine['seq']) ?? 0,
-            createdAt: _asSessionInt(machine['createdAt']) ?? 0,
-            updatedAt: _asSessionInt(machine['updatedAt']) ?? 0,
-            active: machine['active'] as bool? ?? false,
-            activeAt: _asSessionInt(machine['activeAt']) ?? 0,
-            metadata: result.metadata != null
-                ? MachineMetadata.fromJson(result.metadata!)
-                : null,
-            metadataVersion:
-                _asSessionInt(machine['metadataVersion']) ?? 0,
-            daemonState: result.daemonState,
-            daemonStateVersion:
-                _asSessionInt(machine['daemonStateVersion']) ?? 0,
-          ));
+          decryptedMachines.add(
+            Machine(
+              id: machineId,
+              seq: _asSessionInt(machine['seq']) ?? 0,
+              createdAt: _asSessionInt(machine['createdAt']) ?? 0,
+              updatedAt: _asSessionInt(machine['updatedAt']) ?? 0,
+              active: machine['active'] as bool? ?? false,
+              activeAt: _asSessionInt(machine['activeAt']) ?? 0,
+              metadata: result.metadata != null
+                  ? MachineMetadata.fromJson(result.metadata!)
+                  : null,
+              metadataVersion: _asSessionInt(machine['metadataVersion']) ?? 0,
+              daemonState: result.daemonState,
+              daemonStateVersion:
+                  _asSessionInt(machine['daemonStateVersion']) ?? 0,
+            ),
+          );
         }
 
         _machines
@@ -1283,36 +1230,25 @@ what you have, you must use the options mode.
           ..addEntries(
             decryptedMachines.map((machine) => MapEntry(machine.id, machine)),
           );
-        if (kDebugMode) {
-          debugPrint(
-            'Fetched and decrypted ${decryptedMachines.length} machines',
-          );
-        }
+        logger.info(
+          'Fetched and decrypted ${decryptedMachines.length} machines',
+        );
         _notifyDataChanged();
       } else {
-        if (kDebugMode) {
-          debugPrint(
-            'Failed to fetch machines: ${response.statusCode}',
-          );
-        }
+        logger.warning('Failed to fetch machines: ${response.statusCode}');
       }
     } catch (error, stack) {
-      if (kDebugMode) debugPrint('Error fetching machines: $error');
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Error fetching machines', error, stack);
     }
   }
 
   /// Fetch artifacts list from server
   Future<void> fetchArtifactsList() async {
-    if (kDebugMode) debugPrint('Fetching artifacts...');
+    logger.info('Fetching artifacts...');
     try {
       final response = await ApiClient().get('/v1/artifacts');
       if (!ApiClient().isSuccess(response)) {
-        if (kDebugMode) {
-          debugPrint(
-            'Failed to fetch artifacts: ${response.statusCode}',
-          );
-        }
+        logger.warning('Failed to fetch artifacts: ${response.statusCode}');
         return;
       }
 
@@ -1327,8 +1263,7 @@ what you have, you must use the options mode.
 
       // Phase 1: Decrypt artifact data keys on the main thread.
       // CryptoBox.decrypt is fast (single NaCl call per artifact).
-      final keyedArtifacts =
-          <({Artifact artifact, Uint8List key})>[];
+      final keyedArtifacts = <({Artifact artifact, Uint8List key})>[];
       final decryptedArtifacts = <DecryptedArtifact>[];
       for (final raw in rawArtifacts) {
         await Future<void>.delayed(Duration.zero); // yield to event queue
@@ -1340,24 +1275,22 @@ what you have, you must use the options mode.
           );
           if (decryptedKey != null) {
             _artifactDataKeys[artifact.id] = decryptedKey;
-            keyedArtifacts.add(
-              (artifact: artifact, key: decryptedKey),
-            );
+            keyedArtifacts.add((artifact: artifact, key: decryptedKey));
           } else {
-            decryptedArtifacts.add(DecryptedArtifact(
-              id: artifact.id,
-              headerVersion: artifact.headerVersion,
-              bodyVersion: artifact.bodyVersion,
-              seq: artifact.seq,
-              createdAt: artifact.createdAt,
-              updatedAt: artifact.updatedAt,
-              isDecrypted: false,
-            ));
+            decryptedArtifacts.add(
+              DecryptedArtifact(
+                id: artifact.id,
+                headerVersion: artifact.headerVersion,
+                bodyVersion: artifact.bodyVersion,
+                seq: artifact.seq,
+                createdAt: artifact.createdAt,
+                updatedAt: artifact.updatedAt,
+                isDecrypted: false,
+              ),
+            );
           }
         } catch (error) {
-          if (kDebugMode) {
-            debugPrint('Failed to parse artifact key: $error');
-          }
+          logger.warning('Failed to parse artifact key', error);
         }
       }
 
@@ -1394,33 +1327,32 @@ what you have, you must use the options mode.
           final result = artifactResultById[artifact.id];
           final header = result?.header;
           final body = result?.body;
-          decryptedArtifacts.add(DecryptedArtifact(
-            id: artifact.id,
-            title: header?['title'] as String?,
-            sessions: (header?['sessions'] as List<dynamic>?)
-                ?.whereType<String>()
-                .toList(),
-            draft: header?['draft'] as bool?,
-            body: body?['body'] as String?,
-            headerVersion: artifact.headerVersion,
-            bodyVersion: artifact.bodyVersion,
-            seq: artifact.seq,
-            createdAt: artifact.createdAt,
-            updatedAt: artifact.updatedAt,
-            isDecrypted: header != null,
-          ));
+          decryptedArtifacts.add(
+            DecryptedArtifact(
+              id: artifact.id,
+              title: header?['title'] as String?,
+              sessions: (header?['sessions'] as List<dynamic>?)
+                  ?.whereType<String>()
+                  .toList(),
+              draft: header?['draft'] as bool?,
+              body: body?['body'] as String?,
+              headerVersion: artifact.headerVersion,
+              bodyVersion: artifact.bodyVersion,
+              seq: artifact.seq,
+              createdAt: artifact.createdAt,
+              updatedAt: artifact.updatedAt,
+              isDecrypted: header != null,
+            ),
+          );
         }
       }
 
       _artifacts
         ..clear()
         ..addAll(decryptedArtifacts);
-      if (kDebugMode) {
-        debugPrint('Fetched artifacts: ${_artifacts.length}');
-      }
+      logger.info('Fetched artifacts: ${_artifacts.length}');
     } catch (error, stack) {
-      if (kDebugMode) debugPrint('Failed to fetch artifacts: $error');
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Failed to fetch artifacts', error, stack);
     }
   }
 
@@ -1429,15 +1361,14 @@ what you have, you must use the options mode.
     try {
       final response = await ApiClient().get('/v1/artifacts/$id');
       if (!ApiClient().isSuccess(response)) {
-        if (kDebugMode) {
-          debugPrint('Failed to fetch artifact: ${response.statusCode}');
-        }
+        logger.warning('Failed to fetch artifact: ${response.statusCode}');
         return null;
       }
       final raw = response.data;
       if (raw is! Map<String, dynamic>) return null;
       final artifact = Artifact.fromJson(raw);
-      final decryptedKey = _artifactDataKeys[artifact.id] ??
+      final decryptedKey =
+          _artifactDataKeys[artifact.id] ??
           await encryption.decryptEncryptionKey(artifact.dataEncryptionKey);
       if (decryptedKey == null) return null;
       _artifactDataKeys[artifact.id] = decryptedKey;
@@ -1458,8 +1389,7 @@ what you have, you must use the options mode.
         isDecrypted: header != null,
       );
     } catch (error, stack) {
-      if (kDebugMode) debugPrint('Failed to fetch artifact: $error');
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Failed to fetch artifact', error, stack);
       return null;
     }
   }
@@ -1470,12 +1400,13 @@ what you have, you must use the options mode.
     final dek = ArtifactEncryption.generateDataEncryptionKey();
     final artifactEncryption = ArtifactEncryption(dek);
     final encryptedDek = await encryption.encryptEncryptionKey(dek);
-    final encryptedDekB64 =
-        Base64Utils.encode(encryptedDek, Encoding.base64);
-    final encryptedHeader = await artifactEncryption
-        .encryptHeader({'title': title});
-    final encryptedBody = await artifactEncryption
-        .encryptBody({'body': body ?? ''});
+    final encryptedDekB64 = Base64Utils.encode(encryptedDek, Encoding.base64);
+    final encryptedHeader = await artifactEncryption.encryptHeader({
+      'title': title,
+    });
+    final encryptedBody = await artifactEncryption.encryptBody({
+      'body': body ?? '',
+    });
     final artifactId = encryption.generateId();
     final request = ArtifactCreateRequest(
       id: artifactId,
@@ -1488,9 +1419,7 @@ what you have, you must use the options mode.
       data: request.toJson(),
     );
     if (!ApiClient().isSuccess(response)) {
-      throw StateError(
-        'Failed to create artifact: ${response.statusCode}',
-      );
+      throw StateError('Failed to create artifact: ${response.statusCode}');
     }
     _artifactDataKeys[artifactId] = dek;
     artifactsSync.invalidate();
@@ -1498,11 +1427,7 @@ what you have, you must use the options mode.
   }
 
   /// Update an existing artifact's title and/or body.
-  Future<void> updateArtifact(
-    String id,
-    String? title,
-    String? body,
-  ) async {
+  Future<void> updateArtifact(String id, String? title, String? body) async {
     final dek = _artifactDataKeys[id];
     if (dek == null) {
       throw StateError('No decryption key found for artifact $id');
@@ -1512,10 +1437,12 @@ what you have, you must use the options mode.
       (a) => a.id == id,
       orElse: () => throw StateError('Artifact $id not found in cache'),
     );
-    final encryptedHeader = await artifactEncryption
-        .encryptHeader({'title': title});
-    final encryptedBody = await artifactEncryption
-        .encryptBody({'body': body ?? ''});
+    final encryptedHeader = await artifactEncryption.encryptHeader({
+      'title': title,
+    });
+    final encryptedBody = await artifactEncryption.encryptBody({
+      'body': body ?? '',
+    });
     final request = ArtifactUpdateRequest(
       header: encryptedHeader,
       expectedHeaderVersion: existing.headerVersion,
@@ -1527,9 +1454,7 @@ what you have, you must use the options mode.
       data: request.toJson(),
     );
     if (!ApiClient().isSuccess(response)) {
-      throw StateError(
-        'Failed to update artifact: ${response.statusCode}',
-      );
+      throw StateError('Failed to update artifact: ${response.statusCode}');
     }
     artifactsSync.invalidate();
   }
@@ -1538,9 +1463,7 @@ what you have, you must use the options mode.
   Future<void> deleteArtifact(String id) async {
     final response = await ApiClient().delete('/v1/artifacts/$id');
     if (!ApiClient().isSuccess(response)) {
-      throw StateError(
-        'Failed to delete artifact: ${response.statusCode}',
-      );
+      throw StateError('Failed to delete artifact: ${response.statusCode}');
     }
     _artifactDataKeys.remove(id);
     _artifacts.removeWhere((a) => a.id == id);
@@ -1549,15 +1472,11 @@ what you have, you must use the options mode.
 
   /// Fetch friends list from server
   Future<void> fetchFriends() async {
-    if (kDebugMode) debugPrint('Fetching friends...');
+    logger.info('Fetching friends...');
     try {
       final response = await ApiClient().get('/v1/friends');
       if (!ApiClient().isSuccess(response)) {
-        if (kDebugMode) {
-          debugPrint(
-            'Failed to fetch friends: ${response.statusCode}',
-          );
-        }
+        logger.warning('Failed to fetch friends: ${response.statusCode}');
         return;
       }
 
@@ -1585,15 +1504,12 @@ what you have, you must use the options mode.
         ..clear()
         ..addAll(_deriveFriendRequests(parsedFriends));
 
-      if (kDebugMode) {
-        debugPrint(
-          'Fetched friends: ${_friends.length}, '
-          'pending requests: ${_friendRequests.length}',
-        );
-      }
+      logger.info(
+        'Fetched friends: ${_friends.length}, '
+        'pending requests: ${_friendRequests.length}',
+      );
     } catch (error, stack) {
-      if (kDebugMode) debugPrint('Failed to fetch friends: $error');
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Failed to fetch friends', error, stack);
     }
   }
 
@@ -1604,23 +1520,19 @@ what you have, you must use the options mode.
 
   /// Fetch feed items from server
   Future<void> fetchFeed() async {
-    if (kDebugMode) debugPrint('Fetching feed...');
+    logger.info('Fetching feed...');
     try {
       final response = await ApiClient().get(
         '/v1/feed',
         queryParameters: <String, dynamic>{'limit': 50},
       );
       if (!ApiClient().isSuccess(response)) {
-        if (kDebugMode) {
-          debugPrint('Failed to fetch feed: ${response.statusCode}');
-        }
+        logger.warning('Failed to fetch feed: ${response.statusCode}');
         return;
       }
 
       final data = response.data;
-      final rawItems = (data is Map<String, dynamic>)
-          ? data['items']
-          : data;
+      final rawItems = (data is Map<String, dynamic>) ? data['items'] : data;
       if (rawItems is! List) {
         _feedItems.clear();
         return;
@@ -1636,18 +1548,15 @@ what you have, you must use the options mode.
       _feedItems
         ..clear()
         ..addAll(parsed);
-      if (kDebugMode) {
-        debugPrint('Fetched feed items: ${_feedItems.length}');
-      }
+      logger.info('Fetched feed items: ${_feedItems.length}');
     } catch (error, stack) {
-      if (kDebugMode) debugPrint('Failed to fetch feed: $error');
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Failed to fetch feed', error, stack);
     }
   }
 
   /// Fetch todos from server
   Future<void> fetchTodos() async {
-    if (kDebugMode) debugPrint('Fetching todos...');
+    logger.info('Fetching todos...');
     try {
       final items = await KvApi().getByPrefix('todo.', limit: 1000);
       final decryptedByKey = <String, Map<String, dynamic>>{};
@@ -1655,18 +1564,15 @@ what you have, you must use the options mode.
       final results = await Future.wait(
         items.map((item) async {
           try {
-            final decrypted =
-                await encryption.decryptRaw(item.value);
+            final decrypted = await encryption.decryptRaw(item.value);
             if (decrypted is Map<String, dynamic>) {
               return MapEntry(item.key, decrypted);
             }
           } catch (error) {
-            if (kDebugMode) {
-              debugPrint(
-                'Failed to decrypt todo item'
-                ' ${item.key}: $error',
-              );
-            }
+            logger.warning(
+              'Failed to decrypt todo item'
+              ' ${item.key}: $error',
+            );
           }
           return null;
         }),
@@ -1686,15 +1592,12 @@ what you have, you must use the options mode.
           .expand((list) => list.items)
           .toSet()
           .length;
-      if (kDebugMode) {
-        debugPrint(
-          'Fetched todos: ${parsedTodoLists.length} list(s),'
-          ' $totalItems item(s)',
-        );
-      }
+      logger.info(
+        'Fetched todos: ${parsedTodoLists.length} list(s),'
+        ' $totalItems item(s)',
+      );
     } catch (error, stack) {
-      if (kDebugMode) debugPrint('Failed to fetch todos: $error');
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Failed to fetch todos', error, stack);
     }
   }
 
@@ -1703,7 +1606,7 @@ what you have, you must use the options mode.
   Future<void> _fetchSessionGitStatus() async {
     // Git status is currently managed locally via the provider
     // This sync can be extended to fetch from server when needed
-    if (kDebugMode) debugPrint('Session git status sync triggered');
+    logger.info('Session git status sync triggered');
   }
 
   @visibleForTesting
@@ -1804,9 +1707,8 @@ what you have, you must use the options mode.
     Map<String, dynamic> raw, {
     required int createdFallbackAt,
   }) {
-    final content = (raw['content'] as String?) ??
-        (raw['title'] as String?) ??
-        '';
+    final content =
+        (raw['content'] as String?) ?? (raw['title'] as String?) ?? '';
 
     final rawStatus = raw['status'];
     final status = _mapTodoStatus(rawStatus, raw['done']);
@@ -1868,9 +1770,7 @@ what you have, you must use the options mode.
   }
 
   UserProfile _mapFriendProfile(Map<String, dynamic> raw) {
-    final id = (raw['id'] as String?) ??
-        (raw['uid'] as String?) ??
-        'unknown';
+    final id = (raw['id'] as String?) ?? (raw['uid'] as String?) ?? 'unknown';
     final firstName = (raw['firstName'] as String?) ?? '';
     final lastName = raw['lastName'] as String?;
     final username = (raw['username'] as String?) ?? '';
@@ -1887,26 +1787,24 @@ what you have, you must use the options mode.
       username: username,
       avatar: avatar,
       bio: raw['bio'] as String?,
-      status: RelationshipStatus.fromString(
-        raw['status'] as String? ?? 'none',
-      ),
+      status: RelationshipStatus.fromString(raw['status'] as String? ?? 'none'),
     );
   }
 
   List<FriendRequest> _deriveFriendRequests(List<UserProfile> profiles) {
     return profiles
-        .where(
-            (profile) => profile.status == RelationshipStatus.pending,
+        .where((profile) => profile.status == RelationshipStatus.pending)
+        .map(
+          (profile) => FriendRequest(
+            id: 'friend-request-${profile.id}',
+            fromUserId: profile.id,
+            fromUserName: profile.name ?? profile.id,
+            fromUserAvatarUrl: profile.avatarUrl,
+            toUserId: serverID,
+            createdAt: 0,
+            status: 'pending',
+          ),
         )
-        .map((profile) => FriendRequest(
-              id: 'friend-request-${profile.id}',
-              fromUserId: profile.id,
-              fromUserName: profile.name ?? profile.id,
-              fromUserAvatarUrl: profile.avatarUrl,
-              toUserId: serverID,
-              createdAt: 0,
-              status: 'pending',
-            ))
         .toList();
   }
 
@@ -1954,7 +1852,7 @@ what you have, you must use the options mode.
 
   /// Sync settings with server
   Future<void> syncSettings() async {
-    if (kDebugMode) debugPrint('Syncing settings...');
+    logger.info('Syncing settings...');
 
     try {
       final apiClient = ApiClient();
@@ -1988,7 +1886,7 @@ what you have, you must use the options mode.
           final currentVersion = _asInt(updateData?['currentVersion']) ?? 0;
           final serverSettingsMap = currentSettingsEncrypted != null
               ? await encryption.decryptRaw(currentSettingsEncrypted)
-                  as Map<String, dynamic>?
+                    as Map<String, dynamic>?
               : null;
           final serverSettings = Settings.fromJson(serverSettingsMap ?? {});
           _settingsSnapshot = Settings.fromJson({
@@ -2008,8 +1906,9 @@ what you have, you must use the options mode.
         final encryptedSettings = data['settings'] as String?;
 
         if (encryptedSettings != null) {
-          final decrypted = await encryption.decryptRaw(encryptedSettings)
-              as Map<String, dynamic>?;
+          final decrypted =
+              await encryption.decryptRaw(encryptedSettings)
+                  as Map<String, dynamic>?;
           if (decrypted != null) {
             _settingsSnapshot = Settings.fromJson(decrypted);
             _settingsVersion =
@@ -2021,21 +1920,16 @@ what you have, you must use the options mode.
               _asInt(data['settingsVersion']) ?? _settingsVersion;
         }
       } else {
-        if (kDebugMode) {
-          debugPrint(
-            'Failed to fetch settings: ${response.statusCode}',
-          );
-        }
+        logger.warning('Failed to fetch settings: ${response.statusCode}');
       }
     } catch (error, stack) {
-      if (kDebugMode) debugPrint('Error syncing settings: $error');
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Error syncing settings', error, stack);
     }
   }
 
   /// Sync purchases with RevenueCat
   Future<void> syncPurchases() async {
-    if (kDebugMode) debugPrint('Syncing purchases...');
+    logger.info('Syncing purchases...');
     try {
       final apiClient = ApiClient();
       final response = await apiClient.get('/v1/account/profile');
@@ -2046,14 +1940,13 @@ what you have, you must use the options mode.
       final data = response.data as Map<String, dynamic>?;
       _purchases = Purchases.parse(data?['purchases']);
     } catch (error, stack) {
-      if (kDebugMode) debugPrint('Failed to sync purchases: $error');
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Failed to sync purchases', error, stack);
     }
   }
 
   /// Fetch profile from server
   Future<void> fetchProfile() async {
-    if (kDebugMode) debugPrint('Fetching profile...');
+    logger.info('Fetching profile...');
 
     try {
       final apiClient = ApiClient();
@@ -2064,21 +1957,16 @@ what you have, you must use the options mode.
         final data = response.data as Map<String, dynamic>;
         _profile = Profile.fromJson(data);
       } else {
-        if (kDebugMode) {
-          debugPrint(
-            'Failed to fetch profile: ${response.statusCode}',
-          );
-        }
+        logger.warning('Failed to fetch profile: ${response.statusCode}');
       }
     } catch (error, stack) {
-      if (kDebugMode) debugPrint('Error fetching profile: $error');
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Error fetching profile', error, stack);
     }
   }
 
   /// Fetch native app update status
   Future<void> fetchNativeUpdate() async {
-    if (kDebugMode) debugPrint('Fetching native update...');
+    logger.info('Fetching native update...');
     if (kIsWeb) {
       _nativeUpdateUrl = null;
       return;
@@ -2100,12 +1988,14 @@ what you have, you must use the options mode.
         '/v1/version',
         data: <String, dynamic>{
           'platform': platform,
-          'version':
-              const String.fromEnvironment('FLUTTER_BUILD_NAME',
-                  defaultValue: '1.0.0'),
-          'app_id':
-              const String.fromEnvironment('FLUTTER_APPLICATION_ID',
-                  defaultValue: 'happy.flutter'),
+          'version': const String.fromEnvironment(
+            'FLUTTER_BUILD_NAME',
+            defaultValue: '1.0.0',
+          ),
+          'app_id': const String.fromEnvironment(
+            'FLUTTER_APPLICATION_ID',
+            defaultValue: 'happy.flutter',
+          ),
         },
       );
       if (!apiClient.isSuccess(response)) {
@@ -2114,20 +2004,20 @@ what you have, you must use the options mode.
       }
 
       final data = response.data as Map<String, dynamic>?;
-      final updateUrl = data?['updateUrl'] as String? ??
-          data?['update_url'] as String?;
-      _nativeUpdateUrl =
-          updateUrl != null && updateUrl.isNotEmpty ? updateUrl : null;
+      final updateUrl =
+          data?['updateUrl'] as String? ?? data?['update_url'] as String?;
+      _nativeUpdateUrl = updateUrl != null && updateUrl.isNotEmpty
+          ? updateUrl
+          : null;
     } catch (error, stack) {
-      if (kDebugMode) debugPrint('Failed to fetch native update: $error');
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Failed to fetch native update', error, stack);
       _nativeUpdateUrl = null;
     }
   }
 
   /// Register or refresh device push token
   Future<void> syncPushToken() async {
-    if (kDebugMode) debugPrint('Syncing push token...');
+    logger.info('Syncing push token...');
     if (kIsWeb) {
       return;
     }
@@ -2147,8 +2037,7 @@ what you have, you must use the options mode.
       await PushApi().registerToken(token);
       _registeredPushToken = token;
     } catch (error, stack) {
-      if (kDebugMode) debugPrint('Failed to sync push token: $error');
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Failed to sync push token', error, stack);
     }
   }
 
@@ -2186,10 +2075,7 @@ what you have, you must use the options mode.
       _handleDeleteSession(<String, dynamic>{'sid': sessionId});
       return true;
     } catch (error, stack) {
-      if (kDebugMode) {
-        debugPrint('Failed to delete session $sessionId: $error');
-      }
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Failed to delete session $sessionId', error, stack);
       return false;
     }
   }
@@ -2284,11 +2170,7 @@ what you have, you must use the options mode.
           updatedAt: now,
           active: true,
           activeAt: now,
-          metadata: Metadata(
-            host: '',
-            machineId: machineId,
-            path: path,
-          ),
+          metadata: Metadata(host: '', machineId: machineId, path: path),
           metadataVersion: 0,
           agentStateVersion: 0,
           thinking: false,
@@ -2325,12 +2207,9 @@ what you have, you must use the options mode.
         BashResponse.fromJson,
       );
     } catch (error) {
-      if (kDebugMode) debugPrint('machineBash error: $error');
+      logger.error('machineBash error', error);
     }
-    return const BashResponse(
-      success: false,
-      stderr: 'RPC call failed',
-    );
+    return const BashResponse(success: false, stderr: 'RPC call failed');
   }
 
   /// Create a git worktree on a machine under `.dev/worktree/<name>` relative
@@ -2384,21 +2263,44 @@ what you have, you must use the options mode.
   }
 
   static const _worktreeAdjectives = [
-    'clever', 'happy', 'swift', 'bright', 'calm',
-    'bold', 'quiet', 'brave', 'wise', 'eager',
-    'gentle', 'quick', 'sharp', 'smooth', 'fresh',
+    'clever',
+    'happy',
+    'swift',
+    'bright',
+    'calm',
+    'bold',
+    'quiet',
+    'brave',
+    'wise',
+    'eager',
+    'gentle',
+    'quick',
+    'sharp',
+    'smooth',
+    'fresh',
   ];
 
   static const _worktreeNouns = [
-    'ocean', 'forest', 'cloud', 'star', 'river',
-    'mountain', 'valley', 'bridge', 'beacon', 'harbor',
-    'garden', 'meadow', 'canyon', 'island', 'desert',
+    'ocean',
+    'forest',
+    'cloud',
+    'star',
+    'river',
+    'mountain',
+    'valley',
+    'bridge',
+    'beacon',
+    'harbor',
+    'garden',
+    'meadow',
+    'canyon',
+    'island',
+    'desert',
   ];
 
   String _generateWorktreeName() {
     final rand = Random();
-    final adj =
-        _worktreeAdjectives[rand.nextInt(_worktreeAdjectives.length)];
+    final adj = _worktreeAdjectives[rand.nextInt(_worktreeAdjectives.length)];
     final noun = _worktreeNouns[rand.nextInt(_worktreeNouns.length)];
     return '$adj-$noun';
   }
@@ -2415,9 +2317,7 @@ what you have, you must use the options mode.
   }
 
   /// Mirrors React Native's `getProfileEnvironmentVariables` in settings.ts.
-  Map<String, String> _profileEnvironmentVariables(
-    AIBackendProfile profile,
-  ) {
+  Map<String, String> _profileEnvironmentVariables(AIBackendProfile profile) {
     final envVars = <String, String>{};
 
     for (final v in profile.environmentVariables) {
@@ -2485,8 +2385,7 @@ what you have, you must use the options mode.
         envVars['TMUX_TMPDIR'] = tmux.tmpDir!;
       }
       if (tmux.updateEnvironment != null) {
-        envVars['TMUX_UPDATE_ENVIRONMENT'] =
-            tmux.updateEnvironment.toString();
+        envVars['TMUX_UPDATE_ENVIRONMENT'] = tmux.updateEnvironment.toString();
       }
     }
 
@@ -2515,9 +2414,7 @@ what you have, you must use the options mode.
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
       if (sessionEncryption == null) {
-        throw StateError(
-          'Session encryption not initialized for $sessionId',
-        );
+        throw StateError('Session encryption not initialized for $sessionId');
       }
     }
 
@@ -2557,7 +2454,8 @@ what you have, you must use the options mode.
         permissionMode ?? session.permissionMode ?? 'default';
     final flavor = session.metadata?.flavor;
     final isGemini = flavor == 'gemini';
-    final effectiveModelMode = modelMode ??
+    final effectiveModelMode =
+        modelMode ??
         session.modelMode ??
         (isGemini ? 'gemini-2.5-pro' : 'default');
     final localId = encryption.generateId();
@@ -2571,10 +2469,7 @@ what you have, you must use the options mode.
 
     final rawRecord = <String, dynamic>{
       'role': 'user',
-      'content': <String, dynamic>{
-        'type': 'text',
-        'text': text,
-      },
+      'content': <String, dynamic>{'type': 'text', 'text': text},
       'meta': <String, dynamic>{
         'sentFrom': sentFrom,
         'permissionMode': effectivePermissionMode,
@@ -2589,21 +2484,18 @@ what you have, you must use the options mode.
       rawRecord,
     );
 
-    _upsertSessionMessages(
-      sessionId,
-      [
-        {
-          'id': localId,
-          'localId': localId,
-          'seq': 0,
-          'createdAt': DateTime.now().millisecondsSinceEpoch,
-          'role': 'user',
-          'kind': 'text',
-          'content': text,
-          'raw': rawRecord,
-        },
-      ],
-    );
+    _upsertSessionMessages(sessionId, [
+      {
+        'id': localId,
+        'localId': localId,
+        'seq': 0,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'role': 'user',
+        'kind': 'text',
+        'content': text,
+        'raw': rawRecord,
+      },
+    ]);
 
     // Auto-restore: if the session's agent is offline but the machine is
     // reachable, spawn a new agent so the message can be delivered.
@@ -2620,12 +2512,10 @@ what you have, you must use the options mode.
           machineId.isNotEmpty &&
           path != null &&
           path.isNotEmpty) {
-        if (kDebugMode) {
-          debugPrint(
-            'Session $sessionId is offline (lifecycleState=$lifecycleState), '
-            'attempting auto-restore on machine $machineId at $path',
-          );
-        }
+        logger.info(
+          'Session $sessionId is offline (lifecycleState=$lifecycleState), '
+          'attempting auto-restore on machine $machineId at $path',
+        );
         try {
           final req = SpawnSessionRequest(
             type: 'spawn-in-directory',
@@ -2641,21 +2531,17 @@ what you have, you must use the options mode.
             SpawnSessionResponse.fromJson,
           );
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Auto-restore failed for $sessionId: $e');
-          }
+          logger.warning('Auto-restore failed for $sessionId', e);
         }
       }
     }
 
     final ready = await waitForAgentReady(sessionId);
     if (!ready) {
-      if (kDebugMode) {
-        debugPrint(
-          'Session $sessionId not marked ready after timeout,'
-          ' sending anyway',
-        );
-      }
+      logger.info(
+        'Session $sessionId not marked ready after timeout,'
+        ' sending anyway',
+      );
     }
 
     final apiClient = ApiClient();
@@ -2665,10 +2551,7 @@ what you have, you must use the options mode.
         '/v3/sessions/$sessionId/messages',
         data: {
           'messages': [
-            {
-              'content': encryptedRawRecord,
-              'localId': localId,
-            },
+            {'content': encryptedRawRecord, 'localId': localId},
           ],
         },
       );
@@ -2695,9 +2578,7 @@ what you have, you must use the options mode.
           ]);
         }
       } else {
-        throw StateError(
-          'Failed to send message: ${response.statusCode}',
-        );
+        throw StateError('Failed to send message: ${response.statusCode}');
       }
     } finally {
       if (!sent) _removeOptimisticMessage(sessionId, localId);
@@ -2707,8 +2588,9 @@ what you have, you must use the options mode.
   void _removeOptimisticMessage(String sessionId, String localId) {
     final msgs = _sessionMessages[sessionId];
     if (msgs != null) {
-      _sessionMessages[sessionId] =
-          msgs.where((m) => m['id'] != localId).toList();
+      _sessionMessages[sessionId] = msgs
+          .where((m) => m['id'] != localId)
+          .toList();
       _sessionMessagesCache = null;
     }
   }
@@ -2721,9 +2603,7 @@ what you have, you must use the options mode.
   ) async {
     final machineEncryption = encryption.getMachineEncryption(machineId);
     if (machineEncryption == null) {
-      throw StateError(
-        'Machine encryption not found for $machineId',
-      );
+      throw StateError('Machine encryption not found for $machineId');
     }
 
     final encrypted = await machineEncryption.encryptRaw(params);
@@ -2766,9 +2646,7 @@ what you have, you must use the options mode.
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
       if (sessionEncryption == null) {
-        throw StateError(
-          'Session encryption not found for $sessionId',
-        );
+        throw StateError('Session encryption not found for $sessionId');
       }
     }
 
@@ -2895,12 +2773,9 @@ what you have, you must use the options mode.
     String sessionId, {
     String reason = '',
   }) async {
-    return _typedSessionRPC(
-      sessionId,
-      'abort',
-      {'reason': reason},
-      AbortResponse.fromJson,
-    );
+    return _typedSessionRPC(sessionId, 'abort', {
+      'reason': reason,
+    }, AbortResponse.fromJson);
   }
 
   /// Apply settings delta
@@ -2909,10 +2784,7 @@ what you have, you must use the options mode.
       ..._settingsSnapshot.toJson(),
       ...delta,
     });
-    pendingSettings = {
-      ...pendingSettings,
-      ...delta,
-    };
+    pendingSettings = {...pendingSettings, ...delta};
     settingsSync.invalidate();
   }
 
@@ -2935,8 +2807,7 @@ what you have, you must use the options mode.
   void onSessionVisible(String sessionId) {
     _visibleSessionId = sessionId;
     if (!messagesSync.containsKey(sessionId)) {
-      messagesSync[sessionId] =
-          InvalidateSync(() => fetchMessages(sessionId));
+      messagesSync[sessionId] = InvalidateSync(() => fetchMessages(sessionId));
     }
     messagesSync[sessionId]?.invalidate();
   }
@@ -2948,9 +2819,7 @@ what you have, you must use the options mode.
   /// fetching only the most recent [initialLoad] messages.  Subsequent calls
   /// (incremental delta syncs) continue from [_sessionLastSeq] as before.
   Future<void> fetchMessages(String sessionId) async {
-    if (kDebugMode) {
-      debugPrint('Fetching messages for session: $sessionId');
-    }
+    logger.info('Fetching messages for session: $sessionId');
 
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
@@ -2964,11 +2833,9 @@ what you have, you must use the options mode.
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
       if (sessionEncryption == null) {
-        if (kDebugMode) {
-          debugPrint(
-            'Session encryption not initialized for $sessionId, skipping fetch',
-          );
-        }
+        logger.info(
+          'Session encryption not initialized for $sessionId, skipping fetch',
+        );
         return;
       }
     }
@@ -2979,7 +2846,8 @@ what you have, you must use the options mode.
       // (new session or app was restarted — _sessionMessages is not
       // persisted to disk).  In this case we do a tail-load using the
       // server's lastSeq hint regardless of the persisted _sessionLastSeq.
-      final isFirstLoad = !_sessionMessages.containsKey(sessionId) ||
+      final isFirstLoad =
+          !_sessionMessages.containsKey(sessionId) ||
           (_sessionMessages[sessionId]?.isEmpty ?? true);
       int afterSeq;
 
@@ -3008,21 +2876,21 @@ what you have, you must use the options mode.
       while (true) {
         // ── Check visibility BEFORE network call ──
         if (page > 0 && _visibleSessionId != sessionId) {
-          if (kDebugMode) {
-            debugPrint(
-              '[fetchMessages] $sessionId no longer visible '
-              'after page $page — aborting',
-            );
-          }
-          unawaited(Sentry.captureMessage(
-            'fetchMessages aborted — session not visible',
-            level: SentryLevel.info,
-            params: [
-              'sessionId=$sessionId',
-              'page=$page',
-              'afterSeq=$afterSeq',
-            ],
-          ));
+          logger.info(
+            '[fetchMessages] $sessionId no longer visible '
+            'after page $page — aborting',
+          );
+          unawaited(
+            Sentry.captureMessage(
+              'fetchMessages aborted — session not visible',
+              level: SentryLevel.info,
+              params: [
+                'sessionId=$sessionId',
+                'page=$page',
+                'afterSeq=$afterSeq',
+              ],
+            ),
+          );
           break;
         }
 
@@ -3034,11 +2902,7 @@ what you have, you must use the options mode.
         final fetchMs = fetchStart.elapsedMilliseconds;
 
         if (!apiClient.isSuccess(response)) {
-          if (kDebugMode) {
-            debugPrint(
-              'Failed to fetch messages: ${response.statusCode}',
-            );
-          }
+          logger.warning('Failed to fetch messages: ${response.statusCode}');
           break;
         }
 
@@ -3048,30 +2912,29 @@ what you have, you must use the options mode.
             .toList();
         final hasMore = data['hasMore'] as bool? ?? false;
 
-        unawaited(Sentry.captureMessage(
-          'fetchMessages page $page',
-          level: SentryLevel.info,
-          params: [
-            'sessionId=$sessionId',
-            'msgs=${messages.length}',
-            'hasMore=$hasMore',
-            'afterSeq=$afterSeq',
-            'fetchMs=$fetchMs',
-          ],
-        ));
+        unawaited(
+          Sentry.captureMessage(
+            'fetchMessages page $page',
+            level: SentryLevel.info,
+            params: [
+              'sessionId=$sessionId',
+              'msgs=${messages.length}',
+              'hasMore=$hasMore',
+              'afterSeq=$afterSeq',
+              'fetchMs=$fetchMs',
+            ],
+          ),
+        );
 
-        if (kDebugMode) {
-          debugPrint(
-            '[fetchMessages] $sessionId page=$page '
-            'msgs=${messages.length} hasMore=$hasMore '
-            'fetchMs=$fetchMs',
-          );
-        }
+        logger.info(
+          '[fetchMessages] $sessionId page=$page '
+          'msgs=${messages.length} hasMore=$hasMore '
+          'fetchMs=$fetchMs',
+        );
 
         // ── Decrypt + process (isolate for large batches) ──
         final decryptStart = Stopwatch()..start();
-        final processed =
-            await sessionEncryption.decryptAndProcessMessages(
+        final processed = await sessionEncryption.decryptAndProcessMessages(
           messages,
           sessionId,
         );
@@ -3081,8 +2944,7 @@ what you have, you must use the options mode.
         await Future<void>.delayed(Duration.zero);
 
         // ── Upsert messages ──
-        final existingCount =
-            _sessionMessages[sessionId]?.length ?? 0;
+        final existingCount = _sessionMessages[sessionId]?.length ?? 0;
         final upsertStart = Stopwatch()..start();
         if (processed.messages.isNotEmpty) {
           _upsertSessionMessages(sessionId, processed.messages);
@@ -3122,8 +2984,7 @@ what you have, you must use the options mode.
         _applyPermissionRequests(sessionId);
         final permMs = permStart.elapsedMilliseconds;
 
-        final mergeMs =
-            upsertMs + toolMs + groupMs + permMs;
+        final mergeMs = upsertMs + toolMs + groupMs + permMs;
 
         if (processed.maxSeq > afterSeq) {
           afterSeq = processed.maxSeq;
@@ -3134,30 +2995,30 @@ what you have, you must use the options mode.
         // on every pagination page.
         _scheduleSaveSeq();
 
-        unawaited(Sentry.captureMessage(
-          'fetchMessages page $page done',
-          level: SentryLevel.info,
-          params: [
-            'sessionId=$sessionId',
-            'existing=$existingCount',
-            'newMsgs=${processed.messages.length}',
-            'decryptMs=$decryptMs',
-            'upsertMs=$upsertMs',
-            'toolMs=$toolMs',
-            'groupMs=$groupMs',
-            'permMs=$permMs',
-            'mergeMs=$mergeMs',
-          ],
-        ));
+        unawaited(
+          Sentry.captureMessage(
+            'fetchMessages page $page done',
+            level: SentryLevel.info,
+            params: [
+              'sessionId=$sessionId',
+              'existing=$existingCount',
+              'newMsgs=${processed.messages.length}',
+              'decryptMs=$decryptMs',
+              'upsertMs=$upsertMs',
+              'toolMs=$toolMs',
+              'groupMs=$groupMs',
+              'permMs=$permMs',
+              'mergeMs=$mergeMs',
+            ],
+          ),
+        );
 
-        if (kDebugMode) {
-          debugPrint(
-            '[fetchMessages] $sessionId page=$page '
-            'decryptMs=$decryptMs '
-            'upsert=$upsertMs tool=$toolMs '
-            'group=$groupMs perm=$permMs',
-          );
-        }
+        logger.info(
+          '[fetchMessages] $sessionId page=$page '
+          'decryptMs=$decryptMs '
+          'upsert=$upsertMs tool=$toolMs '
+          'group=$groupMs perm=$permMs',
+        );
 
         if (!hasMore) break;
         page++;
@@ -3170,8 +3031,7 @@ what you have, you must use the options mode.
       }
       _notifyDataChanged();
     } catch (error, stack) {
-      if (kDebugMode) debugPrint('Error fetching messages: $error');
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Error fetching messages', error, stack);
     }
   }
 
@@ -3191,24 +3051,18 @@ what you have, you must use the options mode.
 
     try {
       const pageSize = 100;
-      final startSeq =
-          (firstLoaded - 1 - pageSize).clamp(0, firstLoaded - 1);
+      final startSeq = (firstLoaded - 1 - pageSize).clamp(0, firstLoaded - 1);
 
       final apiClient = ApiClient();
       final response = await apiClient.get(
         '/v3/sessions/$sessionId/messages',
-        queryParameters: {
-          'after_seq': startSeq,
-          'limit': pageSize,
-        },
+        queryParameters: {'after_seq': startSeq, 'limit': pageSize},
       );
 
       if (!apiClient.isSuccess(response)) {
-        if (kDebugMode) {
-          debugPrint(
-            'Failed to fetch older messages: ${response.statusCode}',
-          );
-        }
+        logger.warning(
+          'Failed to fetch older messages: ${response.statusCode}',
+        );
         return;
       }
 
@@ -3217,15 +3071,12 @@ what you have, you must use the options mode.
           .whereType<Map<String, dynamic>>()
           .toList();
 
-      if (kDebugMode) {
-        debugPrint(
-          '[fetchOlderMessages] $sessionId '
-          'msgs=${messages.length}',
-        );
-      }
+      logger.info(
+        '[fetchOlderMessages] $sessionId '
+        'msgs=${messages.length}',
+      );
 
-      final processed =
-          await sessionEncryption.decryptAndProcessMessages(
+      final processed = await sessionEncryption.decryptAndProcessMessages(
         messages,
         sessionId,
       );
@@ -3250,8 +3101,7 @@ what you have, you must use the options mode.
       _applyPermissionRequests(sessionId);
 
       // Move the lower boundary back to cover the page we just fetched.
-      _sessionFirstLoadedSeq[sessionId] =
-          startSeq == 0 ? 0 : startSeq + 1;
+      _sessionFirstLoadedSeq[sessionId] = startSeq == 0 ? 0 : startSeq + 1;
       MMKVStorage().saveSessionFirstLoadedSeq(
         Map.unmodifiable(_sessionFirstLoadedSeq),
       );
@@ -3261,10 +3111,7 @@ what you have, you must use the options mode.
       }
       _notifyDataChanged();
     } catch (error, stack) {
-      if (kDebugMode) {
-        debugPrint('Error fetching older messages: $error');
-      }
-      unawaited(Sentry.captureException(error, stackTrace: stack));
+      logger.error('Error fetching older messages', error, stack);
     } finally {
       _loadingOlderMessages.remove(sessionId);
       _notifyDataChanged();
@@ -3398,7 +3245,8 @@ what you have, you must use the options mode.
               'role': 'system',
               'kind': 'error',
               'errorType': 'agent_content_not_map',
-              'errorMessage': 'Agent message content is not '
+              'errorMessage':
+                  'Agent message content is not '
                   'a valid structure',
               'debugData': {
                 'messageId': message.id,
@@ -3426,22 +3274,12 @@ what you have, you must use the options mode.
 
       // Event type: mode switches, limit reached, etc.
       if (contentType == 'event') {
-        return _processEventContent(
-          message,
-          nestedContent,
-          createdAt,
-          content,
-        );
+        return _processEventContent(message, nestedContent, createdAt, content);
       }
 
       // Codex type: Codex agent messages
       if (contentType == 'codex') {
-        return _processCodexContent(
-          message,
-          nestedContent,
-          createdAt,
-          content,
-        );
+        return _processCodexContent(message, nestedContent, createdAt, content);
       }
 
       // ACP type: unified agent communication protocol
@@ -3528,8 +3366,7 @@ what you have, you must use the options mode.
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
             if (dataUuid != null) 'uuid': dataUuid,
-            if (dataParentUuid != null)
-              'parentUuid': dataParentUuid,
+            if (dataParentUuid != null) 'parentUuid': dataParentUuid,
           });
         } else if (type == 'thinking') {
           results.add({
@@ -3544,8 +3381,7 @@ what you have, you must use the options mode.
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
             if (dataUuid != null) 'uuid': dataUuid,
-            if (dataParentUuid != null)
-              'parentUuid': dataParentUuid,
+            if (dataParentUuid != null) 'parentUuid': dataParentUuid,
           });
         } else if (type == 'tool_use') {
           results.add({
@@ -3563,8 +3399,7 @@ what you have, you must use the options mode.
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
             if (dataUuid != null) 'uuid': dataUuid,
-            if (dataParentUuid != null)
-              'parentUuid': dataParentUuid,
+            if (dataParentUuid != null) 'parentUuid': dataParentUuid,
           });
         }
         i++;
@@ -3589,8 +3424,7 @@ what you have, you must use the options mode.
                 'isSidechain': true,
                 'prompt': msgContent,
                 if (dataUuid != null) 'uuid': dataUuid,
-                if (dataParentUuid != null)
-                  'parentUuid': dataParentUuid,
+                if (dataParentUuid != null) 'parentUuid': dataParentUuid,
               },
             ],
             [],
@@ -3613,8 +3447,7 @@ what you have, you must use the options mode.
               'permissions': c['permissions'],
               if (isSidechain) 'isSidechain': true,
               if (dataUuid != null) 'uuid': dataUuid,
-              if (dataParentUuid != null)
-                'parentUuid': dataParentUuid,
+              if (dataParentUuid != null) 'parentUuid': dataParentUuid,
             });
           }
         }
@@ -3867,8 +3700,7 @@ what you have, you must use the options mode.
     // Pass 2: Combined pass to find sidechain roots and group
     // child messages in a single iteration
     final uuidToSidechainId = <String, String>{};
-    final sidechainChildren =
-        <String, List<Map<String, dynamic>>>{};
+    final sidechainChildren = <String, List<Map<String, dynamic>>>{};
     final sidechainMsgIds = <String>{};
 
     for (final msg in messages) {
@@ -3886,15 +3718,12 @@ what you have, you must use the options mode.
         final uuid = msg['uuid'] as String?;
         final parentUuid = msg['parentUuid'] as String?;
 
-        if (parentUuid != null &&
-            uuidToSidechainId.containsKey(parentUuid)) {
+        if (parentUuid != null && uuidToSidechainId.containsKey(parentUuid)) {
           final sidechainId = uuidToSidechainId[parentUuid]!;
           if (uuid != null) {
             uuidToSidechainId[uuid] = sidechainId;
           }
-          sidechainChildren
-              .putIfAbsent(sidechainId, () => [])
-              .add(msg);
+          sidechainChildren.putIfAbsent(sidechainId, () => []).add(msg);
           sidechainMsgIds.add(msg['id'] as String);
         }
       }
@@ -3925,12 +3754,9 @@ what you have, you must use the options mode.
     // children are also flattened there. Re-group them so
     // each nested Task gets its own children array.
     for (final msg in filtered) {
-      final children =
-          msg['children'] as List<dynamic>?;
+      final children = msg['children'] as List<dynamic>?;
       if (children != null && children.isNotEmpty) {
-        _regroupNestedTasks(
-          children.cast<Map<String, dynamic>>(),
-        );
+        _regroupNestedTasks(children.cast<Map<String, dynamic>>());
       }
     }
   }
@@ -3938,16 +3764,12 @@ what you have, you must use the options mode.
   /// Recursively regroup sidechain children so nested
   /// Task tool-calls within a children array get their
   /// own children sub-arrays.
-  void _regroupNestedTasks(
-    List<Map<String, dynamic>> children,
-  ) {
+  void _regroupNestedTasks(List<Map<String, dynamic>> children) {
     // Find inner Task tool-calls and their prompts.
     final promptToTask = <String, Map<String, dynamic>>{};
     for (final child in children) {
-      if (child['kind'] == 'tool-call' &&
-          child['name'] == 'Task') {
-        final input =
-            child['input'] as Map<String, dynamic>?;
+      if (child['kind'] == 'tool-call' && child['name'] == 'Task') {
+        final input = child['input'] as Map<String, dynamic>?;
         final prompt = input?['prompt'] as String?;
         if (prompt != null) {
           promptToTask[prompt] = child;
@@ -3977,22 +3799,17 @@ what you have, you must use the options mode.
     if (uuidToTask.isEmpty) return;
 
     // Group sidechain children under their inner Tasks.
-    final taskChildren =
-        <String, List<Map<String, dynamic>>>{};
+    final taskChildren = <String, List<Map<String, dynamic>>>{};
     for (var i = 0; i < children.length; i++) {
       if (toRemove.contains(i)) continue;
       final child = children[i];
       if (child['isSidechain'] == true) {
-        final parentUuid =
-            child['parentUuid'] as String?;
+        final parentUuid = child['parentUuid'] as String?;
         final uuid = child['uuid'] as String?;
-        if (parentUuid != null &&
-            uuidToTask.containsKey(parentUuid)) {
+        if (parentUuid != null && uuidToTask.containsKey(parentUuid)) {
           final task = uuidToTask[parentUuid]!;
           final taskId = task['id'] as String;
-          taskChildren
-              .putIfAbsent(taskId, () => [])
-              .add(child);
+          taskChildren.putIfAbsent(taskId, () => []).add(child);
           if (uuid != null) {
             uuidToTask[uuid] = task;
           }
@@ -4014,8 +3831,7 @@ what you have, you must use the options mode.
     }
 
     // Remove regrouped messages (reverse order).
-    final indices = toRemove.toList()
-      ..sort((a, b) => b.compareTo(a));
+    final indices = toRemove.toList()..sort((a, b) => b.compareTo(a));
     for (final i in indices) {
       children.removeAt(i);
     }
@@ -4028,8 +3844,7 @@ what you have, you must use the options mode.
   ) {
     if (toolResults.isEmpty) return;
 
-    final existing =
-        _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
+    final existing = _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
     if (existing.isEmpty) return;
 
     // Build a lookup from toolUseId → index (O(n))
@@ -4059,8 +3874,7 @@ what you have, you must use the options mode.
       final perms = result['permissions'];
       if (perms is Map<String, dynamic>) {
         final permResult = perms['result'] as String?;
-        final status =
-            permResult == 'approved' ? 'approved' : 'denied';
+        final status = permResult == 'approved' ? 'approved' : 'denied';
         permissionUpdate = {
           'id': toolUseId,
           'status': status,
@@ -4155,12 +3969,10 @@ what you have, you must use the options mode.
         if (idx == null) continue;
 
         final msg = updated[idx];
-        final existingPerm =
-            msg['permission'] as Map<String, dynamic>?;
+        final existingPerm = msg['permission'] as Map<String, dynamic>?;
         // Skip if already resolved — the tool-result `permissions` field
         // (applied in _applyToolResults) is more authoritative.
-        if (existingPerm != null &&
-            existingPerm['status'] != 'pending') {
+        if (existingPerm != null && existingPerm['status'] != 'pending') {
           continue;
         }
 
@@ -4170,8 +3982,7 @@ what you have, you must use the options mode.
             'id': permId,
             'status': info.status,
             if (info.mode != null) 'mode': info.mode,
-            if (info.allowedTools != null)
-              'allowedTools': info.allowedTools,
+            if (info.allowedTools != null) 'allowedTools': info.allowedTools,
             if (info.decision != null) 'decision': info.decision,
             if (info.reason != null) 'reason': info.reason,
           },
@@ -4195,8 +4006,7 @@ what you have, you must use the options mode.
     final existingTs = existing?['timestamp'] as int? ?? 0;
     if (timestamp > existingTs) {
       final inputTokens = usage['input_tokens'] as int? ?? 0;
-      final cacheCreation =
-          usage['cache_creation_input_tokens'] as int? ?? 0;
+      final cacheCreation = usage['cache_creation_input_tokens'] as int? ?? 0;
       final cacheRead = usage['cache_read_input_tokens'] as int? ?? 0;
       final outputTokens = usage['output_tokens'] as int? ?? 0;
       _sessionUsage[sessionId] = {
@@ -4276,8 +4086,7 @@ what you have, you must use the options mode.
         if (aCreated != bCreated) {
           return aCreated.compareTo(bCreated);
         }
-        return (a['seq'] as int? ?? 0)
-            .compareTo(b['seq'] as int? ?? 0);
+        return (a['seq'] as int? ?? 0).compareTo(b['seq'] as int? ?? 0);
       });
     }
 
@@ -4296,7 +4105,7 @@ what you have, you must use the options mode.
   /// debounce writes are flushed to MMKV so no cursor data is lost.
   void suspend() {
     if (!isInitialized) return;
-    if (kDebugMode) debugPrint('[Sync] suspending — disconnecting socket');
+    logger.info('[Sync] suspending — disconnecting socket');
     _dataChangeDebounceTimer?.cancel();
     _saveSeqDebounceTimer?.cancel();
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
@@ -4309,7 +4118,7 @@ what you have, you must use the options mode.
   /// changes that happened while the app was backgrounded are fetched.
   void resume() {
     if (!isInitialized) return;
-    if (kDebugMode) debugPrint('[Sync] resuming — reconnecting socket');
+    logger.info('[Sync] resuming — reconnecting socket');
     socketIoClient.reconnect();
     _invalidateAllSyncs();
     // Only re-fetch the visible session's messages; all others are lazy.
@@ -4399,14 +4208,15 @@ final sync = Sync();
 /// Initialize sync engine
 Future<void> syncCreate(AuthCredentials credentials) async {
   if (sync.isInitialized) {
-    if (kDebugMode) debugPrint('Sync already initialized');
+    logger.info('Sync already initialized');
     return;
   }
 
   final secretKey = Base64Utils.decode(credentials.secret, Encoding.base64url);
   if (secretKey.length != 32) {
     throw StateError(
-        'Invalid secret key length: ${secretKey.length}, expected 32');
+      'Invalid secret key length: ${secretKey.length}, expected 32',
+    );
   }
 
   final encryption = await Encryption.create(secretKey);
@@ -4416,14 +4226,15 @@ Future<void> syncCreate(AuthCredentials credentials) async {
 /// Restore sync engine from disk
 Future<void> syncRestore(AuthCredentials credentials) async {
   if (sync.isInitialized) {
-    if (kDebugMode) debugPrint('Sync already initialized');
+    logger.info('Sync already initialized');
     return;
   }
 
   final secretKey = Base64Utils.decode(credentials.secret, Encoding.base64url);
   if (secretKey.length != 32) {
     throw StateError(
-        'Invalid secret key length: ${secretKey.length}, expected 32');
+      'Invalid secret key length: ${secretKey.length}, expected 32',
+    );
   }
 
   final encryption = await Encryption.create(secretKey);

@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'api_client.dart';
 import 'base_api_exception.dart';
+import '../services/logger_service.dart' show logger;
 
 /// Connected Services API client
 /// Handles connecting/disconnecting third-party services (Claude, GitHub, Gemini, OpenAI)
@@ -42,7 +42,7 @@ class ServicesApi {
       throw ServicesApiException('Failed to connect $service account');
     }
 
-    debugPrint('$service connected successfully');
+    logger.info('$service connected successfully');
   }
 
   /// Disconnect a connected service from the user's account
@@ -73,7 +73,7 @@ class ServicesApi {
       throw ServicesApiException('Failed to disconnect $service account');
     }
 
-    debugPrint('$service disconnected successfully');
+    logger.info('$service disconnected successfully');
   }
 
   /// Check if a service is currently connected
@@ -89,7 +89,7 @@ class ServicesApi {
       // 200 means connected, 404 means not connected
       return response.statusCode == 200;
     } catch (e) {
-      debugPrint('Error checking $service connection: $e');
+      logger.warning('Error checking $service connection: $e');
       return false;
     }
   }
@@ -102,7 +102,7 @@ class ServicesApi {
         try {
           return await isServiceConnected(service);
         } catch (e) {
-          debugPrint('Error checking $service status: $e');
+          logger.warning('Error checking $service status: $e');
           return false;
         }
       }),

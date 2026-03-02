@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:mmkv/mmkv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/profile.dart' as models;
 import '../models/settings.dart';
+import 'logger_service.dart' show logger;
 
 /// Storage keys for MMKV
 class _StorageKeys {
@@ -46,10 +46,10 @@ class MMKVStorage {
       if (!migrationComplete) {
         await _instance._migrateFromSharedPreferences();
         _instance._mmkv!.encodeBool(_StorageKeys.migrationComplete, true);
-        debugPrint('MMKV: Migration from SharedPreferences completed');
+        logger.info('MMKV: Migration from SharedPreferences completed');
       }
     } catch (e) {
-      debugPrint('MMKV: Initialization failed: $e');
+      logger.warning('MMKV: Initialization failed: $e');
       rethrow;
     }
   }
@@ -89,7 +89,7 @@ class MMKVStorage {
         await prefs.remove(_StorageKeys.profile);
       }
     } catch (e) {
-      debugPrint('MMKV: Migration failed: $e');
+      logger.warning('MMKV: Migration failed: $e');
       // Don't rethrow - allow app to continue even if migration fails
     }
   }
@@ -107,7 +107,7 @@ class MMKVStorage {
         return Settings.fromJson(decoded);
       }
     } catch (e) {
-      debugPrint('MMKV: Failed to load settings: $e');
+      logger.warning('MMKV: Failed to load settings: $e');
     }
 
     return Settings();
@@ -123,7 +123,7 @@ class MMKVStorage {
       final settingsJson = jsonEncode(settings.toJson());
       _mmkv?.encodeString(_StorageKeys.settings, settingsJson);
     } catch (e) {
-      debugPrint('MMKV: Failed to save settings: $e');
+      logger.warning('MMKV: Failed to save settings: $e');
       rethrow;
     }
   }
@@ -137,7 +137,7 @@ class MMKVStorage {
     try {
       _mmkv?.removeValue(_StorageKeys.settings);
     } catch (e) {
-      debugPrint('MMKV: Failed to clear settings: $e');
+      logger.warning('MMKV: Failed to clear settings: $e');
     }
   }
 
@@ -154,7 +154,7 @@ class MMKVStorage {
         return drafts[sessionId] as String?;
       }
     } catch (e) {
-      debugPrint('MMKV: Failed to get session draft: $e');
+      logger.warning('MMKV: Failed to get session draft: $e');
     }
 
     return null;
@@ -175,7 +175,7 @@ class MMKVStorage {
       _mmkv?.encodeString(
           _StorageKeys.sessionDrafts, jsonEncode(drafts));
     } catch (e) {
-      debugPrint('MMKV: Failed to save session draft: $e');
+      logger.warning('MMKV: Failed to save session draft: $e');
       rethrow;
     }
   }
@@ -197,7 +197,7 @@ class MMKVStorage {
         );
       }
     } catch (e) {
-      debugPrint('MMKV: Failed to remove session draft: $e');
+      logger.warning('MMKV: Failed to remove session draft: $e');
     }
   }
 
@@ -215,7 +215,7 @@ class MMKVStorage {
             (key, value) => MapEntry(key, value as String));
       }
     } catch (e) {
-      debugPrint('MMKV: Failed to get session drafts: $e');
+      logger.warning('MMKV: Failed to get session drafts: $e');
     }
 
     return {};
@@ -230,7 +230,7 @@ class MMKVStorage {
     try {
       _mmkv?.removeValue(_StorageKeys.sessionDrafts);
     } catch (e) {
-      debugPrint('MMKV: Failed to clear session drafts: $e');
+      logger.warning('MMKV: Failed to clear session drafts: $e');
     }
   }
 
@@ -249,7 +249,7 @@ class MMKVStorage {
         return modes[sessionId] as String?;
       }
     } catch (e) {
-      debugPrint('MMKV: Failed to get session permission mode: $e');
+      logger.warning('MMKV: Failed to get session permission mode: $e');
     }
 
     return null;
@@ -273,7 +273,7 @@ class MMKVStorage {
       _mmkv?.encodeString(
           _StorageKeys.sessionPermissionModes, jsonEncode(modes));
     } catch (e) {
-      debugPrint('MMKV: Failed to save session permission mode: $e');
+      logger.warning('MMKV: Failed to save session permission mode: $e');
       rethrow;
     }
   }
@@ -297,7 +297,7 @@ class MMKVStorage {
         );
       }
     } catch (e) {
-      debugPrint('MMKV: Failed to remove session permission mode: $e');
+      logger.warning('MMKV: Failed to remove session permission mode: $e');
     }
   }
 
@@ -317,7 +317,7 @@ class MMKVStorage {
             (key, value) => MapEntry(key, value as String));
       }
     } catch (e) {
-      debugPrint('MMKV: Failed to get session permission modes: $e');
+      logger.warning('MMKV: Failed to get session permission modes: $e');
     }
 
     return {};
@@ -332,7 +332,7 @@ class MMKVStorage {
     try {
       _mmkv?.removeValue(_StorageKeys.sessionPermissionModes);
     } catch (e) {
-      debugPrint('MMKV: Failed to clear session permission modes: $e');
+      logger.warning('MMKV: Failed to clear session permission modes: $e');
     }
   }
 
@@ -346,7 +346,7 @@ class MMKVStorage {
         return decoded.map((k, v) => MapEntry(k, v as int));
       }
     } catch (e) {
-      debugPrint('MMKV: Failed to get session last seq: $e');
+      logger.warning('MMKV: Failed to get session last seq: $e');
     }
     return {};
   }
@@ -360,7 +360,7 @@ class MMKVStorage {
         jsonEncode(seqs),
       );
     } catch (e) {
-      debugPrint('MMKV: Failed to save session last seq: $e');
+      logger.warning('MMKV: Failed to save session last seq: $e');
     }
   }
 
@@ -370,7 +370,7 @@ class MMKVStorage {
     try {
       _mmkv?.removeValue(_StorageKeys.sessionLastSeq);
     } catch (e) {
-      debugPrint('MMKV: Failed to clear session last seq: $e');
+      logger.warning('MMKV: Failed to clear session last seq: $e');
     }
   }
 
@@ -385,7 +385,7 @@ class MMKVStorage {
         return decoded.map((k, v) => MapEntry(k, v as int));
       }
     } catch (e) {
-      debugPrint('MMKV: Failed to get session first loaded seq: $e');
+      logger.warning('MMKV: Failed to get session first loaded seq: $e');
     }
     return {};
   }
@@ -399,7 +399,7 @@ class MMKVStorage {
         jsonEncode(seqs),
       );
     } catch (e) {
-      debugPrint('MMKV: Failed to save session first loaded seq: $e');
+      logger.warning('MMKV: Failed to save session first loaded seq: $e');
     }
   }
 
@@ -409,8 +409,8 @@ class MMKVStorage {
     try {
       _mmkv?.removeValue(_StorageKeys.sessionFirstLoadedSeq);
     } catch (e) {
-      debugPrint(
-        'MMKV: Failed to clear session first loaded seq: $e',
+      logger.warning(
+        'MMKV: Failed to clear session first loaded seq', e,
       );
     }
   }
@@ -424,7 +424,7 @@ class MMKVStorage {
     try {
       _mmkv?.clearAll();
     } catch (e) {
-      debugPrint('MMKV: Failed to clear all: $e');
+      logger.warning('MMKV: Failed to clear all: $e');
     }
   }
 
@@ -459,7 +459,7 @@ class ServerConfigStorage {
       _instance._mmkv = MMKV('server-config');
       _instance._initialized = true;
     } catch (e) {
-      debugPrint('ServerConfigStorage: Initialization failed: $e');
+      logger.warning('ServerConfigStorage: Initialization failed: $e');
       rethrow;
     }
   }
@@ -471,7 +471,7 @@ class ServerConfigStorage {
         _mmkv = MMKV('server-config');
         _initialized = true;
       } catch (e) {
-        debugPrint('ServerConfigStorage: Sync init failed: $e');
+        logger.warning('ServerConfigStorage: Sync init failed: $e');
         return null;
       }
     }
@@ -479,7 +479,7 @@ class ServerConfigStorage {
     try {
       return _mmkv?.decodeString(_serverUrlKey);
     } catch (e) {
-      debugPrint('ServerConfigStorage: Failed to get server URL: $e');
+      logger.warning('ServerConfigStorage: Failed to get server URL: $e');
       return null;
     }
   }
@@ -497,7 +497,7 @@ class ServerConfigStorage {
         _mmkv?.removeValue(_serverUrlKey);
       }
     } catch (e) {
-      debugPrint('ServerConfigStorage: Failed to set server URL: $e');
+      logger.warning('ServerConfigStorage: Failed to set server URL: $e');
       rethrow;
     }
   }
@@ -517,8 +517,8 @@ class ServerConfigStorage {
     try {
       _mmkv?.encodeString(_serverUrlErrorKey, error);
     } catch (e) {
-      debugPrint(
-        'ServerConfigStorage: Failed to save server URL error: $e',
+      logger.warning(
+        'ServerConfigStorage: Failed to save server URL error', e,
       );
     }
   }
@@ -530,7 +530,7 @@ class ServerConfigStorage {
         _mmkv = MMKV('server-config');
         _initialized = true;
       } catch (e) {
-        debugPrint('ServerConfigStorage: Sync init failed: $e');
+        logger.warning('ServerConfigStorage: Sync init failed: $e');
         return null;
       }
     }
@@ -538,8 +538,8 @@ class ServerConfigStorage {
     try {
       return _mmkv?.decodeString(_serverUrlErrorKey);
     } catch (e) {
-      debugPrint(
-        'ServerConfigStorage: Failed to get server URL error: $e',
+      logger.warning(
+        'ServerConfigStorage: Failed to get server URL error', e,
       );
       return null;
     }
@@ -554,8 +554,8 @@ class ServerConfigStorage {
     try {
       _mmkv?.removeValue(_serverUrlErrorKey);
     } catch (e) {
-      debugPrint(
-        'ServerConfigStorage: Failed to clear server URL error: $e',
+      logger.warning(
+        'ServerConfigStorage: Failed to clear server URL error', e,
       );
     }
   }
@@ -569,7 +569,7 @@ class ServerConfigStorage {
     try {
       _mmkv?.clearAll();
     } catch (e) {
-      debugPrint('ServerConfigStorage: Failed to clear all: $e');
+      logger.warning('ServerConfigStorage: Failed to clear all: $e');
     }
   }
 }
@@ -602,7 +602,7 @@ class ProfileStorage {
         );
       }
     } catch (e) {
-      debugPrint('ProfileStorage: Failed to load profile: $e');
+      logger.warning('ProfileStorage: Failed to load profile: $e');
     }
 
     return models.Profile.defaults;
@@ -620,7 +620,7 @@ class ProfileStorage {
       });
       await _setString(_StorageKeys.profile, profileJson);
     } catch (e) {
-      debugPrint('ProfileStorage: Failed to save profile: $e');
+      logger.warning('ProfileStorage: Failed to save profile: $e');
       rethrow;
     }
   }
@@ -630,7 +630,7 @@ class ProfileStorage {
     try {
       _storage._mmkv?.removeValue(_StorageKeys.profile);
     } catch (e) {
-      debugPrint('ProfileStorage: Failed to clear profile: $e');
+      logger.warning('ProfileStorage: Failed to clear profile: $e');
     }
   }
 

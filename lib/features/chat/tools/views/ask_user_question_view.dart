@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/services/logger_service.dart' show logger;
 import '../../../../core/services/sync_service.dart';
 import '../../../../core/theme/app_tokens.dart';
 
@@ -544,7 +545,7 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
         responseText,
       );
     } catch (e) {
-      debugPrint('Failed to submit answer: $e');
+      logger.warning('Failed to submit answer: $e');
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);

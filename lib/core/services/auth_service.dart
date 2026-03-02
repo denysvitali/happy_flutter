@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sodium/sodium.dart' show SecureKey, Sodium;
 
@@ -14,6 +13,7 @@ import '../models/auth.dart';
 import '../models/profile.dart';
 import '../utils/backup_key_utils.dart';
 import 'encryption_service.dart';
+import 'logger_service.dart' show logger;
 import 'storage_service.dart';
 import 'sync_service.dart';
 
@@ -211,7 +211,7 @@ class AuthService {
       } on DioException catch (e) {
         if (e.type == DioExceptionType.connectionError ||
             e.type == DioExceptionType.connectionTimeout) {
-          debugPrint('Connection error during auth polling: ${e.message}');
+          logger.warning('Connection error during auth polling: ${e.message}');
           await Future.delayed(const Duration(milliseconds: 1000));
         } else if (e.response?.statusCode == 403) {
           final serverResponse = _extractErrorMessage(e.response?.data);
@@ -234,7 +234,7 @@ class AuthService {
             certificateInfo: e.message,
           );
         } else {
-          debugPrint('Dio error during auth polling: $e');
+          logger.warning('Dio error during auth polling: $e');
           await Future.delayed(const Duration(milliseconds: 1000));
         }
       } catch (e) {
@@ -248,7 +248,7 @@ class AuthService {
             certificateInfo: e.toString(),
           );
         }
-        debugPrint('Auth polling error: $e');
+        logger.warning('Auth polling error: $e');
         await Future.delayed(const Duration(milliseconds: 1000));
       }
     }
@@ -396,7 +396,7 @@ class AuthService {
       }
       return null;
     } catch (e, s) {
-      debugPrint('Error fetching profile: $e');
+      logger.warning('Error fetching profile: $e');
       unawaited(Sentry.captureException(e, stackTrace: s));
       return null;
     }
@@ -419,7 +419,7 @@ class AuthService {
       }
       return [];
     } catch (e, s) {
-      debugPrint('Error fetching connected services: $e');
+      logger.warning('Error fetching connected services: $e');
       unawaited(Sentry.captureException(e, stackTrace: s));
       return [];
     }
@@ -460,7 +460,7 @@ Response: [omitted]
 Timestamp: ${DateTime.now().toIso8601String()}
 ========================================
 ''';
-      debugPrint(errorMessage);
+      logger.warning(errorMessage);
 
       throw AuthException(
         'Failed to start device linking: ${e.response?.statusCode}',
@@ -546,11 +546,11 @@ Timestamp: ${DateTime.now().toIso8601String()}
             serverResponse: e.response?.data?.toString(),
           );
         } else {
-          debugPrint('Device linking error: $e');
+          logger.warning('Device linking error: $e');
           await Future.delayed(const Duration(milliseconds: 1000));
         }
       } catch (e) {
-        debugPrint('Device linking error: $e');
+        logger.warning('Device linking error: $e');
         await Future.delayed(const Duration(milliseconds: 1000));
       }
     }
@@ -573,7 +573,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
       }
       return [];
     } catch (e, s) {
-      debugPrint('Error fetching devices: $e');
+      logger.warning('Error fetching devices: $e');
       unawaited(Sentry.captureException(e, stackTrace: s));
       return [];
     }
@@ -585,7 +585,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
       final response = await _apiClient.delete('/v1/devices/$deviceId');
       return response.statusCode == 200;
     } catch (e, s) {
-      debugPrint('Error unlinking device: $e');
+      logger.warning('Error unlinking device: $e');
       unawaited(Sentry.captureException(e, stackTrace: s));
       return false;
     }
@@ -612,7 +612,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
       }
       return null;
     } catch (e, s) {
-      debugPrint('Error fetching backup info: $e');
+      logger.warning('Error fetching backup info: $e');
       unawaited(Sentry.captureException(e, stackTrace: s));
       return null;
     }
@@ -750,7 +750,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
 
       return base64Decode(base64Key);
     } catch (e) {
-      debugPrint('Failed to parse auth URL: $e');
+      logger.warning('Failed to parse auth URL: $e');
       return null;
     }
   }
@@ -813,7 +813,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
           }
         }
       } catch (e) {
-        debugPrint('Failed to check auth request status: $e');
+        logger.warning('Failed to check auth request status: $e');
         // Fall through and attempt V1 approval.
       }
 

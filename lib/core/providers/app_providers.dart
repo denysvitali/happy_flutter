@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show debugPrint, listEquals;
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:riverpod/riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -16,6 +16,7 @@ import '../models/session.dart';
 import '../models/settings.dart';
 import '../models/todo.dart';
 import '../services/auth_service.dart';
+import '../services/logger_service.dart' show logger;
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
 
@@ -110,7 +111,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
     try {
       await _authService.approveLinkingRequest(url);
     } catch (e) {
-      debugPrint('Failed to handle deep link: $e');
+      logger.warning('Failed to handle deep link: $e');
     }
   }
 

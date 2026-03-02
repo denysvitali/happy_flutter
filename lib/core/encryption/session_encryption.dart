@@ -1,7 +1,9 @@
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+import '../services/logger_service.dart' show logger;
 
 import 'aes_gcm.dart';
 import 'base64.dart';
@@ -326,14 +328,12 @@ class SessionEncryption {
       ));
     }
 
-    if (kDebugMode) {
-      debugPrint(
-        '[fetchMessages] session=$sessionId '
-        'total=${messages.length} '
-        'toDecrypt=$toDecryptCount '
-        'cached=$cachedCount',
-      );
-    }
+    logger.info(
+      '[fetchMessages] session=$sessionId '
+      'total=${messages.length} '
+      'toDecrypt=$toDecryptCount '
+      'cached=$cachedCount',
+    );
 
     // Offload to isolate if enough messages need decryption
     if (toDecryptCount >= _isolateThreshold &&
@@ -406,7 +406,7 @@ class SessionEncryption {
       final decrypted = await _decryptor.decrypt([encryptedData]);
       return decrypted[0];
     } catch (e) {
-      if (kDebugMode) debugPrint('SessionEncryption.decryptRaw failed: $e');
+      logger.warning('SessionEncryption.decryptRaw failed', e);
       return null;
     }
   }

@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
+import '../services/logger_service.dart' show logger;
 
 import 'aes_gcm.dart';
 import 'crypto_secret_box.dart';
@@ -87,7 +87,7 @@ class AES256Encryption implements Encryptor {
         );
         results.add(decrypted);
       } catch (e) {
-        if (kDebugMode) debugPrint('AES256Encryption.decrypt failed: $e');
+        logger.warning('AES256Encryption.decrypt failed', e);
         results.add(null);
       }
     }

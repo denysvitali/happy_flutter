@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:socket_io_client/socket_io_client.dart' as sio;
 
 import '../../core/models/api_update.dart';
+import '../services/logger_service.dart' show logger;
 
 /// Represents a decoded Socket.io message
 class SocketMessage {
@@ -105,7 +105,7 @@ class SocketIoClient {
 
     _socket!.onConnectError((error) {
       _updateStatus(ConnectionStatus.error);
-      if (kDebugMode) debugPrint('Socket.IO connect error: $error');
+      logger.warning('Socket.IO connect error: $error');
       unawaited(Sentry.captureException(
         Exception('Socket.IO connect error: $error'),
         stackTrace: StackTrace.current,
@@ -114,7 +114,7 @@ class SocketIoClient {
 
     _socket!.onError((error) {
       _updateStatus(ConnectionStatus.error);
-      if (kDebugMode) debugPrint('Socket.IO error: $error');
+      logger.warning('Socket.IO error: $error');
       unawaited(Sentry.captureException(
         Exception('Socket.IO error: $error'),
         stackTrace: StackTrace.current,
@@ -137,7 +137,7 @@ class SocketIoClient {
         try {
           _updateController.add(ApiUpdate.fromJson(data));
         } catch (e, s) {
-          debugPrint('Failed to parse update: $e');
+          logger.warning('Failed to parse update: $e');
           unawaited(Sentry.captureException(e, stackTrace: s));
         }
       }

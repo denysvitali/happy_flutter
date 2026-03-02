@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/sync_service.dart';
 import '../utils/tool_error_parser.dart';
 import 'elapsed_time.dart';
@@ -286,7 +287,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     try {
       await sync.sessionAllow(widget.sessionId!, permId);
     } catch (e) {
-      debugPrint('Permission allow failed: $e');
+      logger.warning('Permission allow failed: $e');
     }
   }
 
@@ -298,7 +299,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     try {
       await sync.sessionDeny(widget.sessionId!, permId);
     } catch (e) {
-      debugPrint('Permission deny failed: $e');
+      logger.warning('Permission deny failed: $e');
     }
   }
 
@@ -314,7 +315,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         mode: 'acceptEdits',
       );
     } catch (e) {
-      debugPrint('Permission allow all edits failed: $e');
+      logger.warning('Permission allow all edits failed: $e');
     }
   }
 
@@ -330,7 +331,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         mode: 'bypassPermissions',
       );
     } catch (e) {
-      debugPrint('Permission allow bypass failed: $e');
+      logger.warning('Permission allow bypass failed: $e');
     }
   }
 
@@ -355,7 +356,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         allowTools: allowTools,
       );
     } catch (e) {
-      debugPrint('Permission allow for session failed: $e');
+      logger.warning('Permission allow for session failed: $e');
     }
   }
 
@@ -371,7 +372,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         decision: 'approved',
       );
     } catch (e) {
-      debugPrint('Codex approve failed: $e');
+      logger.warning('Codex approve failed: $e');
     }
   }
 
@@ -387,7 +388,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         decision: 'approved_for_session',
       );
     } catch (e) {
-      debugPrint('Codex approve for session failed: $e');
+      logger.warning('Codex approve for session failed: $e');
     }
   }
 
@@ -403,7 +404,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         decision: 'abort',
       );
     } catch (e) {
-      debugPrint('Codex abort failed: $e');
+      logger.warning('Codex abort failed: $e');
     }
   }
 

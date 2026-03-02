@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/auth.dart';
 import '../models/settings.dart';
 import 'mmkv_storage.dart';
+import 'logger_service.dart' show logger;
 
 /// Secure storage for authentication credentials
 class TokenStorage {
@@ -34,7 +34,7 @@ class TokenStorage {
       _cachedCredentials = credentials;
       return credentials;
     } catch (e) {
-      debugPrint('Error getting credentials: $e');
+      logger.warning('Error getting credentials: $e');
       return null;
     }
   }
@@ -47,7 +47,7 @@ class TokenStorage {
       _cachedCredentials = credentials;
       return true;
     } catch (e) {
-      debugPrint('Error setting credentials: $e');
+      logger.warning('Error setting credentials: $e');
       return false;
     }
   }
@@ -59,7 +59,7 @@ class TokenStorage {
       _cachedCredentials = null;
       return true;
     } catch (e) {
-      debugPrint('Error removing credentials: $e');
+      logger.warning('Error removing credentials: $e');
       return false;
     }
   }
@@ -109,7 +109,7 @@ class SettingsStorage {
             p.togetherAIConfig?.apiKey != null);
 
     if (needsMigration) {
-      debugPrint('SettingsStorage: Migrating API keys to secure storage');
+      logger.info('SettingsStorage: Migrating API keys to secure storage');
       await _apiKeyStorage.migrateFromSettings(settings);
 
       // Clear API keys from settings and save
@@ -152,7 +152,7 @@ class SettingsStorage {
 
       // Save the cleaned settings back to MMKV
       await _storage.saveSettings(settings);
-      debugPrint('SettingsStorage: API key migration complete');
+      logger.info('SettingsStorage: API key migration complete');
     }
   }
 
@@ -513,7 +513,7 @@ class APIKeyStorage {
       }
       return true;
     } catch (e) {
-      debugPrint('Error storing inference OpenAI key: $e');
+      logger.warning('Error storing inference OpenAI key: $e');
       return false;
     }
   }
@@ -523,7 +523,7 @@ class APIKeyStorage {
     try {
       return await _secureStorage.read(key: _inferenceOpenAIKey);
     } catch (e) {
-      debugPrint('Error getting inference OpenAI key: $e');
+      logger.warning('Error getting inference OpenAI key: $e');
       return null;
     }
   }
@@ -539,7 +539,7 @@ class APIKeyStorage {
       }
       return true;
     } catch (e) {
-      debugPrint('Error storing OpenAI config key: $e');
+      logger.warning('Error storing OpenAI config key: $e');
       return false;
     }
   }
@@ -550,7 +550,7 @@ class APIKeyStorage {
       final key = '$_openAIConfigKeyPrefix$profileId';
       return await _secureStorage.read(key: key);
     } catch (e) {
-      debugPrint('Error getting OpenAI config key: $e');
+      logger.warning('Error getting OpenAI config key: $e');
       return null;
     }
   }
@@ -566,7 +566,7 @@ class APIKeyStorage {
       }
       return true;
     } catch (e) {
-      debugPrint('Error storing Azure OpenAI config key: $e');
+      logger.warning('Error storing Azure OpenAI config key: $e');
       return false;
     }
   }
@@ -577,7 +577,7 @@ class APIKeyStorage {
       final key = '$_azureOpenAIConfigKeyPrefix$profileId';
       return await _secureStorage.read(key: key);
     } catch (e) {
-      debugPrint('Error getting Azure OpenAI config key: $e');
+      logger.warning('Error getting Azure OpenAI config key: $e');
       return null;
     }
   }
@@ -593,7 +593,7 @@ class APIKeyStorage {
       }
       return true;
     } catch (e) {
-      debugPrint('Error storing TogetherAI config key: $e');
+      logger.warning('Error storing TogetherAI config key: $e');
       return false;
     }
   }
@@ -604,7 +604,7 @@ class APIKeyStorage {
       final key = '$_togetherAIConfigKeyPrefix$profileId';
       return await _secureStorage.read(key: key);
     } catch (e) {
-      debugPrint('Error getting TogetherAI config key: $e');
+      logger.warning('Error getting TogetherAI config key: $e');
       return null;
     }
   }
@@ -625,7 +625,7 @@ class APIKeyStorage {
       }
       return true;
     } catch (e) {
-      debugPrint('Error clearing API keys: $e');
+      logger.warning('Error clearing API keys: $e');
       return false;
     }
   }
@@ -661,7 +661,7 @@ class APIKeyStorage {
 
       return true;
     } catch (e) {
-      debugPrint('Error migrating API keys: $e');
+      logger.warning('Error migrating API keys: $e');
       return false;
     }
   }
