@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Log levels in increasing order of severity
 enum LogLevel {
@@ -108,6 +109,9 @@ class LoggerService {
       _logs.removeFirst();
     }
 
+    // Forward warnings and errors to Sentry
+    _forwardToSentry(entry);
+
     // Write to console in debug mode
     if (kDebugMode) {
       _writeToConsole(entry);
@@ -120,6 +124,38 @@ class LoggerService {
       } catch (e) {
         // Prevent listener errors from crashing the logger
       }
+    }
+  }
+
+  /// Forward warnings and errors to Sentry
+  void _forwardToSentry(LogEntry entry) {
+    // Only forward warning and error levels
+    if (entry.level != LogLevel.warning &&
+        entry.level != LogLevel.error) {
+      return;
+    }
+
+    try {
+      if (entry.level == LogLevel.error) {
+        // Errors get captured as exceptions
+        Sentry.captureException(
+          entry.error ?? entry.message,
+          stackTrace: entry.stackTrace,
+          hint: Hint.withMap({'logger': 'LoggerService'}),
+        );
+      } else {
+        // Warnings get captured as messages
+        Sentry.captureMessage(
+          entry.message,
+          level: SentryLevel.warning,
+          hint: Hint.withMap({
+            'logger': 'LoggerService',
+            if (entry.error != null) 'error': entry.error.toString(),
+          }),
+        );
+      }
+    } catch (e) {
+      // Silently fail if Sentry fails - don't crash the app
     }
   }
 
