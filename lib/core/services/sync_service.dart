@@ -2733,12 +2733,19 @@ what you have, you must use the options mode.
     });
 
     if (result is Map && result['ok'] == true) {
-      final decrypted = await machineEncryption.decryptRaw(
-        result['result'] as String,
-      );
+      final encryptedResult = result['result'] as String?;
+      if (encryptedResult == null) {
+        throw StateError('Machine RPC $method returned null result');
+      }
+      final decrypted = await machineEncryption.decryptRaw(encryptedResult);
+      if (kDebugMode && decrypted == null) {
+        debugPrint('machineRPC $method: decryption returned null');
+      }
       return decrypted;
     }
-    throw StateError('Machine RPC call failed');
+    // Log the failure reason if available
+    final errorMsg = result is Map ? result['error'] : result;
+    throw StateError('Machine RPC $method failed: $errorMsg');
   }
 
   /// RPC call for sessions - uses session-specific encryption.
@@ -2772,12 +2779,19 @@ what you have, you must use the options mode.
     });
 
     if (result is Map && result['ok'] == true) {
-      final decrypted = await sessionEncryption.decryptRaw(
-        result['result'] as String,
-      );
+      final encryptedResult = result['result'] as String?;
+      if (encryptedResult == null) {
+        throw StateError('Session RPC $method returned null result');
+      }
+      final decrypted = await sessionEncryption.decryptRaw(encryptedResult);
+      if (kDebugMode && decrypted == null) {
+        debugPrint('sessionRPC $method: decryption returned null');
+      }
       return decrypted;
     }
-    throw StateError('RPC call failed');
+    // Log the failure reason if available
+    final errorMsg = result is Map ? result['error'] : result;
+    throw StateError('Session RPC $method failed: $errorMsg');
   }
 
   /// Typed wrapper around [machineRPC] that deserialises the response.
@@ -2788,7 +2802,19 @@ what you have, you must use the options mode.
     Resp Function(Map<String, dynamic>) fromJson,
   ) async {
     final raw = await machineRPC(machineId, method, params);
-    return fromJson(raw as Map<String, dynamic>);
+    // Handle null or non-Map responses gracefully
+    if (raw == null) {
+      throw StateError(
+        'Machine RPC $method returned null - encryption may have failed',
+      );
+    }
+    if (raw is! Map<String, dynamic>) {
+      throw StateError(
+        'Machine RPC $method returned unexpected type: ${raw.runtimeType} '
+        '(value: $raw)',
+      );
+    }
+    return fromJson(raw);
   }
 
   /// Typed wrapper around [sessionRPC] that deserialises the response.
@@ -2799,7 +2825,19 @@ what you have, you must use the options mode.
     Resp Function(Map<String, dynamic>) fromJson,
   ) async {
     final raw = await sessionRPC(sessionId, method, params);
-    return fromJson(raw as Map<String, dynamic>);
+    // Handle null or non-Map responses gracefully
+    if (raw == null) {
+      throw StateError(
+        'Session RPC $method returned null - encryption may have failed',
+      );
+    }
+    if (raw is! Map<String, dynamic>) {
+      throw StateError(
+        'Session RPC $method returned unexpected type: ${raw.runtimeType} '
+        '(value: $raw)',
+      );
+    }
+    return fromJson(raw);
   }
 
   /// Allow a permission request for a session.
