@@ -1,0 +1,36 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/rpc/rpc_types.dart';
+
+void main() {
+  group('SpawnSessionResponse.fromJson', () {
+    test('parses camelCase fields', () {
+      final response = SpawnSessionResponse.fromJson({
+        'type': 'success',
+        'sessionId': 'session-123',
+        'errorMessage': null,
+        'directory': '/tmp/project',
+        'dataEncryptionKey': 'dek-abc',
+      });
+
+      expect(response.type, 'success');
+      expect(response.sessionId, 'session-123');
+      expect(response.directory, '/tmp/project');
+      expect(response.dataEncryptionKey, 'dek-abc');
+    });
+
+    test('parses snake_case compatibility fields', () {
+      final response = SpawnSessionResponse.fromJson({
+        'type': 'success',
+        'session_id': 'session-456',
+        'error_message': 'none',
+        'directory': '/tmp/project',
+        'data_encryption_key': 'dek-def',
+      });
+
+      expect(response.type, 'success');
+      expect(response.sessionId, 'session-456');
+      expect(response.errorMessage, 'none');
+      expect(response.dataEncryptionKey, 'dek-def');
+    });
+  });
+}

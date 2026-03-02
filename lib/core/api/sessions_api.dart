@@ -24,24 +24,11 @@ class SessionsApi {
     String? cursor,
     int? changedSince,
   }) async {
-    // Prefer v2 for pagination + delta fetches. Fall back to v1 during a full
-    // fetch if v2 is unavailable or unexpectedly empty (server compatibility).
-    final isInitialFullFetch = cursor == null && changedSince == null;
-
-    try {
-      final v2Sessions = await _fetchSessionsV2(
-        limit: limit,
-        cursor: cursor,
-        changedSince: changedSince,
-      );
-      if (!isInitialFullFetch || v2Sessions.isNotEmpty) {
-        return v2Sessions;
-      }
-    } on SessionsApiException {
-      if (!isInitialFullFetch) rethrow;
-    }
-
-    return _fetchSessionsV1();
+    return _fetchSessionsV2(
+      limit: limit,
+      cursor: cursor,
+      changedSince: changedSince,
+    );
   }
 
   Future<List<dynamic>> _fetchSessionsV2({
@@ -80,25 +67,6 @@ class SessionsApi {
     }
 
     return allSessions;
-  }
-
-  Future<List<dynamic>> _fetchSessionsV1() async {
-    final response = await _client.get('/v1/sessions');
-    if (!_isSuccess(response)) {
-      throw SessionsApiException(
-        'Failed to fetch sessions: ${response.statusCode}',
-        statusCode: response.statusCode,
-      );
-    }
-
-    final data = response.data;
-    if (data is! Map<String, dynamic>) {
-      throw const SessionsApiException(
-        'Failed to fetch sessions: invalid response format',
-      );
-    }
-
-    return data['sessions'] as List? ?? [];
   }
 
   /// Delete a session by ID
