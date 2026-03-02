@@ -7,10 +7,7 @@ void main() {
       final json = {
         'id': 'msg-123',
         'seq': 42,
-        'content': {
-          't': 'text',
-          'c': 'Hello, world!',
-        },
+        'content': {'t': 'text', 'c': 'Hello, world!'},
         'createdAt': 1700000000,
       };
 
@@ -165,15 +162,70 @@ void main() {
       expect(toolCall.permission, isNull);
     });
 
+    test('handles input as a JSON string gracefully', () {
+      final json = {
+        'name': 'BashTool',
+        'state': 'completed',
+        'createdAt': 1700000000,
+        'input': '{"command": "ls -la"}',
+      };
+
+      final toolCall = ToolCall.fromJson(json);
+
+      expect(toolCall.input, isNull);
+      expect(toolCall.name, 'BashTool');
+    });
+
+    test('handles result as a JSON string gracefully', () {
+      final json = {
+        'name': 'ReadFileTool',
+        'state': 'completed',
+        'createdAt': 1700000001,
+        'result': '{"output": "file contents"}',
+      };
+
+      final toolCall = ToolCall.fromJson(json);
+
+      expect(toolCall.result, isNull);
+    });
+
+    test('handles permission as a string gracefully', () {
+      final json = {
+        'name': 'BashTool',
+        'state': 'running',
+        'createdAt': 1700000002,
+        'permission': 'pending',
+      };
+
+      final toolCall = ToolCall.fromJson(json);
+
+      expect(toolCall.permission, isNull);
+    });
+
+    test('handles all fields as strings without crashing', () {
+      final json = {
+        'name': 'BashTool',
+        'state': 'completed',
+        'createdAt': 1700000003,
+        'input': '{"command": "echo hi"}',
+        'result': '{"stdout": "hi"}',
+        'permission': 'auto-approved',
+      };
+
+      final toolCall = ToolCall.fromJson(json);
+
+      expect(toolCall.name, 'BashTool');
+      expect(toolCall.input, isNull);
+      expect(toolCall.result, isNull);
+      expect(toolCall.permission, isNull);
+    });
+
     test('parses permission field', () {
       final json = {
         'name': 'BashTool',
         'state': 'running',
         'createdAt': 1700000007,
-        'permission': {
-          'id': 'perm-1',
-          'status': 'pending',
-        },
+        'permission': {'id': 'perm-1', 'status': 'pending'},
       };
 
       final toolCall = ToolCall.fromJson(json);
@@ -186,10 +238,7 @@ void main() {
 
   group('AgentEvent.fromJson', () {
     test('parses switch event type', () {
-      final json = {
-        'type': 'switch',
-        'mode': 'auto',
-      };
+      final json = {'type': 'switch', 'mode': 'auto'};
 
       final event = AgentEvent.fromJson(json);
 
@@ -198,10 +247,7 @@ void main() {
     });
 
     test('parses message event type', () {
-      final json = {
-        'type': 'message',
-        'message': 'Claude is thinking...',
-      };
+      final json = {'type': 'message', 'message': 'Claude is thinking...'};
 
       final event = AgentEvent.fromJson(json);
 
@@ -210,10 +256,7 @@ void main() {
     });
 
     test('parses limit-reached event type', () {
-      final json = {
-        'type': 'limit-reached',
-        'endsAt': 1700009999,
-      };
+      final json = {'type': 'limit-reached', 'endsAt': 1700009999};
 
       final event = AgentEvent.fromJson(json);
 
@@ -290,10 +333,7 @@ void main() {
     });
 
     test('parses partial fields', () {
-      final json = {
-        'sentFrom': 'agent',
-        'model': 'claude-opus-4',
-      };
+      final json = {'sentFrom': 'agent', 'model': 'claude-opus-4'};
 
       final meta = MessageMeta.fromJson(json);
 
@@ -303,10 +343,7 @@ void main() {
     });
 
     test('toJson omits null fields', () {
-      const meta = MessageMeta(
-        sentFrom: 'user',
-        model: 'claude-3',
-      );
+      const meta = MessageMeta(sentFrom: 'user', model: 'claude-3');
 
       final json = meta.toJson();
 
@@ -335,10 +372,7 @@ void main() {
 
   group('Permission.fromJson', () {
     test('parses required fields', () {
-      final json = {
-        'id': 'perm-abc',
-        'status': 'approved',
-      };
+      final json = {'id': 'perm-abc', 'status': 'approved'};
 
       final perm = Permission.fromJson(json);
 

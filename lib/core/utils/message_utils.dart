@@ -90,7 +90,8 @@ String? extractClaudeTextContent(dynamic content) {
     }
 
     // Format 4: Complex nested structure (output type)
-    if (content['type'] == 'output' && content['data'] != null) {
+    if (content['type'] == 'output' &&
+        content['data'] is Map<String, dynamic>) {
       final data = content['data'] as Map<String, dynamic>;
 
       // Handle summary messages - should not reach here anymore
@@ -166,7 +167,8 @@ String? extractClaudeTextContent(dynamic content) {
 List<Map<String, dynamic>> extractClaudeToolCalls(dynamic content) {
   if (content != null && content is Map<String, dynamic>) {
     // Check if it's the outer agent content structure
-    if (content['type'] == 'output' && content['data'] != null) {
+    if (content['type'] == 'output' &&
+        content['data'] is Map<String, dynamic>) {
       final data = content['data'] as Map<String, dynamic>;
 
       // Check if it's an assistant message with tool use
@@ -220,7 +222,8 @@ String getMessagePreview(ApiMessage? message, {int maxLength = 50}) {
 
   // User messages
   if (contentWrapper.role == 'user') {
-    final isTextContent = content != null &&
+    final isTextContent =
+        content != null &&
         content is Map<String, dynamic> &&
         content['type'] == 'text';
     if (isTextContent) {
@@ -272,12 +275,14 @@ String getMessagePreview(ApiMessage? message, {int maxLength = 50}) {
       final toolCalls = extractClaudeToolCalls(content);
       if (toolCalls.isNotEmpty) {
         final tools = toolCalls
-            .map((t) => ToolCall(
-                  name: t['name'] as String,
-                  state: t['state'] as String? ?? 'completed',
-                  createdAt: 0,
-                  input: t['arguments'] as Map<String, dynamic>?,
-                ))
+            .map(
+              (t) => ToolCall(
+                name: t['name'] as String,
+                state: t['state'] as String? ?? 'completed',
+                createdAt: 0,
+                input: t['arguments'] as Map<String, dynamic>?,
+              ),
+            )
             .toList();
         return getToolSummary(tools);
       }

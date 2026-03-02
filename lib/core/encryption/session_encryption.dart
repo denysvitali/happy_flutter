@@ -17,11 +17,7 @@ import 'message_processor.dart';
 /// Must be top-level (not a closure or instance method) so it can be
 /// passed to [Isolate.run].
 Future<List<dynamic>> _batchDecryptInIsolate(
-  ({
-    List<Uint8List> encrypted,
-    Uint8List secretKey,
-    bool isAes,
-  }) args,
+  ({List<Uint8List> encrypted, Uint8List secretKey, bool isAes}) args,
 ) async {
   final results = <dynamic>[];
   for (final item in args.encrypted) {
@@ -42,10 +38,7 @@ Future<List<dynamic>> _batchDecryptInIsolate(
       }
     } else {
       // NaCl SecretBox decryption
-      final decrypted = await CryptoSecretBox.decrypt(
-        item,
-        args.secretKey,
-      );
+      final decrypted = await CryptoSecretBox.decrypt(item, args.secretKey);
       results.add(decrypted);
     }
   }
@@ -86,22 +79,17 @@ Future<ProcessedMessages> _batchDecryptAndProcessInIsolate(
     Uint8List secretKey,
     bool isAes,
     String sessionId,
-  }) args,
+  })
+  args,
 ) async {
-  final decryptedJsonList = List<dynamic>.filled(
-    args.wireData.length,
-    null,
-  );
+  final decryptedJsonList = List<dynamic>.filled(args.wireData.length, null);
 
   // Decrypt every encrypted message (base64 decode + crypto).
   for (var i = 0; i < args.wireData.length; i++) {
     final wire = args.wireData[i];
     if (!wire.isEncrypted || wire.base64Content == null) continue;
 
-    final encrypted = Base64Utils.decode(
-      wire.base64Content!,
-      Encoding.base64,
-    );
+    final encrypted = Base64Utils.decode(wire.base64Content!, Encoding.base64);
 
     if (args.isAes) {
       if (encrypted.isEmpty || encrypted[0] != 0) continue;
@@ -141,16 +129,15 @@ Future<ProcessedMessages> _batchDecryptAndProcessInIsolate(
 
 /// Session-specific encryption management
 class SessionEncryption {
-
   SessionEncryption({
     required String sessionId,
     required Encryptor encryptor,
     required Decryptor decryptor,
     required EncryptionCache cache,
-  })  : _sessionId = sessionId,
-        _encryptor = encryptor,
-        _decryptor = decryptor,
-        _cache = cache;
+  }) : _sessionId = sessionId,
+       _encryptor = encryptor,
+       _decryptor = decryptor,
+       _cache = cache;
   final String _sessionId;
   final Encryptor _encryptor;
   final Decryptor _decryptor;
@@ -183,7 +170,8 @@ class SessionEncryption {
         }
       }
 
-      final content = message['content'] as Map<String, dynamic>?;
+      final contentRaw = message['content'];
+      final content = contentRaw is Map<String, dynamic> ? contentRaw : null;
       if (content != null && content['t'] == 'encrypted') {
         toDecrypt.add((index: i, message: message));
       } else {
@@ -204,17 +192,18 @@ class SessionEncryption {
     // Batch decrypt uncached messages
     if (toDecrypt.isNotEmpty) {
       final encrypted = toDecrypt
-          .map((item) => Base64Utils.decode(
-                item.message['content']['c'] as String,
-                Encoding.base64,
-              ))
+          .map(
+            (item) => Base64Utils.decode(
+              item.message['content']['c'] as String,
+              Encoding.base64,
+            ),
+          )
           .toList();
 
       List<dynamic> decrypted;
 
       // Offload to background isolate if batch is large enough
-      if (toDecrypt.length >= _isolateThreshold &&
-          _canOffloadToIsolate) {
+      if (toDecrypt.length >= _isolateThreshold && _canOffloadToIsolate) {
         decrypted = await Isolate.run(
           () => _batchDecryptInIsolate((
             encrypted: encrypted,
@@ -280,11 +269,7 @@ class SessionEncryption {
     for (var i = 0; i < messages.length; i++) {
       final msg = messages[i];
       if (msg.isEmpty) {
-        wireData.add(const _IsolateWireMessage(
-          id: '',
-          seq: 0,
-          createdAt: 0,
-        ));
+        wireData.add(const _IsolateWireMessage(id: '', seq: 0, createdAt: 0));
         continue;
       }
 
@@ -292,9 +277,9 @@ class SessionEncryption {
       final seq = msg['seq'] as int? ?? 0;
       final localId = msg['localId'] as String?;
       final createdAt = msg['createdAt'];
-      final content = msg['content'] as Map<String, dynamic>?;
-      final isEncrypted =
-          content != null && content['t'] == 'encrypted';
+      final contentRaw2 = msg['content'];
+      final content = contentRaw2 is Map<String, dynamic> ? contentRaw2 : null;
+      final isEncrypted = content != null && content['t'] == 'encrypted';
 
       // Check cache
       if (messageId.isNotEmpty) {
@@ -303,12 +288,14 @@ class SessionEncryption {
           cachedContent[i] = cached.content;
           hasCached[i] = true;
           cachedCount++;
-          wireData.add(_IsolateWireMessage(
-            id: messageId,
-            seq: seq,
-            localId: localId,
-            createdAt: createdAt,
-          ));
+          wireData.add(
+            _IsolateWireMessage(
+              id: messageId,
+              seq: seq,
+              localId: localId,
+              createdAt: createdAt,
+            ),
+          );
           continue;
         }
       }
@@ -317,15 +304,16 @@ class SessionEncryption {
         toDecryptCount++;
       }
 
-      wireData.add(_IsolateWireMessage(
-        id: messageId,
-        seq: seq,
-        localId: localId,
-        createdAt: createdAt,
-        base64Content:
-            isEncrypted ? content['c'] as String? : null,
-        isEncrypted: isEncrypted,
-      ));
+      wireData.add(
+        _IsolateWireMessage(
+          id: messageId,
+          seq: seq,
+          localId: localId,
+          createdAt: createdAt,
+          base64Content: isEncrypted ? content['c'] as String? : null,
+          isEncrypted: isEncrypted,
+        ),
+      );
     }
 
     logger.info(
@@ -336,8 +324,7 @@ class SessionEncryption {
     );
 
     // Offload to isolate if enough messages need decryption
-    if (toDecryptCount >= _isolateThreshold &&
-        _canOffloadToIsolate) {
+    if (toDecryptCount >= _isolateThreshold && _canOffloadToIsolate) {
       final result = await Isolate.run(
         () => _batchDecryptAndProcessInIsolate((
           wireData: wireData,
@@ -367,8 +354,7 @@ class SessionEncryption {
   /// Whether the decryptor type supports isolate offloading.
   bool get _canOffloadToIsolate =>
       !kIsWeb &&
-      (_decryptor is SecretBoxEncryption ||
-          _decryptor is AES256Encryption);
+      (_decryptor is SecretBoxEncryption || _decryptor is AES256Encryption);
 
   /// Extract the secret key from known decryptor types.
   Uint8List? _extractSecretKey() {

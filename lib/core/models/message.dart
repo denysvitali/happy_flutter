@@ -7,14 +7,14 @@ int? _asApiInt(dynamic value) {
 
 /// API message schema
 class ApiMessage {
-
-  ApiMessage(
-      {required this.id,
-      required this.seq,
-      required this.content,
-      required this.createdAt,
-      this.localId,
-      this.updatedAt});
+  ApiMessage({
+    required this.id,
+    required this.seq,
+    required this.content,
+    required this.createdAt,
+    this.localId,
+    this.updatedAt,
+  });
 
   factory ApiMessage.fromJson(Map<String, dynamic> json) {
     final contentRaw = json['content'];
@@ -50,7 +50,6 @@ class ApiMessage {
 }
 
 class ApiMessageContent {
-
   ApiMessageContent({required this.t, required this.c});
 
   factory ApiMessageContent.fromJson(Map<String, dynamic> json) {
@@ -69,11 +68,11 @@ class ApiMessageContent {
 
 /// Tool call information
 class ToolCall {
-
   ToolCall({
     required this.name,
     required this.state,
-    required this.createdAt, this.input,
+    required this.createdAt,
+    this.input,
     this.startedAt,
     this.completedAt,
     this.description,
@@ -85,13 +84,17 @@ class ToolCall {
     return ToolCall(
       name: json['name'] as String,
       state: json['state'] as String,
-      input: json['input'] as Map<String, dynamic>?,
+      input: json['input'] is Map<String, dynamic>
+          ? json['input'] as Map<String, dynamic>
+          : null,
       createdAt: json['createdAt'] as int,
       startedAt: json['startedAt'] as int?,
       completedAt: json['completedAt'] as int?,
       description: json['description'] as String?,
-      result: json['result'] as Map<String, dynamic>?,
-      permission: json['permission'] != null
+      result: json['result'] is Map<String, dynamic>
+          ? json['result'] as Map<String, dynamic>
+          : null,
+      permission: json['permission'] is Map<String, dynamic>
           ? Permission.fromJson(json['permission'] as Map<String, dynamic>)
           : null,
     );
@@ -108,15 +111,15 @@ class ToolCall {
 }
 
 class Permission {
-
-  Permission(
-      {required this.id,
-      required this.status,
-      this.reason,
-      this.mode,
-      this.allowedTools,
-      this.decision,
-      this.date});
+  Permission({
+    required this.id,
+    required this.status,
+    this.reason,
+    this.mode,
+    this.allowedTools,
+    this.decision,
+    this.date,
+  });
 
   factory Permission.fromJson(Map<String, dynamic> json) {
     return Permission(
@@ -168,8 +171,8 @@ class Permission {
       allowedTools: allowedTools != null
           ? List<String>.from(allowedTools)
           : (this.allowedTools != null
-              ? List<String>.from(this.allowedTools!)
-              : null),
+                ? List<String>.from(this.allowedTools!)
+                : null),
       decision: decision ?? this.decision,
       date: date ?? this.date,
     );
@@ -178,7 +181,6 @@ class Permission {
 
 /// Message metadata
 class MessageMeta {
-
   const MessageMeta({
     this.sentFrom,
     this.permissionMode,
@@ -242,10 +244,8 @@ class MessageMeta {
       if (permissionMode != null) 'permissionMode': permissionMode,
       if (model != null) 'model': model,
       if (fallbackModel != null) 'fallbackModel': fallbackModel,
-      if (customSystemPrompt != null)
-        'customSystemPrompt': customSystemPrompt,
-      if (appendSystemPrompt != null)
-        'appendSystemPrompt': appendSystemPrompt,
+      if (customSystemPrompt != null) 'customSystemPrompt': customSystemPrompt,
+      if (appendSystemPrompt != null) 'appendSystemPrompt': appendSystemPrompt,
       if (allowedTools != null) 'allowedTools': allowedTools,
       if (disallowedTools != null) 'disallowedTools': disallowedTools,
       if (displayText != null) 'displayText': displayText,
