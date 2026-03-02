@@ -1,7 +1,8 @@
+import '../utils/wire_parsers.dart';
+
 /// User profile model
 /// Matches React Native schema from sources/sync/profile.ts
 class Profile {
-
   const Profile({
     required this.id,
     this.timestamp = 0,
@@ -13,21 +14,27 @@ class Profile {
   });
 
   factory Profile.fromJson(Map<String, dynamic> json) {
+    final avatarRaw = json['avatar'];
+    final githubRaw = json['github'];
+    final connectedRaw = json['connectedServices'];
+
     return Profile(
-      id: json['id'] as String,
-      timestamp: json['timestamp'] as int? ?? 0,
-      firstName: json['firstName'] as String?,
-      lastName: json['lastName'] as String?,
-      avatar: json['avatar'] != null
-          ? ImageRef.fromJson(json['avatar'] as Map<String, dynamic>)
+      id: WireParsers.parseString(json['id']) ?? '',
+      timestamp: WireParsers.parseInt(json['timestamp']) ?? 0,
+      firstName: WireParsers.parseString(json['firstName']),
+      lastName: WireParsers.parseString(json['lastName']),
+      avatar: avatarRaw is Map<String, dynamic>
+          ? ImageRef.fromJson(avatarRaw)
           : null,
-      github: json['github'] != null
-          ? GitHubProfile.fromJson(json['github'] as Map<String, dynamic>)
+      github: githubRaw is Map<String, dynamic>
+          ? GitHubProfile.fromJson(githubRaw)
           : null,
-      connectedServices: (json['connectedServices'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          [],
+      connectedServices: connectedRaw is List
+          ? connectedRaw
+                .map(WireParsers.parseString)
+                .whereType<String>()
+                .toList()
+          : const <String>[],
     );
   }
   final String id;
@@ -110,7 +117,6 @@ class Profile {
 /// Image reference for avatars
 /// Matches React Native schema from sources/sync/profile.ts
 class ImageRef {
-
   const ImageRef({
     required this.width,
     required this.height,
@@ -121,11 +127,11 @@ class ImageRef {
 
   factory ImageRef.fromJson(Map<String, dynamic> json) {
     return ImageRef(
-      width: json['width'] as int,
-      height: json['height'] as int,
-      thumbhash: json['thumbhash'] as String,
-      path: json['path'] as String,
-      url: json['url'] as String,
+      width: WireParsers.parseInt(json['width']) ?? 0,
+      height: WireParsers.parseInt(json['height']) ?? 0,
+      thumbhash: WireParsers.parseString(json['thumbhash']) ?? '',
+      path: WireParsers.parseString(json['path']) ?? '',
+      url: WireParsers.parseString(json['url']) ?? '',
     );
   }
   final int width;
@@ -164,7 +170,6 @@ class ImageRef {
 /// GitHub profile information
 /// Matches React Native schema from sources/sync/profile.ts
 class GitHubProfile {
-
   const GitHubProfile({
     required this.id,
     required this.login,
@@ -175,13 +180,18 @@ class GitHubProfile {
   });
 
   factory GitHubProfile.fromJson(Map<String, dynamic> json) {
+    final login = WireParsers.parseString(json['login']) ?? '';
+    final name = WireParsers.parseString(json['name']) ?? login;
+
     return GitHubProfile(
-      id: json['id'] as int,
-      login: json['login'] as String,
-      name: json['name'] as String,
-      avatarUrl: json['avatar_url'] as String,
-      email: json['email'] as String?,
-      bio: json['bio'] as String?,
+      id: WireParsers.parseInt(json['id']) ?? 0,
+      login: login,
+      name: name,
+      avatarUrl:
+          WireParsers.parseString(json['avatar_url'] ?? json['avatarUrl']) ??
+          '',
+      email: _nullableString(json['email']),
+      bio: _nullableString(json['bio']),
     );
   }
   final int id;
@@ -227,6 +237,12 @@ class GitHubProfile {
   bool get hasLinking => login.isNotEmpty && id > 0;
 }
 
+String? _nullableString(dynamic value) {
+  final parsed = WireParsers.parseString(value);
+  if (parsed == null || parsed.isEmpty) return null;
+  return parsed;
+}
+
 /// Connected service provider types
 enum ConnectedService {
   claude('Claude', 'https://claude.com'),
@@ -242,7 +258,6 @@ enum ConnectedService {
 
 /// Represents a connected third-party service
 class ConnectedServiceInfo {
-
   ConnectedServiceInfo({
     required this.service,
     this.accountId,
@@ -299,7 +314,6 @@ class ConnectedServiceInfo {
 
 /// Device information for linking
 class DeviceInfo {
-
   DeviceInfo({
     required this.id,
     required this.name,
@@ -355,7 +369,6 @@ class DeviceInfo {
 
 /// Account backup information
 class AccountBackupInfo {
-
   AccountBackupInfo({
     this.hasBackup = false,
     this.lastBackupAt,

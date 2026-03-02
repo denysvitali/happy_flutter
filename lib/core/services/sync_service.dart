@@ -1954,8 +1954,15 @@ what you have, you must use the options mode.
       final response = await apiClient.get('/v1/account/profile');
 
       if (apiClient.isSuccess(response)) {
-        final data = response.data as Map<String, dynamic>;
-        _profile = Profile.fromJson(data);
+        final data = response.data;
+        if (data is Map<String, dynamic>) {
+          _profile = Profile.fromJson(data);
+        } else {
+          logger.warning(
+            'Failed to fetch profile: invalid response type '
+            '${data.runtimeType}',
+          );
+        }
       } else {
         logger.warning('Failed to fetch profile: ${response.statusCode}');
       }
