@@ -1007,6 +1007,30 @@ what you have, you must use the options mode.
             }
           }
 
+          Metadata? parsedMetadata;
+          if (metadata != null) {
+            try {
+              parsedMetadata = Metadata.fromJson(metadata);
+            } catch (e) {
+              logger.warning(
+                'Failed to parse session metadata for $sessionId',
+                e,
+              );
+            }
+          }
+
+          AgentState? parsedAgentState;
+          if (agentState != null && agentState.isNotEmpty) {
+            try {
+              parsedAgentState = AgentState.fromJson(agentState);
+            } catch (e) {
+              logger.warning(
+                'Failed to parse session agentState for $sessionId',
+                e,
+              );
+            }
+          }
+
           // Create session object
           final processedSession = Session(
             id: sessionId,
@@ -1015,11 +1039,9 @@ what you have, you must use the options mode.
             updatedAt: updatedAt,
             active: active,
             activeAt: activeAt,
-            metadata: metadata != null ? Metadata.fromJson(metadata) : null,
+            metadata: parsedMetadata,
             metadataVersion: metadataVersion,
-            agentState: agentState != null && agentState.isNotEmpty
-                ? AgentState.fromJson(agentState)
-                : null,
+            agentState: parsedAgentState,
             agentStateVersion: agentStateVersion,
             thinking: false,
             thinkingAt: null,

@@ -1,5 +1,6 @@
 /// Session metadata from storage types
 library;
+
 import 'package:happy_flutter/core/models/todo.dart' show TodoItem;
 
 String _asApiString(dynamic value, String fieldName) {
@@ -39,10 +40,41 @@ int? _asApiIntOptional(dynamic value) {
   return null;
 }
 
-class Metadata {
+bool? _asApiBoolOptional(dynamic value) {
+  if (value == null) return null;
+  if (value is bool) return value;
+  return null;
+}
 
+List<String>? _asApiStringListOptional(dynamic value) {
+  if (value is! List) return null;
+  final strings = value.whereType<String>().toList();
+  if (strings.isEmpty) return null;
+  return strings;
+}
+
+Summary? _asSummaryOptional(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    try {
+      return Summary.fromJson(value);
+    } catch (_) {
+      return null;
+    }
+  }
+  if (value is Map) {
+    try {
+      return Summary.fromJson(Map<String, dynamic>.from(value));
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
+}
+
+class Metadata {
   Metadata({
-    required this.host, this.path,
+    required this.host,
+    this.path,
     this.version,
     this.name,
     this.os,
@@ -61,20 +93,16 @@ class Metadata {
   factory Metadata.fromJson(Map<String, dynamic> json) {
     return Metadata(
       path: _asApiStringOptional(json['path']),
-      host: _asApiString(json['host'], 'host'),
+      // Keep sessions visible even if legacy metadata has no host.
+      host: _asApiStringOptional(json['host']) ?? '',
       version: _asApiStringOptional(json['version']),
       name: _asApiStringOptional(json['name']),
       os: _asApiStringOptional(json['os']),
-      summary: json['summary'] != null
-          ? Summary.fromJson(json['summary'] as Map<String, dynamic>)
-          : null,
+      summary: _asSummaryOptional(json['summary']),
       machineId: _asApiStringOptional(json['machineId']),
       claudeSessionId: _asApiStringOptional(json['claudeSessionId']),
-      tools:
-          (json['tools'] as List<dynamic>?)?.map((e) => e as String).toList(),
-      slashCommands: (json['slashCommands'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList(),
+      tools: _asApiStringListOptional(json['tools']),
+      slashCommands: _asApiStringListOptional(json['slashCommands']),
       homeDir: _asApiStringOptional(json['homeDir']),
       happyHomeDir: _asApiStringOptional(json['happyHomeDir']),
       hostPid: _asApiIntOptional(json['hostPid']),
@@ -141,26 +169,25 @@ class Metadata {
 
   @override
   int get hashCode => Object.hash(
-        path,
-        host,
-        version,
-        name,
-        os,
-        summary,
-        machineId,
-        claudeSessionId,
-        tools,
-        slashCommands,
-        homeDir,
-        happyHomeDir,
-        hostPid,
-        flavor,
-        lifecycleState,
-      );
+    path,
+    host,
+    version,
+    name,
+    os,
+    summary,
+    machineId,
+    claudeSessionId,
+    tools,
+    slashCommands,
+    homeDir,
+    happyHomeDir,
+    hostPid,
+    flavor,
+    lifecycleState,
+  );
 }
 
 class Summary {
-
   Summary({required this.text, required this.updatedAt});
 
   factory Summary.fromJson(Map<String, dynamic> json) {
@@ -179,20 +206,71 @@ class Summary {
 
 /// Agent state for a session
 class AgentState {
-
   AgentState({this.controlledByUser, this.requests, this.completedRequests});
 
   factory AgentState.fromJson(Map<String, dynamic> json) {
+    final requestsRaw = json['requests'];
+    Map<String, RequestInfo>? requests;
+    if (requestsRaw is Map) {
+      final parsed = <String, RequestInfo>{};
+      for (final entry in requestsRaw.entries) {
+        final key = entry.key.toString();
+        final value = entry.value;
+        Map<String, dynamic>? mapValue;
+        if (value is Map<String, dynamic>) {
+          mapValue = value;
+        } else if (value is Map) {
+          try {
+            mapValue = Map<String, dynamic>.from(value);
+          } catch (_) {
+            mapValue = null;
+          }
+        }
+        if (mapValue == null) continue;
+        try {
+          parsed[key] = RequestInfo.fromJson(mapValue);
+        } catch (_) {
+          continue;
+        }
+      }
+      if (parsed.isNotEmpty) {
+        requests = parsed;
+      }
+    }
+
+    final completedRequestsRaw = json['completedRequests'];
+    Map<String, CompletedRequestInfo>? completedRequests;
+    if (completedRequestsRaw is Map) {
+      final parsed = <String, CompletedRequestInfo>{};
+      for (final entry in completedRequestsRaw.entries) {
+        final key = entry.key.toString();
+        final value = entry.value;
+        Map<String, dynamic>? mapValue;
+        if (value is Map<String, dynamic>) {
+          mapValue = value;
+        } else if (value is Map) {
+          try {
+            mapValue = Map<String, dynamic>.from(value);
+          } catch (_) {
+            mapValue = null;
+          }
+        }
+        if (mapValue == null) continue;
+        try {
+          parsed[key] = CompletedRequestInfo.fromJson(mapValue);
+        } catch (_) {
+          continue;
+        }
+      }
+      if (parsed.isNotEmpty) {
+        completedRequests = parsed;
+      }
+    }
+
     return AgentState(
-      controlledByUser: json['controlledByUser'] as bool?,
-      requests: (json['requests'] as Map<String, dynamic>?)?.map(
-        (k, v) => MapEntry(k, RequestInfo.fromJson(v as Map<String, dynamic>)),
-      ),
-      completedRequests:
-          (json['completedRequests'] as Map<String, dynamic>?)?.map(
-        (k, v) => MapEntry(
-            k, CompletedRequestInfo.fromJson(v as Map<String, dynamic>)),
-      ),
+      controlledByUser: _asApiBoolOptional(json['controlledByUser']),
+      requests: requests,
+      completedRequests: completedRequests,
     );
   }
   final bool? controlledByUser;
@@ -202,28 +280,31 @@ class AgentState {
   Map<String, dynamic> toJson() {
     return {
       'controlledByUser': controlledByUser,
-      'requests': requests?.map((k, v) => MapEntry(k, {
-            'tool': v.tool,
-            'arguments': v.arguments,
-            'createdAt': v.createdAt
-          })),
-      'completedRequests': completedRequests?.map((k, v) => MapEntry(k, {
-            'tool': v.tool,
-            'arguments': v.arguments,
-            'createdAt': v.createdAt,
-            'completedAt': v.completedAt,
-            'status': v.status,
-            'reason': v.reason,
-            'mode': v.mode,
-            'allowedTools': v.allowedTools,
-            'decision': v.decision,
-          })),
+      'requests': requests?.map(
+        (k, v) => MapEntry(k, {
+          'tool': v.tool,
+          'arguments': v.arguments,
+          'createdAt': v.createdAt,
+        }),
+      ),
+      'completedRequests': completedRequests?.map(
+        (k, v) => MapEntry(k, {
+          'tool': v.tool,
+          'arguments': v.arguments,
+          'createdAt': v.createdAt,
+          'completedAt': v.completedAt,
+          'status': v.status,
+          'reason': v.reason,
+          'mode': v.mode,
+          'allowedTools': v.allowedTools,
+          'decision': v.decision,
+        }),
+      ),
     };
   }
 }
 
 class RequestInfo {
-
   RequestInfo({required this.tool, this.arguments, this.createdAt});
 
   factory RequestInfo.fromJson(Map<String, dynamic> json) {
@@ -251,7 +332,6 @@ class RequestInfo {
 }
 
 class CompletedRequestInfo {
-
   CompletedRequestInfo({
     required this.tool,
     required this.status,
@@ -273,9 +353,7 @@ class CompletedRequestInfo {
       status: _asApiString(json['status'], 'status'),
       reason: _asApiStringOptional(json['reason']),
       mode: _asApiStringOptional(json['mode']),
-      allowedTools: (json['allowedTools'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList(),
+      allowedTools: _asApiStringListOptional(json['allowedTools']),
       decision: _asApiStringOptional(json['decision']),
     );
   }
@@ -306,21 +384,20 @@ class CompletedRequestInfo {
 
   @override
   int get hashCode => Object.hash(
-        tool,
-        arguments,
-        createdAt,
-        completedAt,
-        status,
-        reason,
-        mode,
-        allowedTools,
-        decision,
-      );
+    tool,
+    arguments,
+    createdAt,
+    completedAt,
+    status,
+    reason,
+    mode,
+    allowedTools,
+    decision,
+  );
 }
 
 /// Main Session model
 class Session {
-
   Session({
     required this.id,
     required this.seq,
@@ -358,10 +435,15 @@ class Session {
       agentState: json['agentState'] != null
           ? AgentState.fromJson(json['agentState'] as Map<String, dynamic>)
           : null,
-      agentStateVersion: _asApiInt(json['agentStateVersion'], 'agentStateVersion'),
+      agentStateVersion: _asApiInt(
+        json['agentStateVersion'],
+        'agentStateVersion',
+      ),
       thinking: _asApiBool(json['thinking'], 'thinking'),
       thinkingAt: _asApiIntOptional(json['thinkingAt']),
-      presence: json['presence'] is String ? json['presence'] as String : 'offline',
+      presence: json['presence'] is String
+          ? json['presence'] as String
+          : 'offline',
       todos: (json['todos'] as List<dynamic>?)
           ?.map((e) => TodoItem.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -500,30 +582,29 @@ class Session {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        seq,
-        createdAt,
-        updatedAt,
-        active,
-        activeAt,
-        metadata,
-        metadataVersion,
-        agentState,
-        agentStateVersion,
-        thinking,
-        thinkingAt,
-        presence,
-        todos,
-        draft,
-        permissionMode,
-        modelMode,
-        latestUsage,
-        lastSeq,
-      );
+    id,
+    seq,
+    createdAt,
+    updatedAt,
+    active,
+    activeAt,
+    metadata,
+    metadataVersion,
+    agentState,
+    agentStateVersion,
+    thinking,
+    thinkingAt,
+    presence,
+    todos,
+    draft,
+    permissionMode,
+    modelMode,
+    latestUsage,
+    lastSeq,
+  );
 }
 
 class UsageData {
-
   UsageData({
     required this.inputTokens,
     required this.outputTokens,
