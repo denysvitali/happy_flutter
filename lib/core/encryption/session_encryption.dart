@@ -46,6 +46,33 @@ Future<List<dynamic>> _batchDecryptInIsolate(
   return results;
 }
 
+/// Extracts the base64 ciphertext from a message content value.
+/// Supports the old JSON-wrapper format `{'t': 'encrypted', 'c': '<b64>'}`
+/// and the new server format where content is the plain base64 string.
+String _base64FromContent(dynamic contentRaw) {
+  if (contentRaw is Map<String, dynamic>) {
+    return contentRaw['c'] as String? ?? '';
+  }
+  if (contentRaw is String) {
+    // The server sometimes JSON-encodes the content field, producing either:
+    //   '{"t":"encrypted","c":"<base64>"}' — try JSON decode → extract 'c'
+    //   '"<base64>"'                       — try JSON decode → bare string
+    try {
+      final decoded = jsonDecode(contentRaw);
+      if (decoded is Map<String, dynamic>) {
+        return decoded['c'] as String? ?? '';
+      }
+      if (decoded is String) {
+        return decoded;
+      }
+    } catch (_) {
+      // Not JSON — treat as raw base64 string
+    }
+    return contentRaw;
+  }
+  return '';
+}
+
 /// Lightweight wire data sent to the isolate.
 /// Only the fields needed for decrypt + process — NOT the full API maps.
 class _IsolateWireMessage {
@@ -90,7 +117,12 @@ Future<ProcessedMessages> _batchDecryptAndProcessInIsolate(
     final wire = args.wireData[i];
     if (!wire.isEncrypted || wire.base64Content == null) continue;
 
-    final encrypted = Base64Utils.decode(wire.base64Content!, Encoding.base64);
+    final Uint8List encrypted;
+    try {
+      encrypted = Base64Utils.decode(wire.base64Content!, Encoding.base64);
+    } on FormatException {
+      continue;
+    }
 
     if (args.isAes) {
       if (encrypted.isEmpty || encrypted[0] != 0) continue;
@@ -183,10 +215,17 @@ class SessionEncryption {
           final decoded = jsonDecode(contentRaw);
           if (decoded is Map<String, dynamic>) {
             content = decoded;
+          } else if (decoded is String) {
+            // JSON-encoded bare base64 string — use decoded value
+            content = {'t': 'encrypted', 'c': decoded};
           }
         } catch (_) {
           // Not valid JSON — handled below
         }
+      }
+      // New server format: content is the raw base64 encrypted string
+      if (content == null && contentRaw is String && contentRaw.isNotEmpty) {
+        content = {'t': 'encrypted', 'c': contentRaw};
       }
       if (content != null && content['t'] == 'encrypted') {
         toDecrypt.add((index: i, message: message));
@@ -207,14 +246,21 @@ class SessionEncryption {
 
     // Batch decrypt uncached messages
     if (toDecrypt.isNotEmpty) {
-      final encrypted = toDecrypt
-          .map(
-            (item) => Base64Utils.decode(
-              item.message['content']['c'] as String,
-              Encoding.base64,
-            ),
-          )
-          .toList();
+      final encrypted = <Uint8List>[];
+      for (final item in toDecrypt) {
+        final b64 = _base64FromContent(item.message['content']);
+        try {
+          encrypted.add(Base64Utils.decode(b64, Encoding.base64));
+        } on FormatException {
+          final codes = b64.codeUnits.take(10).toList();
+          logger.warning(
+            '[decryptMessages] base64 decode failed '
+            'id=${item.message['id']} '
+            'len=${b64.length} codes=$codes',
+          );
+          encrypted.add(Uint8List(0));
+        }
+      }
 
       List<dynamic> decrypted;
 
@@ -302,10 +348,17 @@ class SessionEncryption {
           final decoded = jsonDecode(contentRaw2);
           if (decoded is Map<String, dynamic>) {
             content = decoded;
+          } else if (decoded is String) {
+            // JSON-encoded bare base64 string — use decoded value
+            content = {'t': 'encrypted', 'c': decoded};
           }
         } catch (_) {
           // Not valid JSON — handled below
         }
+      }
+      // New server format: content is the raw base64 encrypted string
+      if (content == null && contentRaw2 is String && contentRaw2.isNotEmpty) {
+        content = {'t': 'encrypted', 'c': contentRaw2};
       }
       final isEncrypted = content != null && content['t'] == 'encrypted';
 

@@ -156,7 +156,10 @@ List<SessionHistoryItem> groupSessionsByExactDate(List<Session> sessions) {
 
   for (final session in sortedSessions) {
     final sessionDate = DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
-    final dateString = sessionDate.toIso8601String();
+    final dateString =
+        '${sessionDate.year}-'
+        '${sessionDate.month.toString().padLeft(2, '0')}-'
+        '${sessionDate.day.toString().padLeft(2, '0')}';
 
     if (currentDateString != dateString) {
       // Process previous group

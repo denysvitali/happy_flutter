@@ -2539,50 +2539,16 @@ what you have, you must use the options mode.
       },
     ]);
 
-    // Auto-restore: if the session's agent is offline but the machine is
-    // reachable, spawn a new agent so the message can be delivered.
-    // Skip if the session's lifecycleState is 'starting' or 'running' —
-    // the daemon just created it and the agent hasn't sent its first keep-alive
-    // yet, so presence appears offline even though the process is live.
-    final lifecycleState = session.metadata?.lifecycleState;
-    final agentIsStartingOrRunning =
-        lifecycleState == 'starting' || lifecycleState == 'running';
-    if (!session.isOnline && !agentIsStartingOrRunning) {
-      final machineId = session.metadata?.machineId;
-      final path = session.metadata?.path;
-      if (machineId != null &&
-          machineId.isNotEmpty &&
-          path != null &&
-          path.isNotEmpty) {
-        logger.info(
-          'Session $sessionId is offline (lifecycleState=$lifecycleState), '
-          'attempting auto-restore on machine $machineId at $path',
-        );
-        try {
-          final req = SpawnSessionRequest(
-            type: 'spawn-in-directory',
-            directory: path,
-            sessionId: sessionId,
-            agent: session.metadata?.flavor ?? 'claude',
-            permissionMode: effectivePermissionMode,
-          );
-          await _typedMachineRPC(
-            machineId,
-            'spawn-happy-session',
-            req.toJson(),
-            SpawnSessionResponse.fromJson,
-          );
-        } catch (e) {
-          logger.warning('Auto-restore failed for $sessionId', e);
-        }
-      }
-    }
-
+    // Wait for the agent to be ready if it was just spawned (e.g. right
+    // after createSession). Returns immediately when the session is already
+    // online or has reported agent state. Unlike the React Native app we do
+    // NOT auto-spawn here — the daemon's GetOrCreateSession returns a new
+    // session ID instead of reusing the requested one, which would cause
+    // the message to be sent to the wrong session.
     final ready = await waitForAgentReady(sessionId);
     if (!ready) {
       logger.info(
-        'Session $sessionId not marked ready after timeout,'
-        ' sending anyway',
+        '[sendMessage] agent not ready for $sessionId, sending anyway',
       );
     }
 
@@ -2620,6 +2586,11 @@ what you have, you must use the options mode.
           ]);
         }
       } else {
+        logger.error(
+          '[sendMessage] FAILED: status=${response.statusCode} '
+          'session=$sessionId '
+          'body=${response.data}',
+        );
         throw StateError('Failed to send message: ${response.statusCode}');
       }
     } finally {
