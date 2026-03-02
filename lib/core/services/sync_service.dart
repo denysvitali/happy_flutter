@@ -858,12 +858,24 @@ what you have, you must use the options mode.
         client: apiClient,
       ).fetchSessions(limit: 50, changedSince: changedSince);
 
+      logger.info(
+        'fetchSessions: received ${allSessions.length} sessions '
+        '(changedSince=$changedSince)',
+      );
+
       if (allSessions.isEmpty) {
         if (changedSince != null) {
           // Delta fetch with no changes — update timestamp and return.
           _lastSessionsFetchedAt = fetchStartMs;
+          logger.info(
+            'fetchSessions: no changes since delta fetch',
+          );
+        } else {
+          logger.warning(
+            'fetchSessions: full fetch returned 0 sessions — '
+            'possible auth/server issue',
+          );
         }
-        // Full fetch: either failure or no sessions — don't update.
         return;
       }
 

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 
+import '../services/logger_service.dart' show logger;
 import 'api_client.dart';
 import 'base_api_exception.dart';
 
@@ -50,6 +51,11 @@ class SessionsApi {
       );
 
       if (!_isSuccess(response)) {
+        logger.warning(
+          'fetchSessions API error: '
+          'status=${response.statusCode} '
+          'body=${response.data}',
+        );
         throw SessionsApiException(
           'Failed to fetch sessions: ${response.statusCode}',
           statusCode: response.statusCode,

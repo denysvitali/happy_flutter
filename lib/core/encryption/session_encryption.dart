@@ -1,3 +1,4 @@
+import 'dart:convert' show jsonDecode;
 import 'dart:isolate';
 import 'dart:typed_data';
 
@@ -111,6 +112,7 @@ Future<ProcessedMessages> _batchDecryptAndProcessInIsolate(
 
   // Rebuild minimal wireMessages maps for processDecryptedMessages.
   final wireMessages = <Map<String, dynamic>>[];
+  final wasEncryptedList = <bool>[];
   for (final w in args.wireData) {
     wireMessages.add({
       'id': w.id,
@@ -118,12 +120,14 @@ Future<ProcessedMessages> _batchDecryptAndProcessInIsolate(
       'localId': w.localId,
       'createdAt': w.createdAt,
     });
+    wasEncryptedList.add(w.isEncrypted);
   }
 
   return processDecryptedMessages(
     decryptedJsonList: decryptedJsonList,
     wireMessages: wireMessages,
     sessionId: args.sessionId,
+    wasEncrypted: wasEncryptedList,
   );
 }
 
@@ -171,7 +175,19 @@ class SessionEncryption {
       }
 
       final contentRaw = message['content'];
-      final content = contentRaw is Map<String, dynamic> ? contentRaw : null;
+      var content =
+          contentRaw is Map<String, dynamic> ? contentRaw : null;
+      // Fallback: if content is a JSON string, try decoding it
+      if (content == null && contentRaw is String) {
+        try {
+          final decoded = jsonDecode(contentRaw);
+          if (decoded is Map<String, dynamic>) {
+            content = decoded;
+          }
+        } catch (_) {
+          // Not valid JSON — handled below
+        }
+      }
       if (content != null && content['t'] == 'encrypted') {
         toDecrypt.add((index: i, message: message));
       } else {
@@ -278,8 +294,35 @@ class SessionEncryption {
       final localId = msg['localId'] as String?;
       final createdAt = msg['createdAt'];
       final contentRaw2 = msg['content'];
-      final content = contentRaw2 is Map<String, dynamic> ? contentRaw2 : null;
+      var content =
+          contentRaw2 is Map<String, dynamic> ? contentRaw2 : null;
+      // Fallback: if content is a JSON string, try decoding it
+      if (content == null && contentRaw2 is String) {
+        try {
+          final decoded = jsonDecode(contentRaw2);
+          if (decoded is Map<String, dynamic>) {
+            content = decoded;
+          }
+        } catch (_) {
+          // Not valid JSON — handled below
+        }
+      }
       final isEncrypted = content != null && content['t'] == 'encrypted';
+
+      if (!isEncrypted && msg.isNotEmpty) {
+        final preview = contentRaw2 is String
+            ? contentRaw2.substring(
+                0,
+                contentRaw2.length < 80 ? contentRaw2.length : 80,
+              )
+            : '$contentRaw2';
+        logger.warning(
+          '[fetchMessages] session=$sessionId '
+          'msg=$messageId: content not encrypted — '
+          'type=${contentRaw2.runtimeType}, '
+          'value=$preview',
+        );
+      }
 
       // Check cache
       if (messageId.isNotEmpty) {
@@ -344,10 +387,14 @@ class SessionEncryption {
       contentList.add(dm?.content);
     }
 
+    final wasEncryptedList =
+        wireData.map((w) => w.isEncrypted).toList();
+
     return processDecryptedMessages(
       decryptedJsonList: contentList,
       wireMessages: messages,
       sessionId: sessionId,
+      wasEncrypted: wasEncryptedList,
     );
   }
 

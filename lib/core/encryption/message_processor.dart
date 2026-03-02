@@ -44,6 +44,7 @@ ProcessedMessages processDecryptedMessages({
   required List<dynamic> decryptedJsonList,
   required List<Map<String, dynamic>> wireMessages,
   required String sessionId,
+  List<bool>? wasEncrypted,
 }) {
   final messages = <Map<String, dynamic>>[];
   final toolResults = <Map<String, dynamic>>[];
@@ -63,8 +64,21 @@ ProcessedMessages processDecryptedMessages({
         : null;
 
     if (decrypted == null) {
-      // Decryption failed — emit error placeholder
       if (seq > maxSeq) maxSeq = seq;
+
+      // Check if message was actually encrypted — if not,
+      // skip silently instead of showing a decryption error.
+      final encrypted = wasEncrypted != null &&
+              i < wasEncrypted.length
+          ? wasEncrypted[i]
+          : true; // default: assume encrypted (backwards compat)
+
+      if (!encrypted) {
+        // Message was not encrypted — skip, don't show error
+        continue;
+      }
+
+      // Decryption actually failed — emit error placeholder
       messages.add({
         'id': 'error-${id.isEmpty ? 'unknown-$i' : id}',
         'seq': seq,
