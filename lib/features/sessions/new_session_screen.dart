@@ -13,6 +13,17 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 
+List<Machine> sortMachinesForSessionCreation(Iterable<Machine> machines) {
+  final sorted = machines.toList()
+    ..sort((a, b) {
+      if (a.active != b.active) {
+        return a.active ? -1 : 1;
+      }
+      return b.activeAt.compareTo(a.activeAt);
+    });
+  return sorted;
+}
+
 /// Full screen for creating a new session.
 class NewSessionScreen extends ConsumerStatefulWidget {
   const NewSessionScreen({super.key});
@@ -53,8 +64,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   String _profileDisplayName() {
     if (_selectedProfileId == null) return 'None';
     final settings = ref.read(settingsNotifierProvider);
-    final profile =
-        resolveProfile(_selectedProfileId!, settings.profiles);
+    final profile = resolveProfile(_selectedProfileId!, settings.profiles);
     return profile?.name ?? _selectedProfileId!;
   }
 
@@ -93,11 +103,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
       if (!mounted) return;
       setState(() => _isCreating = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Bad state: ', ''),
-          ),
-        ),
+        SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))),
       );
     }
   }
@@ -115,9 +121,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     final machineId = _selectedMachine?.id;
     final result = await context.pushNamed<String>(
       'pick-path',
-      queryParameters: machineId != null
-          ? {'machineId': machineId}
-          : const {},
+      queryParameters: machineId != null ? {'machineId': machineId} : const {},
     );
     if (result != null) {
       setState(() {
@@ -127,8 +131,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   }
 
   Future<void> _pickProfile() async {
-    final result =
-        await context.pushNamed<String?>('pick-profile');
+    final result = await context.pushNamed<String?>('pick-profile');
     // result is the profile ID or null for "None"
     if (!mounted) return;
     setState(() {
@@ -137,8 +140,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     // Auto-adjust agent based on profile compatibility
     if (result != null) {
       final settings = ref.read(settingsNotifierProvider);
-      final profile =
-          resolveProfile(result, settings.profiles);
+      final profile = resolveProfile(result, settings.profiles);
       if (profile != null) {
         final compat = profile.compatibility;
         // If current agent is incompatible, switch to first
@@ -156,10 +158,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     }
   }
 
-  bool _isAgentCompatible(
-    String agent,
-    ProfileCompatibility compat,
-  ) {
+  bool _isAgentCompatible(String agent, ProfileCompatibility compat) {
     switch (agent) {
       case 'claude':
         return compat.claude;
@@ -176,27 +175,22 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   ProfileCompatibility? _currentProfileCompatibility() {
     if (_selectedProfileId == null) return null;
     final settings = ref.read(settingsNotifierProvider);
-    final profile =
-        resolveProfile(_selectedProfileId!, settings.profiles);
+    final profile = resolveProfile(_selectedProfileId!, settings.profiles);
     return profile?.compatibility;
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final machines = ref
-        .watch(machinesNotifierProvider)
-        .values
-        .where((m) => m.active)
-        .toList();
+    final machines = sortMachinesForSessionCreation(
+      ref.watch(machinesNotifierProvider).values,
+    );
     final connectionStatus = ref.watch(connectionNotifierProvider);
     final theme = Theme.of(context);
     final compat = _currentProfileCompatibility();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.newSessionTitle),
-      ),
+      appBar: AppBar(title: Text(l10n.newSessionTitle)),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
@@ -208,9 +202,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Text(
                 l10n.newSessionNoMachinesFound,
-                style: TextStyle(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
               ),
             )
           else
@@ -234,35 +226,25 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                           ? Text(
                               l10n.sessionSelectMachine,
                               style: TextStyle(
-                                color:
-                                    theme.colorScheme.onSurfaceVariant,
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
                             )
                           : Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _selectedMachine!.metadata
-                                          ?.displayName ??
-                                      _selectedMachine!.metadata
-                                          ?.host ??
+                                  _selectedMachine!.metadata?.displayName ??
+                                      _selectedMachine!.metadata?.host ??
                                       _selectedMachine!.id,
-                                  style: theme.textTheme.bodyMedium
-                                      ?.copyWith(
+                                  style: theme.textTheme.bodyMedium?.copyWith(
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                if (_selectedMachine!
-                                        .metadata?.host !=
-                                    null)
+                                if (_selectedMachine!.metadata?.host != null)
                                   Text(
                                     _selectedMachine!.metadata!.host!,
-                                    style: theme.textTheme.bodySmall
-                                        ?.copyWith(
-                                      color: theme
-                                          .colorScheme
-                                          .onSurfaceVariant,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                               ],
@@ -294,17 +276,13 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                     decoration: InputDecoration(
                       hintText: l10n.sessionPathHint,
                       border: InputBorder.none,
-                      prefixIcon:
-                          const Icon(Icons.folder_outlined),
+                      prefixIcon: const Icon(Icons.folder_outlined),
                     ),
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
                 if (_selectedMachine != null) ...[
-                  Divider(
-                    height: 1,
-                    color: theme.colorScheme.outlineVariant,
-                  ),
+                  Divider(height: 1, color: theme.colorScheme.outlineVariant),
                   AppTappable(
                     onTap: _pickPath,
                     borderRadius: const BorderRadius.vertical(
@@ -325,8 +303,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                           const SizedBox(width: AppSpacing.sm),
                           Text(
                             l10n.pickSelectPath,
-                            style: theme.textTheme.bodyMedium
-                                ?.copyWith(
+                            style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.primary,
                             ),
                           ),
@@ -378,23 +355,17 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.tune,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+                  Icon(Icons.tune, color: theme.colorScheme.onSurfaceVariant),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Text(
                       _profileDisplayName(),
-                      style:
-                          theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight:
-                            _selectedProfileId != null
-                                ? FontWeight.w600
-                                : null,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: _selectedProfileId != null
+                            ? FontWeight.w600
+                            : null,
                         color: _selectedProfileId == null
-                            ? theme
-                                .colorScheme.onSurfaceVariant
+                            ? theme.colorScheme.onSurfaceVariant
                             : null,
                       ),
                     ),
@@ -442,9 +413,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           if (connectionStatus != ConnectionStatus.connected &&
               connectionStatus != ConnectionStatus.error)
             Padding(
-              padding: const EdgeInsets.only(
-                bottom: AppSpacing.md,
-              ),
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
               child: Text(
                 connectionStatus == ConnectionStatus.connecting
                     ? l10n.authConnecting
@@ -460,8 +429,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           SizedBox(
             height: 48,
             child: FilledButton(
-              onPressed:
-                  _canCreate(connectionStatus) ? _createSession : null,
+              onPressed: _canCreate(connectionStatus) ? _createSession : null,
               child: _isCreating
                   ? const SizedBox(
                       width: 20,

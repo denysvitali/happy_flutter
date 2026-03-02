@@ -20,9 +20,20 @@ import '../../core/components/app_status_dot.dart';
 import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
 import 'session_avatar.dart';
+
 // ─── Stagger constants ───────────────────────────────────────────────────────
 const _kStaggerStep = 30; // ms between each card
 const _kSlideDuration = 250; // ms for slide+fade
+
+bool shouldShowInactiveSessionsSection({
+  required bool hideInactive,
+  required int activeCount,
+  required int inactiveCount,
+}) {
+  if (inactiveCount == 0) return false;
+  if (!hideInactive) return true;
+  return activeCount == 0;
+}
 
 /// Sessions list screen with date grouping and enhanced status display.
 class SessionsScreen extends ConsumerStatefulWidget {
@@ -102,14 +113,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final inboxBadgeCount = ref.watch(
-      friendsNotifierProvider.select(
-        (s) => s.incomingRequests.length,
-      ),
+      friendsNotifierProvider.select((s) => s.incomingRequests.length),
     );
     final showInboxDot = ref.watch(
-      feedNotifierProvider.select(
-        (s) => s.unreadCount > 0,
-      ),
+      feedNotifierProvider.select((s) => s.unreadCount > 0),
     );
 
     return PopScope(
@@ -188,11 +195,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   Widget _buildCurrentTabContent() {
     return IndexedStack(
       index: _activeTab.index,
-      children: const [
-        InboxScreen(),
-        _SessionsListContent(),
-        SettingsScreen(),
-      ],
+      children: const [InboxScreen(), _SessionsListContent(), SettingsScreen()],
     );
   }
 }
@@ -311,9 +314,7 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
       children.add(
         _FadeInSection(
           delay: Duration(milliseconds: _kStaggerStep * staggerIndex),
-          child: _SectionHeader(
-            title: context.l10n.sessionsActiveSessions,
-          ),
+          child: _SectionHeader(title: context.l10n.sessionsActiveSessions),
         ),
       );
 
@@ -367,8 +368,14 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
       }
     }
 
-    // Archived sessions section — hidden when hideInactive is true.
-    if (inactiveSessions.isNotEmpty && !hideInactive) {
+    // Archived sessions section.
+    // If hideInactive is enabled, still show archived sessions as fallback
+    // when there are no active sessions to prevent an empty screen.
+    if (shouldShowInactiveSessionsSection(
+      hideInactive: hideInactive,
+      activeCount: activeSessions.length,
+      inactiveCount: inactiveSessions.length,
+    )) {
       children.add(
         _FadeInSection(
           delay: Duration(milliseconds: _kStaggerStep * staggerIndex),
@@ -401,10 +408,7 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(
-        top: AppSpacing.xs,
-        bottom: AppSpacing.lg,
-      ),
+      padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
       itemCount: children.length,
       itemBuilder: (ctx, i) => children[i],
     );
@@ -485,7 +489,9 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
                       compact: true,
                       showFlavorIcon: showFlavorIcons,
                       avatarStyle: avatarStyle,
-                      lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
+                      lastMessageTimestamp: sync.getLastMessageTimestamp(
+                        session.id,
+                      ),
                     ),
                     if (!isLast && !isSingle)
                       Divider(
@@ -584,11 +590,7 @@ class _DismissibleActiveSession extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to archive session: $e',
-            ),
-          ),
+          SnackBar(content: Text('Failed to archive session: $e')),
         );
       }
       return false;
@@ -673,18 +675,16 @@ class _DismissibleInactiveSession extends ConsumerWidget {
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to delete session'),
-            ),
+            const SnackBar(content: Text('Failed to delete session')),
           );
         }
         return false;
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete session: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete session: $e')));
       }
       return false;
     }
@@ -1899,18 +1899,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           const SizedBox(height: AppSpacing.lg),
           SegmentedButton<String>(
             segments: [
-              ButtonSegment(
-                value: 'claude',
-                label: Text(l10n.sessionsClaude),
-              ),
-              ButtonSegment(
-                value: 'codex',
-                label: Text(l10n.sessionsCodex),
-              ),
-              ButtonSegment(
-                value: 'gemini',
-                label: Text(l10n.sessionsGemini),
-              ),
+              ButtonSegment(value: 'claude', label: Text(l10n.sessionsClaude)),
+              ButtonSegment(value: 'codex', label: Text(l10n.sessionsCodex)),
+              ButtonSegment(value: 'gemini', label: Text(l10n.sessionsGemini)),
             ],
             selected: {_selectedAgent},
             onSelectionChanged: (selection) {

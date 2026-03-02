@@ -141,9 +141,7 @@ List<SessionHistoryItem> createSessionHistoryList(
 ///
 /// Returns a list of [SessionHistoryItem] containing alternating date headers
 /// and session items, similar to the React Native implementation.
-List<SessionHistoryItem> groupSessionsByExactDate(
-  List<Session> sessions,
-) {
+List<SessionHistoryItem> groupSessionsByExactDate(List<Session> sessions) {
   if (sessions.isEmpty) {
     return [];
   }
@@ -157,8 +155,7 @@ List<SessionHistoryItem> groupSessionsByExactDate(
   String? currentDateString;
 
   for (final session in sortedSessions) {
-    final sessionDate =
-        DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
+    final sessionDate = DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
     final dateString = sessionDate.toIso8601String();
 
     if (currentDateString != dateString) {
@@ -166,9 +163,7 @@ List<SessionHistoryItem> groupSessionsByExactDate(
       if (currentDateGroup.isNotEmpty) {
         items.add(
           SessionHistoryDateHeader(
-            formatDateHeader(
-              DateTime.parse(currentDateString!),
-            ),
+            formatDateHeader(DateTime.parse(currentDateString!)),
           ),
         );
         for (final sess in currentDateGroup) {
@@ -188,9 +183,7 @@ List<SessionHistoryItem> groupSessionsByExactDate(
   if (currentDateGroup.isNotEmpty) {
     items.add(
       SessionHistoryDateHeader(
-        formatDateHeader(
-          DateTime.parse(currentDateString!),
-        ),
+        formatDateHeader(DateTime.parse(currentDateString!)),
       ),
     );
     for (final sess in currentDateGroup) {
@@ -317,12 +310,11 @@ bool isSessionOnline(Session session) {
 
 /// Checks if a session should be shown in the active sessions group.
 ///
-/// Uses the real-time [Session.presence] field (set via WebSocket) rather
-/// than the persisted [Session.active] flag.  The persisted flag can lag
-/// — a process that has died still has [active] = true until the next
-/// server sync, while [presence] drops to 'offline' immediately.
+/// Prefers real-time [Session.presence] when available, but falls back to
+/// persisted [Session.active] so sessions still appear after app relaunch or
+/// when ephemeral activity events have not arrived yet.
 bool isSessionActive(Session session) {
-  return session.presence == 'online';
+  return session.presence == 'online' || session.active;
 }
 
 /// Formats OS platform string into a more readable format.
