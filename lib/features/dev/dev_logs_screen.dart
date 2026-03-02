@@ -1,27 +1,33 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/providers/app_providers.dart';
 import '../../core/providers/logger_provider.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/utils/datetime_extensions.dart';
 
-/// Debug logs screen - only available in debug builds
+/// Debug logs screen - available when developer mode is enabled
 class DevLogsScreen extends ConsumerWidget {
   const DevLogsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Only allow access in debug builds
-    if (!kDebugMode) {
+    // Allow access when developer mode is enabled
+    final settings = ref.watch(settingsNotifierProvider);
+    if (!settings.developerModeEnabled) {
       return Scaffold(
         appBar: AppBar(title: const Text('Logs')),
         body: Center(
-          child: Text(
-            'Logs are only available in debug builds',
-            style: Theme.of(context).textTheme.bodyLarge,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Logs are only available when Developer Mode is enabled.\n\n'
+              'Go to Settings and enable Developer Mode to view logs.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
           ),
         ),
       );
