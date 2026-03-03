@@ -131,6 +131,23 @@ class AppLocalizations {
   String get sessionsCodex => 'Codex';
   String get sessionsGemini => 'Gemini';
 
+  // Multi-select
+  String sessionsSelectedCount(int count) =>
+      count == 1 ? '1 selected' : '$count selected';
+  String get sessionsSelectAll => 'Select All';
+  String get sessionsDeselectAll => 'Deselect All';
+  String sessionsDeleteNConfirm(int count) =>
+      'Delete ${count == 1 ? '1 session' : '$count sessions'}?'
+      ' This cannot be undone.';
+  String sessionsDeletePartialFail(int count) =>
+      '${count == 1 ? '1 session' : '$count sessions'}'
+      ' failed to delete';
+
+  // Grouping toggle
+  String get sessionsGroupByDate => 'Group by date';
+  String get sessionsGroupByFolder =>
+      'Group by folder';
+
   // Pick Screens
   String get pickSelectMachine => 'Select Machine';
   String get pickSelectProfile => 'Select Profile';

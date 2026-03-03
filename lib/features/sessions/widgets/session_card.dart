@@ -17,11 +17,14 @@ class SessionCard extends StatelessWidget {
     required this.showFlavorIcon,
     super.key,
     this.onTap,
+    this.onLongPress,
     this.isFirst = false,
     this.isLast = false,
     this.isSingle = false,
     this.showDateHeader = false,
     this.compact = false,
+    this.selectionMode = false,
+    this.isSelected = false,
     this.avatarStyle,
     this.lastMessageTimestamp,
   });
@@ -31,6 +34,9 @@ class SessionCard extends StatelessWidget {
 
   /// Callback when the card is tapped.
   final VoidCallback? onTap;
+
+  /// Callback when the card is long-pressed.
+  final VoidCallback? onLongPress;
 
   /// Whether this is the first card in a group.
   final bool isFirst;
@@ -46,6 +52,12 @@ class SessionCard extends StatelessWidget {
 
   /// Whether to use compact layout (smaller avatar, reduced padding).
   final bool compact;
+
+  /// Whether multi-select mode is active.
+  final bool selectionMode;
+
+  /// Whether this card is currently selected.
+  final bool isSelected;
 
   /// Whether to show the AI provider flavor icon on the avatar.
   final bool showFlavorIcon;
@@ -89,130 +101,237 @@ class SessionCard extends StatelessWidget {
         ? cs.onSurface
         : cs.onSurfaceVariant;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: borderRadius,
-        side: BorderSide.none,
-      ),
-      elevation: 0,
-      color: cs.surface,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: borderRadius,
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                width: 3,
-                color: sessionStatus.isConnected
-                    ? Color(sessionStatus.statusDotColor)
-                    : cs.outlineVariant,
-              ),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: compact ? 6 : AppSpacing.sm,
+    final cardColor = isSelected
+        ? cs.primary.withValues(alpha: 0.08)
+        : cs.surface;
+
+    return GestureDetector(
+      onLongPress: onLongPress,
+      child: Card(
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: borderRadius,
+          side: isSelected
+              ? BorderSide(
+                  color: cs.primary.withValues(alpha: 0.3),
+                )
+              : BorderSide.none,
+        ),
+        elevation: 0,
+        color: cardColor,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: borderRadius,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Selection checkbox replaces the
+                // status bar in selection mode.
+                if (selectionMode)
+                  _SelectionCheckbox(
+                    isSelected: isSelected,
+                    borderRadius: borderRadius,
+                  )
+                else
+                  Container(
+                    width: 3,
+                    color: sessionStatus.isConnected
+                        ? Color(
+                            sessionStatus.statusDotColor,
+                          )
+                        : cs.outlineVariant,
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Avatar with Hero animation, monochrome when
-                      // disconnected, and optional draft badge.
-                      Hero(
-                        tag: 'session-avatar-${session.id}',
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            SessionAvatar(
-                              id: avatarId,
-                              flavor: sessionFlavor,
-                              size: compact ? 36 : 44,
-                              monochrome: !sessionStatus.isConnected,
-                              showFlavorIcon: showFlavorIcon,
-                              style: avatarStyle,
-                            ),
-                            if (hasDraft) const _DraftBadge(),
-                          ],
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: compact ? 6 : AppSpacing.sm,
+                    ),
+                    child: Row(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Hero(
+                          tag:
+                              'session-avatar-${session.id}',
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              SessionAvatar(
+                                id: avatarId,
+                                flavor: sessionFlavor,
+                                size: compact ? 36 : 44,
+                                monochrome:
+                                    !sessionStatus
+                                        .isConnected,
+                                showFlavorIcon:
+                                    showFlavorIcon,
+                                style: avatarStyle,
+                              ),
+                              if (hasDraft)
+                                const _DraftBadge(),
+                            ],
+                          ),
                         ),
-                      ),
-                      SizedBox(width: compact ? AppSpacing.sm : AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    sessionName,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: titleColor,
+                        SizedBox(
+                          width: compact
+                              ? AppSpacing.sm
+                              : AppSpacing.md,
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      sessionName,
+                                      style: theme
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                        fontWeight:
+                                            FontWeight.w600,
+                                        color: titleColor,
+                                      ),
+                                      overflow: TextOverflow
+                                          .ellipsis,
+                                      maxLines: 1,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
                                   ),
+                                  const SizedBox(
+                                    width: AppSpacing.sm,
+                                  ),
+                                  AppStatusDot(
+                                    color: sessionStatus
+                                            .isConnected
+                                        ? Color(
+                                            sessionStatus
+                                                .statusDotColor,
+                                          )
+                                        : cs.outlineVariant,
+                                    pulse: sessionStatus
+                                        .isPulsing,
+                                    size: 8,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                sessionSubtitle,
+                                style: theme
+                                    .textTheme.labelSmall
+                                    ?.copyWith(
+                                  color:
+                                      cs.onSurfaceVariant,
+                                  fontFamily: 'monospace',
+                                  fontSize: 11,
                                 ),
-                                const SizedBox(width: AppSpacing.sm),
-                                AppStatusDot(
-                                  color: sessionStatus.isConnected
-                                      ? Color(sessionStatus.statusDotColor)
-                                      : cs.outlineVariant,
-                                  pulse: sessionStatus.isPulsing,
-                                  size: 8,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
+                                overflow:
+                                    TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(
+                          width: AppSpacing.sm,
+                        ),
+                        Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.end,
+                          children: [
                             Text(
-                              sessionSubtitle,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: cs.onSurfaceVariant,
-                                fontFamily: 'monospace',
+                              formatTimestamp(
+                                lastMessageTimestamp ??
+                                    session.updatedAt,
+                                relative: true,
+                              ),
+                              style: theme
+                                  .textTheme.labelSmall
+                                  ?.copyWith(
+                                color:
+                                    cs.onSurfaceVariant,
                                 fontSize: 11,
                               ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
                             ),
+                            const SizedBox(height: 6),
+                            if (todoProgress != null) ...[
+                              const SizedBox(
+                                height: AppSpacing.xs,
+                              ),
+                              _TodoProgressBadge(
+                                completed:
+                                    todoProgress.completed,
+                                total: todoProgress.total,
+                              ),
+                            ],
                           ],
                         ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      // Right side: timestamp, status dot, optional todo.
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            formatTimestamp(
-                              lastMessageTimestamp ?? session.updatedAt,
-                              relative: true,
-                            ),
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: cs.onSurfaceVariant,
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          if (todoProgress != null) ...[
-                            const SizedBox(height: AppSpacing.xs),
-                            _TodoProgressBadge(
-                              completed: todoProgress.completed,
-                              total: todoProgress.total,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Circular checkbox shown at the leading edge in selection
+/// mode, replacing the status color bar.
+class _SelectionCheckbox extends StatelessWidget {
+  const _SelectionCheckbox({
+    required this.isSelected,
+    required this.borderRadius,
+  });
+
+  final bool isSelected;
+  final BorderRadius borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: isSelected
+            ? cs.primary.withValues(alpha: 0.06)
+            : Colors.transparent,
+        borderRadius: BorderRadius.only(
+          topLeft: borderRadius.topLeft,
+          bottomLeft: borderRadius.bottomLeft,
+        ),
+      ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isSelected ? cs.primary : cs.surface,
+          border: Border.all(
+            color: isSelected
+                ? cs.primary
+                : cs.outline.withValues(alpha: 0.5),
+            width: 2,
+          ),
+        ),
+        child: isSelected
+            ? Icon(
+                Icons.check,
+                size: 14,
+                color: cs.onPrimary,
+              )
+            : null,
       ),
     );
   }

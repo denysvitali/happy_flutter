@@ -25,6 +25,38 @@ import 'session_avatar.dart';
 const _kStaggerStep = 30; // ms between each card
 const _kSlideDuration = 250; // ms for slide+fade
 
+// ─── Selection state ──────────────────────────────────────────────────────────
+
+/// How to group archived sessions.
+enum _ArchivedGrouping { date, folder }
+
+/// Immutable selection state shared between the parent screen
+/// (AppBar) and the list content via a [ValueNotifier].
+class _SelectionState {
+  const _SelectionState({
+    this.isActive = false,
+    this.selectedIds = const {},
+    this.isBatchDeleting = false,
+  });
+
+  final bool isActive;
+  final Set<String> selectedIds;
+  final bool isBatchDeleting;
+
+  _SelectionState copyWith({
+    bool? isActive,
+    Set<String>? selectedIds,
+    bool? isBatchDeleting,
+  }) {
+    return _SelectionState(
+      isActive: isActive ?? this.isActive,
+      selectedIds: selectedIds ?? this.selectedIds,
+      isBatchDeleting:
+          isBatchDeleting ?? this.isBatchDeleting,
+    );
+  }
+}
+
 bool shouldShowInactiveSessionsSection({
   required bool hideInactive,
   required int activeCount,
@@ -48,11 +80,15 @@ class SessionsScreen extends ConsumerStatefulWidget {
 class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   late AppTab _activeTab;
   StreamSubscription<void>? _syncSubscription;
+  final _selectionNotifier = ValueNotifier<_SelectionState>(
+    const _SelectionState(),
+  );
 
   @override
   void initState() {
     super.initState();
     _activeTab = _parseTab(widget.initialTab);
+    _selectionNotifier.addListener(_onSelectionChanged);
     Future<void>.microtask(() async {
       await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
       await ref.read(friendsNotifierProvider.notifier).refreshFromSync();
@@ -66,6 +102,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       ref.read(feedNotifierProvider.notifier).loadFromSync();
       ref.read(todoStateNotifierProvider.notifier).loadFromSync();
     });
+  }
+
+  void _onSelectionChanged() {
+    if (mounted) setState(() {});
   }
 
   AppTab _parseTab(String? tab) {
@@ -103,6 +143,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
   @override
   void dispose() {
+    _selectionNotifier.removeListener(_onSelectionChanged);
+    _selectionNotifier.dispose();
     _syncSubscription?.cancel();
     super.dispose();
   }
@@ -166,16 +208,89 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     return AppBar(title: Text(_getTabTitle(l10n)));
   }
 
-  AppBar _buildSessionsAppBar(BuildContext context, AppLocalizations l10n) {
-    final connectionStatus = ref.watch(connectionNotifierProvider);
+  PreferredSizeWidget _buildSessionsAppBar(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
+    final sel = _selectionNotifier.value;
+    if (sel.isActive) {
+      return _buildSelectionAppBar(context, l10n, sel);
+    }
+    return _buildNormalSessionsAppBar(context, l10n);
+  }
 
+  AppBar _buildNormalSessionsAppBar(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
+    final connectionStatus =
+        ref.watch(connectionNotifierProvider);
     return AppBar(
       title: Text(l10n.sessionHistoryTitle),
       actions: [
         ConnectionStatusBadge(status: connectionStatus),
         IconButton(
           icon: const Icon(Icons.add),
-          onPressed: () => _SessionsListContent.showNewSessionDialog(context),
+          onPressed: () =>
+              _SessionsListContent.showNewSessionDialog(
+                context,
+              ),
+        ),
+      ],
+    );
+  }
+
+  AppBar _buildSelectionAppBar(
+    BuildContext context,
+    AppLocalizations l10n,
+    _SelectionState sel,
+  ) {
+    final cs = Theme.of(context).colorScheme;
+    final allIds = _allInactiveSessionIds();
+    final allSelected = allIds.isNotEmpty &&
+        allIds.every(sel.selectedIds.contains);
+    return AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: _exitSelectionMode,
+      ),
+      title: Text(
+        l10n.sessionsSelectedCount(
+          sel.selectedIds.length,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: sel.isBatchDeleting
+              ? null
+              : () => _toggleSelectAll(
+                    allIds,
+                    allSelected,
+                  ),
+          child: Text(
+            allSelected
+                ? l10n.sessionsDeselectAll
+                : l10n.sessionsSelectAll,
+          ),
+        ),
+        IconButton(
+          icon: sel.isBatchDeleting
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: cs.error,
+                  ),
+                )
+              : Icon(
+                  Icons.delete_outline,
+                  color: cs.error,
+                ),
+          onPressed: (sel.selectedIds.isEmpty ||
+                  sel.isBatchDeleting)
+              ? null
+              : () => _confirmBatchDelete(context, sel),
         ),
       ],
     );
@@ -195,14 +310,111 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   Widget _buildCurrentTabContent() {
     return IndexedStack(
       index: _activeTab.index,
-      children: const [InboxScreen(), _SessionsListContent(), SettingsScreen()],
+      children: [
+        const InboxScreen(),
+        _SessionsListContent(
+          selectionNotifier: _selectionNotifier,
+        ),
+        const SettingsScreen(),
+      ],
     );
+  }
+
+  // ── Selection helpers ───────────────────────────────────
+
+  Set<String> _allInactiveSessionIds() {
+    final sessions = ref.read(sessionsNotifierProvider);
+    return sessions.values
+        .where((s) => !isSessionActive(s))
+        .map((s) => s.id)
+        .toSet();
+  }
+
+  void _exitSelectionMode() {
+    _selectionNotifier.value = const _SelectionState();
+  }
+
+  void _toggleSelectAll(
+    Set<String> allIds,
+    bool currentlyAllSelected,
+  ) {
+    final current = _selectionNotifier.value;
+    _selectionNotifier.value = current.copyWith(
+      selectedIds:
+          currentlyAllSelected ? {} : Set<String>.of(allIds),
+    );
+  }
+
+  Future<void> _confirmBatchDelete(
+    BuildContext context,
+    _SelectionState sel,
+  ) async {
+    final l10n = context.l10n;
+    final count = sel.selectedIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final dl10n = AppLocalizations.of(ctx);
+        return AlertDialog(
+          title: Text(dl10n.chatDeleteSession),
+          content: Text(
+            dl10n.sessionsDeleteNConfirm(count),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(dl10n.commonCancel),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor:
+                    Theme.of(ctx).colorScheme.error,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(dl10n.commonDelete),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) return;
+
+    _selectionNotifier.value =
+        sel.copyWith(isBatchDeleting: true);
+
+    final ids = List<String>.from(sel.selectedIds);
+    final results = await Future.wait(
+      ids.map(sync.deleteSession),
+    );
+
+    if (mounted) {
+      await ref
+          .read(sessionsNotifierProvider.notifier)
+          .refreshFromSync();
+    }
+
+    _exitSelectionMode();
+
+    final failCount = results.where((r) => !r).length;
+    if (failCount > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.sessionsDeletePartialFail(failCount),
+          ),
+        ),
+      );
+    }
   }
 }
 
 /// Sessions list content widget.
 class _SessionsListContent extends ConsumerStatefulWidget {
-  const _SessionsListContent();
+  const _SessionsListContent({
+    required this.selectionNotifier,
+  });
+
+  final ValueNotifier<_SelectionState> selectionNotifier;
 
   static void showNewSessionDialog(BuildContext context) {
     showDialog(
@@ -216,14 +428,61 @@ class _SessionsListContent extends ConsumerStatefulWidget {
       _SessionsListContentState();
 }
 
-class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
+class _SessionsListContentState
+    extends ConsumerState<_SessionsListContent> {
   bool _hasLoaded = false;
-  // Track list key to trigger stagger animation on first load.
   bool _animationTriggered = false;
-  // Collapsed path groups for active sessions.
   final Set<String> _collapsedActivePaths = {};
-  // Collapsed folder groups for archived sessions.
   final Set<String> _collapsedFolderKeys = {};
+  final Set<String> _collapsedDateKeys = {};
+  _ArchivedGrouping _archivedGrouping =
+      _ArchivedGrouping.date;
+
+  ValueNotifier<_SelectionState> get _sel =>
+      widget.selectionNotifier;
+
+  @override
+  void initState() {
+    super.initState();
+    _sel.addListener(_onSelectionChanged);
+  }
+
+  @override
+  void dispose() {
+    _sel.removeListener(_onSelectionChanged);
+    super.dispose();
+  }
+
+  void _onSelectionChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onSessionLongPress(String sessionId) {
+    final current = _sel.value;
+    if (!current.isActive) {
+      HapticFeedback.mediumImpact();
+      _sel.value = _SelectionState(
+        isActive: true,
+        selectedIds: {sessionId},
+      );
+    }
+  }
+
+  void _onSessionTapInSelectionMode(String sessionId) {
+    final current = _sel.value;
+    if (!current.isActive) return;
+    final newIds = Set<String>.from(current.selectedIds);
+    if (newIds.contains(sessionId)) {
+      newIds.remove(sessionId);
+    } else {
+      newIds.add(sessionId);
+    }
+    if (newIds.isEmpty) {
+      _sel.value = const _SelectionState();
+    } else {
+      _sel.value = current.copyWith(selectedIds: newIds);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -369,8 +628,6 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
     }
 
     // Archived sessions section.
-    // If hideInactive is enabled, still show archived sessions as fallback
-    // when there are no active sessions to prevent an empty screen.
     if (shouldShowInactiveSessionsSection(
       hideInactive: hideInactive,
       activeCount: activeSessions.length,
@@ -378,32 +635,40 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
     )) {
       children.add(
         _FadeInSection(
-          delay: Duration(milliseconds: _kStaggerStep * staggerIndex),
-          child: _SectionHeader(
-            title:
-                '${context.l10n.sessionHistory} '
-                '(${inactiveSessions.length})',
+          delay: Duration(
+            milliseconds: _kStaggerStep * staggerIndex,
+          ),
+          child: _ArchiveSectionHeader(
+            count: inactiveSessions.length,
+            grouping: _archivedGrouping,
+            onGroupingChanged: (g) =>
+                setState(() => _archivedGrouping = g),
           ),
         ),
       );
 
-      final archivedItems = _buildArchivedItems(
-        context,
-        inactiveSessions,
-        machines,
-        startIndex: staggerIndex,
-        animate: triggerStagger,
-        showFlavorIcons: showFlavorIcons,
-        avatarStyle: avatarStyle,
-        collapsedFolderKeys: _collapsedFolderKeys,
-        onToggleFolder: (key) => setState(() {
-          if (_collapsedFolderKeys.contains(key)) {
-            _collapsedFolderKeys.remove(key);
-          } else {
-            _collapsedFolderKeys.add(key);
-          }
-        }),
-      );
+      final sel = _sel.value;
+      final archivedItems = _archivedGrouping ==
+              _ArchivedGrouping.folder
+          ? _buildFolderGroupedItems(
+              context,
+              inactiveSessions,
+              machines,
+              startIndex: staggerIndex,
+              animate: triggerStagger,
+              showFlavorIcons: showFlavorIcons,
+              avatarStyle: avatarStyle,
+              selectionState: sel,
+            )
+          : _buildDateGroupedItems(
+              context,
+              inactiveSessions,
+              startIndex: staggerIndex,
+              animate: triggerStagger,
+              showFlavorIcons: showFlavorIcons,
+              avatarStyle: avatarStyle,
+              selectionState: sel,
+            );
       children.addAll(archivedItems);
     }
 
@@ -414,7 +679,142 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
     );
   }
 
-  List<Widget> _buildArchivedItems(
+  // ── Date-grouped archived items ──────────────────────
+
+  List<Widget> _buildDateGroupedItems(
+    BuildContext context,
+    List<Session> sessions, {
+    required int startIndex,
+    required bool animate,
+    required bool showFlavorIcons,
+    required AvatarStyle? avatarStyle,
+    required _SelectionState selectionState,
+  }) {
+    final dateItems = groupSessionsByExactDate(sessions);
+
+    // Collect sessions per date group for counts and
+    // collapse rendering.
+    final groups = <String, List<Session>>{};
+    String? currentDate;
+    for (final item in dateItems) {
+      switch (item) {
+        case SessionHistoryDateHeader(:final date):
+          currentDate = date;
+          groups.putIfAbsent(date, () => []);
+        case SessionHistorySession(:final session):
+          if (currentDate != null) {
+            groups[currentDate]!.add(session);
+          }
+      }
+    }
+
+    var itemIndex = startIndex;
+    final widgets = <Widget>[];
+
+    for (final entry in groups.entries) {
+      final dateKey = entry.key;
+      final dateSessions = entry.value;
+      final isCollapsed =
+          _collapsedDateKeys.contains(dateKey);
+
+      widgets.add(
+        _FadeInSection(
+          delay: Duration(
+            milliseconds: _kStaggerStep * itemIndex,
+          ),
+          child: _CollapsibleDateHeader(
+            date: dateKey,
+            sessionCount: dateSessions.length,
+            isCollapsed: isCollapsed,
+            onToggle: () => setState(() {
+              if (_collapsedDateKeys.contains(dateKey)) {
+                _collapsedDateKeys.remove(dateKey);
+              } else {
+                _collapsedDateKeys.add(dateKey);
+              }
+            }),
+          ),
+        ),
+      );
+
+      if (!isCollapsed) {
+        for (var i = 0; i < dateSessions.length; i++) {
+          final session = dateSessions[i];
+          final capturedIndex = itemIndex;
+          final isFirst = i == 0;
+          final isLast = i == dateSessions.length - 1;
+          final isSingle = dateSessions.length == 1;
+
+          final card = Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SessionCard(
+                session: session,
+                onTap: selectionState.isActive
+                    ? () => _onSessionTapInSelectionMode(
+                          session.id,
+                        )
+                    : () => unawaited(
+                          context.pushNamed(
+                            'chat',
+                            pathParameters: {
+                              'sessionId': session.id,
+                            },
+                          ),
+                        ),
+                onLongPress: () =>
+                    _onSessionLongPress(session.id),
+                isFirst: isFirst,
+                isLast: isLast,
+                isSingle: isSingle,
+                compact: true,
+                selectionMode: selectionState.isActive,
+                isSelected: selectionState.selectedIds
+                    .contains(session.id),
+                showFlavorIcon: showFlavorIcons,
+                avatarStyle: avatarStyle,
+                lastMessageTimestamp:
+                    sync.getLastMessageTimestamp(
+                  session.id,
+                ),
+              ),
+              if (!isLast && !isSingle)
+                Divider(
+                  height: 1,
+                  indent: 64,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outlineVariant
+                      .withAlpha(50),
+                ),
+            ],
+          );
+
+          final child = selectionState.isActive
+              ? card
+              : _DismissibleInactiveSession(
+                  session: session,
+                  child: card,
+                );
+
+          widgets.add(
+            _StaggeredSlideIn(
+              index: capturedIndex,
+              animate: animate,
+              child: child,
+            ),
+          );
+          itemIndex++;
+        }
+      }
+    }
+
+    return widgets;
+  }
+
+  // ── Folder-grouped archived items ──────────────────
+
+  List<Widget> _buildFolderGroupedItems(
     BuildContext context,
     List<Session> sessions,
     Map<String, Machine> machines, {
@@ -422,88 +822,113 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
     required bool animate,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
-    required Set<String> collapsedFolderKeys,
-    required void Function(String) onToggleFolder,
+    required _SelectionState selectionState,
   }) {
-    // Group sessions by exact date (Today, Yesterday, X days ago)
-    final dateItems = groupSessionsByExactDate(sessions);
+    final folderItems =
+        groupSessionsByFolder(sessions, machines);
 
     var itemIndex = startIndex;
     final widgets = <Widget>[];
+    String? currentFolderKey;
 
-    // Pre-calculate session positions within each date group
-    final sessionPositions = <int, (int, int)>{};
-    for (var i = 0; i < dateItems.length; i++) {
-      if (dateItems[i] is SessionHistorySession) {
-        // Count total sessions
-        var totalInGroup = 0;
-        var indexInGroup = 0;
-        for (var j = 0; j < dateItems.length; j++) {
-          if (dateItems[j] is SessionHistorySession) {
-            if (j <= i) indexInGroup = totalInGroup;
-            totalInGroup++;
-          }
-        }
-        sessionPositions[i] = (indexInGroup, totalInGroup);
-      }
-    }
-
-    for (final item in dateItems) {
+    for (final item in folderItems) {
       switch (item) {
-        case SessionHistoryDateHeader(:final date):
+        case SessionFolderHeader():
+          currentFolderKey = item.folderKey;
+          final isCollapsed =
+              _collapsedFolderKeys.contains(
+            item.folderKey,
+          );
           widgets.add(
             _FadeInSection(
-              delay: Duration(milliseconds: _kStaggerStep * itemIndex),
-              child: _DateSectionHeader(date: date),
+              delay: Duration(
+                milliseconds:
+                    _kStaggerStep * itemIndex,
+              ),
+              child: _CollapsibleFolderHeader(
+                header: item,
+                isCollapsed: isCollapsed,
+                onToggle: () => setState(() {
+                  final key = item.folderKey;
+                  if (_collapsedFolderKeys.contains(
+                    key,
+                  )) {
+                    _collapsedFolderKeys.remove(key);
+                  } else {
+                    _collapsedFolderKeys.add(key);
+                  }
+                }),
+              ),
             ),
           );
-        case SessionHistorySession(:final session):
+        case SessionFolderEntry():
+          if (currentFolderKey != null &&
+              _collapsedFolderKeys.contains(
+                currentFolderKey,
+              )) {
+            continue;
+          }
+          final session = item.session;
           final capturedIndex = itemIndex;
-          final sessionIndex = dateItems.indexOf(item);
-          final (posInGroup, totalInGroup) =
-              sessionPositions[sessionIndex] ?? (0, 1);
-          final isFirst = posInGroup == 0;
-          final isLast = posInGroup == totalInGroup - 1;
-          final isSingle = totalInGroup == 1;
+
+          final card = Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SessionCard(
+                session: session,
+                onTap: selectionState.isActive
+                    ? () =>
+                        _onSessionTapInSelectionMode(
+                          session.id,
+                        )
+                    : () => unawaited(
+                          context.pushNamed(
+                            'chat',
+                            pathParameters: {
+                              'sessionId': session.id,
+                            },
+                          ),
+                        ),
+                onLongPress: () =>
+                    _onSessionLongPress(session.id),
+                isFirst: item.isFirst,
+                isLast: item.isLast,
+                isSingle: item.isSingle,
+                compact: true,
+                selectionMode: selectionState.isActive,
+                isSelected: selectionState.selectedIds
+                    .contains(session.id),
+                showFlavorIcon: showFlavorIcons,
+                avatarStyle: avatarStyle,
+                lastMessageTimestamp:
+                    sync.getLastMessageTimestamp(
+                  session.id,
+                ),
+              ),
+              if (!item.isLast && !item.isSingle)
+                Divider(
+                  height: 1,
+                  indent: 64,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outlineVariant
+                      .withAlpha(50),
+                ),
+            ],
+          );
+
+          final child = selectionState.isActive
+              ? card
+              : _DismissibleInactiveSession(
+                  session: session,
+                  child: card,
+                );
 
           widgets.add(
             _StaggeredSlideIn(
               index: capturedIndex,
               animate: animate,
-              child: _DismissibleInactiveSession(
-                session: session,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SessionCard(
-                      session: session,
-                      onTap: () => unawaited(
-                        context.pushNamed(
-                          'chat',
-                          pathParameters: {'sessionId': session.id},
-                        ),
-                      ),
-                      isFirst: isFirst,
-                      isLast: isLast,
-                      isSingle: isSingle,
-                      compact: true,
-                      showFlavorIcon: showFlavorIcons,
-                      avatarStyle: avatarStyle,
-                      lastMessageTimestamp: sync.getLastMessageTimestamp(
-                        session.id,
-                      ),
-                    ),
-                    if (!isLast && !isSingle)
-                      Divider(
-                        height: 1,
-                        indent: 64,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.outlineVariant.withAlpha(50),
-                      ),
-                  ],
-                ),
-              ),
+              child: child,
             ),
           );
           itemIndex++;
@@ -893,29 +1318,284 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// Date section header for grouping sessions by date
-/// (Today, Yesterday, X days ago).
-class _DateSectionHeader extends StatelessWidget {
-  const _DateSectionHeader({required this.date});
+/// Collapsible date section header with session count and
+/// animated chevron. Tappable to collapse/expand the group.
+class _CollapsibleDateHeader extends StatelessWidget {
+  const _CollapsibleDateHeader({
+    required this.date,
+    required this.sessionCount,
+    required this.isCollapsed,
+    required this.onToggle,
+  });
+
   final String date;
+  final int sessionCount;
+  final bool isCollapsed;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    return InkWell(
+      onTap: onToggle,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.xs,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                date,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.primary,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            Text(
+              '$sessionCount',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant
+                    .withValues(alpha: 0.6),
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(width: 2),
+            AnimatedRotation(
+              turns: isCollapsed ? -0.25 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                Icons.keyboard_arrow_down,
+                size: 18,
+                color: cs.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Collapsible folder header showing the path + machine name.
+class _CollapsibleFolderHeader extends StatelessWidget {
+  const _CollapsibleFolderHeader({
+    required this.header,
+    required this.isCollapsed,
+    required this.onToggle,
+  });
+
+  final SessionFolderHeader header;
+  final bool isCollapsed;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return InkWell(
+      onTap: onToggle,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.xs,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.folder_outlined,
+              size: 16,
+              color: cs.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    header.displayPath,
+                    style:
+                        theme.textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      letterSpacing: 0.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  Text(
+                    header.machineName,
+                    style:
+                        theme.textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant
+                          .withValues(alpha: 0.6),
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              '${header.sessionCount}',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant
+                    .withValues(alpha: 0.6),
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(width: 2),
+            AnimatedRotation(
+              turns: isCollapsed ? -0.25 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                Icons.keyboard_arrow_down,
+                size: 18,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Archive section header with grouping toggle (date / folder).
+class _ArchiveSectionHeader extends StatelessWidget {
+  const _ArchiveSectionHeader({
+    required this.count,
+    required this.grouping,
+    required this.onGroupingChanged,
+  });
+
+  final int count;
+  final _ArchivedGrouping grouping;
+  final ValueChanged<_ArchivedGrouping> onGroupingChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final l10n = context.l10n;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
         AppSpacing.md,
-        AppSpacing.lg,
+        AppSpacing.md,
         AppSpacing.xs,
       ),
-      child: Text(
-        date,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: cs.primary,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '${l10n.sessionHistory} ($count)',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          _GroupingToggle(
+            grouping: grouping,
+            onChanged: onGroupingChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Two-icon toggle for switching between date and folder
+/// grouping.
+class _GroupingToggle extends StatelessWidget {
+  const _GroupingToggle({
+    required this.grouping,
+    required this.onChanged,
+  });
+
+  final _ArchivedGrouping grouping;
+  final ValueChanged<_ArchivedGrouping> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _ToggleChip(
+          icon: Icons.calendar_today_outlined,
+          selected:
+              grouping == _ArchivedGrouping.date,
+          onTap: () =>
+              onChanged(_ArchivedGrouping.date),
+          tooltip: l10n.sessionsGroupByDate,
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        _ToggleChip(
+          icon: Icons.folder_outlined,
+          selected:
+              grouping == _ArchivedGrouping.folder,
+          onTap: () =>
+              onChanged(_ArchivedGrouping.folder),
+          tooltip: l10n.sessionsGroupByFolder,
+        ),
+      ],
+    );
+  }
+}
+
+/// Single icon chip used by [_GroupingToggle].
+class _ToggleChip extends StatelessWidget {
+  const _ToggleChip({
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    required this.tooltip,
+  });
+
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: AnimatedContainer(
+          duration: AppDuration.fast,
+          padding: const EdgeInsets.all(AppSpacing.xs),
+          decoration: BoxDecoration(
+            color: selected
+                ? cs.primary.withValues(alpha: 0.12)
+                : Colors.transparent,
+            borderRadius:
+                BorderRadius.circular(AppRadius.sm),
+          ),
+          child: Icon(
+            icon,
+            size: 16,
+            color: selected
+                ? cs.primary
+                : cs.onSurfaceVariant,
+          ),
         ),
       ),
     );
@@ -923,6 +1603,58 @@ class _DateSectionHeader extends StatelessWidget {
 }
 
 // ─── Badge helpers ───────────────────────────────────────────────────────────
+
+/// Circular checkbox shown at the leading edge in selection
+/// mode, replacing the status color bar.
+class _SelectionCheckbox extends StatelessWidget {
+  const _SelectionCheckbox({
+    required this.isSelected,
+    required this.borderRadius,
+  });
+
+  final bool isSelected;
+  final BorderRadius borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: isSelected
+            ? cs.primary.withValues(alpha: 0.06)
+            : Colors.transparent,
+        borderRadius: BorderRadius.only(
+          topLeft: borderRadius.topLeft,
+          bottomLeft: borderRadius.bottomLeft,
+        ),
+      ),
+      child: AnimatedContainer(
+        duration: AppDuration.fast,
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isSelected ? cs.primary : cs.surface,
+          border: Border.all(
+            color: isSelected
+                ? cs.primary
+                : cs.outline.withValues(alpha: 0.5),
+            width: 2,
+          ),
+        ),
+        child: isSelected
+            ? Icon(
+                Icons.check,
+                size: 14,
+                color: cs.onPrimary,
+              )
+            : null,
+      ),
+    );
+  }
+}
 
 /// Draft icon overlay badge shown on avatar bottom-right corner.
 class _DraftBadge extends StatelessWidget {
@@ -1368,11 +2100,14 @@ class SessionCard extends StatelessWidget {
     required this.showFlavorIcon,
     super.key,
     this.onTap,
+    this.onLongPress,
     this.isFirst = false,
     this.isLast = false,
     this.isSingle = false,
     this.showDateHeader = false,
     this.compact = false,
+    this.selectionMode = false,
+    this.isSelected = false,
     this.avatarStyle,
     this.lastMessageTimestamp,
   });
@@ -1382,6 +2117,9 @@ class SessionCard extends StatelessWidget {
 
   /// Callback when the card is tapped.
   final VoidCallback? onTap;
+
+  /// Callback when the card is long-pressed.
+  final VoidCallback? onLongPress;
 
   /// Whether this is the first card in a group.
   final bool isFirst;
@@ -1395,17 +2133,22 @@ class SessionCard extends StatelessWidget {
   /// Whether to show a date header above the card.
   final bool showDateHeader;
 
-  /// Whether to use compact layout (smaller avatar, reduced padding).
+  /// Whether to use compact layout.
   final bool compact;
 
-  /// Whether to show the AI provider flavor icon on the avatar.
+  /// Whether multi-select mode is active.
+  final bool selectionMode;
+
+  /// Whether this card is currently selected.
+  final bool isSelected;
+
+  /// Whether to show the AI provider flavor icon.
   final bool showFlavorIcon;
 
-  /// The avatar style to use (null = hash-based selection).
+  /// The avatar style (null = hash-based selection).
   final AvatarStyle? avatarStyle;
 
-  /// Timestamp of the last message in the session (ms since epoch).
-  /// If null, falls back to session.updatedAt.
+  /// Timestamp of the last message (ms since epoch).
   final int? lastMessageTimestamp;
 
   @override
@@ -1439,129 +2182,189 @@ class SessionCard extends StatelessWidget {
     final titleColor = sessionStatus.isConnected
         ? cs.onSurface
         : cs.onSurfaceVariant;
+    final cardColor = isSelected
+        ? cs.primary.withValues(alpha: 0.08)
+        : cs.surface;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: borderRadius,
-        side: BorderSide.none,
-      ),
-      elevation: 0,
-      color: cs.surface,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: borderRadius,
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                width: 3,
-                color: sessionStatus.isConnected
-                    ? Color(sessionStatus.statusDotColor)
-                    : cs.outlineVariant,
-              ),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: compact ? 6 : AppSpacing.sm,
+    return GestureDetector(
+      onLongPress: onLongPress,
+      child: Card(
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: borderRadius,
+          side: isSelected
+              ? BorderSide(
+                  color:
+                      cs.primary.withValues(alpha: 0.3),
+                )
+              : BorderSide.none,
+        ),
+        elevation: 0,
+        color: cardColor,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: borderRadius,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment:
+                  CrossAxisAlignment.stretch,
+              children: [
+                if (selectionMode)
+                  _SelectionCheckbox(
+                    isSelected: isSelected,
+                    borderRadius: borderRadius,
+                  )
+                else
+                  Container(
+                    width: 3,
+                    color: sessionStatus.isConnected
+                        ? Color(
+                            sessionStatus.statusDotColor,
+                          )
+                        : cs.outlineVariant,
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Avatar with Hero animation, monochrome when
-                      // disconnected, and optional draft badge.
-                      Hero(
-                        tag: 'session-avatar-${session.id}',
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            SessionAvatar(
-                              id: avatarId,
-                              flavor: sessionFlavor,
-                              size: compact ? 36 : 44,
-                              monochrome: !sessionStatus.isConnected,
-                              showFlavorIcon: showFlavorIcon,
-                              style: avatarStyle,
-                            ),
-                            if (hasDraft) const _DraftBadge(),
-                          ],
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical:
+                          compact ? 6 : AppSpacing.sm,
+                    ),
+                    child: Row(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Hero(
+                          tag:
+                              'session-avatar-${session.id}',
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              SessionAvatar(
+                                id: avatarId,
+                                flavor: sessionFlavor,
+                                size: compact ? 36 : 44,
+                                monochrome: !sessionStatus
+                                    .isConnected,
+                                showFlavorIcon:
+                                    showFlavorIcon,
+                                style: avatarStyle,
+                              ),
+                              if (hasDraft)
+                                const _DraftBadge(),
+                            ],
+                          ),
                         ),
-                      ),
-                      SizedBox(width: compact ? AppSpacing.sm : AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    sessionName,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: titleColor,
+                        SizedBox(
+                          width: compact
+                              ? AppSpacing.sm
+                              : AppSpacing.md,
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      sessionName,
+                                      style: theme
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                        fontWeight:
+                                            FontWeight
+                                                .w600,
+                                        color: titleColor,
+                                      ),
+                                      overflow:
+                                          TextOverflow
+                                              .ellipsis,
+                                      maxLines: 1,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
                                   ),
+                                  const SizedBox(
+                                    width: AppSpacing.sm,
+                                  ),
+                                  AppStatusDot(
+                                    color: sessionStatus
+                                            .isConnected
+                                        ? Color(
+                                            sessionStatus
+                                                .statusDotColor,
+                                          )
+                                        : cs
+                                            .outlineVariant,
+                                    pulse: sessionStatus
+                                        .isPulsing,
+                                    size: 8,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                sessionSubtitle,
+                                style: theme
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                  color: cs
+                                      .onSurfaceVariant,
+                                  fontFamily: 'monospace',
+                                  fontSize: 11,
                                 ),
-                                const SizedBox(width: AppSpacing.sm),
-                                AppStatusDot(
-                                  color: sessionStatus.isConnected
-                                      ? Color(sessionStatus.statusDotColor)
-                                      : cs.outlineVariant,
-                                  pulse: sessionStatus.isPulsing,
-                                  size: 8,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
+                                overflow:
+                                    TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(
+                          width: AppSpacing.sm,
+                        ),
+                        Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.end,
+                          children: [
                             Text(
-                              sessionSubtitle,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: cs.onSurfaceVariant,
-                                fontFamily: 'monospace',
+                              formatTimestamp(
+                                lastMessageTimestamp ??
+                                    session.updatedAt,
+                                relative: true,
+                              ),
+                              style: theme
+                                  .textTheme.labelSmall
+                                  ?.copyWith(
+                                color:
+                                    cs.onSurfaceVariant,
                                 fontSize: 11,
                               ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
                             ),
+                            const SizedBox(height: 6),
+                            if (todoProgress !=
+                                null) ...[
+                              const SizedBox(
+                                height: AppSpacing.xs,
+                              ),
+                              _TodoProgressBadge(
+                                completed: todoProgress
+                                    .completed,
+                                total:
+                                    todoProgress.total,
+                              ),
+                            ],
                           ],
                         ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      // Right side: timestamp, status dot, optional todo.
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            formatTimestamp(
-                              lastMessageTimestamp ?? session.updatedAt,
-                              relative: true,
-                            ),
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: cs.onSurfaceVariant,
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          if (todoProgress != null) ...[
-                            const SizedBox(height: AppSpacing.xs),
-                            _TodoProgressBadge(
-                              completed: todoProgress.completed,
-                              total: todoProgress.total,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
