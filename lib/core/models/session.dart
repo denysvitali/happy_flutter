@@ -544,7 +544,9 @@ class Session {
     List<TodoItem>? todos,
     String? draft,
     String? permissionMode,
+    bool clearPermissionMode = false,
     String? modelMode,
+    bool clearModelMode = false,
     UsageData? latestUsage,
     int? lastSeq,
   }) {
@@ -564,8 +566,9 @@ class Session {
       presence: presence ?? this.presence,
       todos: todos != null ? List<TodoItem>.from(todos) : this.todos,
       draft: draft ?? this.draft,
-      permissionMode: permissionMode ?? this.permissionMode,
-      modelMode: modelMode ?? this.modelMode,
+      permissionMode:
+          clearPermissionMode ? null : (permissionMode ?? this.permissionMode),
+      modelMode: clearModelMode ? null : (modelMode ?? this.modelMode),
       latestUsage: latestUsage ?? this.latestUsage,
       lastSeq: lastSeq ?? this.lastSeq,
     );
