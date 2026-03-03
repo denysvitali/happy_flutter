@@ -3183,13 +3183,8 @@ what you have, you must use the options mode.
 
     if (result is Map && result['ok'] == true) {
       final encryptedResult = result['result'] as String?;
-      if (encryptedResult == null) {
-        throw StateError('Session RPC $method returned null result');
-      }
+      if (encryptedResult == null) return null;
       final decrypted = await sessionEncryption.decryptRaw(encryptedResult);
-      if (decrypted == null) {
-        logger.warning('sessionRPC $method: decryption returned null');
-      }
       return decrypted;
     }
     // Log the failure reason if available
@@ -3266,6 +3261,9 @@ what you have, you must use the options mode.
         decision: decision,
       ).toJson(),
     );
+    // Force re-sync in case WebSocket events are missed
+    sessionsSync.invalidate();
+    messagesSync[sessionId]?.invalidate();
   }
 
   /// Deny a permission request for a session.
@@ -3285,6 +3283,9 @@ what you have, you must use the options mode.
         decision: decision,
       ).toJson(),
     );
+    // Force re-sync in case WebSocket events are missed
+    sessionsSync.invalidate();
+    messagesSync[sessionId]?.invalidate();
   }
 
   /// Kill a session's agent process.
