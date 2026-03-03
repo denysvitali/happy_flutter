@@ -509,8 +509,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ],
               ),
             ),
-            if (_session?.agentState?.requests?.isNotEmpty ?? false)
-              PermissionRequiredBanner(onTap: () => _scrollToBottom()),
             ChatInput(
               sessionId: widget.sessionId,
               controller: _controller,
@@ -522,8 +520,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               onModelModeChanged: _onModelModeChanged,
               contextSize:
                   sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
-              isPermissionPending:
-                  _session?.agentState?.requests?.isNotEmpty ?? false,
               isSessionOnline: _session?.isPresenceOnline ?? false,
               isAgentThinking: _session?.thinking ?? false,
               onAbort: _abortSession,
@@ -1143,65 +1139,6 @@ class ScrollToBottomPill extends StatelessWidget {
               color: cs.onSurfaceVariant,
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── PermissionRequiredBanner ────────────────────────────────────────────
-
-class PermissionRequiredBanner extends StatelessWidget {
-  const PermissionRequiredBanner({required this.onTap, super.key});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        height: 36,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: AppColors.info.withValues(alpha: 0.08),
-          border: Border(
-            top: BorderSide(
-              color: AppColors.info.withValues(alpha: 0.2),
-              width: 0.5,
-            ),
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        child: Row(
-          children: [
-            Icon(
-              Icons.shield_outlined,
-              size: 15,
-              color: cs.onSurface.withValues(alpha: 0.7),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                context.l10n.chatPermissionRequired,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: cs.onSurface.withValues(alpha: 0.7),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-            ),
-          ],
         ),
       ),
     );

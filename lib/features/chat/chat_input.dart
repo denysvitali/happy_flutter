@@ -602,7 +602,6 @@ class ChatInput extends ConsumerStatefulWidget {
     this.onProfilePressed,
     this.isSendDisabled = false,
     this.contextSize,
-    this.isPermissionPending = false,
     this.isSessionOnline = false,
     this.isAgentThinking = false,
     this.onAbort,
@@ -658,10 +657,6 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Current context window usage in tokens.
   final int? contextSize;
-
-  /// When true, input is locked while the agent awaits a permission
-  /// decision from the user.
-  final bool isPermissionPending;
 
   /// Whether the session CLI is currently connected (presence == 'online').
   final bool isSessionOnline;
@@ -886,9 +881,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   void _onSendTap() {
-    if (widget.isSendDisabled ||
-        widget.isSending ||
-        widget.isPermissionPending) {
+    if (widget.isSendDisabled || widget.isSending) {
       return;
     }
     HapticFeedback.mediumImpact();
@@ -991,8 +984,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
                         ? _showModelPicker(context)
                         : null,
                     contextSize: widget.contextSize,
-                    showAbort:
-                        widget.isSessionOnline && !widget.isPermissionPending,
+                    showAbort: widget.isSessionOnline,
                     isAborting: _isAborting,
                     onAbort: _onAbortTap,
                   ),
@@ -1011,16 +1003,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   Widget _buildCardInputArea(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final pending = widget.isPermissionPending;
 
-    final borderColor = pending
-        ? cs.outlineVariant.withValues(alpha: 0.2)
-        : _isFocused
+    final borderColor = _isFocused
         ? cs.primary.withValues(alpha: 0.4)
         : cs.outlineVariant.withValues(alpha: 0.4);
-    final cardColor = pending
-        ? cs.onSurface.withValues(alpha: 0.03)
-        : cs.surfaceContainerLow;
+    final cardColor = cs.surfaceContainerLow;
 
     return AnimatedContainer(
       duration: _kBorderAnim,
@@ -1046,8 +1033,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
             padding: const EdgeInsets.only(right: 6, bottom: 6),
             child: _SendButton(
               isSending: widget.isSending,
-              isSendDisabled:
-                  widget.isSendDisabled || widget.isPermissionPending,
+              isSendDisabled: widget.isSendDisabled,
               onTap: _onSendTap,
               scaleAnimation: _sendScale,
             ),
@@ -1060,19 +1046,13 @@ class _ChatInputState extends ConsumerState<ChatInput>
   Widget _buildTextField(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final pending = widget.isPermissionPending;
-
-    final hintText = pending
-        ? 'Respond to the permission request above'
-        : 'Message';
     final hintColor = cs.onSurface.withValues(alpha: 0.3);
 
     return TextField(
       controller: widget.controller,
       focusNode: _focusNode,
-      enabled: !pending,
       decoration: InputDecoration(
-        hintText: hintText,
+        hintText: 'Message',
         hintStyle: theme.textTheme.bodyMedium?.copyWith(color: hintColor),
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
@@ -1085,9 +1065,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
           AppSpacing.sm + 2,
         ),
       ),
-      style: theme.textTheme.bodyMedium?.copyWith(
-        color: pending ? cs.onSurface.withValues(alpha: 0.38) : null,
-      ),
+      style: theme.textTheme.bodyMedium,
       maxLines: 4,
       minLines: 1,
       textInputAction: defaultTargetPlatform == TargetPlatform.android
