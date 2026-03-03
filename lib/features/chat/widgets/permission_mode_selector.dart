@@ -309,8 +309,17 @@ class PermissionModeSelector extends ConsumerWidget {
                   ),
                 ),
               ),
-              for (final mode in modes)
-                _buildModeTile(ctx, mode, theme),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final mode in modes)
+                        _buildModeTile(ctx, mode, theme),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
