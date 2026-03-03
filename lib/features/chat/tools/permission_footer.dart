@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/logger_service.dart' show logger;
+
 /// Permission request UI with Allow, Allow All, and Deny buttons.
 class PermissionFooter extends StatefulWidget {
 
@@ -36,28 +38,28 @@ class PermissionFooter extends StatefulWidget {
   final String? flavor;
 
   /// Callback when permission is allowed.
-  final VoidCallback? onAllow;
+  final Future<void> Function()? onAllow;
 
   /// Callback when permission is denied.
-  final VoidCallback? onDeny;
+  final Future<void> Function()? onDeny;
 
   /// Callback when permission is allowed for all edits.
-  final VoidCallback? onAllowAllEdits;
+  final Future<void> Function()? onAllowAllEdits;
 
   /// Callback when permission is allowed in bypass (yolo) mode.
-  final VoidCallback? onAllowBypass;
+  final Future<void> Function()? onAllowBypass;
 
   /// Callback when permission is allowed for the session.
-  final VoidCallback? onAllowForSession;
+  final Future<void> Function()? onAllowForSession;
 
   /// Callback for Codex approve (single action).
-  final VoidCallback? onCodexApprove;
+  final Future<void> Function()? onCodexApprove;
 
   /// Callback for Codex approve for session.
-  final VoidCallback? onCodexApproveForSession;
+  final Future<void> Function()? onCodexApproveForSession;
 
   /// Callback for Codex abort.
-  final VoidCallback? onCodexAbort;
+  final Future<void> Function()? onCodexAbort;
 
   @override
   State<PermissionFooter> createState() => _PermissionFooterState();
@@ -76,11 +78,13 @@ class _PermissionFooterState extends State<PermissionFooter> {
     }
   }
 
-  Future<void> _wrap(VoidCallback? cb) async {
+  Future<void> _wrap(Future<void> Function()? cb) async {
     if (cb == null || _loading) return;
     setState(() => _loading = true);
     try {
-      cb();
+      await cb();
+    } on Exception catch (e) {
+      logger.error('Permission action failed: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
