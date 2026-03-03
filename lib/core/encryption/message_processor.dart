@@ -348,7 +348,7 @@ void _processOutputContent({
           'content': c['text']?.toString() ?? '',
           'raw': outerContent,
           if (isSidechain) 'isSidechain': true,
-          if (dataUuid != null) 'uuid': dataUuid,
+          'uuid': dataUuid,
           if (dataParentUuid != null) 'parentUuid': dataParentUuid,
         });
       } else if (type == 'thinking') {
@@ -363,7 +363,7 @@ void _processOutputContent({
           'content': '*Thinking...*\n\n*${c['thinking']}*',
           'raw': outerContent,
           if (isSidechain) 'isSidechain': true,
-          if (dataUuid != null) 'uuid': dataUuid,
+          'uuid': dataUuid,
           if (dataParentUuid != null) 'parentUuid': dataParentUuid,
         });
       } else if (type == 'tool_use') {
@@ -381,7 +381,7 @@ void _processOutputContent({
           'content': c,
           'raw': outerContent,
           if (isSidechain) 'isSidechain': true,
-          if (dataUuid != null) 'uuid': dataUuid,
+          'uuid': dataUuid,
           if (dataParentUuid != null) 'parentUuid': dataParentUuid,
         });
       }
@@ -718,7 +718,7 @@ void _processSessionContent({
         'isSidechain': true,
         'prompt': text,
         if (uuid.isNotEmpty) 'uuid': uuid,
-        if (parentUuid != null) 'parentUuid': parentUuid,
+        'parentUuid': parentUuid,
       });
     }
     return;

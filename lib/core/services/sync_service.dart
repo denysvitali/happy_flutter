@@ -2543,7 +2543,7 @@ what you have, you must use the options mode.
     }
 
     final requestedPermissionMode = permissionMode ?? session.permissionMode;
-    final sandboxEnabled = session.metadata?.sandboxEnabled == true;
+    final sandboxEnabled = session.metadata?.sandboxEnabled ?? false;
     final effectivePermissionMode =
         requestedPermissionMode != null && requestedPermissionMode != 'default'
         ? requestedPermissionMode
@@ -3462,7 +3462,7 @@ what you have, you must use the options mode.
             'content': c['text']?.toString() ?? '',
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
-            if (dataUuid != null) 'uuid': dataUuid,
+            'uuid': dataUuid,
             if (dataParentUuid != null) 'parentUuid': dataParentUuid,
           });
         } else if (type == 'thinking') {
@@ -3477,7 +3477,7 @@ what you have, you must use the options mode.
             'content': '*Thinking...*\n\n*${c['thinking']}*',
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
-            if (dataUuid != null) 'uuid': dataUuid,
+            'uuid': dataUuid,
             if (dataParentUuid != null) 'parentUuid': dataParentUuid,
           });
         } else if (type == 'tool_use') {
@@ -3495,7 +3495,7 @@ what you have, you must use the options mode.
             'content': c,
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
-            if (dataUuid != null) 'uuid': dataUuid,
+            'uuid': dataUuid,
             if (dataParentUuid != null) 'parentUuid': dataParentUuid,
           });
         }
@@ -3889,7 +3889,7 @@ what you have, you must use the options mode.
               'isSidechain': true,
               'prompt': text,
               if (uuid.isNotEmpty) 'uuid': uuid,
-              if (parentUuid != null) 'parentUuid': parentUuid,
+              'parentUuid': parentUuid,
             },
           ],
           [],
