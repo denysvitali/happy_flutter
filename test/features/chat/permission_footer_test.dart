@@ -11,31 +11,34 @@ Widget _wrap(Widget child) {
 }
 
 Map<String, dynamic> _pending() => <String, dynamic>{'status': 'pending'};
-Map<String, dynamic> _approved() => <String, dynamic>{'status': 'approved'};
+Map<String, dynamic> _approved() =>
+    <String, dynamic>{'status': 'approved'};
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('PermissionFooter plan buttons', () {
-    testWidgets('renders Accept edits, Yolo, and Deny for ExitPlanMode',
+    testWidgets(
+        'renders Allow, All edits, and Deny for ExitPlanMode',
         (tester) async {
       await tester.pumpWidget(_wrap(
         PermissionFooter(
           permission: _pending(),
           sessionId: 's1',
           toolName: 'ExitPlanMode',
+          onAllow: () async {},
           onAllowAllEdits: () async {},
-          onAllowBypass: () async {},
           onDeny: () async {},
         ),
       ));
 
-      expect(find.text('Accept edits'), findsOneWidget);
-      expect(find.text('Yolo'), findsOneWidget);
+      expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('All edits'), findsOneWidget);
       expect(find.text('Deny'), findsOneWidget);
     });
 
-    testWidgets('Yolo shows loading spinner while callback runs',
+    testWidgets(
+        'Allow shows loading spinner while callback runs',
         (tester) async {
       final completer = Completer<void>();
 
@@ -44,20 +47,23 @@ void main() {
           permission: _pending(),
           sessionId: 's1',
           toolName: 'ExitPlanMode',
+          onAllow: () => completer.future,
           onAllowAllEdits: () async {},
-          onAllowBypass: () => completer.future,
           onDeny: () async {},
         ),
       ));
 
-      // Tap Yolo
-      await tester.tap(find.text('Yolo'));
+      // Tap Allow
+      await tester.tap(find.text('Allow'));
       await tester.pump();
 
       // Spinner should be visible, buttons hidden
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Accept edits'), findsNothing);
-      expect(find.text('Yolo'), findsNothing);
+      expect(
+        find.byType(CircularProgressIndicator),
+        findsOneWidget,
+      );
+      expect(find.text('Allow'), findsNothing);
+      expect(find.text('All edits'), findsNothing);
       expect(find.text('Deny'), findsNothing);
 
       // Complete the callback
@@ -65,11 +71,15 @@ void main() {
       await tester.pump();
 
       // Buttons should reappear
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Accept edits'), findsOneWidget);
+      expect(
+        find.byType(CircularProgressIndicator),
+        findsNothing,
+      );
+      expect(find.text('Allow'), findsOneWidget);
     });
 
-    testWidgets('Accept edits shows loading spinner while callback runs',
+    testWidgets(
+        'All edits shows loading spinner while callback runs',
         (tester) async {
       final completer = Completer<void>();
 
@@ -78,26 +88,33 @@ void main() {
           permission: _pending(),
           sessionId: 's1',
           toolName: 'ExitPlanMode',
+          onAllow: () async {},
           onAllowAllEdits: () => completer.future,
-          onAllowBypass: () async {},
           onDeny: () async {},
         ),
       ));
 
-      await tester.tap(find.text('Accept edits'));
+      await tester.tap(find.text('All edits'));
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Accept edits'), findsNothing);
+      expect(
+        find.byType(CircularProgressIndicator),
+        findsOneWidget,
+      );
+      expect(find.text('Allow'), findsNothing);
 
       completer.complete();
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Accept edits'), findsOneWidget);
+      expect(
+        find.byType(CircularProgressIndicator),
+        findsNothing,
+      );
+      expect(find.text('Allow'), findsOneWidget);
     });
 
-    testWidgets('Deny shows loading spinner while callback runs',
+    testWidgets(
+        'Deny shows loading spinner while callback runs',
         (tester) async {
       final completer = Completer<void>();
 
@@ -106,8 +123,8 @@ void main() {
           permission: _pending(),
           sessionId: 's1',
           toolName: 'ExitPlanMode',
+          onAllow: () async {},
           onAllowAllEdits: () async {},
-          onAllowBypass: () async {},
           onDeny: () => completer.future,
         ),
       ));
@@ -115,15 +132,22 @@ void main() {
       await tester.tap(find.text('Deny'));
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(
+        find.byType(CircularProgressIndicator),
+        findsOneWidget,
+      );
 
       completer.complete();
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(
+        find.byType(CircularProgressIndicator),
+        findsNothing,
+      );
     });
 
-    testWidgets('prevents double-tap while loading', (tester) async {
+    testWidgets('prevents double-tap while loading',
+        (tester) async {
       var callCount = 0;
       final completer = Completer<void>();
 
@@ -132,72 +156,79 @@ void main() {
           permission: _pending(),
           sessionId: 's1',
           toolName: 'ExitPlanMode',
-          onAllowAllEdits: () async {},
-          onAllowBypass: () {
+          onAllow: () {
             callCount++;
             return completer.future;
           },
+          onAllowAllEdits: () async {},
           onDeny: () async {},
         ),
       ));
 
       // First tap triggers
-      await tester.tap(find.text('Yolo'));
+      await tester.tap(find.text('Allow'));
       await tester.pump();
       expect(callCount, 1);
 
-      // Buttons are hidden during loading, so second tap can't hit them.
-      // Complete and verify only one call was made.
+      // Buttons are hidden during loading, so second tap
+      // can't hit them. Complete and verify only one call.
       completer.complete();
       await tester.pump();
       expect(callCount, 1);
     });
 
-    testWidgets('loading clears on callback error', (tester) async {
+    testWidgets('loading clears on callback error',
+        (tester) async {
       await tester.pumpWidget(_wrap(
         PermissionFooter(
           permission: _pending(),
           sessionId: 's1',
           toolName: 'ExitPlanMode',
-          onAllowAllEdits: () async {},
-          onAllowBypass: () async {
+          onAllow: () async {
             throw Exception('network error');
           },
+          onAllowAllEdits: () async {},
           onDeny: () async {},
         ),
       ));
 
-      await tester.tap(find.text('Yolo'));
+      await tester.tap(find.text('Allow'));
       await tester.pump();
 
-      // Error is caught in _wrap, loading clears, buttons reappear
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.text('Yolo'), findsOneWidget);
+      // Error is caught in _wrap, loading clears, buttons
+      // reappear
+      expect(
+        find.byType(CircularProgressIndicator),
+        findsNothing,
+      );
+      expect(find.text('Allow'), findsOneWidget);
     });
   });
 
   group('PermissionFooter approved state', () {
-    testWidgets('hides action buttons when approved', (tester) async {
+    testWidgets('hides action buttons when approved',
+        (tester) async {
       await tester.pumpWidget(_wrap(
         PermissionFooter(
           permission: _approved(),
           sessionId: 's1',
           toolName: 'ExitPlanMode',
+          onAllow: () async {},
           onAllowAllEdits: () async {},
-          onAllowBypass: () async {},
           onDeny: () async {},
         ),
       ));
 
-      expect(find.text('Accept edits'), findsNothing);
-      expect(find.text('Yolo'), findsNothing);
+      expect(find.text('Allow'), findsNothing);
+      expect(find.text('All edits'), findsNothing);
       expect(find.text('Deny'), findsNothing);
       expect(find.text('Approved'), findsOneWidget);
     });
   });
 
   group('PermissionFooter standard buttons', () {
-    testWidgets('renders Allow, All edits, Deny for Edit tool',
+    testWidgets(
+        'renders Allow, All edits, Deny for Edit tool',
         (tester) async {
       await tester.pumpWidget(_wrap(
         PermissionFooter(
@@ -216,7 +247,8 @@ void main() {
       expect(find.text('Deny'), findsOneWidget);
     });
 
-    testWidgets('renders Allow, For session, Deny for Bash tool',
+    testWidgets(
+        'renders Allow, For session, Deny for Bash tool',
         (tester) async {
       await tester.pumpWidget(_wrap(
         PermissionFooter(
@@ -237,7 +269,8 @@ void main() {
   });
 
   group('PermissionFooter codex buttons', () {
-    testWidgets('renders Yes, For session, Stop for codex flavor',
+    testWidgets(
+        'renders Yes, For session, Stop for codex flavor',
         (tester) async {
       await tester.pumpWidget(_wrap(
         PermissionFooter(

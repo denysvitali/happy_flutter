@@ -15,7 +15,6 @@ class PermissionFooter extends StatefulWidget {
     this.onAllow,
     this.onDeny,
     this.onAllowAllEdits,
-    this.onAllowBypass,
     this.onAllowForSession,
     this.onCodexApprove,
     this.onCodexApproveForSession,
@@ -45,9 +44,6 @@ class PermissionFooter extends StatefulWidget {
 
   /// Callback when permission is allowed for all edits.
   final Future<void> Function()? onAllowAllEdits;
-
-  /// Callback when permission is allowed in bypass (yolo) mode.
-  final Future<void> Function()? onAllowBypass;
 
   /// Callback when permission is allowed for the session.
   final Future<void> Function()? onAllowForSession;
@@ -265,16 +261,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
                           onCodexAbort: () =>
                               _wrap(widget.onCodexAbort),
                         )
-                      : isPlanTool
-                          ? _PlanActionButtons(
-                              isPending: isPending,
-                              onAllowAllEdits: () =>
-                                  _wrap(widget.onAllowAllEdits),
-                              onAllowBypass: () =>
-                                  _wrap(widget.onAllowBypass),
-                              onDeny: () => _wrap(widget.onDeny),
-                            )
-                          : _ActionButtons(
+                      : _ActionButtons(
                               isPending: isPending,
                               isEditTool: isEditTool,
                               isApproved: isApproved,
@@ -394,94 +381,6 @@ class _ActionButtons extends StatelessWidget {
               borderRadius: BorderRadius.circular(7),
             ),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PlanActionButtons extends StatelessWidget {
-  const _PlanActionButtons({
-    required this.isPending,
-    this.onAllowAllEdits,
-    this.onAllowBypass,
-    this.onDeny,
-  });
-
-  final bool isPending;
-  final VoidCallback? onAllowAllEdits;
-  final VoidCallback? onAllowBypass;
-  final VoidCallback? onDeny;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: [
-            // Accept edits
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: isPending ? onAllowAllEdits : null,
-                icon: const Icon(Icons.edit_rounded, size: 15),
-                label: const Text('Accept edits'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor:
-                      theme.colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  textStyle:
-                      theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(7),
-                  ),
-                  elevation: 0,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            // Yolo mode
-            _SecondaryButton(
-              label: 'Yolo',
-              onPressed: isPending ? onAllowBypass : null,
-            ),
-            const SizedBox(width: 6),
-            // Deny
-            OutlinedButton.icon(
-              onPressed: isPending ? onDeny : null,
-              icon:
-                  const Icon(Icons.close_rounded, size: 14),
-              label: const Text('Deny'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: theme.colorScheme.error,
-                side: BorderSide(
-                  color: theme.colorScheme.error
-                      .withValues(alpha: 0.5),
-                  width: 1,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                textStyle:
-                    theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(7),
-                ),
-              ),
-            ),
-          ],
         ),
       ],
     );
