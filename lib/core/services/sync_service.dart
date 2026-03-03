@@ -2607,6 +2607,12 @@ what you have, you must use the options mode.
         if (displayText != null) 'displayText': displayText,
       },
     };
+    logger.info(
+      '[sendMessage] START session=$sessionId localId=$localId '
+      'mode=$wirePermissionMode '
+      'model=${model ?? 'default'} '
+      'textLen=${text.length}',
+    );
 
     final encryptedRawRecord = await sessionEncryption.encryptRawRecord(
       rawRecord,
@@ -2649,12 +2655,21 @@ what you have, you must use the options mode.
           ],
         },
       );
+      logger.info(
+        '[sendMessage] POST /v3/sessions/$sessionId/messages '
+        'status=${response.statusCode} '
+        'localId=$localId',
+      );
 
       if (apiClient.isSuccess(response)) {
         final data = response.data as Map<String, dynamic>?;
         final serverMessages = (data?['messages'] as List<dynamic>? ?? [])
             .whereType<Map<String, dynamic>>()
             .toList();
+        logger.info(
+          '[sendMessage] response contained ${serverMessages.length} '
+          'message(s) localId=$localId',
+        );
 
         // Treat the send as acknowledged only when the server echoes the
         // same localId. Some backend variants return 2xx without an acked
@@ -2672,6 +2687,10 @@ what you have, you must use the options mode.
           final serverId = ackedServerMsg['id'] as String?;
           final serverSeq = _asInt(ackedServerMsg['seq']);
           final serverCreatedAt = _asInt(ackedServerMsg['createdAt']);
+          logger.info(
+            '[sendMessage] ACK localId=$localId '
+            'serverId=${serverId ?? 'null'} seq=${serverSeq ?? -1}',
+          );
           if (serverId != null &&
               serverSeq != null &&
               serverCreatedAt != null) {
