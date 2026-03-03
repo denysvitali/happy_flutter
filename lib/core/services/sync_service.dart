@@ -2630,29 +2630,70 @@ what you have, you must use the options mode.
       );
 
       if (apiClient.isSuccess(response)) {
-        sent = true;
         final data = response.data as Map<String, dynamic>?;
         final serverMessages = (data?['messages'] as List<dynamic>? ?? [])
             .whereType<Map<String, dynamic>>()
             .toList();
-        if (serverMessages.isNotEmpty) {
-          final serverMsg = serverMessages.first;
-          _upsertSessionMessages(sessionId, [
-            {
-              'id': serverMsg['id'] as String,
-              'localId': localId,
-              'seq': serverMsg['seq'] as int,
-              'createdAt': serverMsg['createdAt'] as int,
-              'role': 'user',
-              'kind': 'text',
-              'content': text,
-              'raw': rawRecord,
-            },
-          ]);
+
+        // Treat the send as acknowledged only when the server echoes the
+        // same localId. Some backend variants return 2xx without an acked
+        // message, which otherwise leaves a phantom optimistic message.
+        Map<String, dynamic>? ackedServerMsg;
+        for (final msg in serverMessages) {
+          if (msg['localId'] == localId) {
+            ackedServerMsg = msg;
+            break;
+          }
         }
+
+        if (ackedServerMsg != null) {
+          sent = true;
+          final serverId = ackedServerMsg['id'] as String?;
+          final serverSeq = _asInt(ackedServerMsg['seq']);
+          final serverCreatedAt = _asInt(ackedServerMsg['createdAt']);
+          if (serverId != null &&
+              serverSeq != null &&
+              serverCreatedAt != null) {
+            _upsertSessionMessages(sessionId, [
+              {
+                'id': serverId,
+                'localId': localId,
+                'seq': serverSeq,
+                'createdAt': serverCreatedAt,
+                'role': 'user',
+                'kind': 'text',
+                'content': text,
+                'raw': rawRecord,
+              },
+            ]);
+          } else {
+            logger.warning(
+              '[sendMessage] server ack missing id/seq/createdAt '
+              'session=$sessionId localId=$localId',
+            );
+          }
+        } else {
+          logger.warning(
+            '[sendMessage] REST send had no localId ack; '
+            'falling back to socket emit session=$sessionId localId=$localId',
+          );
+          if (socketIoClient.connectionStatus == ConnectionStatus.connected) {
+            socketIoClient.send('message', {
+              'sid': sessionId,
+              'message': encryptedRawRecord,
+              'localId': localId,
+            });
+            sent = true;
+          } else {
+            throw StateError(
+              'Failed to send message: server did not acknowledge message',
+            );
+          }
+        }
+
         // Fallback catch-up: if socket update delivery is delayed or missed,
         // trigger a short polling window so assistant output still appears.
-        if (messagesSync.containsKey(sessionId)) {
+        if (sent && messagesSync.containsKey(sessionId)) {
           messagesSync[sessionId]?.invalidate();
           unawaited(
             Future<void>.delayed(const Duration(seconds: 2), () {
