@@ -396,9 +396,17 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
   }
 
   String _getCleanContent() {
-    return widget.content
+    var text = widget.content
         .replaceFirst(RegExp(r'^\*Thinking\.\.\.\*\s*\n*'), '')
         .trim();
+    // Strip outer *...* italic markers baked in by
+    // message_processor/sync_service.
+    if (text.startsWith('*') &&
+        text.endsWith('*') &&
+        text.length > 2) {
+      text = text.substring(1, text.length - 1);
+    }
+    return text;
   }
 
   @override
@@ -483,7 +491,6 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
                         child: DefaultTextStyle.merge(
                           style: TextStyle(
                             color: cs.onSurfaceVariant.withValues(alpha: 0.85),
-                            fontStyle: FontStyle.italic,
                             fontSize: 13,
                             height: 1.5,
                           ),
