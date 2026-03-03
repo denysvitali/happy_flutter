@@ -2647,6 +2647,33 @@ what you have, you must use the options mode.
     final apiClient = ApiClient();
     var sent = false;
     try {
+      if (socketIoClient.connectionStatus == ConnectionStatus.connected) {
+        logger.info(
+          '[sendMessage] using socket primary path '
+          'session=$sessionId localId=$localId',
+        );
+        socketIoClient.send('message', {
+          'sid': sessionId,
+          'message': encryptedRawRecord,
+          'localId': localId,
+        });
+        sent = true;
+
+        // Fallback catch-up: if socket update delivery is delayed or missed,
+        // trigger a short polling window so assistant output still appears.
+        if (messagesSync.containsKey(sessionId)) {
+          messagesSync[sessionId]?.invalidate();
+          unawaited(
+            Future<void>.delayed(const Duration(seconds: 2), () {
+              if (messagesSync.containsKey(sessionId)) {
+                messagesSync[sessionId]?.invalidate();
+              }
+            }),
+          );
+        }
+        return;
+      }
+
       final response = await apiClient.post(
         '/v3/sessions/$sessionId/messages',
         data: {
