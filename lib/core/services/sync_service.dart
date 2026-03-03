@@ -344,6 +344,8 @@ what you have, you must use the options mode.
   bool? testSocketConnectedOverride;
   @visibleForTesting
   void Function(String event, dynamic data)? testSocketSendOverride;
+  @visibleForTesting
+  Future<void>? lastCompleteSendFuture;
 
   Map<String?, TodoList> get todoLists => Map.unmodifiable(_todoLists);
   List<UserProfile> get friends => List.unmodifiable(_friends);
@@ -2858,15 +2860,16 @@ what you have, you must use the options mode.
 
     // ── Background: REST POST + socket emit ──
     // Fire-and-forget — the caller returns targetSessionId immediately.
-    unawaited(
-      _completeSend(
-        targetSessionId: targetSessionId,
-        localId: localId,
-        text: text,
-        rawRecord: rawRecord,
-        encryptedRawRecord: encryptedRawRecord,
-      ),
+    // lastCompleteSendFuture is exposed for tests to synchronise on.
+    final completeSendFuture = _completeSend(
+      targetSessionId: targetSessionId,
+      localId: localId,
+      text: text,
+      rawRecord: rawRecord,
+      encryptedRawRecord: encryptedRawRecord,
     );
+    lastCompleteSendFuture = completeSendFuture;
+    unawaited(completeSendFuture);
 
     return targetSessionId;
   }

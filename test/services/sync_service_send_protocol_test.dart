@@ -141,6 +141,7 @@ void main() {
 
     test('sends legacy user payload and sanitizes permission mode', () async {
       await instance.sendMessage('sess-1', 'Hello from Flutter');
+      await instance.lastCompleteSendFuture;
 
       final raw = sessionEncryption.lastRawRecord;
       expect(raw, isNotNull);
@@ -171,6 +172,7 @@ void main() {
       };
 
       await instance.sendMessage('sess-1', 'Hello over socket');
+      await instance.lastCompleteSendFuture;
 
       final raw = sessionEncryption.lastRawRecord;
       expect(raw, isNotNull);
