@@ -10,22 +10,24 @@ void main() {
 
         final encoded = BackupKeyUtils.encodeKey(key);
 
-        // Format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX
+        // 32 bytes = 52 base32 chars split into groups of 5 = 11 groups
+        // Format: XXXXX-XXXXX-...-XXXXX-XX (10 full groups + 1 partial)
         expect(encoded.contains('-'), isTrue);
         final parts = encoded.split('-');
-        expect(parts.length, 5);
-        for (final part in parts) {
-          expect(part.length, 5);
+        expect(parts.length, 11);
+        for (int i = 0; i < parts.length - 1; i++) {
+          expect(parts[i].length, 5);
         }
+        expect(parts.last.length, 2);
       });
 
-      test('encodeKey produces 29 character string', () {
+      test('encodeKey produces 62 character string', () {
         final key = Uint8List(32);
 
         final encoded = BackupKeyUtils.encodeKey(key);
 
-        // 25 characters + 4 dashes = 29
-        expect(encoded.length, 29);
+        // 52 base32 characters + 10 dashes = 62
+        expect(encoded.length, 62);
       });
 
       test('encodeKey is deterministic', () {
@@ -368,10 +370,12 @@ void main() {
         final encoded = BackupKeyUtils.encodeKey(key);
         final parts = encoded.split('-');
 
-        expect(parts.length, 5);
-        for (final part in parts) {
-          expect(part.length, 5);
+        // 52 base32 chars → 10 full groups of 5 + 1 partial group of 2
+        expect(parts.length, 11);
+        for (int i = 0; i < parts.length - 1; i++) {
+          expect(parts[i].length, 5);
         }
+        expect(parts.last.length, 2);
       });
     });
   });
