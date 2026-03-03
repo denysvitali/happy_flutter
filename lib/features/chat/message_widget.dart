@@ -20,6 +20,7 @@ class MessageWidget extends StatefulWidget {
     this.metadata,
     this.messages,
     this.sessionId,
+    this.isSessionOnline = true,
     this.onOptionPress,
     this.animate = true,
   });
@@ -29,6 +30,7 @@ class MessageWidget extends StatefulWidget {
   final Map<String, dynamic>? metadata;
   final List<Map<String, dynamic>>? messages;
   final String? sessionId;
+  final bool isSessionOnline;
   final void Function(String)? onOptionPress;
 
   /// Whether to play the entrance fade+slide animation.
@@ -103,6 +105,7 @@ class _MessageWidgetState extends State<MessageWidget>
           metadata: widget.metadata,
           messages: widget.messages,
           sessionId: widget.sessionId,
+          isSessionOnline: widget.isSessionOnline,
           onPress: (widget.sessionId != null && messageId != null)
               ? () {
                   final isTask = widget.messageData['name'] == 'Task';

@@ -11,6 +11,7 @@ class PermissionFooter extends StatefulWidget {
     super.key,
     this.toolInput,
     this.flavor,
+    this.isSessionOnline = true,
     this.onAllow,
     this.onDeny,
     this.onAllowAllEdits,
@@ -34,6 +35,13 @@ class PermissionFooter extends StatefulWidget {
 
   /// The session flavor (e.g. 'claude', 'codex', 'gemini').
   final String? flavor;
+
+  /// Whether the session's CLI process is online.
+  ///
+  /// When `false` and the permission is pending, action buttons are
+  /// replaced with a "Session offline" label since the CLI process
+  /// that raised the permission is gone.
+  final bool isSessionOnline;
 
   /// Callback when permission is allowed.
   final Future<void> Function()? onAllow;
@@ -79,6 +87,18 @@ class _PermissionFooterState extends State<PermissionFooter> {
       await cb();
     } on Object catch (e) {
       logger.error('Permission action failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().contains('not available')
+                  ? 'Session is offline — permission expired'
+                  : 'Permission action failed',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -244,6 +264,13 @@ class _PermissionFooterState extends State<PermissionFooter> {
                       height: 16,
                       width: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : !widget.isSessionOnline
+                  ? Text(
+                      'Session offline',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     )
                   : isCodex
                   ? _CodexActionButtons(

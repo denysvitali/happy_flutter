@@ -3217,6 +3217,68 @@ what you have, you must use the options mode.
     return fromJson(raw);
   }
 
+  /// Best-effort attempt to ensure the session's CLI process is running
+  /// before sending an RPC that requires it (e.g. permission responses).
+  ///
+  /// If the session is already online or starting/running, this is a
+  /// no-op.  Otherwise it sends a `spawn-happy-session` RPC to the
+  /// machine daemon and waits briefly for the process to come up.
+  /// Failures are logged but not thrown — the caller's subsequent RPC
+  /// will fail on its own if the process didn't start.
+  Future<void> _ensureSessionProcess(String sessionId) async {
+    final session = _sessions[sessionId];
+    if (session == null) return;
+
+    final lifecycleState = session.metadata?.lifecycleState;
+    final looksReady = session.isOnline ||
+        lifecycleState == 'starting' ||
+        lifecycleState == 'running';
+    if (looksReady) return;
+
+    final machineId = session.metadata?.machineId;
+    final path = session.metadata?.path;
+    if (machineId == null ||
+        machineId.isEmpty ||
+        path == null ||
+        path.isEmpty) {
+      return;
+    }
+
+    logger.info(
+      '[permission] session=$sessionId appears offline '
+      '(presence=${session.presence}, '
+      'lifecycleState=$lifecycleState); '
+      'attempting auto-restore before RPC',
+    );
+
+    try {
+      final req = SpawnSessionRequest(
+        type: 'spawn-in-directory',
+        directory: path,
+        sessionId: sessionId,
+        agent: session.metadata?.flavor ?? 'claude',
+      );
+      final result = await _typedMachineRPC(
+        machineId,
+        'spawn-happy-session',
+        req.toJson(),
+        SpawnSessionResponse.fromJson,
+      );
+      if (result.type != 'success') {
+        logger.warning(
+          '[permission] auto-restore not successful '
+          'session=$sessionId type=${result.type ?? 'null'} '
+          'error=${result.errorMessage ?? 'unknown'}',
+        );
+      }
+    } catch (error) {
+      logger.warning(
+        '[permission] auto-restore failed '
+        'session=$sessionId: $error',
+      );
+    }
+  }
+
   /// Allow a permission request for a session.
   ///
   /// The server acknowledges with `ok: true` but the response
@@ -3229,6 +3291,7 @@ what you have, you must use the options mode.
     List<String>? allowTools,
     String? decision,
   }) async {
+    await _ensureSessionProcess(sessionId);
     final response = await sessionRPC(
       sessionId,
       'permission',
@@ -3254,6 +3317,7 @@ what you have, you must use the options mode.
     String permissionId, {
     String? decision,
   }) async {
+    await _ensureSessionProcess(sessionId);
     final response = await sessionRPC(
       sessionId,
       'permission',

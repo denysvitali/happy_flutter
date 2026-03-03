@@ -160,6 +160,7 @@ class ToolView extends StatefulWidget {
     this.metadata,
     this.messages,
     this.sessionId,
+    this.isSessionOnline = true,
     this.onPress,
     this.permissionActionDelegate,
   });
@@ -175,6 +176,9 @@ class ToolView extends StatefulWidget {
 
   /// Session ID for permission actions.
   final String? sessionId;
+
+  /// Whether the session's CLI process is currently online.
+  final bool isSessionOnline;
 
   /// Callback when the tool header is pressed.
   final VoidCallback? onPress;
@@ -727,6 +731,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
             toolName: toolName,
             toolInput: toolInput,
             flavor: widget.metadata?['flavor'] as String?,
+            isSessionOnline: widget.isSessionOnline,
             onAllow: () =>
                 _handlePermissionAllow(permission, toolName, toolInput),
             onDeny: () =>
