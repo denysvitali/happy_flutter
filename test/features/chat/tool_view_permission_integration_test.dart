@@ -207,6 +207,34 @@ void main() {
       expect(actions, isEmpty);
     });
 
+    testWidgets('missing permission.id falls back to toolUseId', (
+      tester,
+    ) async {
+      final actions = <PermissionAction>[];
+      final tool = <String, dynamic>{
+        'name': 'ExitPlanMode',
+        'state': 'pending',
+        'toolUseId': 'tool-use-123',
+        'input': <String, dynamic>{'plan': '## Plan'},
+        'permission': <String, dynamic>{'status': 'pending'},
+      };
+
+      await tester.pumpWidget(
+        _wrapToolView(
+          tool: tool,
+          permissionActionDelegate: (action) async {
+            actions.add(action);
+          },
+        ),
+      );
+
+      await tester.tap(find.text('Allow'));
+      await tester.pump();
+
+      expect(actions, hasLength(1));
+      expect(actions.single.permissionId, 'tool-use-123');
+    });
+
     testWidgets('missing sessionId hides permission footer', (tester) async {
       final actions = <PermissionAction>[];
 

@@ -2738,9 +2738,7 @@ what you have, you must use the options mode.
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
       if (sessionEncryption == null) {
-        throw StateError(
-          'Session encryption not initialized for $sessionId',
-        );
+        throw StateError('Session encryption not initialized for $sessionId');
       }
     }
 
@@ -2772,11 +2770,9 @@ what you have, you must use the options mode.
     final sandboxEnabled = session.metadata?.sandboxEnabled ?? false;
     final storedPermissionMode = session.permissionMode;
     final effectivePermissionMode =
-        requestedPermissionMode != null &&
-            requestedPermissionMode != 'default'
+        requestedPermissionMode != null && requestedPermissionMode != 'default'
         ? requestedPermissionMode
-        : (storedPermissionMode != null &&
-            storedPermissionMode != 'default')
+        : (storedPermissionMode != null && storedPermissionMode != 'default')
         ? storedPermissionMode
         : (sandboxEnabled ? 'bypassPermissions' : 'default');
 
@@ -2816,8 +2812,7 @@ what you have, you must use the options mode.
       TargetPlatform.macOS => 'mac',
       _ => 'web',
     };
-    final model =
-        effectiveModelMode != 'default' ? effectiveModelMode : null;
+    final model = effectiveModelMode != 'default' ? effectiveModelMode : null;
 
     final rawRecord = <String, dynamic>{
       'role': 'user',
@@ -2840,8 +2835,9 @@ what you have, you must use the options mode.
       'textLen=${text.length}',
     );
 
-    final encryptedRawRecord =
-        await sessionEncryption.encryptRawRecord(rawRecord);
+    final encryptedRawRecord = await sessionEncryption.encryptRawRecord(
+      rawRecord,
+    );
 
     // ── Optimistic insert — UI sees the message immediately ──
     _upsertSessionMessages(targetSessionId, [
@@ -2888,8 +2884,7 @@ what you have, you must use the options mode.
   }) async {
     final apiClient = ApiClient();
     var sent = false;
-    var catchUpStopAfterSeq =
-        (_sessionLastSeq[targetSessionId] ?? 0) + 1;
+    var catchUpStopAfterSeq = (_sessionLastSeq[targetSessionId] ?? 0) + 1;
     try {
       // Wait for agent readiness (polls up to 10 s, sends anyway on
       // timeout). This no longer blocks the UI.
@@ -2924,8 +2919,7 @@ what you have, you must use the options mode.
 
       if (apiClient.isSuccess(response)) {
         final data = response.data as Map<String, dynamic>?;
-        final serverMessages =
-            (data?['messages'] as List<dynamic>? ?? [])
+        final serverMessages = (data?['messages'] as List<dynamic>? ?? [])
             .whereType<Map<String, dynamic>>()
             .toList();
         logger.info(
@@ -2945,8 +2939,7 @@ what you have, you must use the options mode.
           sent = true;
           final serverId = ackedServerMsg['id'] as String?;
           final serverSeq = _asInt(ackedServerMsg['seq']);
-          final serverCreatedAt =
-              _asInt(ackedServerMsg['createdAt']);
+          final serverCreatedAt = _asInt(ackedServerMsg['createdAt']);
           if (serverSeq != null) {
             catchUpStopAfterSeq = serverSeq;
           }
@@ -2973,11 +2966,7 @@ what you have, you must use the options mode.
             ]);
           } else {
             // Mark sent even without full server fields.
-            _updateMessageSendStatus(
-              targetSessionId,
-              localId,
-              'sent',
-            );
+            _updateMessageSendStatus(targetSessionId, localId, 'sent');
             logger.warning(
               '[sendMessage] server ack missing '
               'id/seq/createdAt '
@@ -3016,11 +3005,7 @@ what you have, you must use the options mode.
               'localId': localId,
             });
             sent = true;
-            _updateMessageSendStatus(
-              targetSessionId,
-              localId,
-              'sent',
-            );
+            _updateMessageSendStatus(targetSessionId, localId, 'sent');
           } else {
             throw StateError(
               'Failed to send message: '
@@ -3041,18 +3026,12 @@ what you have, you must use the options mode.
           'session=$targetSessionId '
           'body=${response.data}',
         );
-        throw StateError(
-          'Failed to send message: ${response.statusCode}',
-        );
+        throw StateError('Failed to send message: ${response.statusCode}');
       }
     } catch (e, stack) {
       logger.error('[sendMessage] error sending', e, stack);
       if (!sent) {
-        _updateMessageSendStatus(
-          targetSessionId,
-          localId,
-          'failed',
-        );
+        _updateMessageSendStatus(targetSessionId, localId, 'failed');
       }
     }
     // Notify so the UI picks up status changes (sent/failed).
@@ -3250,7 +3229,7 @@ what you have, you must use the options mode.
     List<String>? allowTools,
     String? decision,
   }) async {
-    await sessionRPC(
+    final response = await sessionRPC(
       sessionId,
       'permission',
       PermissionRequest(
@@ -3261,6 +3240,7 @@ what you have, you must use the options mode.
         decision: decision,
       ).toJson(),
     );
+    _throwIfPermissionRpcFailed(response, 'allow');
     // Force re-sync in case WebSocket events are missed
     sessionsSync.invalidate();
     messagesSync[sessionId]?.invalidate();
@@ -3274,7 +3254,7 @@ what you have, you must use the options mode.
     String permissionId, {
     String? decision,
   }) async {
-    await sessionRPC(
+    final response = await sessionRPC(
       sessionId,
       'permission',
       PermissionRequest(
@@ -3283,9 +3263,22 @@ what you have, you must use the options mode.
         decision: decision,
       ).toJson(),
     );
+    _throwIfPermissionRpcFailed(response, 'deny');
     // Force re-sync in case WebSocket events are missed
     sessionsSync.invalidate();
     messagesSync[sessionId]?.invalidate();
+  }
+
+  void _throwIfPermissionRpcFailed(dynamic response, String action) {
+    if (response is! Map) return;
+    final success = response['success'];
+    final ok = response['ok'];
+    final isFailure = success == false || ok == false;
+    if (!isFailure) return;
+    final error = response['error'];
+    throw StateError(
+      'Permission $action failed: ${error?.toString() ?? 'unknown error'}',
+    );
   }
 
   /// Kill a session's agent process.
@@ -4877,12 +4870,19 @@ what you have, you must use the options mode.
         if (idx == null) continue;
 
         final msg = updated[idx];
-        // Only add if there is no permission data yet (avoid downgrading
-        // a completed permission back to pending on re-fetch).
-        if (msg['permission'] == null) {
+        final existingPerm = msg['permission'] as Map<String, dynamic>?;
+        // Add pending permission if absent, or backfill missing id when
+        // older payloads provide status but not the request identifier.
+        if (existingPerm == null) {
           updated[idx] = {
             ...msg,
             'permission': {'id': permId, 'status': 'pending'},
+          };
+          changed = true;
+        } else if (existingPerm['id'] == null) {
+          updated[idx] = {
+            ...msg,
+            'permission': {...existingPerm, 'id': permId},
           };
           changed = true;
         }
@@ -4901,7 +4901,9 @@ what you have, you must use the options mode.
         final existingPerm = msg['permission'] as Map<String, dynamic>?;
         // Skip if already resolved — the tool-result `permissions` field
         // (applied in _applyToolResults) is more authoritative.
-        if (existingPerm != null && existingPerm['status'] != 'pending') {
+        if (existingPerm != null &&
+            existingPerm['status'] != 'pending' &&
+            existingPerm['id'] != null) {
           continue;
         }
 

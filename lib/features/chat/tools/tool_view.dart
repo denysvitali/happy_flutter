@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/sync_service.dart';
 import '../utils/tool_error_parser.dart';
 import 'elapsed_time.dart';
@@ -408,9 +409,19 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     required String toolName,
     required Map<String, dynamic>? toolInput,
   }) async {
-    final permId = permission['id'] as String?;
+    final permId = _resolvePermissionId(permission);
     final sessionId = widget.sessionId;
-    if (permId == null || sessionId == null) return;
+    if (sessionId == null) {
+      logger.warning('[ToolView] permission action ignored: missing sessionId');
+      return;
+    }
+    if (permId == null) {
+      logger.warning(
+        '[ToolView] permission action ignored: missing permission id '
+        'for tool=$toolName keys=${permission.keys.toList()}',
+      );
+      return;
+    }
 
     final action = PermissionAction(
       kind: kind,
@@ -427,6 +438,25 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     }
 
     await _performPermissionAction(action);
+  }
+
+  String? _resolvePermissionId(Map<String, dynamic> permission) {
+    final candidates = <dynamic>[
+      permission['id'],
+      permission['requestId'],
+      permission['request_id'],
+      permission['toolUseId'],
+      permission['tool_use_id'],
+      widget.tool['toolUseId'],
+      widget.tool['id'],
+    ];
+    for (final candidate in candidates) {
+      final value = candidate?.toString();
+      if (value != null && value.isNotEmpty) {
+        return value;
+      }
+    }
+    return null;
   }
 
   Future<void> _performPermissionAction(PermissionAction action) async {
