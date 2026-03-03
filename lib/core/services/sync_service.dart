@@ -2869,6 +2869,11 @@ what you have, you must use the options mode.
     var catchUpStopAfterSeq = (_sessionLastSeq[targetSessionId] ?? 0) + 1;
     try {
       final socketConnected = _isSocketConnected();
+      logger.info(
+        '[sendMessage] socketConnected=$socketConnected '
+        'socketStatus=${socketIoClient.connectionStatus} '
+        'session=$targetSessionId',
+      );
       final response = await apiClient.post(
         '/v3/sessions/$targetSessionId/messages',
         data: {
@@ -2941,12 +2946,24 @@ what you have, you must use the options mode.
           // Also emit via socket so the daemon processes the message.
           // REST POST alone may not trigger daemon routing; the server
           // deduplicates by localId so this is safe.
-          if (socketConnected) {
+          // Re-check socket status (may have connected during REST call).
+          final socketNow = _isSocketConnected();
+          if (socketNow) {
+            logger.info(
+              '[sendMessage] emitting socket message event '
+              'session=$targetSessionId localId=$localId',
+            );
             _socketSend('message', {
               'sid': targetSessionId,
               'message': encryptedRawRecord,
               'localId': localId,
             });
+          } else {
+            logger.warning(
+              '[sendMessage] socket not connected, skipping '
+              'daemon notification '
+              'session=$targetSessionId localId=$localId',
+            );
           }
         } else {
           logger.warning(
