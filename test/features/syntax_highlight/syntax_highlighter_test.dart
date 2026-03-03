@@ -269,10 +269,19 @@ const x = 5;
         ),
       );
 
-      expect(find.text('const'), findsOneWidget);
-      expect(find.text('x'), findsOneWidget);
-      expect(find.text('='), findsOneWidget);
-      expect(find.text('5'), findsOneWidget);
+      // SyntaxHighlighter uses a single Text.rich / RichText widget; individual
+      // tokens are TextSpan children, not standalone Text widgets, so we verify
+      // the RichText is present and its plain-text content contains the expected
+      // tokens.
+      expect(find.byType(RichText), findsWidgets);
+      final richTexts = tester.widgetList<RichText>(find.byType(RichText));
+      final fullText = richTexts
+          .map((w) => w.text.toPlainText())
+          .join();
+      expect(fullText.contains('const'), isTrue);
+      expect(fullText.contains('x'), isTrue);
+      expect(fullText.contains('='), isTrue);
+      expect(fullText.contains('5'), isTrue);
     });
 
     testWidgets('handles multiline code', (WidgetTester tester) async {

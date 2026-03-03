@@ -108,10 +108,17 @@ class SyntaxTokenizer {
       return [SyntaxToken(text: code, type: SyntaxTokenType.default_)];
     }
 
+    if (code.isEmpty) return tokens;
+
     final lang = language.toLowerCase();
     final keywordSets = _getKeywordSets(lang);
     final patterns = _getPatterns(keywordSets);
     final nestingMap = _calculateBracketNesting(code);
+
+    // Pre-scan for block comments (/* ... */) and docstrings that may span
+    // multiple lines. We record their byte ranges so that per-line tokenization
+    // can skip them and we can emit them as single tokens instead.
+    final blockSpans = _findBlockSpans(code);
 
     final lines = code.split('\n');
     var globalOffset = 0;
@@ -126,6 +133,36 @@ class SyntaxTokenizer {
         globalOffset += 1;
       }
 
+      // Determine which portions of this line are covered by a block span.
+      // blockCovered[i] == true means absolute offset (globalOffset + i) is
+      // inside a block span that was already emitted (or will be emitted at
+      // its start offset on a previous/same line).
+      final lineEnd = globalOffset + line.length;
+
+      // Emit the block-span tokens that START on this line (and may end on a
+      // later line).  Track which character ranges in this line are covered.
+      final coveredRanges = <_Range>[];
+      for (final span in blockSpans) {
+        if (span.start >= globalOffset && span.start < lineEnd) {
+          // Span starts on this line; emit the full multi-line token now.
+          final spanText = code.substring(span.start, span.end);
+          tokens.add(SyntaxToken(text: spanText, type: span.type));
+          // Mark covered range relative to line start.
+          coveredRanges.add(_Range(
+            span.start - globalOffset,
+            // Clamp to end of this line; the rest is on following lines.
+            (span.end - globalOffset).clamp(0, line.length),
+          ));
+        } else if (span.start < globalOffset && span.end > globalOffset) {
+          // Span started on a previous line and continues through this one.
+          coveredRanges.add(_Range(
+            0,
+            (span.end - globalOffset).clamp(0, line.length),
+          ));
+        }
+      }
+
+      // Build a per-line token list, excluding covered ranges.
       final lineTokens = <_LineToken>[];
       for (final pattern in patterns) {
         final matches = pattern.regex.allMatches(line);
@@ -133,13 +170,18 @@ class SyntaxTokenizer {
           final tokenText = pattern.captureGroup != null
               ? match.group(pattern.captureGroup!)!
               : match.group(0)!;
+          if (tokenText.isEmpty) continue;
           final tokenStart = pattern.captureGroup != null
               ? match.start + match.group(0)!.indexOf(tokenText)
               : match.start;
+          final tokenEnd = tokenStart + tokenText.length;
+
+          // Skip if this position is already covered by a block span.
+          if (_isCovered(tokenStart, coveredRanges)) continue;
 
           lineTokens.add(_LineToken(
             start: tokenStart,
-            end: tokenStart + tokenText.length,
+            end: tokenEnd,
             type: pattern.type,
             text: tokenText,
           ));
@@ -157,11 +199,27 @@ class SyntaxTokenizer {
         }
       }
 
-      // Add tokens with proper nesting levels.
+      // Emit line characters, skipping covered ranges and inserting tokens.
       var currentIndex = 0;
-      for (final token in filteredTokens) {
-        if (token.start > currentIndex) {
-          final beforeText = line.substring(currentIndex, token.start);
+
+      // Merge covered ranges and filtered tokens into a sorted event list.
+      // We walk through the line emitting default-text for gaps, skipping
+      // covered ranges, and emitting recognised tokens.
+      final events = <_LineEvent>[];
+      for (final r in coveredRanges) {
+        if (r.start < r.end) {
+          events.add(_LineEvent(r.start, r.end, null));
+        }
+      }
+      for (final t in filteredTokens) {
+        events.add(_LineEvent(t.start, t.end, t));
+      }
+      events.sort((a, b) => a.start - b.start);
+
+      for (final event in events) {
+        if (event.start < currentIndex) continue; // overlapping — skip
+        if (event.start > currentIndex) {
+          final beforeText = line.substring(currentIndex, event.start);
           if (beforeText.isNotEmpty) {
             tokens.add(SyntaxToken(
               text: beforeText,
@@ -170,19 +228,23 @@ class SyntaxTokenizer {
           }
         }
 
-        if (token.type == SyntaxTokenType.bracket) {
-          final globalPos = globalOffset + token.start;
-          final nestLevel = nestingMap[globalPos] ?? 1;
-          tokens.add(SyntaxToken(
-            text: token.text,
-            type: token.type,
-            nestLevel: nestLevel,
-          ));
-        } else {
-          tokens.add(SyntaxToken(text: token.text, type: token.type));
+        if (event.token != null) {
+          final token = event.token!;
+          if (token.type == SyntaxTokenType.bracket) {
+            final globalPos = globalOffset + token.start;
+            final nestLevel = nestingMap[globalPos] ?? 1;
+            tokens.add(SyntaxToken(
+              text: token.text,
+              type: token.type,
+              nestLevel: nestLevel,
+            ));
+          } else {
+            tokens.add(SyntaxToken(text: token.text, type: token.type));
+          }
         }
+        // If event.token is null it's a covered range — just advance.
 
-        currentIndex = token.end;
+        currentIndex = event.end;
       }
 
       if (currentIndex < line.length) {
@@ -199,6 +261,46 @@ class SyntaxTokenizer {
     }
 
     return tokens;
+  }
+
+  static bool _isCovered(int pos, List<_Range> ranges) {
+    for (final r in ranges) {
+      if (pos >= r.start && pos < r.end) return true;
+    }
+    return false;
+  }
+
+  static final RegExp _blockCommentRe =
+      RegExp(r'/\*[\s\S]*?\*/', multiLine: true);
+  static final RegExp _docstringDoubleRe =
+      RegExp(r'"""[\s\S]*?"""', multiLine: true);
+  static final RegExp _docstringSingleRe =
+      RegExp(r"'''[\s\S]*?'''", multiLine: true);
+
+  /// Returns a list of [_BlockSpan]s covering block comments and docstrings in
+  /// [code].  Spans are sorted by start position and non-overlapping.
+  static List<_BlockSpan> _findBlockSpans(String code) {
+    final spans = <_BlockSpan>[];
+    for (final m in _blockCommentRe.allMatches(code)) {
+      spans.add(_BlockSpan(m.start, m.end, SyntaxTokenType.comment));
+    }
+    for (final m in _docstringDoubleRe.allMatches(code)) {
+      spans.add(_BlockSpan(m.start, m.end, SyntaxTokenType.docstring));
+    }
+    for (final m in _docstringSingleRe.allMatches(code)) {
+      spans.add(_BlockSpan(m.start, m.end, SyntaxTokenType.docstring));
+    }
+    spans.sort((a, b) => a.start - b.start);
+    // Remove overlaps (keep the first).
+    final result = <_BlockSpan>[];
+    var lastEnd = 0;
+    for (final s in spans) {
+      if (s.start >= lastEnd) {
+        result.add(s);
+        lastEnd = s.end;
+      }
+    }
+    return result;
   }
 
   static Map<String, List<String>> _getKeywordSets(String lang) {
@@ -257,8 +359,7 @@ class SyntaxTokenizer {
     final importsPattern = keywordSets['imports']!.join('|');
 
     return [
-      // Comments (highest priority)
-      _TokenPattern(RegExp(r'/\*[\s\S]*?\*/'), SyntaxTokenType.comment),
+      // Single-line comments (block comments handled via _findBlockSpans)
       _TokenPattern(
         RegExp(r'//.*$'),
         SyntaxTokenType.comment,
@@ -269,8 +370,6 @@ class SyntaxTokenizer {
         SyntaxTokenType.comment,
         multiline: true,
       ),
-      _TokenPattern(RegExp(r'"""[\s\S]*?"""'), SyntaxTokenType.docstring),
-      _TokenPattern(RegExp(r"'''[\s\S]*?'''"), SyntaxTokenType.docstring),
 
       // Strings
       _TokenPattern(
@@ -294,30 +393,9 @@ class SyntaxTokenizer {
       // Decorators / annotations
       _TokenPattern(RegExp(r'@\w+'), SyntaxTokenType.decorator),
 
-      // Function definitions
-      _TokenPattern(
-        RegExp(r'(function|def|async function)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)'),
-        SyntaxTokenType.function,
-        captureGroup: 2,
-      ),
-      _TokenPattern(
-        RegExp(r'\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(?=\()'),
-        SyntaxTokenType.function,
-      ),
-
-      // Method calls and property access
-      _TokenPattern(
-        RegExp(r'\.([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(?=\()'),
-        SyntaxTokenType.method,
-        captureGroup: 1,
-      ),
-      _TokenPattern(
-        RegExp(r'\.([a-zA-Z_$][a-zA-Z0-9_$]*)'),
-        SyntaxTokenType.property,
-        captureGroup: 1,
-      ),
-
-      // Keywords by category
+      // Keywords by category — must come before function-call patterns so that
+      // keywords like 'import', 'return', 'if' are not mis-classified as
+      // function calls when followed by '('.
       _TokenPattern(
         RegExp('\\b($importsPattern)\\b'),
         SyntaxTokenType.import,
@@ -343,14 +421,38 @@ class SyntaxTokenizer {
         SyntaxTokenType.boolean,
       ),
 
+      // Function definitions
+      _TokenPattern(
+        RegExp(r'(function|def|async function)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)'),
+        SyntaxTokenType.function,
+        captureGroup: 2,
+      ),
+      _TokenPattern(
+        RegExp(r'\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(?=\()'),
+        SyntaxTokenType.function,
+      ),
+
+      // Method calls and property access
+      _TokenPattern(
+        RegExp(r'\.([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(?=\()'),
+        SyntaxTokenType.method,
+        captureGroup: 1,
+      ),
+      _TokenPattern(
+        RegExp(r'\.([a-zA-Z_$][a-zA-Z0-9_$]*)'),
+        SyntaxTokenType.property,
+        captureGroup: 1,
+      ),
+
       // Operators
       _TokenPattern(
         RegExp(r'(===|!==|==|!=|<=|>=|<|>)'),
         SyntaxTokenType.comparison,
       ),
       _TokenPattern(RegExp(r'(&&|\|\||!)'), SyntaxTokenType.logical),
+      // Note: |= uses \| to avoid an empty alternative that would match ''.
       _TokenPattern(
-        RegExp(r'(=|\+=|-=|\*=|/=|%=||=|&=|\^=)'),
+        RegExp(r'(=|\+=|-=|\*=|/=|%=|\|=|&=|\^=)'),
         SyntaxTokenType.assignment,
       ),
       _TokenPattern(RegExp(r'(\+|-|\*|/|%|\*\*)'), SyntaxTokenType.operator),
@@ -422,6 +524,36 @@ class _BracketInfo {
   final int pos;
 }
 
+/// A half-open byte range [start, end) within the source code.
+class _Range {
+
+  _Range(this.start, this.end);
+  final int start;
+  final int end;
+}
+
+/// A multi-line block span (block comment or docstring) with its absolute
+/// start/end offsets in the source code.
+class _BlockSpan {
+
+  _BlockSpan(this.start, this.end, this.type);
+  final int start;
+  final int end;
+  final SyntaxTokenType type;
+}
+
+/// Represents either a recognised token or a covered (skipped) range when
+/// walking through the characters of a single line.
+class _LineEvent {
+
+  _LineEvent(this.start, this.end, this.token);
+  final int start;
+  final int end;
+
+  /// Non-null for a matched token; null for a covered/skipped range.
+  final _LineToken? token;
+}
+
 /// Syntax color palettes for light and dark themes.
 ///
 /// Dark theme uses Catppuccin Mocha; light theme mirrors the previous
@@ -469,8 +601,8 @@ class SyntaxColors {
 
   /// Dark theme colors (Catppuccin Mocha).
   static const Map<SyntaxTokenType, Color> dark = {
-    // Keywords – blue/lavender
-    SyntaxTokenType.keyword: Color(0xFF89B4FA),
+    // Keywords – blue (VSCode dark+ compatible)
+    SyntaxTokenType.keyword: Color(0xFF569CD6),
     // Control flow (if/else/for/return) – mauve/purple
     SyntaxTokenType.controlFlow: Color(0xFFCBA6F7),
     // Types – teal
