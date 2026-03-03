@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/encryption_cache.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
+import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 
@@ -250,6 +252,49 @@ void main() {
       expect(decrypted, hasLength(1));
       expect(decrypted.first?.createdAt.millisecondsSinceEpoch, 1234567890);
     });
+
+    test(
+      'decryptMessages invalidates cache when same id gets new ciphertext',
+      () async {
+        final encryption = SessionEncryption(
+          sessionId: 'session_1',
+          encryptor: _ContentAwareEncryptorDecryptor(),
+          decryptor: _ContentAwareEncryptorDecryptor(),
+          cache: EncryptionCache(),
+        );
+
+        final first = await encryption.decryptMessages([
+          {
+            'id': 'msg_1',
+            'seq': 1,
+            'localId': null,
+            'content': {
+              't': 'encrypted',
+              'c': base64Encode([1]),
+            },
+            'createdAt': 1234567890,
+          },
+        ]);
+        final second = await encryption.decryptMessages([
+          {
+            'id': 'msg_1',
+            'seq': 1,
+            'localId': null,
+            'content': {
+              't': 'encrypted',
+              'c': base64Encode([2]),
+            },
+            'createdAt': 1234567890,
+          },
+        ]);
+
+        expect(first.first?.content['content']['text'] as String?, 'payload-1');
+        expect(
+          second.first?.content['content']['text'] as String?,
+          'payload-2',
+        );
+      },
+    );
   });
 
   group('Sync.applySettings', () {
@@ -275,6 +320,79 @@ void main() {
         expect(ready, false);
       },
     );
+
+    test(
+      'does not return true for stale agentStateVersion when offline',
+      () async {
+        final instance = Sync();
+        instance.testSessions['s1'] = Session(
+          id: 's1',
+          seq: 1,
+          createdAt: 0,
+          updatedAt: 0,
+          active: true,
+          activeAt: 0,
+          metadataVersion: 0,
+          agentStateVersion: 5, // stale from previous daemon run
+          thinking: false,
+          presence: 'offline',
+        );
+        final ready = await instance.waitForAgentReady('s1', 50);
+        expect(ready, false);
+      },
+    );
+
+    test(
+      'returns true when session presence is online',
+      () async {
+        final instance = Sync();
+        instance.testSessions['s1'] = Session(
+          id: 's1',
+          seq: 1,
+          createdAt: 0,
+          updatedAt: 0,
+          active: true,
+          activeAt: 0,
+          metadataVersion: 0,
+          agentStateVersion: 0,
+          thinking: false,
+          presence: 'online',
+        );
+        final ready = await instance.waitForAgentReady('s1', 50);
+        expect(ready, true);
+      },
+    );
+
+    test(
+      'returns true when session comes online during wait',
+      () async {
+        final instance = Sync();
+        instance.testSessions['s1'] = Session(
+          id: 's1',
+          seq: 1,
+          createdAt: 0,
+          updatedAt: 0,
+          active: true,
+          activeAt: 0,
+          metadataVersion: 0,
+          agentStateVersion: 0,
+          thinking: false,
+          presence: 'offline',
+        );
+        // Simulate daemon coming online after a short delay.
+        Future<void>.delayed(
+          const Duration(milliseconds: 100),
+          () {
+            instance.testSessions['s1'] =
+                instance.testSessions['s1']!.copyWith(
+              presence: 'online',
+            );
+          },
+        );
+        final ready = await instance.waitForAgentReady('s1', 2000);
+        expect(ready, true);
+      },
+    );
   });
 }
 
@@ -295,6 +413,31 @@ class _FakeEncryptorDecryptor implements Encryptor {
             'content': <String, dynamic>{'type': 'text', 'text': 'hello'},
           },
         )
+        .toList(growable: false);
+  }
+}
+
+class _ContentAwareEncryptorDecryptor implements Encryptor {
+  @override
+  Future<List<Uint8List>> encrypt(List<dynamic> data) async {
+    return data
+        .map((_) => Uint8List.fromList(<int>[0]))
+        .toList(growable: false);
+  }
+
+  @override
+  Future<List<dynamic>> decrypt(List<Uint8List> data) async {
+    return data
+        .map((bytes) {
+          final marker = bytes.isEmpty ? 0 : bytes.first;
+          return <String, dynamic>{
+            'role': 'user',
+            'content': <String, dynamic>{
+              'type': 'text',
+              'text': 'payload-$marker',
+            },
+          };
+        })
         .toList(growable: false);
   }
 }

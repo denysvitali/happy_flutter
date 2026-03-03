@@ -2535,10 +2535,14 @@ what you have, you must use the options mode.
     final lifecycleState = session.metadata?.lifecycleState;
     final agentIsStartingOrRunning =
         lifecycleState == 'starting' || lifecycleState == 'running';
-    final looksReady =
-        session.isOnline ||
-        session.agentStateVersion > 0 ||
-        agentIsStartingOrRunning;
+    final looksReady = session.isOnline || agentIsStartingOrRunning;
+    logger.info(
+      '[sendMessage] _resolveSendTargetSession '
+      'session=$sessionId looksReady=$looksReady '
+      '(isOnline=${session.isOnline}, '
+      'lifecycleState=$lifecycleState, '
+      'agentStateVersion=${session.agentStateVersion})',
+    );
     if (looksReady) {
       return (
         sessionId: sessionId,
@@ -2851,12 +2855,11 @@ what you have, you must use the options mode.
       },
     ]);
 
-    // Wait for the agent to be ready if it was just spawned (e.g. right
-    // after createSession). Returns immediately when the session is already
-    // online or has reported agent state. Unlike the React Native app we do
-    // NOT auto-spawn here — the daemon's GetOrCreateSession returns a new
-    // session ID instead of reusing the requested one, which would cause
-    // the message to be sent to the wrong session.
+    // Wait for the agent to come online (presence == 'online').
+    // Auto-restore was attempted in _resolveSendTargetSession() if the
+    // daemon appeared offline. This polls until the daemon's
+    // session-alive keep-alives arrive (handleEphemeralUpdate sets
+    // presence to 'online'), or times out after 10 s and sends anyway.
     final ready = await waitForAgentReady(targetSessionId);
     if (!ready) {
       logger.info(
@@ -3619,21 +3622,34 @@ what you have, you must use the options mode.
     }
   }
 
-  /// Wait for agent to be ready
+  /// Wait for agent to be ready.
+  ///
+  /// Returns `true` when the session's presence becomes `'online'`
+  /// (set by `handleEphemeralUpdate` when the daemon sends
+  /// `session-alive` keep-alives — typically within 2 seconds).
+  ///
+  /// Note: `agentStateVersion` is intentionally NOT checked here
+  /// because it persists across daemon restarts and would cause
+  /// stale sessions to appear ready when the daemon is offline.
   Future<bool> waitForAgentReady(
     String sessionId, [
     int timeoutMs = sessionReadyTimeoutMs,
   ]) async {
+    final entrySession = _sessions[sessionId];
+    logger.info(
+      '[sendMessage] waitForAgentReady entry '
+      'session=$sessionId '
+      'isOnline=${entrySession?.isOnline} '
+      'agentStateVersion=${entrySession?.agentStateVersion}',
+    );
     final timeoutAt = DateTime.now().millisecondsSinceEpoch + timeoutMs;
     while (DateTime.now().millisecondsSinceEpoch < timeoutAt) {
       final session = _sessions[sessionId];
-      // Consider the session ready if:
-      // 1. agentStateVersion > 0 (permission request or agent state set), OR
-      // 2. presence is 'online'
-      //    (Go's session-alive keep-alives arrived, meaning the daemon
-      //    is running and connected — typically within 2 seconds).
-      if (session != null &&
-          (session.agentStateVersion > 0 || session.isOnline)) {
+      if (session != null && session.isOnline) {
+        logger.info(
+          '[sendMessage] waitForAgentReady ready '
+          'session=$sessionId',
+        );
         return true;
       }
       await Future<void>.delayed(const Duration(milliseconds: 200));
