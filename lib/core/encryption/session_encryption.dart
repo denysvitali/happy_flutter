@@ -1,4 +1,4 @@
-import 'dart:convert' show jsonDecode;
+import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:isolate';
 import 'dart:typed_data';
 
@@ -71,6 +71,36 @@ String _base64FromContent(dynamic contentRaw) {
     return contentRaw;
   }
   return '';
+}
+
+/// Build a cache key that changes when a message payload changes.
+///
+/// Some backends update an existing message record in place (same `id`,
+/// different encrypted `content`). Caching only by `id` keeps stale content.
+String _messageCacheKey(Map<String, dynamic> message) {
+  final messageId = message['id'] as String? ?? '';
+  if (messageId.isEmpty) return '';
+  final signature = _messageContentSignature(message['content']);
+  return '$messageId:$signature';
+}
+
+String _messageContentSignature(dynamic contentRaw) {
+  final base64Payload = _base64FromContent(contentRaw);
+  if (base64Payload.isNotEmpty) {
+    return 'enc:${base64Payload.length}:${base64Payload.hashCode}';
+  }
+  if (contentRaw is String) {
+    return 'str:${contentRaw.length}:${contentRaw.hashCode}';
+  }
+  if (contentRaw is Map || contentRaw is List) {
+    try {
+      final encoded = jsonEncode(contentRaw);
+      return 'json:${encoded.length}:${encoded.hashCode}';
+    } catch (_) {
+      // Fall through to raw hash.
+    }
+  }
+  return 'raw:${contentRaw?.hashCode ?? 0}';
 }
 
 /// Lightweight wire data sent to the isolate.
@@ -197,9 +227,9 @@ class SessionEncryption {
       }
 
       // Check cache first
-      final messageId = message['id'] as String?;
-      if (messageId != null) {
-        final cached = _cache.getCachedMessage(messageId);
+      final cacheKey = _messageCacheKey(message);
+      if (cacheKey.isNotEmpty) {
+        final cached = _cache.getCachedMessage(cacheKey);
         if (cached != null) {
           results[i] = cached;
           continue;
@@ -207,8 +237,7 @@ class SessionEncryption {
       }
 
       final contentRaw = message['content'];
-      var content =
-          contentRaw is Map<String, dynamic> ? contentRaw : null;
+      var content = contentRaw is Map<String, dynamic> ? contentRaw : null;
       // Fallback: if content is a JSON string, try decoding it
       if (content == null && contentRaw is String) {
         try {
@@ -238,8 +267,8 @@ class SessionEncryption {
           content: null,
           createdAt: _parseCreatedAt(message['createdAt']),
         );
-        if (messageId != null) {
-          _cache.setCachedMessage(messageId, results[i]!);
+        if (cacheKey.isNotEmpty) {
+          _cache.setCachedMessage(cacheKey, results[i]!);
         }
       }
     }
@@ -289,7 +318,10 @@ class SessionEncryption {
             content: decryptedData,
             createdAt: _parseCreatedAt(item.message['createdAt']),
           );
-          _cache.setCachedMessage(result.id, result);
+          final cacheKey = _messageCacheKey(item.message);
+          if (cacheKey.isNotEmpty) {
+            _cache.setCachedMessage(cacheKey, result);
+          }
           results[item.index] = result;
         } else {
           final result = DecryptedMessage(
@@ -299,7 +331,10 @@ class SessionEncryption {
             content: null,
             createdAt: _parseCreatedAt(item.message['createdAt']),
           );
-          _cache.setCachedMessage(result.id, result);
+          final cacheKey = _messageCacheKey(item.message);
+          if (cacheKey.isNotEmpty) {
+            _cache.setCachedMessage(cacheKey, result);
+          }
           results[item.index] = result;
         }
       }
@@ -325,8 +360,6 @@ class SessionEncryption {
     var toDecryptCount = 0;
     var cachedCount = 0;
     final wireData = <_IsolateWireMessage>[];
-    final cachedContent = List<dynamic>.filled(messages.length, null);
-    final hasCached = List<bool>.filled(messages.length, false);
 
     for (var i = 0; i < messages.length; i++) {
       final msg = messages[i];
@@ -340,8 +373,7 @@ class SessionEncryption {
       final localId = msg['localId'] as String?;
       final createdAt = msg['createdAt'];
       final contentRaw2 = msg['content'];
-      var content =
-          contentRaw2 is Map<String, dynamic> ? contentRaw2 : null;
+      var content = contentRaw2 is Map<String, dynamic> ? contentRaw2 : null;
       // Fallback: if content is a JSON string, try decoding it
       if (content == null && contentRaw2 is String) {
         try {
@@ -378,11 +410,10 @@ class SessionEncryption {
       }
 
       // Check cache
-      if (messageId.isNotEmpty) {
-        final cached = _cache.getCachedMessage(messageId);
+      final cacheKey = _messageCacheKey(msg);
+      if (cacheKey.isNotEmpty) {
+        final cached = _cache.getCachedMessage(cacheKey);
         if (cached != null) {
-          cachedContent[i] = cached.content;
-          hasCached[i] = true;
           cachedCount++;
           wireData.add(
             _IsolateWireMessage(
@@ -420,7 +451,9 @@ class SessionEncryption {
     );
 
     // Offload to isolate if enough messages need decryption
-    if (toDecryptCount >= _isolateThreshold && _canOffloadToIsolate) {
+    if (toDecryptCount >= _isolateThreshold &&
+        _canOffloadToIsolate &&
+        cachedCount == 0) {
       final result = await Isolate.run(
         () => _batchDecryptAndProcessInIsolate((
           wireData: wireData,
@@ -440,8 +473,7 @@ class SessionEncryption {
       contentList.add(dm?.content);
     }
 
-    final wasEncryptedList =
-        wireData.map((w) => w.isEncrypted).toList();
+    final wasEncryptedList = wireData.map((w) => w.isEncrypted).toList();
 
     return processDecryptedMessages(
       decryptedJsonList: contentList,

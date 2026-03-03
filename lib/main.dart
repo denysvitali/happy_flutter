@@ -529,11 +529,8 @@ class _HappyAppState extends ConsumerState<HappyApp>
           }
           return null;
         }
-
-        if (authState != AuthState.authenticated) {
-          return '/';
-        }
-
+        // Keep deep links (e.g. /chat/:sessionId) stable across refresh.
+        // Per-route AuthGate handles unauthenticated/error states in place.
         return null;
       },
     );
