@@ -55,44 +55,89 @@ void main() {
       expect(settingsInvalidations, 1);
     });
 
-    test('kv-batch-update invalidates todo sync when todo payload is present',
-        () async {
-      instance.handleUpdate({
-        't': 'kv-batch-update',
-        'operations': [
-          {'key': 'todo:list:session_1', 'value': []},
-        ],
-      });
+    test('accepts single-element list payloads for update events', () async {
+      instance.handleUpdate([
+        {'t': 'update-account'},
+      ]);
 
-      await instance.todosSync.awaitQueue();
+      await instance.profileSync.awaitQueue();
+      await instance.settingsSync.awaitQueue();
 
-      expect(todosInvalidations, 1);
+      expect(profileInvalidations, 1);
+      expect(settingsInvalidations, 1);
     });
 
-    test('kv-batch-update invalidates todo sync when todo key is in changes',
-        () async {
-      instance.handleUpdate({
-        't': 'kv-batch-update',
-        'changes': [
-          {'key': 'todo.abc', 'value': 'encrypted'},
-        ],
-      });
+    test(
+      'kv-batch-update invalidates todo sync when todo payload is present',
+      () async {
+        instance.handleUpdate({
+          't': 'kv-batch-update',
+          'operations': [
+            {'key': 'todo:list:session_1', 'value': []},
+          ],
+        });
 
-      await instance.todosSync.awaitQueue();
+        await instance.todosSync.awaitQueue();
 
-      expect(todosInvalidations, 1);
-    });
+        expect(todosInvalidations, 1);
+      },
+    );
 
-    test('delete-session clears in-memory message state for that session',
-        () async {
-      instance.messagesSync['session_1'] = InvalidateSync(() async {});
+    test(
+      'kv-batch-update invalidates todo sync when todo key is in changes',
+      () async {
+        instance.handleUpdate({
+          't': 'kv-batch-update',
+          'changes': [
+            {'key': 'todo.abc', 'value': 'encrypted'},
+          ],
+        });
 
-      instance.handleUpdate({'t': 'delete-session', 'sid': 'session_1'});
+        await instance.todosSync.awaitQueue();
 
-      await instance.sessionsSync.awaitQueue();
+        expect(todosInvalidations, 1);
+      },
+    );
 
-      expect(instance.messagesSync.containsKey('session_1'), false);
-      expect(sessionsInvalidations, 1);
+    test(
+      'delete-session clears in-memory message state for that session',
+      () async {
+        instance.messagesSync['session_1'] = InvalidateSync(() async {});
+
+        instance.handleUpdate({'t': 'delete-session', 'sid': 'session_1'});
+
+        await instance.sessionsSync.awaitQueue();
+
+        expect(instance.messagesSync.containsKey('session_1'), false);
+        expect(sessionsInvalidations, 1);
+      },
+    );
+
+    test(
+      'new-message invalidates messages sync when only id is present',
+      () async {
+        var messageInvalidations = 0;
+        instance.messagesSync['session_1'] = InvalidateSync(() async {
+          messageInvalidations++;
+        });
+
+        instance.handleUpdate({'t': 'new-message', 'id': 'session_1'});
+
+        await instance.messagesSync['session_1']?.awaitQueue();
+        expect(messageInvalidations, 1);
+      },
+    );
+  });
+
+  group('Sync.handleEphemeralUpdate', () {
+    test('accepts single-element list payloads', () {
+      final instance = Sync();
+      expect(
+        () => instance.handleEphemeralUpdate([
+          {'type': 'usage', 'id': 'session_1'},
+        ]),
+        returnsNormally,
+      );
     });
   });
 
@@ -174,10 +219,7 @@ void main() {
       final feedItem = instance.mapFeedItem({
         'id': 'feed_1',
         'createdAt': 123,
-        'body': {
-          'kind': 'friend_request',
-          'uid': 'user_2',
-        },
+        'body': {'kind': 'friend_request', 'uid': 'user_2'},
       });
 
       expect(feedItem.id, 'feed_1');
@@ -202,14 +244,11 @@ void main() {
           'localId': null,
           'content': {'t': 'encrypted', 'c': ''},
           'createdAt': 1234567890,
-        }
+        },
       ]);
 
       expect(decrypted, hasLength(1));
-      expect(
-        decrypted.first?.createdAt.millisecondsSinceEpoch,
-        1234567890,
-      );
+      expect(decrypted.first?.createdAt.millisecondsSinceEpoch, 1234567890);
     });
   });
 
@@ -218,10 +257,7 @@ void main() {
       final instance = Sync();
       instance.settingsSync = InvalidateSync(() async {});
 
-      await instance.applySettings({
-        'themeMode': 'dark',
-        'viewInline': true,
-      });
+      await instance.applySettings({'themeMode': 'dark', 'viewInline': true});
 
       expect(instance.settingsSnapshot.themeMode, 'dark');
       expect(instance.settingsSnapshot.viewInline, true);
@@ -231,12 +267,14 @@ void main() {
   });
 
   group('Sync.waitForAgentReady', () {
-    test('returns false when session is not available before timeout',
-        () async {
-      final instance = Sync();
-      final ready = await instance.waitForAgentReady('missing', 10);
-      expect(ready, false);
-    });
+    test(
+      'returns false when session is not available before timeout',
+      () async {
+        final instance = Sync();
+        final ready = await instance.waitForAgentReady('missing', 10);
+        expect(ready, false);
+      },
+    );
   });
 }
 
@@ -249,12 +287,14 @@ class _FakeEncryptorDecryptor implements Encryptor {
   }
 
   @override
-  Future<List<dynamic?>> decrypt(List<Uint8List> data) async {
+  Future<List<dynamic>> decrypt(List<Uint8List> data) async {
     return data
-        .map((_) => <String, dynamic>{
-              'role': 'user',
-              'content': <String, dynamic>{'type': 'text', 'text': 'hello'},
-            })
+        .map(
+          (_) => <String, dynamic>{
+            'role': 'user',
+            'content': <String, dynamic>{'type': 'text', 'text': 'hello'},
+          },
+        )
         .toList(growable: false);
   }
 }

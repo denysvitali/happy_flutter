@@ -560,12 +560,12 @@ what you have, you must use the options mode.
 
   /// Handle incoming updates
   void handleUpdate(dynamic data) {
-    if (data is! Map<String, dynamic>) {
-      logger.warning('handleUpdate: unexpected data type: ${data.runtimeType}');
+    final payload = _normalizeSocketPayload(data, handlerName: 'handleUpdate');
+    if (payload == null) {
       return;
     }
     try {
-      final update = ApiUpdate.fromJson(data);
+      final update = ApiUpdate.fromJson(payload);
 
       switch (update.type) {
         case 'new-message':
@@ -610,9 +610,46 @@ what you have, you must use the options mode.
     }
   }
 
+  /// Socket payloads can arrive as a single-element list depending on the
+  /// socket.io transport/codec path. Normalize to a map for parsers.
+  Map<String, dynamic>? _normalizeSocketPayload(
+    dynamic data, {
+    required String handlerName,
+  }) {
+    dynamic payload = data;
+    if (payload is List) {
+      if (payload.length == 1) {
+        payload = payload.first;
+      } else {
+        logger.warning(
+          '$handlerName: unexpected list payload length=${payload.length}',
+        );
+        return null;
+      }
+    }
+
+    if (payload is Map<String, dynamic>) {
+      return payload;
+    }
+    if (payload is Map) {
+      final normalized = <String, dynamic>{};
+      for (final entry in payload.entries) {
+        if (entry.key is String) {
+          normalized[entry.key as String] = entry.value;
+        }
+      }
+      return normalized;
+    }
+
+    logger.warning(
+      '$handlerName: unexpected data type: ${payload.runtimeType}',
+    );
+    return null;
+  }
+
   /// Handle new message update
   void _handleNewMessage(Map<String, dynamic> data) {
-    final sessionId = data['sid'] as String?;
+    final sessionId = data['sid'] as String? ?? data['id'] as String?;
     if (sessionId != null && messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId]?.invalidate();
     }
@@ -772,13 +809,17 @@ what you have, you must use the options mode.
 
   /// Handle ephemeral updates
   void handleEphemeralUpdate(dynamic data) {
-    if (data is! Map<String, dynamic>) {
+    final payload = _normalizeSocketPayload(
+      data,
+      handlerName: 'handleEphemeralUpdate',
+    );
+    if (payload == null) {
       return;
     }
 
-    final type = data['type'] as String?;
+    final type = payload['type'] as String?;
     // Activity events use 'id'; fall back to 'sid' for other shapes.
-    final sessionId = data['id'] as String? ?? data['sid'] as String?;
+    final sessionId = payload['id'] as String? ?? payload['sid'] as String?;
     if (sessionId == null) {
       return;
     }
@@ -786,12 +827,12 @@ what you have, you must use the options mode.
     if (type == 'activity') {
       final session = _sessions[sessionId];
       if (session != null) {
-        final thinking = data['thinking'] as bool? ?? false;
-        final activeAt = data['activeAt'] as int?;
+        final thinking = payload['thinking'] as bool? ?? false;
+        final activeAt = payload['activeAt'] as int?;
         // The server can push active:false to explicitly mark a session
         // offline (matches ApiEphemeralActivityUpdateSchema in the
         // reference implementation).
-        final isActive = data['active'] as bool? ?? true;
+        final isActive = payload['active'] as bool? ?? true;
 
         if (isActive) {
           _sessions[sessionId] = session.copyWith(
@@ -867,9 +908,7 @@ what you have, you must use the options mode.
         if (changedSince != null) {
           // Delta fetch with no changes — update timestamp and return.
           _lastSessionsFetchedAt = fetchStartMs;
-          logger.info(
-            'fetchSessions: no changes since delta fetch',
-          );
+          logger.info('fetchSessions: no changes since delta fetch');
         } else {
           logger.warning(
             'fetchSessions: full fetch returned 0 sessions — '
@@ -2584,6 +2623,18 @@ what you have, you must use the options mode.
               'raw': rawRecord,
             },
           ]);
+        }
+        // Fallback catch-up: if socket update delivery is delayed or missed,
+        // trigger a short polling window so assistant output still appears.
+        if (messagesSync.containsKey(sessionId)) {
+          messagesSync[sessionId]?.invalidate();
+          unawaited(
+            Future<void>.delayed(const Duration(seconds: 2), () {
+              if (messagesSync.containsKey(sessionId)) {
+                messagesSync[sessionId]?.invalidate();
+              }
+            }),
+          );
         }
       } else {
         logger.error(
