@@ -64,9 +64,12 @@ class ExponentialBackoff {
     _currentDelayMs = _currentDelayMs.clamp(minDelayMs, maxDelayMs);
 
     // Apply jitter
+    if (jitter == 0.0) {
+      return delay;
+    }
     final jitterAmount = (delay * jitter).round();
     final randomJitter =
-        (delay - jitterAmount + jitterAmount * 2).floor() % jitterAmount;
+        Random().nextInt(jitterAmount * 2 + 1) - jitterAmount;
 
     return delay + randomJitter;
   }
@@ -114,7 +117,7 @@ int exponentialBackoffDelay(
 ) {
   final maxDelayRet = minDelay +
       ((maxDelay - minDelay) / maxFailureCount) *
-          max(currentFailureCount, maxFailureCount).toDouble();
+          min(currentFailureCount, maxFailureCount).toDouble();
   return (Random().nextDouble() * maxDelayRet).round();
 }
 
