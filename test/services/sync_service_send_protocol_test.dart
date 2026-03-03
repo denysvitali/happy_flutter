@@ -72,6 +72,8 @@ void main() {
     late Sync instance;
     late _CapturingSessionEncryption sessionEncryption;
     dynamic capturedRequestData;
+    String? capturedSocketEvent;
+    dynamic capturedSocketData;
 
     setUp(() async {
       instance = Sync();
@@ -87,8 +89,12 @@ void main() {
         sessionEncryption: sessionEncryption,
         fixedId: 'local-1',
       );
+      instance.testSocketConnectedOverride = null;
+      instance.testSocketSendOverride = null;
 
       capturedRequestData = null;
+      capturedSocketEvent = null;
+      capturedSocketData = null;
       await ApiClient().initialize(serverUrl: 'http://localhost');
       ApiClient().testDio!.interceptors.add(
         InterceptorsWrapper(
@@ -129,6 +135,8 @@ void main() {
     tearDown(() {
       ApiClient().dispose();
       instance.testSessions.clear();
+      instance.testSocketConnectedOverride = null;
+      instance.testSocketSendOverride = null;
     });
 
     test('sends legacy user payload and sanitizes permission mode', () async {
@@ -153,6 +161,37 @@ void main() {
       final message = messages.first as Map<String, dynamic>;
       expect(message['localId'], 'local-1');
       expect(message['content'], 'encrypted-content');
+    });
+
+    test('uses REST as primary path even when socket is connected', () async {
+      instance.testSocketConnectedOverride = true;
+      instance.testSocketSendOverride = (event, data) {
+        capturedSocketEvent = event;
+        capturedSocketData = data;
+      };
+
+      await instance.sendMessage('sess-1', 'Hello over socket');
+
+      final raw = sessionEncryption.lastRawRecord;
+      expect(raw, isNotNull);
+      final meta = raw!['meta'] as Map<String, dynamic>;
+      expect(meta['permissionMode'], 'default');
+
+      final requestData = capturedRequestData as Map<String, dynamic>;
+      final messages = requestData['messages'] as List<dynamic>;
+      expect(messages, hasLength(1));
+      final message = messages.first as Map<String, dynamic>;
+      expect(message['localId'], 'local-1');
+      expect(message['content'], 'encrypted-content');
+
+      // After REST ACK, a socket 'message' event is also emitted so the
+      // daemon picks up the message (server deduplicates by localId).
+      expect(capturedSocketEvent, 'message');
+      final socketPayload =
+          capturedSocketData as Map<String, dynamic>;
+      expect(socketPayload['sid'], 'sess-1');
+      expect(socketPayload['localId'], 'local-1');
+      expect(socketPayload['message'], 'encrypted-content');
     });
   });
 }

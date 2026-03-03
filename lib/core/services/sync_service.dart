@@ -18,6 +18,7 @@ import '../encryption/base64.dart';
 import '../encryption/crypto_secret_box.dart';
 import '../encryption/encryption_cache.dart';
 import '../encryption/encryption_manager.dart';
+import '../encryption/session_encryption.dart';
 import '../models/api_update.dart';
 import '../models/artifact.dart';
 import '../models/auth.dart';
@@ -337,6 +338,12 @@ what you have, you must use the options mode.
   final _sessionMessageChangeController = StreamController<String>.broadcast();
   Timer? _dataChangeDebounceTimer;
   Timer? _saveSeqDebounceTimer;
+  final Map<String, Timer> _postSendCatchUpTimers = {};
+  final Set<String> _sessionsNeedingTailRefresh = <String>{};
+  @visibleForTesting
+  bool? testSocketConnectedOverride;
+  @visibleForTesting
+  void Function(String event, dynamic data)? testSocketSendOverride;
 
   Map<String?, TodoList> get todoLists => Map.unmodifiable(_todoLists);
   List<UserProfile> get friends => List.unmodifiable(_friends);
@@ -418,6 +425,19 @@ what you have, you must use the options mode.
   /// Stream that emits the sessionId when messages for that session change.
   Stream<String> get onSessionMessagesChanged =>
       _sessionMessageChangeController.stream;
+
+  bool _isSocketConnected() {
+    return testSocketConnectedOverride ??
+        socketIoClient.connectionStatus == ConnectionStatus.connected;
+  }
+
+  void _socketSend(String event, dynamic data) {
+    if (testSocketSendOverride != null) {
+      testSocketSendOverride!(event, data);
+    } else {
+      socketIoClient.send(event, data);
+    }
+  }
 
   /// Initialize sync with credentials and encryption
   Future<void> create(
@@ -671,6 +691,9 @@ what you have, you must use the options mode.
   /// Handle new message update
   void _handleNewMessage(Map<String, dynamic> data) {
     final sessionId = data['sid'] as String? ?? data['id'] as String?;
+    if (sessionId != null) {
+      _requestTailRefresh(sessionId);
+    }
     if (sessionId != null && messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId]?.invalidate();
     }
@@ -701,6 +724,7 @@ what you have, you must use the options mode.
     final sessionId = data['sid'] as String?;
     if (sessionId != null) {
       messagesSync.remove(sessionId)?.dispose();
+      _postSendCatchUpTimers.remove(sessionId)?.cancel();
       _loadingOlderMessages.remove(sessionId);
       _sessionMessages.remove(sessionId);
       _sessionMessagesCache = null;
@@ -708,6 +732,7 @@ what you have, you must use the options mode.
       _sessions.remove(sessionId);
       _presenceTimers.remove(sessionId)?.cancel();
       _sessionDataKeys.remove(sessionId);
+      _sessionsNeedingTailRefresh.remove(sessionId);
       if (isInitialized) {
         _sessionLastSeq.remove(sessionId);
         MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
@@ -2498,8 +2523,191 @@ what you have, you must use the options mode.
     return envVars;
   }
 
+  Future<
+    ({String sessionId, Session session, SessionEncryption sessionEncryption})
+  >
+  _resolveSendTargetSession({
+    required String sessionId,
+    required Session session,
+    required SessionEncryption sessionEncryption,
+    required String effectivePermissionMode,
+  }) async {
+    final lifecycleState = session.metadata?.lifecycleState;
+    final agentIsStartingOrRunning =
+        lifecycleState == 'starting' || lifecycleState == 'running';
+    final looksReady =
+        session.isOnline ||
+        session.agentStateVersion > 0 ||
+        agentIsStartingOrRunning;
+    if (looksReady) {
+      return (
+        sessionId: sessionId,
+        session: session,
+        sessionEncryption: sessionEncryption,
+      );
+    }
+
+    final machineId = session.metadata?.machineId;
+    final path = session.metadata?.path;
+    if (machineId == null ||
+        machineId.isEmpty ||
+        path == null ||
+        path.isEmpty) {
+      return (
+        sessionId: sessionId,
+        session: session,
+        sessionEncryption: sessionEncryption,
+      );
+    }
+
+    logger.info(
+      '[sendMessage] session=$sessionId appears offline '
+      '(presence=${session.presence}, lifecycleState=$lifecycleState); '
+      'attempting auto-restore',
+    );
+
+    try {
+      final req = SpawnSessionRequest(
+        type: 'spawn-in-directory',
+        directory: path,
+        sessionId: sessionId,
+        agent: session.metadata?.flavor ?? 'claude',
+        permissionMode: effectivePermissionMode,
+      );
+      final result = await _typedMachineRPC(
+        machineId,
+        'spawn-happy-session',
+        req.toJson(),
+        SpawnSessionResponse.fromJson,
+      );
+      if (result.type != 'success') {
+        logger.warning(
+          '[sendMessage] auto-restore not successful '
+          'session=$sessionId type=${result.type ?? 'null'} '
+          'error=${result.errorMessage ?? 'unknown'}',
+        );
+        return (
+          sessionId: sessionId,
+          session: session,
+          sessionEncryption: sessionEncryption,
+        );
+      }
+
+      final restoredSessionId = result.sessionId;
+      if (restoredSessionId == null || restoredSessionId.isEmpty) {
+        logger.warning(
+          '[sendMessage] auto-restore returned empty session id '
+          'for requested=$sessionId',
+        );
+        return (
+          sessionId: sessionId,
+          session: session,
+          sessionEncryption: sessionEncryption,
+        );
+      }
+
+      if (result.dataEncryptionKey != null &&
+          result.dataEncryptionKey!.isNotEmpty) {
+        final decryptedKey = await encryption.decryptEncryptionKey(
+          result.dataEncryptionKey!,
+        );
+        if (decryptedKey != null) {
+          await encryption.initializeSessions({
+            restoredSessionId: decryptedKey,
+          });
+        } else {
+          logger.warning(
+            '[sendMessage] auto-restore DEK decrypt failed '
+            'session=$restoredSessionId',
+          );
+        }
+      }
+
+      if (restoredSessionId != sessionId) {
+        logger.info(
+          '[sendMessage] auto-restore redirected session '
+          '$sessionId -> $restoredSessionId',
+        );
+        // Refresh session list so metadata/encryption maps include
+        // the redirected session before we post the message.
+        _forceFullFetchNext = true;
+        await sessionsSync.invalidateAndAwait();
+      }
+
+      var restoredSession = _sessions[restoredSessionId];
+      if (restoredSession == null) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        restoredSession = Session(
+          id: restoredSessionId,
+          seq: 0,
+          createdAt: now,
+          updatedAt: now,
+          active: true,
+          activeAt: now,
+          metadata: Metadata(
+            host: session.metadata?.host ?? '',
+            machineId: machineId,
+            path: path,
+            flavor: session.metadata?.flavor,
+          ),
+          metadataVersion: 0,
+          agentStateVersion: 0,
+          thinking: false,
+          presence: 'online',
+        );
+        _sessions[restoredSessionId] = restoredSession;
+        _notifyDataChanged();
+      }
+
+      var restoredSessionEncryption = encryption.getSessionEncryption(
+        restoredSessionId,
+      );
+      if (restoredSessionEncryption == null && restoredSessionId == sessionId) {
+        restoredSessionEncryption = sessionEncryption;
+      }
+      if (restoredSessionEncryption == null) {
+        _forceFullFetchNext = true;
+        await sessionsSync.invalidateAndAwait();
+        restoredSessionEncryption = encryption.getSessionEncryption(
+          restoredSessionId,
+        );
+      }
+      if (restoredSessionEncryption == null) {
+        logger.warning(
+          '[sendMessage] auto-restore missing encryption for '
+          'session=$restoredSessionId; using original session',
+        );
+        return (
+          sessionId: sessionId,
+          session: session,
+          sessionEncryption: sessionEncryption,
+        );
+      }
+
+      return (
+        sessionId: restoredSessionId,
+        session: restoredSession,
+        sessionEncryption: restoredSessionEncryption,
+      );
+    } catch (error, stack) {
+      logger.warning(
+        '[sendMessage] auto-restore failed for session=$sessionId',
+        error,
+      );
+      logger.warning(
+        '[sendMessage] auto-restore stacktrace for session=$sessionId',
+        stack,
+      );
+      return (
+        sessionId: sessionId,
+        session: session,
+        sessionEncryption: sessionEncryption,
+      );
+    }
+  }
+
   /// Send message to session
-  Future<void> sendMessage(
+  Future<String> sendMessage(
     String sessionId,
     String text, {
     String? displayText,
@@ -2566,6 +2774,17 @@ what you have, you must use the options mode.
         : (storedPermissionMode != null && storedPermissionMode != 'default')
         ? storedPermissionMode
         : (sandboxEnabled ? 'bypassPermissions' : 'default');
+
+    final sendTarget = await _resolveSendTargetSession(
+      sessionId: sessionId,
+      session: session,
+      sessionEncryption: sessionEncryption,
+      effectivePermissionMode: effectivePermissionMode,
+    );
+    var targetSessionId = sendTarget.sessionId;
+    session = sendTarget.session;
+    sessionEncryption = sendTarget.sessionEncryption;
+
     final wirePermissionMode =
         _supportedPermissionModes.contains(effectivePermissionMode)
         ? effectivePermissionMode
@@ -2608,7 +2827,8 @@ what you have, you must use the options mode.
       },
     };
     logger.info(
-      '[sendMessage] START session=$sessionId localId=$localId '
+      '[sendMessage] START session=$targetSessionId localId=$localId '
+      'requestedSession=$sessionId '
       'mode=$wirePermissionMode '
       'model=${model ?? 'default'} '
       'textLen=${text.length}',
@@ -2618,7 +2838,7 @@ what you have, you must use the options mode.
       rawRecord,
     );
 
-    _upsertSessionMessages(sessionId, [
+    _upsertSessionMessages(targetSessionId, [
       {
         'id': localId,
         'localId': localId,
@@ -2637,45 +2857,20 @@ what you have, you must use the options mode.
     // NOT auto-spawn here — the daemon's GetOrCreateSession returns a new
     // session ID instead of reusing the requested one, which would cause
     // the message to be sent to the wrong session.
-    final ready = await waitForAgentReady(sessionId);
+    final ready = await waitForAgentReady(targetSessionId);
     if (!ready) {
       logger.info(
-        '[sendMessage] agent not ready for $sessionId, sending anyway',
+        '[sendMessage] agent not ready for $targetSessionId, sending anyway',
       );
     }
 
     final apiClient = ApiClient();
     var sent = false;
+    var catchUpStopAfterSeq = (_sessionLastSeq[targetSessionId] ?? 0) + 1;
     try {
-      if (socketIoClient.connectionStatus == ConnectionStatus.connected) {
-        logger.info(
-          '[sendMessage] using socket primary path '
-          'session=$sessionId localId=$localId',
-        );
-        socketIoClient.send('message', {
-          'sid': sessionId,
-          'message': encryptedRawRecord,
-          'localId': localId,
-        });
-        sent = true;
-
-        // Fallback catch-up: if socket update delivery is delayed or missed,
-        // trigger a short polling window so assistant output still appears.
-        if (messagesSync.containsKey(sessionId)) {
-          messagesSync[sessionId]?.invalidate();
-          unawaited(
-            Future<void>.delayed(const Duration(seconds: 2), () {
-              if (messagesSync.containsKey(sessionId)) {
-                messagesSync[sessionId]?.invalidate();
-              }
-            }),
-          );
-        }
-        return;
-      }
-
+      final socketConnected = _isSocketConnected();
       final response = await apiClient.post(
-        '/v3/sessions/$sessionId/messages',
+        '/v3/sessions/$targetSessionId/messages',
         data: {
           'messages': [
             {'content': encryptedRawRecord, 'localId': localId},
@@ -2683,7 +2878,7 @@ what you have, you must use the options mode.
         },
       );
       logger.info(
-        '[sendMessage] POST /v3/sessions/$sessionId/messages '
+        '[sendMessage] POST /v3/sessions/$targetSessionId/messages '
         'status=${response.statusCode} '
         'localId=$localId',
       );
@@ -2714,6 +2909,9 @@ what you have, you must use the options mode.
           final serverId = ackedServerMsg['id'] as String?;
           final serverSeq = _asInt(ackedServerMsg['seq']);
           final serverCreatedAt = _asInt(ackedServerMsg['createdAt']);
+          if (serverSeq != null) {
+            catchUpStopAfterSeq = serverSeq;
+          }
           logger.info(
             '[sendMessage] ACK localId=$localId '
             'serverId=${serverId ?? 'null'} seq=${serverSeq ?? -1}',
@@ -2721,7 +2919,7 @@ what you have, you must use the options mode.
           if (serverId != null &&
               serverSeq != null &&
               serverCreatedAt != null) {
-            _upsertSessionMessages(sessionId, [
+            _upsertSessionMessages(targetSessionId, [
               {
                 'id': serverId,
                 'localId': localId,
@@ -2736,17 +2934,29 @@ what you have, you must use the options mode.
           } else {
             logger.warning(
               '[sendMessage] server ack missing id/seq/createdAt '
-              'session=$sessionId localId=$localId',
+              'session=$targetSessionId localId=$localId',
             );
+          }
+
+          // Also emit via socket so the daemon processes the message.
+          // REST POST alone may not trigger daemon routing; the server
+          // deduplicates by localId so this is safe.
+          if (socketConnected) {
+            _socketSend('message', {
+              'sid': targetSessionId,
+              'message': encryptedRawRecord,
+              'localId': localId,
+            });
           }
         } else {
           logger.warning(
             '[sendMessage] REST send had no localId ack; '
-            'falling back to socket emit session=$sessionId localId=$localId',
+            'falling back to socket emit '
+            'session=$targetSessionId localId=$localId',
           );
-          if (socketIoClient.connectionStatus == ConnectionStatus.connected) {
-            socketIoClient.send('message', {
-              'sid': sessionId,
+          if (socketConnected) {
+            _socketSend('message', {
+              'sid': targetSessionId,
               'message': encryptedRawRecord,
               'localId': localId,
             });
@@ -2759,28 +2969,66 @@ what you have, you must use the options mode.
         }
 
         // Fallback catch-up: if socket update delivery is delayed or missed,
-        // trigger a short polling window so assistant output still appears.
-        if (sent && messagesSync.containsKey(sessionId)) {
-          messagesSync[sessionId]?.invalidate();
-          unawaited(
-            Future<void>.delayed(const Duration(seconds: 2), () {
-              if (messagesSync.containsKey(sessionId)) {
-                messagesSync[sessionId]?.invalidate();
-              }
-            }),
+        // run a bounded polling window so assistant output still appears.
+        if (sent && messagesSync.containsKey(targetSessionId)) {
+          _startPostSendCatchUp(
+            targetSessionId,
+            stopAfterSeq: catchUpStopAfterSeq,
           );
         }
       } else {
         logger.error(
           '[sendMessage] FAILED: status=${response.statusCode} '
-          'session=$sessionId '
+          'session=$targetSessionId '
           'body=${response.data}',
         );
         throw StateError('Failed to send message: ${response.statusCode}');
       }
     } finally {
-      if (!sent) _removeOptimisticMessage(sessionId, localId);
+      if (!sent) _removeOptimisticMessage(targetSessionId, localId);
     }
+    return targetSessionId;
+  }
+
+  void _startPostSendCatchUp(String sessionId, {required int stopAfterSeq}) {
+    _postSendCatchUpTimers.remove(sessionId)?.cancel();
+    final deadline = DateTime.now().add(const Duration(seconds: 60));
+
+    // Immediate fetch so we do not wait for the first timer tick.
+    _requestTailRefresh(sessionId);
+    messagesSync[sessionId]?.invalidate();
+
+    _postSendCatchUpTimers[sessionId] = Timer.periodic(
+      const Duration(seconds: 2),
+      (timer) {
+        if (!isInitialized ||
+            !messagesSync.containsKey(sessionId) ||
+            DateTime.now().isAfter(deadline)) {
+          timer.cancel();
+          _postSendCatchUpTimers.remove(sessionId);
+          logger.info(
+            '[sendMessage] catch-up polling ended '
+            'session=$sessionId reason=timeout_or_inactive',
+          );
+          return;
+        }
+
+        final currentSeq = _sessionLastSeq[sessionId] ?? 0;
+        if (currentSeq > stopAfterSeq) {
+          timer.cancel();
+          _postSendCatchUpTimers.remove(sessionId);
+          logger.info(
+            '[sendMessage] catch-up polling ended '
+            'session=$sessionId reason=seq_advanced '
+            'stopAfter=$stopAfterSeq current=$currentSeq',
+          );
+          return;
+        }
+
+        _requestTailRefresh(sessionId);
+        messagesSync[sessionId]?.invalidate();
+      },
+    );
   }
 
   void _removeOptimisticMessage(String sessionId, String localId) {
@@ -3004,10 +3252,24 @@ what you have, you must use the options mode.
   /// On session visible handler
   void onSessionVisible(String sessionId) {
     _visibleSessionId = sessionId;
+    _requestTailRefresh(sessionId);
     if (!messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId] = InvalidateSync(() => fetchMessages(sessionId));
     }
     messagesSync[sessionId]?.invalidate();
+  }
+
+  void _requestTailRefresh(String sessionId) {
+    _sessionsNeedingTailRefresh.add(sessionId);
+  }
+
+  int _tailAfterSeqForSession(String sessionId) {
+    final knownLastSeq = max(
+      _sessionLastSeq[sessionId] ?? 0,
+      _sessions[sessionId]?.lastSeq ?? 0,
+    );
+    if (knownLastSeq <= initialLoad) return 0;
+    return knownLastSeq - initialLoad;
   }
 
   /// Fetch messages for a session.
@@ -3047,27 +3309,33 @@ what you have, you must use the options mode.
       final isFirstLoad =
           !_sessionMessages.containsKey(sessionId) ||
           (_sessionMessages[sessionId]?.isEmpty ?? true);
+      final forceTailRefresh = _sessionsNeedingTailRefresh.remove(sessionId);
       int afterSeq;
 
-      if (isFirstLoad) {
+      if (isFirstLoad || forceTailRefresh) {
         // Lazy tail-load: start near the end of the session history so we
         // don't download thousands of messages that the UI will never show.
-        final session = _sessions[sessionId];
-        final serverLastSeq = session?.lastSeq;
-        if (serverLastSeq != null && serverLastSeq > initialLoad) {
-          afterSeq = serverLastSeq - initialLoad;
-          // Record where we started so the UI can offer "load older" later.
-          _sessionFirstLoadedSeq[sessionId] = afterSeq + 1;
-        } else {
-          afterSeq = 0;
-          // Session is short — we will load everything; no older messages.
-          _sessionFirstLoadedSeq[sessionId] = 0;
+        afterSeq = _tailAfterSeqForSession(sessionId);
+        if (forceTailRefresh && !isFirstLoad) {
+          logger.info(
+            '[fetchMessages] $sessionId forcing tail refresh '
+            'afterSeq=$afterSeq',
+          );
         }
-        MMKVStorage().saveSessionFirstLoadedSeq(
-          Map.unmodifiable(_sessionFirstLoadedSeq),
-        );
+        if (isFirstLoad) {
+          if (afterSeq > 0) {
+            // Record where we started so the UI can offer "load older" later.
+            _sessionFirstLoadedSeq[sessionId] = afterSeq + 1;
+          } else {
+            // Session is short — we will load everything; no older messages.
+            _sessionFirstLoadedSeq[sessionId] = 0;
+          }
+          MMKVStorage().saveSessionFirstLoadedSeq(
+            Map.unmodifiable(_sessionFirstLoadedSeq),
+          );
+        }
       } else {
-        afterSeq = _sessionLastSeq[sessionId]!;
+        afterSeq = _sessionLastSeq[sessionId] ?? 0;
       }
 
       var page = 0;
@@ -3137,6 +3405,24 @@ what you have, you must use the options mode.
           sessionId,
         );
         final decryptMs = decryptStart.elapsedMilliseconds;
+        final userCount = processed.messages
+            .where((message) => message['role'] == 'user')
+            .length;
+        final agentCount = processed.messages
+            .where((message) => message['role'] == 'agent')
+            .length;
+        final eventCount = processed.messages
+            .where((message) => message['kind'] == 'agent-event')
+            .length;
+        logger.info(
+          '[fetchMessages] $sessionId page=$page '
+          'processedMsgs=${processed.messages.length} '
+          'users=$userCount agents=$agentCount events=$eventCount '
+          'toolResults=${processed.toolResults.length} '
+          'usageUpdates=${processed.usageUpdates.length} '
+          'afterSeq=$afterSeq '
+          'maxSeq=${processed.maxSeq}',
+        );
 
         // ── Yield before main-thread merge/group work ──
         await Future<void>.delayed(Duration.zero);
@@ -4640,6 +4926,15 @@ what you have, you must use the options mode.
     _sessionMessages[sessionId] = sorted.length > maxMessages
         ? sorted.sublist(sorted.length - maxMessages)
         : sorted;
+    if (sessionId == _visibleSessionId && messages.isNotEmpty) {
+      final afterCount = _sessionMessages[sessionId]?.length ?? 0;
+      logger.info(
+        '[messages] upsert session=$sessionId '
+        'incoming=${messages.length} '
+        'before=${existing.length} '
+        'after=$afterCount',
+      );
+    }
     _sessionMessagesCache = null;
   }
 
@@ -4654,6 +4949,11 @@ what you have, you must use the options mode.
     logger.info('[Sync] suspending — disconnecting socket');
     _dataChangeDebounceTimer?.cancel();
     _saveSeqDebounceTimer?.cancel();
+    for (final timer in _postSendCatchUpTimers.values) {
+      timer.cancel();
+    }
+    _postSendCatchUpTimers.clear();
+    _sessionsNeedingTailRefresh.clear();
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     socketIoClient.disconnect();
   }
@@ -4675,6 +4975,12 @@ what you have, you must use the options mode.
 
   /// Shutdown sync engine and clear volatile state.
   Future<void> shutdown() async {
+    for (final timer in _postSendCatchUpTimers.values) {
+      timer.cancel();
+    }
+    _postSendCatchUpTimers.clear();
+    _sessionsNeedingTailRefresh.clear();
+
     socketIoClient
       ..offMessage('update')
       ..offMessage('ephemeral')
