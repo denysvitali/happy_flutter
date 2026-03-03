@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:math';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -2114,6 +2115,11 @@ what you have, you must use the options mode.
     }
 
     try {
+      if (Firebase.apps.isEmpty) {
+        logger.info('Skipping push token sync: Firebase is not initialized');
+        return;
+      }
+
       final messaging = FirebaseMessaging.instance;
       await messaging.requestPermission();
       final token = await messaging.getToken();
@@ -2542,18 +2548,23 @@ what you have, you must use the options mode.
       _notifyDataChanged();
     }
 
-    final requestedPermissionMode = permissionMode ?? session.permissionMode;
+    final requestedPermissionMode = permissionMode;
     final sandboxEnabled = session.metadata?.sandboxEnabled ?? false;
+    final storedPermissionMode = session.permissionMode;
     final effectivePermissionMode =
         requestedPermissionMode != null && requestedPermissionMode != 'default'
         ? requestedPermissionMode
+        : (storedPermissionMode != null && storedPermissionMode != 'default')
+        ? storedPermissionMode
         : (sandboxEnabled ? 'bypassPermissions' : 'default');
     final flavor = session.metadata?.flavor;
     final isGemini = flavor == 'gemini';
+    final requestedModelMode = modelMode;
+    final storedModelMode = session.modelMode;
     final effectiveModelMode =
-        modelMode ??
-        session.modelMode ??
-        (isGemini ? 'gemini-2.5-pro' : 'default');
+        requestedModelMode != null && requestedModelMode != 'default'
+        ? requestedModelMode
+        : storedModelMode ?? (isGemini ? 'gemini-2.5-pro' : 'default');
     final localId = encryption.generateId();
     final sentFrom = switch (defaultTargetPlatform) {
       TargetPlatform.android => 'android',
@@ -3367,6 +3378,16 @@ what you have, you must use the options mode.
         return _processAcpContent(message, nestedContent, createdAt, content);
       }
 
+      // Session protocol envelope embedded directly under content.
+      if (_looksLikeSessionEnvelope(nestedContent)) {
+        return _processSessionContent(
+          message,
+          nestedContent,
+          createdAt,
+          content,
+        );
+      }
+
       // Session protocol wrapper (agent role).
       if (contentType == 'session') {
         return _processSessionContent(
@@ -3376,11 +3397,55 @@ what you have, you must use the options mode.
           content,
         );
       }
+
+      final fallback = _extractAgentFallbackText(nestedContent);
+      if (fallback != null && fallback.isNotEmpty) {
+        return (
+          [
+            {
+              'id': message.id,
+              'localId': message.localId,
+              'seq': message.seq,
+              'createdAt': createdAt,
+              'role': 'agent',
+              'kind': 'text',
+              'content': fallback,
+              'raw': content,
+            },
+          ],
+          <Map<String, dynamic>>[],
+        );
+      }
+
+      return (
+        [
+          {
+            'id': 'error-${message.id}_parse',
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'system',
+            'kind': 'error',
+            'errorType': 'unknown_agent_content_type',
+            'errorMessage': 'Unrecognized agent content type: $contentType',
+            'debugData': {
+              'messageId': message.id,
+              'seq': message.seq,
+              'contentType': contentType,
+            },
+          },
+        ],
+        <Map<String, dynamic>>[],
+      );
     }
 
     // Session protocol envelope role.
     if (role == 'session') {
-      return _processSessionContent(message, nestedContent, createdAt, content);
+      return _processSessionContent(
+        message,
+        nestedContent ?? content,
+        createdAt,
+        content,
+      );
     }
 
     return (
@@ -3402,6 +3467,39 @@ what you have, you must use the options mode.
       ],
       <Map<String, dynamic>>[],
     );
+  }
+
+  bool _looksLikeSessionEnvelope(dynamic value) {
+    if (value is! Map<String, dynamic>) return false;
+    final hasEvent =
+        value['ev'] is Map<String, dynamic> ||
+        value['event'] is Map<String, dynamic>;
+    final hasIdentity =
+        value['id'] != null || value['uuid'] != null || value['time'] != null;
+    return hasEvent && hasIdentity;
+  }
+
+  String? _extractAgentFallbackText(dynamic nestedContent) {
+    if (nestedContent is! Map<String, dynamic>) return null;
+
+    final directText = nestedContent['text'] ?? nestedContent['message'];
+    if (directText is String && directText.isNotEmpty) {
+      return directText;
+    }
+
+    final data = nestedContent['data'];
+    if (data is Map<String, dynamic>) {
+      final dataMessage = data['message'];
+      if (dataMessage is String && dataMessage.isNotEmpty) {
+        return dataMessage;
+      }
+      final dataText = data['text'];
+      if (dataText is String && dataText.isNotEmpty) {
+        return dataText;
+      }
+    }
+
+    return null;
   }
 
   (List<Map<String, dynamic>>, List<Map<String, dynamic>>)
@@ -3793,18 +3891,25 @@ what you have, you must use the options mode.
     }
     if (envelope == null) return ([], []);
 
-    final event = envelope['ev'];
+    final event = envelope['ev'] ?? envelope['event'];
     if (event is! Map<String, dynamic>) return ([], []);
 
-    final eventType = event['t'] as String?;
+    final eventType = (event['t'] ?? event['type']) as String?;
     if (eventType == null) return ([], []);
 
     final eventRole = envelope['role'] as String?;
-    final envelopeId = envelope['id'] as String? ?? message.id;
-    final eventCreatedAt = _parseCreatedAtMs(envelope['time'] ?? createdAt);
-    final parentUuid = envelope['subagent'] as String?;
+    final envelopeId =
+        (envelope['id'] ?? envelope['uuid']) as String? ?? message.id;
+    final eventCreatedAt = _parseCreatedAtMs(
+      envelope['time'] ?? envelope['createdAt'] ?? createdAt,
+    );
+    final parentUuid =
+        (envelope['subagent'] ??
+                envelope['parentUuid'] ??
+                envelope['parent_uuid'])
+            as String?;
     final isSidechain = parentUuid != null && parentUuid.isNotEmpty;
-    final uuid = envelope['id'] as String? ?? message.id;
+    final uuid = (envelope['id'] ?? envelope['uuid']) as String? ?? message.id;
 
     if (eventType == 'turn-start' ||
         eventType == 'start' ||
@@ -3842,7 +3947,7 @@ what you have, you must use the options mode.
             'createdAt': eventCreatedAt,
             'role': 'agent',
             'kind': 'text',
-            'content': event['text']?.toString() ?? '',
+            'content': (event['text'] ?? event['message'])?.toString() ?? '',
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
             if (uuid.isNotEmpty) 'uuid': uuid,
@@ -3854,7 +3959,7 @@ what you have, you must use the options mode.
     }
 
     if (eventType == 'text') {
-      final text = event['text']?.toString() ?? '';
+      final text = (event['text'] ?? event['message'])?.toString() ?? '';
       if (eventRole == 'agent') {
         final thinking = event['thinking'] == true;
         return (
@@ -3901,9 +4006,10 @@ what you have, you must use the options mode.
 
     if (eventType == 'tool-call-start') {
       if (eventRole != 'agent') return ([], []);
-      final args = event['args'];
+      final args = event['args'] ?? event['input'];
       final input = args is Map<String, dynamic> ? args : <String, dynamic>{};
-      final callId = event['call'] as String?;
+      final callId =
+          (event['call'] ?? event['callId'] ?? event['toolUseId']) as String?;
       return (
         [
           {
@@ -3913,7 +4019,7 @@ what you have, you must use the options mode.
             'createdAt': eventCreatedAt,
             'role': 'agent',
             'kind': 'tool-call',
-            'name': event['name']?.toString() ?? 'unknown',
+            'name': (event['name'] ?? event['tool'])?.toString() ?? 'unknown',
             'input': input,
             'toolUseId': callId ?? envelopeId,
             'state': 'running',
@@ -3929,15 +4035,16 @@ what you have, you must use the options mode.
     }
 
     if (eventType == 'tool-call-end') {
-      final callId = event['call'] as String?;
+      final callId =
+          (event['call'] ?? event['callId'] ?? event['toolUseId']) as String?;
       if (callId == null || callId.isEmpty) return ([], []);
       return (
         [],
         [
           {
             'toolUseId': callId,
-            'result': event['result'],
-            'isError': event['isError'] == true,
+            'result': event['result'] ?? event['output'] ?? event['content'],
+            'isError': event['isError'] == true || event['is_error'] == true,
             'createdAt': eventCreatedAt,
             if (isSidechain) 'isSidechain': true,
             if (uuid.isNotEmpty) 'uuid': uuid,

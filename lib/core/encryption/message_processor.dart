@@ -191,6 +191,17 @@ ProcessedMessages processDecryptedMessages({
           messages: messages,
           toolResults: toolResults,
         );
+      } else if (_looksLikeSessionEnvelope(nestedContent)) {
+        _processSessionContent(
+          id: id,
+          localId: localId,
+          seq: seq,
+          createdAt: createdAt,
+          outerContent: content,
+          nestedContent: nestedContent,
+          messages: messages,
+          toolResults: toolResults,
+        );
       } else if (contentType == 'session') {
         _processSessionContent(
           id: id,
@@ -202,6 +213,35 @@ ProcessedMessages processDecryptedMessages({
           messages: messages,
           toolResults: toolResults,
         );
+      } else {
+        final fallback = _extractAgentFallbackText(nestedContent);
+        if (fallback != null && fallback.isNotEmpty) {
+          messages.add({
+            'id': id,
+            'localId': localId,
+            'seq': seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'text',
+            'content': fallback,
+            'raw': content,
+          });
+        } else {
+          messages.add({
+            'id': 'error-${id}_parse',
+            'seq': seq,
+            'createdAt': createdAt,
+            'role': 'system',
+            'kind': 'error',
+            'errorType': 'unknown_agent_content_type',
+            'errorMessage': 'Unrecognized agent content type: $contentType',
+            'debugData': {
+              'messageId': id,
+              'seq': seq,
+              'contentType': contentType,
+            },
+          });
+        }
       }
       continue;
     }
@@ -213,7 +253,7 @@ ProcessedMessages processDecryptedMessages({
         seq: seq,
         createdAt: createdAt,
         outerContent: content,
-        nestedContent: nestedContent,
+        nestedContent: nestedContent ?? content,
         messages: messages,
         toolResults: toolResults,
       );
@@ -239,6 +279,39 @@ ProcessedMessages processDecryptedMessages({
     usageUpdates: usageUpdates,
     maxSeq: maxSeq,
   );
+}
+
+bool _looksLikeSessionEnvelope(dynamic value) {
+  if (value is! Map<String, dynamic>) return false;
+  final hasEvent =
+      value['ev'] is Map<String, dynamic> ||
+      value['event'] is Map<String, dynamic>;
+  final hasIdentity =
+      value['id'] != null || value['uuid'] != null || value['time'] != null;
+  return hasEvent && hasIdentity;
+}
+
+String? _extractAgentFallbackText(dynamic nestedContent) {
+  if (nestedContent is! Map<String, dynamic>) return null;
+
+  final directText = nestedContent['text'] ?? nestedContent['message'];
+  if (directText is String && directText.isNotEmpty) {
+    return directText;
+  }
+
+  final data = nestedContent['data'];
+  if (data is Map<String, dynamic>) {
+    final dataMessage = data['message'];
+    if (dataMessage is String && dataMessage.isNotEmpty) {
+      return dataMessage;
+    }
+    final dataText = data['text'];
+    if (dataText is String && dataText.isNotEmpty) {
+      return dataText;
+    }
+  }
+
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -635,18 +708,24 @@ void _processSessionContent({
   }
   if (envelope == null) return;
 
-  final event = envelope['ev'];
+  final event = envelope['ev'] ?? envelope['event'];
   if (event is! Map<String, dynamic>) return;
 
-  final eventType = event['t'] as String?;
+  final eventType = (event['t'] ?? event['type']) as String?;
   if (eventType == null) return;
 
   final eventRole = envelope['role'] as String?;
-  final envelopeId = envelope['id'] as String? ?? id;
-  final envelopeCreatedAt = _parseCreatedAtMs(envelope['time'] ?? createdAt);
-  final parentUuid = envelope['subagent'] as String?;
+  final envelopeId = (envelope['id'] ?? envelope['uuid']) as String? ?? id;
+  final envelopeCreatedAt = _parseCreatedAtMs(
+    envelope['time'] ?? envelope['createdAt'] ?? createdAt,
+  );
+  final parentUuid =
+      (envelope['subagent'] ??
+              envelope['parentUuid'] ??
+              envelope['parent_uuid'])
+          as String?;
   final isSidechain = parentUuid != null && parentUuid.isNotEmpty;
-  final uuid = envelope['id'] as String? ?? id;
+  final uuid = (envelope['id'] ?? envelope['uuid']) as String? ?? id;
 
   if (eventType == 'turn-start' ||
       eventType == 'start' ||
@@ -678,7 +757,7 @@ void _processSessionContent({
       'createdAt': envelopeCreatedAt,
       'role': 'agent',
       'kind': 'text',
-      'content': event['text']?.toString() ?? '',
+      'content': (event['text'] ?? event['message'])?.toString() ?? '',
       'raw': outerContent,
       if (isSidechain) 'isSidechain': true,
       if (uuid.isNotEmpty) 'uuid': uuid,
@@ -688,7 +767,7 @@ void _processSessionContent({
   }
 
   if (eventType == 'text') {
-    final text = event['text']?.toString() ?? '';
+    final text = (event['text'] ?? event['message'])?.toString() ?? '';
     if (eventRole == 'agent') {
       final thinking = event['thinking'] == true;
       messages.add({
@@ -726,9 +805,10 @@ void _processSessionContent({
 
   if (eventType == 'tool-call-start') {
     if (eventRole != 'agent') return;
-    final args = event['args'];
+    final args = event['args'] ?? event['input'];
     final input = args is Map<String, dynamic> ? args : <String, dynamic>{};
-    final callId = event['call'] as String?;
+    final callId =
+        (event['call'] ?? event['callId'] ?? event['toolUseId']) as String?;
     messages.add({
       'id': envelopeId,
       'localId': localId,
@@ -736,7 +816,7 @@ void _processSessionContent({
       'createdAt': envelopeCreatedAt,
       'role': 'agent',
       'kind': 'tool-call',
-      'name': event['name']?.toString() ?? 'unknown',
+      'name': (event['name'] ?? event['tool'])?.toString() ?? 'unknown',
       'input': input,
       'toolUseId': callId ?? envelopeId,
       'state': 'running',
@@ -750,12 +830,13 @@ void _processSessionContent({
   }
 
   if (eventType == 'tool-call-end') {
-    final callId = event['call'] as String?;
+    final callId =
+        (event['call'] ?? event['callId'] ?? event['toolUseId']) as String?;
     if (callId == null || callId.isEmpty) return;
     toolResults.add({
       'toolUseId': callId,
-      'result': event['result'],
-      'isError': event['isError'] == true,
+      'result': event['result'] ?? event['output'] ?? event['content'],
+      'isError': event['isError'] == true || event['is_error'] == true,
       'createdAt': envelopeCreatedAt,
       if (isSidechain) 'isSidechain': true,
       if (uuid.isNotEmpty) 'uuid': uuid,

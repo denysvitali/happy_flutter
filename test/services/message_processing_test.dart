@@ -166,6 +166,45 @@ void main() {
       expect(result.$1.first['event']['mode'], 'remote');
     });
 
+    test('falls back to text for unknown agent content shapes', () {
+      final result = instance.testProcessDecryptedMessage(
+        id: 'msg_unknown_fallback',
+        seq: 51,
+        sessionId: 'session_1',
+        content: {
+          'role': 'agent',
+          'content': {
+            'type': 'message',
+            'data': {'message': 'Fallback assistant text'},
+          },
+        },
+      );
+
+      expect(result.$1, hasLength(1));
+      expect(result.$1.first['kind'], 'text');
+      expect(result.$1.first['role'], 'agent');
+      expect(result.$1.first['content'], 'Fallback assistant text');
+    });
+
+    test('emits error for unknown agent content without fallback text', () {
+      final result = instance.testProcessDecryptedMessage(
+        id: 'msg_unknown_error',
+        seq: 52,
+        sessionId: 'session_1',
+        content: {
+          'role': 'agent',
+          'content': {
+            'type': 'unexpected',
+            'data': {'foo': 'bar'},
+          },
+        },
+      );
+
+      expect(result.$1, hasLength(1));
+      expect(result.$1.first['kind'], 'error');
+      expect(result.$1.first['errorType'], 'unknown_agent_content_type');
+    });
+
     test('skips ready events', () {
       final result = instance.testProcessDecryptedMessage(
         id: 'msg_6',
