@@ -4749,7 +4749,8 @@ what you have, you must use the options mode.
     // Pass 1: Find Task tool calls → map prompt to task message ID
     final promptToTaskId = <String, String>{};
     for (final msg in messages) {
-      if (msg['kind'] == 'tool-call' && msg['name'] == 'Task') {
+      if (msg['kind'] == 'tool-call' &&
+          (msg['name'] == 'Task' || msg['name'] == 'Agent')) {
         final input = msg['input'] as Map<String, dynamic>?;
         final prompt = input?['prompt'] as String?;
         if (prompt != null) {
@@ -4830,7 +4831,8 @@ what you have, you must use the options mode.
     // Find inner Task tool-calls and their prompts.
     final promptToTask = <String, Map<String, dynamic>>{};
     for (final child in children) {
-      if (child['kind'] == 'tool-call' && child['name'] == 'Task') {
+      if (child['kind'] == 'tool-call' &&
+          (child['name'] == 'Task' || child['name'] == 'Agent')) {
         final input = child['input'] as Map<String, dynamic>?;
         final prompt = input?['prompt'] as String?;
         if (prompt != null) {

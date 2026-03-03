@@ -108,7 +108,8 @@ class _MessageWidgetState extends State<MessageWidget>
           isSessionOnline: widget.isSessionOnline,
           onPress: (widget.sessionId != null && messageId != null)
               ? () {
-                  final isTask = widget.messageData['name'] == 'Task';
+                  final isTask = widget.messageData['name'] == 'Task' ||
+                      widget.messageData['name'] == 'Agent';
                   final route = isTask
                       ? '/chat/${widget.sessionId}'
                             '/agent/$messageId'

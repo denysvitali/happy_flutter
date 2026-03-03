@@ -929,6 +929,12 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
             messages: msgs,
             onNavigate: () => widget.onPress?.call(),
           ),
+          'Agent': (t, m, msgs) => TaskView(
+            tool: t,
+            metadata: m,
+            messages: msgs,
+            onNavigate: () => widget.onPress?.call(),
+          ),
           'TodoWrite': (t, m, _) => TodoView(tool: t, metadata: m),
           'WebFetch': (t, m, _) => WebFetchView(tool: t, metadata: m),
           'WebSearch': (t, m, _) => WebSearchView(tool: t, metadata: m),
