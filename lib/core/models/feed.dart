@@ -262,6 +262,14 @@ enum NotificationType {
 
   static NotificationType fromString(String value) {
     switch (value) {
+      case 'info':
+        return info;
+      case 'success':
+        return success;
+      case 'warning':
+        return warning;
+      case 'error':
+        return error;
       case 'sessionUpdate':
         return sessionUpdate;
       case 'friendUpdate':

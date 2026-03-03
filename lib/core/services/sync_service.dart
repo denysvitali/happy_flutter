@@ -835,13 +835,22 @@ what you have, you must use the options mode.
 
   /// Handle KV batch update (for todos)
   void _handleKvBatchUpdate(Map<String, dynamic> data) {
+    bool hasTodoEntry(List<dynamic> list) => list.any(
+          (entry) =>
+              entry is Map<String, dynamic> &&
+              ((entry['key'] as String?)?.startsWith('todo') ??
+                  false),
+        );
+
     final changes = data['changes'];
-    if (changes is List &&
-        changes.any(
-          (change) =>
-              change is Map<String, dynamic> &&
-              ((change['key'] as String?)?.startsWith('todo.') ?? false),
-        )) {
+    if (changes is List && hasTodoEntry(changes)) {
+      todosSync.invalidate();
+      logger.info('KV batch update received (todos)');
+      return;
+    }
+
+    final operations = data['operations'];
+    if (operations is List && hasTodoEntry(operations)) {
       todosSync.invalidate();
       logger.info('KV batch update received (todos)');
       return;

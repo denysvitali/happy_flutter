@@ -10,7 +10,7 @@ import 'package:happy_flutter/core/models/profile.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('MMKVStorage', () {
+  group('MMKVStorage', skip: 'Requires native MMKV plugin', () {
     late MMKVStorage storage;
 
     setUp(() async {
@@ -541,7 +541,7 @@ void main() {
     });
   });
 
-  group('ServerConfigStorage', () {
+  group('ServerConfigStorage', skip: 'Requires native MMKV plugin', () {
     late ServerConfigStorage storage;
 
     setUp(() async {
@@ -657,7 +657,7 @@ void main() {
     });
   });
 
-  group('Storage Integration', () {
+  group('Storage Integration', skip: 'Requires native MMKV plugin', () {
     late Storage storage;
 
     setUp(() async {
