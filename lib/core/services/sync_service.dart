@@ -223,6 +223,15 @@ class Sync {
 
   /// Number of recent messages to load on first open of a session.
   static const int initialLoad = 200;
+  static const Set<String> _supportedPermissionModes = {
+    'default',
+    'acceptEdits',
+    'bypassPermissions',
+    'plan',
+    'read-only',
+    'safe-yolo',
+    'yolo',
+  };
   static const String _appendSystemPrompt = '''
 # Options
 
@@ -2557,6 +2566,17 @@ what you have, you must use the options mode.
         : (storedPermissionMode != null && storedPermissionMode != 'default')
         ? storedPermissionMode
         : (sandboxEnabled ? 'bypassPermissions' : 'default');
+    final wirePermissionMode =
+        _supportedPermissionModes.contains(effectivePermissionMode)
+        ? effectivePermissionMode
+        : 'default';
+    if (wirePermissionMode != effectivePermissionMode) {
+      logger.warning(
+        '[sendMessage] unsupported permission mode '
+        '"$effectivePermissionMode" for session=$sessionId; '
+        'falling back to "$wirePermissionMode"',
+      );
+    }
     final flavor = session.metadata?.flavor;
     final isGemini = flavor == 'gemini';
     final requestedModelMode = modelMode;
@@ -2575,17 +2595,12 @@ what you have, you must use the options mode.
     final model = effectiveModelMode != 'default' ? effectiveModelMode : null;
 
     final rawRecord = <String, dynamic>{
-      // Emit modern session-protocol user payloads for cross-client parity.
-      'role': 'session',
-      'content': <String, dynamic>{
-        'id': localId,
-        'time': DateTime.now().millisecondsSinceEpoch,
-        'role': 'user',
-        'ev': <String, dynamic>{'t': 'text', 'text': text},
-      },
+      // Keep legacy user payload for daemon compatibility.
+      'role': 'user',
+      'content': <String, dynamic>{'type': 'text', 'text': text},
       'meta': <String, dynamic>{
         'sentFrom': sentFrom,
-        'permissionMode': effectivePermissionMode,
+        'permissionMode': wirePermissionMode,
         'model': model,
         'fallbackModel': null,
         'appendSystemPrompt': _appendSystemPrompt,

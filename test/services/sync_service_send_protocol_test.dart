@@ -53,7 +53,7 @@ void _stubAllSyncs(Sync instance) {
   instance.messagesSync.clear();
 }
 
-Session _readySession(String id) => Session(
+Session _readySession(String id, {String? permissionMode}) => Session(
   id: id,
   seq: 1,
   createdAt: 1700000000000,
@@ -64,6 +64,7 @@ Session _readySession(String id) => Session(
   agentStateVersion: 1,
   thinking: false,
   presence: 'online',
+  permissionMode: permissionMode,
 );
 
 void main() {
@@ -76,7 +77,10 @@ void main() {
       instance = Sync();
       _stubAllSyncs(instance);
       instance.testSessions.clear();
-      instance.testSessions['sess-1'] = _readySession('sess-1');
+      instance.testSessions['sess-1'] = _readySession(
+        'sess-1',
+        permissionMode: 'team-custom-mode',
+      );
 
       sessionEncryption = _CapturingSessionEncryption();
       instance.encryption = _FakeEncryption(
@@ -127,25 +131,21 @@ void main() {
       instance.testSessions.clear();
     });
 
-    test('sends modern session user envelope', () async {
+    test('sends legacy user payload and sanitizes permission mode', () async {
       await instance.sendMessage('sess-1', 'Hello from Flutter');
 
       final raw = sessionEncryption.lastRawRecord;
       expect(raw, isNotNull);
-      expect(raw!['role'], 'session');
+      expect(raw!['role'], 'user');
 
       final content = raw['content'] as Map<String, dynamic>;
-      expect(content['id'], 'local-1');
-      expect(content['role'], 'user');
-      expect(content['time'], isA<int>());
-
-      final ev = content['ev'] as Map<String, dynamic>;
-      expect(ev['t'], 'text');
-      expect(ev['text'], 'Hello from Flutter');
+      expect(content['type'], 'text');
+      expect(content['text'], 'Hello from Flutter');
 
       final meta = raw['meta'] as Map<String, dynamic>;
       expect(meta['sentFrom'], isA<String>());
       expect(meta['appendSystemPrompt'], isA<String>());
+      expect(meta['permissionMode'], 'default');
 
       final requestData = capturedRequestData as Map<String, dynamic>;
       final messages = requestData['messages'] as List<dynamic>;
