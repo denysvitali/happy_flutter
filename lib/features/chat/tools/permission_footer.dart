@@ -4,7 +4,6 @@ import '../../../core/services/logger_service.dart' show logger;
 
 /// Permission request UI with Allow, Allow All, and Deny buttons.
 class PermissionFooter extends StatefulWidget {
-
   const PermissionFooter({
     required this.permission,
     required this.sessionId,
@@ -67,8 +66,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
   @override
   void didUpdateWidget(PermissionFooter oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final status =
-        widget.permission['status'] as String? ?? 'pending';
+    final status = widget.permission['status'] as String? ?? 'pending';
     if (status != 'pending' && _loading) {
       setState(() => _loading = false);
     }
@@ -114,8 +112,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
       case 'Bash':
         final cmd = input['command'] as String?;
         if (cmd != null) {
-          final short =
-              cmd.length > 42 ? '${cmd.substring(0, 42)}…' : cmd;
+          final short = cmd.length > 42 ? '${cmd.substring(0, 42)}…' : cmd;
           return 'run: $short';
         }
         return 'run bash command';
@@ -142,29 +139,27 @@ class _PermissionFooterState extends State<PermissionFooter> {
     final mode = permission['mode'] as String?;
     final isApprovedViaAllEdits = isApproved && mode == 'acceptEdits';
 
-    final rawAllowedTools =
-        permission['allowedTools'] as List<dynamic>?;
+    final rawAllowedTools = permission['allowedTools'] as List<dynamic>?;
     final allowedTools = rawAllowedTools?.cast<String>();
 
     final isApprovedForSession =
         isApproved &&
         allowedTools != null &&
-        allowedTools.any(
-          (t) => t == toolName || t.startsWith('$toolName('),
-        );
+        allowedTools.any((t) => t == toolName || t.startsWith('$toolName('));
 
     final isPlanTool =
-        toolName == 'ExitPlanMode' ||
-        toolName == 'exit_plan_mode';
+        toolName == 'ExitPlanMode' || toolName == 'exit_plan_mode';
 
-    final isEditTool = toolName == 'Edit' ||
+    final isEditTool =
+        toolName == 'Edit' ||
         toolName == 'MultiEdit' ||
         toolName == 'Write' ||
         toolName == 'NotebookEdit' ||
         isPlanTool;
 
-    final isCodex =
-        widget.flavor == 'codex' || toolName.startsWith('Codex');
+    final isCodex = widget.flavor == 'codex' || toolName.startsWith('Codex');
+    final showClaudeClearContextButton =
+        widget.flavor == 'claude' && isPlanTool;
 
     const warningAmber = Color(0xFFFFF8E1);
     const warningBorder = Color(0xFFFFB300);
@@ -172,9 +167,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
     return Container(
       margin: const EdgeInsets.fromLTRB(0, 4, 0, 4),
       decoration: BoxDecoration(
-        color: isPending
-            ? warningAmber
-            : theme.colorScheme.surfaceContainerLow,
+        color: isPending ? warningAmber : theme.colorScheme.surfaceContainerLow,
         border: Border.all(
           color: isPending
               ? warningBorder.withValues(alpha: 0.6)
@@ -205,15 +198,15 @@ class _PermissionFooterState extends State<PermissionFooter> {
                     isPending
                         ? 'Permission required'
                         : isApproved
-                            ? 'Approved'
-                            : 'Denied',
+                        ? 'Approved'
+                        : 'Denied',
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: isPending
                           ? const Color(0xFFE65100)
                           : isApproved
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.error,
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.error,
                       letterSpacing: 0.3,
                     ),
                   ),
@@ -253,32 +246,26 @@ class _PermissionFooterState extends State<PermissionFooter> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : isCodex
-                      ? _CodexActionButtons(
-                          onCodexApprove: () =>
-                              _wrap(widget.onCodexApprove),
-                          onCodexApproveForSession: () =>
-                              _wrap(widget.onCodexApproveForSession),
-                          onCodexAbort: () =>
-                              _wrap(widget.onCodexAbort),
-                        )
-                      : _ActionButtons(
-                              isPending: isPending,
-                              isEditTool: isEditTool,
-                              isApproved: isApproved,
-                              isDenied: isDenied,
-                              isApprovedViaAllEdits:
-                                  isApprovedViaAllEdits,
-                              isApprovedForSession:
-                                  isApprovedForSession,
-                              onAllow: () =>
-                                  _wrap(widget.onAllow),
-                              onDeny: () =>
-                                  _wrap(widget.onDeny),
-                              onAllowAllEdits: () =>
-                                  _wrap(widget.onAllowAllEdits),
-                              onAllowForSession: () =>
-                                  _wrap(widget.onAllowForSession),
-                            ),
+                  ? _CodexActionButtons(
+                      onCodexApprove: () => _wrap(widget.onCodexApprove),
+                      onCodexApproveForSession: () =>
+                          _wrap(widget.onCodexApproveForSession),
+                      onCodexAbort: () => _wrap(widget.onCodexAbort),
+                    )
+                  : _ActionButtons(
+                      isPending: isPending,
+                      isEditTool: isEditTool,
+                      isApproved: isApproved,
+                      isDenied: isDenied,
+                      isApprovedViaAllEdits: isApprovedViaAllEdits,
+                      isApprovedForSession: isApprovedForSession,
+                      showClaudeClearContextButton:
+                          showClaudeClearContextButton,
+                      onAllow: () => _wrap(widget.onAllow),
+                      onDeny: () => _wrap(widget.onDeny),
+                      onAllowAllEdits: () => _wrap(widget.onAllowAllEdits),
+                      onAllowForSession: () => _wrap(widget.onAllowForSession),
+                    ),
             ),
           ],
         ],
@@ -288,7 +275,6 @@ class _PermissionFooterState extends State<PermissionFooter> {
 }
 
 class _ActionButtons extends StatelessWidget {
-
   const _ActionButtons({
     required this.isPending,
     required this.isEditTool,
@@ -296,6 +282,7 @@ class _ActionButtons extends StatelessWidget {
     required this.isDenied,
     required this.isApprovedViaAllEdits,
     required this.isApprovedForSession,
+    required this.showClaudeClearContextButton,
     this.onAllow,
     this.onDeny,
     this.onAllowAllEdits,
@@ -307,6 +294,7 @@ class _ActionButtons extends StatelessWidget {
   final bool isDenied;
   final bool isApprovedViaAllEdits;
   final bool isApprovedForSession;
+  final bool showClaudeClearContextButton;
   final VoidCallback? onAllow;
   final VoidCallback? onDeny;
   final VoidCallback? onAllowAllEdits;
@@ -316,79 +304,88 @@ class _ActionButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // Primary allow button
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: isPending ? onAllow : null,
-            icon: const Icon(Icons.check_rounded, size: 15),
-            label: const Text('Allow'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: theme.colorScheme.onPrimary,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 8,
+        Row(
+          children: [
+            // Primary allow button
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: isPending ? onAllow : null,
+                icon: const Icon(Icons.check_rounded, size: 15),
+                label: const Text('Allow'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  textStyle: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  elevation: 0,
+                ),
               ),
-              textStyle: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(7),
-              ),
-              elevation: 0,
             ),
-          ),
-        ),
 
-        // Secondary allow (all edits / for session)
-        if (isPending) ...[
-          const SizedBox(width: 6),
-          if (isEditTool)
-            _SecondaryButton(
-              label: 'All edits',
-              onPressed: onAllowAllEdits,
-            )
-          else
-            _SecondaryButton(
-              label: 'For session',
-              onPressed: onAllowForSession,
+            // Secondary allow (all edits / for session)
+            if (isPending) ...[
+              const SizedBox(width: 6),
+              if (isEditTool)
+                _SecondaryButton(label: 'All edits', onPressed: onAllowAllEdits)
+              else
+                _SecondaryButton(
+                  label: 'For session',
+                  onPressed: onAllowForSession,
+                ),
+            ],
+
+            const SizedBox(width: 6),
+
+            // Deny button
+            OutlinedButton.icon(
+              onPressed: isPending ? onDeny : null,
+              icon: const Icon(Icons.close_rounded, size: 14),
+              label: const Text('Deny'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: theme.colorScheme.error,
+                side: BorderSide(
+                  color: theme.colorScheme.error.withValues(alpha: 0.5),
+                  width: 1,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                textStyle: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(7),
+                ),
+              ),
             ),
+          ],
+        ),
+        if (isPending && showClaudeClearContextButton) ...[
+          const SizedBox(height: 6),
+          const _SecondaryButton(
+            label: 'Accept plan + clear context',
+            onPressed: null,
+          ),
         ],
-
-        const SizedBox(width: 6),
-
-        // Deny button
-        OutlinedButton.icon(
-          onPressed: isPending ? onDeny : null,
-          icon: const Icon(Icons.close_rounded, size: 14),
-          label: const Text('Deny'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: theme.colorScheme.error,
-            side: BorderSide(
-              color: theme.colorScheme.error.withValues(alpha: 0.5),
-              width: 1,
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 8,
-            ),
-            textStyle: theme.textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(7),
-            ),
-          ),
-        ),
       ],
     );
   }
 }
 
 class _CodexActionButtons extends StatelessWidget {
-
   const _CodexActionButtons({
     this.onCodexApprove,
     this.onCodexApproveForSession,
@@ -419,10 +416,7 @@ class _CodexActionButtons extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green.shade700,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 8,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               textStyle: theme.textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -455,10 +449,7 @@ class _CodexActionButtons extends StatelessWidget {
               color: theme.colorScheme.error.withValues(alpha: 0.5),
               width: 1,
             ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             textStyle: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w500,
             ),
@@ -473,11 +464,7 @@ class _CodexActionButtons extends StatelessWidget {
 }
 
 class _SecondaryButton extends StatelessWidget {
-
-  const _SecondaryButton({
-    required this.label,
-    this.onPressed,
-  });
+  const _SecondaryButton({required this.label, this.onPressed});
   final String label;
   final VoidCallback? onPressed;
 
@@ -497,9 +484,7 @@ class _SecondaryButton extends StatelessWidget {
         textStyle: theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w500,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(7),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
       ),
       child: Text(label),
     );
@@ -508,12 +493,13 @@ class _SecondaryButton extends StatelessWidget {
 
 /// A simpler permission button row for quick actions.
 class PermissionButtons extends StatelessWidget {
-
   const PermissionButtons({
-    required this.status, super.key,
+    required this.status,
+    super.key,
     this.onAllow,
     this.onDeny,
   });
+
   /// The permission status.
   final String status;
 
@@ -539,8 +525,7 @@ class PermissionButtons extends StatelessWidget {
             backgroundColor: theme.colorScheme.primary,
             foregroundColor: theme.colorScheme.onPrimary,
             elevation: 0,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             textStyle: theme.textTheme.labelMedium,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(7),
@@ -557,8 +542,7 @@ class PermissionButtons extends StatelessWidget {
             side: BorderSide(
               color: theme.colorScheme.error.withValues(alpha: 0.5),
             ),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             textStyle: theme.textTheme.labelMedium,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(7),

@@ -98,6 +98,38 @@ const Map<String, String> _mcpServerEmojis = {
   'sequential': '\u{1F4BB}',
 };
 
+/// Permission action kinds emitted from [ToolView].
+enum PermissionActionKind {
+  allow,
+  deny,
+  allowAllEdits,
+  allowForSession,
+  codexApprove,
+  codexApproveForSession,
+  codexAbort,
+}
+
+/// Structured permission action payload for tool permission interactions.
+class PermissionAction {
+  const PermissionAction({
+    required this.kind,
+    required this.sessionId,
+    required this.permissionId,
+    required this.toolName,
+    this.toolInput,
+  });
+
+  final PermissionActionKind kind;
+  final String sessionId;
+  final String permissionId;
+  final String toolName;
+  final Map<String, dynamic>? toolInput;
+}
+
+/// Optional delegate for handling permission actions.
+typedef PermissionActionDelegate =
+    Future<void> Function(PermissionAction action);
+
 /// Resolves a representative emoji from an MCP server name token.
 String _mcpServerEmoji(String serverToken) {
   final key = serverToken.toLowerCase();
@@ -128,6 +160,7 @@ class ToolView extends StatefulWidget {
     this.messages,
     this.sessionId,
     this.onPress,
+    this.permissionActionDelegate,
   });
 
   /// The tool call data.
@@ -144,6 +177,9 @@ class ToolView extends StatefulWidget {
 
   /// Callback when the tool header is pressed.
   final VoidCallback? onPress;
+
+  /// Optional handler override for permission actions.
+  final PermissionActionDelegate? permissionActionDelegate;
 
   @override
   State<ToolView> createState() => _ToolViewState();
@@ -186,8 +222,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     );
     _prevState = initial;
 
-    final initPermission =
-        widget.tool['permission'] as Map<String, dynamic>?;
+    final initPermission = widget.tool['permission'] as Map<String, dynamic>?;
     final hasPermissionRequest =
         initPermission != null &&
         initPermission['status'] != 'denied' &&
@@ -225,8 +260,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
 
     if (_prevState == newState) return;
 
-    if (_prevState == ToolState.running &&
-        newState == ToolState.completed) {
+    if (_prevState == ToolState.running && newState == ToolState.completed) {
       _pulseController
         ..stop()
         ..reset();
@@ -235,8 +269,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         if (mounted) setState(() => _showCheckFlash = false);
       });
       _scheduleAutoCollapse();
-    } else if (_prevState == ToolState.running &&
-        newState == ToolState.error) {
+    } else if (_prevState == ToolState.running && newState == ToolState.error) {
       _pulseController
         ..stop()
         ..reset();
@@ -280,29 +313,40 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
 
   Future<void> _handlePermissionAllow(
     Map<String, dynamic> permission,
+    String toolName,
+    Map<String, dynamic>? toolInput,
   ) async {
-    final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    await sync.sessionAllow(widget.sessionId!, permId);
+    await _emitPermissionAction(
+      kind: PermissionActionKind.allow,
+      permission: permission,
+      toolName: toolName,
+      toolInput: toolInput,
+    );
   }
 
   Future<void> _handlePermissionDeny(
     Map<String, dynamic> permission,
+    String toolName,
+    Map<String, dynamic>? toolInput,
   ) async {
-    final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    await sync.sessionDeny(widget.sessionId!, permId);
+    await _emitPermissionAction(
+      kind: PermissionActionKind.deny,
+      permission: permission,
+      toolName: toolName,
+      toolInput: toolInput,
+    );
   }
 
   Future<void> _handlePermissionAllowAllEdits(
     Map<String, dynamic> permission,
+    String toolName,
+    Map<String, dynamic>? toolInput,
   ) async {
-    final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    await sync.sessionAllow(
-      widget.sessionId!,
-      permId,
-      mode: 'acceptEdits',
+    await _emitPermissionAction(
+      kind: PermissionActionKind.allowAllEdits,
+      permission: permission,
+      toolName: toolName,
+      toolInput: toolInput,
     );
   }
 
@@ -311,56 +355,124 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     String toolName,
     Map<String, dynamic>? toolInput,
   ) async {
-    final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    final List<String> allowTools;
-    if (toolName == 'Bash') {
-      final command = toolInput?['command'] as String? ?? '';
-      allowTools = ['Bash($command)'];
-    } else {
-      allowTools = [toolName];
-    }
-    await sync.sessionAllow(
-      widget.sessionId!,
-      permId,
-      allowTools: allowTools,
+    await _emitPermissionAction(
+      kind: PermissionActionKind.allowForSession,
+      permission: permission,
+      toolName: toolName,
+      toolInput: toolInput,
     );
   }
 
   Future<void> _handleCodexApprove(
     Map<String, dynamic> permission,
+    String toolName,
+    Map<String, dynamic>? toolInput,
   ) async {
-    final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    await sync.sessionAllow(
-      widget.sessionId!,
-      permId,
-      decision: 'approved',
+    await _emitPermissionAction(
+      kind: PermissionActionKind.codexApprove,
+      permission: permission,
+      toolName: toolName,
+      toolInput: toolInput,
     );
   }
 
   Future<void> _handleCodexApproveForSession(
     Map<String, dynamic> permission,
+    String toolName,
+    Map<String, dynamic>? toolInput,
   ) async {
-    final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    await sync.sessionAllow(
-      widget.sessionId!,
-      permId,
-      decision: 'approved_for_session',
+    await _emitPermissionAction(
+      kind: PermissionActionKind.codexApproveForSession,
+      permission: permission,
+      toolName: toolName,
+      toolInput: toolInput,
     );
   }
 
   Future<void> _handleCodexAbort(
     Map<String, dynamic> permission,
+    String toolName,
+    Map<String, dynamic>? toolInput,
   ) async {
-    final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    await sync.sessionDeny(
-      widget.sessionId!,
-      permId,
-      decision: 'abort',
+    await _emitPermissionAction(
+      kind: PermissionActionKind.codexAbort,
+      permission: permission,
+      toolName: toolName,
+      toolInput: toolInput,
     );
+  }
+
+  Future<void> _emitPermissionAction({
+    required PermissionActionKind kind,
+    required Map<String, dynamic> permission,
+    required String toolName,
+    required Map<String, dynamic>? toolInput,
+  }) async {
+    final permId = permission['id'] as String?;
+    final sessionId = widget.sessionId;
+    if (permId == null || sessionId == null) return;
+
+    final action = PermissionAction(
+      kind: kind,
+      sessionId: sessionId,
+      permissionId: permId,
+      toolName: toolName,
+      toolInput: toolInput,
+    );
+
+    final delegate = widget.permissionActionDelegate;
+    if (delegate != null) {
+      await delegate(action);
+      return;
+    }
+
+    await _performPermissionAction(action);
+  }
+
+  Future<void> _performPermissionAction(PermissionAction action) async {
+    switch (action.kind) {
+      case PermissionActionKind.allow:
+        await sync.sessionAllow(action.sessionId, action.permissionId);
+      case PermissionActionKind.deny:
+        await sync.sessionDeny(action.sessionId, action.permissionId);
+      case PermissionActionKind.allowAllEdits:
+        await sync.sessionAllow(
+          action.sessionId,
+          action.permissionId,
+          mode: 'acceptEdits',
+        );
+      case PermissionActionKind.allowForSession:
+        final List<String> allowTools;
+        if (action.toolName == 'Bash') {
+          final command = action.toolInput?['command'] as String? ?? '';
+          allowTools = ['Bash($command)'];
+        } else {
+          allowTools = [action.toolName];
+        }
+        await sync.sessionAllow(
+          action.sessionId,
+          action.permissionId,
+          allowTools: allowTools,
+        );
+      case PermissionActionKind.codexApprove:
+        await sync.sessionAllow(
+          action.sessionId,
+          action.permissionId,
+          decision: 'approved',
+        );
+      case PermissionActionKind.codexApproveForSession:
+        await sync.sessionAllow(
+          action.sessionId,
+          action.permissionId,
+          decision: 'approved_for_session',
+        );
+      case PermissionActionKind.codexAbort:
+        await sync.sessionDeny(
+          action.sessionId,
+          action.permissionId,
+          decision: 'abort',
+        );
+    }
   }
 
   @override
@@ -399,10 +511,13 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
   }
 
   String _snakeToPascal(String str) {
-    return str.split('_').map((word) {
-      if (word.isEmpty) return '';
-      return word[0].toUpperCase() + word.substring(1).toLowerCase();
-    }).join(' ');
+    return str
+        .split('_')
+        .map((word) {
+          if (word.isEmpty) return '';
+          return word[0].toUpperCase() + word.substring(1).toLowerCase();
+        })
+        .join(' ');
   }
 
   @override
@@ -425,14 +540,14 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     } else if (knownTool != null) {
       if (knownTool.title is String) {
         toolTitle = knownTool.title as String;
-      } else if (knownTool.title is String Function(
-        Map<String, dynamic>,
-        Map<String, dynamic>?,
-      )) {
-        toolTitle = (knownTool.title as String Function(
-          Map<String, dynamic>,
-          Map<String, dynamic>?,
-        ))(widget.tool, widget.metadata);
+      } else if (knownTool.title
+          is String Function(Map<String, dynamic>, Map<String, dynamic>?)) {
+        toolTitle =
+            (knownTool.title
+                as String Function(
+                  Map<String, dynamic>,
+                  Map<String, dynamic>?,
+                ))(widget.tool, widget.metadata);
       }
     }
 
@@ -459,10 +574,9 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         permission != null &&
         permission['status'] != 'denied' &&
         permission['status'] != 'canceled';
-    final accentColor =
-        hasPermissionRequest
-            ? _permissionColor
-            : _stateAccentColor(state, theme.colorScheme);
+    final accentColor = hasPermissionRequest
+        ? _permissionColor
+        : _stateAccentColor(state, theme.colorScheme);
 
     // Check for tool-use error
     final resultStr = toolResult?.toString() ?? '';
@@ -508,8 +622,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     // Build tool icon: emoji for MCP, KnownTools icon otherwise
     final Widget toolIcon;
     if (isMCP) {
-      final serverToken =
-          toolName.replaceFirst('mcp__', '').split('__').first;
+      final serverToken = toolName.replaceFirst('mcp__', '').split('__').first;
       toolIcon = Text(
         _mcpServerEmoji(serverToken),
         style: const TextStyle(fontSize: 18),
@@ -584,19 +697,23 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
             toolName: toolName,
             toolInput: toolInput,
             flavor: widget.metadata?['flavor'] as String?,
-            onAllow: () => _handlePermissionAllow(permission),
-            onDeny: () => _handlePermissionDeny(permission),
+            onAllow: () =>
+                _handlePermissionAllow(permission, toolName, toolInput),
+            onDeny: () =>
+                _handlePermissionDeny(permission, toolName, toolInput),
             onAllowAllEdits: () =>
-                _handlePermissionAllowAllEdits(permission),
+                _handlePermissionAllowAllEdits(permission, toolName, toolInput),
             onAllowForSession: () => _handlePermissionAllowForSession(
               permission,
               toolName,
               toolInput,
             ),
-            onCodexApprove: () => _handleCodexApprove(permission),
+            onCodexApprove: () =>
+                _handleCodexApprove(permission, toolName, toolInput),
             onCodexApproveForSession: () =>
-                _handleCodexApproveForSession(permission),
-            onCodexAbort: () => _handleCodexAbort(permission),
+                _handleCodexApproveForSession(permission, toolName, toolInput),
+            onCodexAbort: () =>
+                _handleCodexAbort(permission, toolName, toolInput),
           ),
       ],
     );
@@ -605,8 +722,9 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       animation: _pulseAnim,
       child: invariantChild,
       builder: (context, child) {
-        final borderOpacity =
-            state == ToolState.running ? _pulseAnim.value : 1.0;
+        final borderOpacity = state == ToolState.running
+            ? _pulseAnim.value
+            : 1.0;
         final accentBorder = BorderSide(
           color: accentColor.withValues(alpha: borderOpacity),
           width: 4,
@@ -708,10 +826,29 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
   // Static set of known tool names — used to skip the per-call map allocation
   // when the tool name is not in the set.
   static const Set<String> _knownToolNames = {
-    'Glob', 'Grep', 'LS', 'Read', 'read', 'Edit', 'MultiEdit', 'Write',
-    'edit', 'Bash', 'CodexBash', 'execute', 'CodexPatch', 'CodexDiff',
-    'Task', 'TodoWrite', 'WebFetch', 'WebSearch', 'ExitPlanMode',
-    'exit_plan_mode', 'AskUserQuestion', 'NotebookRead', 'NotebookEdit',
+    'Glob',
+    'Grep',
+    'LS',
+    'Read',
+    'read',
+    'Edit',
+    'MultiEdit',
+    'Write',
+    'edit',
+    'Bash',
+    'CodexBash',
+    'execute',
+    'CodexPatch',
+    'CodexDiff',
+    'Task',
+    'TodoWrite',
+    'WebFetch',
+    'WebSearch',
+    'ExitPlanMode',
+    'exit_plan_mode',
+    'AskUserQuestion',
+    'NotebookRead',
+    'NotebookEdit',
   };
 
   /// Returns a view builder for the named tool, or null for default fallback.
@@ -728,44 +865,44 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     // Fast path: avoid allocating the map for unknown tool names.
     if (!_knownToolNames.contains(toolName)) return null;
 
-    final views = <
-        String,
-        Widget Function(
-          Map<String, dynamic>,
-          Map<String, dynamic>?,
-          List<Map<String, dynamic>>?,
-        )>{
-      'Glob': (t, m, _) => GlobView(tool: t, metadata: m),
-      'Grep': (t, m, _) => GrepView(tool: t, metadata: m),
-      'LS': (t, m, _) => LSView(tool: t, metadata: m),
-      'Read': (t, m, _) => ReadView(tool: t, metadata: m),
-      'read': (t, m, _) => ReadView(tool: t, metadata: m),
-      'Edit': (t, m, _) => EditView(tool: t, metadata: m),
-      'MultiEdit': (t, m, _) => MultiEditView(tool: t, metadata: m),
-      'Write': (t, m, _) => WriteView(tool: t, metadata: m),
-      'edit': (t, m, _) => GeminiEditView(tool: t, metadata: m),
-      'Bash': (t, m, _) => BashView(tool: t, metadata: m),
-      'CodexBash': (t, m, _) => CodexBashView(tool: t, metadata: m),
-      'execute': (t, m, _) => GeminiExecuteView(tool: t, metadata: m),
-      'CodexPatch': (t, m, _) => CodexPatchView(tool: t, metadata: m),
-      'CodexDiff': (t, m, _) => CodexDiffView(tool: t, metadata: m),
-      'Task': (t, m, msgs) => TaskView(
+    final views =
+        <
+          String,
+          Widget Function(
+            Map<String, dynamic>,
+            Map<String, dynamic>?,
+            List<Map<String, dynamic>>?,
+          )
+        >{
+          'Glob': (t, m, _) => GlobView(tool: t, metadata: m),
+          'Grep': (t, m, _) => GrepView(tool: t, metadata: m),
+          'LS': (t, m, _) => LSView(tool: t, metadata: m),
+          'Read': (t, m, _) => ReadView(tool: t, metadata: m),
+          'read': (t, m, _) => ReadView(tool: t, metadata: m),
+          'Edit': (t, m, _) => EditView(tool: t, metadata: m),
+          'MultiEdit': (t, m, _) => MultiEditView(tool: t, metadata: m),
+          'Write': (t, m, _) => WriteView(tool: t, metadata: m),
+          'edit': (t, m, _) => GeminiEditView(tool: t, metadata: m),
+          'Bash': (t, m, _) => BashView(tool: t, metadata: m),
+          'CodexBash': (t, m, _) => CodexBashView(tool: t, metadata: m),
+          'execute': (t, m, _) => GeminiExecuteView(tool: t, metadata: m),
+          'CodexPatch': (t, m, _) => CodexPatchView(tool: t, metadata: m),
+          'CodexDiff': (t, m, _) => CodexDiffView(tool: t, metadata: m),
+          'Task': (t, m, msgs) => TaskView(
             tool: t,
             metadata: m,
             messages: msgs,
             onNavigate: () => widget.onPress?.call(),
           ),
-      'TodoWrite': (t, m, _) => TodoView(tool: t, metadata: m),
-      'WebFetch': (t, m, _) => WebFetchView(tool: t, metadata: m),
-      'WebSearch': (t, m, _) => WebSearchView(tool: t, metadata: m),
-      'ExitPlanMode': (t, m, _) =>
-          ExitPlanToolView(tool: t, metadata: m),
-      'exit_plan_mode': (t, m, _) =>
-          ExitPlanToolView(tool: t, metadata: m),
-      'AskUserQuestion': _buildAskUserQuestionView,
-      'NotebookRead': (t, m, _) => ReadView(tool: t, metadata: m),
-      'NotebookEdit': (t, m, _) => EditView(tool: t, metadata: m),
-    };
+          'TodoWrite': (t, m, _) => TodoView(tool: t, metadata: m),
+          'WebFetch': (t, m, _) => WebFetchView(tool: t, metadata: m),
+          'WebSearch': (t, m, _) => WebSearchView(tool: t, metadata: m),
+          'ExitPlanMode': (t, m, _) => ExitPlanToolView(tool: t, metadata: m),
+          'exit_plan_mode': (t, m, _) => ExitPlanToolView(tool: t, metadata: m),
+          'AskUserQuestion': _buildAskUserQuestionView,
+          'NotebookRead': (t, m, _) => ReadView(tool: t, metadata: m),
+          'NotebookEdit': (t, m, _) => EditView(tool: t, metadata: m),
+        };
     return views[toolName];
   }
 
@@ -774,8 +911,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     Map<String, dynamic>? metadata,
     List<Map<String, dynamic>>? messages,
   ) {
-    final toolUseId =
-        tool['toolUseId'] as String? ?? tool['id'] as String?;
+    final toolUseId = tool['toolUseId'] as String? ?? tool['id'] as String?;
     return AskUserQuestionView(
       key: toolUseId != null ? ValueKey('ask-$toolUseId') : null,
       tool: tool,
@@ -858,10 +994,7 @@ class _ToolHeader extends StatelessWidget {
           SizedBox(
             width: 24,
             height: 24,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: toolIcon,
-            ),
+            child: Align(alignment: Alignment.centerLeft, child: toolIcon),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
@@ -878,10 +1011,7 @@ class _ToolHeader extends StatelessWidget {
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                           fontFamily: 'monospace',
-                          fontFamilyFallback: const [
-                            'Courier New',
-                            'Courier',
-                          ],
+                          fontFamilyFallback: const ['Courier New', 'Courier'],
                           fontSize: 13,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -922,29 +1052,24 @@ class _ToolHeader extends StatelessWidget {
           // Status icon / check flash
           const SizedBox(width: AppSpacing.sm - 2),
           AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (child, animation) => ScaleTransition(
-                scale: animation,
-                child: FadeTransition(
-                  opacity: animation,
-                  child: child,
-                ),
-              ),
-              child: showCheckFlash
-                  ? Icon(
-                      Icons.check_circle,
-                      key: const ValueKey('flash'),
-                      size: 20,
-                      color: const Color(0xFF34C759),
-                    )
-                  : (statusIcon != null
+            duration: const Duration(milliseconds: 300),
+            transitionBuilder: (child, animation) => ScaleTransition(
+              scale: animation,
+              child: FadeTransition(opacity: animation, child: child),
+            ),
+            child: showCheckFlash
+                ? Icon(
+                    Icons.check_circle,
+                    key: const ValueKey('flash'),
+                    size: 20,
+                    color: const Color(0xFF34C759),
+                  )
+                : (statusIcon != null
                       ? SizedBox(
                           key: const ValueKey('status'),
                           child: statusIcon,
                         )
-                      : const SizedBox.shrink(
-                          key: ValueKey('empty'),
-                        )),
+                      : const SizedBox.shrink(key: ValueKey('empty'))),
           ),
           // Expand/collapse chevron
           if (hasContent) ...[
@@ -1006,10 +1131,7 @@ class _ToolStatusBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: bg.withValues(alpha: 0.35),
-          width: 0.5,
-        ),
+        border: Border.all(color: bg.withValues(alpha: 0.35), width: 0.5),
       ),
       alignment: Alignment.center,
       child: child,
@@ -1084,10 +1206,8 @@ class _PulsingProgressIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: animation,
-      builder: (context, child) => Opacity(
-        opacity: animation.value,
-        child: child,
-      ),
+      builder: (context, child) =>
+          Opacity(opacity: animation.value, child: child),
       child: SizedBox(
         width: size,
         height: size,
@@ -1100,11 +1220,7 @@ class _PulsingProgressIndicator extends StatelessWidget {
 /// Compact tool view for minimal mode (header only, no expandable content).
 class ToolViewMinimal extends StatelessWidget {
   /// Creates a [ToolViewMinimal].
-  const ToolViewMinimal({
-    required this.tool,
-    super.key,
-    this.metadata,
-  });
+  const ToolViewMinimal({required this.tool, super.key, this.metadata});
 
   /// The tool call data.
   final Map<String, dynamic> tool;
