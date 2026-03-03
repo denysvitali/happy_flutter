@@ -41,6 +41,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   bool _didStartInitialLoad = false;
   int _prevMessagesLength = 0;
+  int _messagesFingerprint = 0;
   bool _autoScroll = true;
   static const double _autoScrollThreshold = 100;
 
@@ -166,9 +167,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _refreshFromSync({bool markLoaded = false}) {
     final latestSession = sync.sessions[widget.sessionId];
     final latestMessages = sync.messagesForSession(widget.sessionId);
+    final latestMessagesFingerprint = _computeMessagesFingerprint(
+      latestMessages,
+    );
 
     final sessionChanged = latestSession != _session;
-    final messagesChanged = !_sameMessages(latestMessages, _messages);
+    final messagesChanged = latestMessagesFingerprint != _messagesFingerprint;
     if (!sessionChanged && !messagesChanged && !markLoaded) {
       return;
     }
@@ -197,6 +201,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       _messages = latestMessages;
       _prevMessagesLength = latestMessages.length;
+      _messagesFingerprint = latestMessagesFingerprint;
 
       if (sessionChanged) {
         _metadataJson = latestSession?.metadata?.toJson();
@@ -246,20 +251,44 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String _messageKey(Map<String, dynamic> m) =>
       m['id'] as String? ?? m['toolUseId'] as String? ?? '';
 
-  bool _sameMessages(
-    List<Map<String, dynamic>> a,
-    List<Map<String, dynamic>> b,
-  ) {
-    if (a.length != b.length) return false;
-    if (a.isEmpty) return true;
-    final lastA = a[a.length - 1];
-    final lastB = b[b.length - 1];
-    if (lastA['id'] != lastB['id']) return false;
-    if (lastA['seq'] != lastB['seq']) return false;
-    final firstA = a[0];
-    final firstB = b[0];
-    if (firstA['id'] != firstB['id']) return false;
-    return true;
+  int _computeMessagesFingerprint(List<Map<String, dynamic>> messages) {
+    var hash = messages.length;
+    for (final message in messages) {
+      final content = message['content'];
+      final children = message['children'];
+      final permission = message['permission'];
+      final childList = children is List<dynamic> ? children : null;
+      final childCount = childList?.length ?? 0;
+      final lastChild = childCount > 0 ? childList!.last : null;
+      final lastChildId = lastChild is Map<String, dynamic>
+          ? lastChild['id']
+          : null;
+      final contentHash = switch (content) {
+        final String text => Object.hash(text.length, text.hashCode),
+        final List<dynamic> list => list.length,
+        final Map<dynamic, dynamic> map => map.length,
+        _ => content?.hashCode ?? 0,
+      };
+      final permissionStatus = permission is Map<String, dynamic>
+          ? permission['status']
+          : null;
+      hash = Object.hash(
+        hash,
+        message['id'],
+        message['seq'],
+        message['role'],
+        message['kind'],
+        message['state'],
+        message['isThinking'],
+        message['completedAt'],
+        message['result'],
+        contentHash,
+        childCount,
+        lastChildId,
+        permissionStatus,
+      );
+    }
+    return hash;
   }
 
   void _scrollToBottom() {
@@ -739,27 +768,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _onOptionPress(String option) async {
     if (_isSending) return;
-    setState(() => _isSending = true);
     try {
       if (!sync.isInitialized) {
         throw StateError('Sync is not initialized');
       }
-      await sync.sendMessage(
+      final sentSessionId = await sync.sendMessage(
         widget.sessionId,
         option,
         displayText: option,
         permissionMode: _permissionMode.toModeString(),
         modelMode: _modelMode.modeString,
       );
+      if (_followRedirectedSession(sentSessionId)) {
+        return;
+      }
       _refreshFromSync();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
+          SnackBar(
+            content: Text('${context.l10n.chatFailedToSend}: $e'),
+          ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isSending = false);
     }
   }
 
@@ -782,12 +813,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         if (!sync.isInitialized) {
           throw StateError('Sync is not initialized');
         }
-        await sync.sendMessage(
+        final sentSessionId = await sync.sendMessage(
           widget.sessionId,
           text,
           permissionMode: _permissionMode.toModeString(),
           modelMode: _modelMode.modeString,
         );
+        if (_followRedirectedSession(sentSessionId)) {
+          return;
+        }
         _refreshFromSync();
         _scrollToBottom();
       } catch (e) {
@@ -795,7 +829,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           setState(() => _controller.text = text);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(context.l10n.chatFailedToClear(e.toString())),
+              content: Text(
+                context.l10n.chatFailedToClear(e.toString()),
+              ),
             ),
           );
         }
@@ -805,37 +841,63 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return;
     }
 
+    // Clear input immediately — the message appears via optimistic
+    // insert before the REST call completes.
     setState(() {
-      _isSending = true;
       _controller.clear();
+      _autoScroll = true;
     });
 
-    try {
-      unawaited(DraftStorage().removeDraft(widget.sessionId));
+    unawaited(DraftStorage().removeDraft(widget.sessionId));
 
-      if (!sync.isInitialized) {
-        throw StateError('Sync is not initialized');
-      }
-      await sync.sendMessage(
+    if (!sync.isInitialized) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${context.l10n.chatFailedToSend}: Sync not initialized',
+          ),
+        ),
+      );
+      setState(() => _controller.text = text);
+      return;
+    }
+
+    try {
+      // sendMessage returns as soon as the optimistic message is
+      // inserted (fast). The REST POST runs in the background.
+      final sentSessionId = await sync.sendMessage(
         widget.sessionId,
         text,
         displayText: text,
         permissionMode: _permissionMode.toModeString(),
         modelMode: _modelMode.modeString,
       );
+      if (_followRedirectedSession(sentSessionId)) {
+        return;
+      }
+      // The onSessionMessagesChanged stream will refresh the UI
+      // automatically, but do an explicit refresh for good measure.
       _refreshFromSync();
     } catch (e) {
+      // Only fires if encryption or session resolution fails (fast
+      // path). Background send errors are surfaced via sendStatus.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
+          SnackBar(
+            content: Text('${context.l10n.chatFailedToSend}: $e'),
+          ),
         );
         _controller.text = text;
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isSending = false);
-      }
     }
+  }
+
+  bool _followRedirectedSession(String sentSessionId) {
+    if (!mounted || sentSessionId == widget.sessionId) {
+      return false;
+    }
+    context.goNamed('chat', pathParameters: {'sessionId': sentSessionId});
+    return true;
   }
 
   void _showUnsentMessageDialog(BuildContext context) {

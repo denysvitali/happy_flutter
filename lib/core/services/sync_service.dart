@@ -2710,7 +2710,17 @@ what you have, you must use the options mode.
     }
   }
 
-  /// Send message to session
+  /// Send message to session.
+  ///
+  /// Returns the target session ID synchronously after the optimistic
+  /// message is inserted and the UI is notified. The actual REST POST
+  /// and socket emit run in the background — callers should NOT await
+  /// this method if they want instant feedback.
+  ///
+  /// The optimistic message carries a `'sendStatus'` field:
+  /// - `'sending'` — immediately after insert
+  /// - `'sent'`    — after server ACK
+  /// - `'failed'`  — on error (message is kept so the user can see it)
   Future<String> sendMessage(
     String sessionId,
     String text, {
@@ -2720,38 +2730,27 @@ what you have, you must use the options mode.
   }) async {
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
-      // Encryption may not be initialized yet if a new-session event arrived
-      // but fetchSessions() hasn't completed. Wait for the pending fetch.
       await sessionsSync.invalidateAndAwait();
       sessionEncryption = encryption.getSessionEncryption(sessionId);
       if (sessionEncryption == null) {
-        // Last resort: force a full (non-delta) fetch to bypass any
-        // changedSince race that may have caused the session to be skipped.
         _forceFullFetchNext = true;
         await sessionsSync.invalidateAndAwait();
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
       if (sessionEncryption == null) {
-        throw StateError('Session encryption not initialized for $sessionId');
+        throw StateError(
+          'Session encryption not initialized for $sessionId',
+        );
       }
     }
 
     var session = _sessions[sessionId];
     if (session == null) {
-      // Retry: the session may not be in _sessions due to the changedSince
-      // delta-fetch race. Use _forceFullFetchNext flag
-      // (not _lastSessionsFetchedAt = null) to avoid TOCTOU:
-      // a concurrent fetch completing can overwrite
-      // _lastSessionsFetchedAt before the forced fetch reads it.
       _forceFullFetchNext = true;
       await sessionsSync.invalidateAndAwait();
       session = _sessions[sessionId];
     }
     if (session == null) {
-      // Last resort: the server's REST endpoint still hasn't propagated
-      // the session (replication lag). Since encryption IS available
-      // (we passed the guard above), the session definitely exists —
-      // create a placeholder so the message can be sent.
       final now = DateTime.now().millisecondsSinceEpoch;
       session = Session(
         id: sessionId,
@@ -2773,9 +2772,11 @@ what you have, you must use the options mode.
     final sandboxEnabled = session.metadata?.sandboxEnabled ?? false;
     final storedPermissionMode = session.permissionMode;
     final effectivePermissionMode =
-        requestedPermissionMode != null && requestedPermissionMode != 'default'
+        requestedPermissionMode != null &&
+            requestedPermissionMode != 'default'
         ? requestedPermissionMode
-        : (storedPermissionMode != null && storedPermissionMode != 'default')
+        : (storedPermissionMode != null &&
+            storedPermissionMode != 'default')
         ? storedPermissionMode
         : (sandboxEnabled ? 'bypassPermissions' : 'default');
 
@@ -2815,10 +2816,10 @@ what you have, you must use the options mode.
       TargetPlatform.macOS => 'mac',
       _ => 'web',
     };
-    final model = effectiveModelMode != 'default' ? effectiveModelMode : null;
+    final model =
+        effectiveModelMode != 'default' ? effectiveModelMode : null;
 
     final rawRecord = <String, dynamic>{
-      // Keep legacy user payload for daemon compatibility.
       'role': 'user',
       'content': <String, dynamic>{'type': 'text', 'text': text},
       'meta': <String, dynamic>{
@@ -2831,17 +2832,18 @@ what you have, you must use the options mode.
       },
     };
     logger.info(
-      '[sendMessage] START session=$targetSessionId localId=$localId '
+      '[sendMessage] START session=$targetSessionId '
+      'localId=$localId '
       'requestedSession=$sessionId '
       'mode=$wirePermissionMode '
       'model=${model ?? 'default'} '
       'textLen=${text.length}',
     );
 
-    final encryptedRawRecord = await sessionEncryption.encryptRawRecord(
-      rawRecord,
-    );
+    final encryptedRawRecord =
+        await sessionEncryption.encryptRawRecord(rawRecord);
 
+    // ── Optimistic insert — UI sees the message immediately ──
     _upsertSessionMessages(targetSessionId, [
       {
         'id': localId,
@@ -2852,25 +2854,53 @@ what you have, you must use the options mode.
         'kind': 'text',
         'content': text,
         'raw': rawRecord,
+        'sendStatus': 'sending',
       },
     ]);
-
-    // Wait for the agent to come online (presence == 'online').
-    // Auto-restore was attempted in _resolveSendTargetSession() if the
-    // daemon appeared offline. This polls until the daemon's
-    // session-alive keep-alives arrive (handleEphemeralUpdate sets
-    // presence to 'online'), or times out after 10 s and sends anyway.
-    final ready = await waitForAgentReady(targetSessionId);
-    if (!ready) {
-      logger.info(
-        '[sendMessage] agent not ready for $targetSessionId, sending anyway',
-      );
+    // Notify listeners so the chat screen renders it NOW.
+    if (!_sessionMessageChangeController.isClosed) {
+      _sessionMessageChangeController.add(targetSessionId);
     }
 
+    // ── Background: REST POST + socket emit ──
+    // Fire-and-forget — the caller returns targetSessionId immediately.
+    unawaited(
+      _completeSend(
+        targetSessionId: targetSessionId,
+        localId: localId,
+        text: text,
+        rawRecord: rawRecord,
+        encryptedRawRecord: encryptedRawRecord,
+      ),
+    );
+
+    return targetSessionId;
+  }
+
+  /// Background half of [sendMessage]: waits for agent, POSTs to REST,
+  /// emits socket event, and updates the optimistic message status.
+  Future<void> _completeSend({
+    required String targetSessionId,
+    required String localId,
+    required String text,
+    required Map<String, dynamic> rawRecord,
+    required String encryptedRawRecord,
+  }) async {
     final apiClient = ApiClient();
     var sent = false;
-    var catchUpStopAfterSeq = (_sessionLastSeq[targetSessionId] ?? 0) + 1;
+    var catchUpStopAfterSeq =
+        (_sessionLastSeq[targetSessionId] ?? 0) + 1;
     try {
+      // Wait for agent readiness (polls up to 10 s, sends anyway on
+      // timeout). This no longer blocks the UI.
+      final ready = await waitForAgentReady(targetSessionId);
+      if (!ready) {
+        logger.info(
+          '[sendMessage] agent not ready for '
+          '$targetSessionId, sending anyway',
+        );
+      }
+
       final socketConnected = _isSocketConnected();
       logger.info(
         '[sendMessage] socketConnected=$socketConnected '
@@ -2886,24 +2916,23 @@ what you have, you must use the options mode.
         },
       );
       logger.info(
-        '[sendMessage] POST /v3/sessions/$targetSessionId/messages '
+        '[sendMessage] POST '
+        '/v3/sessions/$targetSessionId/messages '
         'status=${response.statusCode} '
         'localId=$localId',
       );
 
       if (apiClient.isSuccess(response)) {
         final data = response.data as Map<String, dynamic>?;
-        final serverMessages = (data?['messages'] as List<dynamic>? ?? [])
+        final serverMessages =
+            (data?['messages'] as List<dynamic>? ?? [])
             .whereType<Map<String, dynamic>>()
             .toList();
         logger.info(
-          '[sendMessage] response contained ${serverMessages.length} '
-          'message(s) localId=$localId',
+          '[sendMessage] response contained '
+          '${serverMessages.length} message(s) localId=$localId',
         );
 
-        // Treat the send as acknowledged only when the server echoes the
-        // same localId. Some backend variants return 2xx without an acked
-        // message, which otherwise leaves a phantom optimistic message.
         Map<String, dynamic>? ackedServerMsg;
         for (final msg in serverMessages) {
           if (msg['localId'] == localId) {
@@ -2916,13 +2945,15 @@ what you have, you must use the options mode.
           sent = true;
           final serverId = ackedServerMsg['id'] as String?;
           final serverSeq = _asInt(ackedServerMsg['seq']);
-          final serverCreatedAt = _asInt(ackedServerMsg['createdAt']);
+          final serverCreatedAt =
+              _asInt(ackedServerMsg['createdAt']);
           if (serverSeq != null) {
             catchUpStopAfterSeq = serverSeq;
           }
           logger.info(
             '[sendMessage] ACK localId=$localId '
-            'serverId=${serverId ?? 'null'} seq=${serverSeq ?? -1}',
+            'serverId=${serverId ?? 'null'} '
+            'seq=${serverSeq ?? -1}',
           );
           if (serverId != null &&
               serverSeq != null &&
@@ -2937,19 +2968,23 @@ what you have, you must use the options mode.
                 'kind': 'text',
                 'content': text,
                 'raw': rawRecord,
+                'sendStatus': 'sent',
               },
             ]);
           } else {
+            // Mark sent even without full server fields.
+            _updateMessageSendStatus(
+              targetSessionId,
+              localId,
+              'sent',
+            );
             logger.warning(
-              '[sendMessage] server ack missing id/seq/createdAt '
+              '[sendMessage] server ack missing '
+              'id/seq/createdAt '
               'session=$targetSessionId localId=$localId',
             );
           }
 
-          // Also emit via socket so the daemon processes the message.
-          // REST POST alone may not trigger daemon routing; the server
-          // deduplicates by localId so this is safe.
-          // Re-check socket status (may have connected during REST call).
           final socketNow = _isSocketConnected();
           if (socketNow) {
             logger.info(
@@ -2981,15 +3016,19 @@ what you have, you must use the options mode.
               'localId': localId,
             });
             sent = true;
+            _updateMessageSendStatus(
+              targetSessionId,
+              localId,
+              'sent',
+            );
           } else {
             throw StateError(
-              'Failed to send message: server did not acknowledge message',
+              'Failed to send message: '
+              'server did not acknowledge message',
             );
           }
         }
 
-        // Fallback catch-up: if socket update delivery is delayed or missed,
-        // run a bounded polling window so assistant output still appears.
         if (sent && messagesSync.containsKey(targetSessionId)) {
           _startPostSendCatchUp(
             targetSessionId,
@@ -3002,12 +3041,42 @@ what you have, you must use the options mode.
           'session=$targetSessionId '
           'body=${response.data}',
         );
-        throw StateError('Failed to send message: ${response.statusCode}');
+        throw StateError(
+          'Failed to send message: ${response.statusCode}',
+        );
       }
-    } finally {
-      if (!sent) _removeOptimisticMessage(targetSessionId, localId);
+    } catch (e, stack) {
+      logger.error('[sendMessage] error sending', e, stack);
+      if (!sent) {
+        _updateMessageSendStatus(
+          targetSessionId,
+          localId,
+          'failed',
+        );
+      }
     }
-    return targetSessionId;
+    // Notify so the UI picks up status changes (sent/failed).
+    if (!_sessionMessageChangeController.isClosed) {
+      _sessionMessageChangeController.add(targetSessionId);
+    }
+  }
+
+  /// Update the `sendStatus` field of an optimistic message in-place.
+  void _updateMessageSendStatus(
+    String sessionId,
+    String localId,
+    String status,
+  ) {
+    final msgs = _sessionMessages[sessionId];
+    if (msgs == null) return;
+    for (var i = 0; i < msgs.length; i++) {
+      final m = msgs[i];
+      if (m['localId'] == localId || m['id'] == localId) {
+        msgs[i] = {...m, 'sendStatus': status};
+        _sessionMessagesCache = null;
+        break;
+      }
+    }
   }
 
   void _startPostSendCatchUp(String sessionId, {required int stopAfterSeq}) {
@@ -3049,16 +3118,6 @@ what you have, you must use the options mode.
         messagesSync[sessionId]?.invalidate();
       },
     );
-  }
-
-  void _removeOptimisticMessage(String sessionId, String localId) {
-    final msgs = _sessionMessages[sessionId];
-    if (msgs != null) {
-      _sessionMessages[sessionId] = msgs
-          .where((m) => m['id'] != localId)
-          .toList();
-      _sessionMessagesCache = null;
-    }
   }
 
   /// RPC call for machines - uses machine-specific encryption.

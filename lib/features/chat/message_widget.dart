@@ -134,13 +134,23 @@ class _MessageWidgetState extends State<MessageWidget>
       );
     }
 
+    final sendStatus =
+        widget.messageData['sendStatus'] as String?;
+
     return FadeTransition(
       opacity: _opacity,
       child: SlideTransition(
         position: _slide,
         child: widget.isFromCurrentUser
-            ? _UserBubble(text: text, onOptionPress: widget.onOptionPress)
-            : _BotMessage(text: text, onOptionPress: widget.onOptionPress),
+            ? _UserBubble(
+                text: text,
+                onOptionPress: widget.onOptionPress,
+                sendStatus: sendStatus,
+              )
+            : _BotMessage(
+                text: text,
+                onOptionPress: widget.onOptionPress,
+              ),
       ),
     );
   }
@@ -151,10 +161,18 @@ class _MessageWidgetState extends State<MessageWidget>
 // ---------------------------------------------------------------------------
 
 class _UserBubble extends StatelessWidget {
-  const _UserBubble({required this.text, this.onOptionPress});
+  const _UserBubble({
+    required this.text,
+    this.onOptionPress,
+    this.sendStatus,
+  });
 
   final String text;
   final void Function(String)? onOptionPress;
+
+  /// `null` = confirmed (server-origin), `'sending'`, `'sent'`,
+  /// `'failed'`.
+  final String? sendStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -170,37 +188,123 @@ class _UserBubble extends StatelessWidget {
           top: 1,
           bottom: 2,
         ),
-        child: GestureDetector(
-          onLongPress: () {
-            HapticFeedback.mediumImpact();
-            _showRawMarkdownSheet(context, text);
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md + 2,
-              vertical: AppSpacing.sm + 2,
-            ),
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.sizeOf(context).width * 0.80,
-            ),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(18),
-                topRight: Radius.circular(18),
-                bottomLeft: Radius.circular(18),
-                bottomRight: Radius.circular(6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onLongPress: () {
+                HapticFeedback.mediumImpact();
+                _showRawMarkdownSheet(context, text);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md + 2,
+                  vertical: AppSpacing.sm + 2,
+                ),
+                constraints: BoxConstraints(
+                  maxWidth:
+                      MediaQuery.sizeOf(context).width * 0.80,
+                ),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(18),
+                    topRight: Radius.circular(18),
+                    bottomLeft: Radius.circular(18),
+                    bottomRight: Radius.circular(6),
+                  ),
+                ),
+                child: MarkdownView(
+                  markdown: text,
+                  onOptionPress: onOptionPress,
+                  textColor: theme.colorScheme.onPrimary,
+                ),
               ),
             ),
-            child: MarkdownView(
-              markdown: text,
-              onOptionPress: onOptionPress,
-              textColor: theme.colorScheme.onPrimary,
-            ),
-          ),
+            if (sendStatus != null)
+              _SendStatusIndicator(status: sendStatus!),
+          ],
         ),
       ),
     );
+  }
+}
+
+/// Tiny status label shown below user bubbles for optimistic messages.
+class _SendStatusIndicator extends StatelessWidget {
+  const _SendStatusIndicator({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final style = Theme.of(context).textTheme.labelSmall?.copyWith(
+      fontSize: 10,
+      height: 1.2,
+    );
+
+    switch (status) {
+      case 'sending':
+        return Padding(
+          padding: const EdgeInsets.only(
+            top: 3,
+            right: 2,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 8,
+                height: 8,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1,
+                  color: cs.onSurfaceVariant.withValues(
+                    alpha: 0.4,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 3),
+              Text(
+                'Sending',
+                style: style?.copyWith(
+                  color: cs.onSurfaceVariant.withValues(
+                    alpha: 0.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      case 'failed':
+        return Padding(
+          padding: const EdgeInsets.only(
+            top: 3,
+            right: 2,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 10,
+                color: cs.error.withValues(alpha: 0.8),
+              ),
+              const SizedBox(width: 3),
+              Text(
+                'Failed to send',
+                style: style?.copyWith(
+                  color: cs.error.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+        );
+      default:
+        // 'sent' or unknown — no indicator.
+        return const SizedBox.shrink();
+    }
   }
 }
 
