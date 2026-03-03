@@ -691,9 +691,6 @@ what you have, you must use the options mode.
   /// Handle new message update
   void _handleNewMessage(Map<String, dynamic> data) {
     final sessionId = data['sid'] as String? ?? data['id'] as String?;
-    if (sessionId != null) {
-      _requestTailRefresh(sessionId);
-    }
     if (sessionId != null && messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId]?.invalidate();
     }
@@ -3093,7 +3090,6 @@ what you have, you must use the options mode.
           return;
         }
 
-        _requestTailRefresh(sessionId);
         messagesSync[sessionId]?.invalidate();
       },
     );
