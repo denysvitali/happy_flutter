@@ -331,6 +331,29 @@ void main() {
       expect(result.$2, isEmpty);
     });
 
+    test('maps session protocol user text events', () {
+      final result = instance.testProcessDecryptedMessage(
+        id: 'msg_session_user_1',
+        seq: 10,
+        sessionId: 'session_1',
+        content: {
+          'role': 'session',
+          'content': {
+            'id': 'sess_user_ev_1',
+            'time': 1700000001500,
+            'role': 'user',
+            'ev': {'t': 'text', 'text': 'User session text'},
+          },
+        },
+      );
+
+      expect(result.$1, hasLength(1));
+      expect(result.$1.first['kind'], 'text');
+      expect(result.$1.first['role'], 'user');
+      expect(result.$1.first['content'], 'User session text');
+      expect(result.$2, isEmpty);
+    });
+
     test('maps session protocol tool lifecycle events', () {
       final startResult = instance.testProcessDecryptedMessage(
         id: 'msg_session_2_start',

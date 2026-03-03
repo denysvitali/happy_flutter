@@ -2575,8 +2575,14 @@ what you have, you must use the options mode.
     final model = effectiveModelMode != 'default' ? effectiveModelMode : null;
 
     final rawRecord = <String, dynamic>{
-      'role': 'user',
-      'content': <String, dynamic>{'type': 'text', 'text': text},
+      // Emit modern session-protocol user payloads for cross-client parity.
+      'role': 'session',
+      'content': <String, dynamic>{
+        'id': localId,
+        'time': DateTime.now().millisecondsSinceEpoch,
+        'role': 'user',
+        'ev': <String, dynamic>{'t': 'text', 'text': text},
+      },
       'meta': <String, dynamic>{
         'sentFrom': sentFrom,
         'permissionMode': effectivePermissionMode,
@@ -4024,22 +4030,42 @@ what you have, you must use the options mode.
         );
       }
 
-      if (eventRole == 'user' && isSidechain && text.isNotEmpty) {
-        return (
-          [
-            {
-              'id': '${envelopeId}_sc',
-              'seq': message.seq,
-              'createdAt': eventCreatedAt,
-              'kind': 'sidechain-root',
-              'isSidechain': true,
-              'prompt': text,
-              if (uuid.isNotEmpty) 'uuid': uuid,
-              'parentUuid': parentUuid,
-            },
-          ],
-          [],
-        );
+      if (eventRole == 'user') {
+        if (isSidechain && text.isNotEmpty) {
+          return (
+            [
+              {
+                'id': '${envelopeId}_sc',
+                'seq': message.seq,
+                'createdAt': eventCreatedAt,
+                'kind': 'sidechain-root',
+                'isSidechain': true,
+                'prompt': text,
+                if (uuid.isNotEmpty) 'uuid': uuid,
+                'parentUuid': parentUuid,
+              },
+            ],
+            [],
+          );
+        }
+
+        if (text.isNotEmpty) {
+          return (
+            [
+              {
+                'id': envelopeId,
+                'localId': message.localId,
+                'seq': message.seq,
+                'createdAt': eventCreatedAt,
+                'role': 'user',
+                'kind': 'text',
+                'content': text,
+                'raw': outerContent,
+              },
+            ],
+            [],
+          );
+        }
       }
 
       return ([], []);

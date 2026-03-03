@@ -1,0 +1,158 @@
+import 'package:dio/dio.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/api/api_client.dart';
+import 'package:happy_flutter/core/encryption/encryption_manager.dart';
+import 'package:happy_flutter/core/encryption/session_encryption.dart';
+import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/services/sync_service.dart';
+import 'package:happy_flutter/core/utils/invalidate_sync.dart';
+
+class _CapturingSessionEncryption implements SessionEncryption {
+  Map<String, dynamic>? lastRawRecord;
+
+  @override
+  Future<String> encryptRawRecord(Map<String, dynamic> record) async {
+    lastRawRecord = Map<String, dynamic>.from(record);
+    return 'encrypted-content';
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeEncryption implements Encryption {
+  _FakeEncryption({required this.sessionEncryption, required this.fixedId});
+
+  final SessionEncryption sessionEncryption;
+  final String fixedId;
+
+  @override
+  SessionEncryption? getSessionEncryption(String sessionId) =>
+      sessionEncryption;
+
+  @override
+  String generateId() => fixedId;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+void _stubAllSyncs(Sync instance) {
+  instance.sessionsSync = InvalidateSync(() async {});
+  instance.settingsSync = InvalidateSync(() async {});
+  instance.profileSync = InvalidateSync(() async {});
+  instance.purchasesSync = InvalidateSync(() async {});
+  instance.machinesSync = InvalidateSync(() async {});
+  instance.pushTokenSync = InvalidateSync(() async {});
+  instance.nativeUpdateSync = InvalidateSync(() async {});
+  instance.artifactsSync = InvalidateSync(() async {});
+  instance.friendsSync = InvalidateSync(() async {});
+  instance.friendRequestsSync = InvalidateSync(() async {});
+  instance.feedSync = InvalidateSync(() async {});
+  instance.todosSync = InvalidateSync(() async {});
+  instance.messagesSync.clear();
+}
+
+Session _readySession(String id) => Session(
+  id: id,
+  seq: 1,
+  createdAt: 1700000000000,
+  updatedAt: 1700000000000,
+  active: true,
+  activeAt: 1700000000000,
+  metadataVersion: 1,
+  agentStateVersion: 1,
+  thinking: false,
+  presence: 'online',
+);
+
+void main() {
+  group('Sync.sendMessage protocol', () {
+    late Sync instance;
+    late _CapturingSessionEncryption sessionEncryption;
+    dynamic capturedRequestData;
+
+    setUp(() async {
+      instance = Sync();
+      _stubAllSyncs(instance);
+      instance.testSessions.clear();
+      instance.testSessions['sess-1'] = _readySession('sess-1');
+
+      sessionEncryption = _CapturingSessionEncryption();
+      instance.encryption = _FakeEncryption(
+        sessionEncryption: sessionEncryption,
+        fixedId: 'local-1',
+      );
+
+      capturedRequestData = null;
+      await ApiClient().initialize(serverUrl: 'http://localhost');
+      ApiClient().testDio!.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            if (options.path == '/v3/sessions/sess-1/messages') {
+              capturedRequestData = options.data;
+              handler.resolve(
+                Response<dynamic>(
+                  requestOptions: options,
+                  statusCode: 200,
+                  data: <String, dynamic>{
+                    'messages': <Map<String, dynamic>>[
+                      <String, dynamic>{
+                        'id': 'srv-msg-1',
+                        'seq': 2,
+                        'localId': 'local-1',
+                        'createdAt': 1700000005000,
+                      },
+                    ],
+                  },
+                ),
+              );
+              return;
+            }
+
+            handler.resolve(
+              Response<dynamic>(
+                requestOptions: options,
+                statusCode: 404,
+                data: <String, dynamic>{},
+              ),
+            );
+          },
+        ),
+      );
+    });
+
+    tearDown(() {
+      ApiClient().dispose();
+      instance.testSessions.clear();
+    });
+
+    test('sends modern session user envelope', () async {
+      await instance.sendMessage('sess-1', 'Hello from Flutter');
+
+      final raw = sessionEncryption.lastRawRecord;
+      expect(raw, isNotNull);
+      expect(raw!['role'], 'session');
+
+      final content = raw['content'] as Map<String, dynamic>;
+      expect(content['id'], 'local-1');
+      expect(content['role'], 'user');
+      expect(content['time'], isA<int>());
+
+      final ev = content['ev'] as Map<String, dynamic>;
+      expect(ev['t'], 'text');
+      expect(ev['text'], 'Hello from Flutter');
+
+      final meta = raw['meta'] as Map<String, dynamic>;
+      expect(meta['sentFrom'], isA<String>());
+      expect(meta['appendSystemPrompt'], isA<String>());
+
+      final requestData = capturedRequestData as Map<String, dynamic>;
+      final messages = requestData['messages'] as List<dynamic>;
+      expect(messages, hasLength(1));
+      final message = messages.first as Map<String, dynamic>;
+      expect(message['localId'], 'local-1');
+      expect(message['content'], 'encrypted-content');
+    });
+  });
+}
