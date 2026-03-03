@@ -2305,7 +2305,7 @@ what you have, you must use the options mode.
           metadataVersion: 0,
           agentStateVersion: 0,
           thinking: false,
-          presence: 'online',
+          presence: 'offline',
         );
         _notifyDataChanged();
       }
@@ -2653,7 +2653,7 @@ what you have, you must use the options mode.
           metadataVersion: 0,
           agentStateVersion: 0,
           thinking: false,
-          presence: 'online',
+          presence: 'offline',
         );
         _sessions[restoredSessionId] = restoredSession;
         _notifyDataChanged();
@@ -2759,7 +2759,7 @@ what you have, you must use the options mode.
         metadataVersion: 0,
         agentStateVersion: 0,
         thinking: false,
-        presence: 'online',
+        presence: 'offline',
       );
       _sessions[sessionId] = session;
       _notifyDataChanged();
