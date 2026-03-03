@@ -3244,6 +3244,10 @@ what you have, you must use the options mode.
   }
 
   /// Allow a permission request for a session.
+  ///
+  /// The server acknowledges with `ok: true` but the response
+  /// payload shape varies — the RN app ignores it entirely, so
+  /// we just fire-and-forget the RPC without deserialising.
   Future<void> sessionAllow(
     String sessionId,
     String permissionId, {
@@ -3251,7 +3255,7 @@ what you have, you must use the options mode.
     List<String>? allowTools,
     String? decision,
   }) async {
-    await _typedSessionRPC(
+    await sessionRPC(
       sessionId,
       'permission',
       PermissionRequest(
@@ -3261,17 +3265,18 @@ what you have, you must use the options mode.
         allowTools: allowTools,
         decision: decision,
       ).toJson(),
-      PermissionResponse.fromJson,
     );
   }
 
   /// Deny a permission request for a session.
+  ///
+  /// See [sessionAllow] — response payload is ignored.
   Future<void> sessionDeny(
     String sessionId,
     String permissionId, {
     String? decision,
   }) async {
-    await _typedSessionRPC(
+    await sessionRPC(
       sessionId,
       'permission',
       PermissionRequest(
@@ -3279,7 +3284,6 @@ what you have, you must use the options mode.
         approved: false,
         decision: decision,
       ).toJson(),
-      PermissionResponse.fromJson,
     );
   }
 

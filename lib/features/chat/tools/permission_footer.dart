@@ -79,7 +79,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
     setState(() => _loading = true);
     try {
       await cb();
-    } on Exception catch (e) {
+    } on Object catch (e) {
       logger.error('Permission action failed: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
