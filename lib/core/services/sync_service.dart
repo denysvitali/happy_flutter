@@ -3288,6 +3288,25 @@ what you have, you must use the options mode.
     return false;
   }
 
+  /// Locally clear stale permission requests from a session's
+  /// [AgentState] so the UI immediately unlocks the input box
+  /// and hides the "permission required" banner.
+  void _clearStalePermissionRequests(String sessionId) {
+    final session = _sessions[sessionId];
+    if (session == null) return;
+    if (session.agentState?.requests == null ||
+        session.agentState!.requests!.isEmpty) {
+      return;
+    }
+    _sessions[sessionId] = session.copyWith(
+      agentState: AgentState(
+        controlledByUser: session.agentState?.controlledByUser,
+        completedRequests: session.agentState?.completedRequests,
+      ),
+    );
+    _notifyDataChanged();
+  }
+
   /// Allow a permission request for a session.
   ///
   /// The server acknowledges with `ok: true` but the response
@@ -3302,8 +3321,7 @@ what you have, you must use the options mode.
   }) async {
     final restored = await _ensureSessionProcess(sessionId);
     if (restored) {
-      // New process was spawned — old permission is gone.  Re-sync
-      // so the UI drops the stale pending state.
+      _clearStalePermissionRequests(sessionId);
       sessionsSync.invalidate();
       messagesSync[sessionId]?.invalidate();
       throw StateError(
@@ -3324,9 +3342,12 @@ what you have, you must use the options mode.
         ).toJson(),
       );
       _throwIfPermissionRpcFailed(response, 'allow');
+    } on StateError {
+      // Permission was rejected by the server — clear stale local
+      // state so the UI unlocks.
+      _clearStalePermissionRequests(sessionId);
+      rethrow;
     } finally {
-      // Always re-sync — on success to pick up side-effects, on
-      // failure to clear stale pending permission UI.
       sessionsSync.invalidate();
       messagesSync[sessionId]?.invalidate();
     }
@@ -3342,6 +3363,7 @@ what you have, you must use the options mode.
   }) async {
     final restored = await _ensureSessionProcess(sessionId);
     if (restored) {
+      _clearStalePermissionRequests(sessionId);
       sessionsSync.invalidate();
       messagesSync[sessionId]?.invalidate();
       throw StateError(
@@ -3360,6 +3382,9 @@ what you have, you must use the options mode.
         ).toJson(),
       );
       _throwIfPermissionRpcFailed(response, 'deny');
+    } on StateError {
+      _clearStalePermissionRequests(sessionId);
+      rethrow;
     } finally {
       sessionsSync.invalidate();
       messagesSync[sessionId]?.invalidate();
