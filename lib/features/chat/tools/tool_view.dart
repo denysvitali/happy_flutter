@@ -283,56 +283,80 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     Map<String, dynamic> permission,
   ) async {
     final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    try {
-      await sync.sessionAllow(widget.sessionId!, permId);
-    } catch (e) {
-      logger.warning('Permission allow failed: $e');
+    if (permId == null || widget.sessionId == null) {
+      logger.warning(
+        'Permission allow skipped: '
+        'permId=$permId sessionId=${widget.sessionId}',
+      );
+      return;
     }
+    logger.info(
+      'Permission allow: permId=$permId '
+      'sessionId=${widget.sessionId}',
+    );
+    await sync.sessionAllow(widget.sessionId!, permId);
   }
 
   Future<void> _handlePermissionDeny(
     Map<String, dynamic> permission,
   ) async {
     final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    try {
-      await sync.sessionDeny(widget.sessionId!, permId);
-    } catch (e) {
-      logger.warning('Permission deny failed: $e');
+    if (permId == null || widget.sessionId == null) {
+      logger.warning(
+        'Permission deny skipped: '
+        'permId=$permId sessionId=${widget.sessionId}',
+      );
+      return;
     }
+    logger.info(
+      'Permission deny: permId=$permId '
+      'sessionId=${widget.sessionId}',
+    );
+    await sync.sessionDeny(widget.sessionId!, permId);
   }
 
   Future<void> _handlePermissionAllowAllEdits(
     Map<String, dynamic> permission,
   ) async {
     final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    try {
-      await sync.sessionAllow(
-        widget.sessionId!,
-        permId,
-        mode: 'acceptEdits',
+    if (permId == null || widget.sessionId == null) {
+      logger.warning(
+        'Permission allowAllEdits skipped: '
+        'permId=$permId sessionId=${widget.sessionId}',
       );
-    } catch (e) {
-      logger.warning('Permission allow all edits failed: $e');
+      return;
     }
+    logger.info(
+      'Permission allowAllEdits: permId=$permId '
+      'sessionId=${widget.sessionId}',
+    );
+    await sync.sessionAllow(
+      widget.sessionId!,
+      permId,
+      mode: 'acceptEdits',
+    );
   }
 
   Future<void> _handlePermissionAllowBypass(
     Map<String, dynamic> permission,
   ) async {
     final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    try {
-      await sync.sessionAllow(
-        widget.sessionId!,
-        permId,
-        mode: 'bypassPermissions',
+    if (permId == null || widget.sessionId == null) {
+      logger.warning(
+        'Permission allowBypass skipped: '
+        'permId=$permId sessionId=${widget.sessionId}',
       );
-    } catch (e) {
-      logger.warning('Permission allow bypass failed: $e');
+      return;
     }
+    logger.info(
+      'Permission allowBypass: permId=$permId '
+      'sessionId=${widget.sessionId}',
+    );
+    await sync.sessionAllow(
+      widget.sessionId!,
+      permId,
+      mode: 'bypassPermissions',
+    );
   }
 
   Future<void> _handlePermissionAllowForSession(
@@ -341,7 +365,13 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     Map<String, dynamic>? toolInput,
   ) async {
     final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
+    if (permId == null || widget.sessionId == null) {
+      logger.warning(
+        'Permission allowForSession skipped: '
+        'permId=$permId sessionId=${widget.sessionId}',
+      );
+      return;
+    }
     final List<String> allowTools;
     if (toolName == 'Bash') {
       final command = toolInput?['command'] as String? ?? '';
@@ -349,63 +379,81 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     } else {
       allowTools = [toolName];
     }
-    try {
-      await sync.sessionAllow(
-        widget.sessionId!,
-        permId,
-        allowTools: allowTools,
-      );
-    } catch (e) {
-      logger.warning('Permission allow for session failed: $e');
-    }
+    logger.info(
+      'Permission allowForSession: permId=$permId '
+      'sessionId=${widget.sessionId} tools=$allowTools',
+    );
+    await sync.sessionAllow(
+      widget.sessionId!,
+      permId,
+      allowTools: allowTools,
+    );
   }
 
   Future<void> _handleCodexApprove(
     Map<String, dynamic> permission,
   ) async {
     final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    try {
-      await sync.sessionAllow(
-        widget.sessionId!,
-        permId,
-        decision: 'approved',
+    if (permId == null || widget.sessionId == null) {
+      logger.warning(
+        'Codex approve skipped: '
+        'permId=$permId sessionId=${widget.sessionId}',
       );
-    } catch (e) {
-      logger.warning('Codex approve failed: $e');
+      return;
     }
+    logger.info(
+      'Codex approve: permId=$permId '
+      'sessionId=${widget.sessionId}',
+    );
+    await sync.sessionAllow(
+      widget.sessionId!,
+      permId,
+      decision: 'approved',
+    );
   }
 
   Future<void> _handleCodexApproveForSession(
     Map<String, dynamic> permission,
   ) async {
     final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    try {
-      await sync.sessionAllow(
-        widget.sessionId!,
-        permId,
-        decision: 'approved_for_session',
+    if (permId == null || widget.sessionId == null) {
+      logger.warning(
+        'Codex approveForSession skipped: '
+        'permId=$permId sessionId=${widget.sessionId}',
       );
-    } catch (e) {
-      logger.warning('Codex approve for session failed: $e');
+      return;
     }
+    logger.info(
+      'Codex approveForSession: permId=$permId '
+      'sessionId=${widget.sessionId}',
+    );
+    await sync.sessionAllow(
+      widget.sessionId!,
+      permId,
+      decision: 'approved_for_session',
+    );
   }
 
   Future<void> _handleCodexAbort(
     Map<String, dynamic> permission,
   ) async {
     final permId = permission['id'] as String?;
-    if (permId == null || widget.sessionId == null) return;
-    try {
-      await sync.sessionDeny(
-        widget.sessionId!,
-        permId,
-        decision: 'abort',
+    if (permId == null || widget.sessionId == null) {
+      logger.warning(
+        'Codex abort skipped: '
+        'permId=$permId sessionId=${widget.sessionId}',
       );
-    } catch (e) {
-      logger.warning('Codex abort failed: $e');
+      return;
     }
+    logger.info(
+      'Codex abort: permId=$permId '
+      'sessionId=${widget.sessionId}',
+    );
+    await sync.sessionDeny(
+      widget.sessionId!,
+      permId,
+      decision: 'abort',
+    );
   }
 
   @override

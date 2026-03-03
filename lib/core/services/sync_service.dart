@@ -3175,11 +3175,15 @@ what you have, you must use the options mode.
       }
     }
 
+    logger.info('[sessionRPC] $method encrypting for $sessionId');
     final encrypted = await sessionEncryption.encryptRaw(params);
+    logger.info('[sessionRPC] $method emitting rpc-call');
     final result = await socketIoClient.emitWithAck('rpc-call', {
       'method': '$sessionId:$method',
       'params': encrypted,
     });
+    final ack = result is Map ? result['ok'] : result;
+    logger.info('[sessionRPC] $method ack: ok=$ack');
 
     if (result is Map && result['ok'] == true) {
       final encryptedResult = result['result'] as String?;
