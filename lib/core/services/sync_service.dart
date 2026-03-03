@@ -220,7 +220,7 @@ class Sync {
   static final Sync _instance = Sync._();
 
   // Constants
-  static const int sessionReadyTimeoutMs = 10000;
+  static const int sessionReadyTimeoutMs = 3000;
 
   /// Number of recent messages to load on first open of a session.
   static const int initialLoad = 200;
@@ -363,6 +363,9 @@ what you have, you must use the options mode.
 
   @visibleForTesting
   Map<String, Session> get testSessions => _sessions;
+
+  @visibleForTesting
+  void testNotifyDataChanged() => _notifyDataChanged();
 
   @visibleForTesting
   int? get testLastSessionsFetchedAt => _lastSessionsFetchedAt;
@@ -3814,26 +3817,41 @@ what you have, you must use the options mode.
     String sessionId, [
     int timeoutMs = sessionReadyTimeoutMs,
   ]) async {
-    final entrySession = _sessions[sessionId];
+    // Fast path: already online
+    final session = _sessions[sessionId];
+    if (session != null && session.isOnline) return true;
+
     logger.info(
-      '[sendMessage] waitForAgentReady entry '
-      'session=$sessionId '
-      'isOnline=${entrySession?.isOnline} '
-      'agentStateVersion=${entrySession?.agentStateVersion}',
+      '[sendMessage] waitForAgentReady waiting '
+      'session=$sessionId isOnline=${session?.isOnline}',
     );
-    final timeoutAt = DateTime.now().millisecondsSinceEpoch + timeoutMs;
-    while (DateTime.now().millisecondsSinceEpoch < timeoutAt) {
-      final session = _sessions[sessionId];
-      if (session != null && session.isOnline) {
-        logger.info(
-          '[sendMessage] waitForAgentReady ready '
-          'session=$sessionId',
-        );
-        return true;
+
+    // Event-driven: resolve as soon as onDataChanged fires with session
+    // online, or after timeoutMs, whichever comes first.
+    final completer = Completer<bool>();
+    StreamSubscription<void>? sub;
+    Timer? timer;
+
+    timer = Timer(Duration(milliseconds: timeoutMs), () {
+      if (!completer.isCompleted) completer.complete(false);
+      sub?.cancel();
+    });
+
+    sub = onDataChanged.listen((_) {
+      final s = _sessions[sessionId];
+      if (s != null && s.isOnline && !completer.isCompleted) {
+        completer.complete(true);
+        timer?.cancel();
+        sub?.cancel();
       }
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-    }
-    return false;
+    });
+
+    final ready = await completer.future;
+    logger.info(
+      '[sendMessage] waitForAgentReady done '
+      'session=$sessionId ready=$ready',
+    );
+    return ready;
   }
 
   /// Process a decrypted message into display messages and tool results.

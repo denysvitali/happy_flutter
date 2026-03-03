@@ -387,6 +387,7 @@ void main() {
                 instance.testSessions['s1']!.copyWith(
               presence: 'online',
             );
+            instance.testNotifyDataChanged();
           },
         );
         final ready = await instance.waitForAgentReady('s1', 2000);
