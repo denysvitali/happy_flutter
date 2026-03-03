@@ -68,8 +68,7 @@ ProcessedMessages processDecryptedMessages({
 
       // Check if message was actually encrypted — if not,
       // skip silently instead of showing a decryption error.
-      final encrypted = wasEncrypted != null &&
-              i < wasEncrypted.length
+      final encrypted = wasEncrypted != null && i < wasEncrypted.length
           ? wasEncrypted[i]
           : true; // default: assume encrypted (backwards compat)
 
@@ -87,11 +86,7 @@ ProcessedMessages processDecryptedMessages({
         'kind': 'error',
         'errorType': 'decryption_failed',
         'errorMessage': 'Failed to decrypt message',
-        'debugData': {
-          'messageId': id,
-          'seq': seq,
-          'localId': localId,
-        },
+        'debugData': {'messageId': id, 'seq': seq, 'localId': localId},
       });
       continue;
     }
@@ -137,7 +132,8 @@ ProcessedMessages processDecryptedMessages({
           'role': 'system',
           'kind': 'error',
           'errorType': 'agent_content_not_map',
-          'errorMessage': 'Agent message content is not '
+          'errorMessage':
+              'Agent message content is not '
               'a valid structure',
           'debugData': {
             'messageId': id,
@@ -195,7 +191,32 @@ ProcessedMessages processDecryptedMessages({
           messages: messages,
           toolResults: toolResults,
         );
+      } else if (contentType == 'session') {
+        _processSessionContent(
+          id: id,
+          localId: localId,
+          seq: seq,
+          createdAt: createdAt,
+          outerContent: content,
+          nestedContent: nestedContent,
+          messages: messages,
+          toolResults: toolResults,
+        );
       }
+      continue;
+    }
+
+    if (role == 'session') {
+      _processSessionContent(
+        id: id,
+        localId: localId,
+        seq: seq,
+        createdAt: createdAt,
+        outerContent: content,
+        nestedContent: nestedContent,
+        messages: messages,
+        toolResults: toolResults,
+      );
       continue;
     }
 
@@ -208,11 +229,7 @@ ProcessedMessages processDecryptedMessages({
       'kind': 'error',
       'errorType': 'unknown_role',
       'errorMessage': 'Unrecognized message role: $role',
-      'debugData': {
-        'messageId': id,
-        'seq': seq,
-        'role': role,
-      },
+      'debugData': {'messageId': id, 'seq': seq, 'role': role},
     });
   }
 
@@ -295,6 +312,8 @@ void _processOutputContent({
   final dataType = data['type'] as String?;
 
   if (dataType == 'assistant') {
+    if (dataUuid == null || dataUuid.isEmpty) return;
+
     final agentMsg = data['message'];
     if (agentMsg is! Map<String, dynamic>) return;
 
@@ -593,4 +612,189 @@ void _processAcpContent({
   }
 
   // Skip task lifecycle events
+}
+
+void _processSessionContent({
+  required String id,
+  required String? localId,
+  required int seq,
+  required int createdAt,
+  required Map<String, dynamic> outerContent,
+  required dynamic nestedContent,
+  required List<Map<String, dynamic>> messages,
+  required List<Map<String, dynamic>> toolResults,
+}) {
+  Map<String, dynamic>? envelope;
+  if (nestedContent is Map<String, dynamic>) {
+    if (nestedContent['type'] == 'session' &&
+        nestedContent['data'] is Map<String, dynamic>) {
+      envelope = nestedContent['data'] as Map<String, dynamic>;
+    } else {
+      envelope = nestedContent;
+    }
+  }
+  if (envelope == null) return;
+
+  final event = envelope['ev'];
+  if (event is! Map<String, dynamic>) return;
+
+  final eventType = event['t'] as String?;
+  if (eventType == null) return;
+
+  final eventRole = envelope['role'] as String?;
+  final envelopeId = envelope['id'] as String? ?? id;
+  final envelopeCreatedAt = _parseCreatedAtMs(envelope['time'] ?? createdAt);
+  final parentUuid = envelope['subagent'] as String?;
+  final isSidechain = parentUuid != null && parentUuid.isNotEmpty;
+  final uuid = envelope['id'] as String? ?? id;
+
+  if (eventType == 'turn-start' ||
+      eventType == 'start' ||
+      eventType == 'stop') {
+    return;
+  }
+
+  if (eventType == 'turn-end') {
+    messages.add({
+      'id': envelopeId,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': envelopeCreatedAt,
+      'role': 'agent',
+      'kind': 'agent-event',
+      'event': {'type': 'ready'},
+      'content': '',
+      'raw': outerContent,
+    });
+    return;
+  }
+
+  if (eventType == 'service') {
+    if (eventRole != 'agent') return;
+    messages.add({
+      'id': envelopeId,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': envelopeCreatedAt,
+      'role': 'agent',
+      'kind': 'text',
+      'content': event['text']?.toString() ?? '',
+      'raw': outerContent,
+      if (isSidechain) 'isSidechain': true,
+      if (uuid.isNotEmpty) 'uuid': uuid,
+      if (parentUuid != null) 'parentUuid': parentUuid,
+    });
+    return;
+  }
+
+  if (eventType == 'text') {
+    final text = event['text']?.toString() ?? '';
+    if (eventRole == 'agent') {
+      final thinking = event['thinking'] == true;
+      messages.add({
+        'id': envelopeId,
+        'localId': localId,
+        'seq': seq,
+        'createdAt': envelopeCreatedAt,
+        'role': 'agent',
+        'kind': 'text',
+        if (thinking) 'isThinking': true,
+        'content': thinking ? '*Thinking...*\n\n*$text*' : text,
+        'raw': outerContent,
+        if (isSidechain) 'isSidechain': true,
+        if (uuid.isNotEmpty) 'uuid': uuid,
+        if (parentUuid != null) 'parentUuid': parentUuid,
+      });
+      return;
+    }
+
+    // Sidechain root prompt for nested task grouping.
+    if (eventRole == 'user' && isSidechain && text.isNotEmpty) {
+      messages.add({
+        'id': '${envelopeId}_sc',
+        'seq': seq,
+        'createdAt': envelopeCreatedAt,
+        'kind': 'sidechain-root',
+        'isSidechain': true,
+        'prompt': text,
+        if (uuid.isNotEmpty) 'uuid': uuid,
+        if (parentUuid != null) 'parentUuid': parentUuid,
+      });
+    }
+    return;
+  }
+
+  if (eventType == 'tool-call-start') {
+    if (eventRole != 'agent') return;
+    final args = event['args'];
+    final input = args is Map<String, dynamic> ? args : <String, dynamic>{};
+    final callId = event['call'] as String?;
+    messages.add({
+      'id': envelopeId,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': envelopeCreatedAt,
+      'role': 'agent',
+      'kind': 'tool-call',
+      'name': event['name']?.toString() ?? 'unknown',
+      'input': input,
+      'toolUseId': callId ?? envelopeId,
+      'state': 'running',
+      'content': event,
+      'raw': outerContent,
+      if (isSidechain) 'isSidechain': true,
+      if (uuid.isNotEmpty) 'uuid': uuid,
+      if (parentUuid != null) 'parentUuid': parentUuid,
+    });
+    return;
+  }
+
+  if (eventType == 'tool-call-end') {
+    final callId = event['call'] as String?;
+    if (callId == null || callId.isEmpty) return;
+    toolResults.add({
+      'toolUseId': callId,
+      'result': event['result'],
+      'isError': event['isError'] == true,
+      'createdAt': envelopeCreatedAt,
+      if (isSidechain) 'isSidechain': true,
+      if (uuid.isNotEmpty) 'uuid': uuid,
+      if (parentUuid != null) 'parentUuid': parentUuid,
+    });
+    return;
+  }
+
+  if (eventType == 'file') {
+    if (eventRole != 'agent') return;
+    final image = event['image'];
+    final imageMeta = image is Map<String, dynamic>
+        ? {
+            'width': image['width'],
+            'height': image['height'],
+            'thumbhash': image['thumbhash'],
+          }
+        : null;
+    messages.add({
+      'id': envelopeId,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': envelopeCreatedAt,
+      'role': 'agent',
+      'kind': 'tool-call',
+      'name': 'file',
+      'input': {
+        'ref': event['ref'],
+        'name': event['name'],
+        'size': event['size'],
+        if (imageMeta != null) 'image': imageMeta,
+      },
+      'toolUseId': envelopeId,
+      'state': 'completed',
+      'content': event,
+      'raw': outerContent,
+      if (isSidechain) 'isSidechain': true,
+      if (uuid.isNotEmpty) 'uuid': uuid,
+      if (parentUuid != null) 'parentUuid': parentUuid,
+    });
+  }
 }

@@ -264,6 +264,91 @@ void main() {
       expect(result.$1[1]['kind'], 'text');
       expect(result.$1[1]['content'], 'Here is my answer.');
     });
+
+    test('maps session protocol wrapped text events', () {
+      final result = instance.testProcessDecryptedMessage(
+        id: 'msg_session_1',
+        seq: 10,
+        sessionId: 'session_1',
+        content: {
+          'role': 'session',
+          'content': {
+            'type': 'session',
+            'data': {
+              'id': 'sess_ev_1',
+              'time': 1700000001000,
+              'role': 'agent',
+              'turn': 'turn_1',
+              'ev': {'t': 'text', 'text': 'Session protocol reply'},
+            },
+          },
+        },
+      );
+
+      expect(result.$1, hasLength(1));
+      expect(result.$1.first['kind'], 'text');
+      expect(result.$1.first['role'], 'agent');
+      expect(result.$1.first['content'], 'Session protocol reply');
+      expect(result.$2, isEmpty);
+    });
+
+    test('maps session protocol tool lifecycle events', () {
+      final startResult = instance.testProcessDecryptedMessage(
+        id: 'msg_session_2_start',
+        seq: 11,
+        sessionId: 'session_1',
+        content: {
+          'role': 'session',
+          'content': {
+            'id': 'sess_ev_2_start',
+            'time': 1700000002000,
+            'role': 'agent',
+            'turn': 'turn_2',
+            'ev': {
+              't': 'tool-call-start',
+              'call': 'tool_1',
+              'name': 'Read',
+              'title': 'Read File',
+              'description': 'Read a file from disk',
+              'args': {'file_path': '/tmp/test.txt'},
+            },
+          },
+        },
+      );
+
+      expect(startResult.$1, hasLength(1));
+      expect(startResult.$1.first['kind'], 'tool-call');
+      expect(startResult.$1.first['toolUseId'], 'tool_1');
+      expect(startResult.$1.first['state'], 'running');
+      expect(startResult.$2, isEmpty);
+
+      final endResult = instance.testProcessDecryptedMessage(
+        id: 'msg_session_2_end',
+        seq: 12,
+        sessionId: 'session_1',
+        content: {
+          'role': 'session',
+          'content': {
+            'id': 'sess_ev_2_end',
+            'time': 1700000003000,
+            'role': 'agent',
+            'turn': 'turn_2',
+            'ev': {
+              't': 'tool-call-end',
+              'call': 'tool_1',
+              'result': 'done',
+              'isError': false,
+            },
+          },
+        },
+      );
+
+      expect(endResult.$1, isEmpty);
+      expect(endResult.$2, hasLength(1));
+      expect(endResult.$2.first['toolUseId'], 'tool_1');
+      expect(endResult.$2.first['result'], 'done');
+      expect(endResult.$2.first['isError'], false);
+    });
   });
 
   group('usage tracking', () {
@@ -323,10 +408,7 @@ void main() {
                 'content': [
                   {'type': 'text', 'text': 'first'},
                 ],
-                'usage': {
-                  'input_tokens': 5000,
-                  'output_tokens': 100,
-                },
+                'usage': {'input_tokens': 5000, 'output_tokens': 100},
               },
             },
           },
@@ -355,10 +437,7 @@ void main() {
                 'content': [
                   {'type': 'text', 'text': 'older'},
                 ],
-                'usage': {
-                  'input_tokens': 100,
-                  'output_tokens': 50,
-                },
+                'usage': {'input_tokens': 100, 'output_tokens': 50},
               },
             },
           },

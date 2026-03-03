@@ -32,12 +32,14 @@ void main() {
           'text': 'All good',
           'updatedAt': 1700000000000,
         },
+        'sandbox': <String, dynamic>{'enabled': true},
       });
 
       expect(metadata.host, 'devbox');
       expect(metadata.summary, isNotNull);
       expect(metadata.summary?.text, 'All good');
       expect(metadata.summary?.updatedAt, 1700000000000);
+      expect(metadata.sandboxEnabled, isTrue);
     });
   });
 

@@ -71,6 +71,16 @@ Summary? _asSummaryOptional(dynamic value) {
   return null;
 }
 
+bool? _sandboxEnabledFromMetadata(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value['enabled'] == true;
+  }
+  if (value is Map) {
+    return value['enabled'] == true;
+  }
+  return null;
+}
+
 class Metadata {
   Metadata({
     required this.host,
@@ -88,6 +98,7 @@ class Metadata {
     this.hostPid,
     this.flavor,
     this.lifecycleState,
+    this.sandboxEnabled,
   });
 
   factory Metadata.fromJson(Map<String, dynamic> json) {
@@ -108,6 +119,7 @@ class Metadata {
       hostPid: _asApiIntOptional(json['hostPid']),
       flavor: _asApiStringOptional(json['flavor']),
       lifecycleState: _asApiStringOptional(json['lifecycleState']),
+      sandboxEnabled: _sandboxEnabledFromMetadata(json['sandbox']),
     );
   }
   final String? path;
@@ -125,6 +137,7 @@ class Metadata {
   final int? hostPid;
   final String? flavor;
   final String? lifecycleState;
+  final bool? sandboxEnabled;
 
   Map<String, dynamic> toJson() {
     return {
@@ -143,6 +156,7 @@ class Metadata {
       'hostPid': hostPid,
       'flavor': flavor,
       'lifecycleState': lifecycleState,
+      if (sandboxEnabled != null) 'sandbox': {'enabled': sandboxEnabled},
     };
   }
 
@@ -165,7 +179,8 @@ class Metadata {
           happyHomeDir == other.happyHomeDir &&
           hostPid == other.hostPid &&
           flavor == other.flavor &&
-          lifecycleState == other.lifecycleState;
+          lifecycleState == other.lifecycleState &&
+          sandboxEnabled == other.sandboxEnabled;
 
   @override
   int get hashCode => Object.hash(
@@ -184,6 +199,7 @@ class Metadata {
     hostPid,
     flavor,
     lifecycleState,
+    sandboxEnabled,
   );
 }
 

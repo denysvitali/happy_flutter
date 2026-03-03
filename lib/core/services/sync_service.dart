@@ -200,6 +200,17 @@ bool? _asSessionBool(dynamic value) {
   return WireParsers.parseBool(value);
 }
 
+int _parseCreatedAtMs(dynamic raw) {
+  if (raw is int) return raw;
+  if (raw is String) {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed != null) {
+      return parsed.millisecondsSinceEpoch;
+    }
+  }
+  return DateTime.now().millisecondsSinceEpoch;
+}
+
 // Global singleton instance
 class Sync {
   factory Sync() => _instance;
@@ -2531,8 +2542,12 @@ what you have, you must use the options mode.
       _notifyDataChanged();
     }
 
+    final requestedPermissionMode = permissionMode ?? session.permissionMode;
+    final sandboxEnabled = session.metadata?.sandboxEnabled == true;
     final effectivePermissionMode =
-        permissionMode ?? session.permissionMode ?? 'default';
+        requestedPermissionMode != null && requestedPermissionMode != 'default'
+        ? requestedPermissionMode
+        : (sandboxEnabled ? 'bypassPermissions' : 'default');
     final flavor = session.metadata?.flavor;
     final isGemini = flavor == 'gemini';
     final effectiveModelMode =
@@ -3351,6 +3366,21 @@ what you have, you must use the options mode.
       if (contentType == 'acp') {
         return _processAcpContent(message, nestedContent, createdAt, content);
       }
+
+      // Session protocol wrapper (agent role).
+      if (contentType == 'session') {
+        return _processSessionContent(
+          message,
+          nestedContent,
+          createdAt,
+          content,
+        );
+      }
+    }
+
+    // Session protocol envelope role.
+    if (role == 'session') {
+      return _processSessionContent(message, nestedContent, createdAt, content);
     }
 
     return (
@@ -3398,6 +3428,8 @@ what you have, you must use the options mode.
     final dataType = data['type'] as String?;
 
     if (dataType == 'assistant') {
+      if (dataUuid == null || dataUuid.isEmpty) return ([], []);
+
       final agentMsg = data['message'];
       if (agentMsg is! Map<String, dynamic>) return ([], []);
 
@@ -3740,6 +3772,220 @@ what you have, you must use the options mode.
 
     // Skip task lifecycle events (task_started, task_complete, turn_aborted,
     // token_count, permission-request, etc.)
+    return ([], []);
+  }
+
+  (List<Map<String, dynamic>>, List<Map<String, dynamic>>)
+  _processSessionContent(
+    DecryptedMessage message,
+    dynamic nestedContent,
+    int createdAt,
+    Map<String, dynamic> outerContent,
+  ) {
+    Map<String, dynamic>? envelope;
+    if (nestedContent is Map<String, dynamic>) {
+      if (nestedContent['type'] == 'session' &&
+          nestedContent['data'] is Map<String, dynamic>) {
+        envelope = nestedContent['data'] as Map<String, dynamic>;
+      } else {
+        envelope = nestedContent;
+      }
+    }
+    if (envelope == null) return ([], []);
+
+    final event = envelope['ev'];
+    if (event is! Map<String, dynamic>) return ([], []);
+
+    final eventType = event['t'] as String?;
+    if (eventType == null) return ([], []);
+
+    final eventRole = envelope['role'] as String?;
+    final envelopeId = envelope['id'] as String? ?? message.id;
+    final eventCreatedAt = _parseCreatedAtMs(envelope['time'] ?? createdAt);
+    final parentUuid = envelope['subagent'] as String?;
+    final isSidechain = parentUuid != null && parentUuid.isNotEmpty;
+    final uuid = envelope['id'] as String? ?? message.id;
+
+    if (eventType == 'turn-start' ||
+        eventType == 'start' ||
+        eventType == 'stop') {
+      return ([], []);
+    }
+
+    if (eventType == 'turn-end') {
+      return (
+        [
+          {
+            'id': envelopeId,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': eventCreatedAt,
+            'role': 'agent',
+            'kind': 'agent-event',
+            'event': {'type': 'ready'},
+            'content': '',
+            'raw': outerContent,
+          },
+        ],
+        [],
+      );
+    }
+
+    if (eventType == 'service') {
+      if (eventRole != 'agent') return ([], []);
+      return (
+        [
+          {
+            'id': envelopeId,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': eventCreatedAt,
+            'role': 'agent',
+            'kind': 'text',
+            'content': event['text']?.toString() ?? '',
+            'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            if (uuid.isNotEmpty) 'uuid': uuid,
+            if (parentUuid != null) 'parentUuid': parentUuid,
+          },
+        ],
+        [],
+      );
+    }
+
+    if (eventType == 'text') {
+      final text = event['text']?.toString() ?? '';
+      if (eventRole == 'agent') {
+        final thinking = event['thinking'] == true;
+        return (
+          [
+            {
+              'id': envelopeId,
+              'localId': message.localId,
+              'seq': message.seq,
+              'createdAt': eventCreatedAt,
+              'role': 'agent',
+              'kind': 'text',
+              if (thinking) 'isThinking': true,
+              'content': thinking ? '*Thinking...*\n\n*$text*' : text,
+              'raw': outerContent,
+              if (isSidechain) 'isSidechain': true,
+              if (uuid.isNotEmpty) 'uuid': uuid,
+              if (parentUuid != null) 'parentUuid': parentUuid,
+            },
+          ],
+          [],
+        );
+      }
+
+      if (eventRole == 'user' && isSidechain && text.isNotEmpty) {
+        return (
+          [
+            {
+              'id': '${envelopeId}_sc',
+              'seq': message.seq,
+              'createdAt': eventCreatedAt,
+              'kind': 'sidechain-root',
+              'isSidechain': true,
+              'prompt': text,
+              if (uuid.isNotEmpty) 'uuid': uuid,
+              if (parentUuid != null) 'parentUuid': parentUuid,
+            },
+          ],
+          [],
+        );
+      }
+
+      return ([], []);
+    }
+
+    if (eventType == 'tool-call-start') {
+      if (eventRole != 'agent') return ([], []);
+      final args = event['args'];
+      final input = args is Map<String, dynamic> ? args : <String, dynamic>{};
+      final callId = event['call'] as String?;
+      return (
+        [
+          {
+            'id': envelopeId,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': eventCreatedAt,
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': event['name']?.toString() ?? 'unknown',
+            'input': input,
+            'toolUseId': callId ?? envelopeId,
+            'state': 'running',
+            'content': event,
+            'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            if (uuid.isNotEmpty) 'uuid': uuid,
+            if (parentUuid != null) 'parentUuid': parentUuid,
+          },
+        ],
+        [],
+      );
+    }
+
+    if (eventType == 'tool-call-end') {
+      final callId = event['call'] as String?;
+      if (callId == null || callId.isEmpty) return ([], []);
+      return (
+        [],
+        [
+          {
+            'toolUseId': callId,
+            'result': event['result'],
+            'isError': event['isError'] == true,
+            'createdAt': eventCreatedAt,
+            if (isSidechain) 'isSidechain': true,
+            if (uuid.isNotEmpty) 'uuid': uuid,
+            if (parentUuid != null) 'parentUuid': parentUuid,
+          },
+        ],
+      );
+    }
+
+    if (eventType == 'file') {
+      if (eventRole != 'agent') return ([], []);
+      final image = event['image'];
+      final imageMeta = image is Map<String, dynamic>
+          ? {
+              'width': image['width'],
+              'height': image['height'],
+              'thumbhash': image['thumbhash'],
+            }
+          : null;
+      return (
+        [
+          {
+            'id': envelopeId,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': eventCreatedAt,
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'file',
+            'input': {
+              'ref': event['ref'],
+              'name': event['name'],
+              'size': event['size'],
+              if (imageMeta != null) 'image': imageMeta,
+            },
+            'toolUseId': envelopeId,
+            'state': 'completed',
+            'content': event,
+            'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            if (uuid.isNotEmpty) 'uuid': uuid,
+            if (parentUuid != null) 'parentUuid': parentUuid,
+          },
+        ],
+        [],
+      );
+    }
+
     return ([], []);
   }
 
