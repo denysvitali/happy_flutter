@@ -3302,26 +3302,34 @@ what you have, you must use the options mode.
   }) async {
     final restored = await _ensureSessionProcess(sessionId);
     if (restored) {
+      // New process was spawned — old permission is gone.  Re-sync
+      // so the UI drops the stale pending state.
+      sessionsSync.invalidate();
+      messagesSync[sessionId]?.invalidate();
       throw StateError(
         'Session was restarted — this permission has expired. '
         'The agent will re-request it if still needed.',
       );
     }
-    final response = await sessionRPC(
-      sessionId,
-      'permission',
-      PermissionRequest(
-        id: permissionId,
-        approved: true,
-        mode: mode,
-        allowTools: allowTools,
-        decision: decision,
-      ).toJson(),
-    );
-    _throwIfPermissionRpcFailed(response, 'allow');
-    // Force re-sync in case WebSocket events are missed
-    sessionsSync.invalidate();
-    messagesSync[sessionId]?.invalidate();
+    try {
+      final response = await sessionRPC(
+        sessionId,
+        'permission',
+        PermissionRequest(
+          id: permissionId,
+          approved: true,
+          mode: mode,
+          allowTools: allowTools,
+          decision: decision,
+        ).toJson(),
+      );
+      _throwIfPermissionRpcFailed(response, 'allow');
+    } finally {
+      // Always re-sync — on success to pick up side-effects, on
+      // failure to clear stale pending permission UI.
+      sessionsSync.invalidate();
+      messagesSync[sessionId]?.invalidate();
+    }
   }
 
   /// Deny a permission request for a session.
@@ -3334,24 +3342,28 @@ what you have, you must use the options mode.
   }) async {
     final restored = await _ensureSessionProcess(sessionId);
     if (restored) {
+      sessionsSync.invalidate();
+      messagesSync[sessionId]?.invalidate();
       throw StateError(
         'Session was restarted — this permission has expired. '
         'The agent will re-request it if still needed.',
       );
     }
-    final response = await sessionRPC(
-      sessionId,
-      'permission',
-      PermissionRequest(
-        id: permissionId,
-        approved: false,
-        decision: decision,
-      ).toJson(),
-    );
-    _throwIfPermissionRpcFailed(response, 'deny');
-    // Force re-sync in case WebSocket events are missed
-    sessionsSync.invalidate();
-    messagesSync[sessionId]?.invalidate();
+    try {
+      final response = await sessionRPC(
+        sessionId,
+        'permission',
+        PermissionRequest(
+          id: permissionId,
+          approved: false,
+          decision: decision,
+        ).toJson(),
+      );
+      _throwIfPermissionRpcFailed(response, 'deny');
+    } finally {
+      sessionsSync.invalidate();
+      messagesSync[sessionId]?.invalidate();
+    }
   }
 
   void _throwIfPermissionRpcFailed(dynamic response, String action) {

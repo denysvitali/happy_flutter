@@ -93,8 +93,9 @@ class _PermissionFooterState extends State<PermissionFooter> {
         if (msg.contains('restarted') ||
             msg.contains('expired')) {
           label = 'Permission expired — session was restarted';
-        } else if (msg.contains('not available')) {
-          label = 'Session is offline — permission expired';
+        } else if (msg.contains('no pending permission') ||
+            msg.contains('not available')) {
+          label = 'Permission expired — no longer pending';
         } else {
           label = 'Permission action failed';
         }
