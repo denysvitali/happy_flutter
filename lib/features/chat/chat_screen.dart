@@ -740,7 +740,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               metadata: metadataJson,
               messages: _messages,
               sessionId: widget.sessionId,
-              isSessionOnline: _session?.isOnline ?? false,
+              isSessionOnline: (_session?.isOnline ?? false) ||
+                  (_session?.metadata?.machineId?.isNotEmpty ==
+                          true &&
+                      _session?.metadata?.path?.isNotEmpty ==
+                          true),
               onOptionPress: _onOptionPress,
               animate:
                   _initialLoadComplete && !_seenMessageIds.contains(messageKey),
