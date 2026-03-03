@@ -88,13 +88,19 @@ class _PermissionFooterState extends State<PermissionFooter> {
     } on Object catch (e) {
       logger.error('Permission action failed: $e');
       if (mounted) {
+        final msg = e.toString();
+        final String label;
+        if (msg.contains('restarted') ||
+            msg.contains('expired')) {
+          label = 'Permission expired — session was restarted';
+        } else if (msg.contains('not available')) {
+          label = 'Session is offline — permission expired';
+        } else {
+          label = 'Permission action failed';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              e.toString().contains('not available')
-                  ? 'Session is offline — permission expired'
-                  : 'Permission action failed',
-            ),
+            content: Text(label),
             behavior: SnackBarBehavior.floating,
           ),
         );
