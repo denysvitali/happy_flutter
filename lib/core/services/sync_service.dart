@@ -2313,7 +2313,12 @@ what you have, you must use the options mode.
           updatedAt: now,
           active: true,
           activeAt: now,
-          metadata: Metadata(host: '', machineId: machineId, path: path),
+          metadata: Metadata(
+            host: '',
+            machineId: machineId,
+            path: path,
+            lifecycleState: 'starting',
+          ),
           metadataVersion: 0,
           agentStateVersion: 0,
           thinking: false,
@@ -2769,6 +2774,7 @@ what you have, you must use the options mode.
         updatedAt: now,
         active: true,
         activeAt: now,
+        metadata: Metadata(host: '', lifecycleState: 'starting'),
         metadataVersion: 0,
         agentStateVersion: 0,
         thinking: false,
@@ -2850,6 +2856,14 @@ what you have, you must use the options mode.
     final encryptedRawRecord = await sessionEncryption.encryptRawRecord(
       rawRecord,
     );
+
+    // Ensure catch-up polling is active for this session. Without this,
+    // if sendMessage() is called before onSessionVisible() (e.g. from the
+    // sessions list before the chat screen initialises), _startPostSendCatchUp
+    // silently no-ops and the agent response never appears.
+    if (!messagesSync.containsKey(targetSessionId)) {
+      onSessionVisible(targetSessionId);
+    }
 
     // ── Optimistic insert — UI sees the message immediately ──
     _upsertSessionMessages(targetSessionId, [
