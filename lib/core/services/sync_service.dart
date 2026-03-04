@@ -2944,9 +2944,16 @@ what you have, you must use the options mode.
     var sent = false;
     var catchUpStopAfterSeq = (_sessionLastSeq[targetSessionId] ?? 0) + 1;
     try {
-      // Wait for agent readiness (polls up to 10 s, sends anyway on
-      // timeout). This no longer blocks the UI.
-      final ready = await waitForAgentReady(targetSessionId);
+      // Wait for agent readiness. Use a longer timeout for sessions we
+      // just spawned, since the agent needs time to connect Socket.IO
+      // and update lifecycleState before it can receive messages.
+      final spawnedAt = _sessionSpawnedAt[targetSessionId];
+      final recentlySpawned = spawnedAt != null &&
+          DateTime.now().millisecondsSinceEpoch - spawnedAt < 30000;
+      final ready = await waitForAgentReady(
+        targetSessionId,
+        recentlySpawned ? 15000 : sessionReadyTimeoutMs,
+      );
       if (!ready) {
         logger.info(
           '[sendMessage] agent not ready for '
@@ -3858,11 +3865,21 @@ what you have, you must use the options mode.
     }
   }
 
+  /// Whether a session's agent is connected enough to receive messages.
+  /// Checks both ephemeral presence and lifecycle metadata.
+  bool _isSessionReady(Session s) {
+    if (s.isOnline) return true;
+    final lc = s.metadata?.lifecycleState;
+    return lc == 'running';
+  }
+
   /// Wait for agent to be ready.
   ///
   /// Returns `true` when the session's presence becomes `'online'`
   /// (set by `handleEphemeralUpdate` when the daemon sends
-  /// `session-alive` keep-alives — typically within 2 seconds).
+  /// `session-alive` keep-alives — typically within 2 seconds),
+  /// or when `lifecycleState` becomes `'running'` (set by the agent
+  /// after connecting to Socket.IO — confirms push delivery).
   ///
   /// Note: `agentStateVersion` is intentionally NOT checked here
   /// because it persists across daemon restarts and would cause
@@ -3871,17 +3888,18 @@ what you have, you must use the options mode.
     String sessionId, [
     int timeoutMs = sessionReadyTimeoutMs,
   ]) async {
-    // Fast path: already online
+    // Fast path: already online or lifecycle running
     final session = _sessions[sessionId];
-    if (session != null && session.isOnline) return true;
+    if (session != null && _isSessionReady(session)) return true;
 
     logger.info(
       '[sendMessage] waitForAgentReady waiting '
-      'session=$sessionId isOnline=${session?.isOnline}',
+      'session=$sessionId isOnline=${session?.isOnline} '
+      'lifecycleState=${session?.metadata?.lifecycleState}',
     );
 
     // Event-driven: resolve as soon as onDataChanged fires with session
-    // online, or after timeoutMs, whichever comes first.
+    // ready, or after timeoutMs, whichever comes first.
     final completer = Completer<bool>();
     StreamSubscription<void>? sub;
     Timer? timer;
@@ -3893,7 +3911,7 @@ what you have, you must use the options mode.
 
     sub = onDataChanged.listen((_) {
       final s = _sessions[sessionId];
-      if (s != null && s.isOnline && !completer.isCompleted) {
+      if (s != null && _isSessionReady(s) && !completer.isCompleted) {
         completer.complete(true);
         timer?.cancel();
         sub?.cancel();
