@@ -844,11 +844,10 @@ what you have, you must use the options mode.
   /// Handle KV batch update (for todos)
   void _handleKvBatchUpdate(Map<String, dynamic> data) {
     bool hasTodoEntry(List<dynamic> list) => list.any(
-          (entry) =>
-              entry is Map<String, dynamic> &&
-              ((entry['key'] as String?)?.startsWith('todo') ??
-                  false),
-        );
+      (entry) =>
+          entry is Map<String, dynamic> &&
+          ((entry['key'] as String?)?.startsWith('todo') ?? false),
+    );
 
     final changes = data['changes'];
     if (changes is List && hasTodoEntry(changes)) {
@@ -2260,16 +2259,16 @@ what you have, you must use the options mode.
     final profile = profileId != null
         ? _resolveProfile(profileId)
         : _settingsSnapshot.profiles.firstOrNull;
-    final envVars = profile != null
-        ? _profileEnvironmentVariables(profile)
-        : <String, String>{};
+    final envVars = _spawnEnvironmentVariables(
+      profile != null ? _profileEnvironmentVariables(profile) : null,
+    );
     final agent = _settingsSnapshot.lastUsedAgent;
     final req = SpawnSessionRequest(
       type: 'spawn-in-directory',
       directory: path,
       approvedNewDirectoryCreation: true, // Always approve like React Native
       agent: agent,
-      environmentVariables: envVars.isNotEmpty ? envVars : null,
+      environmentVariables: envVars,
       // Note: startupBashScript removed to match React Native behavior
       // Note: permissionMode is set via storage after spawn, not in request
     );
@@ -2549,6 +2548,17 @@ what you have, you must use the options mode.
     return envVars;
   }
 
+  /// Build daemon spawn environment variables with safe defaults.
+  ///
+  /// Remote MCP can cause Claude startup to stall in some daemon-spawned
+  /// sessions. Keep it disabled by default for mobile-created/restored
+  /// sessions unless the profile explicitly overrides it.
+  Map<String, String> _spawnEnvironmentVariables(Map<String, String>? base) {
+    final envVars = <String, String>{...?base};
+    envVars.putIfAbsent('HAPPY_DISABLE_REMOTE_MCP', () => '1');
+    return envVars;
+  }
+
   Future<
     ({String sessionId, Session session, SessionEncryption sessionEncryption})
   >
@@ -2562,7 +2572,8 @@ what you have, you must use the options mode.
     final agentIsStartingOrRunning =
         lifecycleState == 'starting' || lifecycleState == 'running';
     final spawnedAt = _sessionSpawnedAt[sessionId];
-    final recentlySpawned = spawnedAt != null &&
+    final recentlySpawned =
+        spawnedAt != null &&
         DateTime.now().millisecondsSinceEpoch - spawnedAt < 120000;
     final looksReady =
         session.isOnline || agentIsStartingOrRunning || recentlySpawned;
@@ -2620,6 +2631,7 @@ what you have, you must use the options mode.
         sessionId: sessionId,
         agent: session.metadata?.flavor ?? 'claude',
         permissionMode: effectivePermissionMode,
+        environmentVariables: _spawnEnvironmentVariables(null),
       );
       final result = await _typedMachineRPC(
         machineId,
@@ -2948,7 +2960,8 @@ what you have, you must use the options mode.
       // just spawned, since the agent needs time to connect Socket.IO
       // and update lifecycleState before it can receive messages.
       final spawnedAt = _sessionSpawnedAt[targetSessionId];
-      final recentlySpawned = spawnedAt != null &&
+      final recentlySpawned =
+          spawnedAt != null &&
           DateTime.now().millisecondsSinceEpoch - spawnedAt < 30000;
       final ready = await waitForAgentReady(
         targetSessionId,
@@ -3297,7 +3310,8 @@ what you have, you must use the options mode.
     if (session == null) return false;
 
     final lifecycleState = session.metadata?.lifecycleState;
-    final looksReady = session.isOnline ||
+    final looksReady =
+        session.isOnline ||
         lifecycleState == 'starting' ||
         lifecycleState == 'running';
     if (looksReady) return false;
@@ -3324,6 +3338,7 @@ what you have, you must use the options mode.
         directory: path,
         sessionId: sessionId,
         agent: session.metadata?.flavor ?? 'claude',
+        environmentVariables: _spawnEnvironmentVariables(null),
       );
       final result = await _typedMachineRPC(
         machineId,
