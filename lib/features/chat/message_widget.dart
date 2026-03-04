@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/i18n/app_localizations.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'markdown/markdown.dart';
 import 'tools/tools.dart';
@@ -187,10 +188,10 @@ class _UserBubble extends StatelessWidget {
       alignment: Alignment.centerRight,
       child: Padding(
         padding: const EdgeInsets.only(
-          left: 60,
+          left: AppSpacing.xxl,
           right: AppSpacing.md,
-          top: 1,
-          bottom: 2,
+          top: AppSpacing.xxs,
+          bottom: AppSpacing.xxs,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -325,7 +326,7 @@ class _BotMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final textColor = theme.colorScheme.onSurface;
+    final cs = theme.colorScheme;
 
     return GestureDetector(
       onLongPress: () {
@@ -334,14 +335,33 @@ class _BotMessage extends StatelessWidget {
       },
       child: Padding(
         padding: const EdgeInsets.only(
-          left: AppSpacing.lg,
-          right: AppSpacing.lg,
-          top: 1,
-          bottom: 2,
+          left: AppSpacing.md,
+          right: AppSpacing.xxl,
+          top: AppSpacing.xxs,
+          bottom: AppSpacing.xxs,
         ),
-        child: DefaultTextStyle.merge(
-          style: TextStyle(color: textColor),
-          child: MarkdownView(markdown: text, onOptionPress: onOptionPress),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerLow,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(6),
+              topRight: Radius.circular(18),
+              bottomLeft: Radius.circular(18),
+              bottomRight: Radius.circular(18),
+            ),
+            border: Border.all(
+              color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
+              width: 0.5,
+            ),
+          ),
+          child: DefaultTextStyle.merge(
+            style: TextStyle(color: cs.onSurface),
+            child: MarkdownView(markdown: text, onOptionPress: onOptionPress),
+          ),
         ),
       ),
     );
@@ -424,8 +444,9 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Container(
           decoration: BoxDecoration(
+            color: cs.surfaceContainerLow,
             border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.2),
+              color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
               width: 0.5,
             ),
             borderRadius: BorderRadius.circular(AppRadius.sm),

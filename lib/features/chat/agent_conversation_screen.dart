@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_tokens.dart';
@@ -399,7 +400,7 @@ class _AgentConversationScreenState
       case ToolState.running:
         borderColor = theme.colorScheme.primary.withAlpha(80);
       case ToolState.completed:
-        borderColor = const Color(0xFF34C759).withAlpha(80);
+        borderColor = AppColors.success.withAlpha(80);
       case ToolState.error:
         borderColor = theme.colorScheme.error.withAlpha(80);
       case ToolState.pending:

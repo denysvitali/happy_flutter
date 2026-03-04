@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/components/app_status_dot.dart';
+import '../../core/components/shimmer_view.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
@@ -441,20 +442,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   AnimatedSwitcher(
                     duration: AppDuration.normal,
                     child: _isLoadingMessages
-                        ? Center(
-                            key: const ValueKey('loading'),
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant
-                                    .withValues(alpha: 0.4),
-                              ),
-                            ),
-                          )
+                        ? _ChatLoadingShimmer(key: const ValueKey('loading'))
                         : _messages.isEmpty
                         ? (_loadFailed
                               ? _buildRetryView()
@@ -1122,6 +1110,46 @@ class ScrollToBottomPill extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─── Chat loading shimmer ─────────────────────────────────────────────────
+
+class _ChatLoadingShimmer extends StatelessWidget {
+  const _ChatLoadingShimmer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final base = cs.onSurface.withValues(alpha: 0.08);
+    return ListView.builder(
+      reverse: true,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
+      itemCount: 5,
+      itemBuilder: (_, i) {
+        final isUser = i.isEven;
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          child: ShimmerView(
+            child: Align(
+              alignment:
+                  isUser ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                height: isUser ? 40 : 60,
+                width: isUser ? 200 : 260,
+                decoration: BoxDecoration(
+                  color: base,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

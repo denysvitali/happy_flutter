@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_colors.dart';
 
 import '../../../../core/theme/app_tokens.dart';
 import '../known_tools.dart';
@@ -66,7 +67,7 @@ class TaskView extends StatelessWidget {
             theme.colorScheme.primary.withAlpha(100);
       case ToolState.completed:
         borderColor =
-            const Color(0xFF34C759).withAlpha(100);
+            AppColors.success.withAlpha(100);
       case ToolState.error:
         borderColor =
             theme.colorScheme.error.withAlpha(100);

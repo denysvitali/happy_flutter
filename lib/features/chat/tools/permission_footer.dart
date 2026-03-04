@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/services/logger_service.dart' show logger;
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 
 /// Permission request UI with Allow, Allow All, and Deny buttons.
 class PermissionFooter extends StatefulWidget {
@@ -188,20 +190,26 @@ class _PermissionFooterState extends State<PermissionFooter> {
     final showClaudeClearContextButton =
         widget.flavor == 'claude' && isPlanTool;
 
-    const warningAmber = Color(0xFFFFF8E1);
-    const warningBorder = Color(0xFFFFB300);
+    final isDark = theme.brightness == Brightness.dark;
+    // Adaptive warning colours — amber tint in light mode, dimmed in dark.
+    final warningBg = isDark
+        ? const Color(0xFF2D1F00)
+        : const Color(0xFFFFF8E1);
+    final warningBorder = isDark
+        ? const Color(0xFF7A5C00)
+        : const Color(0xFFFFB300);
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(0, 4, 0, 4),
+      margin: const EdgeInsets.fromLTRB(0, AppSpacing.xs, 0, AppSpacing.xs),
       decoration: BoxDecoration(
-        color: isPending ? warningAmber : theme.colorScheme.surfaceContainerLow,
+        color: isPending ? warningBg : theme.colorScheme.surfaceContainerLow,
         border: Border.all(
           color: isPending
               ? warningBorder.withValues(alpha: 0.6)
               : theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
           width: 1,
         ),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,7 +224,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
                   Icons.security_rounded,
                   size: 13,
                   color: isPending
-                      ? const Color(0xFFE65100)
+                      ? AppColors.warning
                       : theme.colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 6),
@@ -230,7 +238,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: isPending
-                          ? const Color(0xFFE65100)
+                          ? AppColors.warning
                           : isApproved
                           ? theme.colorScheme.primary
                           : theme.colorScheme.error,
@@ -407,13 +415,9 @@ class _ActionButtons extends StatelessWidget {
             ),
           ],
         ),
-        if (isPending && showClaudeClearContextButton) ...[
-          const SizedBox(height: 6),
-          const _SecondaryButton(
-            label: 'Accept plan + clear context',
-            onPressed: null,
-          ),
-        ],
+        // "Accept plan + clear context" requires backend support — omitted
+        // until the feature is implemented rather than showing a permanently
+        // disabled button (Apple HIG: don't show items that do nothing).
       ],
     );
   }
@@ -448,7 +452,7 @@ class _CodexActionButtons extends StatelessWidget {
             icon: const Icon(Icons.check_rounded, size: 15),
             label: const Text('Yes'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green.shade700,
+              backgroundColor: AppColors.success,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               textStyle: theme.textTheme.labelMedium?.copyWith(

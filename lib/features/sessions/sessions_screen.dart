@@ -7,7 +7,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../core/components/app_status_dot.dart';
+import '../../core/components/shimmer_view.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
 import '../../core/models/todo.dart';
@@ -515,7 +517,7 @@ class _SessionsListContentState
           ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
     if (sessionList.isEmpty && !_hasLoaded) {
-      return const Center(child: CircularProgressIndicator());
+      return _SessionListShimmer();
     }
 
     if (sessionList.isEmpty) {
@@ -1353,7 +1355,7 @@ class _CollapsibleDateHeader extends StatelessWidget {
               child: Text(
                 date,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.primary,
+                  color: cs.onSurfaceVariant,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
                 ),
@@ -2372,6 +2374,76 @@ class SessionCard extends StatelessWidget {
   }
 }
 
+// ─── Shimmer loading skeleton ────────────────────────────────────────────────
+
+/// Skeleton placeholder shown while sessions are loading.
+class _SessionListShimmer extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final base = cs.onSurface.withValues(alpha: 0.08);
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      itemCount: 6,
+      itemBuilder: (_, i) => ShimmerView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          child: Row(
+            children: [
+              // Avatar placeholder
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: base,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 14,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: base,
+                        borderRadius: BorderRadius.circular(AppRadius.xs),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Container(
+                      height: 12,
+                      width: 180,
+                      decoration: BoxDecoration(
+                        color: base,
+                        borderRadius: BorderRadius.circular(AppRadius.xs),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Container(
+                height: 12,
+                width: 36,
+                decoration: BoxDecoration(
+                  color: base,
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Empty state ─────────────────────────────────────────────────────────────
 
 /// Empty sessions view — clean, minimal design.
@@ -2386,14 +2458,14 @@ class EmptySessionsView extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 48),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.computer_outlined,
-              size: 48,
-              color: cs.onSurfaceVariant.withValues(alpha: 0.25),
+              size: 56,
+              color: cs.onSurfaceVariant.withValues(alpha: AppOpacity.medium),
             ),
             const SizedBox(height: AppSpacing.xl),
             Text(
@@ -2412,7 +2484,7 @@ class EmptySessionsView extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: AppSpacing.xxs),
             Text(
               l10n.emptyMainScreenRunIt,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -2420,7 +2492,7 @@ class EmptySessionsView extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: AppSpacing.xxs),
             Text(
               l10n.emptyMainScreenScanQrCode,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -2508,10 +2580,9 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    const connectedColor = Color(0xFF22C55E);
     final color = switch (widget.status) {
-      ConnectionStatus.connected => connectedColor,
-      ConnectionStatus.connecting => Colors.orange.shade600,
+      ConnectionStatus.connected => AppColors.success,
+      ConnectionStatus.connecting => AppColors.warning,
       ConnectionStatus.error => cs.error,
       ConnectionStatus.disconnected => cs.onSurfaceVariant,
     };

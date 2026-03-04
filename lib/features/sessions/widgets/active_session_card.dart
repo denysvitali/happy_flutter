@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/models/session.dart';
 import '../../../core/models/todo.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
@@ -51,14 +52,14 @@ class ActiveSessionCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
-        vertical: 2,
+        vertical: AppSpacing.xxs,
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        color: cs.primary.withValues(alpha: 0.04),
+        color: cs.primary.withValues(alpha: AppOpacity.faint + 0.04),
         border: Border.all(
-          color: cs.primary.withValues(alpha: 0.12),
-          width: 0.5,
+          color: cs.primary.withValues(alpha: AppOpacity.subtle),
+          width: 1,
         ),
       ),
       child: Material(
@@ -139,7 +140,7 @@ class ActiveSessionCard extends StatelessWidget {
                               const SizedBox(height: 2),
                               Text(
                                 sessionSubtitle,
-                                style: theme.textTheme.labelSmall?.copyWith(
+                                style: theme.textTheme.labelMedium?.copyWith(
                                   color: cs.onSurfaceVariant,
                                   fontFamily: 'monospace',
                                 ),
@@ -165,7 +166,7 @@ class ActiveSessionCard extends StatelessWidget {
                             ),
                             const SizedBox(height: AppSpacing.xs),
                             if (todoProgress != null) ...[
-                              const SizedBox(height: 3),
+                              const SizedBox(height: AppSpacing.xxs),
                               _TodoProgressBadge(
                                 completed: todoProgress.completed,
                                 total: todoProgress.total,

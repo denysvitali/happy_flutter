@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/api/socket_io_client.dart' show ConnectionStatus;
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Connection status badge in the app bar.
@@ -62,10 +63,9 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    const connectedColor = Color(0xFF22C55E);
     final color = switch (widget.status) {
-      ConnectionStatus.connected => connectedColor,
-      ConnectionStatus.connecting => Colors.orange.shade600,
+      ConnectionStatus.connected => AppColors.success,
+      ConnectionStatus.connecting => AppColors.warning,
       ConnectionStatus.error => cs.error,
       ConnectionStatus.disconnected => cs.onSurfaceVariant,
     };

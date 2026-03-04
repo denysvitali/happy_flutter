@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/sync_service.dart';
@@ -32,7 +33,7 @@ import 'views/web_search_view.dart';
 import 'views/write_view.dart';
 
 /// Duration before auto-collapsing a completed/error tool.
-const _kAutoCollapseDelay = Duration(seconds: 3);
+const _kAutoCollapseDelay = Duration(seconds: 8);
 
 /// Returns the left border accent color for a given tool state.
 Color _stateAccentColor(ToolState state, ColorScheme cs) {
@@ -40,7 +41,7 @@ Color _stateAccentColor(ToolState state, ColorScheme cs) {
     case ToolState.running:
       return cs.primary;
     case ToolState.completed:
-      return const Color(0xFF34C759); // semantic green brand color
+      return AppColors.success; // semantic green brand color
     case ToolState.error:
       return cs.error;
     case ToolState.pending:
@@ -54,7 +55,7 @@ Color _statusBadgeBg(ToolState state, ColorScheme cs) {
     case ToolState.running:
       return cs.primary;
     case ToolState.completed:
-      return const Color(0xFF34C759); // semantic green brand color
+      return AppColors.success; // semantic green brand color
     case ToolState.error:
       return cs.error;
     case ToolState.pending:
@@ -77,7 +78,7 @@ String _statusBadgeLabel(ToolState state) {
 }
 
 /// Accent color for permission-required state (orange).
-const Color _permissionColor = Color(0xFFFF9500);
+const Color _permissionColor = AppColors.warning;
 
 /// Map of MCP server name tokens to representative emojis.
 const Map<String, String> _mcpServerEmojis = {
@@ -1103,7 +1104,7 @@ class _ToolHeader extends StatelessWidget {
                     Icons.check_circle,
                     key: const ValueKey('flash'),
                     size: 20,
-                    color: const Color(0xFF34C759),
+                    color: AppColors.success,
                   )
                 : (statusIcon != null
                       ? SizedBox(

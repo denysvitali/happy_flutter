@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../tool_section_view.dart';
 
 /// Task list item model.
@@ -161,7 +162,7 @@ class _CountSummary extends StatelessWidget {
     final theme = Theme.of(context);
     final allDone = completed == total;
     final color = allDone
-        ? const Color(0xFF34C759)
+        ? AppColors.success
         : theme.colorScheme.onSurfaceVariant;
 
     return Row(
@@ -198,7 +199,7 @@ class _TodoRow extends StatelessWidget {
 
     final Color statusColor;
     if (todo.isCompleted) {
-      statusColor = const Color(0xFF34C759);
+      statusColor = AppColors.success;
     } else if (todo.isInProgress) {
       statusColor = theme.colorScheme.primary;
     } else {

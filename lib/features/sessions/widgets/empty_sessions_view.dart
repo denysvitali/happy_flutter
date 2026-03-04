@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Empty sessions view — clean, minimal design.
 class EmptySessionsView extends StatelessWidget {
-  const EmptySessionsView({super.key});
+  const EmptySessionsView({super.key, this.onNewSession});
+
+  /// Callback invoked when the user taps "New Session".
+  /// If null, the button is not shown.
+  final VoidCallback? onNewSession;
 
   @override
   Widget build(BuildContext context) {
@@ -15,14 +20,14 @@ class EmptySessionsView extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 48),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.computer_outlined,
-              size: 48,
-              color: cs.onSurfaceVariant.withValues(alpha: 0.25),
+              size: 56,
+              color: cs.onSurfaceVariant.withValues(alpha: AppOpacity.medium),
             ),
             const SizedBox(height: AppSpacing.xl),
             Text(
@@ -41,7 +46,7 @@ class EmptySessionsView extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: AppSpacing.xxs),
             Text(
               l10n.emptyMainScreenRunIt,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -49,7 +54,7 @@ class EmptySessionsView extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: AppSpacing.xxs),
             Text(
               l10n.emptyMainScreenScanQrCode,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -57,53 +62,22 @@ class EmptySessionsView extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.xxl),
-            FilledButton.tonal(
-              onPressed: () => _showNewSessionDialog(context),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(160, 44),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+            if (onNewSession != null) ...[
+              const SizedBox(height: AppSpacing.xxl),
+              FilledButton.tonal(
+                onPressed: onNewSession,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(160, 44),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
                 ),
+                child: Text(l10n.sessionNewSession),
               ),
-              child: Text(l10n.sessionNewSession),
-            ),
+            ],
           ],
         ),
       ),
-    );
-  }
-
-  void _showNewSessionDialog(BuildContext context) {
-    // This is a bit of a hack - we need to access the _SessionsListContent
-    // state to show the dialog. For now, we'll use a static method approach.
-    // The dialog showing logic should ideally be moved to a service or
-    // the parent widget should pass down a callback.
-    showDialog(
-      context: context,
-      builder: (context) => const _NewSessionDialogPlaceholder(),
-    );
-  }
-}
-
-/// Placeholder for the new session dialog.
-/// This should be replaced with the actual NewSessionDialog
-/// from sessions_screen.dart.
-/// or the dialog should be extracted to its own file.
-class _NewSessionDialogPlaceholder extends StatelessWidget {
-  const _NewSessionDialogPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('New Session'),
-      content: const Text('New session dialog should be shown here.'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-      ],
     );
   }
 }

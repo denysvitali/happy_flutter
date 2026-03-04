@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Permission mode options for Claude/Gemini agents
@@ -62,19 +63,19 @@ extension PermissionModeExtension on PermissionMode {
   Color get color {
     switch (this) {
       case PermissionMode.defaultMode:
-        return Colors.blue;
+        return AppColors.iosBlue;
       case PermissionMode.acceptEdits:
-        return Colors.purple;
+        return const Color(0xFF9C27B0); // purple — no AppColors token
       case PermissionMode.plan:
-        return Colors.orange;
+        return AppColors.warning;
       case PermissionMode.bypassPermissions:
-        return Colors.red;
+        return const Color(0xFFE53935); // red — semantic destructive
       case PermissionMode.readOnly:
-        return Colors.teal;
+        return const Color(0xFF00897B); // teal
       case PermissionMode.safeYolo:
-        return Colors.amber;
+        return AppColors.info;
       case PermissionMode.yolo:
-        return Colors.deepOrange;
+        return const Color(0xFFE64A19); // deep orange
     }
   }
 

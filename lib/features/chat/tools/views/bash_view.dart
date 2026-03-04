@@ -202,14 +202,22 @@ class _TerminalCommandBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     // Show description as primary label; fall back to "bash".
     final label = description ?? 'bash';
+    // Terminal is always dark-surfaced; shade slightly for light-mode apps.
+    final termBg =
+        isDark ? const Color(0xFF0D1117) : const Color(0xFF1C2128);
+    final termHeader =
+        isDark ? const Color(0xFF161B22) : const Color(0xFF22272E);
+    final termBorder =
+        isDark ? const Color(0xFF30363D) : const Color(0xFF444C56);
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
+        color: termBg,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: const Color(0xFF30363D)),
+        border: Border.all(color: termBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,14 +229,14 @@ class _TerminalCommandBar extends StatelessWidget {
               horizontal: AppSpacing.sm + 2,
               vertical: AppSpacing.sm - 2,
             ),
-            decoration: const BoxDecoration(
-              color: Color(0xFF161B22),
-              borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+              color: termHeader,
+              borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(AppRadius.sm),
                 topRight: Radius.circular(AppRadius.sm),
               ),
               border: Border(
-                bottom: BorderSide(color: Color(0xFF30363D)),
+                bottom: BorderSide(color: termBorder),
               ),
             ),
             child: Row(
@@ -326,12 +334,15 @@ class _TerminalOutputSection extends StatelessWidget {
         expanded || !needsTruncation ? lines : lines.take(maxLines).toList();
     final visibleText = visibleLines.join('\n');
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final labelColor =
         isError ? const Color(0xFFF85149) : const Color(0xFF8B949E);
-    final borderColor =
-        isError ? const Color(0xFF5A1E1E) : const Color(0xFF30363D);
-    final bgColor =
-        isError ? const Color(0xFF160B0B) : const Color(0xFF0D1117);
+    final borderColor = isError
+        ? const Color(0xFF5A1E1E)
+        : (isDark ? const Color(0xFF30363D) : const Color(0xFF444C56));
+    final bgColor = isError
+        ? (isDark ? const Color(0xFF160B0B) : const Color(0xFF1C0808))
+        : (isDark ? const Color(0xFF0D1117) : const Color(0xFF1C2128));
 
     return Container(
       margin: const EdgeInsets.only(top: AppSpacing.sm - 2),
@@ -351,7 +362,7 @@ class _TerminalOutputSection extends StatelessWidget {
               vertical: AppSpacing.xs + 1,
             ),
             decoration: BoxDecoration(
-              color: const Color(0xFF161B22),
+              color: isDark ? const Color(0xFF161B22) : const Color(0xFF22272E),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(AppRadius.sm),
                 topRight: Radius.circular(AppRadius.sm),

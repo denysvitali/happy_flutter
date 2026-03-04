@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
+
 /// Status icons for tool execution states.
 class ToolStatusIndicator extends StatelessWidget {
 
@@ -24,7 +26,7 @@ class ToolStatusIndicator extends StatelessWidget {
         return Icon(
           Icons.check_circle_rounded,
           size: size,
-          color: const Color(0xFF34C759),
+          color: AppColors.success,
         );
       case ToolState.error:
         return Icon(
@@ -177,7 +179,7 @@ class StatusIcon extends StatelessWidget {
       case ToolState.running:
         return theme.colorScheme.primary;
       case ToolState.completed:
-        return const Color(0xFF34C759);
+        return AppColors.success;
       case ToolState.error:
         return theme.colorScheme.error;
       case ToolState.pending:

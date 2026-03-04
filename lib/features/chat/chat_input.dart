@@ -199,39 +199,49 @@ class _SendButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: ScaleTransition(
-        scale: scaleAnimation,
-        child: AnimatedContainer(
-          duration: _kBorderAnim,
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: canSend ? cs.primary : cs.onSurface.withValues(alpha: 0.08),
-          ),
-          child: AnimatedSwitcher(
-            duration: _kSwitchAnim,
-            switchInCurve: Curves.easeIn,
-            switchOutCurve: Curves.easeOut,
-            transitionBuilder: (child, anim) =>
-                FadeTransition(opacity: anim, child: child),
-            child: isSending
-                ? Padding(
-                    key: const ValueKey('spinner'),
-                    padding: const EdgeInsets.all(AppSpacing.sm),
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.5,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  )
-                : Icon(
-                    key: const ValueKey('send'),
-                    Icons.arrow_upward_rounded,
-                    size: 18,
-                    color: canSend
-                        ? cs.onPrimary
-                        : cs.onSurface.withValues(alpha: 0.25),
-                  ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          minWidth: AppTouchTarget.min,
+          minHeight: AppTouchTarget.min,
+        ),
+        child: Center(
+          child: ScaleTransition(
+            scale: scaleAnimation,
+            child: AnimatedContainer(
+              duration: _kBorderAnim,
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: canSend
+                    ? cs.primary
+                    : cs.onSurface.withValues(alpha: 0.08),
+              ),
+              child: AnimatedSwitcher(
+                duration: _kSwitchAnim,
+                switchInCurve: Curves.easeIn,
+                switchOutCurve: Curves.easeOut,
+                transitionBuilder: (child, anim) =>
+                    FadeTransition(opacity: anim, child: child),
+                child: isSending
+                    ? Padding(
+                        key: const ValueKey('spinner'),
+                        padding: const EdgeInsets.all(AppSpacing.sm),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      )
+                    : Icon(
+                        key: const ValueKey('send'),
+                        Icons.arrow_upward_rounded,
+                        size: 18,
+                        color: canSend
+                            ? cs.onPrimary
+                            : cs.onSurface.withValues(alpha: 0.25),
+                      ),
+              ),
+            ),
           ),
         ),
       ),

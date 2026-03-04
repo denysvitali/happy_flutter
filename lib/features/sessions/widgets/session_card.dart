@@ -105,24 +105,23 @@ class SessionCard extends StatelessWidget {
         ? cs.primary.withValues(alpha: 0.08)
         : cs.surface;
 
-    return GestureDetector(
-      onLongPress: onLongPress,
-      child: Card(
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: borderRadius,
-          side: isSelected
-              ? BorderSide(
-                  color: cs.primary.withValues(alpha: 0.3),
-                )
-              : BorderSide.none,
-        ),
-        elevation: 0,
-        color: cardColor,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: borderRadius,
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: borderRadius,
+        side: isSelected
+            ? BorderSide(
+                color: cs.primary.withValues(alpha: 0.3),
+              )
+            : BorderSide.none,
+      ),
+      elevation: 0,
+      color: cardColor,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        borderRadius: borderRadius,
           child: IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -147,7 +146,7 @@ class SessionCard extends StatelessWidget {
                   child: Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: AppSpacing.md,
-                      vertical: compact ? 6 : AppSpacing.sm,
+                      vertical: compact ? AppSpacing.xsm : AppSpacing.sm,
                     ),
                     child: Row(
                       crossAxisAlignment:
@@ -220,16 +219,15 @@ class SessionCard extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: AppSpacing.xxs),
                               Text(
                                 sessionSubtitle,
                                 style: theme
-                                    .textTheme.labelSmall
+                                    .textTheme.labelMedium
                                     ?.copyWith(
                                   color:
                                       cs.onSurfaceVariant,
                                   fontFamily: 'monospace',
-                                  fontSize: 11,
                                 ),
                                 overflow:
                                     TextOverflow.ellipsis,
@@ -280,7 +278,6 @@ class SessionCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }
