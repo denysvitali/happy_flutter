@@ -272,9 +272,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final permissionStatus = permission is Map<String, dynamic>
           ? permission['status']
           : null;
+      final sendStatus = message['sendStatus'];
       hash = Object.hash(
         hash,
         message['id'],
+        message['localId'],
         message['seq'],
         message['role'],
         message['kind'],
@@ -286,6 +288,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         childCount,
         lastChildId,
         permissionStatus,
+        sendStatus,
       );
     }
     return hash;
@@ -736,11 +739,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               metadata: metadataJson,
               messages: _messages,
               sessionId: widget.sessionId,
-              isSessionOnline: (_session?.isOnline ?? false) ||
-                  (_session?.metadata?.machineId?.isNotEmpty ==
-                          true &&
-                      _session?.metadata?.path?.isNotEmpty ==
-                          true),
+              isSessionOnline:
+                  (_session?.isOnline ?? false) ||
+                  (_session?.metadata?.machineId?.isNotEmpty == true &&
+                      _session?.metadata?.path?.isNotEmpty == true),
               onOptionPress: _onOptionPress,
               animate:
                   _initialLoadComplete && !_seenMessageIds.contains(messageKey),
@@ -787,9 +789,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${context.l10n.chatFailedToSend}: $e'),
-          ),
+          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
         );
       }
     }
@@ -830,9 +830,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           setState(() => _controller.text = text);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                context.l10n.chatFailedToClear(e.toString()),
-              ),
+              content: Text(context.l10n.chatFailedToClear(e.toString())),
             ),
           );
         }
@@ -884,9 +882,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       // path). Background send errors are surfaced via sendStatus.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${context.l10n.chatFailedToSend}: $e'),
-          ),
+          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
         );
         _controller.text = text;
       }
