@@ -703,7 +703,25 @@ what you have, you must use the options mode.
   void _handleNewMessage(Map<String, dynamic> data) {
     final sessionId = data['sid'] as String? ?? data['id'] as String?;
     sessionsSync.invalidate();
-    if (sessionId != null && messagesSync.containsKey(sessionId)) {
+    if (sessionId != null) {
+      final isVisible = sessionId == _visibleSessionId;
+
+      // For the active chat, force the same tail refresh strategy used when
+      // entering a session. This avoids a stale after_seq cursor causing
+      // transient "no new messages" until the user leaves/re-enters.
+      if (isVisible) {
+        _requestTailRefresh(sessionId);
+      }
+
+      // Recreate per-session sync lazily for the visible session if needed.
+      // This guards against edge-cases where the entry was missing and
+      // updates were otherwise ignored until onSessionVisible() ran again.
+      if (!messagesSync.containsKey(sessionId) && isVisible) {
+        messagesSync[sessionId] = InvalidateSync(
+          () => fetchMessages(sessionId),
+        );
+      }
+
       messagesSync[sessionId]?.invalidate();
     }
     logger.info(
