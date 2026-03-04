@@ -344,6 +344,8 @@ what you have, you must use the options mode.
   // sessionId → epoch-ms of last local spawn. Lets _resolveSendTargetSession
   // skip auto-restore while the daemon's lifecycle update propagates (< 5 s).
   final Map<String, int> _sessionSpawnedAt = {};
+  // Track sessions currently undergoing auto-restore to prevent concurrent RPCs.
+  final Set<String> _autoRestoreInFlight = {};
   @visibleForTesting
   bool? testSocketConnectedOverride;
   @visibleForTesting
@@ -741,6 +743,7 @@ what you have, you must use the options mode.
       _sessionDataKeys.remove(sessionId);
       _sessionsNeedingTailRefresh.remove(sessionId);
       _sessionSpawnedAt.remove(sessionId);
+      _autoRestoreInFlight.remove(sessionId);
       if (isInitialized) {
         _sessionLastSeq.remove(sessionId);
         MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
@@ -2598,6 +2601,18 @@ what you have, you must use the options mode.
       'attempting auto-restore',
     );
 
+    if (_autoRestoreInFlight.contains(sessionId)) {
+      logger.info(
+        '[sendMessage] auto-restore already in-flight for '
+        'session=$sessionId, skipping duplicate',
+      );
+      return (
+        sessionId: sessionId,
+        session: session,
+        sessionEncryption: sessionEncryption,
+      );
+    }
+    _autoRestoreInFlight.add(sessionId);
     try {
       final req = SpawnSessionRequest(
         type: 'spawn-in-directory',
@@ -2738,6 +2753,8 @@ what you have, you must use the options mode.
         session: session,
         sessionEncryption: sessionEncryption,
       );
+    } finally {
+      _autoRestoreInFlight.remove(sessionId);
     }
   }
 
