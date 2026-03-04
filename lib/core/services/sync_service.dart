@@ -2296,6 +2296,7 @@ what you have, you must use the options mode.
       'spawn-happy-session',
       req.toJson(),
       SpawnSessionResponse.fromJson,
+      timeout: const Duration(seconds: 60),
     );
 
     if (result.type == 'success') {
@@ -2656,6 +2657,7 @@ what you have, you must use the options mode.
         'spawn-happy-session',
         req.toJson(),
         SpawnSessionResponse.fromJson,
+        timeout: const Duration(seconds: 60),
       );
       if (result.type != 'success') {
         logger.warning(
@@ -3198,18 +3200,20 @@ what you have, you must use the options mode.
   Future<dynamic> machineRPC(
     String machineId,
     String method,
-    Map<String, dynamic> params,
-  ) async {
+    Map<String, dynamic> params, {
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
     final machineEncryption = encryption.getMachineEncryption(machineId);
     if (machineEncryption == null) {
       throw StateError('Machine encryption not found for $machineId');
     }
 
     final encrypted = await machineEncryption.encryptRaw(params);
-    final result = await socketIoClient.emitWithAck('rpc-call', {
-      'method': '$machineId:$method',
-      'params': encrypted,
-    });
+    final result = await socketIoClient.emitWithAck(
+      'rpc-call',
+      {'method': '$machineId:$method', 'params': encrypted},
+      timeout: timeout,
+    );
 
     if (result is Map && result['ok'] == true) {
       final encryptedResult = result['result'] as String?;
@@ -3271,9 +3275,15 @@ what you have, you must use the options mode.
     String machineId,
     String method,
     Map<String, dynamic> params,
-    Resp Function(Map<String, dynamic>) fromJson,
-  ) async {
-    final raw = await machineRPC(machineId, method, params);
+    Resp Function(Map<String, dynamic>) fromJson, {
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    final raw = await machineRPC(
+      machineId,
+      method,
+      params,
+      timeout: timeout,
+    );
     // Handle null or non-Map responses gracefully
     if (raw == null) {
       throw StateError(
@@ -3363,6 +3373,7 @@ what you have, you must use the options mode.
         'spawn-happy-session',
         req.toJson(),
         SpawnSessionResponse.fromJson,
+        timeout: const Duration(seconds: 60),
       );
       if (result.type == 'success') {
         logger.info(
