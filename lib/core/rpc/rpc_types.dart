@@ -55,9 +55,15 @@ class SpawnSessionResponse {
   factory SpawnSessionResponse.fromJson(
     Map<String, dynamic> json,
   ) => SpawnSessionResponse(
-    type: json['type'] as String?,
+    // The daemon's RpcHandlerManager catches handler exceptions and returns
+    // { error: '...' } instead of { type: 'error', errorMessage: '...' }.
+    // Fall back to treating a bare 'error' key as type='error'.
+    type: json['type'] as String? ?? (json['error'] != null ? 'error' : null),
     sessionId: (json['sessionId'] ?? json['session_id']) as String?,
-    errorMessage: (json['errorMessage'] ?? json['error_message']) as String?,
+    // Also check the bare 'error' key used by the daemon's catch block.
+    errorMessage:
+        (json['errorMessage'] ?? json['error_message'] ?? json['error'])
+            as String?,
     directory: json['directory'] as String?,
     dataEncryptionKey:
         (json['dataEncryptionKey'] ?? json['data_encryption_key']) as String?,

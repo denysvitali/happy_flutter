@@ -2365,7 +2365,52 @@ what you have, you must use the options mode.
       );
     }
 
-    throw StateError(result.errorMessage ?? 'unknown error');
+    final errorMsg = result.errorMessage ?? 'unknown error';
+
+    // The daemon waits 15 s for the agent's startup webhook before returning
+    // an error.  The agent often connects to the server ~2 s after that
+    // deadline, so the session IS created even though the RPC returned an
+    // error.  Retry once: wait briefly, force a full session refresh, then
+    // look for a recently-created session on this machine + path.
+    if (errorMsg.contains('webhook timeout')) {
+      logger.info(
+        '[createSession] spawn webhook timeout for '
+        'machine=$machineId path=$path — waiting for late session',
+      );
+      await Future<void>.delayed(const Duration(seconds: 5));
+      _forceFullFetchNext = true;
+      await refreshSessions();
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final candidates =
+          _sessions.values
+              .where(
+                (s) =>
+                    s.metadata?.machineId == machineId &&
+                    s.metadata?.path == path &&
+                    (now - s.createdAt) < 90000,
+              )
+              .toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      if (candidates.isNotEmpty) {
+        final found = candidates.first;
+        logger.info(
+          '[createSession] recovered session ${found.id} '
+          'after webhook timeout',
+        );
+        _sessionSpawnedAt[found.id] = found.createdAt;
+        _notifyDataChanged();
+        return found.id;
+      }
+
+      logger.warning(
+        '[createSession] session not found after webhook timeout retry '
+        'machine=$machineId path=$path',
+      );
+    }
+
+    throw StateError(errorMsg);
   }
 
   /// Execute a bash command on a machine.
