@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -368,15 +367,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return path;
   }
 
-  static const _thinkingMessages = [
-    'Vibing...',
-    'Thinking deeply...',
-    'Crafting a response...',
-    'Working on it...',
-    'In the zone...',
-    'Pondering...',
-  ];
-
   String _getStatusText(BuildContext context) {
     final session = _session;
     if (session == null) return '';
@@ -385,12 +375,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final hasRequests = session.agentState?.requests?.isNotEmpty ?? false;
     if (hasRequests) return l10n.chatPermissionRequired;
 
-    if (session.thinking) {
-      final idx = Random(
-        session.thinkingAt ?? DateTime.now().millisecondsSinceEpoch,
-      ).nextInt(_thinkingMessages.length);
-      return _thinkingMessages[idx];
-    }
+    if (session.thinking) return l10n.chatThinking;
 
     if (session.presence == 'online') return l10n.chatOnline;
 

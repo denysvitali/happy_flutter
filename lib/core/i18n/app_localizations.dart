@@ -455,6 +455,7 @@ class AppLocalizations {
   // Chat (extended)
   String get chatPermissionRequired =>
       'Permission required';
+  String get chatThinking => 'Thinking...';
   String get chatOnline => 'Online';
   String get chatLastSeenJustNow =>
       'Last seen just now';
