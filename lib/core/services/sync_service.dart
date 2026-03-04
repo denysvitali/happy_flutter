@@ -340,6 +340,10 @@ what you have, you must use the options mode.
   Timer? _saveSeqDebounceTimer;
   final Map<String, Timer> _postSendCatchUpTimers = {};
   final Set<String> _sessionsNeedingTailRefresh = <String>{};
+
+  // sessionId → epoch-ms of last local spawn. Lets _resolveSendTargetSession
+  // skip auto-restore while the daemon's lifecycle update propagates (< 5 s).
+  final Map<String, int> _sessionSpawnedAt = {};
   @visibleForTesting
   bool? testSocketConnectedOverride;
   @visibleForTesting
@@ -736,6 +740,7 @@ what you have, you must use the options mode.
       _presenceTimers.remove(sessionId)?.cancel();
       _sessionDataKeys.remove(sessionId);
       _sessionsNeedingTailRefresh.remove(sessionId);
+      _sessionSpawnedAt.remove(sessionId);
       if (isInitialized) {
         _sessionLastSeq.remove(sessionId);
         MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
@@ -2289,6 +2294,7 @@ what you have, you must use the options mode.
           await encryption.initializeSessions({sessionId: decryptedKey});
         }
       }
+      _sessionSpawnedAt[sessionId] = DateTime.now().millisecondsSinceEpoch;
 
       // Force a full fetch (not delta) to ensure the newly created session
       // is included in the results. This prevents a race condition where
@@ -2552,12 +2558,17 @@ what you have, you must use the options mode.
     final lifecycleState = session.metadata?.lifecycleState;
     final agentIsStartingOrRunning =
         lifecycleState == 'starting' || lifecycleState == 'running';
-    final looksReady = session.isOnline || agentIsStartingOrRunning;
+    final spawnedAt = _sessionSpawnedAt[sessionId];
+    final recentlySpawned = spawnedAt != null &&
+        DateTime.now().millisecondsSinceEpoch - spawnedAt < 120000;
+    final looksReady =
+        session.isOnline || agentIsStartingOrRunning || recentlySpawned;
     logger.info(
       '[sendMessage] _resolveSendTargetSession '
       'session=$sessionId looksReady=$looksReady '
       '(isOnline=${session.isOnline}, '
       'lifecycleState=$lifecycleState, '
+      'recentlySpawned=$recentlySpawned, '
       'agentStateVersion=${session.agentStateVersion})',
     );
     if (looksReady) {
@@ -2643,6 +2654,8 @@ what you have, you must use the options mode.
           );
         }
       }
+      _sessionSpawnedAt[restoredSessionId] =
+          DateTime.now().millisecondsSinceEpoch;
 
       if (restoredSessionId != sessionId) {
         logger.info(
@@ -2670,6 +2683,7 @@ what you have, you must use the options mode.
             machineId: machineId,
             path: path,
             flavor: session.metadata?.flavor,
+            lifecycleState: 'starting',
           ),
           metadataVersion: 0,
           agentStateVersion: 0,
