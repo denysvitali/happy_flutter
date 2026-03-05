@@ -62,7 +62,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final envVars = _envRows
@@ -101,11 +101,18 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       profiles = [...settings.profiles, updated];
     }
 
-    ref
-        .read(settingsNotifierProvider.notifier)
-        .updateSetting('profiles', profiles);
-
-    Navigator.of(context).pop();
+    try {
+      await ref
+          .read(settingsNotifierProvider.notifier)
+          .updateSetting('profiles', profiles);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save profile: $e')),
+        );
+      }
+    }
   }
 
   @override
