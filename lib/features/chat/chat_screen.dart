@@ -58,12 +58,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _visibleCount = _pageSize;
   bool _isLoadingMore = false;
 
-  // Timestamp of the last successful /clear, used to show a divider.
-  DateTime? _lastClearedAt;
-
   // Cached slicing / index data for _buildMessageList.
   List<Map<String, dynamic>>? _cachedVisibleMessages;
-  Map<String, int>? _cachedKeyToListIndex;
   int _cachedMessagesLength = -1;
   int _cachedVisibleCount = -1;
 
@@ -662,24 +658,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final totalCount = _messages.length;
     final startIndex = (totalCount - _visibleCount).clamp(0, totalCount);
 
-    // Reuse cached sublist + key index when messages haven't changed.
+    // Reuse cached sublist when messages haven't changed.
     if (totalCount != _cachedMessagesLength ||
         _visibleCount != _cachedVisibleCount) {
       _cachedMessagesLength = totalCount;
       _cachedVisibleCount = _visibleCount;
       _cachedVisibleMessages = _messages.sublist(startIndex);
-      final idx = <String, int>{};
-      for (var i = 0; i < _cachedVisibleMessages!.length; i++) {
-        final m = _cachedVisibleMessages![i];
-        final k = m['id'] as String? ?? m['toolUseId'] as String?;
-        if (k != null) {
-          idx[k] = _cachedVisibleMessages!.length - 1 - i;
-        }
-      }
-      _cachedKeyToListIndex = idx;
     }
     final visibleMessages = _cachedVisibleMessages!;
-    final keyToListIndex = _cachedKeyToListIndex!;
 
     final hasLocalMore = startIndex > 0;
 
@@ -696,8 +682,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final metadataJson = _metadataJson;
 
-    final hasClearedDivider = _lastClearedAt != null;
-    final clearedOffset = hasClearedDivider ? 1 : 0;
+    // Build virtual items: messages with 'cleared' dividers inserted after
+    // every user message whose content is '/clear'.
+    // null = divider sentinel; Map = real message.
+    final items = <Map<String, dynamic>?>[];
+    for (final msg in visibleMessages) {
+      items.add(msg);
+      final role = msg['role'] as String?;
+      final content = msg['content'] ?? msg['text'];
+      final text = content is String ? content : content?.toString() ?? '';
+      if (role == 'user' && text.trim() == '/clear') {
+        items.add(null); // cleared divider
+      }
+    }
+
+    // Rebuild key→list-index map over the virtual items list so that
+    // findChildIndexCallback stays accurate when dividers are inserted.
+    final keyToListIndex = <String, int>{};
+    for (var i = 0; i < items.length; i++) {
+      final m = items[i];
+      if (m == null) continue;
+      final k = m['id'] as String? ?? m['toolUseId'] as String?;
+      if (k != null) {
+        keyToListIndex[k] = items.length - 1 - i;
+      }
+    }
 
     return ListView.builder(
       controller: _scrollController,
@@ -706,22 +715,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         top: AppSpacing.xsm,
         bottom: AppSpacing.xs,
       ),
-      itemCount:
-          visibleMessages.length + (showHeader ? 1 : 0) + clearedOffset,
+      itemCount: items.length + (showHeader ? 1 : 0),
       findChildIndexCallback: (key) {
         if (key is! ValueKey<String>) return null;
-        final idx = keyToListIndex[key.value];
-        if (idx == null) return null;
-        return idx + clearedOffset;
+        return keyToListIndex[key.value];
       },
       itemBuilder: (context, index) {
-        // Cleared divider sits at the very bottom of the list (index 0 in
-        // a reversed ListView = most recent position).
-        if (hasClearedDivider && index == 0) {
-          return _buildClearedDivider(context);
-        }
-        final adjustedIndex = index - clearedOffset;
-        if (showHeader && adjustedIndex == visibleMessages.length) {
+        if (showHeader && index == items.length) {
           if (hasLocalMore || isLoadingFromServer) {
             return Center(
               key: ValueKey(
@@ -746,12 +746,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           return _buildConversationStartLabel(context);
         }
 
-        final reversedIndex = visibleMessages.length - 1 - adjustedIndex;
+        final reversedIndex = items.length - 1 - index;
+        final item = items[reversedIndex];
 
-        final message = visibleMessages[reversedIndex];
-        final nextMessage = reversedIndex + 1 < visibleMessages.length
-            ? visibleMessages[reversedIndex + 1]
-            : null;
+        // Divider sentinel
+        if (item == null) {
+          return _buildClearedDivider(context);
+        }
+
+        final message = item;
+        // For spacing, look at the next real message (skip dividers).
+        Map<String, dynamic>? nextMessage;
+        for (var j = reversedIndex + 1; j < items.length; j++) {
+          if (items[j] != null) {
+            nextMessage = items[j];
+            break;
+          }
+        }
 
         final currentRole = message['role'] as String?;
         final nextRole = nextMessage?['role'] as String?;
@@ -906,9 +917,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
         _refreshFromSync();
         _scrollToBottom();
-        if (mounted) {
-          setState(() => _lastClearedAt = DateTime.now());
-        }
       } catch (e) {
         if (mounted) {
           setState(() => _controller.text = text);
