@@ -7,6 +7,7 @@ import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/sync_service.dart';
 import '../utils/tool_error_parser.dart';
 import 'elapsed_time.dart';
+import 'json_viewer.dart';
 import 'known_tools.dart';
 import 'permission_footer.dart';
 import 'tool_error.dart';
@@ -839,16 +840,12 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
           if (toolInput != null)
             ToolSectionView(
               title: 'INPUT',
-              child: _ToolOutputContainer(content: toolInput.toString()),
+              child: SmartOutputContainer(content: toolInput),
             ),
           if (state == ToolState.completed && toolResult != null)
             ToolSectionView(
               title: 'OUTPUT',
-              child: _ToolOutputContainer(
-                content: toolResult is String
-                    ? toolResult
-                    : toolResult.toString(),
-              ),
+              child: SmartOutputContainer(content: toolResult),
             ),
           if (state == ToolState.error &&
               toolResult != null &&
@@ -1197,42 +1194,6 @@ class _ToolDuration extends StatelessWidget {
   }
 }
 
-/// Scrollable monospace output area used in the fallback content block.
-class _ToolOutputContainer extends StatelessWidget {
-  const _ToolOutputContainer({required this.content});
-
-  /// The text to display.
-  final String content;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      constraints: const BoxConstraints(maxHeight: 300),
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppRadius.sm - 2),
-        border: Border.all(
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
-        ),
-      ),
-      child: SingleChildScrollView(
-        child: SelectableText(
-          content,
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontFamilyFallback: const ['Courier New', 'Courier'],
-            fontSize: 12,
-            color: theme.colorScheme.onSurface,
-            height: 1.5,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 /// A [CircularProgressIndicator] whose opacity pulses via [animation].
 class _PulsingProgressIndicator extends StatelessWidget {
