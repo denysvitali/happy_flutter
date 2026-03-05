@@ -86,10 +86,15 @@ class InvalidateSync {
       return;
     }
 
+    // Always complete the current Completer so that any pending
+    // `invalidateAndAwait()` callers are unblocked — their "run at least
+    // once" contract is now satisfied.  If a new invalidation arrived
+    // while the action was running, start a fresh cycle for it with a
+    // brand-new Completer so new callers can await that cycle separately.
+    _completeOperation();
     if (_invalidated) {
+      _currentOperation = Completer<void>();
       unawaited(_run());
-    } else {
-      _completeOperation();
     }
   }
 
