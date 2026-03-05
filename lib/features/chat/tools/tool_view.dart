@@ -606,9 +606,8 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     if (knownTool != null) {
       minimal = knownTool.minimal;
     } else {
-      // Unknown/MCP tools: show content when data is present
-      final hasData = toolInput != null || toolResult != null;
-      minimal = !hasData;
+      // Unknown/MCP tools: always minimal — details via tap/long-press only.
+      minimal = true;
     }
 
     final state = _parseToolState(toolState);
