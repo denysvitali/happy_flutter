@@ -170,8 +170,8 @@ class _ToolDetailView extends StatelessWidget {
             icon: state == ToolState.error
                 ? Icons.error_outline
                 : Icons.output,
-            json: result is Map<String, dynamic> ? result : null,
-            text: result is! Map<String, dynamic>
+            json: result is Map || result is List ? result : null,
+            text: result is! Map && result is! List
                 ? result.toString()
                 : null,
             isError: state == ToolState.error,
@@ -286,7 +286,7 @@ class _ToolResultSection extends StatelessWidget {
 
   final String title;
   final IconData icon;
-  final Map<String, dynamic>? json;
+  final dynamic json; // Map<String, dynamic> or List<dynamic>
   final String? text;
   final bool isError;
 
@@ -351,7 +351,7 @@ class _ToolResultSection extends StatelessWidget {
   /// Returns a parsed JSON value (Map or List) if the content is JSON,
   /// or null if it should be rendered as plain text.
   dynamic _resolveJson() {
-    if (json != null) return json;
+    if (json is Map || json is List) return json;
     final t = text;
     if (t == null) return null;
     final trimmed = t.trim();
