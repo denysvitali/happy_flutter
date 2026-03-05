@@ -46,6 +46,7 @@ class _MarkdownViewState extends State<MarkdownView> {
   Color? _lastTextColor;
 
   MarkdownStyleSheet _buildStyleSheet(ThemeData theme) {
+    final onSurface = theme.colorScheme.onSurface;
     return MarkdownStyleSheet.fromTheme(theme).copyWith(
       p: theme.textTheme.bodyMedium?.copyWith(color: widget.textColor),
       h1: theme.textTheme.headlineLarge?.copyWith(color: widget.textColor),
@@ -56,6 +57,20 @@ class _MarkdownViewState extends State<MarkdownView> {
       h6: theme.textTheme.titleSmall?.copyWith(color: widget.textColor),
       listBullet:
           theme.textTheme.bodyMedium?.copyWith(color: widget.textColor),
+      blockquoteDecoration: BoxDecoration(
+        color: onSurface.withValues(alpha: 0.05),
+        border: Border(
+          left: BorderSide(
+            color: onSurface.withValues(alpha: 0.3),
+            width: 4,
+          ),
+        ),
+      ),
+      blockquotePadding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      blockquote: theme.textTheme.bodyMedium?.copyWith(
+        color: (widget.textColor ?? onSurface).withValues(alpha: 0.75),
+        fontStyle: FontStyle.italic,
+      ),
       codeblockDecoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
@@ -118,7 +133,22 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
   ThemeData? _lastTheme;
 
   MarkdownStyleSheet _buildStyleSheet(ThemeData theme) {
+    final onSurface = theme.colorScheme.onSurface;
     return MarkdownStyleSheet.fromTheme(theme).copyWith(
+      blockquoteDecoration: BoxDecoration(
+        color: onSurface.withValues(alpha: 0.05),
+        border: Border(
+          left: BorderSide(
+            color: onSurface.withValues(alpha: 0.3),
+            width: 4,
+          ),
+        ),
+      ),
+      blockquotePadding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      blockquote: theme.textTheme.bodyMedium?.copyWith(
+        color: onSurface.withValues(alpha: 0.75),
+        fontStyle: FontStyle.italic,
+      ),
       codeblockDecoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
