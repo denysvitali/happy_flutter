@@ -852,6 +852,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
         _refreshFromSync();
         _scrollToBottom();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Conversation cleared'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
       } catch (e) {
         if (mounted) {
           setState(() => _controller.text = text);
