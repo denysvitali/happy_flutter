@@ -4151,6 +4151,27 @@ what you have, you must use the options mode.
 
       // Event type: mode switches, limit reached, etc.
       if (contentType == 'event') {
+        // When the agent sends session-cleared (after a /clear restart),
+        // immediately drop the session's ephemeral presence to offline so
+        // that waitForAgentReady blocks until the new Claude process sends
+        // its first keep-alive. Without this, a follow-up message is posted
+        // while the old Claude is dead and the new one hasn't connected yet.
+        final evData = nestedContent['data'];
+        if (evData is Map<String, dynamic>) {
+          final evType = (evData['t'] ?? evData['type']) as String?;
+          if (evType == 'session-cleared') {
+            _presenceTimers[sessionId]?.cancel();
+            _presenceTimers.remove(sessionId);
+            final current = _sessions[sessionId];
+            if (current != null) {
+              _sessions[sessionId] = current.copyWith(
+                presence: 'offline',
+                thinking: false,
+              );
+              _notifyDataChanged();
+            }
+          }
+        }
         return _processEventContent(message, nestedContent, createdAt, content);
       }
 
@@ -4449,8 +4470,11 @@ what you have, you must use the options mode.
     final data = nestedContent['data'];
     if (data is! Map<String, dynamic>) return ([], []);
 
-    // Skip ready events
-    if (data['type'] == 'ready') return ([], []);
+    // Skip ready and session-cleared events (session-cleared is handled at the
+    // call site to reset ephemeral presence; ready is internal bookkeeping).
+    if (data['type'] == 'ready' || data['type'] == 'session-cleared') {
+      return ([], []);
+    }
 
     return (
       [
