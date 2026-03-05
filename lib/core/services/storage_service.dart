@@ -416,6 +416,10 @@ class SettingsStorage {
         updated.lastUsedModelMode = value as String?;
       case 'lastUsedProfile':
         updated.lastUsedProfile = value as String?;
+      case 'profiles':
+        updated.profiles = List<AIBackendProfile>.from(
+          value as List<AIBackendProfile>,
+        );
     }
     return updated;
   }

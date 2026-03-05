@@ -224,7 +224,13 @@ class SettingsNotifier extends Notifier<Settings> {
     await _storage.updateSetting(key, value);
     state = _updateSetting(state, key, value);
     if (sync.isInitialized) {
-      await sync.applySettings({key: value});
+      // Profiles must be serialized to JSON maps for applySettings.
+      final syncValue = key == 'profiles'
+          ? (value as List<AIBackendProfile>)
+              .map((p) => p.toJson())
+              .toList()
+          : value;
+      await sync.applySettings({key: syncValue});
     }
   }
 
@@ -273,8 +279,14 @@ class SettingsNotifier extends Notifier<Settings> {
           settings.copyWith(lastUsedPermissionMode: value as String?),
       'lastUsedModelMode' =>
           settings.copyWith(lastUsedModelMode: value as String?),
-      'lastUsedProfile' =>
-          settings.copyWith(lastUsedProfile: value as String?),
+      // copyWith uses ??, so passing null keeps old value.
+      // Use JSON roundtrip to correctly clear the field.
+      'lastUsedProfile' => Settings.fromJson(
+          {...settings.toJson(), 'lastUsedProfile': value},
+        ),
+      'profiles' => settings.copyWith(
+          profiles: value as List<AIBackendProfile>,
+        ),
       _ => settings,
     };
   }
