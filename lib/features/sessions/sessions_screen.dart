@@ -9,12 +9,12 @@ import '../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../core/components/app_status_dot.dart';
 import '../../core/components/shimmer_view.dart';
 import '../../core/i18n/app_localizations.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
 import '../../core/utils/session_status.dart';
@@ -27,7 +27,7 @@ import 'session_avatar.dart';
 const _kStaggerStep = 30; // ms between each card
 const _kSlideDuration = 250; // ms for slide+fade
 
-// ─── Selection state ──────────────────────────────────────────────────────────
+// ─── Selection state ─────────────────────────────────────────────────────────
 
 /// How to group archived sessions.
 enum _ArchivedGrouping { date, folder }
@@ -145,8 +145,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
   @override
   void dispose() {
-    _selectionNotifier.removeListener(_onSelectionChanged);
-    _selectionNotifier.dispose();
+    _selectionNotifier
+      ..removeListener(_onSelectionChanged)
+      ..dispose();
     _syncSubscription?.cancel();
     super.dispose();
   }
@@ -352,6 +353,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     _SelectionState sel,
   ) async {
     final l10n = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
     final count = sel.selectedIds.length;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -399,11 +401,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
     final failCount = results.where((r) => !r).length;
     if (failCount > 0 && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
-          content: Text(
-            l10n.sessionsDeletePartialFail(failCount),
-          ),
+          content: Text(l10n.sessionsDeletePartialFail(failCount)),
         ),
       );
     }

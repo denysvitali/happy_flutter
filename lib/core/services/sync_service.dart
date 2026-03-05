@@ -344,7 +344,8 @@ what you have, you must use the options mode.
   // sessionId → epoch-ms of last local spawn. Lets _resolveSendTargetSession
   // skip auto-restore while the daemon's lifecycle update propagates (< 5 s).
   final Map<String, int> _sessionSpawnedAt = {};
-  // Track sessions currently undergoing auto-restore to prevent concurrent RPCs.
+  // Track sessions currently undergoing auto-restore to prevent concurrent
+  // RPCs.
   final Set<String> _autoRestoreInFlight = {};
   @visibleForTesting
   bool? testSocketConnectedOverride;
@@ -2618,9 +2619,8 @@ what you have, you must use the options mode.
   /// sessions. Keep it disabled by default for mobile-created/restored
   /// sessions unless the profile explicitly overrides it.
   Map<String, String> _spawnEnvironmentVariables(Map<String, String>? base) {
-    final envVars = <String, String>{...?base};
-    envVars.putIfAbsent('HAPPY_DISABLE_REMOTE_MCP', () => '1');
-    return envVars;
+    return <String, String>{...?base}
+      ..putIfAbsent('HAPPY_DISABLE_REMOTE_MCP', () => '1');
   }
 
   Future<
@@ -2817,14 +2817,15 @@ what you have, you must use the options mode.
         sessionEncryption: restoredSessionEncryption,
       );
     } catch (error, stack) {
-      logger.warning(
-        '[sendMessage] auto-restore failed for session=$sessionId',
-        error,
-      );
-      logger.warning(
-        '[sendMessage] auto-restore stacktrace for session=$sessionId',
-        stack,
-      );
+      logger
+        ..warning(
+          '[sendMessage] auto-restore failed for session=$sessionId',
+          error,
+        )
+        ..warning(
+          '[sendMessage] auto-restore stacktrace for session=$sessionId',
+          stack,
+        );
       return (
         sessionId: sessionId,
         session: session,
@@ -2908,7 +2909,7 @@ what you have, you must use the options mode.
       sessionEncryption: sessionEncryption,
       effectivePermissionMode: effectivePermissionMode,
     );
-    var targetSessionId = sendTarget.sessionId;
+    final targetSessionId = sendTarget.sessionId;
     session = sendTarget.session;
     sessionEncryption = sendTarget.sessionEncryption;
 
