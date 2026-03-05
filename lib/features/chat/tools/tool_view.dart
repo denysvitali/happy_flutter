@@ -231,6 +231,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     final initPermission = widget.tool['permission'] as Map<String, dynamic>?;
     final hasPermissionRequest =
         initPermission != null &&
+        initPermission['status'] != 'approved' &&
         initPermission['status'] != 'denied' &&
         initPermission['status'] != 'canceled';
 
@@ -257,6 +258,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         widget.tool['permission'] as Map<String, dynamic>?;
     final hasPermissionRequest =
         updatedPermission != null &&
+        updatedPermission['status'] != 'approved' &&
         updatedPermission['status'] != 'denied' &&
         updatedPermission['status'] != 'canceled';
 
@@ -607,6 +609,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     // Permission pending overrides accent colour
     final hasPermissionRequest =
         permission != null &&
+        permission['status'] != 'approved' &&
         permission['status'] != 'denied' &&
         permission['status'] != 'canceled';
     final accentColor = hasPermissionRequest
