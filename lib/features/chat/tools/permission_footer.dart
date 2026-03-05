@@ -165,6 +165,9 @@ class _PermissionFooterState extends State<PermissionFooter> {
     final isApproved = status == 'approved';
     final isDenied = status == 'denied';
 
+    // Don't render anything for auto-approved permissions (e.g. Yolo mode).
+    if (isApproved) return const SizedBox.shrink();
+
     final mode = permission['mode'] as String?;
     final isApprovedViaAllEdits = isApproved && mode == 'acceptEdits';
 
