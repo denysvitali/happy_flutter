@@ -2637,6 +2637,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     super.initState();
     final settings = ref.read(settingsNotifierProvider);
     _selectedAgent = settings.lastUsedAgent ?? 'claude';
+    // Refresh machines so encryption keys are up-to-date before spawn.
+    Future<void>.microtask(
+      () => ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
+    );
   }
 
   @override
@@ -2805,7 +2809,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               !_isCreating &&
                   (_selectedPath?.isNotEmpty ?? false) &&
                   _selectedMachine != null &&
-                  connectionStatus == ConnectionStatus.connected
+                  connectionStatus == ConnectionStatus.connected &&
+                  sync.isInitialized
               ? () => _createSession(context)
               : null,
           child: _isCreating

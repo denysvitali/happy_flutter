@@ -46,6 +46,10 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     final settings = ref.read(settingsNotifierProvider);
     _selectedAgent = settings.lastUsedAgent ?? 'claude';
     _selectedProfileId = settings.lastUsedProfile;
+    // Refresh machines so encryption keys are up-to-date before spawn.
+    Future<void>.microtask(
+      () => ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
+    );
   }
 
   @override
@@ -58,7 +62,8 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
       _selectedMachine != null &&
       _pathController.text.trim().isNotEmpty &&
       !_isCreating &&
-      connectionStatus == ConnectionStatus.connected;
+      connectionStatus == ConnectionStatus.connected &&
+      sync.isInitialized;
 
   /// Resolve the currently selected profile display name.
   String _profileDisplayName() {

@@ -1382,6 +1382,17 @@ what you have, you must use the options mode.
           );
         }
 
+        // Guard against a transient empty response wiping out known
+        // machines — mirrors fetchSessions() which returns early on an
+        // empty full-fetch rather than clearing _sessions.
+        if (decryptedMachines.isEmpty) {
+          logger.warning(
+            'fetchMachines: full fetch returned 0 machines — '
+            'possible auth/server issue, skipping update',
+          );
+          return;
+        }
+
         _machines
           ..clear()
           ..addEntries(
