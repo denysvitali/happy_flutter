@@ -408,6 +408,13 @@ what you have, you must use the options mode.
     _applyToolResults(sessionId, toolResults);
   }
 
+  @visibleForTesting
+  void testNotifySessionMessagesChanged(String sessionId) {
+    if (!_sessionMessageChangeController.isClosed) {
+      _sessionMessageChangeController.add(sessionId);
+    }
+  }
+
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
   Profile? get profile => _profile;
   bool get isReady => _isReady;
