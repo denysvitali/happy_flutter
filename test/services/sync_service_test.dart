@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
+import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/encryption_cache.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
@@ -141,6 +142,54 @@ void main() {
 
       expect(sessionsInvalidations, 1);
     });
+
+    test('new-session bursts are debounced into one refresh when ready',
+        () async {
+      instance.encryption = _TestEncryption(
+        sessions: {
+          'session_1': _NoopSessionEncryption(),
+        },
+      );
+
+      instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+      instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+      instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await instance.sessionsSync.awaitQueue();
+
+      expect(sessionsInvalidations, 1);
+      expect(instance.testForceFullFetchNext, false);
+    });
+
+    test('new-session triggers one recovery full fetch when encryption missing',
+        () async {
+      instance.encryption = _TestEncryption();
+
+      instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await instance.sessionsSync.awaitQueue();
+
+      expect(sessionsInvalidations, 2);
+      expect(instance.testForceFullFetchNext, true);
+    });
+
+    test(
+      'new-session burst triggers only one recovery full fetch when missing',
+      () async {
+        instance.encryption = _TestEncryption();
+
+        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await instance.sessionsSync.awaitQueue();
+
+        expect(sessionsInvalidations, 2);
+      },
+    );
   });
 
   group('Sync.handleEphemeralUpdate', () {
@@ -407,6 +456,25 @@ void main() {
       },
     );
   });
+}
+
+class _TestEncryption implements Encryption {
+  _TestEncryption({Map<String, SessionEncryption>? sessions})
+    : _sessions = sessions ?? {};
+
+  final Map<String, SessionEncryption> _sessions;
+
+  @override
+  SessionEncryption? getSessionEncryption(String sessionId) =>
+      _sessions[sessionId];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _NoopSessionEncryption implements SessionEncryption {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeEncryptorDecryptor implements Encryptor {
