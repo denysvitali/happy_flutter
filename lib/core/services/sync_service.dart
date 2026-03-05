@@ -707,13 +707,6 @@ what you have, you must use the options mode.
     if (sessionId != null) {
       final isVisible = sessionId == _visibleSessionId;
 
-      // For the active chat, force the same tail refresh strategy used when
-      // entering a session. This avoids a stale after_seq cursor causing
-      // transient "no new messages" until the user leaves/re-enters.
-      if (isVisible) {
-        _requestTailRefresh(sessionId);
-      }
-
       // Recreate per-session sync lazily for the visible session if needed.
       // This guards against edge-cases where the entry was missing and
       // updates were otherwise ignored until onSessionVisible() ran again.
@@ -3218,7 +3211,6 @@ what you have, you must use the options mode.
     final deadline = DateTime.now().add(const Duration(seconds: 60));
 
     // Immediate fetch so we do not wait for the first timer tick.
-    _requestTailRefresh(sessionId);
     messagesSync[sessionId]?.invalidate();
 
     _postSendCatchUpTimers[sessionId] = Timer.periodic(
