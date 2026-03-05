@@ -441,7 +441,7 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
 
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
+        horizontal: AppSpacing.sm,
         vertical: AppSpacing.xs,
       ),
       child: ClipRRect(
