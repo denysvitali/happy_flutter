@@ -13,6 +13,7 @@ class _Keys {
   static const String settings = 'settings';
   static const String sessionDrafts = 'session-drafts';
   static const String sessionPermissionModes = 'session-permission-modes';
+  static const String sessionProfiles = 'session-profiles';
   static const String profile = 'profile';
   static const String sessionLastSeq = 'session-last-seq';
   static const String sessionFirstLoadedSeq = 'session-first-loaded-seq';
@@ -254,6 +255,52 @@ class MMKVStorage {
       logger.warning(
         'WebStorage: failed to clear session permission modes', e,
       );
+    }
+  }
+
+  Future<String?> getSessionProfile(String sessionId) async {
+    try {
+      final prefs = await _getPrefs();
+      final json = prefs.getString(_Keys.sessionProfiles);
+      if (json != null) {
+        final map = jsonDecode(json) as Map<String, dynamic>;
+        return map[sessionId] as String?;
+      }
+    } catch (e) {
+      logger.warning('WebStorage: failed to get session profile: $e');
+    }
+    return null;
+  }
+
+  Future<void> saveSessionProfile(
+    String sessionId,
+    String profileId,
+  ) async {
+    try {
+      final prefs = await _getPrefs();
+      final json = prefs.getString(_Keys.sessionProfiles);
+      final map = json != null
+          ? jsonDecode(json) as Map<String, dynamic>
+          : <String, dynamic>{};
+      map[sessionId] = profileId;
+      await prefs.setString(_Keys.sessionProfiles, jsonEncode(map));
+    } catch (e) {
+      logger.warning('WebStorage: failed to save session profile: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> removeSessionProfile(String sessionId) async {
+    try {
+      final prefs = await _getPrefs();
+      final json = prefs.getString(_Keys.sessionProfiles);
+      if (json != null) {
+        final map = (jsonDecode(json) as Map<String, dynamic>)
+          ..remove(sessionId);
+        await prefs.setString(_Keys.sessionProfiles, jsonEncode(map));
+      }
+    } catch (e) {
+      logger.warning('WebStorage: failed to remove session profile: $e');
     }
   }
 

@@ -13,6 +13,7 @@ class _StorageKeys {
   static const String settings = 'settings';
   static const String sessionDrafts = 'session-drafts';
   static const String sessionPermissionModes = 'session-permission-modes';
+  static const String sessionProfiles = 'session-profiles';
   static const String profile = 'profile';
   static const String migrationComplete = 'mmkv-migration-complete';
   static const String sessionLastSeq = 'session-last-seq';
@@ -333,6 +334,61 @@ class MMKVStorage {
       _mmkv?.removeValue(_StorageKeys.sessionPermissionModes);
     } catch (e) {
       logger.warning('MMKV: Failed to clear session permission modes: $e');
+    }
+  }
+
+  /// Get profile ID for a specific session
+  Future<String?> getSessionProfile(String sessionId) async {
+    if (!_initialized) {
+      await initialize();
+    }
+    try {
+      final json = _mmkv?.decodeString(_StorageKeys.sessionProfiles);
+      if (json != null) {
+        final map = jsonDecode(json) as Map<String, dynamic>;
+        return map[sessionId] as String?;
+      }
+    } catch (e) {
+      logger.warning('MMKV: Failed to get session profile: $e');
+    }
+    return null;
+  }
+
+  /// Save profile ID for a specific session
+  Future<void> saveSessionProfile(
+    String sessionId,
+    String profileId,
+  ) async {
+    if (!_initialized) {
+      await initialize();
+    }
+    try {
+      final json = _mmkv?.decodeString(_StorageKeys.sessionProfiles);
+      final map = json != null
+          ? jsonDecode(json) as Map<String, dynamic>
+          : <String, dynamic>{};
+      map[sessionId] = profileId;
+      _mmkv?.encodeString(_StorageKeys.sessionProfiles, jsonEncode(map));
+    } catch (e) {
+      logger.warning('MMKV: Failed to save session profile: $e');
+      rethrow;
+    }
+  }
+
+  /// Remove profile ID for a specific session
+  Future<void> removeSessionProfile(String sessionId) async {
+    if (!_initialized) {
+      await initialize();
+    }
+    try {
+      final json = _mmkv?.decodeString(_StorageKeys.sessionProfiles);
+      if (json != null) {
+        final map = (jsonDecode(json) as Map<String, dynamic>)
+          ..remove(sessionId);
+        _mmkv?.encodeString(_StorageKeys.sessionProfiles, jsonEncode(map));
+      }
+    } catch (e) {
+      logger.warning('MMKV: Failed to remove session profile: $e');
     }
   }
 

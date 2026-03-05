@@ -32,10 +32,21 @@ class DraftStorage {
     await _storage.saveSessionPermissionMode(sessionId, mode);
   }
 
+  /// Get saved profile ID for a session
+  Future<String?> getProfileId(String sessionId) async {
+    return _storage.getSessionProfile(sessionId);
+  }
+
+  /// Save profile ID for a session
+  Future<void> saveProfileId(String sessionId, String profileId) async {
+    await _storage.saveSessionProfile(sessionId, profileId);
+  }
+
   /// Clear all drafts for a session (including permission mode)
   Future<void> clearSessionData(String sessionId) async {
     await removeDraft(sessionId);
     await _storage.removeSessionPermissionMode(sessionId);
+    await _storage.removeSessionProfile(sessionId);
   }
 }
 

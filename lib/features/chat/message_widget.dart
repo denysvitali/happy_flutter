@@ -154,6 +154,7 @@ class _MessageWidgetState extends State<MessageWidget>
               )
             : _BotMessage(
                 text: text,
+                messageData: widget.messageData,
                 onOptionPress: widget.onOptionPress,
               ),
       ),
@@ -318,9 +319,14 @@ class _SendStatusIndicator extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _BotMessage extends StatelessWidget {
-  const _BotMessage({required this.text, this.onOptionPress});
+  const _BotMessage({
+    required this.text,
+    required this.messageData,
+    this.onOptionPress,
+  });
 
   final String text;
+  final Map<String, dynamic> messageData;
   final void Function(String)? onOptionPress;
 
   @override
@@ -329,6 +335,7 @@ class _BotMessage extends StatelessWidget {
     final cs = theme.colorScheme;
 
     return GestureDetector(
+      onTap: () => _showMessageDetailSheet(context, messageData),
       onLongPress: () {
         HapticFeedback.mediumImpact();
         _showRawMarkdownSheet(context, text);
@@ -577,6 +584,175 @@ class _AgentEventWidget extends StatelessWidget {
       default:
         return null;
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Message detail bottom sheet (tap on bot message)
+// ---------------------------------------------------------------------------
+
+void _showMessageDetailSheet(
+  BuildContext context,
+  Map<String, dynamic> messageData,
+) {
+  final theme = Theme.of(context);
+  final cs = theme.colorScheme;
+
+  final meta = messageData['meta'] as Map<String, dynamic>?;
+  final model = meta?['model'] as String?;
+  final permissionMode = meta?['permissionMode'] as String?;
+  final createdAt = messageData['createdAt'] as int?;
+
+  final hasDetails = model != null || permissionMode != null;
+
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: cs.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.only(
+          top: AppSpacing.sm,
+          bottom: AppSpacing.md,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 5,
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: cs.onSurface.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(2.5),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.sm,
+              ),
+              child: Text(
+                'Message Details',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (!hasDetails)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
+                ),
+                child: Text(
+                  'No details available',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            if (model != null)
+              _MessageInfoRow(
+                icon: Icons.auto_awesome_outlined,
+                label: 'Model',
+                value: model,
+              ),
+            if (permissionMode != null)
+              _MessageInfoRow(
+                icon: Icons.shield_outlined,
+                label: 'Permission',
+                value: permissionMode,
+              ),
+            if (createdAt != null)
+              _MessageInfoRow(
+                icon: Icons.access_time_outlined,
+                label: 'Sent',
+                value: _formatTimestamp(createdAt),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+String _formatTimestamp(int milliseconds) {
+  final dt = DateTime.fromMillisecondsSinceEpoch(milliseconds);
+  final now = DateTime.now();
+  final diff = now.difference(dt);
+
+  final timeStr =
+      '${dt.hour.toString().padLeft(2, '0')}:'
+      '${dt.minute.toString().padLeft(2, '0')}';
+
+  if (diff.inDays == 0) return 'Today at $timeStr';
+  if (diff.inDays == 1) return 'Yesterday at $timeStr';
+  return '${dt.day}/${dt.month}/${dt.year} at $timeStr';
+}
+
+class _MessageInfoRow extends StatelessWidget {
+  const _MessageInfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: cs.onSurface.withValues(alpha: 0.05),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 16, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

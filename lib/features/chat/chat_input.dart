@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/models/settings.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/autocomplete_overlay.dart';
@@ -306,6 +307,284 @@ class _ModelChip extends StatelessWidget {
   }
 }
 
+/// Inline chip for profile selection — shown next to model chip.
+class _ProfileChip extends StatelessWidget {
+  const _ProfileChip({required this.profile, required this.onTap});
+
+  final AIBackendProfile? profile;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isDefault = profile == null;
+    final label = profile?.name ?? 'Default';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isDefault
+              ? cs.onSurface.withValues(alpha: 0.05)
+              : cs.tertiary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.swap_horiz_rounded,
+              size: 11,
+              color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
+            ),
+            const SizedBox(width: 3),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 80),
+              child: Text(
+                label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: 11,
+                  color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 1),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 12,
+              color: isDefault
+                  ? cs.onSurfaceVariant.withValues(alpha: 0.5)
+                  : cs.tertiary.withValues(alpha: 0.6),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Profile picker bottom sheet helpers
+// ---------------------------------------------------------------------------
+
+Widget _buildProfileTile(
+  BuildContext ctx,
+  AIBackendProfile profile,
+  AIBackendProfile? current,
+  ThemeData theme,
+  ValueChanged<AIBackendProfile?> onChanged,
+) {
+  final cs = theme.colorScheme;
+  final isSelected = current?.id == profile.id;
+
+  return InkWell(
+    onTap: () {
+      HapticFeedback.selectionClick();
+      Navigator.pop(ctx);
+      onChanged(profile);
+    },
+    child: Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? cs.tertiary.withValues(alpha: 0.12)
+                  : cs.onSurface.withValues(alpha: 0.05),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.swap_horiz_rounded,
+              size: 16,
+              color: isSelected ? cs.tertiary : cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  profile.name,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: isSelected ? cs.tertiary : cs.onSurface,
+                  ),
+                ),
+                if (profile.description != null)
+                  Text(
+                    profile.description!,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (isSelected)
+            Icon(Icons.check_rounded, size: 18, color: cs.tertiary),
+        ],
+      ),
+    ),
+  );
+}
+
+void _showProfilePickerSheet(
+  BuildContext context,
+  AIBackendProfile? current,
+  List<AIBackendProfile> profiles,
+  ValueChanged<AIBackendProfile?> onChanged,
+) {
+  final theme = Theme.of(context);
+  final cs = theme.colorScheme;
+
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: cs.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius:
+          BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.only(
+          top: AppSpacing.sm,
+          bottom: AppSpacing.xs,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 5,
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: cs.onSurface.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(2.5),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.sm,
+              ),
+              child: Text(
+                'Profile',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Default (no profile) option
+                    InkWell(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        Navigator.pop(ctx);
+                        onChanged(null);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                          vertical: AppSpacing.md,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: current == null
+                                    ? cs.tertiary.withValues(alpha: 0.12)
+                                    : cs.onSurface.withValues(alpha: 0.05),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.settings_outlined,
+                                size: 16,
+                                color: current == null
+                                    ? cs.tertiary
+                                    : cs.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Default',
+                                    style: theme.textTheme.bodyMedium
+                                        ?.copyWith(
+                                      fontWeight: current == null
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                      color: current == null
+                                          ? cs.tertiary
+                                          : cs.onSurface,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Server-configured defaults',
+                                    style: theme.textTheme.labelSmall
+                                        ?.copyWith(
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (current == null)
+                              Icon(
+                                Icons.check_rounded,
+                                size: 18,
+                                color: cs.tertiary,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    for (final profile in profiles)
+                      _buildProfileTile(
+                        ctx,
+                        profile,
+                        current,
+                        theme,
+                        onChanged,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 /// Context-size indicator showing token usage.
 class _ContextSizeIndicator extends StatelessWidget {
   const _ContextSizeIndicator({required this.contextSize});
@@ -372,9 +651,11 @@ class _ContextSizeIndicator extends StatelessWidget {
 class _InputToolbar extends StatelessWidget {
   const _InputToolbar({
     required this.onShowModelPicker,
+    required this.onShowProfilePicker,
     this.permissionMode,
     this.onPermissionModeChanged,
     this.modelMode,
+    this.selectedProfile,
     this.contextSize,
     this.showAbort = false,
     this.isAborting = false,
@@ -385,6 +666,8 @@ class _InputToolbar extends StatelessWidget {
   final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
   final ClaudeModel? modelMode;
   final VoidCallback onShowModelPicker;
+  final AIBackendProfile? selectedProfile;
+  final VoidCallback onShowProfilePicker;
   final int? contextSize;
   final bool showAbort;
   final bool isAborting;
@@ -404,6 +687,8 @@ class _InputToolbar extends StatelessWidget {
           ),
         const SizedBox(width: 6),
         _ModelChip(model: model, onTap: onShowModelPicker),
+        const SizedBox(width: 6),
+        _ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
         const Spacer(),
         if (showAbort) ...[
           _AbortButton(isAborting: isAborting, onTap: onAbort),
@@ -608,6 +893,9 @@ class ChatInput extends ConsumerStatefulWidget {
     this.currentPath,
     this.onMachinePressed,
     this.onPathPressed,
+    this.selectedProfile,
+    this.availableProfiles = const [],
+    this.onProfileChanged,
     this.profileId,
     this.onProfilePressed,
     this.isSendDisabled = false,
@@ -655,6 +943,15 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Called when the path label is tapped.
   final VoidCallback? onPathPressed;
+
+  /// The currently active AI backend profile, or null for default.
+  final AIBackendProfile? selectedProfile;
+
+  /// All available profiles to show in the picker.
+  final List<AIBackendProfile> availableProfiles;
+
+  /// Called when the user selects a profile (null = default).
+  final ValueChanged<AIBackendProfile?>? onProfileChanged;
 
   /// Profile identifier (reserved for future use).
   final String? profileId;
@@ -993,6 +1290,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
                     onShowModelPicker: () => widget.onModelModeChanged != null
                         ? _showModelPicker(context)
                         : null,
+                    selectedProfile: widget.selectedProfile,
+                    onShowProfilePicker: () => _showProfilePicker(context),
                     contextSize: widget.contextSize,
                     showAbort: widget.isSessionOnline,
                     isAborting: _isAborting,
@@ -1220,6 +1519,19 @@ class _ChatInputState extends ConsumerState<ChatInput>
       context,
       current,
       (model) => widget.onModelModeChanged?.call(model),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Profile picker (bottom sheet)
+  // ---------------------------------------------------------------------------
+
+  void _showProfilePicker(BuildContext context) {
+    _showProfilePickerSheet(
+      context,
+      widget.selectedProfile,
+      widget.availableProfiles,
+      (profile) => widget.onProfileChanged?.call(profile),
     );
   }
 }

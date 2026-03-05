@@ -9,8 +9,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/components/shimmer_view.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/built_in_profiles.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
+import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/sync_service.dart';
@@ -47,6 +49,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   PermissionMode _permissionMode = PermissionMode.defaultMode;
   ClaudeModel _modelMode = ClaudeModel.defaultModel;
+  AIBackendProfile? _selectedProfile;
+  List<AIBackendProfile> _availableProfiles = const [];
   Session? _session;
   List<Map<String, dynamic>> _messages = const [];
   Map<String, dynamic>? _metadataJson;
@@ -71,6 +75,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.initState();
     _scrollController.addListener(_onScroll);
     _loadSavedPermissionMode();
+    _loadSavedProfile();
     _initializeSyncBackedChat();
     final settings = ref.read(settingsNotifierProvider);
     unawaited(
@@ -90,6 +95,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _permissionMode = parsedMode ?? PermissionMode.defaultMode;
       });
     }
+  }
+
+  Future<void> _loadSavedProfile() async {
+    final settings = ref.read(settingsNotifierProvider);
+    // Deduplicate by ID: user custom profiles take precedence over built-ins.
+    final seen = <String>{};
+    final deduped = <AIBackendProfile>[];
+    for (final p in [...settings.profiles, ...builtInProfiles]) {
+      if (seen.add(p.id)) deduped.add(p);
+    }
+
+    final savedId = await DraftStorage().getProfileId(widget.sessionId)
+        ?? settings.lastUsedProfile;
+    if (!mounted) return;
+
+    AIBackendProfile? found;
+    if (savedId != null) {
+      try {
+        found = deduped.firstWhere((p) => p.id == savedId);
+      } catch (_) {
+        found = null;
+      }
+    }
+
+    setState(() {
+      _availableProfiles = deduped;
+      _selectedProfile = found;
+    });
   }
 
   @override
@@ -494,6 +527,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               onPermissionModeChanged: _onPermissionModeChanged,
               modelMode: _modelMode,
               onModelModeChanged: _onModelModeChanged,
+              selectedProfile: _selectedProfile,
+              availableProfiles: _availableProfiles,
+              onProfileChanged: _onProfileChanged,
               contextSize:
                   sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
               isSessionOnline: _session?.isPresenceOnline ?? false,
@@ -515,6 +551,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _onModelModeChanged(ClaudeModel model) {
     setState(() => _modelMode = model);
+  }
+
+  void _onProfileChanged(AIBackendProfile? profile) {
+    setState(() => _selectedProfile = profile);
+    final profileId = profile?.id;
+    if (profileId != null) {
+      unawaited(
+        DraftStorage().saveProfileId(widget.sessionId, profileId),
+      );
+    }
+    // Persist globally so new sessions default to this profile.
+    sync.applySettings({'lastUsedProfile': profileId});
   }
 
   static const _abortReason =
