@@ -20,7 +20,8 @@ class BashView extends StatelessWidget {
     final state = tool['state'] as String? ?? 'pending';
 
     final command = input['command'] as String? ?? '';
-    final description = input['description'] as String?;
+    final description =
+        input['description'] as String? ?? _descriptionFromCommand(command);
 
     final stdout = state == 'completed' && result != null
         ? _getStdout(result)
@@ -52,6 +53,17 @@ class BashView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static String? _descriptionFromCommand(String command) {
+    if (command.isEmpty) return null;
+    final firstWord = command.split(' ').first;
+    const knownCommands = {
+      'cd', 'ls', 'pwd', 'mkdir', 'rm', 'cp', 'mv',
+      'npm', 'yarn', 'git',
+    };
+    if (knownCommands.contains(firstWord)) return '$firstWord command';
+    return command.length > 20 ? '${command.substring(0, 20)}...' : command;
   }
 
   String? _getStdout(dynamic result) {
