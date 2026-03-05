@@ -703,7 +703,10 @@ what you have, you must use the options mode.
   /// Handle new message update
   void _handleNewMessage(Map<String, dynamic> data) {
     final sessionId = data['sid'] as String? ?? data['id'] as String?;
-    sessionsSync.invalidate();
+    // Do NOT invalidate sessionsSync here — message events fire on every
+    // streaming token and would cause dozens of sessions re-fetches per
+    // response. Sessions are updated by _handleUpdateSession (session-level
+    // state changes) and by the reconnect / resume handlers.
     if (sessionId != null) {
       final isVisible = sessionId == _visibleSessionId;
 
