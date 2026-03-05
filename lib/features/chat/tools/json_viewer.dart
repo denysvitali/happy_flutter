@@ -110,16 +110,38 @@ class SmartOutputContainer extends StatelessWidget {
   }
 
   static (bool, dynamic) _tryParseJson(dynamic value) {
-    if (value is Map || value is List) return (true, value);
-    if (value is String) {
-      final trimmed = value.trim();
+    final unwrapped = _unwrapMcpContentBlocks(value);
+    if (unwrapped is Map || unwrapped is List) return (true, unwrapped);
+    if (unwrapped is String) {
+      final trimmed = unwrapped.trim();
       if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
         try {
-          return (true, jsonDecode(value));
+          return (true, jsonDecode(unwrapped));
         } catch (_) {}
       }
+      return (false, null);
     }
     return (false, null);
+  }
+
+  /// Unwraps MCP tool result content blocks.
+  ///
+  /// MCP tools return results as `[{"type": "text", "text": "..."}]`.
+  /// When all items are text blocks, this extracts the text content
+  /// (joining with newlines if multiple) so the inner value — which is
+  /// often JSON — can be rendered properly instead of showing the raw
+  /// wrapper structure.
+  static dynamic _unwrapMcpContentBlocks(dynamic value) {
+    if (value is! List || value.isEmpty) return value;
+    final texts = <String>[];
+    for (final item in value) {
+      if (item is! Map) return value;
+      if (item['type'] != 'text') return value;
+      final text = item['text'];
+      if (text is! String) return value;
+      texts.add(text);
+    }
+    return texts.length == 1 ? texts.first : texts.join('\n');
   }
 }
 
