@@ -511,4 +511,90 @@ void main() {
       expect(usage['inputTokens'], 5000);
     });
   });
+
+  group('sidechain grouping', () {
+    test('groups sidechain messages by parent uuid when prompt is absent', () {
+      instance.testSetSessionMessages('session_group', [
+        {
+          'id': 'task_1',
+          'kind': 'tool-call',
+          'name': 'Task',
+          'toolUseId': 'task_tool_1',
+          'uuid': 'task_uuid_1',
+          'state': 'running',
+          'input': {'description': 'Investigate issue'},
+        },
+        {
+          'id': 'root_1',
+          'kind': 'sidechain-root',
+          'isSidechain': true,
+          'uuid': 'sidechain_uuid_1',
+          'parentUuid': 'task_uuid_1',
+          'prompt': 'Expanded prompt text from server',
+        },
+        {
+          'id': 'child_1',
+          'kind': 'text',
+          'isSidechain': true,
+          'uuid': 'child_uuid_1',
+          'parentUuid': 'sidechain_uuid_1',
+          'content': 'Subagent reply',
+        },
+      ]);
+
+      instance.testGroupSidechainMessages('session_group');
+
+      final messages = instance.messagesForSession('session_group');
+      expect(messages, hasLength(1));
+      expect(messages.first['id'], 'task_1');
+
+      final children = messages.first['children'] as List<dynamic>?;
+      expect(children, isNotNull);
+      expect(children, hasLength(1));
+      expect(children!.first['id'], 'child_1');
+      expect(children.first['content'], 'Subagent reply');
+    });
+  });
+
+  group('tool result application', () {
+    test('applies tool results recursively to grouped subagent children', () {
+      instance.testSetSessionMessages('session_results', [
+        {
+          'id': 'task_1',
+          'kind': 'tool-call',
+          'name': 'Task',
+          'toolUseId': 'task_tool_1',
+          'state': 'running',
+          'children': [
+            {
+              'id': 'child_tool_1',
+              'kind': 'tool-call',
+              'name': 'Read',
+              'toolUseId': 'read_tool_1',
+              'state': 'running',
+              'input': {'file_path': '/tmp/test.txt'},
+            },
+          ],
+        },
+      ]);
+
+      instance.testApplyToolResults('session_results', [
+        {
+          'toolUseId': 'read_tool_1',
+          'result': 'file contents',
+          'isError': false,
+          'createdAt': 1700000004000,
+        },
+      ]);
+
+      final messages = instance.messagesForSession('session_results');
+      final task = messages.first;
+      final children = task['children'] as List<dynamic>;
+      final childTool = children.first as Map<String, dynamic>;
+
+      expect(childTool['state'], 'completed');
+      expect(childTool['result'], 'file contents');
+      expect(childTool['completedAt'], 1700000004000);
+    });
+  });
 }

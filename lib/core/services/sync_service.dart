@@ -386,6 +386,28 @@ what you have, you must use the options mode.
   @visibleForTesting
   set testForceFullFetchNext(bool value) => _forceFullFetchNext = value;
 
+  @visibleForTesting
+  void testSetSessionMessages(
+    String sessionId,
+    List<Map<String, dynamic>> messages,
+  ) {
+    _sessionMessages[sessionId] = List<Map<String, dynamic>>.from(messages);
+    _sessionMessagesCache = null;
+  }
+
+  @visibleForTesting
+  void testGroupSidechainMessages(String sessionId) {
+    _groupSidechainMessages(sessionId);
+  }
+
+  @visibleForTesting
+  void testApplyToolResults(
+    String sessionId,
+    List<Map<String, dynamic>> toolResults,
+  ) {
+    _applyToolResults(sessionId, toolResults);
+  }
+
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
   Profile? get profile => _profile;
   bool get isReady => _isReady;
@@ -4938,19 +4960,24 @@ what you have, you must use the options mode.
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return;
 
-    // Pass 1: Find Task tool calls → map prompt to task message ID
+    // Pass 1: Find Task tool calls → map stable identifiers to task message ID.
+    final uuidToTaskId = <String, String>{};
     final promptToTaskId = <String, String>{};
     for (final msg in messages) {
       if (msg['kind'] == 'tool-call' &&
           (msg['name'] == 'Task' || msg['name'] == 'Agent')) {
+        final uuid = msg['uuid'] as String?;
+        if (uuid != null && uuid.isNotEmpty) {
+          uuidToTaskId[uuid] = msg['id'] as String;
+        }
         final input = msg['input'] as Map<String, dynamic>?;
         final prompt = input?['prompt'] as String?;
-        if (prompt != null) {
+        if (prompt != null && prompt.isNotEmpty) {
           promptToTaskId[prompt] = msg['id'] as String;
         }
       }
     }
-    if (promptToTaskId.isEmpty) return;
+    if (uuidToTaskId.isEmpty && promptToTaskId.isEmpty) return;
 
     // Pass 2: Combined pass to find sidechain roots and group
     // child messages in a single iteration
@@ -4962,8 +4989,12 @@ what you have, you must use the options mode.
       if (msg['kind'] == 'sidechain-root') {
         final prompt = msg['prompt'] as String?;
         final uuid = msg['uuid'] as String?;
-        if (prompt != null && promptToTaskId.containsKey(prompt)) {
-          final sidechainId = promptToTaskId[prompt]!;
+        final parentUuid = msg['parentUuid'] as String?;
+        final sidechainId =
+            (parentUuid != null && uuidToTaskId.containsKey(parentUuid))
+            ? uuidToTaskId[parentUuid]
+            : (prompt != null ? promptToTaskId[prompt] : null);
+        if (sidechainId != null) {
           if (uuid != null) {
             uuidToSidechainId[uuid] = sidechainId;
           }
@@ -5020,22 +5051,27 @@ what you have, you must use the options mode.
   /// Task tool-calls within a children array get their
   /// own children sub-arrays.
   void _regroupNestedTasks(List<Map<String, dynamic>> children) {
-    // Find inner Task tool-calls and their prompts.
+    // Find inner Task tool-calls and their stable identifiers.
+    final uuidToTask = <String, Map<String, dynamic>>{};
     final promptToTask = <String, Map<String, dynamic>>{};
     for (final child in children) {
       if (child['kind'] == 'tool-call' &&
           (child['name'] == 'Task' || child['name'] == 'Agent')) {
+        final uuid = child['uuid'] as String?;
+        if (uuid != null && uuid.isNotEmpty) {
+          uuidToTask[uuid] = child;
+        }
         final input = child['input'] as Map<String, dynamic>?;
         final prompt = input?['prompt'] as String?;
-        if (prompt != null) {
+        if (prompt != null && prompt.isNotEmpty) {
           promptToTask[prompt] = child;
         }
       }
     }
-    if (promptToTask.isEmpty) return;
+    if (uuidToTask.isEmpty && promptToTask.isEmpty) return;
 
     // Find sidechain-root messages matching inner Tasks.
-    final uuidToTask = <String, Map<String, dynamic>>{};
+    final uuidToGroupedTask = <String, Map<String, dynamic>>{};
     final toRemove = <int>{};
 
     for (var i = 0; i < children.length; i++) {
@@ -5043,16 +5079,19 @@ what you have, you must use the options mode.
       if (child['kind'] == 'sidechain-root') {
         final prompt = child['prompt'] as String?;
         final uuid = child['uuid'] as String?;
-        if (prompt != null &&
-            promptToTask.containsKey(prompt) &&
-            uuid != null) {
-          uuidToTask[uuid] = promptToTask[prompt]!;
+        final parentUuid = child['parentUuid'] as String?;
+        final task =
+            (parentUuid != null && uuidToTask.containsKey(parentUuid))
+            ? uuidToTask[parentUuid]
+            : (prompt != null ? promptToTask[prompt] : null);
+        if (task != null && uuid != null) {
+          uuidToGroupedTask[uuid] = task;
           toRemove.add(i);
         }
       }
     }
 
-    if (uuidToTask.isEmpty) return;
+    if (uuidToGroupedTask.isEmpty) return;
 
     // Group sidechain children under their inner Tasks.
     final taskChildren = <String, List<Map<String, dynamic>>>{};
@@ -5062,12 +5101,12 @@ what you have, you must use the options mode.
       if (child['isSidechain'] == true) {
         final parentUuid = child['parentUuid'] as String?;
         final uuid = child['uuid'] as String?;
-        if (parentUuid != null && uuidToTask.containsKey(parentUuid)) {
-          final task = uuidToTask[parentUuid]!;
+        if (parentUuid != null && uuidToGroupedTask.containsKey(parentUuid)) {
+          final task = uuidToGroupedTask[parentUuid]!;
           final taskId = task['id'] as String;
           taskChildren.putIfAbsent(taskId, () => []).add(child);
           if (uuid != null) {
-            uuidToTask[uuid] = task;
+            uuidToGroupedTask[uuid] = task;
           }
           toRemove.add(i);
         }
@@ -5103,59 +5142,87 @@ what you have, you must use the options mode.
     final existing = _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
     if (existing.isEmpty) return;
 
-    // Build a lookup from toolUseId → index (O(n))
-    final toolUseIdToIndex = <String, int>{};
-    for (var i = 0; i < existing.length; i++) {
-      final msg = existing[i];
-      if (msg['kind'] == 'tool-call') {
-        final id = msg['toolUseId'] as String?;
-        if (id != null) toolUseIdToIndex[id] = i;
-      }
-    }
-
-    var changed = false;
-    final updated = List<Map<String, dynamic>>.from(existing);
-
+    final toolResultsById = <String, Map<String, dynamic>>{};
     for (final result in toolResults) {
       final toolUseId = result['toolUseId'] as String?;
-      if (toolUseId == null) continue;
-      final idx = toolUseIdToIndex[toolUseId];
-      if (idx == null) continue;
-
-      final msg = updated[idx];
-      final isError = result['isError'] == true;
-
-      // Propagate completed permission data from tool result if present.
-      Map<String, dynamic>? permissionUpdate;
-      final perms = result['permissions'];
-      if (perms is Map<String, dynamic>) {
-        final permResult = perms['result'] as String?;
-        final status = permResult == 'approved' ? 'approved' : 'denied';
-        permissionUpdate = {
-          'id': toolUseId,
-          'status': status,
-          if (perms['date'] != null) 'date': perms['date'],
-          if (perms['mode'] != null) 'mode': perms['mode'],
-          if (perms['allowedTools'] != null)
-            'allowedTools': perms['allowedTools'],
-          if (perms['decision'] != null) 'decision': perms['decision'],
-        };
-      }
-
-      updated[idx] = {
-        ...msg,
-        'state': isError ? 'error' : 'completed',
-        'result': result['result'],
-        'completedAt': result['createdAt'],
-        if (permissionUpdate != null) 'permission': permissionUpdate,
-      };
-      changed = true;
+      if (toolUseId == null || toolUseId.isEmpty) continue;
+      toolResultsById[toolUseId] = result;
     }
+    if (toolResultsById.isEmpty) return;
+
+    final (updated, changed) = _applyToolResultsRecursive(
+      existing,
+      toolResultsById,
+    );
 
     if (changed) {
       _sessionMessages[sessionId] = updated;
       _sessionMessagesCache = null;
     }
+  }
+
+  (List<Map<String, dynamic>>, bool) _applyToolResultsRecursive(
+    List<Map<String, dynamic>> messages,
+    Map<String, Map<String, dynamic>> toolResultsById,
+  ) {
+    var changed = false;
+    final updated = <Map<String, dynamic>>[];
+
+    for (final msg in messages) {
+      var next = msg;
+
+      final children = msg['children'];
+      if (children is List<dynamic>) {
+        final typedChildren = children
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        final (updatedChildren, childChanged) = _applyToolResultsRecursive(
+          typedChildren,
+          toolResultsById,
+        );
+        if (childChanged) {
+          next = {...next, 'children': updatedChildren};
+          changed = true;
+        }
+      }
+
+      if (msg['kind'] == 'tool-call') {
+        final toolUseId = msg['toolUseId'] as String?;
+        final result = toolUseId != null ? toolResultsById[toolUseId] : null;
+        if (result != null) {
+          final isError = result['isError'] == true;
+
+          Map<String, dynamic>? permissionUpdate;
+          final perms = result['permissions'];
+          if (perms is Map<String, dynamic>) {
+            final permResult = perms['result'] as String?;
+            final status = permResult == 'approved' ? 'approved' : 'denied';
+            permissionUpdate = {
+              'id': toolUseId,
+              'status': status,
+              if (perms['date'] != null) 'date': perms['date'],
+              if (perms['mode'] != null) 'mode': perms['mode'],
+              if (perms['allowedTools'] != null)
+                'allowedTools': perms['allowedTools'],
+              if (perms['decision'] != null) 'decision': perms['decision'],
+            };
+          }
+
+          next = {
+            ...next,
+            'state': isError ? 'error' : 'completed',
+            'result': result['result'],
+            'completedAt': result['createdAt'],
+            if (permissionUpdate != null) 'permission': permissionUpdate,
+          };
+          changed = true;
+        }
+      }
+
+      updated.add(next);
+    }
+
+    return (updated, changed);
   }
 
   /// Enrich tool-call messages with permission data from [AgentState].
