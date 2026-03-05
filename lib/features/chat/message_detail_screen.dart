@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/app_providers.dart';
+import 'tools/json_viewer.dart';
 import 'tools/known_tools.dart';
 import 'tools/tool_status_indicator.dart';
 
@@ -268,8 +269,12 @@ class _MessageHeader extends StatelessWidget {
 
 // ── Tool result section ────────────────────────────────────────────────────
 
-/// Displays a JSON or text result block with a dark monospace code block,
-/// language label area, and a copy button in the top-right corner.
+/// Displays a JSON or text result block.
+///
+/// When [json] is provided (a pre-parsed Map or List) or [text] contains
+/// valid JSON, renders an interactive [JsonTreeViewer] with syntax
+/// highlighting and expand/collapse.  Plain text falls back to a dark
+/// monospace [_CodeBlock].
 class _ToolResultSection extends StatelessWidget {
   const _ToolResultSection({
     required this.title,
@@ -289,9 +294,14 @@ class _ToolResultSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final content = json != null
+
+    // Resolve a copyable plain-text representation for the copy button.
+    final copyText = json != null
         ? const JsonEncoder.withIndent('  ').convert(json)
         : (text ?? '');
+
+    // Determine whether to show the interactive JSON tree.
+    final dynamic jsonValue = _resolveJson();
 
     return Card(
       elevation: 0,
@@ -322,17 +332,35 @@ class _ToolResultSection extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Copy button — top-right of the block
-                _CopyButton(content: content),
+                // Copy button — always copies the raw JSON string
+                _CopyButton(content: copyText),
               ],
             ),
             const SizedBox(height: 8),
-            // Dark code block with monospace font
-            _CodeBlock(content: content),
+            // Interactive JSON tree or plain code block
+            if (jsonValue != null)
+              _JsonTreeBlock(value: jsonValue)
+            else
+              _CodeBlock(content: copyText),
           ],
         ),
       ),
     );
+  }
+
+  /// Returns a parsed JSON value (Map or List) if the content is JSON,
+  /// or null if it should be rendered as plain text.
+  dynamic _resolveJson() {
+    if (json != null) return json;
+    final t = text;
+    if (t == null) return null;
+    final trimmed = t.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        return jsonDecode(t);
+      } catch (_) {}
+    }
+    return null;
   }
 }
 
@@ -756,6 +784,37 @@ class _LabelValue extends StatelessWidget {
 }
 
 // ── Code block + copy button ───────────────────────────────────────────────
+
+/// Renders a [JsonTreeViewer] in a container styled to match [_CodeBlock].
+class _JsonTreeBlock extends StatelessWidget {
+  const _JsonTreeBlock({required this.value});
+
+  final dynamic value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Theme(
+        // Force dark brightness so JsonTreeViewer always uses the dark palette
+        // inside the always-dark code container.
+        data: Theme.of(context).copyWith(
+          brightness: Brightness.dark,
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+            brightness: Brightness.dark,
+            onSurface: const Color(0xFFD4D4D4),
+          ),
+        ),
+        child: JsonTreeViewer(value: value),
+      ),
+    );
+  }
+}
 
 /// Always-dark monospace code container used inside [_ToolResultSection].
 class _CodeBlock extends StatelessWidget {

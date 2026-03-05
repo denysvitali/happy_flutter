@@ -601,17 +601,9 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       subtitle = knownTool!.extractSubtitle!(widget.tool, widget.metadata);
     }
 
-    // Determine minimal mode.
-    // Known tools declare their own minimal flag.
-    // MCP and truly unknown tools show expandable content when there is
-    // actual input or result data to display; otherwise header-only.
-    final bool minimal;
-    if (knownTool != null) {
-      minimal = knownTool.minimal;
-    } else {
-      final hasData = toolInput != null || toolResult != null;
-      minimal = !hasData;
-    }
+    // Determine minimal mode
+    var minimal = knownTool?.minimal ?? true;
+    if (isMCP) minimal = true;
 
     final state = _parseToolState(toolState);
 
