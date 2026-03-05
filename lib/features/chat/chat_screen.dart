@@ -741,7 +741,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         final currentRole = message['role'] as String?;
         final nextRole = nextMessage?['role'] as String?;
         final sameSender = nextRole == currentRole;
-        final bottomPad = sameSender ? AppSpacing.xs : AppSpacing.md;
+        final isToolCall = message['kind'] == 'tool-call';
+        final nextIsToolCall = nextMessage?['kind'] == 'tool-call';
+        final bottomPad = (isToolCall && nextIsToolCall)
+            ? 0.0
+            : sameSender
+                ? AppSpacing.xs
+                : AppSpacing.md;
 
         final messageKey =
             message['id'] as String? ??

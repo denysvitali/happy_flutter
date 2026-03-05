@@ -97,10 +97,7 @@ class _MessageWidgetState extends State<MessageWidget>
     if (kind == 'tool-call') {
       final messageId = widget.messageData['id'] as String?;
       return Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
         child: ToolView(
           tool: widget.messageData,
           metadata: widget.metadata,
@@ -598,7 +595,12 @@ void _showMessageDetailSheet(
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
 
-  final meta = messageData['meta'] as Map<String, dynamic>?;
+  // meta may be directly on the message or inside the 'raw' decrypted record.
+  final raw = messageData['raw'] as Map<String, dynamic>?;
+  final meta = (messageData['meta'] as Map<String, dynamic>?)
+      ?? (raw?['meta'] is Map<String, dynamic>
+          ? raw!['meta'] as Map<String, dynamic>
+          : null);
   final model = meta?['model'] as String?;
   final permissionMode = meta?['permissionMode'] as String?;
   final createdAt = messageData['createdAt'] as int?;
