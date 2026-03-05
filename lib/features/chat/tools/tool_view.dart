@@ -602,8 +602,14 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     }
 
     // Determine minimal mode
-    var minimal = knownTool?.minimal ?? true;
-    if (isMCP) minimal = true;
+    final bool minimal;
+    if (knownTool != null) {
+      minimal = knownTool.minimal;
+    } else {
+      // Unknown/MCP tools: show content when data is present
+      final hasData = toolInput != null || toolResult != null;
+      minimal = !hasData;
+    }
 
     final state = _parseToolState(toolState);
 
