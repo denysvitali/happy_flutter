@@ -5,6 +5,7 @@ import '../../core/models/built_in_profiles.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
+import 'profile_editor_screen.dart';
 
 /// Profiles screen - AI backend profiles management in Settings.
 class ProfilesScreen extends ConsumerWidget {
@@ -23,8 +24,11 @@ class ProfilesScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () =>
-                _showAddProfileDialog(context, ref),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ProfileEditorScreen(),
+              ),
+            ),
           ),
         ],
       ),
@@ -111,10 +115,11 @@ class ProfilesScreen extends ConsumerWidget {
                               profile.id,
                             );
                       },
-                      onEdit: () => _showEditProfileDialog(
-                        context,
-                        ref,
-                        profile,
+                      onEdit: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              ProfileEditorScreen(existing: profile),
+                        ),
                       ),
                       onDelete: () => _confirmDeleteProfile(
                         context,
@@ -191,121 +196,6 @@ class ProfilesScreen extends ConsumerWidget {
           ],
         ),
         onTap: onTap,
-      ),
-    );
-  }
-
-  void _showAddProfileDialog(
-      BuildContext context, WidgetRef ref) {
-    final nameController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Profile'),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: nameController,
-            decoration:
-                const InputDecoration(labelText: 'Profile Name'),
-            validator: (value) => value == null || value.isEmpty
-                ? 'Name is required'
-                : null,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() ?? false) {
-                final settings =
-                    ref.read(settingsNotifierProvider);
-                final newProfile = AIBackendProfile(
-                  id: 'custom_'
-                      '${DateTime.now().millisecondsSinceEpoch}',
-                  name: nameController.text,
-                  description: 'Custom profile',
-                  isBuiltIn: false,
-                  createdAt:
-                      DateTime.now().millisecondsSinceEpoch,
-                  updatedAt:
-                      DateTime.now().millisecondsSinceEpoch,
-                );
-                ref
-                    .read(settingsNotifierProvider.notifier)
-                    .updateSetting(
-                      'profiles',
-                      [...settings.profiles, newProfile],
-                    );
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditProfileDialog(
-    BuildContext context,
-    WidgetRef ref,
-    AIBackendProfile profile,
-  ) {
-    final nameController =
-        TextEditingController(text: profile.name);
-    final formKey = GlobalKey<FormState>();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: nameController,
-            decoration:
-                const InputDecoration(labelText: 'Profile Name'),
-            validator: (value) => value == null || value.isEmpty
-                ? 'Name is required'
-                : null,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() ?? false) {
-                final settings =
-                    ref.read(settingsNotifierProvider);
-                final updatedProfiles =
-                    settings.profiles.map((p) {
-                  if (p.id == profile.id) {
-                    return p.copyWith(
-                      name: nameController.text,
-                      updatedAt:
-                          DateTime.now().millisecondsSinceEpoch,
-                    );
-                  }
-                  return p;
-                }).toList();
-                ref
-                    .read(settingsNotifierProvider.notifier)
-                    .updateSetting('profiles', updatedProfiles);
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }
