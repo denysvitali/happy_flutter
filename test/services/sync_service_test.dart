@@ -129,6 +129,18 @@ void main() {
         expect(messageInvalidations, 1);
       },
     );
+
+    test('update-session bursts are debounced into one sessions refresh',
+        () async {
+      instance.handleUpdate({'t': 'update-session', 'id': 'session_1'});
+      instance.handleUpdate({'t': 'update-session', 'id': 'session_1'});
+      instance.handleUpdate({'t': 'update-session', 'id': 'session_1'});
+
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await instance.sessionsSync.awaitQueue();
+
+      expect(sessionsInvalidations, 1);
+    });
   });
 
   group('Sync.handleEphemeralUpdate', () {

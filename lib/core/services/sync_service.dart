@@ -327,6 +327,8 @@ what you have, you must use the options mode.
   Map<String, Session> _sessions = <String, Session>{};
   int? _lastSessionsFetchedAt;
   bool _forceFullFetchNext = false;
+  Timer? _sessionsRefreshDebounceTimer;
+  final Set<String> _pendingNewSessionIds = <String>{};
   final Map<String, Machine> _machines = <String, Machine>{};
   // Timers that drop presence back to 'offline' if no activity arrives.
   final Map<String, Timer> _presenceTimers = {};
@@ -760,16 +762,10 @@ what you have, you must use the options mode.
   void _handleNewSession(Map<String, dynamic> data) {
     logger.info('New session received');
     final sessionId = data['id'] as String? ?? data['sid'] as String?;
-    sessionsSync.invalidateAndAwait().then((_) {
-      // Apply the same guard used in createSession: if the delta fetch missed
-      // the new session (clock skew between client and server), force a full
-      // (non-delta) fetch so the session's encryption is initialized.
-      if (sessionId != null &&
-          encryption.getSessionEncryption(sessionId) == null) {
-        _forceFullFetchNext = true;
-        sessionsSync.invalidateAndAwait();
-      }
-    });
+    if (sessionId != null && sessionId.isNotEmpty) {
+      _pendingNewSessionIds.add(sessionId);
+    }
+    _scheduleSessionsRefresh();
   }
 
   /// Handle session deletion
@@ -808,7 +804,7 @@ what you have, you must use the options mode.
   /// Handle session update
   void _handleUpdateSession(Map<String, dynamic> data) {
     final sessionId = data['id'] as String?;
-    sessionsSync.invalidate();
+    _scheduleSessionsRefresh();
     if (sessionId != null && messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId]?.invalidate();
     }
@@ -816,6 +812,46 @@ what you have, you must use the options mode.
       'Session update received'
       '${sessionId != null ? ': $sessionId' : ''}',
     );
+  }
+
+  static const Duration _sessionsRefreshDebounce = Duration(
+    milliseconds: 250,
+  );
+
+  void _scheduleSessionsRefresh() {
+    _sessionsRefreshDebounceTimer?.cancel();
+    _sessionsRefreshDebounceTimer = Timer(
+      _sessionsRefreshDebounce,
+      () => unawaited(_flushScheduledSessionsRefresh()),
+    );
+  }
+
+  Future<void> _flushScheduledSessionsRefresh() async {
+    _sessionsRefreshDebounceTimer?.cancel();
+    _sessionsRefreshDebounceTimer = null;
+
+    await sessionsSync.invalidateAndAwait();
+
+    if (_pendingNewSessionIds.isEmpty) {
+      return;
+    }
+
+    final sessionIdsNeedingFullFetch = _pendingNewSessionIds
+        .where(
+          (sessionId) => encryption.getSessionEncryption(sessionId) == null,
+        )
+        .toList();
+    _pendingNewSessionIds.clear();
+
+    if (sessionIdsNeedingFullFetch.isEmpty) {
+      return;
+    }
+
+    // A newly created session can miss the first delta fetch due to clock skew
+    // or replication lag. Retry once with a full fetch so its encryption key is
+    // initialized before the user opens it.
+    _forceFullFetchNext = true;
+    await sessionsSync.invalidateAndAwait();
   }
 
   /// Handle account update
@@ -5455,6 +5491,7 @@ what you have, you must use the options mode.
     if (!isInitialized) return;
     logger.info('[Sync] suspending — disconnecting socket');
     _dataChangeDebounceTimer?.cancel();
+    _sessionsRefreshDebounceTimer?.cancel();
     _saveSeqDebounceTimer?.cancel();
     for (final timer in _postSendCatchUpTimers.values) {
       timer.cancel();
@@ -5482,6 +5519,7 @@ what you have, you must use the options mode.
 
   /// Shutdown sync engine and clear volatile state.
   Future<void> shutdown() async {
+    _sessionsRefreshDebounceTimer?.cancel();
     for (final timer in _postSendCatchUpTimers.values) {
       timer.cancel();
     }
