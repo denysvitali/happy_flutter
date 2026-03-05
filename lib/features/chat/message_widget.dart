@@ -187,7 +187,7 @@ class _UserBubble extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.only(
           left: AppSpacing.xxl,
-          right: AppSpacing.md,
+          right: AppSpacing.sm,
           top: AppSpacing.xxs,
           bottom: AppSpacing.xxs,
         ),
@@ -339,7 +339,7 @@ class _BotMessage extends StatelessWidget {
       },
       child: Padding(
         padding: const EdgeInsets.only(
-          left: AppSpacing.md,
+          left: AppSpacing.sm,
           right: AppSpacing.xxl,
           top: AppSpacing.xxs,
           bottom: AppSpacing.xxs,
