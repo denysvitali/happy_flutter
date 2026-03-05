@@ -53,8 +53,7 @@ class _SelectionState {
     return _SelectionState(
       isActive: isActive ?? this.isActive,
       selectedIds: selectedIds ?? this.selectedIds,
-      isBatchDeleting:
-          isBatchDeleting ?? this.isBatchDeleting,
+      isBatchDeleting: isBatchDeleting ?? this.isBatchDeleting,
     );
   }
 }
@@ -226,18 +225,14 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     BuildContext context,
     AppLocalizations l10n,
   ) {
-    final connectionStatus =
-        ref.watch(connectionNotifierProvider);
+    final connectionStatus = ref.watch(connectionNotifierProvider);
     return AppBar(
       title: Text(l10n.sessionHistoryTitle),
       actions: [
         ConnectionStatusBadge(status: connectionStatus),
         IconButton(
           icon: const Icon(Icons.add),
-          onPressed: () =>
-              _SessionsListContent.showNewSessionDialog(
-                context,
-              ),
+          onPressed: () => _SessionsListContent.showNewSessionDialog(context),
         ),
       ],
     );
@@ -250,30 +245,21 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   ) {
     final cs = Theme.of(context).colorScheme;
     final allIds = _allInactiveSessionIds();
-    final allSelected = allIds.isNotEmpty &&
-        allIds.every(sel.selectedIds.contains);
+    final allSelected =
+        allIds.isNotEmpty && allIds.every(sel.selectedIds.contains);
     return AppBar(
       leading: IconButton(
         icon: const Icon(Icons.close),
         onPressed: _exitSelectionMode,
       ),
-      title: Text(
-        l10n.sessionsSelectedCount(
-          sel.selectedIds.length,
-        ),
-      ),
+      title: Text(l10n.sessionsSelectedCount(sel.selectedIds.length)),
       actions: [
         TextButton(
           onPressed: sel.isBatchDeleting
               ? null
-              : () => _toggleSelectAll(
-                    allIds,
-                    allSelected,
-                  ),
+              : () => _toggleSelectAll(allIds, allSelected),
           child: Text(
-            allSelected
-                ? l10n.sessionsDeselectAll
-                : l10n.sessionsSelectAll,
+            allSelected ? l10n.sessionsDeselectAll : l10n.sessionsSelectAll,
           ),
         ),
         IconButton(
@@ -286,12 +272,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
                     color: cs.error,
                   ),
                 )
-              : Icon(
-                  Icons.delete_outline,
-                  color: cs.error,
-                ),
-          onPressed: (sel.selectedIds.isEmpty ||
-                  sel.isBatchDeleting)
+              : Icon(Icons.delete_outline, color: cs.error),
+          onPressed: (sel.selectedIds.isEmpty || sel.isBatchDeleting)
               ? null
               : () => _confirmBatchDelete(context, sel),
         ),
@@ -315,9 +297,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       index: _activeTab.index,
       children: [
         const InboxScreen(),
-        _SessionsListContent(
-          selectionNotifier: _selectionNotifier,
-        ),
+        _SessionsListContent(selectionNotifier: _selectionNotifier),
         const SettingsScreen(),
       ],
     );
@@ -337,14 +317,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     _selectionNotifier.value = const _SelectionState();
   }
 
-  void _toggleSelectAll(
-    Set<String> allIds,
-    bool currentlyAllSelected,
-  ) {
+  void _toggleSelectAll(Set<String> allIds, bool currentlyAllSelected) {
     final current = _selectionNotifier.value;
     _selectionNotifier.value = current.copyWith(
-      selectedIds:
-          currentlyAllSelected ? {} : Set<String>.of(allIds),
+      selectedIds: currentlyAllSelected ? {} : Set<String>.of(allIds),
     );
   }
 
@@ -361,9 +337,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
         final dl10n = AppLocalizations.of(ctx);
         return AlertDialog(
           title: Text(dl10n.chatDeleteSession),
-          content: Text(
-            dl10n.sessionsDeleteNConfirm(count),
-          ),
+          content: Text(dl10n.sessionsDeleteNConfirm(count)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -371,8 +345,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
             ),
             TextButton(
               style: TextButton.styleFrom(
-                foregroundColor:
-                    Theme.of(ctx).colorScheme.error,
+                foregroundColor: Theme.of(ctx).colorScheme.error,
               ),
               onPressed: () => Navigator.pop(ctx, true),
               child: Text(dl10n.commonDelete),
@@ -383,18 +356,13 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     );
     if (confirmed != true) return;
 
-    _selectionNotifier.value =
-        sel.copyWith(isBatchDeleting: true);
+    _selectionNotifier.value = sel.copyWith(isBatchDeleting: true);
 
     final ids = List<String>.from(sel.selectedIds);
-    final results = await Future.wait(
-      ids.map(sync.deleteSession),
-    );
+    final results = await Future.wait(ids.map(sync.deleteSession));
 
     if (mounted) {
-      await ref
-          .read(sessionsNotifierProvider.notifier)
-          .refreshFromSync();
+      await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
     }
 
     _exitSelectionMode();
@@ -402,9 +370,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     final failCount = results.where((r) => !r).length;
     if (failCount > 0 && mounted) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(l10n.sessionsDeletePartialFail(failCount)),
-        ),
+        SnackBar(content: Text(l10n.sessionsDeletePartialFail(failCount))),
       );
     }
   }
@@ -412,16 +378,20 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
 /// Sessions list content widget.
 class _SessionsListContent extends ConsumerStatefulWidget {
-  const _SessionsListContent({
-    required this.selectionNotifier,
-  });
+  const _SessionsListContent({required this.selectionNotifier});
 
   final ValueNotifier<_SelectionState> selectionNotifier;
 
-  static void showNewSessionDialog(BuildContext context) {
-    showDialog(
+  static Future<void> showNewSessionDialog(BuildContext context) async {
+    final sessionId = await showDialog<String>(
       context: context,
       builder: (context) => const NewSessionDialog(),
+    );
+    if (!context.mounted || sessionId == null || sessionId.isEmpty) {
+      return;
+    }
+    unawaited(
+      context.pushNamed('chat', pathParameters: {'sessionId': sessionId}),
     );
   }
 
@@ -430,18 +400,15 @@ class _SessionsListContent extends ConsumerStatefulWidget {
       _SessionsListContentState();
 }
 
-class _SessionsListContentState
-    extends ConsumerState<_SessionsListContent> {
+class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
   bool _hasLoaded = false;
   bool _animationTriggered = false;
   final Set<String> _collapsedActivePaths = {};
   final Set<String> _collapsedFolderKeys = {};
   final Set<String> _collapsedDateKeys = {};
-  _ArchivedGrouping _archivedGrouping =
-      _ArchivedGrouping.date;
+  _ArchivedGrouping _archivedGrouping = _ArchivedGrouping.date;
 
-  ValueNotifier<_SelectionState> get _sel =>
-      widget.selectionNotifier;
+  ValueNotifier<_SelectionState> get _sel => widget.selectionNotifier;
 
   @override
   void initState() {
@@ -463,10 +430,7 @@ class _SessionsListContentState
     final current = _sel.value;
     if (!current.isActive) {
       HapticFeedback.mediumImpact();
-      _sel.value = _SelectionState(
-        isActive: true,
-        selectedIds: {sessionId},
-      );
+      _sel.value = _SelectionState(isActive: true, selectedIds: {sessionId});
     }
   }
 
@@ -637,21 +601,17 @@ class _SessionsListContentState
     )) {
       children.add(
         _FadeInSection(
-          delay: Duration(
-            milliseconds: _kStaggerStep * staggerIndex,
-          ),
+          delay: Duration(milliseconds: _kStaggerStep * staggerIndex),
           child: _ArchiveSectionHeader(
             count: inactiveSessions.length,
             grouping: _archivedGrouping,
-            onGroupingChanged: (g) =>
-                setState(() => _archivedGrouping = g),
+            onGroupingChanged: (g) => setState(() => _archivedGrouping = g),
           ),
         ),
       );
 
       final sel = _sel.value;
-      final archivedItems = _archivedGrouping ==
-              _ArchivedGrouping.folder
+      final archivedItems = _archivedGrouping == _ArchivedGrouping.folder
           ? _buildFolderGroupedItems(
               context,
               inactiveSessions,
@@ -716,14 +676,11 @@ class _SessionsListContentState
     for (final entry in groups.entries) {
       final dateKey = entry.key;
       final dateSessions = entry.value;
-      final isCollapsed =
-          _collapsedDateKeys.contains(dateKey);
+      final isCollapsed = _collapsedDateKeys.contains(dateKey);
 
       widgets.add(
         _FadeInSection(
-          delay: Duration(
-            milliseconds: _kStaggerStep * itemIndex,
-          ),
+          delay: Duration(milliseconds: _kStaggerStep * itemIndex),
           child: _CollapsibleDateHeader(
             date: dateKey,
             sessionCount: dateSessions.length,
@@ -753,51 +710,38 @@ class _SessionsListContentState
               SessionCard(
                 session: session,
                 onTap: selectionState.isActive
-                    ? () => _onSessionTapInSelectionMode(
-                          session.id,
-                        )
+                    ? () => _onSessionTapInSelectionMode(session.id)
                     : () => unawaited(
-                          context.pushNamed(
-                            'chat',
-                            pathParameters: {
-                              'sessionId': session.id,
-                            },
-                          ),
+                        context.pushNamed(
+                          'chat',
+                          pathParameters: {'sessionId': session.id},
                         ),
-                onLongPress: () =>
-                    _onSessionLongPress(session.id),
+                      ),
+                onLongPress: () => _onSessionLongPress(session.id),
                 isFirst: isFirst,
                 isLast: isLast,
                 isSingle: isSingle,
                 compact: true,
                 selectionMode: selectionState.isActive,
-                isSelected: selectionState.selectedIds
-                    .contains(session.id),
+                isSelected: selectionState.selectedIds.contains(session.id),
                 showFlavorIcon: showFlavorIcons,
                 avatarStyle: avatarStyle,
-                lastMessageTimestamp:
-                    sync.getLastMessageTimestamp(
-                  session.id,
-                ),
+                lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
               ),
               if (!isLast && !isSingle)
                 Divider(
                   height: 1,
                   indent: 64,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outlineVariant
-                      .withAlpha(50),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outlineVariant.withAlpha(50),
                 ),
             ],
           );
 
           final child = selectionState.isActive
               ? card
-              : _DismissibleInactiveSession(
-                  session: session,
-                  child: card,
-                );
+              : _DismissibleInactiveSession(session: session, child: card);
 
           widgets.add(
             _StaggeredSlideIn(
@@ -826,8 +770,7 @@ class _SessionsListContentState
     required AvatarStyle? avatarStyle,
     required _SelectionState selectionState,
   }) {
-    final folderItems =
-        groupSessionsByFolder(sessions, machines);
+    final folderItems = groupSessionsByFolder(sessions, machines);
 
     var itemIndex = startIndex;
     final widgets = <Widget>[];
@@ -837,24 +780,16 @@ class _SessionsListContentState
       switch (item) {
         case SessionFolderHeader():
           currentFolderKey = item.folderKey;
-          final isCollapsed =
-              _collapsedFolderKeys.contains(
-            item.folderKey,
-          );
+          final isCollapsed = _collapsedFolderKeys.contains(item.folderKey);
           widgets.add(
             _FadeInSection(
-              delay: Duration(
-                milliseconds:
-                    _kStaggerStep * itemIndex,
-              ),
+              delay: Duration(milliseconds: _kStaggerStep * itemIndex),
               child: _CollapsibleFolderHeader(
                 header: item,
                 isCollapsed: isCollapsed,
                 onToggle: () => setState(() {
                   final key = item.folderKey;
-                  if (_collapsedFolderKeys.contains(
-                    key,
-                  )) {
+                  if (_collapsedFolderKeys.contains(key)) {
                     _collapsedFolderKeys.remove(key);
                   } else {
                     _collapsedFolderKeys.add(key);
@@ -865,9 +800,7 @@ class _SessionsListContentState
           );
         case SessionFolderEntry():
           if (currentFolderKey != null &&
-              _collapsedFolderKeys.contains(
-                currentFolderKey,
-              )) {
+              _collapsedFolderKeys.contains(currentFolderKey)) {
             continue;
           }
           final session = item.session;
@@ -879,52 +812,38 @@ class _SessionsListContentState
               SessionCard(
                 session: session,
                 onTap: selectionState.isActive
-                    ? () =>
-                        _onSessionTapInSelectionMode(
-                          session.id,
-                        )
+                    ? () => _onSessionTapInSelectionMode(session.id)
                     : () => unawaited(
-                          context.pushNamed(
-                            'chat',
-                            pathParameters: {
-                              'sessionId': session.id,
-                            },
-                          ),
+                        context.pushNamed(
+                          'chat',
+                          pathParameters: {'sessionId': session.id},
                         ),
-                onLongPress: () =>
-                    _onSessionLongPress(session.id),
+                      ),
+                onLongPress: () => _onSessionLongPress(session.id),
                 isFirst: item.isFirst,
                 isLast: item.isLast,
                 isSingle: item.isSingle,
                 compact: true,
                 selectionMode: selectionState.isActive,
-                isSelected: selectionState.selectedIds
-                    .contains(session.id),
+                isSelected: selectionState.selectedIds.contains(session.id),
                 showFlavorIcon: showFlavorIcons,
                 avatarStyle: avatarStyle,
-                lastMessageTimestamp:
-                    sync.getLastMessageTimestamp(
-                  session.id,
-                ),
+                lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
               ),
               if (!item.isLast && !item.isSingle)
                 Divider(
                   height: 1,
                   indent: 64,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outlineVariant
-                      .withAlpha(50),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outlineVariant.withAlpha(50),
                 ),
             ],
           );
 
           final child = selectionState.isActive
               ? card
-              : _DismissibleInactiveSession(
-                  session: session,
-                  child: card,
-                );
+              : _DismissibleInactiveSession(session: session, child: card);
 
           widgets.add(
             _StaggeredSlideIn(
@@ -1364,8 +1283,7 @@ class _CollapsibleDateHeader extends StatelessWidget {
             Text(
               '$sessionCount',
               style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant
-                    .withValues(alpha: 0.6),
+                color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                 fontSize: 11,
               ),
             ),
@@ -1414,11 +1332,7 @@ class _CollapsibleFolderHeader extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.folder_outlined,
-              size: 16,
-              color: cs.onSurfaceVariant,
-            ),
+            Icon(Icons.folder_outlined, size: 16, color: cs.onSurfaceVariant),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
@@ -1426,8 +1340,7 @@ class _CollapsibleFolderHeader extends StatelessWidget {
                 children: [
                   Text(
                     header.displayPath,
-                    style:
-                        theme.textTheme.labelSmall?.copyWith(
+                    style: theme.textTheme.labelSmall?.copyWith(
                       color: cs.onSurfaceVariant,
                       fontFamily: 'monospace',
                       fontSize: 12,
@@ -1439,10 +1352,8 @@ class _CollapsibleFolderHeader extends StatelessWidget {
                   ),
                   Text(
                     header.machineName,
-                    style:
-                        theme.textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant
-                          .withValues(alpha: 0.6),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                       fontSize: 10,
                     ),
                   ),
@@ -1452,8 +1363,7 @@ class _CollapsibleFolderHeader extends StatelessWidget {
             Text(
               '${header.sessionCount}',
               style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant
-                    .withValues(alpha: 0.6),
+                color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                 fontSize: 11,
               ),
             ),
@@ -1510,10 +1420,7 @@ class _ArchiveSectionHeader extends StatelessWidget {
               ),
             ),
           ),
-          _GroupingToggle(
-            grouping: grouping,
-            onChanged: onGroupingChanged,
-          ),
+          _GroupingToggle(grouping: grouping, onChanged: onGroupingChanged),
         ],
       ),
     );
@@ -1523,10 +1430,7 @@ class _ArchiveSectionHeader extends StatelessWidget {
 /// Two-icon toggle for switching between date and folder
 /// grouping.
 class _GroupingToggle extends StatelessWidget {
-  const _GroupingToggle({
-    required this.grouping,
-    required this.onChanged,
-  });
+  const _GroupingToggle({required this.grouping, required this.onChanged});
 
   final _ArchivedGrouping grouping;
   final ValueChanged<_ArchivedGrouping> onChanged;
@@ -1539,19 +1443,15 @@ class _GroupingToggle extends StatelessWidget {
       children: [
         _ToggleChip(
           icon: Icons.calendar_today_outlined,
-          selected:
-              grouping == _ArchivedGrouping.date,
-          onTap: () =>
-              onChanged(_ArchivedGrouping.date),
+          selected: grouping == _ArchivedGrouping.date,
+          onTap: () => onChanged(_ArchivedGrouping.date),
           tooltip: l10n.sessionsGroupByDate,
         ),
         const SizedBox(width: AppSpacing.xs),
         _ToggleChip(
           icon: Icons.folder_outlined,
-          selected:
-              grouping == _ArchivedGrouping.folder,
-          onTap: () =>
-              onChanged(_ArchivedGrouping.folder),
+          selected: grouping == _ArchivedGrouping.folder,
+          onTap: () => onChanged(_ArchivedGrouping.folder),
           tooltip: l10n.sessionsGroupByFolder,
         ),
       ],
@@ -1588,15 +1488,12 @@ class _ToggleChip extends StatelessWidget {
             color: selected
                 ? cs.primary.withValues(alpha: 0.12)
                 : Colors.transparent,
-            borderRadius:
-                BorderRadius.circular(AppRadius.sm),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: Icon(
             icon,
             size: 16,
-            color: selected
-                ? cs.primary
-                : cs.onSurfaceVariant,
+            color: selected ? cs.primary : cs.onSurfaceVariant,
           ),
         ),
       ),
@@ -1640,18 +1537,12 @@ class _SelectionCheckbox extends StatelessWidget {
           shape: BoxShape.circle,
           color: isSelected ? cs.primary : cs.surface,
           border: Border.all(
-            color: isSelected
-                ? cs.primary
-                : cs.outline.withValues(alpha: 0.5),
+            color: isSelected ? cs.primary : cs.outline.withValues(alpha: 0.5),
             width: 2,
           ),
         ),
         child: isSelected
-            ? Icon(
-                Icons.check,
-                size: 14,
-                color: cs.onPrimary,
-              )
+            ? Icon(Icons.check, size: 14, color: cs.onPrimary)
             : null,
       ),
     );
@@ -2195,10 +2086,7 @@ class SessionCard extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: borderRadius,
           side: isSelected
-              ? BorderSide(
-                  color:
-                      cs.primary.withValues(alpha: 0.3),
-                )
+              ? BorderSide(color: cs.primary.withValues(alpha: 0.3))
               : BorderSide.none,
         ),
         elevation: 0,
@@ -2209,8 +2097,7 @@ class SessionCard extends StatelessWidget {
           borderRadius: borderRadius,
           child: IntrinsicHeight(
             child: Row(
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (selectionMode)
                   _SelectionCheckbox(
@@ -2221,25 +2108,20 @@ class SessionCard extends StatelessWidget {
                   Container(
                     width: 3,
                     color: sessionStatus.isConnected
-                        ? Color(
-                            sessionStatus.statusDotColor,
-                          )
+                        ? Color(sessionStatus.statusDotColor)
                         : cs.outlineVariant,
                   ),
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: AppSpacing.md,
-                      vertical:
-                          compact ? 6 : AppSpacing.sm,
+                      vertical: compact ? 6 : AppSpacing.sm,
                     ),
                     child: Row(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Hero(
-                          tag:
-                              'session-avatar-${session.id}',
+                          tag: 'session-avatar-${session.id}',
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
@@ -2247,61 +2129,41 @@ class SessionCard extends StatelessWidget {
                                 id: avatarId,
                                 flavor: sessionFlavor,
                                 size: compact ? 36 : 44,
-                                monochrome: !sessionStatus
-                                    .isConnected,
-                                showFlavorIcon:
-                                    showFlavorIcon,
+                                monochrome: !sessionStatus.isConnected,
+                                showFlavorIcon: showFlavorIcon,
                                 style: avatarStyle,
                               ),
-                              if (hasDraft)
-                                const _DraftBadge(),
+                              if (hasDraft) const _DraftBadge(),
                             ],
                           ),
                         ),
                         SizedBox(
-                          width: compact
-                              ? AppSpacing.sm
-                              : AppSpacing.md,
+                          width: compact ? AppSpacing.sm : AppSpacing.md,
                         ),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
                                   Flexible(
                                     child: Text(
                                       sessionName,
-                                      style: theme
-                                          .textTheme
-                                          .bodyMedium
+                                      style: theme.textTheme.bodyMedium
                                           ?.copyWith(
-                                        fontWeight:
-                                            FontWeight
-                                                .w600,
-                                        color: titleColor,
-                                      ),
-                                      overflow:
-                                          TextOverflow
-                                              .ellipsis,
+                                            fontWeight: FontWeight.w600,
+                                            color: titleColor,
+                                          ),
+                                      overflow: TextOverflow.ellipsis,
                                       maxLines: 1,
                                     ),
                                   ),
-                                  const SizedBox(
-                                    width: AppSpacing.sm,
-                                  ),
+                                  const SizedBox(width: AppSpacing.sm),
                                   AppStatusDot(
-                                    color: sessionStatus
-                                            .isConnected
-                                        ? Color(
-                                            sessionStatus
-                                                .statusDotColor,
-                                          )
-                                        : cs
-                                            .outlineVariant,
-                                    pulse: sessionStatus
-                                        .isPulsing,
+                                    color: sessionStatus.isConnected
+                                        ? Color(sessionStatus.statusDotColor)
+                                        : cs.outlineVariant,
+                                    pulse: sessionStatus.isPulsing,
                                     size: 8,
                                   ),
                                 ],
@@ -2309,54 +2171,37 @@ class SessionCard extends StatelessWidget {
                               const SizedBox(height: 2),
                               Text(
                                 sessionSubtitle,
-                                style: theme
-                                    .textTheme
-                                    .labelSmall
-                                    ?.copyWith(
-                                  color: cs
-                                      .onSurfaceVariant,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: cs.onSurfaceVariant,
                                   fontFamily: 'monospace',
                                   fontSize: 11,
                                 ),
-                                overflow:
-                                    TextOverflow.ellipsis,
+                                overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(
-                          width: AppSpacing.sm,
-                        ),
+                        const SizedBox(width: AppSpacing.sm),
                         Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.end,
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
                               formatTimestamp(
-                                lastMessageTimestamp ??
-                                    session.updatedAt,
+                                lastMessageTimestamp ?? session.updatedAt,
                                 relative: true,
                               ),
-                              style: theme
-                                  .textTheme.labelSmall
-                                  ?.copyWith(
-                                color:
-                                    cs.onSurfaceVariant,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: cs.onSurfaceVariant,
                                 fontSize: 11,
                               ),
                             ),
                             const SizedBox(height: 6),
-                            if (todoProgress !=
-                                null) ...[
-                              const SizedBox(
-                                height: AppSpacing.xs,
-                              ),
+                            if (todoProgress != null) ...[
+                              const SizedBox(height: AppSpacing.xs),
                               _TodoProgressBadge(
-                                completed: todoProgress
-                                    .completed,
-                                total:
-                                    todoProgress.total,
+                                completed: todoProgress.completed,
+                                total: todoProgress.total,
                               ),
                             ],
                           ],
@@ -2397,10 +2242,7 @@ class _SessionListShimmer extends StatelessWidget {
               Container(
                 width: 44,
                 height: 44,
-                decoration: BoxDecoration(
-                  color: base,
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: base, shape: BoxShape.circle),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -2829,9 +2671,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     final machineId = _selectedMachine;
     final path = _selectedPath?.trim();
     if (machineId == null || path == null || path.isEmpty) return;
-
-    final navigator = Navigator.of(context);
-    final router = GoRouter.of(context);
+    final navigator = Navigator.of(context, rootNavigator: true);
 
     setState(() {
       _isCreating = true;
@@ -2858,10 +2698,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       // session data from server.
       await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
       if (!mounted) return;
-      navigator.pop();
-      unawaited(
-        router.pushNamed('chat', pathParameters: {'sessionId': sessionId}),
-      );
+      navigator.pop(sessionId);
     } catch (e) {
       if (!mounted) return;
       setState(() {
