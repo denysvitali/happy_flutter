@@ -58,6 +58,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _visibleCount = _pageSize;
   bool _isLoadingMore = false;
 
+  // Timestamp of the last successful /clear, used to show a divider.
+  DateTime? _lastClearedAt;
+
   // Cached slicing / index data for _buildMessageList.
   List<Map<String, dynamic>>? _cachedVisibleMessages;
   Map<String, int>? _cachedKeyToListIndex;
@@ -693,6 +696,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final metadataJson = _metadataJson;
 
+    final hasClearedDivider = _lastClearedAt != null;
+    final clearedOffset = hasClearedDivider ? 1 : 0;
+
     return ListView.builder(
       controller: _scrollController,
       reverse: true,
@@ -700,13 +706,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         top: AppSpacing.xsm,
         bottom: AppSpacing.xs,
       ),
-      itemCount: visibleMessages.length + (showHeader ? 1 : 0),
+      itemCount:
+          visibleMessages.length + (showHeader ? 1 : 0) + clearedOffset,
       findChildIndexCallback: (key) {
         if (key is! ValueKey<String>) return null;
-        return keyToListIndex[key.value];
+        final idx = keyToListIndex[key.value];
+        if (idx == null) return null;
+        return idx + clearedOffset;
       },
       itemBuilder: (context, index) {
-        if (showHeader && index == visibleMessages.length) {
+        // Cleared divider sits at the very bottom of the list (index 0 in
+        // a reversed ListView = most recent position).
+        if (hasClearedDivider && index == 0) {
+          return _buildClearedDivider(context);
+        }
+        final adjustedIndex = index - clearedOffset;
+        if (showHeader && adjustedIndex == visibleMessages.length) {
           if (hasLocalMore || isLoadingFromServer) {
             return Center(
               key: ValueKey(
@@ -731,7 +746,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           return _buildConversationStartLabel(context);
         }
 
-        final reversedIndex = visibleMessages.length - 1 - index;
+        final reversedIndex = visibleMessages.length - 1 - adjustedIndex;
 
         final message = visibleMessages[reversedIndex];
         final nextMessage = reversedIndex + 1 < visibleMessages.length
@@ -796,6 +811,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  Widget _buildClearedDivider(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final labelColor = cs.onSurfaceVariant.withValues(alpha: 0.45);
+    return Padding(
+      key: const ValueKey('cleared-divider'),
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpacing.md,
+        horizontal: AppSpacing.lg,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 1,
+              color: labelColor.withValues(alpha: 0.3),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            child: Text(
+              context.l10n.chatConversationCleared,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: labelColor,
+                fontSize: 10,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              height: 1,
+              color: labelColor.withValues(alpha: 0.3),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _onOptionPress(String option) async {
     if (_isSending) return;
     try {
@@ -853,12 +907,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _refreshFromSync();
         _scrollToBottom();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Conversation cleared'),
-              duration: Duration(seconds: 2),
-            ),
-          );
+          setState(() => _lastClearedAt = DateTime.now());
         }
       } catch (e) {
         if (mounted) {

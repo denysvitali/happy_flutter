@@ -467,6 +467,7 @@ class AppLocalizations {
       'Last seen ${days}d ago';
   String get chatBeginningOfConversation =>
       'Beginning of conversation';
+  String get chatConversationCleared => 'Conversation cleared';
   String chatFailedToClear(String error) =>
       'Failed to clear: $error';
   String get chatFailedToDeleteSession =>
