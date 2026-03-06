@@ -587,6 +587,39 @@ class AppLocalizations {
   String get featuresMarkdownCopyV2Desc =>
       'Use improved markdown copying';
 
+  // Developer Logs Screen
+  String get devLogsTitle => 'Logs';
+  String devLogsCount(int count) => 'Logs ($count)';
+  String devLogsCountFiltered(int count) => 'Logs ($count filtered)';
+  String get devLogsEmpty => 'No logs yet';
+  String get devLogsEmptyDesc =>
+      'Logs will appear here as they are generated';
+  String get devLogsClearFilter => 'Clear Filter';
+  String get devLogsNoLogsToCopy => 'No logs to copy';
+  String devLogsCopied(int count) =>
+      '$count log entries copied';
+  String get devLogsClearTitle => 'Clear Logs';
+  String get devLogsClearConfirm =>
+      'Are you sure you want to clear all logs?';
+  String get devLogsClearAction => 'Clear';
+  String get devLogsSearchTitle => 'Search Logs';
+  String get devLogsSearchHint => 'Enter search term...';
+  String get devLogsAllLevels => 'All Levels';
+  String get devLogsLevelDebug => 'Debug';
+  String get devLogsLevelInfo => 'Info';
+  String get devLogsLevelWarning => 'Warning';
+  String get devLogsLevelError => 'Error';
+  String get devLogsLogEntryCopied => 'Log entry copied';
+  String get devLogsCopyEntry => 'Copy Entry';
+  String get devLogsOnlyAvailableInDevMode =>
+      'Logs are only available when Developer Mode is enabled.\n\n'
+      'Go to Settings and enable Developer Mode to view logs.';
+
+  // Network Inspector Screen
+  String get networkInspectorClearTitle => 'Clear Request Log';
+  String get networkInspectorClearConfirm =>
+      'Are you sure you want to clear all requests?';
+
   // Developer Settings
   String get developerTitle => 'Developer';
   String get developerClearCache => 'Clear Cache';

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/services/http_request_logger.dart';
 import '../../core/utils/datetime_extensions.dart';
 
@@ -98,26 +99,27 @@ class _NetworkInspectorScreenState
   Future<void> _confirmClear() async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Clear Request Log'),
-        content: const Text(
-          'Are you sure you want to clear all recorded requests?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor:
-                  Theme.of(context).colorScheme.error,
+      builder: (ctx) {
+        final l10n = AppLocalizations.of(ctx);
+        return AlertDialog(
+          title: Text(l10n.networkInspectorClearTitle),
+          content: Text(l10n.networkInspectorClearConfirm),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.commonCancel),
             ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor:
+                    Theme.of(context).colorScheme.error,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.developerClearCacheAction),
+            ),
+          ],
+        );
+      },
     );
     if (ok ?? false) {
       httpRequestLogger.clear();
@@ -296,7 +298,7 @@ class _CopyBox extends StatelessWidget {
           FilledButton.icon(
             onPressed: onCopy,
             icon: const Icon(Icons.copy, size: 16),
-            label: const Text('Copy'),
+            label: Text(AppLocalizations.of(context).commonCopy),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(
                 horizontal: 14,

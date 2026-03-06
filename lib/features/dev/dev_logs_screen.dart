@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/logger_provider.dart';
 import '../../core/services/logger_service.dart';
@@ -16,15 +17,15 @@ class DevLogsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Allow access when developer mode is enabled
     final settings = ref.watch(settingsNotifierProvider);
+    final l10n = AppLocalizations.of(context);
     if (!settings.developerModeEnabled) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Logs')),
+        appBar: AppBar(title: Text(l10n.devLogsTitle)),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Text(
-              'Logs are only available when Developer Mode is enabled.\n\n'
-              'Go to Settings and enable Developer Mode to view logs.',
+              l10n.devLogsOnlyAvailableInDevMode,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
@@ -38,7 +39,7 @@ class DevLogsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Logs (${filteredLogs.length})'),
+        title: Text(l10n.devLogsCount(filteredLogs.length)),
         actions: [
           // Add test log button
           IconButton(
@@ -76,25 +77,25 @@ class DevLogsScreen extends ConsumerWidget {
               ).setFilterLevel(value?.index);
             },
             itemBuilder: (context) => [
-              const PopupMenuItem<LogLevel?>(
+              PopupMenuItem<LogLevel?>(
                 value: null,
-                child: Text('All Levels'),
+                child: Text(l10n.devLogsAllLevels),
               ),
-              const PopupMenuItem<LogLevel?>(
+              PopupMenuItem<LogLevel?>(
                 value: LogLevel.debug,
-                child: Text('Debug'),
+                child: Text(l10n.devLogsLevelDebug),
               ),
-              const PopupMenuItem<LogLevel?>(
+              PopupMenuItem<LogLevel?>(
                 value: LogLevel.info,
-                child: Text('Info'),
+                child: Text(l10n.devLogsLevelInfo),
               ),
-              const PopupMenuItem<LogLevel?>(
+              PopupMenuItem<LogLevel?>(
                 value: LogLevel.warning,
-                child: Text('Warning'),
+                child: Text(l10n.devLogsLevelWarning),
               ),
-              const PopupMenuItem<LogLevel?>(
+              PopupMenuItem<LogLevel?>(
                 value: LogLevel.error,
-                child: Text('Error'),
+                child: Text(l10n.devLogsLevelError),
               ),
             ],
           ),
@@ -116,8 +117,9 @@ class DevLogsScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Logs (${filteredLogs.length}'
-                  '${loggerState.filterLevel != null ? ' filtered' : ''})',
+                  loggerState.filterLevel != null
+                      ? l10n.devLogsCountFiltered(filteredLogs.length)
+                      : l10n.devLogsCount(filteredLogs.length),
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
                 if (loggerState.filterLevel != null)
@@ -127,7 +129,7 @@ class DevLogsScreen extends ConsumerWidget {
                           .read(loggerNotifierProvider.notifier)
                           .setFilterLevel(null);
                     },
-                    child: const Text('Clear Filter'),
+                    child: Text(l10n.devLogsClearFilter),
                   ),
               ],
             ),
@@ -146,7 +148,7 @@ class DevLogsScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'No logs yet',
+                          l10n.devLogsEmpty,
                           style: Theme.of(
                             context,
                           ).textTheme.bodyLarge?.copyWith(
@@ -155,7 +157,7 @@ class DevLogsScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Logs will appear here as they are generated',
+                          l10n.devLogsEmptyDesc,
                           style: Theme.of(
                             context,
                           ).textTheme.bodyMedium?.copyWith(
@@ -174,23 +176,26 @@ class DevLogsScreen extends ConsumerWidget {
   }
 
   Future<void> _copyAllLogs(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
+    final noLogsMsg = l10n.devLogsNoLogsToCopy;
     final logs = ref.read(loggerNotifierProvider).filteredLogs;
     if (logs.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No logs to copy')),
+          SnackBar(content: Text(noLogsMsg)),
         );
       }
       return;
     }
 
+    final copiedMsg = l10n.devLogsCopied(logs.length);
     final allLogs =
         logs.map((entry) => entry.toFormattedString()).join('\n');
     await Clipboard.setData(ClipboardData(text: allLogs));
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${logs.length} log entries copied')),
+        SnackBar(content: Text(copiedMsg)),
       );
     }
   }
@@ -199,23 +204,26 @@ class DevLogsScreen extends ConsumerWidget {
       BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear Logs'),
-        content: const Text('Are you sure you want to clear all logs?'),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => context.pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
+      builder: (context) {
+        final l10n = AppLocalizations.of(context);
+        return AlertDialog(
+          title: Text(l10n.devLogsClearTitle),
+          content: Text(l10n.devLogsClearConfirm),
+          actions: [
+            TextButton(
+              onPressed: () => context.pop(false),
+              child: Text(l10n.commonCancel),
             ),
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
+            TextButton(
+              onPressed: () => context.pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              child: Text(l10n.devLogsClearAction),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed ?? false) {
@@ -228,38 +236,41 @@ class DevLogsScreen extends ConsumerWidget {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Search Logs'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Enter search term...',
-            prefixIcon: Icon(Icons.search),
-          ),
-          onChanged: (value) {
-            // Filter is handled by the search in LogListView
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              controller.clear();
-              Navigator.pop(context);
+      builder: (context) {
+        final dialogL10n = AppLocalizations.of(context);
+        return AlertDialog(
+          title: Text(dialogL10n.devLogsSearchTitle),
+          content: TextField(
+            controller: controller,
+            decoration: InputDecoration(
+              hintText: dialogL10n.devLogsSearchHint,
+              prefixIcon: const Icon(Icons.search),
+            ),
+            onChanged: (value) {
+              // Filter is handled by the search in LogListView
             },
-            child: const Text('Clear'),
           ),
-          FilledButton(
-            onPressed: () {
-              // Store search query and apply filter
-              ref.read(
-                loggerNotifierProvider.notifier,
-              ).setSearchQuery(controller.text);
-              Navigator.pop(context);
-            },
-            child: const Text('Search'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                controller.clear();
+                Navigator.pop(context);
+              },
+              child: Text(dialogL10n.devLogsClearAction),
+            ),
+            FilledButton(
+              onPressed: () {
+                // Store search query and apply filter
+                ref.read(
+                  loggerNotifierProvider.notifier,
+                ).setSearchQuery(controller.text);
+                Navigator.pop(context);
+              },
+              child: Text(dialogL10n.commonSearch),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -519,11 +530,15 @@ class LogEntryWidget extends StatelessWidget {
                   );
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Log entry copied')),
+                    SnackBar(
+                      content: Text(
+                        AppLocalizations.of(context).devLogsLogEntryCopied,
+                      ),
+                    ),
                   );
                 },
                 icon: const Icon(Icons.copy),
-                label: const Text('Copy Entry'),
+                label: Text(AppLocalizations.of(context).devLogsCopyEntry),
               ),
             ),
           ],
