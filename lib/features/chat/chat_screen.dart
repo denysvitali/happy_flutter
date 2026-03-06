@@ -994,14 +994,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Unsent Message'),
-        content: const Text(
-          'You have an unsent message. Are you sure you want to leave?',
-        ),
+        title: Text(context.l10n.chatUnsentMessageTitle),
+        content: Text(context.l10n.chatUnsentMessageContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Stay'),
+            child: Text(context.l10n.chatStay),
           ),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: cs.error),
@@ -1011,7 +1009,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               Navigator.pop(context);
               Navigator.of(this.context).pop();
             },
-            child: const Text('Leave'),
+            child: Text(context.l10n.chatLeave),
           ),
         ],
       ),

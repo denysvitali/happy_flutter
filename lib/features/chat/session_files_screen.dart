@@ -44,6 +44,7 @@ class _SessionNotFound extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -51,14 +52,13 @@ class _SessionNotFound extends StatelessWidget {
           Icon(
             Icons.error_outline,
             size: 64,
-            color: Colors.grey[400],
+            color: theme.colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(
             'Session not found',
-            style: TextStyle(
-              fontSize: 18,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -83,7 +83,7 @@ class _EmptyFilesView extends StatelessWidget {
             Icon(
               Icons.folder_open_outlined,
               size: 64,
-              color: Colors.grey[400],
+              color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 16),
             Text(

@@ -271,7 +271,7 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
           icon: Icons.description,
           title: l10n.reports,
           value: _usageSummary?.totalReportCount.toString() ?? '0',
-          iconColor: Colors.blue,
+          iconColor: cs.primary,
         ),
       ],
     );
@@ -325,7 +325,7 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
           icon: Icons.speed,
           title: l10n.avgTokensPerDay,
           value: _formatNumber(summary.averageTokensPerDay.round()),
-          iconColor: Colors.blue,
+          iconColor: cs.primary,
         ),
       ],
     );

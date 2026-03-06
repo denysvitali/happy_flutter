@@ -177,7 +177,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
             _lastBackPressTime = now;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Press back again to exit'),
+                content: Text(context.l10n.sessionsPressBackToExit),
                 duration: const Duration(seconds: 2),
               ),
             );
@@ -734,7 +734,7 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
                   indent: 64,
                   color: Theme.of(
                     context,
-                  ).colorScheme.outlineVariant.withAlpha(50),
+                  ).colorScheme.outlineVariant.withValues(alpha: 0.2),
                 ),
             ],
           );
@@ -836,7 +836,7 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
                   indent: 64,
                   color: Theme.of(
                     context,
-                  ).colorScheme.outlineVariant.withAlpha(50),
+                  ).colorScheme.outlineVariant.withValues(alpha: 0.2),
                 ),
             ],
           );
@@ -936,7 +936,7 @@ class _DismissibleActiveSession extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to archive session: $e')),
+          SnackBar(content: Text(context.l10n.sessionsFailedToArchive)),
         );
       }
       return false;
@@ -1021,7 +1021,7 @@ class _DismissibleInactiveSession extends ConsumerWidget {
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to delete session')),
+            SnackBar(content: Text(context.l10n.sessionsFailedToDelete)),
           );
         }
         return false;
@@ -1030,7 +1030,9 @@ class _DismissibleInactiveSession extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to delete session: $e')));
+        ).showSnackBar(
+          SnackBar(content: Text(context.l10n.sessionsFailedToDelete)),
+        );
       }
       return false;
     }

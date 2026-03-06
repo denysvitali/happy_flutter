@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
@@ -54,13 +55,15 @@ class SessionInfoScreen extends ConsumerWidget {
 
     if (session == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Session Info')),
-        body: const Center(child: Text('Session not found')),
+        appBar: AppBar(
+          title: Text(context.l10n.sessionInfoTitle),
+        ),
+        body: Center(child: Text(context.l10n.sessionInfoNotFound)),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Session Info')),
+      appBar: AppBar(title: Text(context.l10n.sessionInfoTitle)),
       body: _SessionInfoBody(session: session),
     );
   }
@@ -119,30 +122,30 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
   }
 
   Future<void> _handleArchiveSession() async {
+    final failedArchiveMsg = context.l10n.sessionsFailedToArchive;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Archive Session'),
-        content: const Text(
-          'This will stop the running session. Continue?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  Theme.of(ctx).colorScheme.error,
-              foregroundColor:
-                  Theme.of(ctx).colorScheme.onError,
+      builder: (ctx) {
+        final l10n = AppLocalizations.of(ctx);
+        return AlertDialog(
+          title: Text(l10n.sessionsArchiveSession),
+          content: Text(l10n.sessionsArchiveConfirm),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l10n.commonCancel),
             ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Archive'),
-          ),
-        ],
-      ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error,
+                foregroundColor: Theme.of(ctx).colorScheme.onError,
+              ),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(l10n.sessionsArchive),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed != true) return;
@@ -153,42 +156,40 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (e) {
-      _showError('Failed to archive session');
+      _showError(failedArchiveMsg);
     } finally {
       if (mounted) setState(() => _isArchiving = false);
     }
   }
 
   Future<void> _handleDeleteSession() async {
+    final failedDeleteMsg = context.l10n.sessionsFailedToDelete;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Session'),
-        content: const Text(
-          'This will permanently delete this session and all messages.'
-          ' This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  Theme.of(ctx).colorScheme.error,
-              foregroundColor:
-                  Theme.of(ctx).colorScheme.onError,
+      builder: (ctx) {
+        final l10n = AppLocalizations.of(ctx);
+        return AlertDialog(
+          title: Text(l10n.chatDeleteSession),
+          content: Text(l10n.sessionsDeleteConfirm),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l10n.commonCancel),
             ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error,
+                foregroundColor: Theme.of(ctx).colorScheme.onError,
+              ),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(l10n.commonDelete),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed != true) return;
-
     setState(() => _isDeleting = true);
     try {
       final deleted = await sync.deleteSession(widget.session.id);
@@ -196,10 +197,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
       if (deleted) {
         Navigator.of(context).pop();
       } else {
-        _showError('Failed to delete session');
+        _showError(failedDeleteMsg);
       }
     } catch (e) {
-      _showError('Failed to delete session');
+      _showError(failedDeleteMsg);
     } finally {
       if (mounted) setState(() => _isDeleting = false);
     }

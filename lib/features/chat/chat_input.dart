@@ -679,13 +679,14 @@ class _InputToolbar extends StatelessWidget {
 
     return Row(
       children: [
-        if (onPermissionModeChanged != null)
+        if (onPermissionModeChanged != null) ...[
           perm.PermissionModeSelector(
             selectedMode: permissionMode,
             onModeChanged: onPermissionModeChanged,
             availableModes: perm.PermissionModeExtension.claudeGeminiModes,
           ),
-        const SizedBox(width: 6),
+          const SizedBox(width: 6),
+        ],
         _ModelChip(model: model, onTap: onShowModelPicker),
         const SizedBox(width: 6),
         _ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),

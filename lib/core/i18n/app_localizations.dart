@@ -143,6 +143,26 @@ class AppLocalizations {
       '${count == 1 ? '1 session' : '$count sessions'}'
       ' failed to delete';
 
+  // Recent Sessions screen
+  String get sessionsRecentTitle => 'Recent Sessions';
+  String get sessionsRecentEmpty => 'No recent sessions';
+  String get sessionsPressBackToExit => 'Press back again to exit';
+  String get sessionsFailedToArchive => 'Failed to archive session';
+  String get sessionsFailedToDelete => 'Failed to delete session';
+
+  // Message & Session Info screens
+  String get messageDetailTitle => 'Message';
+  String get toolDetailsTitle => 'Tool Details';
+  String get sessionInfoTitle => 'Session Info';
+  String get sessionInfoNotFound => 'Session not found';
+  String get messageNotFound => 'Message not found';
+  String get commonCopiedToClipboard => 'Copied to clipboard';
+  String get chatUnsentMessageTitle => 'Unsent Message';
+  String get chatUnsentMessageContent =>
+      'You have an unsent message. Are you sure you want to leave?';
+  String get chatStay => 'Stay';
+  String get chatLeave => 'Leave';
+
   // Grouping toggle
   String get sessionsGroupByDate => 'Group by date';
   String get sessionsGroupByFolder =>

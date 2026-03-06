@@ -127,7 +127,7 @@ class _EmptyContentView extends StatelessWidget {
           Icon(
             Icons.description_outlined,
             size: 64,
-            color: Colors.grey[400],
+            color: theme.colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(

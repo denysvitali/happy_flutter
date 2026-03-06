@@ -33,7 +33,7 @@ class SessionRecentScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Recent Sessions')),
+      appBar: AppBar(title: Text(l10n.sessionsRecentTitle)),
       body: sessionList.isEmpty
           ? const _EmptyRecentView()
           : RefreshIndicator(
@@ -160,17 +160,21 @@ class _EmptyRecentView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.history, size: 64, color: Colors.grey[400]),
+          Icon(
+            Icons.history,
+            size: 64,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(height: 16),
           Text(
-            'No recent sessions',
-            style: TextStyle(
-              fontSize: 18,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            context.l10n.sessionsRecentEmpty,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],

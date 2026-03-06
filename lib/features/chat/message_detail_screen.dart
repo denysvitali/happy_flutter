@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import 'tools/json_viewer.dart';
 import 'tools/known_tools.dart';
@@ -38,21 +39,21 @@ class MessageDetailScreen extends ConsumerWidget {
 
     if (data == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Message')),
-        body: const Center(child: Text('Message not found')),
+        appBar: AppBar(title: Text(context.l10n.messageDetailTitle)),
+        body: Center(child: Text(context.l10n.messageNotFound)),
       );
     }
 
     final kind = data['kind'] as String? ?? 'unknown';
     if (kind != 'tool-call') {
       return Scaffold(
-        appBar: AppBar(title: const Text('Message')),
+        appBar: AppBar(title: Text(context.l10n.messageDetailTitle)),
         body: _TextDetailView(data: data),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tool Details')),
+      appBar: AppBar(title: Text(context.l10n.toolDetailsTitle)),
       body: _ToolDetailView(data: data),
     );
   }
@@ -397,9 +398,9 @@ class _MessageActions extends StatelessWidget {
             onPressed: () {
               Clipboard.setData(ClipboardData(text: content));
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Copied to clipboard'),
-                  duration: Duration(seconds: 1),
+                SnackBar(
+                  content: Text(context.l10n.commonCopiedToClipboard),
+                  duration: const Duration(seconds: 1),
                 ),
               );
             },
