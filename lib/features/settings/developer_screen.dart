@@ -113,7 +113,10 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Sent to Sentry: $eventId'),
+                        content: Text(
+                          AppLocalizations.of(context)
+                              .developerSentToSentry('$eventId'),
+                        ),
                       ),
                     );
                   }

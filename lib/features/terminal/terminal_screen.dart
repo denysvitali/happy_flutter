@@ -226,7 +226,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                     decoration: InputDecoration(
                       border: InputBorder.none,
                       isDense: true,
-                      hintText: 'Enter command...',
+                      hintText: context.l10n.terminalEnterCommand,
                       hintStyle: TextStyle(
                         color: const Color(0xFF6B6B6B),
                         fontFamily: 'monospace',

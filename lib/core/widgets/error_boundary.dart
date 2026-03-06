@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../i18n/app_localizations.dart';
 import '../services/logger_service.dart';
 import '../utils/tool_error_parser.dart';
 
@@ -235,13 +236,13 @@ class _DefaultErrorWidget extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: onRetry,
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Try Again'),
+                  label: Text(AppLocalizations.of(context).commonTryAgain),
                 ),
                 const SizedBox(width: 16),
                 OutlinedButton.icon(
                   onPressed: () => context.go('/'),
                   icon: const Icon(Icons.home),
-                  label: const Text('Go Home'),
+                  label: Text(AppLocalizations.of(context).commonGoHome),
                 ),
               ],
             ),

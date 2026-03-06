@@ -128,16 +128,17 @@ class _NetworkInspectorScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final totalReqB = httpRequestLogger.totalRequestBytes;
     final totalResB = httpRequestLogger.totalResponseBytes;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Network Inspector (${_entries.length})'),
+        title: Text(l10n.networkInspectorTitle(_entries.length)),
         actions: [
           IconButton(
             icon: const Icon(Icons.copy),
-            tooltip: 'Copy all',
+            tooltip: l10n.networkInspectorCopyAll,
             onPressed: _entries.isEmpty ? null : _copyAll,
           ),
           IconButton(

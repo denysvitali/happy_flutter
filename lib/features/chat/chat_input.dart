@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/models/settings.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/theme/app_tokens.dart';
@@ -1357,12 +1358,13 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final hintColor = cs.onSurface.withValues(alpha: 0.3);
+    final l10n = AppLocalizations.of(context);
 
     return TextField(
       controller: widget.controller,
       focusNode: _focusNode,
       decoration: InputDecoration(
-        hintText: 'Message',
+        hintText: l10n.chatInputHint,
         hintStyle: theme.textTheme.bodyMedium?.copyWith(color: hintColor),
         border: InputBorder.none,
         enabledBorder: InputBorder.none,

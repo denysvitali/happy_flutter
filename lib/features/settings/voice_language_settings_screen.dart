@@ -176,8 +176,8 @@ class _VoiceLanguageSettingsScreenState
             color: theme.colorScheme.surface,
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'Search languages...',
+              decoration: InputDecoration(
+                hintText: l10n.searchLanguages,
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(10)),

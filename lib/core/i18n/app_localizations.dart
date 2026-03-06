@@ -81,6 +81,8 @@ class AppLocalizations {
   // Sessions
   String get sessionsTitle => 'Sessions';
   String get sessionsNew => 'New Session';
+  String get sessionsNewDialogPlaceholder =>
+      'New session dialog would go here';
   String get sessionsEmpty => 'No sessions yet';
   String get sessionsCreateFirst => 'Create your first session to get started';
   String get sessionsToday => 'Today';
@@ -811,6 +813,8 @@ class AppLocalizations {
 
   // Common (extended)
   String get commonUnknown => 'unknown';
+  String get commonTryAgain => 'Try Again';
+  String get commonGoHome => 'Go Home';
   String get commonPressBackAgainToExit => 'Press back again to exit';
   String authError(String error) =>
       'Error: $error';
@@ -827,6 +831,19 @@ class AppLocalizations {
   String get commonOperationInProgress => 'Operation In Progress';
   String get commonOperationInProgressConfirm =>
       'An operation is in progress. Are you sure you want to leave?';
+
+  // Terminal
+  String get terminalEnterCommand => 'Enter command...';
+
+  // Command palette
+  String get commandSearchHint => 'Search commands...';
+
+  // Network Inspector
+  String networkInspectorTitle(int count) => 'Network Inspector ($count)';
+  String get networkInspectorCopyAll => 'Copy all';
+
+  // Developer
+  String developerSentToSentry(String eventId) => 'Sent to Sentry: $eventId';
 }
 
 /// Localizations delegate

@@ -382,10 +382,13 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
   void _showNewSessionDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => const AlertDialog(
-        title: Text('New Session'),
-        content: Text('New session dialog would go here'),
-      ),
+      builder: (ctx) {
+        final l10n = AppLocalizations.of(ctx);
+        return AlertDialog(
+          title: Text(l10n.sessionsNew),
+          content: Text(l10n.sessionsNewDialogPlaceholder),
+        );
+      },
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
 import 'command_item.dart';
 
@@ -173,6 +174,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
 
     return KeyboardListener(
       focusNode: _keyboardFocusNode,
@@ -221,7 +223,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
                           controller: _searchController,
                           focusNode: _searchFocusNode,
                           decoration: InputDecoration(
-                            hintText: 'Search commands...',
+                            hintText: l10n.commandSearchHint,
                             hintStyle: TextStyle(
                               color: isDark ? Colors.white38 : Colors.black38,
                             ),
