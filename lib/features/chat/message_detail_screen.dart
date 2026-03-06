@@ -858,9 +858,9 @@ class _CopyButton extends StatelessWidget {
       onPressed: () {
         Clipboard.setData(ClipboardData(text: content));
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Copied to clipboard'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Text(context.l10n.commonCopiedToClipboard),
+            duration: const Duration(seconds: 1),
           ),
         );
       },

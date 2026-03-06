@@ -440,6 +440,9 @@ class AppLocalizations {
   String get friendsReject => 'Reject';
   String get friendsRequestAccepted => 'Request accepted';
   String get friendsRequestRejected => 'Request rejected';
+  String get friendsRequestSent => 'Friend request sent';
+  String get friendsSearchFailed => 'Search failed';
+  String get friendsActionFailed => 'Action failed';
 
   // Account & Other
   String get accountAccountSettings => 'Account Settings';
@@ -611,8 +614,17 @@ class AppLocalizations {
   String get artifactsDetail => 'Artifact';
   String get artifactsStatus => 'Status';
   String get artifactsDraft => 'Draft';
+  String get artifactsDeleteConfirm =>
+      'Are you sure you want to delete this artifact?';
+  String get artifactsFailedToDelete => 'Failed to delete artifact';
+  String get artifactsFailedToSave => 'Failed to save artifact';
+  String get artifactsFailedToCreate => 'Failed to create artifact';
 
   // Machine Detail
+  String machineRemoveConfirm(String name) =>
+      'Are you sure you want to remove "$name"?';
+  String machineDeleteFailed(int statusCode) =>
+      'Failed to delete machine ($statusCode)';
   String get machineHost => 'Host';
   String get machineMachineId => 'Machine ID';
   String get machineUsername => 'Username';

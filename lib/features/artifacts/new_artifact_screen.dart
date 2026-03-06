@@ -47,6 +47,7 @@ class _NewArtifactScreenState
       return;
     }
 
+    final failedMsg = context.l10n.artifactsFailedToCreate;
     setState(() => _isBusy = true);
     try {
       final artifactId = await sync.createArtifact(
@@ -59,7 +60,7 @@ class _NewArtifactScreenState
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to create artifact: $e')),
+        SnackBar(content: Text(failedMsg)),
       );
     } finally {
       if (mounted) setState(() => _isBusy = false);

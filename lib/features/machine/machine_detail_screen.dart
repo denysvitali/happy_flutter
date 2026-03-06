@@ -93,7 +93,7 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(context.l10n.commonDelete),
-        content: Text('Are you sure you want to remove "$machineName"?'),
+        content: Text(context.l10n.machineRemoveConfirm(machineName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -119,7 +119,9 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to delete machine (${response.statusCode})'),
+            content: Text(
+              context.l10n.machineDeleteFailed(response.statusCode ?? 0),
+            ),
           ),
         );
       }

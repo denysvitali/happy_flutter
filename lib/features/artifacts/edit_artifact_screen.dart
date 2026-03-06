@@ -55,6 +55,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
       return;
     }
 
+    final failedMsg = context.l10n.artifactsFailedToSave;
     setState(() => _isBusy = true);
     try {
       await sync.updateArtifact(
@@ -69,7 +70,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to save artifact: $e')));
+      ).showSnackBar(SnackBar(content: Text(failedMsg)));
     } finally {
       if (mounted) setState(() => _isBusy = false);
     }

@@ -61,7 +61,9 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Action failed: $error')));
+      ).showSnackBar(
+        SnackBar(content: Text(context.l10n.friendsActionFailed)),
+      );
     } finally {
       if (mounted) {
         setState(() => _isBusy = false);

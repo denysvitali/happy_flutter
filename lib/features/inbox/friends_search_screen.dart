@@ -34,6 +34,7 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
       return;
     }
 
+    final searchFailedMsg = context.l10n.friendsSearchFailed;
     setState(() => _isSearching = true);
     try {
       final results = await _socialService.searchUsers(query);
@@ -47,7 +48,7 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Search failed: $error')));
+      ).showSnackBar(SnackBar(content: Text(searchFailedMsg)));
     } finally {
       if (mounted) {
         setState(() => _isSearching = false);
@@ -56,6 +57,8 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
   }
 
   Future<void> _sendRequest(String userId) async {
+    final requestSentMsg = context.l10n.friendsRequestSent;
+    final actionFailedMsg = context.l10n.friendsActionFailed;
     setState(() => _isMutating = true);
     try {
       await _socialService.addFriend(userId);
@@ -64,7 +67,7 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Friend request sent')));
+      ).showSnackBar(SnackBar(content: Text(requestSentMsg)));
       await _search();
     } catch (error) {
       if (!mounted) {
@@ -72,7 +75,7 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Action failed: $error')));
+      ).showSnackBar(SnackBar(content: Text(actionFailedMsg)));
     } finally {
       if (mounted) {
         setState(() => _isMutating = false);

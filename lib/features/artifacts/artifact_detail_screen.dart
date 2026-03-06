@@ -127,9 +127,7 @@ class _ArtifactDetailScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.commonDelete),
-        content: Text(
-          'Are you sure you want to delete this artifact?',
-        ),
+        content: Text(l10n.artifactsDeleteConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -158,7 +156,7 @@ class _ArtifactDetailScreenState
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to delete artifact: $e')),
+            SnackBar(content: Text(l10n.artifactsFailedToDelete)),
           );
         }
       }

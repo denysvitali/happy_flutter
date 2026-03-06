@@ -618,7 +618,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
       await AuthService().approveLinkingRequest(url);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Device linked successfully!')),
+          SnackBar(content: Text(context.l10n.authDeviceLinkedSuccess)),
         );
         context.pop();
       }

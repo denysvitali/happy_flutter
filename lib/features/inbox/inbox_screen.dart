@@ -70,7 +70,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Action failed: $error')));
+      ).showSnackBar(SnackBar(content: Text(context.l10n.friendsActionFailed)));
     } finally {
       if (mounted) {
         setState(() => _isBusy = false);
@@ -267,7 +267,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(l10n.friendsRemoveTitle),
-        content: Text('Remove ${friend.name ?? friend.id} from your friends?'),
+        content: Text(l10n.friendsRemoveConfirm(friend.name ?? friend.id)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
