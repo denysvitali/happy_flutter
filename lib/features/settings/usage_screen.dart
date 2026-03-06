@@ -131,18 +131,16 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
             const SizedBox(height: AppSpacing.lg),
             Text(
               l10n.failedToLoad,
-              style: TextStyle(
-                fontSize: 18,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w500,
                 color: cs.onSurface,
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              _error ?? 'Unknown error',
+              _error ?? l10n.commonUnknown,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: cs.onSurfaceVariant,
               ),
             ),
@@ -191,8 +189,7 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
           const SizedBox(height: AppSpacing.lg),
           Text(
             l10n.noUsageData,
-            style: TextStyle(
-              fontSize: 18,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w500,
               color: cs.onSurfaceVariant,
             ),
@@ -200,8 +197,7 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
           const SizedBox(height: AppSpacing.sm),
           Text(
             l10n.noUsageDataSubtitle,
-            style: TextStyle(
-              fontSize: 14,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: cs.onSurfaceVariant,
             ),
           ),
