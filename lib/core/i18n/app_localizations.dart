@@ -458,6 +458,7 @@ class AppLocalizations {
   String get friendsRequestSent => 'Friend request sent';
   String get friendsSearchFailed => 'Search failed';
   String get friendsActionFailed => 'Action failed';
+  String get friendsSearchByUsername => 'Search by username';
 
   // Account & Other
   String get accountAccountSettings => 'Account Settings';
@@ -637,8 +638,27 @@ class AppLocalizations {
   String get profilesProfileName => 'Profile Name';
   String get profilesAddProfile => 'Add Profile';
   String get profilesEditProfile => 'Edit Profile';
-  String get profilesDeleteProfile =>
-      'Delete Profile';
+  String get profilesDeleteProfile => 'Delete Profile';
+  String get profilesNameHint => 'e.g. MiniMax, Kimi Code, DeepSeek';
+  String get profilesNameRequired => 'Name is required';
+  String get profilesDescriptionLabel => 'Description (optional)';
+  String get profilesDescriptionHint =>
+      'e.g. MiniMax via OpenAI-compatible API';
+  String get profilesEnvVarsTitle => 'Environment Variables';
+  String get profilesEnvVarsHint =>
+      'Set ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN, '
+      'ANTHROPIC_MODEL, etc.';
+  String get profilesEnvVarsEmpty =>
+      'No environment variables. Tap Add to set one.';
+  String get profilesEnvKeyLabel => 'Key';
+  String get profilesEnvKeyHint => 'VARIABLE_NAME';
+  String get profilesEnvValueLabel => 'Value';
+  String get profilesScriptTitle => 'Startup Shell Script';
+  String get profilesScriptDescription =>
+      'Runs before each session starts. '
+      'Use to export variables or configure the environment.';
+  String get profilesScriptLabel => 'Bash script';
+  String get commonOptional => '(optional)';
 
   // Changelog
   String get changelogTitle => "What's New";

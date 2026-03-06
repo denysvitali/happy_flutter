@@ -106,7 +106,7 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
                     textInputAction: TextInputAction.search,
                     onSubmitted: (_) => _search(),
                     decoration: InputDecoration(
-                      hintText: 'Search by username',
+                      hintText: context.l10n.friendsSearchByUsername,
                       prefixIcon: const Icon(Icons.search),
                       border: OutlineInputBorder(
                         borderRadius:

@@ -121,15 +121,20 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
     final isEditing = widget.existing != null;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'Edit Profile' : 'New Profile'),
+        title: Text(
+          isEditing
+              ? AppLocalizations.of(context).profilesEditProfile
+              : AppLocalizations.of(context).profilesAddProfile,
+        ),
         actions: [
           TextButton(
             onPressed: _save,
-            child: const Text('Save'),
+            child: Text(AppLocalizations.of(context).commonSave),
           ),
           const SizedBox(width: AppSpacing.sm),
         ],
@@ -142,24 +147,26 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
             // Name
             TextFormField(
               controller: _nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Profile Name',
-                hintText: 'e.g. MiniMax, Kimi Code, DeepSeek',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.profilesProfileName,
+                hintText: l10n.profilesNameHint,
+                border: const OutlineInputBorder(),
               ),
               textCapitalization: TextCapitalization.words,
               validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Name is required' : null,
+                  v == null || v.trim().isEmpty
+                      ? l10n.profilesNameRequired
+                      : null,
             ),
             const SizedBox(height: AppSpacing.md),
 
             // Description
             TextFormField(
               controller: _descCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
-                hintText: 'e.g. MiniMax via OpenAI-compatible API',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.profilesDescriptionLabel,
+                hintText: l10n.profilesDescriptionHint,
+                border: const OutlineInputBorder(),
               ),
               maxLines: 2,
             ),
@@ -169,7 +176,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
             Row(
               children: [
                 Text(
-                  'Environment Variables',
+                  l10n.profilesEnvVarsTitle,
                   style: tt.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -178,14 +185,13 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
                 TextButton.icon(
                   onPressed: _addEnvRow,
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add'),
+                  label: Text(l10n.commonCreate),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Set ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN, '
-              'ANTHROPIC_MODEL, etc.',
+              l10n.profilesEnvVarsHint,
               style: tt.bodySmall
                   ?.copyWith(color: cs.onSurfaceVariant),
             ),
@@ -196,7 +202,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
                 padding: const EdgeInsets.symmetric(
                     vertical: AppSpacing.md),
                 child: Text(
-                  'No environment variables. Tap Add to set one.',
+                  l10n.profilesEnvVarsEmpty,
                   style: tt.bodySmall
                       ?.copyWith(color: cs.onSurfaceVariant),
                   textAlign: TextAlign.center,
@@ -216,10 +222,10 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
                       flex: 2,
                       child: TextFormField(
                         controller: row.nameCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Key',
-                          hintText: 'VARIABLE_NAME',
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: l10n.profilesEnvKeyLabel,
+                          hintText: l10n.profilesEnvKeyHint,
+                          border: const OutlineInputBorder(),
                           contentPadding: EdgeInsets.symmetric(
                             horizontal: 12,
                             vertical: 10,
@@ -273,14 +279,14 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      'Startup Shell Script',
+                      l10n.profilesScriptTitle,
                       style: tt.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      '(optional)',
+                      l10n.commonOptional,
                       style: tt.bodySmall
                           ?.copyWith(color: cs.onSurfaceVariant),
                     ),
@@ -292,18 +298,17 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
             if (_showScript) ...[
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Runs before each session starts. '
-                'Use to export variables or configure the environment.',
+                l10n.profilesScriptDescription,
                 style: tt.bodySmall
                     ?.copyWith(color: cs.onSurfaceVariant),
               ),
               const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: _scriptCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Bash script',
+                decoration: InputDecoration(
+                  labelText: l10n.profilesScriptLabel,
                   hintText: 'export MY_VAR=value\nsource ~/.env',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
                 maxLines: 6,
@@ -355,7 +360,7 @@ class _ValueFieldState extends State<_ValueField> {
       controller: widget.row.valueCtrl,
       obscureText: _obscure,
       decoration: InputDecoration(
-        labelText: 'Value',
+        labelText: AppLocalizations.of(context).profilesEnvValueLabel,
         border: const OutlineInputBorder(),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
