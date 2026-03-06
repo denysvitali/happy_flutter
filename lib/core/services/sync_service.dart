@@ -417,6 +417,19 @@ what you have, you must use the options mode.
   }
 
   @visibleForTesting
+  Future<void> testPrimeSessionFromSpawnResult({
+    required String requestedSessionId,
+    required String restoredSessionId,
+    required Session seedSession,
+    required SpawnSessionResponse result,
+  }) => _primeSessionFromSpawnResult(
+    requestedSessionId: requestedSessionId,
+    restoredSessionId: restoredSessionId,
+    seedSession: seedSession,
+    result: result,
+  );
+
+  @visibleForTesting
   void testGroupSidechainMessages(String sessionId) {
     _groupSidechainMessages(sessionId);
   }
@@ -735,6 +748,67 @@ what you have, you must use the options mode.
       'sessions': _sessions.values.map((session) => session.toJson()).toList(),
       'encryptedDataKeys': Map<String, String>.from(_sessionEncryptedDataKeys),
     });
+  }
+
+  Future<void> _primeSessionFromSpawnResult({
+    required String requestedSessionId,
+    required String restoredSessionId,
+    required Session seedSession,
+    required SpawnSessionResponse result,
+  }) async {
+    if (result.dataEncryptionKey != null &&
+        result.dataEncryptionKey!.isNotEmpty) {
+      _sessionEncryptedDataKeys[restoredSessionId] = result.dataEncryptionKey!;
+      final decryptedKey = await encryption.decryptEncryptionKey(
+        result.dataEncryptionKey!,
+      );
+      if (decryptedKey != null) {
+        _sessionDataKeys[restoredSessionId] = decryptedKey;
+        await encryption.initializeSessions({
+          restoredSessionId: decryptedKey,
+        });
+      } else {
+        logger.warning(
+          '[sendMessage] auto-restore DEK decrypt failed '
+          'session=$restoredSessionId',
+        );
+      }
+    }
+
+    _sessionSpawnedAt[restoredSessionId] =
+        DateTime.now().millisecondsSinceEpoch;
+
+    if (_sessions.containsKey(restoredSessionId)) {
+      _scheduleSaveSessionsCache();
+      return;
+    }
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _sessions[restoredSessionId] = Session(
+      id: restoredSessionId,
+      seq: 0,
+      createdAt: now,
+      updatedAt: now,
+      active: true,
+      activeAt: now,
+      metadata: Metadata(
+        host: seedSession.metadata?.host ?? '',
+        machineId: seedSession.metadata?.machineId,
+        path: result.directory ?? seedSession.metadata?.path,
+        flavor: seedSession.metadata?.flavor,
+        lifecycleState: 'starting',
+      ),
+      metadataVersion: 0,
+      agentStateVersion: 0,
+      thinking: false,
+      presence: requestedSessionId == restoredSessionId
+          ? seedSession.presence
+          : 'offline',
+      permissionMode: seedSession.permissionMode,
+      modelMode: seedSession.modelMode,
+    );
+    _scheduleSaveSessionsCache();
+    _notifyDataChanged();
   }
 
   /// Subscribe to socket updates
@@ -2925,34 +2999,19 @@ what you have, you must use the options mode.
         );
       }
 
-      if (result.dataEncryptionKey != null &&
-          result.dataEncryptionKey!.isNotEmpty) {
-        final decryptedKey = await encryption.decryptEncryptionKey(
-          result.dataEncryptionKey!,
-        );
-        if (decryptedKey != null) {
-          await encryption.initializeSessions({
-            restoredSessionId: decryptedKey,
-          });
-        } else {
-          logger.warning(
-            '[sendMessage] auto-restore DEK decrypt failed '
-            'session=$restoredSessionId',
-          );
-        }
-      }
-      _sessionSpawnedAt[restoredSessionId] =
-          DateTime.now().millisecondsSinceEpoch;
-
+      await _primeSessionFromSpawnResult(
+        requestedSessionId: sessionId,
+        restoredSessionId: restoredSessionId,
+        seedSession: session,
+        result: result,
+      );
       if (restoredSessionId != sessionId) {
         logger.info(
           '[sendMessage] auto-restore redirected session '
           '$sessionId -> $restoredSessionId',
         );
-        // Refresh session list so metadata/encryption maps include
-        // the redirected session before we post the message.
-        _forceFullFetchNext = true;
-        await sessionsSync.invalidateAndAwait();
+        // Keep the list fresh, but do not force a full /v2/sessions reload.
+        sessionsSync.invalidate();
       }
 
       var restoredSession = _sessions[restoredSessionId];
@@ -2988,7 +3047,6 @@ what you have, you must use the options mode.
         restoredSessionEncryption = sessionEncryption;
       }
       if (restoredSessionEncryption == null) {
-        _forceFullFetchNext = true;
         await sessionsSync.invalidateAndAwait();
         restoredSessionEncryption = encryption.getSessionEncryption(
           restoredSessionId,

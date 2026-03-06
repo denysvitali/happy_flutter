@@ -9,6 +9,7 @@ import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/utils/invalidate_sync.dart';
+import 'package:happy_flutter/core/rpc/rpc_types.dart';
 
 void main() {
   group('Sync.handleUpdate', () {
@@ -259,6 +260,54 @@ void main() {
       );
 
       expect(instance.testLastSessionsFetchedAt, isNull);
+    });
+  });
+
+  group('Sync auto-restore priming', () {
+    test('primes redirected spawned session locally without forcing full fetch',
+        () async {
+      final instance = Sync();
+      instance.testForceFullFetchNext = false;
+      final seedSession = Session(
+        id: 'old-session',
+        seq: 1,
+        createdAt: 1700000000000,
+        updatedAt: 1700000000000,
+        active: true,
+        activeAt: 1700000000000,
+        metadata: Metadata(
+          host: 'test-host',
+          machineId: 'machine-1',
+          path: '/repo',
+          flavor: 'claude',
+        ),
+        metadataVersion: 1,
+        agentStateVersion: 1,
+        thinking: false,
+        presence: 'offline',
+        permissionMode: 'default',
+        modelMode: 'default',
+      );
+
+      instance.testSessions['old-session'] = seedSession;
+
+      await instance.testPrimeSessionFromSpawnResult(
+        requestedSessionId: 'old-session',
+        restoredSessionId: 'new-session',
+        seedSession: seedSession,
+        result: const SpawnSessionResponse(
+          type: 'success',
+          sessionId: 'new-session',
+          directory: '/repo',
+        ),
+      );
+
+      final restored = instance.sessions['new-session'];
+      expect(restored, isNotNull);
+      expect(restored?.metadata?.machineId, 'machine-1');
+      expect(restored?.metadata?.path, '/repo');
+      expect(restored?.metadata?.flavor, 'claude');
+      expect(instance.testForceFullFetchNext, false);
     });
   });
 
