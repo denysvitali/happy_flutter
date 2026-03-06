@@ -66,21 +66,27 @@ class AuthStateNotifier extends Notifier<AuthState> {
           // so the socket would keep a stale token after re-linking.
           socket_io.socketIoClient.updateToken(credentials.token);
           await syncRestore(credentials);
+
+          // syncRestore() already kicks off the initial server sync.
+          // Await those queues here instead of triggering a second full wave.
+          await Future.wait([
+            sync.sessionsSync.awaitQueue(),
+            sync.machinesSync.awaitQueue(),
+            sync.settingsSync.awaitQueue(),
+            sync.profileSync.awaitQueue(),
+            sync.friendsSync.awaitQueue(),
+            sync.feedSync.awaitQueue(),
+            sync.artifactsSync.awaitQueue(),
+            sync.todosSync.awaitQueue(),
+          ]);
           ref.read(sessionsNotifierProvider.notifier).loadFromSync();
           ref.read(machinesNotifierProvider.notifier).loadFromSync();
           ref.read(settingsNotifierProvider.notifier).loadFromSync();
+          ref.read(profileNotifierProvider.notifier).loadFromSync();
+          ref.read(friendsNotifierProvider.notifier).loadFromSync();
+          ref.read(feedNotifierProvider.notifier).loadFromSync();
+          ref.read(artifactsNotifierProvider.notifier).loadFromSync();
           ref.read(todoStateNotifierProvider.notifier).loadFromSync();
-          // Refresh all providers from server in parallel
-          await Future.wait([
-            ref.read(sessionsNotifierProvider.notifier).refreshFromSync(),
-            ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
-            ref.read(settingsNotifierProvider.notifier).refreshFromSync(),
-            ref.read(profileNotifierProvider.notifier).refreshFromSync(),
-            ref.read(friendsNotifierProvider.notifier).refreshFromSync(),
-            ref.read(feedNotifierProvider.notifier).refreshFromSync(),
-            ref.read(artifactsNotifierProvider.notifier).refreshFromSync(),
-            ref.read(todoStateNotifierProvider.notifier).refreshFromSync(),
-          ]);
           final profile = ref.read(profileNotifierProvider);
           if (profile != null) {
             Sentry.configureScope(

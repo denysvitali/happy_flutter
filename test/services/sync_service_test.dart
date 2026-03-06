@@ -204,6 +204,43 @@ void main() {
     });
   });
 
+  group('Sync global invalidation', () {
+    test('coalesces duplicate full-sync invalidations within cooldown', () async {
+      final instance = Sync();
+      var sessionsInvalidations = 0;
+      var machinesInvalidations = 0;
+
+      instance.sessionsSync = InvalidateSync(() async {
+        sessionsInvalidations++;
+      });
+      instance.settingsSync = InvalidateSync(() async {});
+      instance.profileSync = InvalidateSync(() async {});
+      instance.purchasesSync = InvalidateSync(() async {});
+      instance.machinesSync = InvalidateSync(() async {
+        machinesInvalidations++;
+      });
+      instance.pushTokenSync = InvalidateSync(() async {});
+      instance.nativeUpdateSync = InvalidateSync(() async {});
+      instance.artifactsSync = InvalidateSync(() async {});
+      instance.friendsSync = InvalidateSync(() async {});
+      instance.friendRequestsSync = InvalidateSync(() async {});
+      instance.feedSync = InvalidateSync(() async {});
+      instance.todosSync = InvalidateSync(() async {});
+      instance.sessionGitStatusSync = InvalidateSync(() async {});
+
+      instance.testInvalidateAllSyncs(force: true);
+      await instance.sessionsSync.awaitQueue();
+      await instance.machinesSync.awaitQueue();
+
+      instance.testInvalidateAllSyncs();
+      await instance.sessionsSync.awaitQueue();
+      await instance.machinesSync.awaitQueue();
+
+      expect(sessionsInvalidations, 1);
+      expect(machinesInvalidations, 1);
+    });
+  });
+
   group('Sync.parseTodoListsFromDecryptedKv', () {
     test('parses RN todo format and maps to global and session lists', () {
       final instance = Sync();

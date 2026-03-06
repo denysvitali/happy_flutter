@@ -327,6 +327,7 @@ what you have, you must use the options mode.
   Map<String, Session> _sessions = <String, Session>{};
   int? _lastSessionsFetchedAt;
   bool _forceFullFetchNext = false;
+  int? _lastInvalidateAllSyncsAtMs;
   Timer? _sessionsRefreshDebounceTimer;
   final Set<String> _pendingNewSessionIds = <String>{};
   final Map<String, Machine> _machines = <String, Machine>{};
@@ -387,6 +388,17 @@ what you have, you must use the options mode.
 
   @visibleForTesting
   set testForceFullFetchNext(bool value) => _forceFullFetchNext = value;
+
+  @visibleForTesting
+  int? get testLastInvalidateAllSyncsAtMs => _lastInvalidateAllSyncsAtMs;
+
+  @visibleForTesting
+  set testLastInvalidateAllSyncsAtMs(int? value) =>
+      _lastInvalidateAllSyncsAtMs = value;
+
+  @visibleForTesting
+  void testInvalidateAllSyncs({bool force = false}) =>
+      _invalidateAllSyncs(force: force);
 
   @visibleForTesting
   void testSetSessionMessages(
@@ -562,7 +574,7 @@ what you have, you must use the options mode.
     subscribeToUpdates();
 
     // Invalidate all syncs
-    _invalidateAllSyncs();
+    _invalidateAllSyncs(force: true);
 
     // Wait for sessions and machines to load before marking as ready.
     try {
@@ -574,7 +586,19 @@ what you have, you must use the options mode.
   }
 
   /// Invalidate all sync managers
-  void _invalidateAllSyncs() {
+  static const int _invalidateAllSyncsCooldownMs = 5000;
+
+  void _invalidateAllSyncs({bool force = false}) {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final lastRunMs = _lastInvalidateAllSyncsAtMs;
+    if (!force &&
+        lastRunMs != null &&
+        nowMs - lastRunMs < _invalidateAllSyncsCooldownMs) {
+      logger.info('Skipping duplicate global sync invalidation');
+      return;
+    }
+    _lastInvalidateAllSyncsAtMs = nowMs;
+
     // Reset the delta-fetch timestamp so reconnect / foreground-resume always
     // triggers a full session list fetch.  Without this, a clock adjustment
     // (NTP, DST, timezone change) while offline can push _lastSessionsFetchedAt
