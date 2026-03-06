@@ -642,13 +642,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Failed to load messages',
+            context.l10n.chatFailedToLoadMessages,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          FilledButton.tonal(onPressed: _retry, child: const Text('Retry')),
+          FilledButton.tonal(
+            onPressed: _retry,
+            child: Text(context.l10n.commonRetry),
+          ),
         ],
       ),
     );

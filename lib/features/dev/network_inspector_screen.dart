@@ -547,8 +547,12 @@ class _RequestRow extends StatelessWidget {
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context)
                         .showSnackBar(
-                      const SnackBar(
-                        content: Text('Entry copied'),
+                      SnackBar(
+                        content: Text(
+                          AppLocalizations.of(
+                            context,
+                          ).networkInspectorEntryCopied,
+                        ),
                       ),
                     );
                   }

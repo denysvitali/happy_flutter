@@ -122,8 +122,8 @@ class _ServerSettingsScreenState
         title: Text(
           AppLocalizations.of(dialogContext).settingsServerResetToDefault,
         ),
-        content: const Text(
-          'Reset the server URL to the default? This cannot be undone.',
+        content: Text(
+          AppLocalizations.of(dialogContext).settingsServerResetConfirm,
         ),
         actions: [
           TextButton(
@@ -132,7 +132,9 @@ class _ServerSettingsScreenState
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Reset'),
+            child: Text(
+              AppLocalizations.of(dialogContext).settingsServerResetToDefault,
+            ),
           ),
         ],
       ),

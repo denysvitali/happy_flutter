@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -360,7 +361,7 @@ class _ActionButtons extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: isPending ? onAllow : null,
                 icon: const Icon(Icons.check_rounded, size: 15),
-                label: const Text('Allow'),
+                label: Text(AppLocalizations.of(context).permissionAllow),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: theme.colorScheme.primary,
                   foregroundColor: theme.colorScheme.onPrimary,
@@ -397,7 +398,7 @@ class _ActionButtons extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: isPending ? onDeny : null,
               icon: const Icon(Icons.close_rounded, size: 14),
-              label: const Text('Deny'),
+              label: Text(AppLocalizations.of(context).permissionDeny),
               style: OutlinedButton.styleFrom(
                 foregroundColor: theme.colorScheme.error,
                 side: BorderSide(
@@ -453,7 +454,7 @@ class _CodexActionButtons extends StatelessWidget {
           child: ElevatedButton.icon(
             onPressed: onCodexApprove,
             icon: const Icon(Icons.check_rounded, size: 15),
-            label: const Text('Yes'),
+            label: Text(AppLocalizations.of(context).permissionYes),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.success,
               foregroundColor: Colors.white,
@@ -483,7 +484,7 @@ class _CodexActionButtons extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: onCodexAbort,
           icon: const Icon(Icons.close_rounded, size: 14),
-          label: const Text('Stop'),
+          label: Text(AppLocalizations.of(context).permissionStop),
           style: OutlinedButton.styleFrom(
             foregroundColor: theme.colorScheme.error,
             side: BorderSide(
@@ -561,7 +562,7 @@ class PermissionButtons extends StatelessWidget {
         ElevatedButton.icon(
           onPressed: isPending ? onAllow : null,
           icon: const Icon(Icons.check_rounded, size: 14),
-          label: const Text('Allow'),
+          label: Text(AppLocalizations.of(context).permissionAllow),
           style: ElevatedButton.styleFrom(
             backgroundColor: theme.colorScheme.primary,
             foregroundColor: theme.colorScheme.onPrimary,
@@ -577,7 +578,7 @@ class PermissionButtons extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: isPending ? onDeny : null,
           icon: const Icon(Icons.close_rounded, size: 14),
-          label: const Text('Deny'),
+          label: Text(AppLocalizations.of(context).permissionDeny),
           style: OutlinedButton.styleFrom(
             foregroundColor: theme.colorScheme.error,
             side: BorderSide(

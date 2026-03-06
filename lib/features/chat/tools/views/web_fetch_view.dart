@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/i18n/app_localizations.dart';
 import '../tool_section_view.dart';
 
 /// View for displaying WebFetch tool results.
@@ -392,7 +393,9 @@ class _ResultSection extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () => onViewFull(content),
                     icon: const Icon(Icons.open_in_full, size: 14),
-                    label: const Text('View full content'),
+                    label: Text(
+                      AppLocalizations.of(context).toolViewFullContent,
+                    ),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       textStyle: const TextStyle(fontSize: 12),

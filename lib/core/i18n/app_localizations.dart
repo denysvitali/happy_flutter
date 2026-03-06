@@ -209,6 +209,7 @@ class AppLocalizations {
   String get chatDeleteSessionConfirm =>
       'Are you sure you want to delete this session?';
   String get chatFailedToSend => 'Failed to send message';
+  String get chatFailedToLoadMessages => 'Failed to load messages';
   String get chatSendMessageToBegin => 'Send a message to begin';
   String get chatSessionSettings => 'Session Settings';
   String get chatStartConversation => 'Start a conversation';
@@ -271,6 +272,8 @@ class AppLocalizations {
   String get settingsServerUrlLabel => 'Server URL';
   String get settingsServerResetSuccess => 'Server URL reset to default';
   String get settingsServerResetToDefault => 'Reset to Default';
+  String get settingsServerResetConfirm =>
+      'Reset the server URL to the default? This cannot be undone.';
   String get settingsServerSaved => 'Server URL saved';
   String get settingsServerSaveVerify => 'Save & Verify';
   String get settingsSignOut => 'Sign Out';
@@ -279,6 +282,7 @@ class AppLocalizations {
   String get settingsOffline => 'Offline';
 
   // Tools
+  String get toolViewFullContent => 'View full content';
   String get toolEdit => 'Edit';
   String get toolRead => 'Read';
   String get toolWrite => 'Write';
@@ -296,6 +300,10 @@ class AppLocalizations {
   String get toolAskUser => 'Ask User';
 
   // Permissions
+  String get permissionAllow => 'Allow';
+  String get permissionDeny => 'Deny';
+  String get permissionStop => 'Stop';
+  String get permissionYes => 'Yes';
   String get permissionDefault => 'Default';
   String get permissionAcceptEdits => 'Accept Edits';
   String get permissionPlan => 'Plan Mode';
@@ -619,6 +627,7 @@ class AppLocalizations {
   String get networkInspectorClearTitle => 'Clear Request Log';
   String get networkInspectorClearConfirm =>
       'Are you sure you want to clear all requests?';
+  String get networkInspectorEntryCopied => 'Entry copied';
 
   // Developer Settings
   String get developerTitle => 'Developer';
