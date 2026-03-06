@@ -239,6 +239,27 @@ void main() {
       expect(sessionsInvalidations, 1);
       expect(machinesInvalidations, 1);
     });
+
+    test('preserves sessions delta cursor during normal invalidation', () {
+      final instance = Sync();
+      instance.testLastSessionsFetchedAt = 123456;
+
+      instance.testInvalidateAllSyncs(force: true);
+
+      expect(instance.testLastSessionsFetchedAt, 123456);
+    });
+
+    test('can explicitly clear sessions delta cursor for recovery', () {
+      final instance = Sync();
+      instance.testLastSessionsFetchedAt = 123456;
+
+      instance.testInvalidateAllSyncs(
+        force: true,
+        resetSessionDeltaCursor: true,
+      );
+
+      expect(instance.testLastSessionsFetchedAt, isNull);
+    });
   });
 
   group('Sync.parseTodoListsFromDecryptedKv', () {

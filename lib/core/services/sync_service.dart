@@ -271,6 +271,7 @@ what you have, you must use the options mode.
 
   // Data key storage
   final Map<String, Uint8List> _sessionDataKeys = {};
+  final Map<String, String> _sessionEncryptedDataKeys = {};
   final Map<String, Uint8List> _machineDataKeys = {};
   final Map<String, Uint8List> _artifactDataKeys = {};
 
@@ -341,6 +342,7 @@ what you have, you must use the options mode.
   final _sessionMessageChangeController = StreamController<String>.broadcast();
   Timer? _dataChangeDebounceTimer;
   Timer? _saveSeqDebounceTimer;
+  Timer? _saveSessionsCacheDebounceTimer;
   final Map<String, Timer> _postSendCatchUpTimers = {};
   final Set<String> _sessionsNeedingTailRefresh = <String>{};
 
@@ -397,8 +399,13 @@ what you have, you must use the options mode.
       _lastInvalidateAllSyncsAtMs = value;
 
   @visibleForTesting
-  void testInvalidateAllSyncs({bool force = false}) =>
-      _invalidateAllSyncs(force: force);
+  void testInvalidateAllSyncs({
+    bool force = false,
+    bool resetSessionDeltaCursor = false,
+  }) => _invalidateAllSyncs(
+    force: force,
+    resetSessionDeltaCursor: resetSessionDeltaCursor,
+  );
 
   @visibleForTesting
   void testSetSessionMessages(
@@ -546,6 +553,7 @@ what you have, you must use the options mode.
     _sessionFirstLoadedSeq
       ..clear()
       ..addAll(MMKVStorage().getSessionFirstLoadedSeq());
+    await _restoreSessionsCache();
 
     // Initialize sync managers
     sessionsSync = InvalidateSync(fetchSessions);
@@ -573,8 +581,12 @@ what you have, you must use the options mode.
     // Subscribe to updates
     subscribeToUpdates();
 
-    // Invalidate all syncs
-    _invalidateAllSyncs(force: true);
+    // Invalidate all syncs. Preserve the sessions delta cursor when a cached
+    // session snapshot exists so cold launches can use incremental sync.
+    _invalidateAllSyncs(
+      force: true,
+      resetSessionDeltaCursor: _lastSessionsFetchedAt == null,
+    );
 
     // Wait for sessions and machines to load before marking as ready.
     try {
@@ -588,7 +600,10 @@ what you have, you must use the options mode.
   /// Invalidate all sync managers
   static const int _invalidateAllSyncsCooldownMs = 5000;
 
-  void _invalidateAllSyncs({bool force = false}) {
+  void _invalidateAllSyncs({
+    bool force = false,
+    bool resetSessionDeltaCursor = false,
+  }) {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final lastRunMs = _lastInvalidateAllSyncsAtMs;
     if (!force &&
@@ -599,12 +614,9 @@ what you have, you must use the options mode.
     }
     _lastInvalidateAllSyncsAtMs = nowMs;
 
-    // Reset the delta-fetch timestamp so reconnect / foreground-resume always
-    // triggers a full session list fetch.  Without this, a clock adjustment
-    // (NTP, DST, timezone change) while offline can push _lastSessionsFetchedAt
-    // ahead of any sessions created during the offline period, causing them to
-    // be permanently missed by every subsequent delta fetch.
-    _lastSessionsFetchedAt = null;
+    if (resetSessionDeltaCursor) {
+      _lastSessionsFetchedAt = null;
+    }
     sessionsSync.invalidate();
     settingsSync.invalidate();
     profileSync.invalidate();
@@ -641,6 +653,87 @@ what you have, you must use the options mode.
     _saveSeqDebounceTimer?.cancel();
     _saveSeqDebounceTimer = Timer(const Duration(milliseconds: 500), () {
       MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
+    });
+  }
+
+  void _scheduleSaveSessionsCache() {
+    _saveSessionsCacheDebounceTimer?.cancel();
+    _saveSessionsCacheDebounceTimer = Timer(
+      const Duration(milliseconds: 500),
+      _persistSessionsCache,
+    );
+  }
+
+  Future<void> _restoreSessionsCache() async {
+    final cache = MMKVStorage().getSessionsCache();
+    if (cache == null) return;
+
+    try {
+      final sessionsRaw = cache['sessions'];
+      final encryptedKeysRaw = cache['encryptedDataKeys'];
+      final lastFetchedAt = cache['lastFetchedAt'];
+
+      if (sessionsRaw is List) {
+        final restoredSessions = <Session>[];
+        for (final item in sessionsRaw) {
+          if (item is Map<String, dynamic>) {
+            restoredSessions.add(Session.fromJson(item));
+          } else if (item is Map) {
+            restoredSessions.add(
+              Session.fromJson(Map<String, dynamic>.from(item)),
+            );
+          }
+        }
+        _sessions = {
+          for (final session in restoredSessions) session.id: session,
+        };
+      }
+
+      if (encryptedKeysRaw is Map) {
+        final sessionKeys = <String, Uint8List?>{};
+        _sessionEncryptedDataKeys.clear();
+        for (final entry in encryptedKeysRaw.entries) {
+          if (entry.key is! String || entry.value is! String) continue;
+          final sessionId = entry.key as String;
+          final encryptedKey = entry.value as String;
+          if (encryptedKey.isEmpty) continue;
+          _sessionEncryptedDataKeys[sessionId] = encryptedKey;
+          final decryptedKey = await encryption.decryptEncryptionKey(
+            encryptedKey,
+          );
+          if (decryptedKey == null) continue;
+          _sessionDataKeys[sessionId] = decryptedKey;
+          sessionKeys[sessionId] = decryptedKey;
+        }
+        if (sessionKeys.isNotEmpty) {
+          await encryption.initializeSessions(sessionKeys);
+        }
+      }
+
+      _lastSessionsFetchedAt = _asInt(lastFetchedAt);
+      if (_sessions.isNotEmpty) {
+        logger.info(
+          'Restored ${_sessions.length} cached sessions '
+          '(lastFetchedAt=$_lastSessionsFetchedAt)',
+        );
+      }
+    } catch (error, stack) {
+      logger.warning('Failed to restore sessions cache', error, stack);
+      _sessions.clear();
+      _sessionDataKeys.clear();
+      _sessionEncryptedDataKeys.clear();
+      _lastSessionsFetchedAt = null;
+      MMKVStorage().clearSessionsCache();
+    }
+  }
+
+  void _persistSessionsCache() {
+    _saveSessionsCacheDebounceTimer?.cancel();
+    _saveSessionsCacheDebounceTimer = null;
+    MMKVStorage().saveSessionsCache({
+      'lastFetchedAt': _lastSessionsFetchedAt,
+      'sessions': _sessions.values.map((session) => session.toJson()).toList(),
+      'encryptedDataKeys': Map<String, String>.from(_sessionEncryptedDataKeys),
     });
   }
 
@@ -805,6 +898,7 @@ what you have, you must use the options mode.
       _sessions.remove(sessionId);
       _presenceTimers.remove(sessionId)?.cancel();
       _sessionDataKeys.remove(sessionId);
+      _sessionEncryptedDataKeys.remove(sessionId);
       _sessionsNeedingTailRefresh.remove(sessionId);
       _sessionSpawnedAt.remove(sessionId);
       _autoRestoreInFlight.remove(sessionId);
@@ -818,6 +912,7 @@ what you have, you must use the options mode.
         encryption.removeSessionEncryption(sessionId);
       }
     }
+    _scheduleSaveSessionsCache();
     sessionsSync.invalidate();
     logger.info(
       'Session deletion received'
@@ -1077,6 +1172,7 @@ what you have, you must use the options mode.
         if (changedSince != null) {
           // Delta fetch with no changes — update timestamp and return.
           _lastSessionsFetchedAt = fetchStartMs;
+          _scheduleSaveSessionsCache();
           logger.info('fetchSessions: no changes since delta fetch');
         } else {
           logger.warning(
@@ -1116,6 +1212,7 @@ what you have, you must use the options mode.
         );
 
         if (dataEncryptionKey != null) {
+          _sessionEncryptedDataKeys[sessionId] = dataEncryptionKey;
           try {
             final decryptedKey = await encryption.decryptEncryptionKey(
               dataEncryptionKey,
@@ -1144,6 +1241,7 @@ what you have, you must use the options mode.
             sessionKeys[sessionId] = null;
           }
         } else {
+          _sessionEncryptedDataKeys.remove(sessionId);
           sessionKeys[sessionId] = null;
         }
       }
@@ -1333,6 +1431,7 @@ what you have, you must use the options mode.
 
       logger.info('Fetched and decrypted ${decryptedSessions.length} sessions');
       _lastSessionsFetchedAt = fetchStartMs;
+      _scheduleSaveSessionsCache();
       _notifyDataChanged();
     } catch (error, stack) {
       logger.error('Error fetching sessions', error, stack);
@@ -5517,12 +5616,14 @@ what you have, you must use the options mode.
     _dataChangeDebounceTimer?.cancel();
     _sessionsRefreshDebounceTimer?.cancel();
     _saveSeqDebounceTimer?.cancel();
+    _saveSessionsCacheDebounceTimer?.cancel();
     for (final timer in _postSendCatchUpTimers.values) {
       timer.cancel();
     }
     _postSendCatchUpTimers.clear();
     _sessionsNeedingTailRefresh.clear();
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
+    _persistSessionsCache();
     socketIoClient.disconnect();
   }
 
@@ -5544,6 +5645,7 @@ what you have, you must use the options mode.
   /// Shutdown sync engine and clear volatile state.
   Future<void> shutdown() async {
     _sessionsRefreshDebounceTimer?.cancel();
+    _saveSessionsCacheDebounceTimer?.cancel();
     for (final timer in _postSendCatchUpTimers.values) {
       timer.cancel();
     }
@@ -5561,6 +5663,7 @@ what you have, you must use the options mode.
     _saveSeqDebounceTimer?.cancel();
     _saveSeqDebounceTimer = null;
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
+    _persistSessionsCache();
 
     // Do NOT close these broadcast controllers — the Sync singleton is reused
     // after logout+login, and closing a final StreamController is permanent.
@@ -5597,6 +5700,7 @@ what you have, you must use the options mode.
     _presenceTimers.clear();
 
     _sessionDataKeys.clear();
+    _sessionEncryptedDataKeys.clear();
     _machineDataKeys.clear();
     _artifactDataKeys.clear();
     _todoLists.clear();
@@ -5608,6 +5712,7 @@ what you have, you must use the options mode.
     _sessionMessagesCache = null;
     _sessions.clear();
     _lastSessionsFetchedAt = null;
+    MMKVStorage().clearSessionsCache();
     _machines.clear();
     _sessionGitStatus.clear();
     _profile = null;

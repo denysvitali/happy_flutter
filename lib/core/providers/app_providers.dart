@@ -66,6 +66,10 @@ class AuthStateNotifier extends Notifier<AuthState> {
           // so the socket would keep a stale token after re-linking.
           socket_io.socketIoClient.updateToken(credentials.token);
           await syncRestore(credentials);
+          ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+          ref.read(machinesNotifierProvider.notifier).loadFromSync();
+          ref.read(settingsNotifierProvider.notifier).loadFromSync();
+          ref.read(todoStateNotifierProvider.notifier).loadFromSync();
 
           // syncRestore() already kicks off the initial server sync.
           // Await those queues here instead of triggering a second full wave.

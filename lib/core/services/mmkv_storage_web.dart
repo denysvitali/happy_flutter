@@ -17,6 +17,7 @@ class _Keys {
   static const String profile = 'profile';
   static const String sessionLastSeq = 'session-last-seq';
   static const String sessionFirstLoadedSeq = 'session-first-loaded-seq';
+  static const String sessionsCache = 'sessions-cache';
 
   /// Prefix for server-config namespace (replaces separate MMKV instance)
   static const String serverConfigPrefix = 'server_config.';
@@ -331,6 +332,42 @@ class MMKVStorage {
   void clearSessionFirstLoadedSeq() {
     _sessionFirstLoadedSeq = {};
     _persistIntMap(_Keys.sessionFirstLoadedSeq, {});
+  }
+
+  Map<String, dynamic>? getSessionsCache() {
+    if (!_initialized) return null;
+    try {
+      final json = _prefs?.getString(_Keys.sessionsCache);
+      if (json == null || json.isEmpty) return null;
+      final decoded = jsonDecode(json);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+    } catch (e) {
+      logger.warning('WebStorage: failed to load sessions cache: $e');
+    }
+    return null;
+  }
+
+  void saveSessionsCache(Map<String, dynamic> cache) {
+    if (!_initialized) return;
+    _getPrefs().then((prefs) {
+      prefs.setString(_Keys.sessionsCache, jsonEncode(cache));
+    }).catchError((Object e) {
+      logger.warning('WebStorage: failed to persist sessions cache: $e');
+    });
+  }
+
+  void clearSessionsCache() {
+    if (!_initialized) return;
+    _getPrefs().then((prefs) {
+      prefs.remove(_Keys.sessionsCache);
+    }).catchError((Object e) {
+      logger.warning('WebStorage: failed to clear sessions cache: $e');
+    });
   }
 
   void _persistIntMap(String key, Map<String, int> map) {

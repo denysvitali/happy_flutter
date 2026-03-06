@@ -18,6 +18,7 @@ class _StorageKeys {
   static const String migrationComplete = 'mmkv-migration-complete';
   static const String sessionLastSeq = 'session-last-seq';
   static const String sessionFirstLoadedSeq = 'session-first-loaded-seq';
+  static const String sessionsCache = 'sessions-cache';
 }
 
 /// MMKV-based storage wrapper with migration from SharedPreferences
@@ -468,6 +469,42 @@ class MMKVStorage {
       logger.warning(
         'MMKV: Failed to clear session first loaded seq', e,
       );
+    }
+  }
+
+  Map<String, dynamic>? getSessionsCache() {
+    if (!_initialized) return null;
+    try {
+      final json = _mmkv?.decodeString(_StorageKeys.sessionsCache);
+      if (json == null || json.isEmpty) return null;
+      final decoded = jsonDecode(json);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+    } catch (e) {
+      logger.warning('MMKV: Failed to get sessions cache: $e');
+    }
+    return null;
+  }
+
+  void saveSessionsCache(Map<String, dynamic> cache) {
+    if (!_initialized) return;
+    try {
+      _mmkv?.encodeString(_StorageKeys.sessionsCache, jsonEncode(cache));
+    } catch (e) {
+      logger.warning('MMKV: Failed to save sessions cache: $e');
+    }
+  }
+
+  void clearSessionsCache() {
+    if (!_initialized) return;
+    try {
+      _mmkv?.removeValue(_StorageKeys.sessionsCache);
+    } catch (e) {
+      logger.warning('MMKV: Failed to clear sessions cache: $e');
     }
   }
 
