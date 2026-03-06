@@ -157,6 +157,16 @@ class AppLocalizations {
   String get sessionInfoNotFound => 'Session not found';
   String get messageNotFound => 'Message not found';
   String get commonCopiedToClipboard => 'Copied to clipboard';
+  String get accountBackupKeyDialogContent =>
+      'Save this key in a safe place.'
+      ' You can use it to restore your account.';
+  String get accountRestoreInstruction =>
+      'Enter your backup key to restore your account.';
+  String get accountBackupKeyLabel => 'Backup Key';
+  String get accountBackupKeyHint => 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX';
+  String get accountEnterBackupKey => 'Please enter your backup key';
+  String get accountInvalidKeyFormat =>
+      'Invalid key format. Use XXXXX-XXXXX-XXXXX-XXXXX-XXXXX';
   String get chatUnsentMessageTitle => 'Unsent Message';
   String get chatUnsentMessageContent =>
       'You have an unsent message. Are you sure you want to leave?';

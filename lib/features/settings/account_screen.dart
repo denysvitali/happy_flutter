@@ -27,7 +27,7 @@ class AccountScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Account'),
+        title: Text(context.l10n.accountAccountSettings),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -53,7 +53,7 @@ class AccountScreen extends ConsumerWidget {
   Widget buildProfileSection(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileNotifierProvider);
     return SettingsSection(
-      title: 'Profile',
+      title: context.l10n.accountProfile,
       children: [
         ListTile(
           leading: profile?.avatarUrl != null
@@ -74,18 +74,18 @@ class AccountScreen extends ConsumerWidget {
 
   Widget buildBackupSection(BuildContext context) {
     return SettingsSection(
-      title: 'Backup Key',
+      title: context.l10n.accountBackupKey,
       children: [
         ListTile(
           leading: const Icon(Icons.key),
-          title: const Text('Show Backup Key'),
-          subtitle: const Text('View your account recovery key'),
+          title: Text(context.l10n.accountShowBackupKey),
+          subtitle: Text(context.l10n.accountShowBackupKeySubtitle),
           onTap: () => _showBackupKeyDialog(context),
         ),
         ListTile(
           leading: const Icon(Icons.content_copy),
-          title: const Text('Copy Backup Key'),
-          subtitle: const Text('Copy to clipboard'),
+          title: Text(context.l10n.accountCopyBackupKey),
+          subtitle: Text(context.l10n.accountCopyToClipboard),
           onTap: () => _copyBackupKey(context),
         ),
       ],
@@ -94,12 +94,12 @@ class AccountScreen extends ConsumerWidget {
 
   Widget buildRestoreSection(BuildContext context) {
     return SettingsSection(
-      title: 'Restore',
+      title: context.l10n.accountRestore,
       children: [
         ListTile(
           leading: const Icon(Icons.restore),
-          title: const Text('Restore Account'),
-          subtitle: const Text('Recover account from backup key'),
+          title: Text(context.l10n.accountRestoreAccount),
+          subtitle: Text(context.l10n.accountRestoreAccountSubtitle),
           onTap: () => context.push('/settings/account/restore'),
         ),
       ],
@@ -108,18 +108,18 @@ class AccountScreen extends ConsumerWidget {
 
   Widget buildDevicesSection(BuildContext context) {
     return SettingsSection(
-      title: 'Devices',
+      title: context.l10n.accountDevices,
       children: [
         ListTile(
           leading: const Icon(Icons.devices),
-          title: const Text('Linked Devices'),
-          subtitle: const Text('Manage devices linked to your account'),
+          title: Text(context.l10n.accountLinkedDevices),
+          subtitle: Text(context.l10n.accountLinkedDevicesSubtitle),
           onTap: () => context.push('/settings/account/devices'),
         ),
         ListTile(
           leading: const Icon(Icons.add_link),
-          title: const Text('Link New Device'),
-          subtitle: const Text('Generate QR code for another device'),
+          title: Text(context.l10n.accountLinkNewDevice),
+          subtitle: Text(context.l10n.accountLinkNewDeviceSubtitle),
           onTap: () => context.push('/settings/account/link'),
         ),
       ],
@@ -128,7 +128,7 @@ class AccountScreen extends ConsumerWidget {
 
   Widget buildServicesSection(BuildContext context) {
     return SettingsSection(
-      title: 'Connected Services',
+      title: context.l10n.accountConnectedServices,
       children: [const _ConnectedServicesLoader()],
     );
   }
@@ -143,14 +143,14 @@ class AccountScreen extends ConsumerWidget {
           context: context,
           builder: (context) {
             final cs = Theme.of(context).colorScheme;
+            final l10n = AppLocalizations.of(context);
             return AlertDialog(
-              title: const Text('Backup Key'),
+              title: Text(l10n.accountBackupKey),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Save this key in a safe place. You can use it'
-                    ' to restore your account.',
+                    l10n.accountBackupKeyDialogContent,
                     style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -175,17 +175,17 @@ class AccountScreen extends ConsumerWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'),
+                  child: Text(l10n.commonClose),
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: key));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Backup key copied')),
+                      SnackBar(content: Text(l10n.accountBackupKeyCopied)),
                     );
                   },
                   icon: const Icon(Icons.content_copy),
-                  label: const Text('Copy'),
+                  label: Text(l10n.commonCopy),
                 ),
               ],
             );
@@ -199,11 +199,12 @@ class AccountScreen extends ConsumerWidget {
 
   void _copyBackupKey(BuildContext context) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final copiedMsg = context.l10n.accountBackupKeyCopiedToClipboard;
     try {
       final key = await AuthService().generateBackupKey();
       await Clipboard.setData(ClipboardData(text: key));
       scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('Backup key copied to clipboard')),
+        SnackBar(content: Text(copiedMsg)),
       );
     } catch (e) {
       scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -263,7 +264,7 @@ class ServiceTile extends StatelessWidget {
       title: Text(service.service.displayName),
       subtitle: service.isConnected
           ? Text(service.accountName ?? service.accountEmail ?? 'Connected')
-          : const Text('Not connected'),
+          : Text(context.l10n.accountNotConnected),
       trailing: service.isConnected
           ? Icon(Icons.check_circle, color: cs.primary)
           : Icon(
@@ -315,12 +316,12 @@ class ServiceTile extends StatelessWidget {
               ),
             if (service.accountEmail != null)
               ListTile(
-                title: const Text('Email'),
+                title: Text(context.l10n.accountEmail),
                 subtitle: Text(service.accountEmail!),
               ),
             if (service.connectedAt != null)
               ListTile(
-                title: const Text('Connected'),
+                title: Text(context.l10n.accountName),
                 subtitle: Text(service.connectedAt!.toLocal().toString()),
               ),
           ],
@@ -328,7 +329,7 @@ class ServiceTile extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(context.l10n.commonClose),
           ),
         ],
       ),
@@ -361,7 +362,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Restore Account'),
+        title: Text(context.l10n.accountRestoreAccount),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -373,9 +374,8 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Enter your backup key to restore your account.',
-              style: TextStyle(
-                fontSize: 16,
+              context.l10n.accountRestoreInstruction,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
@@ -384,11 +384,11 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
               key: _formKey,
               child: TextFormField(
                 controller: _controller,
-                decoration: const InputDecoration(
-                  labelText: 'Backup Key',
-                  hintText: 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
-                  prefixIcon: Icon(Icons.key),
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: context.l10n.accountBackupKeyLabel,
+                  hintText: context.l10n.accountBackupKeyHint,
+                  prefixIcon: const Icon(Icons.key),
+                  border: const OutlineInputBorder(),
                 ),
                 validator: _validateKey,
                 enabled: !_isLoading,
@@ -436,7 +436,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Restore Account'),
+                    : Text(context.l10n.accountRestoreAccount),
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -446,7 +446,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
                 onPressed: _isLoading
                     ? null
                     : () => _pasteFromClipboard(context),
-                child: const Text('Paste from Clipboard'),
+                child: Text(context.l10n.accountPasteFromClipboard),
               ),
             ),
           ],
@@ -456,11 +456,12 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
   }
 
   String? _validateKey(String? value) {
+    final l10n = context.l10n;
     if (value == null || value.isEmpty) {
-      return 'Please enter your backup key';
+      return l10n.accountEnterBackupKey;
     }
     if (!BackupKeyUtils.isValidKey(value)) {
-      return 'Invalid key format. Use XXXXX-XXXXX-XXXXX-XXXXX-XXXXX';
+      return l10n.accountInvalidKeyFormat;
     }
     return null;
   }
@@ -489,7 +490,9 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
         if (mounted) {
           context.pop();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Account restored successfully')),
+            SnackBar(
+              content: Text(context.l10n.accountRestoredSuccess),
+            ),
           );
         }
       }
@@ -590,7 +593,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
         unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Device linked successfully!')),
+            SnackBar(content: Text(context.l10n.authDeviceLinkedSuccess)),
           );
           context.pop();
         }
@@ -968,7 +971,7 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
         final cs = Theme.of(context).colorScheme;
         return AlertDialog(
           title: Text(l10nDialog.accountUnlinkDevice),
-          content: Text('Are you sure you want to unlink "${device.name}"?'),
+          content: Text(l10nDialog.accountUnlinkConfirm),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),

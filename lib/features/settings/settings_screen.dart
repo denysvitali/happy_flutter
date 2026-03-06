@@ -131,14 +131,19 @@ class SettingsScreen extends ConsumerWidget {
     final claudeConnected =
         profile?.connectedServices.contains('anthropic') ?? false;
 
+    final l10n = context.l10n;
     return SettingsSection(
-      title: 'Connected Accounts',
+      title: l10n.settingsConnectedAccounts,
       children: [
         SettingsNavRow(
           icon: Icons.smart_toy_outlined,
-          title: 'Claude Code',
-          subtitle: claudeConnected ? 'Connected' : 'Not connected',
+          title: l10n.settingsClaudeCode,
+          subtitle: claudeConnected
+              ? l10n.settingsConnected
+              : l10n.settingsNotConnected,
           onTap: () async {
+            final claudeMsg = l10n.settingsClaudeDisconnected;
+            final failMsg = l10n.settingsFailedToDisconnect;
             if (claudeConnected) {
               try {
                 await ServicesApi().disconnectClaude();
@@ -147,12 +152,12 @@ class SettingsScreen extends ConsumerWidget {
                     .refreshFromSync();
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Claude disconnected')),
+                  SnackBar(content: Text(claudeMsg)),
                 );
               } catch (error) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to disconnect: $error')),
+                  SnackBar(content: Text(failMsg(error.toString()))),
                 );
               }
             } else {
@@ -164,9 +169,12 @@ class SettingsScreen extends ConsumerWidget {
           icon: Icons.code,
           title: 'GitHub',
           subtitle: github != null
-              ? 'Connected as @${github.login}'
-              : 'Not connected',
+              ? l10n.settingsConnectedAs(github.login)
+              : l10n.settingsNotConnected,
           onTap: () async {
+            final githubMsg = l10n.settingsGitHubDisconnected;
+            final failMsg = l10n.settingsFailedToDisconnect;
+            final oauthFailMsg = l10n.settingsFailedToStartOAuth;
             if (github != null) {
               try {
                 await GitHubApi().disconnectGitHub();
@@ -175,12 +183,12 @@ class SettingsScreen extends ConsumerWidget {
                     .refreshFromSync();
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('GitHub disconnected')),
+                  SnackBar(content: Text(githubMsg)),
                 );
               } catch (error) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to disconnect: $error')),
+                  SnackBar(content: Text(failMsg(error.toString()))),
                 );
               }
             } else {
@@ -191,7 +199,7 @@ class SettingsScreen extends ConsumerWidget {
               } catch (error) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to start OAuth: $error')),
+                  SnackBar(content: Text(oauthFailMsg(error.toString()))),
                 );
               }
             }
