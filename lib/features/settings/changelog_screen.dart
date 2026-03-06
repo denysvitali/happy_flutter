@@ -37,7 +37,7 @@ class ChangelogScreen extends StatelessWidget {
           FilledButton.tonalIcon(
             onPressed: () => _openReleases(),
             icon: const Icon(Icons.open_in_new),
-            label: const Text('Open GitHub Releases'),
+            label: Text(AppLocalizations.of(context).changelogOpenGitHub),
           ),
         ],
       ),

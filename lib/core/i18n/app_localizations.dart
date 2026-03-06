@@ -574,8 +574,48 @@ class AppLocalizations {
   // Developer Settings
   String get developerTitle => 'Developer';
   String get developerClearCache => 'Clear Cache';
-  String get developerResetSettings =>
-      'Reset Settings';
+  String get developerResetSettings => 'Reset Settings';
+  String get developerModeTitle => 'Developer Mode';
+  String get developerModeEnabledDesc => 'Enabled - Debug tools are visible';
+  String get developerModeDisabledDesc =>
+      'Disabled - Tap 10 times to enable';
+  String get developerNotYetImplemented => 'Not yet implemented';
+  String get developerClearCacheConfirm =>
+      'Are you sure you want to clear all cached data?';
+  String get developerClearCacheAction => 'Clear';
+  String get developerCacheCleared => 'Cache cleared';
+  String get developerResetSettingsConfirm =>
+      'Are you sure you want to reset all settings to defaults?';
+  String get developerResetAction => 'Reset';
+  String get developerSettingsReset => 'Settings reset';
+  String get developerSectionDebugTools => 'Debug Tools';
+  String get developerSectionTesting => 'Testing';
+  String get developerSectionCacheStorage => 'Cache & Storage';
+  String get developerSectionBuildInfo => 'Build Info';
+  String get developerNetworkInspector => 'Network Inspector';
+  String get developerNetworkInspectorDesc =>
+      'View API requests and responses';
+  String get developerLogsDesc => 'View application logs';
+  String get developerEncryptionDebug => 'Encryption Debug';
+  String get developerEncryptionDebugDesc =>
+      'View encryption keys and certificates';
+  String get developerSessionDebug => 'Session Debug';
+  String get developerSessionDebugDesc =>
+      'View active sessions and connections';
+  String get developerTestNotifications => 'Test Notifications';
+  String get developerTestNotificationsDesc =>
+      'Send a test push notification';
+  String get developerTestSentryException => 'Test Sentry (Exception)';
+  String get developerTestSentryExceptionDesc =>
+      'Capture a test exception via Sentry';
+  String get developerTestSentryUnhandled => 'Test Sentry (Unhandled)';
+  String get developerTestSentryUnhandledDesc => 'Throw an unhandled error';
+  String get developerClearCacheDesc => 'Clear cached data';
+  String get developerResetSettingsDesc => 'Reset all settings to defaults';
+  String get developerAppVersion => 'App Version';
+  String get developerBuildNumber => 'Build Number';
+  String get developerFlutterVersion => 'Flutter Version';
+  String get developerDartVersion => 'Dart Version';
 
   // Profiles Settings
   String get profilesTitle => 'Profiles';
@@ -587,6 +627,7 @@ class AppLocalizations {
 
   // Changelog
   String get changelogTitle => "What's New";
+  String get changelogOpenGitHub => 'Open GitHub Releases';
 
   // Server Settings
   String get serverTitle => 'Server';
@@ -594,10 +635,36 @@ class AppLocalizations {
   // Voice Settings
   String get voiceTitle => 'Voice';
   String get voiceLanguageTitle => 'Voice Language';
+  String get voiceTtsTitle => 'Text-to-Speech';
+  String get voiceTtsSubtitle => 'Read assistant messages aloud';
+  String get voiceTestTts => 'Test TTS';
+  String get voiceTestTtsSubtitle => 'Tap to hear a test phrase';
+  String get voiceSelectEngineHint => 'Select the TTS engine.';
+  String get voiceDefaultEngine => 'Default Engine';
+  String get voiceDefaultEngineSubtitle => 'Use system default';
+  String get voiceSelectLanguageHint =>
+      'Select the language for voice output.';
+  String get voiceSelectLanguageTitle => 'Select Language';
+  String voiceLanguagesCount(int count) => '$count languages available';
 
   // Claude Connect
-  String get claudeConnectTitle =>
-      'Connect Claude API';
+  String get claudeConnectTitle => 'Connect Claude API';
+  String get claudeConnectTerminalTitle => 'Connect Claude';
+  String get claudeConnectTerminalSubtitle =>
+      'Run the following command in your terminal:';
+  String get claudeConnectManualLabel => 'MANUAL API KEY ENTRY';
+  String get claudeConnectManualDesc =>
+      'Alternatively, enter your Anthropic API key directly.';
+  String get claudeConnectApiKeyLabel => 'API Key';
+  String get claudeConnectApiKeyHint => 'sk-ant-...';
+  String get claudeConnectBaseUrlLabel => 'Base URL (optional)';
+  String get claudeConnectBaseUrlHint => 'https://api.anthropic.com';
+  String get claudeConnectButton => 'Connect';
+  String get claudeConnectDisclaimer =>
+      'Your API key is stored locally on this device only.';
+  String get claudeConnectCliInfo =>
+      'API key management is handled via the CLI. '
+      'Run: happy connect claude';
 
   // Artifacts
   String get artifactsTitle => 'Artifacts';
@@ -640,6 +707,16 @@ class AppLocalizations {
       'Last Known PID';
 
   // Terminal
+  String get terminalConnectInfo =>
+      'Connect to a terminal session running on one of your machines.';
+  String get terminalNoMachines =>
+      'No machines connected. Start the Happy CLI on a machine first.';
+  String get terminalSelectMachineHint => 'Select machine';
+  String get terminalSelectMachineError => 'Please select a machine';
+  String get terminalIdLabel => 'TERMINAL / SESSION ID';
+  String get terminalIdHint => 'e.g. main, dev, 1234';
+  String get terminalIdError =>
+      'Please enter a terminal or session ID';
   String get terminalConnected =>
       'Terminal connected.';
   String get terminalOutputPending =>

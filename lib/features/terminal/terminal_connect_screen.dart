@@ -79,8 +79,7 @@ class _TerminalConnectScreenState
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Text(
-                          'Connect to a terminal session running on one'
-                          ' of your machines.',
+                          context.l10n.terminalConnectInfo,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onPrimaryContainer,
                           ),
@@ -115,8 +114,7 @@ class _TerminalConnectScreenState
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     child: Text(
-                      'No machines connected. Start the Happy CLI on a'
-                      ' machine first.',
+                      context.l10n.terminalNoMachines,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -142,7 +140,7 @@ class _TerminalConnectScreenState
                         minHeight: AppTouchTarget.min,
                       ),
                     ),
-                    hint: const Text('Select machine'),
+                    hint: Text(context.l10n.terminalSelectMachineHint),
                     isExpanded: true,
                     items: machineList.map((machine) {
                       final meta = machine.metadata;
@@ -163,7 +161,7 @@ class _TerminalConnectScreenState
                     },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please select a machine';
+                        return context.l10n.terminalSelectMachineError;
                       }
                       return null;
                     },
@@ -174,7 +172,7 @@ class _TerminalConnectScreenState
 
               // Terminal ID input
               Text(
-                'TERMINAL / SESSION ID',
+                context.l10n.terminalIdLabel,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                   letterSpacing: 0.5,
@@ -200,7 +198,7 @@ class _TerminalConnectScreenState
                       minWidth: AppTouchTarget.min,
                       minHeight: AppTouchTarget.min,
                     ),
-                    hintText: 'e.g. main, dev, 1234',
+                    hintText: context.l10n.terminalIdHint,
                     hintStyle: TextStyle(
                       color: theme.colorScheme.onSurfaceVariant
                           .withValues(alpha: 0.6),
@@ -211,7 +209,7 @@ class _TerminalConnectScreenState
                   onFieldSubmitted: (_) => _handleConnect(),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a terminal or session ID';
+                      return context.l10n.terminalIdError;
                     }
                     return null;
                   },

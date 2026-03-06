@@ -53,8 +53,8 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
           Card(
             child: SwitchListTile(
               secondary: const Icon(Icons.volume_up_outlined),
-              title: const Text('Text-to-Speech'),
-              subtitle: const Text('Read assistant messages aloud'),
+              title: Text(l10n.voiceTtsTitle),
+              subtitle: Text(l10n.voiceTtsSubtitle),
               value: settings.ttsEnabled,
               onChanged: (value) => ref
                   .read(settingsNotifierProvider.notifier)
@@ -66,8 +66,8 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.play_arrow),
-              title: const Text('Test TTS'),
-              subtitle: const Text('Tap to hear a test phrase'),
+              title: Text(l10n.voiceTestTts),
+              subtitle: Text(l10n.voiceTestTtsSubtitle),
               onTap: () async {
                 final tts = TtsService();
                 await tts.init(
@@ -84,7 +84,7 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.lg),
               child: Text(
-                'Select the TTS engine.',
+                l10n.voiceSelectEngineHint,
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -99,8 +99,8 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
                       ? Theme.of(context).colorScheme.primary
                       : null,
                 ),
-                title: const Text('Default Engine'),
-                subtitle: const Text('Use system default'),
+                title: Text(l10n.voiceDefaultEngine),
+                subtitle: Text(l10n.voiceDefaultEngineSubtitle),
                 trailing: settings.ttsEngine == null
                     ? Icon(
                         Icons.check,
@@ -152,7 +152,7 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.lg),
             child: Text(
-              'Select the language for voice output.',
+              l10n.voiceSelectLanguageHint,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -174,7 +174,7 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.language, color: AppColors.iosBlue),
-              title: const Text('Voice Language'),
+              title: Text(l10n.voiceLanguageTitle),
               subtitle: Text(selectedLanguage?.displayName ?? 'Auto-detect'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
@@ -229,7 +229,7 @@ class _VoiceLanguageSelectionScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Language'),
+        title: Text(AppLocalizations.of(context).voiceSelectLanguageTitle),
         actions: [
           if (_searchQuery.isNotEmpty)
             IconButton(
@@ -249,8 +249,8 @@ class _VoiceLanguageSelectionScreenState
             padding: const EdgeInsets.all(AppSpacing.lg),
             color: Theme.of(context).colorScheme.surface,
             child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'Search languages...',
+              decoration: InputDecoration(
+                hintText: AppLocalizations.of(context).searchLanguages,
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(10)),
@@ -271,7 +271,9 @@ class _VoiceLanguageSelectionScreenState
               vertical: AppSpacing.sm,
             ),
             child: Text(
-              '${filteredLanguages.length} languages available',
+              AppLocalizations.of(
+                context,
+              ).voiceLanguagesCount(filteredLanguages.length),
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 12,

@@ -32,10 +32,10 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
           // Developer mode toggle
           Card(
             child: SwitchListTile(
-              title: const Text('Developer Mode'),
+              title: Text(l10n.developerModeTitle),
               subtitle: Text(isDeveloperMode
-                  ? 'Enabled - Debug tools are visible'
-                  : 'Disabled - Tap 10 times to enable'),
+                  ? l10n.developerModeEnabledDesc
+                  : l10n.developerModeDisabledDesc),
               value: isDeveloperMode,
               onChanged: (value) {
                 ref
@@ -46,12 +46,12 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
           ),
           if (isDeveloperMode) ...[
             const SizedBox(height: AppSpacing.xxl),
-            _buildSectionHeader('Debug Tools'),
+            _buildSectionHeader(l10n.developerSectionDebugTools),
             const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
-              title: 'Network Inspector',
-              subtitle: 'View API requests and responses',
+              title: l10n.developerNetworkInspector,
+              subtitle: l10n.developerNetworkInspectorDesc,
               icon: Icons.network_check,
               onTap: () =>
                   context.push('/settings/developer/network'),
@@ -59,48 +59,48 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
-              title: 'Logs',
-              subtitle: 'View application logs',
+              title: l10n.settingsLogs,
+              subtitle: l10n.developerLogsDesc,
               icon: Icons.terminal,
               onTap: () => context.push('/settings/developer/logs'),
             ),
             const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
-              title: 'Encryption Debug',
-              subtitle: 'View encryption keys and certificates',
+              title: l10n.developerEncryptionDebug,
+              subtitle: l10n.developerEncryptionDebugDesc,
               icon: Icons.security,
               onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Not yet implemented')),
+                SnackBar(content: Text(l10n.developerNotYetImplemented)),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
-              title: 'Session Debug',
-              subtitle: 'View active sessions and connections',
+              title: l10n.developerSessionDebug,
+              subtitle: l10n.developerSessionDebugDesc,
               icon: Icons.history,
               onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Not yet implemented')),
+                SnackBar(content: Text(l10n.developerNotYetImplemented)),
               ),
             ),
             const SizedBox(height: AppSpacing.xxl),
-            _buildSectionHeader('Testing'),
+            _buildSectionHeader(l10n.developerSectionTesting),
             const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
-              title: 'Test Notifications',
-              subtitle: 'Send a test push notification',
+              title: l10n.developerTestNotifications,
+              subtitle: l10n.developerTestNotificationsDesc,
               icon: Icons.notifications,
               onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Not yet implemented')),
+                SnackBar(content: Text(l10n.developerNotYetImplemented)),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
-              title: 'Test Sentry (Exception)',
-              subtitle: 'Capture a test exception via Sentry',
+              title: l10n.developerTestSentryException,
+              subtitle: l10n.developerTestSentryExceptionDesc,
               icon: Icons.bug_report,
               onTap: () async {
                 try {
@@ -123,8 +123,8 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
-              title: 'Test Sentry (Unhandled)',
-              subtitle: 'Throw an unhandled error',
+              title: l10n.developerTestSentryUnhandled,
+              subtitle: l10n.developerTestSentryUnhandledDesc,
               icon: Icons.error,
               onTap: () {
                 throw StateError(
@@ -133,12 +133,12 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               },
             ),
             const SizedBox(height: AppSpacing.xxl),
-            _buildSectionHeader('Cache & Storage'),
+            _buildSectionHeader(l10n.developerSectionCacheStorage),
             const SizedBox(height: AppSpacing.sm),
             _buildDebugOption(
               context: context,
               title: l10n.developerClearCache,
-              subtitle: 'Clear cached data',
+              subtitle: l10n.developerClearCacheDesc,
               icon: Icons.delete_sweep,
               onTap: () => _clearCache(context),
             ),
@@ -146,17 +146,17 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             _buildDebugOption(
               context: context,
               title: l10n.developerResetSettings,
-              subtitle: 'Reset all settings to defaults',
+              subtitle: l10n.developerResetSettingsDesc,
               icon: Icons.restart_alt,
               onTap: () => _resetSettings(context, ref),
             ),
             const SizedBox(height: AppSpacing.xxl),
-            _buildSectionHeader('Build Info'),
+            _buildSectionHeader(l10n.developerSectionBuildInfo),
             const SizedBox(height: AppSpacing.sm),
-            _buildInfoTile('App Version', '1.0.0'),
-            _buildInfoTile('Build Number', '1'),
-            _buildInfoTile('Flutter Version', '3.38.7'),
-            _buildInfoTile('Dart Version', '3.10+'),
+            _buildInfoTile(l10n.developerAppVersion, '1.0.0'),
+            _buildInfoTile(l10n.developerBuildNumber, '1'),
+            _buildInfoTile(l10n.developerFlutterVersion, '3.38.7'),
+            _buildInfoTile(l10n.developerDartVersion, '3.10+'),
           ],
         ],
       ),
@@ -219,9 +219,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
         final l10nDialog = AppLocalizations.of(context);
         return AlertDialog(
           title: Text(l10nDialog.developerClearCache),
-          content: const Text(
-            'Are you sure you want to clear all cached data?',
-          ),
+          content: Text(l10nDialog.developerClearCacheConfirm),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -233,11 +231,15 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                 await Storage().clearAll();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Cache cleared')),
+                    SnackBar(
+                      content: Text(
+                        AppLocalizations.of(context).developerCacheCleared,
+                      ),
+                    ),
                   );
                 }
               },
-              child: const Text('Clear'),
+              child: Text(l10nDialog.developerClearCacheAction),
             ),
           ],
         );
@@ -252,10 +254,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
         final l10nDialog = AppLocalizations.of(context);
         return AlertDialog(
           title: Text(l10nDialog.developerResetSettings),
-          content: const Text(
-            'Are you sure you want to reset all settings '
-            'to defaults?',
-          ),
+          content: Text(l10nDialog.developerResetSettingsConfirm),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -276,11 +275,15 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                 }
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Settings reset')),
+                    SnackBar(
+                      content: Text(
+                        AppLocalizations.of(context).developerSettingsReset,
+                      ),
+                    ),
                   );
                 }
               },
-              child: const Text('Reset'),
+              child: Text(l10nDialog.developerResetAction),
             ),
           ],
         );

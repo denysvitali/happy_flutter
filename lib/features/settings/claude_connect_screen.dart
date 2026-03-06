@@ -32,12 +32,9 @@ class _ClaudeConnectScreenState
   void _handleConnect() {
     // API key management is out of scope — show informational snackbar.
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'API key management is handled via the CLI. '
-          'Run: happy connect claude',
-        ),
-        duration: Duration(seconds: 4),
+      SnackBar(
+        content: Text(AppLocalizations.of(context).claudeConnectCliInfo),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -68,7 +65,7 @@ class _ClaudeConnectScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Connect Claude',
+                    l10n.claudeConnectTerminalTitle,
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: const Color(0xFFD4D4D4),
                       fontWeight: FontWeight.w600,
@@ -76,7 +73,7 @@ class _ClaudeConnectScreenState
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'Run the following command in your terminal:',
+                    l10n.claudeConnectTerminalSubtitle,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: const Color(0xFF9E9E9E),
                     ),
@@ -123,7 +120,7 @@ class _ClaudeConnectScreenState
 
             // Manual API key entry section
             Text(
-              'MANUAL API KEY ENTRY',
+              l10n.claudeConnectManualLabel,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 letterSpacing: 0.8,
@@ -132,7 +129,7 @@ class _ClaudeConnectScreenState
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Alternatively, enter your Anthropic API key directly.',
+              l10n.claudeConnectManualDesc,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -144,8 +141,8 @@ class _ClaudeConnectScreenState
               controller: _apiKeyController,
               obscureText: _obscureApiKey,
               decoration: InputDecoration(
-                labelText: 'API Key',
-                hintText: 'sk-ant-...',
+                labelText: l10n.claudeConnectApiKeyLabel,
+                hintText: l10n.claudeConnectApiKeyHint,
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.key_outlined),
                 suffixIcon: IconButton(
@@ -169,11 +166,11 @@ class _ClaudeConnectScreenState
             // Optional base URL field
             TextField(
               controller: _baseUrlController,
-              decoration: const InputDecoration(
-                labelText: 'Base URL (optional)',
-                hintText: 'https://api.anthropic.com',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.link),
+              decoration: InputDecoration(
+                labelText: l10n.claudeConnectBaseUrlLabel,
+                hintText: l10n.claudeConnectBaseUrlHint,
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.link),
               ),
               keyboardType: TextInputType.url,
               autocorrect: false,
@@ -185,7 +182,7 @@ class _ClaudeConnectScreenState
             FilledButton.icon(
               onPressed: _handleConnect,
               icon: const Icon(Icons.smart_toy_outlined),
-              label: const Text('Connect'),
+              label: Text(l10n.claudeConnectButton),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
@@ -195,7 +192,7 @@ class _ClaudeConnectScreenState
 
             // Disclaimer footer
             Text(
-              'Your API key is stored locally on this device only.',
+              l10n.claudeConnectDisclaimer,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
