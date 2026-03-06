@@ -594,6 +594,7 @@ void _showMessageDetailSheet(
 ) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
+  final l10n = AppLocalizations.of(context);
 
   // meta may be directly on the message or inside the 'raw' decrypted record.
   final raw = messageData['raw'] as Map<String, dynamic>?;
@@ -642,7 +643,7 @@ void _showMessageDetailSheet(
                 AppSpacing.sm,
               ),
               child: Text(
-                'Message Details',
+                l10n.messageDetailDetails,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -655,7 +656,7 @@ void _showMessageDetailSheet(
                   vertical: AppSpacing.md,
                 ),
                 child: Text(
-                  'No details available',
+                  l10n.messageDetailNoDetails,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: cs.onSurfaceVariant,
                   ),
@@ -664,19 +665,19 @@ void _showMessageDetailSheet(
             if (model != null)
               _MessageInfoRow(
                 icon: Icons.auto_awesome_outlined,
-                label: 'Model',
+                label: l10n.messageDetailModel,
                 value: model,
               ),
             if (permissionMode != null)
               _MessageInfoRow(
                 icon: Icons.shield_outlined,
-                label: 'Permission',
+                label: l10n.messageDetailPermission,
                 value: permissionMode,
               ),
             if (createdAt != null)
               _MessageInfoRow(
                 icon: Icons.access_time_outlined,
-                label: 'Sent',
+                label: l10n.messageDetailSent,
                 value: _formatTimestamp(createdAt),
               ),
           ],
@@ -1022,13 +1023,22 @@ class _ErrorMessageWidget extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   // Metadata
-                  _DetailRow(label: 'Message ID', value: messageId ?? 'N/A'),
-                  _DetailRow(label: 'Seq', value: seq?.toString() ?? 'N/A'),
-                  _DetailRow(label: 'Timestamp', value: timestamp),
+                  _DetailRow(
+                    label: l10n.messageDetailMessageId,
+                    value: messageId ?? l10n.commonNA,
+                  ),
+                  _DetailRow(
+                    label: l10n.messageDetailSeq,
+                    value: seq?.toString() ?? l10n.commonNA,
+                  ),
+                  _DetailRow(
+                    label: l10n.messageDetailTimestamp,
+                    value: timestamp,
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   // Debug data
                   Text(
-                    'Debug Data',
+                    l10n.messageDetailDebugData,
                     style: theme.textTheme.labelMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),

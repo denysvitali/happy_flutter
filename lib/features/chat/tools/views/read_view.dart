@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 
@@ -132,7 +133,7 @@ class _ReadViewContentState extends State<_ReadViewContent> {
         // Content section label + preview
         if (content != null && content.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
-          _ReadSectionLabel(label: 'CONTENT'),
+          _ReadSectionLabel(label: context.l10n.toolSectionContent),
           const SizedBox(height: AppSpacing.xs),
           _ContentBlock(
             content: content,

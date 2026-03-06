@@ -143,7 +143,7 @@ class _NetworkInspectorScreenState
           ),
           IconButton(
             icon: const Icon(Icons.delete_sweep),
-            tooltip: 'Clear',
+            tooltip: l10n.commonClear,
             onPressed: _entries.isEmpty ? null : _confirmClear,
           ),
         ],

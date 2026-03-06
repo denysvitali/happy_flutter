@@ -165,12 +165,13 @@ class ThemeSettingsScreen extends ConsumerWidget {
   Widget _buildCurrentThemePreview(BuildContext context) {
     final brightness = MediaQuery.platformBrightnessOf(context);
     final isDark = brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Preview',
+          l10n.appearanceThemePreview,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -189,7 +190,9 @@ class ThemeSettingsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(width: AppSpacing.md),
                     Text(
-                      isDark ? 'Dark mode active' : 'Light mode active',
+                      isDark
+                          ? l10n.appearanceThemeDarkModeActive
+                          : l10n.appearanceThemeLightModeActive,
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
                   ],
@@ -206,7 +209,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                   ),
                   child: Center(
                     child: Text(
-                      'Sample content',
+                      l10n.appearanceThemeSampleContent,
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
@@ -225,7 +228,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                         ),
                         child: Center(
                           child: Text(
-                            'Primary',
+                            l10n.appearanceThemeColorPrimary,
                             style: TextStyle(
                               color: Theme.of(context)
                                   .colorScheme
@@ -246,7 +249,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                         ),
                         child: Center(
                           child: Text(
-                            'Secondary',
+                            l10n.appearanceThemeColorSecondary,
                             style: TextStyle(
                               color: Theme.of(context)
                                   .colorScheme
@@ -264,8 +267,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          "Based on your device's"
-          " ${isDark ? 'dark' : 'light'} appearance setting.",
+          l10n.appearanceThemeBasedOnDevice(isDark ? 'dark' : 'light'),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),

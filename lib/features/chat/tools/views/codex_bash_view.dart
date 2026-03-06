@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 
 import '../tool_section_view.dart';
@@ -90,7 +91,7 @@ class CodexBashView extends StatelessWidget {
       child: _FileOperationBar(
         icon: Icons.visibility_outlined,
         iconColor: const Color(0xFF58A6FF),
-        label: 'Reading',
+        label: context.l10n.toolSectionReading,
         dir: dir,
         filename: displayName,
         detail: commandStr,
@@ -127,7 +128,7 @@ class CodexBashView extends StatelessWidget {
       child: _FileOperationBar(
         icon: Icons.edit_document,
         iconColor: const Color(0xFF3FB950),
-        label: 'Writing',
+        label: context.l10n.toolSectionWriting,
         dir: dir,
         filename: displayName,
         detail: commandStr,

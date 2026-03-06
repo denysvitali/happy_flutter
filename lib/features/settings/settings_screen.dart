@@ -167,7 +167,7 @@ class SettingsScreen extends ConsumerWidget {
         ),
         SettingsNavRow(
           icon: Icons.code,
-          title: 'GitHub',
+          title: l10n.settingsGitHub,
           subtitle: github != null
               ? l10n.settingsConnectedAs(github.login)
               : l10n.settingsNotConnected,
@@ -325,13 +325,14 @@ class SettingsScreen extends ConsumerWidget {
     required bool ttsEnabled,
     required WidgetRef ref,
   }) {
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
-      title: 'Voice',
+      title: l10n.settingsVoice,
       children: [
         SettingsToggleRow(
           icon: Icons.volume_up_outlined,
-          title: 'Text-to-Speech',
-          subtitle: 'Read assistant messages aloud',
+          title: l10n.settingsTextToSpeech,
+          subtitle: l10n.settingsTextToSpeechSubtitle,
           value: ttsEnabled,
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
@@ -339,8 +340,8 @@ class SettingsScreen extends ConsumerWidget {
         ),
         SettingsNavRow(
           icon: Icons.record_voice_over,
-          title: 'Voice Settings',
-          subtitle: 'Configure voice assistant',
+          title: l10n.settingsVoiceSettings,
+          subtitle: l10n.settingsConfigureVoiceAssistant,
           onTap: () => context.pushNamed('voice'),
         ),
       ],
@@ -393,19 +394,20 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildSocialSection(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
-      title: 'Social',
+      title: l10n.settingsSocial,
       children: [
         SettingsNavRow(
           icon: Icons.person_add_alt_1,
-          title: 'Find Friends',
-          subtitle: 'Search and send friend requests',
+          title: l10n.settingsFindFriends,
+          subtitle: l10n.settingsFindFriendsSubtitle,
           onTap: () => context.pushNamed('friends-search'),
         ),
         SettingsNavRow(
           icon: Icons.inbox_outlined,
-          title: 'Open Inbox',
-          subtitle: 'View updates and requests',
+          title: l10n.settingsOpenInbox,
+          subtitle: l10n.settingsOpenInboxSubtitle,
           onTap: () => context.pushNamed('inbox'),
         ),
       ],
@@ -427,15 +429,19 @@ class SettingsScreen extends ConsumerWidget {
         return a.active ? -1 : 1;
       });
 
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
-      title: 'Machines',
+      title: l10n.settingsMachines,
       children: machineList
           .map((machine) {
             final metadata = machine.metadata;
             final title = metadata?.displayName ?? metadata?.host ?? machine.id;
+            final onlineStatus = machine.active
+                ? l10n.machineOnline
+                : l10n.machineOffline;
             final subtitle =
-                '${metadata?.platform ?? 'unknown'}'
-                ' • ${machine.active ? 'Online' : 'Offline'}';
+                '${metadata?.platform ?? l10n.commonUnknown}'
+                ' • $onlineStatus';
             return SettingsRow(
               icon: Icons.computer_outlined,
               iconColor: machine.active
@@ -459,8 +465,10 @@ class SettingsScreen extends ConsumerWidget {
       children: [
         SettingsNavRow(
           icon: Icons.build,
-          title: 'Developer Options',
-          subtitle: developerModeEnabled ? 'Enabled' : 'Tap 10 times to enable',
+          title: l10n.settingsDeveloperOptions,
+          subtitle: developerModeEnabled
+              ? l10n.settingsDeveloperEnabled
+              : l10n.settingsDeveloperTapToEnable,
           onTap: () => context.pushNamed('developer'),
         ),
       ],
@@ -475,7 +483,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsNavRow(
           icon: Icons.person,
           title: l10n.accountAccountSettings,
-          subtitle: 'Backup key, devices, services',
+          subtitle: l10n.settingsAccountSubtitle,
           onTap: () => context.pushNamed('account'),
         ),
       ],
@@ -679,19 +687,19 @@ class SettingsScreen extends ConsumerWidget {
         ),
         SettingsNavRow(
           icon: Icons.new_releases_outlined,
-          title: "What's New",
-          subtitle: 'Latest improvements and updates',
+          title: l10n.settingsWhatsNew,
+          subtitle: l10n.settingsWhatsNewSubtitle,
           onTap: () => context.pushNamed('changelog'),
         ),
         SettingsNavRow(
           icon: Icons.code,
-          title: 'GitHub',
+          title: l10n.settingsGitHub,
           subtitle: 'slopus/happy',
           onTap: () => openUrl('https://github.com/slopus/happy'),
         ),
         SettingsNavRow(
           icon: Icons.bug_report_outlined,
-          title: 'Report an Issue',
+          title: l10n.settingsReportIssue,
           onTap: () => openUrl('https://github.com/slopus/happy/issues'),
         ),
         SettingsNavRow(

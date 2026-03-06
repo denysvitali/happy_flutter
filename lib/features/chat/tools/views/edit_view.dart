@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/diff_view_widget.dart'
     as dw show DiffView;
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'bash_view.dart' show FilePillChip;
 
@@ -77,7 +78,7 @@ class _EditViewState extends State<EditView> {
           ],
 
           // ── Diff section label ──────────────────────────
-          _EditSectionLabel(label: 'DIFF'),
+          _EditSectionLabel(label: context.l10n.toolSectionDiff),
           const SizedBox(height: AppSpacing.xs),
 
           // ── Expand/collapse toggle for large diffs ──────

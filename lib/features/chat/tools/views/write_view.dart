@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../tool_section_view.dart';
 
@@ -59,7 +60,7 @@ class _WriteViewState extends State<WriteView> {
           const SizedBox(height: AppSpacing.sm),
 
           // ── Content section label + preview ───────────────
-          _WriteSectionLabel(label: 'CONTENT'),
+          _WriteSectionLabel(label: context.l10n.toolSectionContent),
           const SizedBox(height: AppSpacing.xs),
           Container(
             width: double.infinity,

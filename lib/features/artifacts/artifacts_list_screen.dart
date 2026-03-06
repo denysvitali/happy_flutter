@@ -66,8 +66,8 @@ class _ArtifactsListScreenState
   Widget _buildEmptyState(AppLocalizations l10n) {
     return AppEmptyState(
       icon: Icons.description_outlined,
-      title: l10n.artifactsDetail,
-      subtitle: 'Create your first artifact using the + button.',
+      title: l10n.artifactsEmpty,
+      subtitle: l10n.artifactsEmptySubtitle,
     );
   }
 

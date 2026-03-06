@@ -80,7 +80,7 @@ class _TextDetailView extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         _DetailCard(
-          title: 'Content',
+          title: context.l10n.messageDetailContent,
           icon: Icons.message_outlined,
           child: SelectableText(text),
         ),
@@ -134,18 +134,18 @@ class _ToolDetailView extends StatelessWidget {
         // Permission info
         if (permission != null) ...[
           _DetailCard(
-            title: 'Permission',
+            title: context.l10n.messageDetailPermission,
             icon: Icons.shield_outlined,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _LabelValue(
-                  label: 'Status',
+                  label: context.l10n.messageDetailStatus,
                   value: permission['status'] as String? ?? 'unknown',
                 ),
                 if (permission['reason'] != null)
                   _LabelValue(
-                    label: 'Reason',
+                    label: context.l10n.messageDetailReason,
                     value: permission['reason'].toString(),
                   ),
               ],
@@ -157,7 +157,7 @@ class _ToolDetailView extends StatelessWidget {
         // Input
         if (input != null) ...[
           _ToolResultSection(
-            title: 'Input',
+            title: context.l10n.messageDetailInput,
             icon: Icons.input,
             json: input,
           ),
@@ -167,7 +167,9 @@ class _ToolDetailView extends StatelessWidget {
         // Output/Result
         if (result != null && state != ToolState.running) ...[
           _ToolResultSection(
-            title: state == ToolState.error ? 'Error' : 'Output',
+            title: state == ToolState.error
+                ? context.l10n.commonError
+                : context.l10n.messageDetailOutput,
             icon: state == ToolState.error
                 ? Icons.error_outline
                 : Icons.output,
@@ -185,7 +187,7 @@ class _ToolDetailView extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              'Sub-agent Tools',
+              context.l10n.messageDetailSubagentTools,
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -248,17 +250,23 @@ class _MessageHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _LabelValue(label: 'Tool', value: toolName),
-          _LabelValue(label: 'State', value: toolState),
+          _LabelValue(
+            label: context.l10n.messageDetailTool,
+            value: toolName,
+          ),
+          _LabelValue(
+            label: context.l10n.messageDetailState,
+            value: toolState,
+          ),
           if (isTask && input != null) ...[
             if (input!['subagent_type'] != null)
               _LabelValue(
-                label: 'Agent type',
+                label: context.l10n.messageDetailAgentType,
                 value: input!['subagent_type'].toString(),
               ),
             if (input!['description'] != null)
               _LabelValue(
-                label: 'Description',
+                label: context.l10n.messageDetailDescription,
                 value: input!['description'].toString(),
               ),
           ],
@@ -393,7 +401,7 @@ class _MessageActions extends StatelessWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.copy_outlined),
-            tooltip: 'Copy',
+            tooltip: context.l10n.commonCopy,
             iconSize: 20,
             onPressed: () {
               Clipboard.setData(ClipboardData(text: content));
@@ -407,13 +415,13 @@ class _MessageActions extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.share_outlined),
-            tooltip: 'Share',
+            tooltip: context.l10n.messageDetailShare,
             iconSize: 20,
             onPressed: null, // placeholder — wire up if needed
           ),
           IconButton(
             icon: const Icon(Icons.bookmark_border_outlined),
-            tooltip: 'Bookmark',
+            tooltip: context.l10n.messageDetailBookmark,
             iconSize: 20,
             onPressed: null, // placeholder — wire up if needed
           ),
@@ -655,14 +663,16 @@ class _ToolDetailBottomSheet extends StatelessWidget {
             children: [
               if (input != null)
                 _ToolResultSection(
-                  title: 'Input',
+                  title: context.l10n.messageDetailInput,
                   icon: Icons.input,
                   json: input,
                 ),
               if (input != null) const SizedBox(height: 12),
               if (result != null) ...[
                 _ToolResultSection(
-                  title: state == 'error' ? 'Error' : 'Output',
+                  title: state == 'error'
+                      ? context.l10n.commonError
+                      : context.l10n.messageDetailOutput,
                   icon: state == 'error'
                       ? Icons.error_outline
                       : Icons.output,
@@ -854,7 +864,7 @@ class _CopyButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       icon: const Icon(Icons.copy, size: 16),
-      tooltip: 'Copy',
+      tooltip: context.l10n.commonCopy,
       onPressed: () {
         Clipboard.setData(ClipboardData(text: content));
         ScaffoldMessenger.of(context).showSnackBar(

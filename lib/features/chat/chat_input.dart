@@ -320,7 +320,8 @@ class _ProfileChip extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final isDefault = profile == null;
-    final label = profile?.name ?? 'Default';
+    final label = profile?.name ??
+        AppLocalizations.of(context).chatInputProfileDefault;
 
     return GestureDetector(
       onTap: onTap,
@@ -458,7 +459,9 @@ void _showProfilePickerSheet(
       borderRadius:
           BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
     ),
-    builder: (ctx) => SafeArea(
+    builder: (ctx) {
+      final sheetL10n = AppLocalizations.of(ctx);
+      return SafeArea(
       child: Padding(
         padding: const EdgeInsets.only(
           top: AppSpacing.sm,
@@ -487,7 +490,7 @@ void _showProfilePickerSheet(
                 AppSpacing.sm,
               ),
               child: Text(
-                'Profile',
+                sheetL10n.chatInputProfileTitle,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -536,7 +539,7 @@ void _showProfilePickerSheet(
                                     CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Default',
+                                    sheetL10n.chatInputProfileDefault,
                                     style: theme.textTheme.bodyMedium
                                         ?.copyWith(
                                       fontWeight: current == null
@@ -548,7 +551,7 @@ void _showProfilePickerSheet(
                                     ),
                                   ),
                                   Text(
-                                    'Server-configured defaults',
+                                    sheetL10n.chatInputProfileDefaultSubtitle,
                                     style: theme.textTheme.labelSmall
                                         ?.copyWith(
                                       color: cs.onSurfaceVariant,
@@ -582,7 +585,8 @@ void _showProfilePickerSheet(
           ],
         ),
       ),
-    ),
+    );
+  },
   );
 }
 

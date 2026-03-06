@@ -267,7 +267,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                       ),
                       onPressed: () =>
                           _submitCommand(_commandController.text),
-                      tooltip: 'Send command',
+                      tooltip: context.l10n.terminalSendCommand,
                     ),
                   ),
               ],

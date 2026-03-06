@@ -84,7 +84,7 @@ class ProfilesScreen extends ConsumerWidget {
                 bottom: AppSpacing.sm,
               ),
               child: Text(
-                'Custom Profiles',
+                l10n.profilesCustomTitle,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -168,9 +168,12 @@ class ProfilesScreen extends ConsumerWidget {
             color: Theme.of(context).colorScheme.onPrimary,
           ),
         ),
-        title: Text(profile?.name ?? 'None'),
+        title: Text(
+          profile?.name ?? AppLocalizations.of(context).profilesNone,
+        ),
         subtitle: Text(
-          profile?.description ?? 'Use default configuration',
+          profile?.description ??
+              AppLocalizations.of(context).profilesDefaultDescription,
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,

@@ -457,7 +457,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   const Divider(height: 1, indent: 52),
                   _InfoRow(
                     icon: Icons.memory,
-                    label: 'OS',
+                    label: l10n.sessionInfoLabelOs,
                     value: formatOSPlatform(meta.os),
                   ),
                 ],

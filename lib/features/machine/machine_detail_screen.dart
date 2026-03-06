@@ -191,7 +191,7 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
             const SizedBox(height: AppSpacing.xxl),
 
             // ── Machine info ──
-            const AppSectionHeader(title: 'Info'),
+            AppSectionHeader(title: context.l10n.machineInfo),
             const SizedBox(height: AppSpacing.xs),
             _GroupedList(
               children: [
@@ -237,13 +237,15 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
             const SizedBox(height: AppSpacing.xxl),
 
             // ── Daemon status ──
-            const AppSectionHeader(title: 'Daemon'),
+            AppSectionHeader(title: context.l10n.machineDaemon),
             const SizedBox(height: AppSpacing.xs),
             _GroupedList(
               children: [
                 _GroupedRow(
                   label: context.l10n.machineStatus,
-                  value: isOnline ? 'Running' : 'Stopped',
+                  value: isOnline
+                      ? context.l10n.machineRunning
+                      : context.l10n.machineStopped,
                   trailing: AppStatusDot(
                     color: isOnline ? AppColors.success : cs.onSurfaceVariant,
                     size: 8,
@@ -267,7 +269,9 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
             // ── Sessions ──
             if (machineSessions.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xxl),
-              AppSectionHeader(title: 'Sessions (${machineSessions.length})'),
+              AppSectionHeader(
+                title: context.l10n.machineSessions(machineSessions.length),
+              ),
               const SizedBox(height: AppSpacing.xs),
               _GroupedList(
                 children: [
@@ -297,7 +301,7 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
                     _confirmDelete(context, widget.machineId, machineName),
                 style: TextButton.styleFrom(foregroundColor: cs.error),
                 child: Text(
-                  'Remove Machine',
+                  context.l10n.machineRemoveMachine,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: cs.error,
                     fontWeight: FontWeight.w500,
@@ -350,7 +354,9 @@ class _StatusBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isOnline ? 'Online' : 'Offline',
+                  isOnline
+                      ? context.l10n.machineOnline
+                      : context.l10n.machineOffline,
                   style: theme.textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: statusColor,
@@ -358,7 +364,9 @@ class _StatusBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  isOnline ? 'Connected now' : 'Last seen $lastSeen',
+                  isOnline
+                      ? context.l10n.machineConnectedNow
+                      : context.l10n.machineLastSeenAt(lastSeen),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: cs.onSurfaceVariant,
                   ),

@@ -63,6 +63,11 @@ class AppLocalizations {
   String get commonRetry => 'Retry';
   String get commonSearch => 'Search';
   String get commonSettings => 'Settings';
+  String get commonCopied => 'Copied!';
+  String get commonCopyCode => 'Copy code';
+  String get commonFile => 'File';
+  String get commonFolder => 'Folder';
+  String get commonCmd => 'Cmd';
 
   // Auth
   String get authTitle => 'Happy';
@@ -158,6 +163,28 @@ class AppLocalizations {
   String get sessionInfoTitle => 'Session Info';
   String get sessionInfoNotFound => 'Session not found';
   String get messageNotFound => 'Message not found';
+  String get messageDetailContent => 'Content';
+  String get messageDetailDetails => 'Message Details';
+  String get messageDetailNoDetails => 'No details available';
+  String get messageDetailModel => 'Model';
+  String get messageDetailSent => 'Sent';
+  String get messageDetailMessageId => 'Message ID';
+  String get messageDetailSeq => 'Seq';
+  String get messageDetailTimestamp => 'Timestamp';
+  String get messageDetailDebugData => 'Debug Data';
+  String get commonNA => 'N/A';
+  String get messageDetailPermission => 'Permission';
+  String get messageDetailStatus => 'Status';
+  String get messageDetailReason => 'Reason';
+  String get messageDetailInput => 'Input';
+  String get messageDetailOutput => 'Output';
+  String get messageDetailSubagentTools => 'Sub-agent Tools';
+  String get messageDetailTool => 'Tool';
+  String get messageDetailState => 'State';
+  String get messageDetailAgentType => 'Agent type';
+  String get messageDetailDescription => 'Description';
+  String get messageDetailShare => 'Share';
+  String get messageDetailBookmark => 'Bookmark';
   String get commonCopiedToClipboard => 'Copied to clipboard';
   String get accountBackupKeyDialogContent =>
       'Save this key in a safe place.'
@@ -196,6 +223,9 @@ class AppLocalizations {
 
   // Chat
   String get chatInputHint => 'Message...';
+  String get chatInputProfileTitle => 'Profile';
+  String get chatInputProfileDefault => 'Default';
+  String get chatInputProfileDefaultSubtitle => 'Server-configured defaults';
   String get chatEmpty => 'Start a conversation';
   String get chatSend => 'Send';
   String get chatCopyMessage => 'Copy';
@@ -294,6 +324,13 @@ class AppLocalizations {
   String get toolLs => 'List Files';
   String get toolPatch => 'Patch';
   String get toolDiff => 'Diff';
+  String get toolSectionDiff => 'DIFF';
+  String get toolSectionContent => 'CONTENT';
+  String get toolSectionCommand => 'COMMAND';
+  String get toolSectionReading => 'Reading';
+  String get toolSectionWriting => 'Writing';
+  String get toolSectionInput => 'INPUT';
+  String get toolSectionOutput => 'OUTPUT';
   String get toolTask => 'Task';
   String get toolTodo => 'Todo';
   String get toolWebFetch => 'Web Fetch';
@@ -417,6 +454,14 @@ class AppLocalizations {
   String get appearanceThemeDark => 'Dark';
   String get appearanceThemeDarkDesc => 'Always use dark theme';
   String appearanceThemeApplied(String theme) => '$theme theme applied';
+  String get appearanceThemePreview => 'Preview';
+  String get appearanceThemeDarkModeActive => 'Dark mode active';
+  String get appearanceThemeLightModeActive => 'Light mode active';
+  String get appearanceThemeSampleContent => 'Sample content';
+  String get appearanceThemeColorPrimary => 'Primary';
+  String get appearanceThemeColorSecondary => 'Secondary';
+  String appearanceThemeBasedOnDevice(String mode) =>
+      "Based on your device's $mode appearance setting.";
 
   // Language Search
   String get searchLanguages => 'Search languages';
@@ -512,6 +557,8 @@ class AppLocalizations {
   String get inboxRequestCanceled => 'Request canceled';
   String get inboxFriendSubtitle => 'Friend';
   String get inboxNoNotificationsTitle => 'No notifications yet';
+  String get inboxConnectFriendsSubtitle =>
+      'Connect with friends to start sharing sessions.';
   String get inboxFeedFriendRequest => 'Friend request';
   String get inboxFeedFriendAccepted => 'Friend accepted';
   String get inboxFeedUpdate => 'Update';
@@ -619,8 +666,15 @@ class AppLocalizations {
       'Failed to start OAuth: $error';
   String get settingsVoiceSettings =>
       'Voice Settings';
+  String get settingsTextToSpeech => 'Text-to-Speech';
+  String get settingsTextToSpeechSubtitle =>
+      'Read assistant messages aloud';
+  String get settingsConfigureVoiceAssistant =>
+      'Configure voice assistant';
   String get settingsConfigureVoice =>
       'Configure ElevenLabs voice';
+  String get settingsGitHub => 'GitHub';
+  String get settingsReportIssue => 'Report an Issue';
   String get settingsSocial => 'Social';
   String get settingsFindFriends => 'Find Friends';
   String get settingsFindFriendsSubtitle =>
@@ -681,6 +735,10 @@ class AppLocalizations {
   String get devLogsLevelError => 'Error';
   String get devLogsLogEntryCopied => 'Log entry copied';
   String get devLogsCopyEntry => 'Copy Entry';
+  String get devLogsAddTestLog => 'Add Test Log';
+  String get devLogsCopyAllLogs => 'Copy All Logs';
+  String get devLogsFilterByLevel => 'Filter by Level';
+  String get devLogsSearchLogs => 'Search Logs';
   String get devLogsOnlyAvailableInDevMode =>
       'Logs are only available when Developer Mode is enabled.\n\n'
       'Go to Settings and enable Developer Mode to view logs.';
@@ -739,6 +797,9 @@ class AppLocalizations {
 
   // Profiles Settings
   String get profilesTitle => 'Profiles';
+  String get profilesNone => 'None';
+  String get profilesDefaultDescription => 'Use default configuration';
+  String get profilesCustomTitle => 'Custom Profiles';
   String get profilesProfileName => 'Profile Name';
   String get profilesAddProfile => 'Add Profile';
   String get profilesEditProfile => 'Edit Profile';
@@ -807,6 +868,10 @@ class AppLocalizations {
 
   // Session Files
   String get sessionFilesTitle => 'Files';
+  String get sessionFilesNotFound => 'Session not found';
+  String get sessionFilesEmpty => 'No files yet';
+  String get sessionFilesEmptySubtitle =>
+      'Files modified during the session will appear here.';
 
   // Session Info screen
   String get sessionInfoCopied => 'Copied to clipboard';
@@ -830,6 +895,7 @@ class AppLocalizations {
   String get sessionInfoLabelClaudeSessionId => 'Claude Code Session ID';
   String get sessionInfoLabelProcessId => 'Process ID';
   String get sessionInfoLabelHappyHome => 'Happy Home';
+  String get sessionInfoLabelOs => 'OS';
   String get sessionInfoActionCopyMetadata => 'Copy Metadata';
   String get sessionInfoMetadataCopied => 'Metadata copied';
   String get sessionInfoSectionAgentState => 'Agent State';
@@ -868,6 +934,9 @@ class AppLocalizations {
   String get artifactsFailedToDelete => 'Failed to delete artifact';
   String get artifactsFailedToSave => 'Failed to save artifact';
   String get artifactsFailedToCreate => 'Failed to create artifact';
+  String get artifactsEmpty => 'No artifacts yet';
+  String get artifactsEmptySubtitle =>
+      'Create your first artifact using the + button.';
 
   // Machine Detail
   String machineRemoveConfirm(String name) =>
@@ -887,6 +956,16 @@ class AppLocalizations {
       'Last Known Status';
   String get machineLastKnownPid =>
       'Last Known PID';
+  String get machineInfo => 'Info';
+  String get machineDaemon => 'Daemon';
+  String get machineRunning => 'Running';
+  String get machineStopped => 'Stopped';
+  String get machineRemoveMachine => 'Remove Machine';
+  String get machineOnline => 'Online';
+  String get machineOffline => 'Offline';
+  String get machineConnectedNow => 'Connected now';
+  String machineLastSeenAt(String time) => 'Last seen $time';
+  String machineSessions(int count) => 'Sessions ($count)';
 
   // Terminal
   String get terminalConnectInfo =>
@@ -910,8 +989,10 @@ class AppLocalizations {
   String get terminalTitle => 'Terminal';
   String get terminalConnect =>
       'Connect Terminal';
+  String get terminalSendCommand => 'Send command';
 
   // Common (extended)
+  String get commonClear => 'Clear';
   String get commonUnknown => 'unknown';
   String get commonTryAgain => 'Try Again';
   String get commonGoHome => 'Go Home';
@@ -937,6 +1018,28 @@ class AppLocalizations {
 
   // Command palette
   String get commandSearchHint => 'Search commands...';
+  String get commandCategorySessions => 'Sessions';
+  String get commandCategoryNavigation => 'Navigation';
+  String get commandNewSessionTitle => 'New Session';
+  String get commandNewSessionSubtitle => 'Start a new chat session';
+  String get commandViewSessionsTitle => 'View All Sessions';
+  String get commandViewSessionsSubtitle => 'Browse your chat history';
+  String get commandSettingsTitle => 'Settings';
+  String get commandSettingsSubtitle => 'Configure your preferences';
+  String get commandAccountTitle => 'Account';
+  String get commandAccountSubtitle => 'Manage your account';
+  String get commandConnectDeviceTitle => 'Connect Device';
+  String get commandConnectDeviceSubtitle => 'Connect a new device via web';
+  String get commandInboxTitle => 'Inbox';
+  String get commandInboxSubtitle => 'View your notifications';
+  String get commandArtifactsTitle => 'Artifacts';
+  String get commandArtifactsSubtitle => 'Browse your artifacts';
+  String get commandZenModeTitle => 'Zen Mode';
+  String get commandZenModeSubtitle => 'Focus mode with todos';
+  String get commandTerminalTitle => 'Terminal';
+  String get commandTerminalSubtitle => 'Access terminal sessions';
+  String get commandFriendsTitle => 'Friends';
+  String get commandFriendsSubtitle => 'Manage your friends';
 
   // Network Inspector
   String networkInspectorTitle(int count) => 'Network Inspector ($count)';

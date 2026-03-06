@@ -355,7 +355,7 @@ class _InboxEmptyView extends StatelessWidget {
           AppEmptyState(
             icon: Icons.inbox_outlined,
             title: context.l10n.inboxNoNotificationsTitle,
-            subtitle: 'Connect with friends to start sharing sessions.',
+            subtitle: context.l10n.inboxConnectFriendsSubtitle,
             action: FilledButton.icon(
               onPressed: onFindFriends,
               icon: const Icon(Icons.person_search),

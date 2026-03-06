@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import 'command_item.dart';
 import 'command_palette_overlay.dart';
@@ -54,15 +55,16 @@ class CommandPaletteController {
   List<CommandItem> buildCommands(BuildContext context) {
     final sessions = _ref.read(sessionsNotifierProvider);
     final router = GoRouter.of(context);
+    final l10n = AppLocalizations.of(context);
 
     final commands = <CommandItem>[
       // Navigation commands
       CommandItem(
         id: 'new-session',
-        title: 'New Session',
-        subtitle: 'Start a new chat session',
+        title: l10n.commandNewSessionTitle,
+        subtitle: l10n.commandNewSessionSubtitle,
         icon: Icons.add_circle_outline,
-        category: 'Sessions',
+        category: l10n.commandCategorySessions,
         shortcut: 'Ctrl+N',
         action: () {
           router.go('/new');
@@ -70,20 +72,20 @@ class CommandPaletteController {
       ),
       CommandItem(
         id: 'sessions',
-        title: 'View All Sessions',
-        subtitle: 'Browse your chat history',
+        title: l10n.commandViewSessionsTitle,
+        subtitle: l10n.commandViewSessionsSubtitle,
         icon: Icons.chat_bubble_outline,
-        category: 'Sessions',
+        category: l10n.commandCategorySessions,
         action: () {
           router.go('/sessions');
         },
       ),
       CommandItem(
         id: 'settings',
-        title: 'Settings',
-        subtitle: 'Configure your preferences',
+        title: l10n.commandSettingsTitle,
+        subtitle: l10n.commandSettingsSubtitle,
         icon: Icons.settings_outlined,
-        category: 'Navigation',
+        category: l10n.commandCategoryNavigation,
         shortcut: 'Ctrl+,',
         action: () {
           router.go('/settings');
@@ -91,70 +93,70 @@ class CommandPaletteController {
       ),
       CommandItem(
         id: 'account',
-        title: 'Account',
-        subtitle: 'Manage your account',
+        title: l10n.commandAccountTitle,
+        subtitle: l10n.commandAccountSubtitle,
         icon: Icons.account_circle_outlined,
-        category: 'Navigation',
+        category: l10n.commandCategoryNavigation,
         action: () {
           router.go('/settings/account');
         },
       ),
       CommandItem(
         id: 'connect-device',
-        title: 'Connect Device',
-        subtitle: 'Connect a new device via web',
+        title: l10n.commandConnectDeviceTitle,
+        subtitle: l10n.commandConnectDeviceSubtitle,
         icon: Icons.link_outlined,
-        category: 'Navigation',
+        category: l10n.commandCategoryNavigation,
         action: () {
           router.go('/terminal/connect');
         },
       ),
       CommandItem(
         id: 'inbox',
-        title: 'Inbox',
-        subtitle: 'View your notifications',
+        title: l10n.commandInboxTitle,
+        subtitle: l10n.commandInboxSubtitle,
         icon: Icons.inbox_outlined,
-        category: 'Navigation',
+        category: l10n.commandCategoryNavigation,
         action: () {
           router.go('/inbox');
         },
       ),
       CommandItem(
         id: 'artifacts',
-        title: 'Artifacts',
-        subtitle: 'Browse your artifacts',
+        title: l10n.commandArtifactsTitle,
+        subtitle: l10n.commandArtifactsSubtitle,
         icon: Icons.folder_outlined,
-        category: 'Navigation',
+        category: l10n.commandCategoryNavigation,
         action: () {
           router.go('/artifacts');
         },
       ),
       CommandItem(
         id: 'zen',
-        title: 'Zen Mode',
-        subtitle: 'Focus mode with todos',
+        title: l10n.commandZenModeTitle,
+        subtitle: l10n.commandZenModeSubtitle,
         icon: Icons.emoji_nature_outlined,
-        category: 'Navigation',
+        category: l10n.commandCategoryNavigation,
         action: () {
           router.go('/zen');
         },
       ),
       CommandItem(
         id: 'terminal',
-        title: 'Terminal',
-        subtitle: 'Access terminal sessions',
+        title: l10n.commandTerminalTitle,
+        subtitle: l10n.commandTerminalSubtitle,
         icon: Icons.terminal,
-        category: 'Navigation',
+        category: l10n.commandCategoryNavigation,
         action: () {
           router.go('/terminal');
         },
       ),
       CommandItem(
         id: 'friends',
-        title: 'Friends',
-        subtitle: 'Manage your friends',
+        title: l10n.commandFriendsTitle,
+        subtitle: l10n.commandFriendsSubtitle,
         icon: Icons.people_outline,
-        category: 'Navigation',
+        category: l10n.commandCategoryNavigation,
         action: () {
           router.go('/friends');
         },

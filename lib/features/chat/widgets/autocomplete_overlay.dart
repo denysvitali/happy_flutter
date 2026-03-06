@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Represents a single autocomplete suggestion
@@ -208,17 +209,18 @@ class _SuggestionItem extends StatelessWidget {
 
   Widget _buildTypeBadge(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     String badgeText;
 
     switch (suggestion.type) {
       case SuggestionType.file:
-        badgeText = 'File';
+        badgeText = l10n.commonFile;
         break;
       case SuggestionType.folder:
-        badgeText = 'Folder';
+        badgeText = l10n.commonFolder;
         break;
       case SuggestionType.command:
-        badgeText = 'Cmd';
+        badgeText = l10n.commonCmd;
         break;
     }
 

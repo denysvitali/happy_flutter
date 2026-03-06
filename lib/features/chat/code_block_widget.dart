@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
 import 'syntax_highlighter.dart';
 
@@ -282,8 +283,9 @@ class _CopyButton extends StatelessWidget {
         ? (isDark ? _mocha.green : const Color(0xFF1A7F37))
         : (isDark ? _mocha.overlay0 : const Color(0xFF6E7781));
 
+    final l10n = AppLocalizations.of(context);
     return Tooltip(
-      message: copied ? 'Copied!' : 'Copy code',
+      message: copied ? l10n.commonCopied : l10n.commonCopyCode,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.xs),
@@ -307,7 +309,7 @@ class _CopyButton extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  copied ? 'Copied!' : 'Copy',
+                  copied ? l10n.commonCopied : l10n.commonCopy,
                   style: TextStyle(
                     fontSize: 11,
                     color: iconColor,

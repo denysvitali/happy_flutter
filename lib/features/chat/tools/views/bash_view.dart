@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../tool_section_view.dart';
 
@@ -40,7 +41,7 @@ class BashView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _SectionLabel(label: 'COMMAND'),
+          _SectionLabel(label: context.l10n.toolSectionCommand),
           const SizedBox(height: AppSpacing.xs),
           CommandView(
             command: command,

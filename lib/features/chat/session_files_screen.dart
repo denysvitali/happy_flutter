@@ -57,7 +57,7 @@ class _SessionNotFound extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Session not found',
+            context.l10n.sessionFilesNotFound,
             style: theme.textTheme.titleMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -88,14 +88,14 @@ class _EmptyFilesView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No files yet',
+              context.l10n.sessionFilesEmpty,
               style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Files modified during the session will appear here.',
+              context.l10n.sessionFilesEmptySubtitle,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

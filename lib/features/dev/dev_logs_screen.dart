@@ -44,7 +44,7 @@ class DevLogsScreen extends ConsumerWidget {
           // Add test log button
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'Add Test Log',
+            tooltip: l10n.devLogsAddTestLog,
             onPressed: () {
               final timestamp = DateTime.now().toIsoTimeString();
               ref.read(loggerNotifierProvider.notifier).debug(
@@ -54,7 +54,7 @@ class DevLogsScreen extends ConsumerWidget {
           // Copy all logs
           IconButton(
             icon: const Icon(Icons.copy),
-            tooltip: 'Copy All Logs',
+            tooltip: l10n.devLogsCopyAllLogs,
             onPressed: filteredLogs.isEmpty
                 ? null
                 : () => _copyAllLogs(context, ref),
@@ -62,7 +62,7 @@ class DevLogsScreen extends ConsumerWidget {
           // Clear logs
           IconButton(
             icon: const Icon(Icons.delete_sweep),
-            tooltip: 'Clear Logs',
+            tooltip: l10n.devLogsClearTitle,
             onPressed: filteredLogs.isEmpty
                 ? null
                 : () => _showClearConfirmDialog(context, ref),
@@ -70,7 +70,7 @@ class DevLogsScreen extends ConsumerWidget {
           // Filter dropdown
           PopupMenuButton<LogLevel?>(
             icon: const Icon(Icons.filter_list),
-            tooltip: 'Filter by Level',
+            tooltip: l10n.devLogsFilterByLevel,
             onSelected: (value) {
               ref.read(
                 loggerNotifierProvider.notifier,
@@ -102,7 +102,7 @@ class DevLogsScreen extends ConsumerWidget {
           // Search button
           IconButton(
             icon: const Icon(Icons.search),
-            tooltip: 'Search Logs',
+            tooltip: l10n.devLogsSearchLogs,
             onPressed: () => _showSearchDialog(context, ref),
           ),
         ],
