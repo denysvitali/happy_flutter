@@ -701,6 +701,9 @@ class AppLocalizations {
       'API key management is handled via the CLI. '
       'Run: happy connect claude';
 
+  // Session Files
+  String get sessionFilesTitle => 'Files';
+
   // Artifacts
   String get artifactsTitle => 'Artifacts';
   String get artifactsNew => 'New Artifact';

@@ -317,7 +317,7 @@ class ServiceTile extends StatelessWidget {
           children: [
             if (service.accountName != null)
               ListTile(
-                title: const Text('Name'),
+                title: Text(context.l10n.accountName),
                 subtitle: Text(service.accountName!),
               ),
             if (service.accountEmail != null)

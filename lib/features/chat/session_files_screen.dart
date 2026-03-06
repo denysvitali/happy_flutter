@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 
 /// Screen that shows files associated with a session.
@@ -20,7 +21,7 @@ class SessionFilesScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Files'),
+        title: Text(context.l10n.sessionFilesTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
