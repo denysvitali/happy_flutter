@@ -536,7 +536,9 @@ class _RequestRow extends StatelessWidget {
               width: double.infinity,
               child: FilledButton.icon(
                 icon: const Icon(Icons.copy),
-                label: const Text('Copy Entry'),
+                label: Text(
+                  AppLocalizations.of(context).devLogsCopyEntry,
+                ),
                 onPressed: () async {
                   await Clipboard.setData(
                     ClipboardData(
