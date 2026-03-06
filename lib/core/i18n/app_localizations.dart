@@ -843,6 +843,10 @@ class AppLocalizations {
   String get sessionInfoInactive => 'Inactive';
   String get commonYes => 'Yes';
   String get commonNo => 'No';
+  String get commonId => 'ID';
+  String get commonCreated => 'Created';
+  String get commonUpdated => 'Updated';
+  String get commonSequence => 'Sequence';
 
   // Artifacts
   String get artifactsTitle => 'Artifacts';
@@ -937,6 +941,17 @@ class AppLocalizations {
   // Network Inspector
   String networkInspectorTitle(int count) => 'Network Inspector ($count)';
   String get networkInspectorCopyAll => 'Copy all';
+  String get networkInspectorCopyInstruction =>
+      'Copy the log and send it to developers to investigate network usage.';
+  String get networkInspectorNoRequests => 'No requests yet';
+  String get networkInspectorNoRequestsSubtitle =>
+      'HTTP requests will appear here as they happen.';
+  String get networkInspectorLabelRequests => 'Requests';
+  String get networkInspectorLabelSent => '\u2191 Sent';
+  String get networkInspectorLabelReceived => '\u2193 Received';
+  String get networkInspectorLabelDuration => 'Duration';
+  String get networkInspectorLabelSentBody => 'Sent (body)';
+  String get networkInspectorLabelReceivedBody => 'Received (body)';
 
   // Developer
   String developerSentToSentry(String eventId) => 'Sent to Sentry: $eventId';

@@ -165,17 +165,17 @@ class _NetworkInspectorScreenState
               runSpacing: 4,
               children: [
                 _SummaryChip(
-                  label: 'Requests',
+                  label: l10n.networkInspectorLabelRequests,
                   value: _entries.length.toString(),
                   icon: Icons.swap_horiz,
                 ),
                 _SummaryChip(
-                  label: '↑ Sent',
+                  label: l10n.networkInspectorLabelSent,
                   value: HttpRequestEntry.formatBytes(totalReqB),
                   icon: Icons.upload,
                 ),
                 _SummaryChip(
-                  label: '↓ Received',
+                  label: l10n.networkInspectorLabelReceived,
                   value:
                       HttpRequestEntry.formatBytes(totalResB),
                   icon: Icons.download,
@@ -288,8 +288,7 @@ class _CopyBox extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Copy the log and send it to developers '
-              'to investigate network usage.',
+              AppLocalizations.of(context).networkInspectorCopyInstruction,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -330,14 +329,15 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'No requests yet',
+            AppLocalizations.of(context).networkInspectorNoRequests,
             style: theme.textTheme.bodyLarge?.copyWith(
               color: theme.colorScheme.outline,
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'HTTP requests will appear here as they happen.',
+            AppLocalizations.of(context)
+                .networkInspectorNoRequestsSubtitle,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.outline,
             ),
@@ -514,19 +514,21 @@ class _RequestRow extends StatelessWidget {
             const Divider(height: 24),
             // ── Metrics ─────────────────────────────────────────
             _DetailRow(
-              label: 'Duration',
+              label:
+                  AppLocalizations.of(ctx).networkInspectorLabelDuration,
               value: e.durationMs != null
                   ? '${e.durationMs} ms'
                   : '-',
             ),
             _DetailRow(
-              label: 'Sent (body)',
+              label: AppLocalizations.of(ctx).networkInspectorLabelSentBody,
               value: HttpRequestEntry.formatBytes(
                 e.requestBytes,
               ),
             ),
             _DetailRow(
-              label: 'Received (body)',
+              label: AppLocalizations.of(ctx)
+                  .networkInspectorLabelReceivedBody,
               value: HttpRequestEntry.formatBytes(
                 e.responseBytes,
               ),

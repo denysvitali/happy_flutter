@@ -184,17 +184,21 @@ class _ArtifactDetailBody extends StatelessWidget {
         // Metadata card.
         _MetadataCard(
           rows: [
-            _MetaRow(label: 'ID', value: artifact.id, monospace: true),
             _MetaRow(
-              label: 'Created',
+              label: context.l10n.commonId,
+              value: artifact.id,
+              monospace: true,
+            ),
+            _MetaRow(
+              label: context.l10n.commonCreated,
               value: _formatDateTime(createdAt),
             ),
             _MetaRow(
-              label: 'Updated',
+              label: context.l10n.commonUpdated,
               value: _formatDateTime(updatedAt),
             ),
             _MetaRow(
-              label: 'Sequence',
+              label: context.l10n.commonSequence,
               value: artifact.seq.toString(),
             ),
             if (artifact.draft ?? false)
