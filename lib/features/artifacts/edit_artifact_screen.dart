@@ -251,26 +251,27 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
     final cs = Theme.of(context).colorScheme;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Unsaved Changes'),
-        content: const Text(
-          'You have unsaved changes. Are you sure you want to leave?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Stay'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: cs.error),
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.of(this.context).pop();
-            },
-            child: const Text('Leave'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        final l10n = AppLocalizations.of(context);
+        return AlertDialog(
+          title: Text(l10n.commonUnsavedChangesTitle),
+          content: Text(l10n.commonUnsavedChangesContent),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10n.chatStay),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: cs.error),
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.of(this.context).pop();
+              },
+              child: Text(l10n.chatLeave),
+            ),
+          ],
+        );
+      },
     );
   }
 }

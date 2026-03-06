@@ -167,6 +167,9 @@ class AppLocalizations {
   String get accountEnterBackupKey => 'Please enter your backup key';
   String get accountInvalidKeyFormat =>
       'Invalid key format. Use XXXXX-XXXXX-XXXXX-XXXXX-XXXXX';
+  String get commonUnsavedChangesTitle => 'Unsaved Changes';
+  String get commonUnsavedChangesContent =>
+      'You have unsaved changes. Are you sure you want to leave?';
   String get chatUnsentMessageTitle => 'Unsent Message';
   String get chatUnsentMessageContent =>
       'You have an unsent message. Are you sure you want to leave?';
@@ -237,6 +240,10 @@ class AppLocalizations {
   String get settingsVersion => 'Version';
   String get settingsProfiles => 'AI Profiles';
   String get settingsProfilesSubtitle => 'Manage AI profiles';
+  String get profilesDeleteTitle => 'Delete Profile';
+  String profilesDeleteConfirm(String name) =>
+      'Are you sure you want to delete "$name"?';
+  String get profilesFailedToSave => 'Failed to save profile';
   String get settingsUsage => 'Usage';
   String get settingsUsageSubtitle => 'View usage statistics';
 

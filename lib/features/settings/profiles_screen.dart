@@ -207,36 +207,35 @@ class ProfilesScreen extends ConsumerWidget {
   ) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Profile'),
-        content: Text(
-          'Are you sure you want to delete "${profile.name}"?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  Theme.of(context).colorScheme.error,
+      builder: (context) {
+        final l10n = AppLocalizations.of(context);
+        return AlertDialog(
+          title: Text(l10n.profilesDeleteTitle),
+          content: Text(l10n.profilesDeleteConfirm(profile.name)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10n.commonCancel),
             ),
-            onPressed: () {
-              final settings =
-                  ref.read(settingsNotifierProvider);
-              final updatedProfiles = settings.profiles
-                  .where((p) => p.id != profile.id)
-                  .toList();
-              ref
-                  .read(settingsNotifierProvider.notifier)
-                  .updateSetting('profiles', updatedProfiles);
-              Navigator.pop(context);
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+              onPressed: () {
+                final settings = ref.read(settingsNotifierProvider);
+                final updatedProfiles = settings.profiles
+                    .where((p) => p.id != profile.id)
+                    .toList();
+                ref
+                    .read(settingsNotifierProvider.notifier)
+                    .updateSetting('profiles', updatedProfiles);
+                Navigator.pop(context);
+              },
+              child: Text(l10n.commonDelete),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
@@ -101,6 +102,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       profiles = [...settings.profiles, updated];
     }
 
+    final failedMsg = context.l10n.profilesFailedToSave;
     try {
       await ref
           .read(settingsNotifierProvider.notifier)
@@ -109,7 +111,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save profile: $e')),
+          SnackBar(content: Text(failedMsg)),
         );
       }
     }
