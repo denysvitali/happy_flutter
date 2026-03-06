@@ -74,6 +74,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.initState();
     _scrollController.addListener(_onScroll);
     _loadSavedPermissionMode();
+    _loadSavedModelMode();
     _loadSavedProfile();
     _initializeSyncBackedChat();
     final settings = ref.read(settingsNotifierProvider);
@@ -93,6 +94,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       setState(() {
         _permissionMode = parsedMode ?? PermissionMode.defaultMode;
       });
+    }
+  }
+
+  Future<void> _loadSavedModelMode() async {
+    // Prefer locally-saved draft; fall back to session's server-stored mode.
+    final savedMode = await DraftStorage().getModelMode(widget.sessionId);
+    if (!mounted) return;
+    if (savedMode != null) {
+      setState(() => _modelMode = ClaudeModel.fromString(savedMode));
+    } else {
+      final session = sync.sessions[widget.sessionId];
+      if (session?.modelMode != null) {
+        setState(() => _modelMode = ClaudeModel.fromString(session!.modelMode));
+      }
     }
   }
 
@@ -550,6 +565,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _onModelModeChanged(ClaudeModel model) {
     setState(() => _modelMode = model);
+    unawaited(
+      DraftStorage().saveModelMode(widget.sessionId, model.modeString),
+    );
   }
 
   void _onProfileChanged(AIBackendProfile? profile) {

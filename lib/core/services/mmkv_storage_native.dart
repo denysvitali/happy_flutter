@@ -13,6 +13,7 @@ class _StorageKeys {
   static const String settings = 'settings';
   static const String sessionDrafts = 'session-drafts';
   static const String sessionPermissionModes = 'session-permission-modes';
+  static const String sessionModelModes = 'session-model-modes';
   static const String sessionProfiles = 'session-profiles';
   static const String profile = 'profile';
   static const String migrationComplete = 'mmkv-migration-complete';
@@ -335,6 +336,44 @@ class MMKVStorage {
       _mmkv?.removeValue(_StorageKeys.sessionPermissionModes);
     } catch (e) {
       logger.warning('MMKV: Failed to clear session permission modes: $e');
+    }
+  }
+
+  /// Get model mode for a specific session
+  Future<String?> getSessionModelMode(String sessionId) async {
+    if (!_initialized) {
+      await initialize();
+    }
+    try {
+      final json = _mmkv?.decodeString(_StorageKeys.sessionModelModes);
+      if (json != null) {
+        final map = jsonDecode(json) as Map<String, dynamic>;
+        return map[sessionId] as String?;
+      }
+    } catch (e) {
+      logger.warning('MMKV: Failed to get session model mode: $e');
+    }
+    return null;
+  }
+
+  /// Save model mode for a specific session
+  Future<void> saveSessionModelMode(
+    String sessionId,
+    String mode,
+  ) async {
+    if (!_initialized) {
+      await initialize();
+    }
+    try {
+      final json = _mmkv?.decodeString(_StorageKeys.sessionModelModes);
+      final map = json != null
+          ? jsonDecode(json) as Map<String, dynamic>
+          : <String, dynamic>{};
+      map[sessionId] = mode;
+      _mmkv?.encodeString(_StorageKeys.sessionModelModes, jsonEncode(map));
+    } catch (e) {
+      logger.warning('MMKV: Failed to save session model mode: $e');
+      rethrow;
     }
   }
 

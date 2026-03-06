@@ -3180,11 +3180,10 @@ what you have, you must use the options mode.
     final flavor = session.metadata?.flavor;
     final isGemini = flavor == 'gemini';
     final requestedModelMode = modelMode;
-    final storedModelMode = session.modelMode;
     final effectiveModelMode =
         requestedModelMode != null && requestedModelMode != 'default'
         ? requestedModelMode
-        : storedModelMode ?? (isGemini ? 'gemini-2.5-pro' : 'default');
+        : isGemini ? 'gemini-2.5-pro' : 'default';
     final localId = encryption.generateId();
     final sentFrom = switch (defaultTargetPlatform) {
       TargetPlatform.android => 'android',

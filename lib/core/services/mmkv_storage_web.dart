@@ -13,6 +13,7 @@ class _Keys {
   static const String settings = 'settings';
   static const String sessionDrafts = 'session-drafts';
   static const String sessionPermissionModes = 'session-permission-modes';
+  static const String sessionModelModes = 'session-model-modes';
   static const String sessionProfiles = 'session-profiles';
   static const String profile = 'profile';
   static const String sessionLastSeq = 'session-last-seq';
@@ -271,6 +272,38 @@ class MMKVStorage {
       logger.warning('WebStorage: failed to get session profile: $e');
     }
     return null;
+  }
+
+  Future<String?> getSessionModelMode(String sessionId) async {
+    try {
+      final prefs = await _getPrefs();
+      final json = prefs.getString(_Keys.sessionModelModes);
+      if (json != null) {
+        final map = jsonDecode(json) as Map<String, dynamic>;
+        return map[sessionId] as String?;
+      }
+    } catch (e) {
+      logger.warning('WebStorage: failed to get session model mode: $e');
+    }
+    return null;
+  }
+
+  Future<void> saveSessionModelMode(
+    String sessionId,
+    String mode,
+  ) async {
+    try {
+      final prefs = await _getPrefs();
+      final json = prefs.getString(_Keys.sessionModelModes);
+      final map = json != null
+          ? jsonDecode(json) as Map<String, dynamic>
+          : <String, dynamic>{};
+      map[sessionId] = mode;
+      await prefs.setString(_Keys.sessionModelModes, jsonEncode(map));
+    } catch (e) {
+      logger.warning('WebStorage: failed to save session model mode: $e');
+      rethrow;
+    }
   }
 
   Future<void> saveSessionProfile(

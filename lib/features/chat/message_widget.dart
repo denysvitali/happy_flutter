@@ -602,7 +602,8 @@ void _showMessageDetailSheet(
       ?? (raw?['meta'] is Map<String, dynamic>
           ? raw!['meta'] as Map<String, dynamic>
           : null);
-  final model = meta?['model'] as String?;
+  final model = meta?['model'] as String?
+      ?? messageData['model'] as String?;
   final permissionMode = meta?['permissionMode'] as String?;
   final createdAt = messageData['createdAt'] as int?;
 

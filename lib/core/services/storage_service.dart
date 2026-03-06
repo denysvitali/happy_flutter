@@ -483,6 +483,16 @@ class SessionPermissionModesStorage {
     await _storage.saveSessionPermissionMode(sessionId, mode);
   }
 
+  /// Get model mode for a specific session
+  Future<String?> getModelMode(String sessionId) async {
+    return _storage.getSessionModelMode(sessionId);
+  }
+
+  /// Save model mode for a specific session
+  Future<void> saveModelMode(String sessionId, String mode) async {
+    await _storage.saveSessionModelMode(sessionId, mode);
+  }
+
   /// Remove permission mode for a specific session
   Future<void> removePermissionMode(String sessionId) async {
     await _storage.removeSessionPermissionMode(sessionId);

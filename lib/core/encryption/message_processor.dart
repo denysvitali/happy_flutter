@@ -399,6 +399,8 @@ void _processOutputContent({
       });
     }
 
+    final agentModel = agentMsg['model'] as String?;
+
     final agentContentList = agentMsg['content'];
     if (agentContentList is! List) return;
 
@@ -420,6 +422,7 @@ void _processOutputContent({
           'kind': 'text',
           'content': c['text']?.toString() ?? '',
           'raw': outerContent,
+          if (agentModel != null) 'model': agentModel,
           if (isSidechain) 'isSidechain': true,
           'uuid': dataUuid,
           if (dataParentUuid != null) 'parentUuid': dataParentUuid,
@@ -435,6 +438,7 @@ void _processOutputContent({
           'isThinking': true,
           'content': '*Thinking...*\n\n*${c['thinking']}*',
           'raw': outerContent,
+          if (agentModel != null) 'model': agentModel,
           if (isSidechain) 'isSidechain': true,
           'uuid': dataUuid,
           if (dataParentUuid != null) 'parentUuid': dataParentUuid,
@@ -453,6 +457,7 @@ void _processOutputContent({
           'state': 'running',
           'content': c,
           'raw': outerContent,
+          if (agentModel != null) 'model': agentModel,
           if (isSidechain) 'isSidechain': true,
           'uuid': dataUuid,
           if (dataParentUuid != null) 'parentUuid': dataParentUuid,

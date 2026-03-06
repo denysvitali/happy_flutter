@@ -32,6 +32,16 @@ class DraftStorage {
     await _storage.saveSessionPermissionMode(sessionId, mode);
   }
 
+  /// Get saved model mode for a session
+  Future<String?> getModelMode(String sessionId) async {
+    return _storage.getSessionModelMode(sessionId);
+  }
+
+  /// Save model mode for a session
+  Future<void> saveModelMode(String sessionId, String mode) async {
+    await _storage.saveSessionModelMode(sessionId, mode);
+  }
+
   /// Get saved profile ID for a session
   Future<String?> getProfileId(String sessionId) async {
     return _storage.getSessionProfile(sessionId);
