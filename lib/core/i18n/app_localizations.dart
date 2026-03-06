@@ -421,6 +421,21 @@ class AppLocalizations {
   String get zenSectionActive => 'Active';
   String get zenSectionCompleted => 'Completed';
 
+  // User Profile
+  String get userProfileTitle => 'User Profile';
+  String get userNotFound => 'User not found';
+  String get friendsStatusFriends => 'Friends';
+  String get friendsStatusRequestSent => 'Request Sent';
+  String get friendsStatusWantsToConnect => 'Wants to Connect';
+  String get friendsCancelRequest => 'Cancel Request';
+  String get friendsAcceptRequest => 'Accept Request';
+  String get friendsDenyRequest => 'Deny Request';
+  String get friendsAddFriendAction => 'Add Friend';
+  String friendsCancelRequestConfirm(String name) =>
+      'Cancel friend request to $name?';
+  String get friendsFailedToAdd => 'Failed to add friend';
+  String get friendsFailedToUpdate => 'Failed to update friendship';
+
   // Friends
   String get friendsTitle => 'Friends';
   String get friendsTabFriends => 'Friends';

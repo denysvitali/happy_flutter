@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/components/avatar.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/social_service.dart';
@@ -46,7 +47,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to add friend: $e'),
+            content: Text(context.l10n.friendsFailedToAdd),
           ),
         );
       }
@@ -56,15 +57,14 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   }
 
   Future<void> _removeFriend(UserProfile user) async {
+    final l10n = context.l10n;
+    final name = user.name ?? 'this user';
+    final isFriend = user.status == RelationshipStatus.friend;
     final confirmed = await _showConfirmDialog(
-      title: user.status == RelationshipStatus.friend
-          ? 'Remove Friend'
-          : 'Cancel Request',
-      message: user.status == RelationshipStatus.friend
-          ? 'Are you sure you want to remove '
-              '${user.name ?? 'this user'} as a friend?'
-          : 'Cancel friend request to '
-              '${user.name ?? 'this user'}?',
+      title: isFriend ? l10n.friendsRemoveTitle : l10n.friendsCancelRequest,
+      message: isFriend
+          ? l10n.friendsRemoveConfirm(name)
+          : l10n.friendsCancelRequestConfirm(name),
     );
     if (!confirmed) return;
 
@@ -78,7 +78,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update friendship: $e'),
+            content: Text(context.l10n.friendsFailedToUpdate),
           ),
         );
       }
@@ -93,20 +93,23 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   }) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
+      builder: (ctx) {
+        final l10n = AppLocalizations.of(ctx);
+        return AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.commonCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.commonConfirm),
+            ),
+          ],
+        );
+      },
     );
     return result ?? false;
   }
@@ -120,14 +123,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(user?.name ?? 'User Profile'),
+        title: Text(user?.name ?? context.l10n.userProfileTitle),
       ),
       body: user == null
           ? Center(
               child: Text(
-                'User not found',
-                style: TextStyle(
-                  fontSize: 16,
+                context.l10n.userNotFound,
+                style: theme.textTheme.bodyLarge?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
@@ -213,23 +215,24 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   }
 
   Widget _buildStatusBadge(UserProfile user, ThemeData theme) {
+    final l10n = context.l10n;
     switch (user.status) {
       case RelationshipStatus.friend:
         return _StatusBadge(
           icon: Icons.check_circle,
-          label: 'Friends',
+          label: l10n.friendsStatusFriends,
           color: Colors.green,
         );
       case RelationshipStatus.requested:
         return _StatusBadge(
           icon: Icons.hourglass_empty,
-          label: 'Request Sent',
+          label: l10n.friendsStatusRequestSent,
           color: Colors.orange,
         );
       case RelationshipStatus.pending:
         return _StatusBadge(
           icon: Icons.person_add_outlined,
-          label: 'Wants to Connect',
+          label: l10n.friendsStatusWantsToConnect,
           color: Colors.blue,
         );
       case RelationshipStatus.rejected:
@@ -239,6 +242,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   }
 
   Widget _buildActionButtons(UserProfile user, ThemeData theme) {
+    final l10n = context.l10n;
     if (_isActionInProgress) {
       return const Center(
         child: CircularProgressIndicator(),
@@ -253,9 +257,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             Icons.person_remove_outlined,
             color: Colors.red,
           ),
-          label: const Text(
-            'Remove Friend',
-            style: TextStyle(color: Colors.red),
+          label: Text(
+            l10n.friendsRemoveAction,
+            style: const TextStyle(color: Colors.red),
           ),
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: Colors.red),
@@ -267,7 +271,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         return OutlinedButton.icon(
           onPressed: () => _removeFriend(user),
           icon: const Icon(Icons.close),
-          label: const Text('Cancel Request'),
+          label: Text(l10n.friendsCancelRequest),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(48),
           ),
@@ -279,7 +283,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             FilledButton.icon(
               onPressed: () => _addFriend(user),
               icon: const Icon(Icons.check),
-              label: const Text('Accept Request'),
+              label: Text(l10n.friendsAcceptRequest),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
               ),
@@ -291,9 +295,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 Icons.close,
                 color: Colors.red,
               ),
-              label: const Text(
-                'Deny Request',
-                style: TextStyle(color: Colors.red),
+              label: Text(
+                l10n.friendsDenyRequest,
+                style: const TextStyle(color: Colors.red),
               ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.red),
@@ -308,7 +312,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         return FilledButton.icon(
           onPressed: () => _addFriend(user),
           icon: const Icon(Icons.person_add_outlined),
-          label: const Text('Add Friend'),
+          label: Text(l10n.friendsAddFriendAction),
           style: FilledButton.styleFrom(
             minimumSize: const Size.fromHeight(48),
           ),

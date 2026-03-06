@@ -135,6 +135,7 @@ class AccountScreen extends ConsumerWidget {
 
   void _showBackupKeyDialog(BuildContext context) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final errorPrefix = context.l10n.commonError;
     try {
       final key = await AuthService().generateBackupKey();
       if (!context.mounted) return;
@@ -193,13 +194,16 @@ class AccountScreen extends ConsumerWidget {
         ),
       );
     } catch (e) {
-      scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('$errorPrefix: $e')),
+      );
     }
   }
 
   void _copyBackupKey(BuildContext context) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final copiedMsg = context.l10n.accountBackupKeyCopiedToClipboard;
+    final errorPrefix = context.l10n.commonError;
     try {
       final key = await AuthService().generateBackupKey();
       await Clipboard.setData(ClipboardData(text: key));
@@ -207,7 +211,9 @@ class AccountScreen extends ConsumerWidget {
         SnackBar(content: Text(copiedMsg)),
       );
     } catch (e) {
-      scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('$errorPrefix: $e')),
+      );
     }
   }
 }
