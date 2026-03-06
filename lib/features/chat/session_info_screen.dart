@@ -90,20 +90,21 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
         '${date.minute.toString().padLeft(2, '0')}';
   }
 
-  String _formatFlavor(String? flavor) {
-    if (flavor == null) return 'Unknown';
+  String _formatFlavor(String? flavor, AppLocalizations l10n) {
+    if (flavor == null) return l10n.commonUnknown;
     if (flavor == 'claude') return 'Claude';
     if (flavor == 'gpt' || flavor == 'openai') return 'Codex';
     if (flavor == 'gemini') return 'Gemini';
     return flavor;
   }
 
-  void _copyToClipboard(String text, {String message = 'Copied to clipboard'}) {
+  void _copyToClipboard(String text, {String? message}) {
     Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(message ?? l10n.sessionInfoCopied),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -209,6 +210,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final session = widget.session;
     final sessionName = getSessionName(session);
     final sessionSubtitle = getSessionSubtitle(session);
@@ -277,7 +279,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               borderRadius: BorderRadius.circular(12),
               onTap: () => _copyToClipboard(
                 'npm install -g happy-coder@latest',
-                message: 'Update command copied',
+                message: l10n.sessionInfoUpdateCommandCopied,
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -294,7 +296,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'CLI Version Outdated',
+                            l10n.sessionInfoCliOutdated,
                             style: theme.textTheme.titleSmall?.copyWith(
                               color: theme.colorScheme
                                   .onTertiaryContainer,
@@ -326,7 +328,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
         ],
 
         // Session details section
-        const _SectionTitle(title: 'Session Details'),
+        _SectionTitle(title: l10n.sessionInfoSectionDetails),
         const SizedBox(height: 8),
         Card(
           elevation: 0,
@@ -338,7 +340,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             children: [
               _InfoRow(
                 icon: Icons.fingerprint,
-                label: 'Session ID',
+                label: l10n.sessionInfoLabelSessionId,
                 value: session.id.length > 16
                     ? '${session.id.substring(0, 8)}...'
                         '${session.id.substring(session.id.length - 8)}'
@@ -348,19 +350,19 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               const Divider(height: 1, indent: 52),
               _InfoRow(
                 icon: Icons.access_time,
-                label: 'Created',
+                label: l10n.sessionInfoLabelCreated,
                 value: _formatDate(session.createdAt),
               ),
               const Divider(height: 1, indent: 52),
               _InfoRow(
                 icon: Icons.update,
-                label: 'Last Updated',
+                label: l10n.sessionInfoLabelLastUpdated,
                 value: _formatDate(session.updatedAt),
               ),
               const Divider(height: 1, indent: 52),
               _InfoRow(
                 icon: Icons.tag,
-                label: 'Sequence',
+                label: l10n.sessionInfoLabelSequence,
                 value: session.seq.toString(),
               ),
             ],
@@ -369,7 +371,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
         // Quick Actions section
         const SizedBox(height: 16),
-        const _SectionTitle(title: 'Quick Actions'),
+        _SectionTitle(title: l10n.sessionInfoSectionQuickActions),
         const SizedBox(height: 8),
         Card(
           elevation: 0,
@@ -382,7 +384,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               if (meta?.machineId != null) ...[
                 _ActionRow(
                   icon: Icons.dns_outlined,
-                  label: 'View Machine',
+                  label: l10n.sessionInfoActionViewMachine,
                   color: theme.colorScheme.primary,
                   onTap: () =>
                       context.push('/machine/${meta!.machineId}'),
@@ -393,7 +395,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               if (isOnline)
                 _ActionRow(
                   icon: Icons.archive_outlined,
-                  label: 'Archive Session',
+                  label: l10n.sessionInfoActionArchive,
                   color: theme.colorScheme.error,
                   isLoading: _isArchiving,
                   onTap: _isArchiving ? null : _handleArchiveSession,
@@ -403,7 +405,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               if (!session.active)
                 _ActionRow(
                   icon: Icons.delete_outline,
-                  label: 'Delete Session',
+                  label: l10n.sessionInfoActionDelete,
                   color: theme.colorScheme.error,
                   isLoading: _isDeleting,
                   onTap: _isDeleting ? null : _handleDeleteSession,
@@ -415,7 +417,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
         // Metadata section
         if (meta != null) ...[
           const SizedBox(height: 16),
-          const _SectionTitle(title: 'Metadata'),
+          _SectionTitle(title: l10n.sessionInfoSectionMetadata),
           const SizedBox(height: 8),
           Card(
             elevation: 0,
@@ -427,14 +429,14 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               children: [
                 _InfoRow(
                   icon: Icons.computer,
-                  label: 'Host',
+                  label: l10n.sessionInfoLabelHost,
                   value: meta.host,
                 ),
                 if (meta.path != null) ...[
                   const Divider(height: 1, indent: 52),
                   _InfoRow(
                     icon: Icons.folder_outlined,
-                    label: 'Path',
+                    label: l10n.sessionInfoLabelPath,
                     value: formatPathRelativeToHome(
                       meta.path!,
                       homeDir: meta.homeDir,
@@ -445,7 +447,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   const Divider(height: 1, indent: 52),
                   _InfoRow(
                     icon: Icons.dns_outlined,
-                    label: 'Machine ID',
+                    label: l10n.sessionInfoLabelMachineId,
                     value: meta.machineId!,
                     onTap: () =>
                         _copyToClipboard(meta.machineId!),
@@ -465,7 +467,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     icon: isCliOutdated
                         ? Icons.warning_amber_outlined
                         : Icons.verified_outlined,
-                    label: 'CLI Version',
+                    label: l10n.sessionInfoLabelCliVersion,
                     value: meta.version!,
                     iconColor: isCliOutdated
                         ? theme.colorScheme.tertiary
@@ -476,15 +478,15 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   const Divider(height: 1, indent: 52),
                   _InfoRow(
                     icon: Icons.auto_awesome,
-                    label: 'AI Provider',
-                    value: _formatFlavor(meta.flavor),
+                    label: l10n.sessionInfoLabelAiProvider,
+                    value: _formatFlavor(meta.flavor, l10n),
                   ),
                 ],
                 if (meta.claudeSessionId != null) ...[
                   const Divider(height: 1, indent: 52),
                   _InfoRow(
                     icon: Icons.code_outlined,
-                    label: 'Claude Code Session ID',
+                    label: l10n.sessionInfoLabelClaudeSessionId,
                     value: () {
                       final id = meta.claudeSessionId!;
                       return '${id.substring(0, 8)}...'
@@ -498,7 +500,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   const Divider(height: 1, indent: 52),
                   _InfoRow(
                     icon: Icons.terminal,
-                    label: 'Process ID',
+                    label: l10n.sessionInfoLabelProcessId,
                     value: meta.hostPid!.toString(),
                   ),
                 ],
@@ -506,7 +508,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   const Divider(height: 1, indent: 52),
                   _InfoRow(
                     icon: Icons.home_outlined,
-                    label: 'Happy Home',
+                    label: l10n.sessionInfoLabelHappyHome,
                     value: formatPathRelativeToHome(
                       meta.happyHomeDir!,
                       homeDir: meta.homeDir,
@@ -516,12 +518,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 const Divider(height: 1, indent: 52),
                 _ActionRow(
                   icon: Icons.copy_outlined,
-                  label: 'Copy Metadata',
+                  label: l10n.sessionInfoActionCopyMetadata,
                   color: theme.colorScheme.primary,
                   onTap: () {
                     _copyToClipboard(
                       jsonEncode(meta.toJson()),
-                      message: 'Metadata copied',
+                      message: l10n.sessionInfoMetadataCopied,
                     );
                   },
                 ),
@@ -533,7 +535,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
         // Agent State section
         if (session.agentState != null) ...[
           const SizedBox(height: 16),
-          const _SectionTitle(title: 'Agent State'),
+          _SectionTitle(title: l10n.sessionInfoSectionAgentState),
           const SizedBox(height: 8),
           Card(
             elevation: 0,
@@ -545,17 +547,17 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               children: [
                 _InfoRow(
                   icon: Icons.person_outline,
-                  label: 'Controlled by user',
+                  label: l10n.sessionInfoLabelControlledByUser,
                   value: (session.agentState!.controlledByUser ?? false)
-                      ? 'Yes'
-                      : 'No',
+                      ? l10n.commonYes
+                      : l10n.commonNo,
                 ),
                 if (session.agentState!.requests != null &&
                     session.agentState!.requests!.isNotEmpty) ...[
                   const Divider(height: 1, indent: 52),
                   _InfoRow(
                     icon: Icons.hourglass_empty_outlined,
-                    label: 'Pending requests',
+                    label: l10n.sessionInfoLabelPendingRequests,
                     value:
                         session.agentState!.requests!.length.toString(),
                   ),
@@ -567,7 +569,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
         // Activity section
         const SizedBox(height: 16),
-        const _SectionTitle(title: 'Activity'),
+        _SectionTitle(title: l10n.sessionInfoSectionActivity),
         const SizedBox(height: 8),
         Card(
           elevation: 0,
@@ -579,8 +581,8 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             children: [
               _InfoRow(
                 icon: Icons.lightbulb_outline,
-                label: 'Thinking',
-                value: session.thinking ? 'Yes' : 'No',
+                label: l10n.sessionInfoLabelThinking,
+                value: session.thinking ? l10n.commonYes : l10n.commonNo,
                 iconColor: session.thinking
                     ? theme.colorScheme.tertiary
                     : theme.colorScheme.onSurfaceVariant,
@@ -590,7 +592,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 const Divider(height: 1, indent: 52),
                 _InfoRow(
                   icon: Icons.timer_outlined,
-                  label: 'Thinking since',
+                  label: l10n.sessionInfoLabelThinkingSince,
                   value: _formatDate(session.thinkingAt!),
                   iconColor: theme.colorScheme.tertiary,
                 ),
@@ -602,7 +604,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
         // Tools section
         if (meta?.tools != null && meta!.tools!.isNotEmpty) ...[
           const SizedBox(height: 16),
-          const _SectionTitle(title: 'Tools'),
+          _SectionTitle(title: l10n.sessionInfoSectionTools),
           const SizedBox(height: 8),
           Card(
             elevation: 0,
@@ -669,7 +671,9 @@ class _StatusChip extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text(
-            isActive ? 'Active' : 'Inactive',
+            isActive
+                ? AppLocalizations.of(context).sessionInfoActive
+                : AppLocalizations.of(context).sessionInfoInactive,
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,

@@ -348,8 +348,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           const SizedBox(height: AppSpacing.xl),
 
           // Profile selector
-          // TODO(l10n): Add 'Profile' to localizations
-          _FieldLabel('Profile'),
+          _FieldLabel(l10n.accountProfile),
           const SizedBox(height: AppSpacing.sm),
           AppCard(
             padding: EdgeInsets.zero,

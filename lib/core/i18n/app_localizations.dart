@@ -808,6 +808,42 @@ class AppLocalizations {
   // Session Files
   String get sessionFilesTitle => 'Files';
 
+  // Session Info screen
+  String get sessionInfoCopied => 'Copied to clipboard';
+  String get sessionInfoUpdateCommandCopied => 'Update command copied';
+  String get sessionInfoCliOutdated => 'CLI Version Outdated';
+  String get sessionInfoSectionDetails => 'Session Details';
+  String get sessionInfoLabelSessionId => 'Session ID';
+  String get sessionInfoLabelCreated => 'Created';
+  String get sessionInfoLabelLastUpdated => 'Last Updated';
+  String get sessionInfoLabelSequence => 'Sequence';
+  String get sessionInfoSectionQuickActions => 'Quick Actions';
+  String get sessionInfoActionViewMachine => 'View Machine';
+  String get sessionInfoActionArchive => 'Archive Session';
+  String get sessionInfoActionDelete => 'Delete Session';
+  String get sessionInfoSectionMetadata => 'Metadata';
+  String get sessionInfoLabelHost => 'Host';
+  String get sessionInfoLabelPath => 'Path';
+  String get sessionInfoLabelMachineId => 'Machine ID';
+  String get sessionInfoLabelCliVersion => 'CLI Version';
+  String get sessionInfoLabelAiProvider => 'AI Provider';
+  String get sessionInfoLabelClaudeSessionId => 'Claude Code Session ID';
+  String get sessionInfoLabelProcessId => 'Process ID';
+  String get sessionInfoLabelHappyHome => 'Happy Home';
+  String get sessionInfoActionCopyMetadata => 'Copy Metadata';
+  String get sessionInfoMetadataCopied => 'Metadata copied';
+  String get sessionInfoSectionAgentState => 'Agent State';
+  String get sessionInfoLabelControlledByUser => 'Controlled by user';
+  String get sessionInfoLabelPendingRequests => 'Pending requests';
+  String get sessionInfoSectionActivity => 'Activity';
+  String get sessionInfoLabelThinking => 'Thinking';
+  String get sessionInfoLabelThinkingSince => 'Thinking since';
+  String get sessionInfoSectionTools => 'Tools';
+  String get sessionInfoActive => 'Active';
+  String get sessionInfoInactive => 'Inactive';
+  String get commonYes => 'Yes';
+  String get commonNo => 'No';
+
   // Artifacts
   String get artifactsTitle => 'Artifacts';
   String get artifactsNew => 'New Artifact';
