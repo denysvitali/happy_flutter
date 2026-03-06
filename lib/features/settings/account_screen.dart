@@ -777,18 +777,17 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
 
   Widget _buildModeContent(ColorScheme cs, AppLocalizations l10n) {
     return switch (_mode) {
-      _LinkMode.scan => _buildScanContent(cs),
+      _LinkMode.scan => _buildScanContent(cs, l10n),
       _LinkMode.showQR => _buildShowQRContent(cs, l10n),
       _LinkMode.enterURL => _buildEnterURLContent(cs, l10n),
     };
   }
 
-  Widget _buildScanContent(ColorScheme cs) {
+  Widget _buildScanContent(ColorScheme cs, AppLocalizations l10n) {
     return Column(
       children: [
         Text(
-          'Point your camera at the QR code displayed'
-          ' on the new device',
+          l10n.accountScanInstruction,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
         ),
@@ -816,7 +815,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
         const SizedBox(height: AppSpacing.lg),
         if (!_isLoading)
           Text(
-            'New device: tap "Link or Restore Account"',
+            l10n.accountScanHint,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
           ),
@@ -830,9 +829,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
       child: Column(
         children: [
           Text(
-            '1. Open Happy on the new device\n'
-            '2. Tap "Link or Restore Account"\n'
-            '3. Scan this QR code',
+            l10n.accountShowQRInstructions,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
           ),
@@ -1071,6 +1068,7 @@ class DeviceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       child: ListTile(
@@ -1089,14 +1087,17 @@ class DeviceTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppRadius.xs),
                 ),
                 child: Text(
-                  'This Device',
+                  l10n.accountThisDevice,
                   style: TextStyle(fontSize: 11, color: cs.onPrimaryContainer),
                 ),
               ),
           ],
         ),
         subtitle: Text(
-          '${device.platform} • Last active ${_formatLastActive()}',
+          l10n.accountLastActive(
+            device.platform,
+            _formatLastActive(),
+          ),
         ),
         trailing: device.isCurrentDevice
             ? null

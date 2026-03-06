@@ -148,7 +148,10 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       items
         ..add(const SizedBox(height: AppSpacing.md))
         ..add(
-          _SectionHeader(key: const ValueKey('feed_header'), title: 'Updates'),
+          _SectionHeader(
+            key: const ValueKey('feed_header'),
+            title: context.l10n.inboxUpdates,
+          ),
         )
         ..addAll(
           feedItems.map(
@@ -175,7 +178,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         ..add(
           _SectionHeader(
             key: const ValueKey('incoming_header'),
-            title: 'Pending Requests',
+            title: context.l10n.inboxPendingRequests,
           ),
         )
         ..addAll(
@@ -204,7 +207,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         ..add(
           _SectionHeader(
             key: const ValueKey('requested_header'),
-            title: 'Sent Requests',
+            title: context.l10n.inboxSentRequests,
           ),
         )
         ..addAll(
@@ -212,7 +215,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             (friend) => _UserRow(
               key: ValueKey('requested_${friend.id}'),
               title: friend.name ?? friend.id,
-              subtitle: 'Request pending',
+              subtitle: context.l10n.inboxRequestPending,
               userId: friend.id,
               avatarUrl: friend.avatarUrl,
               trailing: TextButton(
@@ -220,7 +223,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                     ? null
                     : () => _runFriendAction(
                         () => _socialService.removeFriend(friend.id),
-                        'Request canceled',
+                        context.l10n.inboxRequestCanceled,
                       ),
                 child: Text(context.l10n.commonCancel),
               ),
@@ -236,7 +239,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         ..add(
           _SectionHeader(
             key: const ValueKey('friends_header'),
-            title: 'My Friends',
+            title: context.l10n.inboxMyFriends,
           ),
         )
         ..addAll(
@@ -244,7 +247,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             (friend) => _UserRow(
               key: ValueKey('friend_${friend.id}'),
               title: friend.name ?? friend.id,
-              subtitle: 'Friend',
+              subtitle: context.l10n.inboxFriendSubtitle,
               userId: friend.id,
               avatarUrl: friend.avatarUrl,
               trailing: TextButton(
@@ -351,7 +354,7 @@ class _InboxEmptyView extends StatelessWidget {
           const SizedBox(height: AppSpacing.xxl),
           AppEmptyState(
             icon: Icons.inbox_outlined,
-            title: 'No notifications yet',
+            title: context.l10n.inboxNoNotificationsTitle,
             subtitle: 'Connect with friends to start sharing sessions.',
             action: FilledButton.icon(
               onPressed: onFindFriends,
@@ -503,34 +506,34 @@ class _FeedCard extends StatelessWidget {
   String _bodyTitle(FeedBody body) {
     switch (body.kind) {
       case 'friend_request':
-        return 'Friend request';
+        return l10n.inboxFeedFriendRequest;
       case 'friend_accepted':
-        return 'Friend accepted';
+        return l10n.inboxFeedFriendAccepted;
       case 'text':
-        return body.text ?? 'Update';
+        return body.text ?? l10n.inboxFeedUpdate;
       default:
-        return 'Update';
+        return l10n.inboxFeedUpdate;
     }
   }
 
-  static String _timeAgo(int createdAtMs) {
+  String _timeAgo(int createdAtMs) {
     final created = DateTime.fromMillisecondsSinceEpoch(createdAtMs);
     final now = DateTime.now();
     final diff = now.difference(created);
     if (diff.inMinutes < 1) {
-      return 'now';
+      return l10n.inboxTimeNow;
     }
     if (diff.inMinutes < 60) {
-      return '${diff.inMinutes}m ago';
+      return l10n.inboxTimeMinutesAgo(diff.inMinutes);
     }
     if (diff.inHours < 24) {
-      return '${diff.inHours}h ago';
+      return l10n.inboxTimeHoursAgo(diff.inHours);
     }
     // Yesterday check
     final yesterday = DateTime(now.year, now.month, now.day - 1);
     final createdDate = DateTime(created.year, created.month, created.day);
     if (createdDate == yesterday) {
-      return 'Yesterday';
+      return l10n.inboxTimeYesterday;
     }
     // Older — show short date
     return '${created.month}/${created.day}';

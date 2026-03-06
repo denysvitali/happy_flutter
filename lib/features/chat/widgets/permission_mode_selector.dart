@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
@@ -56,6 +57,46 @@ extension PermissionModeExtension on PermissionMode {
         return 'Safe YOLO mode';
       case PermissionMode.yolo:
         return 'YOLO mode';
+    }
+  }
+
+  /// Get the localized display name for this mode
+  String localizedDisplayName(AppLocalizations l10n) {
+    switch (this) {
+      case PermissionMode.defaultMode:
+        return l10n.permissionModeDefault;
+      case PermissionMode.acceptEdits:
+        return l10n.permissionModeAcceptEdits;
+      case PermissionMode.plan:
+        return l10n.permissionModePlan;
+      case PermissionMode.bypassPermissions:
+        return l10n.permissionModeBypass;
+      case PermissionMode.readOnly:
+        return l10n.permissionModeReadOnly;
+      case PermissionMode.safeYolo:
+        return l10n.permissionModeSafeYolo;
+      case PermissionMode.yolo:
+        return l10n.permissionModeYolo;
+    }
+  }
+
+  /// Get the localized description for this mode
+  String localizedDescription(AppLocalizations l10n) {
+    switch (this) {
+      case PermissionMode.defaultMode:
+        return l10n.permissionModeDefaultDesc;
+      case PermissionMode.acceptEdits:
+        return l10n.permissionModeAcceptEditsDesc;
+      case PermissionMode.plan:
+        return l10n.permissionModePlanDesc;
+      case PermissionMode.bypassPermissions:
+        return l10n.permissionModeBypassDesc;
+      case PermissionMode.readOnly:
+        return l10n.permissionModeReadOnlyDesc;
+      case PermissionMode.safeYolo:
+        return l10n.permissionModeSafeYoloDesc;
+      case PermissionMode.yolo:
+        return l10n.permissionModeYoloDesc;
     }
   }
 
@@ -213,6 +254,7 @@ class PermissionModeSelector extends ConsumerWidget {
     final currentMode = selectedMode ?? PermissionMode.defaultMode;
     final cs = Theme.of(context).colorScheme;
     final isDefault = currentMode == PermissionMode.defaultMode;
+    final l10n = AppLocalizations.of(context);
 
     return GestureDetector(
       onTap: enabled ? () => _showModeSheet(context) : null,
@@ -237,7 +279,7 @@ class PermissionModeSelector extends ConsumerWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              currentMode.displayName,
+              currentMode.localizedDisplayName(l10n),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
@@ -273,39 +315,41 @@ class PermissionModeSelector extends ConsumerWidget {
           top: Radius.circular(AppRadius.xl),
         ),
       ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(
-            top: AppSpacing.sm,
-            bottom: 4,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 5,
-                  margin: const EdgeInsets.only(
-                    bottom: AppSpacing.md,
-                  ),
-                  decoration: BoxDecoration(
-                    color: cs.onSurface.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(2.5),
+      builder: (ctx) {
+        final sheetL10n = AppLocalizations.of(ctx);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(
+              top: AppSpacing.sm,
+              bottom: 4,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 5,
+                    margin: const EdgeInsets.only(
+                      bottom: AppSpacing.md,
+                    ),
+                    decoration: BoxDecoration(
+                      color: cs.onSurface.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(2.5),
+                    ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  0,
-                  AppSpacing.lg,
-                  AppSpacing.sm,
-                ),
-                child: Text(
-                  'Permission Mode',
-                  style: theme.textTheme.titleSmall?.copyWith(
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    0,
+                    AppSpacing.lg,
+                    AppSpacing.sm,
+                  ),
+                  child: Text(
+                    sheetL10n.permissionModeTitle,
+                    style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -324,7 +368,8 @@ class PermissionModeSelector extends ConsumerWidget {
             ],
           ),
         ),
-      ),
+      );
+    },
     );
   }
 
@@ -335,6 +380,7 @@ class PermissionModeSelector extends ConsumerWidget {
   ) {
     final cs = theme.colorScheme;
     final isSelected = (selectedMode ?? PermissionMode.defaultMode) == mode;
+    final tileL10n = AppLocalizations.of(ctx);
 
     return InkWell(
       onTap: () {
@@ -372,7 +418,7 @@ class PermissionModeSelector extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    mode.displayName,
+                    mode.localizedDisplayName(tileL10n),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: isSelected
                           ? FontWeight.w600
@@ -383,7 +429,7 @@ class PermissionModeSelector extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    mode.description,
+                    mode.localizedDescription(tileL10n),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: cs.onSurfaceVariant,
                     ),
@@ -438,7 +484,7 @@ class PermissionModeBadge extends StatelessWidget {
             const SizedBox(width: 4),
           ],
           Text(
-            mode.displayName,
+            mode.localizedDisplayName(AppLocalizations.of(context)),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: mode.color,
                   fontWeight: FontWeight.w500,
@@ -465,6 +511,7 @@ class PermissionModeSettingsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final modes = availableModes ?? PermissionMode.values;
 
     return RadioGroup<PermissionMode>(
@@ -484,7 +531,7 @@ class PermissionModeSettingsList extends StatelessWidget {
               vertical: AppSpacing.sm,
             ),
             child: Text(
-              'Permission Mode',
+              l10n.permissionModeTitle,
               style: theme.textTheme.labelMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
@@ -503,7 +550,7 @@ class PermissionModeSettingsList extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Text(
-                  mode.displayName,
+                  mode.localizedDisplayName(l10n),
                   style: TextStyle(
                     color: selectedMode == mode ? mode.color : null,
                     fontWeight:
@@ -514,7 +561,7 @@ class PermissionModeSettingsList extends StatelessWidget {
                 ),
               ],
             ),
-            subtitle: Text(mode.description),
+            subtitle: Text(mode.localizedDescription(l10n)),
             activeColor: mode.color,
           ),
         ),

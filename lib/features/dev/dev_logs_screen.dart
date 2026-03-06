@@ -346,7 +346,7 @@ class LogEntryWidget extends StatelessWidget {
   Color _getLevelColor(BuildContext context) {
     switch (entry.level) {
       case LogLevel.debug:
-        return Colors.grey;
+        return Theme.of(context).colorScheme.onSurfaceVariant;
       case LogLevel.info:
         return Colors.green;
       case LogLevel.warning:

@@ -312,6 +312,32 @@ class AppLocalizations {
   String get permissionYolo => 'Yolo Mode';
   String get permissionReadOnly => 'Read Only';
   String get permissionSafeYolo => 'Safe Yolo';
+  String get permissionRequired => 'Permission required';
+  String get permissionApproved => 'Approved';
+  String get permissionDeniedLabel => 'Denied';
+  String get permissionSessionOffline => 'Session offline';
+  String get permissionAllEdits => 'All edits';
+  String get permissionForSession => 'For session';
+  String get permissionActionFailed => 'Permission action failed';
+  String get permissionExpiredRestarted =>
+      'Permission expired \u2014 session was restarted';
+  String get permissionExpiredNoPending =>
+      'Permission expired \u2014 no longer pending';
+  String get permissionModeTitle => 'Permission Mode';
+  String get permissionModeDefault => 'Default';
+  String get permissionModeAcceptEdits => 'Accept Edits';
+  String get permissionModePlan => 'Plan';
+  String get permissionModeBypass => 'Yolo';
+  String get permissionModeReadOnly => 'Read-only';
+  String get permissionModeSafeYolo => 'Safe YOLO';
+  String get permissionModeYolo => 'YOLO';
+  String get permissionModeDefaultDesc => 'Ask for permissions';
+  String get permissionModeAcceptEditsDesc => 'Auto-approve edits';
+  String get permissionModePlanDesc => 'Plan before executing';
+  String get permissionModeBypassDesc => 'Skip all permissions';
+  String get permissionModeReadOnlyDesc => 'Read-only mode';
+  String get permissionModeSafeYoloDesc => 'Safe YOLO mode';
+  String get permissionModeYoloDesc => 'YOLO mode';
 
   // Voice Assistant
   String get voiceAssistantActive => 'Voice assistant active';
@@ -469,6 +495,30 @@ class AppLocalizations {
   String get friendsSearchFailed => 'Search failed';
   String get friendsActionFailed => 'Action failed';
   String get friendsSearchByUsername => 'Search by username';
+  String get friendsSearchEmptyTitle => 'Search for friends';
+  String get friendsSearchEmptySubtitle => 'Search for a username to connect';
+  String get friendsStatusPending => 'Pending';
+  String get friendsAlreadyFriends => 'Already friends';
+  String get friendsIncomingRequest => 'Incoming request';
+  String get friendsRequestPending => 'Request pending';
+  String get friendsNotConnected => 'Not connected';
+
+  // Inbox
+  String get inboxUpdates => 'Updates';
+  String get inboxPendingRequests => 'Pending Requests';
+  String get inboxSentRequests => 'Sent Requests';
+  String get inboxMyFriends => 'My Friends';
+  String get inboxRequestPending => 'Request pending';
+  String get inboxRequestCanceled => 'Request canceled';
+  String get inboxFriendSubtitle => 'Friend';
+  String get inboxNoNotificationsTitle => 'No notifications yet';
+  String get inboxFeedFriendRequest => 'Friend request';
+  String get inboxFeedFriendAccepted => 'Friend accepted';
+  String get inboxFeedUpdate => 'Update';
+  String get inboxTimeNow => 'now';
+  String inboxTimeMinutesAgo(int n) => '${n}m ago';
+  String inboxTimeHoursAgo(int n) => '${n}h ago';
+  String get inboxTimeYesterday => 'Yesterday';
 
   // Account & Other
   String get accountAccountSettings => 'Account Settings';
@@ -509,6 +559,16 @@ class AppLocalizations {
       'Are you sure you want to unlink this device?';
   String get accountUnlink => 'Unlink';
   String get accountFailedToUnlink => 'Failed to unlink device';
+  String get accountScanInstruction =>
+      'Point your camera at the QR code displayed on the new device';
+  String get accountScanHint => 'New device: tap "Link or Restore Account"';
+  String get accountShowQRInstructions =>
+      '1. Open Happy on the new device\n'
+      '2. Tap "Link or Restore Account"\n'
+      '3. Scan this QR code';
+  String get accountThisDevice => 'This Device';
+  String accountLastActive(String platform, String lastActive) =>
+      '$platform \u2022 Last active $lastActive';
   String get settingsCertificates => 'Certificates';
   String get settingsUserCaCertificates => 'User CA Certificates';
   String get settingsUserCertificatesInstalled =>

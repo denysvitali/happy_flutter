@@ -92,15 +92,16 @@ class _PermissionFooterState extends State<PermissionFooter> {
       logger.error('Permission action failed: $e');
       if (mounted) {
         final msg = e.toString();
+        final l10n = AppLocalizations.of(context);
         final String label;
         if (msg.contains('restarted') ||
             msg.contains('expired')) {
-          label = 'Permission expired — session was restarted';
+          label = l10n.permissionExpiredRestarted;
         } else if (msg.contains('no pending permission') ||
             msg.contains('not available')) {
-          label = 'Permission expired — no longer pending';
+          label = l10n.permissionExpiredNoPending;
         } else {
-          label = 'Permission action failed';
+          label = l10n.permissionActionFailed;
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -157,6 +158,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final permission = widget.permission;
     final toolName = widget.toolName;
 
@@ -235,10 +237,10 @@ class _PermissionFooterState extends State<PermissionFooter> {
                 Expanded(
                   child: Text(
                     isPending
-                        ? 'Permission required'
+                        ? l10n.permissionRequired
                         : isApproved
-                        ? 'Approved'
-                        : 'Denied',
+                        ? l10n.permissionApproved
+                        : l10n.permissionDeniedLabel,
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: isPending
@@ -286,7 +288,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
                     )
                   : !widget.isSessionOnline
                   ? Text(
-                      'Session offline',
+                      l10n.permissionSessionOffline,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -349,6 +351,7 @@ class _ActionButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,10 +387,13 @@ class _ActionButtons extends StatelessWidget {
             if (isPending) ...[
               const SizedBox(width: 6),
               if (isEditTool)
-                _SecondaryButton(label: 'All edits', onPressed: onAllowAllEdits)
+                _SecondaryButton(
+                  label: l10n.permissionAllEdits,
+                  onPressed: onAllowAllEdits,
+                )
               else
                 _SecondaryButton(
-                  label: 'For session',
+                  label: l10n.permissionForSession,
                   onPressed: onAllowForSession,
                 ),
             ],
@@ -474,7 +480,7 @@ class _CodexActionButtons extends StatelessWidget {
 
         // For session — outlined secondary button
         _SecondaryButton(
-          label: 'For session',
+          label: AppLocalizations.of(context).permissionForSession,
           onPressed: onCodexApproveForSession,
         ),
 

@@ -142,13 +142,13 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
                           ),
                           const SizedBox(height: AppSpacing.lg),
                           Text(
-                            'Search for friends',
+                            l10n.friendsSearchEmptyTitle,
                             textAlign: TextAlign.center,
                             style: theme.textTheme.titleMedium,
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           Text(
-                            'Search for a username to connect',
+                            l10n.friendsSearchEmptySubtitle,
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodySmall
                                 ?.copyWith(
@@ -236,7 +236,7 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
                                         height: AppSpacing.xsm,
                                       ),
                                       Text(
-                                        _statusLabel(user.status),
+                                        _statusLabel(user.status, l10n),
                                         style: theme.textTheme
                                             .bodySmall
                                             ?.copyWith(
@@ -261,10 +261,10 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
                                       : () => _sendRequest(user.id),
                                   child: Text(
                                     isFriend
-                                        ? 'Friends'
+                                        ? l10n.friendsStatusFriends
                                         : isPending
-                                        ? 'Pending'
-                                        : 'Add',
+                                        ? l10n.friendsStatusPending
+                                        : l10n.friendsAddFriendAction,
                                   ),
                                 ),
                               ],
@@ -280,18 +280,18 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
     );
   }
 
-  String _statusLabel(RelationshipStatus status) {
+  String _statusLabel(RelationshipStatus status, AppLocalizations l10n) {
     switch (status) {
       case RelationshipStatus.friend:
-        return 'Already friends';
+        return l10n.friendsAlreadyFriends;
       case RelationshipStatus.pending:
-        return 'Incoming request';
+        return l10n.friendsIncomingRequest;
       case RelationshipStatus.requested:
-        return 'Request pending';
+        return l10n.friendsRequestPending;
       case RelationshipStatus.rejected:
-        return 'Request rejected';
+        return l10n.friendsRequestRejected;
       case RelationshipStatus.none:
-        return 'Not connected';
+        return l10n.friendsNotConnected;
     }
   }
 
