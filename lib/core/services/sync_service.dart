@@ -951,13 +951,6 @@ what you have, you must use the options mode.
     // If inline processing already advanced the seq cursor the deferred
     // fetch will return zero new messages and be a no-op.
     final embeddedMessage = data['message'] as Map<String, dynamic>?;
-    logger.info(
-      '[_handleNewMessage] sid=$sessionId isVisible=$isVisible '
-      'hasEmbedded=${embeddedMessage != null} '
-      'hasMsgSync=${messagesSync.containsKey(sessionId)} '
-      'embeddedId=${embeddedMessage?['id']} '
-      'embeddedSeq=${embeddedMessage?['seq']}',
-    );
     if (embeddedMessage != null && isVisible) {
       unawaited(_processInlineMessage(sessionId, embeddedMessage));
     }
@@ -992,23 +985,10 @@ what you have, you must use the options mode.
         sessionId,
       );
 
-      logger.info(
-        '[_processInlineMessage] sid=$sessionId '
-        'wireId=${wireMessage['id']} wireSeq=${wireMessage['seq']} '
-        'processedMsgs=${processed.messages.length} '
-        'processedIds=${processed.messages.map((m) => m['id']).toList()} '
-        'toolResults=${processed.toolResults.length} '
-        'maxSeq=${processed.maxSeq}',
-      );
-
       if (processed.messages.isEmpty && processed.toolResults.isEmpty) {
         // Nothing displayable (e.g. a 'ready' event or system message).
         // The deferred invalidate in _handleNewMessage will pick up
         // anything we missed.
-        logger.info(
-          '[_processInlineMessage] sid=$sessionId wireId=${wireMessage['id']} '
-          'EMPTY result — deferring to HTTP fetch',
-        );
         return;
       }
 
@@ -5736,14 +5716,6 @@ what you have, you must use the options mode.
         if (existingId != null && existingId != messageId) {
           merged.remove(existingId);
         }
-      }
-      if (sessionId == _visibleSessionId) {
-        final wasPresent = merged.containsKey(messageId);
-        logger.info(
-          '[upsert] id=$messageId seq=${message['seq']} '
-          'role=${message['role']} kind=${message['kind']} '
-          'existed=$wasPresent',
-        );
       }
       merged[messageId] = message;
     }
