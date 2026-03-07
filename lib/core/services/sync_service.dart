@@ -5706,24 +5706,32 @@ what you have, you must use the options mode.
     };
     // Build a reverse index from localId → assigned id, so incoming server
     // messages replace the matching optimistic placeholder.
+    // Build a reverse index from localId → assigned id, so incoming server
+    // messages replace the matching optimistic placeholder.
+    // IMPORTANT: skip empty-string localIds — the Go server sends
+    // derefStr(nil) = "" for agent messages, and matching on "" would cause
+    // every new agent message to evict a previous one from the list.
     final localIdToId = <String, String>{};
     for (final message in merged.values) {
       final localId = message['localId'] as String?;
-      if (localId != null && localId != message['id']) {
+      if (localId != null &&
+          localId.isNotEmpty &&
+          localId != message['id']) {
         localIdToId[localId] = message['id'] as String;
       }
     }
     for (final message in messages) {
       final messageId = message['id'] as String;
       final localId = message['localId'] as String?;
+      final hasLocalId = localId != null && localId.isNotEmpty;
       // If this is an incoming server message whose localId matches an
       // optimistic placeholder, remove the placeholder first.
-      if (localId != null && localId != messageId) {
+      if (hasLocalId && localId != messageId) {
         merged.remove(localId);
       }
       // Also remove any existing entry that was the optimistic placeholder
       // for this localId (handles the reverse lookup case).
-      if (localId != null) {
+      if (hasLocalId) {
         final existingId = localIdToId[localId];
         if (existingId != null && existingId != messageId) {
           merged.remove(existingId);
