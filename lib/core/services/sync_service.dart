@@ -929,24 +929,89 @@ what you have, you must use the options mode.
     // streaming token and would cause dozens of sessions re-fetches per
     // response. Sessions are updated by _handleUpdateSession (session-level
     // state changes) and by the reconnect / resume handlers.
-    if (sessionId != null) {
-      final isVisible = sessionId == _visibleSessionId;
+    if (sessionId == null) return;
 
-      // Recreate per-session sync lazily for the visible session if needed.
-      // This guards against edge-cases where the entry was missing and
-      // updates were otherwise ignored until onSessionVisible() ran again.
-      if (!messagesSync.containsKey(sessionId) && isVisible) {
-        messagesSync[sessionId] = InvalidateSync(
-          () => fetchMessages(sessionId),
-        );
-      }
+    final isVisible = sessionId == _visibleSessionId;
 
+    // Recreate per-session sync lazily for the visible session if needed.
+    if (!messagesSync.containsKey(sessionId) && isVisible) {
+      messagesSync[sessionId] = InvalidateSync(
+        () => fetchMessages(sessionId),
+      );
+    }
+
+    // Try to process the embedded message directly from the socket payload
+    // instead of triggering a full HTTP refetch. This provides near-instant
+    // message delivery rather than waiting for the round-trip.
+    final embeddedMessage = data['message'] as Map<String, dynamic>?;
+    if (embeddedMessage != null && isVisible) {
+      unawaited(_processInlineMessage(sessionId, embeddedMessage));
+    } else {
+      // No embedded message or session not visible — fall back to fetch.
       messagesSync[sessionId]?.invalidate();
     }
+
     logger.info(
       'New message received'
-      '${sessionId != null ? ': $sessionId' : ''}',
+      '${sessionId.isNotEmpty ? ': $sessionId' : ''}',
     );
+  }
+
+  /// Decrypt and upsert a single message received inline from the socket
+  /// event, bypassing the HTTP fetch round-trip.
+  Future<void> _processInlineMessage(
+    String sessionId,
+    Map<String, dynamic> wireMessage,
+  ) async {
+    final sessionEncryption = encryption.getSessionEncryption(sessionId);
+    if (sessionEncryption == null) {
+      // Encryption not ready — fall back to fetch which handles this.
+      messagesSync[sessionId]?.invalidate();
+      return;
+    }
+
+    try {
+      final processed = await sessionEncryption.decryptAndProcessMessages(
+        [wireMessage],
+        sessionId,
+      );
+
+      if (processed.messages.isEmpty && processed.toolResults.isEmpty) {
+        return;
+      }
+
+      if (processed.messages.isNotEmpty) {
+        _upsertSessionMessages(sessionId, processed.messages);
+      }
+      if (processed.toolResults.isNotEmpty) {
+        _applyToolResults(sessionId, processed.toolResults);
+      }
+      for (final u in processed.usageUpdates) {
+        _updateSessionUsage(
+          u['sessionId'] as String,
+          u['usage'] as Map<String, dynamic>,
+          u['timestamp'] as int,
+        );
+      }
+      _groupSidechainMessages(sessionId);
+      _applyPermissionRequests(sessionId);
+
+      // Advance the seq cursor so incremental fetches don't re-download
+      // this message.
+      if (processed.maxSeq > (_sessionLastSeq[sessionId] ?? 0)) {
+        _sessionLastSeq[sessionId] = processed.maxSeq;
+        _scheduleSaveSeq();
+      }
+
+      if (!_sessionMessageChangeController.isClosed) {
+        _sessionMessageChangeController.add(sessionId);
+      }
+      _notifyDataChanged();
+    } catch (error, stack) {
+      logger.warning('Inline message processing failed, falling back to fetch',
+          error, stack);
+      messagesSync[sessionId]?.invalidate();
+    }
   }
 
   /// Handle new session update
