@@ -47,7 +47,17 @@ class _MarkdownViewState extends State<MarkdownView> {
 
   MarkdownStyleSheet _buildStyleSheet(ThemeData theme) {
     final onSurface = theme.colorScheme.onSurface;
+    // When a textColor override is set (e.g. white-on-primary user bubble),
+    // use it for links too — with an underline so they remain distinguishable.
+    final linkStyle = widget.textColor != null
+        ? TextStyle(
+            color: widget.textColor,
+            decoration: TextDecoration.underline,
+            decorationColor: widget.textColor?.withValues(alpha: 0.7),
+          )
+        : null;
     return MarkdownStyleSheet.fromTheme(theme).copyWith(
+      a: linkStyle,
       p: theme.textTheme.bodyMedium?.copyWith(color: widget.textColor),
       h1: theme.textTheme.headlineLarge?.copyWith(color: widget.textColor),
       h2: theme.textTheme.headlineMedium?.copyWith(color: widget.textColor),
