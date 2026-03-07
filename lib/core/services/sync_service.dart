@@ -944,13 +944,19 @@ what you have, you must use the options mode.
     // Try to process the embedded message directly from the socket payload
     // instead of triggering a full HTTP refetch. This provides near-instant
     // message delivery rather than waiting for the round-trip.
+    //
+    // We ALWAYS schedule a deferred invalidate as a safety net.  The
+    // InvalidateSync cooldown (500ms) naturally coalesces rapid socket
+    // events during streaming, so this does not cause a fetch storm.
+    // If inline processing already advanced the seq cursor the deferred
+    // fetch will return zero new messages and be a no-op.
     final embeddedMessage = data['message'] as Map<String, dynamic>?;
     if (embeddedMessage != null && isVisible) {
       unawaited(_processInlineMessage(sessionId, embeddedMessage));
-    } else {
-      // No embedded message or session not visible — fall back to fetch.
-      messagesSync[sessionId]?.invalidate();
     }
+    // Always invalidate so the HTTP fetch path catches anything the
+    // inline path missed (decryption failure, unknown format, etc.).
+    messagesSync[sessionId]?.invalidate();
 
     logger.info(
       'New message received'
@@ -960,14 +966,16 @@ what you have, you must use the options mode.
 
   /// Decrypt and upsert a single message received inline from the socket
   /// event, bypassing the HTTP fetch round-trip.
+  ///
+  /// This is best-effort: the caller always schedules a deferred
+  /// [InvalidateSync.invalidate] as a safety net, so failures here are
+  /// non-fatal — the HTTP fetch will catch up.
   Future<void> _processInlineMessage(
     String sessionId,
     Map<String, dynamic> wireMessage,
   ) async {
     final sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
-      // Encryption not ready — fall back to fetch which handles this.
-      messagesSync[sessionId]?.invalidate();
       return;
     }
 
@@ -978,6 +986,9 @@ what you have, you must use the options mode.
       );
 
       if (processed.messages.isEmpty && processed.toolResults.isEmpty) {
+        // Nothing displayable (e.g. a 'ready' event or system message).
+        // The deferred invalidate in _handleNewMessage will pick up
+        // anything we missed.
         return;
       }
 
@@ -997,8 +1008,8 @@ what you have, you must use the options mode.
       _groupSidechainMessages(sessionId);
       _applyPermissionRequests(sessionId);
 
-      // Advance the seq cursor so incremental fetches don't re-download
-      // this message.
+      // Advance the seq cursor so the deferred fetch (and future
+      // incremental fetches) don't re-download this message.
       if (processed.maxSeq > (_sessionLastSeq[sessionId] ?? 0)) {
         _sessionLastSeq[sessionId] = processed.maxSeq;
         _scheduleSaveSeq();
@@ -1009,9 +1020,11 @@ what you have, you must use the options mode.
       }
       _notifyDataChanged();
     } catch (error, stack) {
-      logger.warning('Inline message processing failed, falling back to fetch',
-          error, stack);
-      messagesSync[sessionId]?.invalidate();
+      logger.warning(
+        'Inline message processing failed — deferred fetch will retry',
+        error,
+        stack,
+      );
     }
   }
 
