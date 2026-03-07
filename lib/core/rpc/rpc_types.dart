@@ -121,12 +121,14 @@ class PermissionRequest {
     this.mode,
     this.allowTools,
     this.decision,
+    this.updatedInput,
   });
   final String id;
   final bool approved;
   final String? mode;
   final List<String>? allowTools;
   final String? decision;
+  final Map<String, dynamic>? updatedInput;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -134,6 +136,7 @@ class PermissionRequest {
     if (mode != null) 'mode': mode,
     if (allowTools != null) 'allowTools': allowTools,
     if (decision != null) 'decision': decision,
+    if (updatedInput != null) 'updatedInput': updatedInput,
   };
 }
 

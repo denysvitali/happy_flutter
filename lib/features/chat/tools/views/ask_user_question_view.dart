@@ -498,8 +498,9 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
     final questions =
         input['questions'] as List? ?? [];
 
-    // Build response text
-    final lines = <String>[];
+    // Build answers map keyed by question text,
+    // matching the AskUserQuestion tool schema.
+    final answers = <String, String>{};
     for (var qIdx = 0;
         qIdx < questions.length;
         qIdx++) {
@@ -520,28 +521,37 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
           )
           .whereType<String>()
           .join(', ');
-      final header =
-          q['header'] as String? ?? 'Answer';
-      lines.add('$header: $labels');
+      final questionText =
+          q['question'] as String? ?? '';
+      answers[questionText] = labels;
     }
-    final responseText = lines.join('\n');
 
     try {
-      // 1. Approve permission if present
       final permission = widget.tool['permission']
           as Map<String, dynamic>?;
       final permId = permission?['id'] as String?;
       if (permId != null) {
+        // Include answers in updatedInput so the CLI
+        // receives them via the permission response.
         await sync.sessionAllow(
           widget.sessionId!,
           permId,
+          updatedInput: <String, dynamic>{
+            ...input,
+            'answers': answers,
+          },
+        );
+      } else {
+        // Fallback: send as a chat message if there
+        // is no permission to approve.
+        final lines = answers.entries
+            .map((e) => '${e.key}: ${e.value}')
+            .toList();
+        await sync.sendMessage(
+          widget.sessionId!,
+          lines.join('\n'),
         );
       }
-      // 2. Send the answer as a message
-      await sync.sendMessage(
-        widget.sessionId!,
-        responseText,
-      );
     } catch (e) {
       logger.warning('Failed to submit answer: $e');
     } finally {

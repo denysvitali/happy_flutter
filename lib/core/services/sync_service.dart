@@ -3817,6 +3817,7 @@ what you have, you must use the options mode.
     String? mode,
     List<String>? allowTools,
     String? decision,
+    Map<String, dynamic>? updatedInput,
   }) async {
     final restored = await _ensureSessionProcess(sessionId);
     if (restored) {
@@ -3838,6 +3839,7 @@ what you have, you must use the options mode.
           mode: mode,
           allowTools: allowTools,
           decision: decision,
+          updatedInput: updatedInput,
         ).toJson(),
       );
       _throwIfPermissionRpcFailed(response, 'allow');
