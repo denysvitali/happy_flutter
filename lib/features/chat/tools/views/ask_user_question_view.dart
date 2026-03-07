@@ -83,7 +83,6 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
     final input =
         widget.tool['input'] as Map<String, dynamic>? ?? {};
     final questions = input['questions'] as List?;
-    final state = widget.tool['state'] as String? ?? 'running';
 
     if (questions == null || questions.isEmpty) {
       return const SizedBox.shrink();
@@ -117,15 +116,14 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
       return const SizedBox.shrink();
     }
 
-    final isCompleted =
-        _isSubmitted || state == 'completed';
-
-    if (isCompleted) {
+    // Only treat as completed if the user actually submitted locally.
+    // In Yolo mode the server auto-approves the permission, which
+    // moves the tool to 'completed' before the user can interact.
+    if (_isSubmitted) {
       return _buildSubmittedView(context, parsedQuestions);
     }
 
-    final isRunning = state == 'running';
-    final canInteract = isRunning && !_isSubmitted;
+    final canInteract = !_isSubmitting;
     final allAnswered =
         parsedQuestions.asMap().entries.every((e) {
       final s = _selections[e.key];
