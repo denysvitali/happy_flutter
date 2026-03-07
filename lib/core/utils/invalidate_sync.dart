@@ -6,13 +6,17 @@ import '../services/logger_service.dart';
 /// A utility class for managing async operations with invalidation
 class InvalidateSync {
 
-  InvalidateSync(this._action);
+  InvalidateSync(this._action, {Duration? minInterval})
+      : _minInterval = minInterval;
   final Future<void> Function() _action;
+  final Duration? _minInterval;
   Completer<void>? _currentOperation;
   bool _invalidated = false;
   bool _running = false;
   int _retryCount = 0;
   Timer? _retryTimer;
+  Timer? _cooldownTimer;
+  DateTime? _lastRunEnd;
 
   // Exponential backoff configuration
   static const int baseDelayMs = 1000;
@@ -23,8 +27,25 @@ class InvalidateSync {
   void invalidate() {
     _invalidated = true;
 
-    if (_running) {
+    if (_running || _cooldownTimer != null) {
       return;
+    }
+
+    // Enforce minimum interval between the end of one run and the
+    // start of the next to avoid rapid-fire back-to-back fetches.
+    if (_minInterval != null && _lastRunEnd != null) {
+      final elapsed = DateTime.now().difference(_lastRunEnd!);
+      if (elapsed < _minInterval!) {
+        final remaining = _minInterval! - elapsed;
+        _cooldownTimer = Timer(remaining, () {
+          _cooldownTimer = null;
+          if (_invalidated) {
+            _invalidated = false;
+            invalidate();
+          }
+        });
+        return;
+      }
     }
 
     // Reset retry count when starting a fresh operation so that
@@ -91,10 +112,11 @@ class InvalidateSync {
     // once" contract is now satisfied.  If a new invalidation arrived
     // while the action was running, start a fresh cycle for it with a
     // brand-new Completer so new callers can await that cycle separately.
+    _lastRunEnd = DateTime.now();
     _completeOperation();
     if (_invalidated) {
-      _currentOperation = Completer<void>();
-      unawaited(_run());
+      // Re-enter through invalidate() so the cooldown logic is applied.
+      invalidate();
     }
   }
 
@@ -117,5 +139,6 @@ class InvalidateSync {
   /// Dispose resources
   void dispose() {
     _retryTimer?.cancel();
+    _cooldownTimer?.cancel();
   }
 }

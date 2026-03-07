@@ -937,6 +937,7 @@ what you have, you must use the options mode.
     if (!messagesSync.containsKey(sessionId) && isVisible) {
       messagesSync[sessionId] = InvalidateSync(
         () => fetchMessages(sessionId),
+        minInterval: _messagesSyncMinInterval,
       );
     }
 
@@ -1060,12 +1061,15 @@ what you have, you must use the options mode.
   }
 
   /// Handle session update
+  ///
+  /// Session-level metadata changes (typing state, tool state, title, etc.)
+  /// do NOT imply new messages.  New messages arrive via `new-message` events
+  /// which are handled by [_handleNewMessage].  Invalidating messagesSync here
+  /// caused a storm of redundant full-history fetches during streaming because
+  /// `update-session` fires on every typing/tool state change.
   void _handleUpdateSession(Map<String, dynamic> data) {
     final sessionId = data['id'] as String?;
     _scheduleSessionsRefresh();
-    if (sessionId != null && messagesSync.containsKey(sessionId)) {
-      messagesSync[sessionId]?.invalidate();
-    }
     logger.info(
       'Session update received'
       '${sessionId != null ? ': $sessionId' : ''}',
@@ -1074,6 +1078,13 @@ what you have, you must use the options mode.
 
   static const Duration _sessionsRefreshDebounce = Duration(
     milliseconds: 250,
+  );
+
+  /// Minimum interval between consecutive message fetches for a session.
+  /// Prevents rapid-fire HTTP refetches when many socket events arrive
+  /// in quick succession (e.g. during streaming).
+  static const Duration _messagesSyncMinInterval = Duration(
+    milliseconds: 500,
   );
 
   void _scheduleSessionsRefresh() {
@@ -3921,9 +3932,21 @@ what you have, you must use the options mode.
   /// On session visible handler
   void onSessionVisible(String sessionId) {
     _visibleSessionId = sessionId;
-    _requestTailRefresh(sessionId);
+    // Only tail-refresh when we have no messages in memory for this session
+    // (first open or after restart).  When messages are already loaded the
+    // incremental delta path (afterSeq = _sessionLastSeq) is sufficient and
+    // avoids re-downloading the last 200 messages on every navigation.
+    final hasMessages =
+        _sessionMessages.containsKey(sessionId) &&
+        (_sessionMessages[sessionId]?.isNotEmpty ?? false);
+    if (!hasMessages) {
+      _requestTailRefresh(sessionId);
+    }
     if (!messagesSync.containsKey(sessionId)) {
-      messagesSync[sessionId] = InvalidateSync(() => fetchMessages(sessionId));
+      messagesSync[sessionId] = InvalidateSync(
+        () => fetchMessages(sessionId),
+        minInterval: _messagesSyncMinInterval,
+      );
     }
     messagesSync[sessionId]?.invalidate();
   }
