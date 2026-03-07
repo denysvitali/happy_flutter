@@ -15,6 +15,7 @@ import '../../core/models/session.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
+import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -157,6 +158,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _messageSyncSubscription = sync.onSessionMessagesChanged
         .where((id) => id == widget.sessionId)
         .listen((_) {
+          logger.info(
+            '[ChatScreen] onSessionMessagesChanged fired '
+            'sid=${widget.sessionId} mounted=$mounted',
+          );
           if (mounted) _refreshFromSync();
         });
     _dataSyncSubscription = sync.onDataChanged.listen((_) {
@@ -220,6 +225,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final sessionChanged = latestSession != _session;
     final messagesChanged = latestMessagesFingerprint != _messagesFingerprint;
+    logger.info(
+      '[_refreshFromSync] sid=${widget.sessionId} '
+      'msgCount=${latestMessages.length} '
+      'sessionChanged=$sessionChanged '
+      'messagesChanged=$messagesChanged '
+      'markLoaded=$markLoaded '
+      'oldFingerprint=$_messagesFingerprint '
+      'newFingerprint=$latestMessagesFingerprint',
+    );
     if (!sessionChanged && !messagesChanged && !markLoaded) {
       return;
     }
