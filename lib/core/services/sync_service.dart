@@ -3793,17 +3793,41 @@ what you have, you must use the options mode.
   void _clearStalePermissionRequests(String sessionId) {
     final session = _sessions[sessionId];
     if (session == null) return;
-    if (session.agentState?.requests == null ||
-        session.agentState!.requests!.isEmpty) {
-      return;
+    final hadRequests = session.agentState?.requests != null &&
+        session.agentState!.requests!.isNotEmpty;
+    if (hadRequests) {
+      _sessions[sessionId] = session.copyWith(
+        agentState: AgentState(
+          controlledByUser: session.agentState?.controlledByUser,
+          completedRequests: session.agentState?.completedRequests,
+        ),
+      );
     }
-    _sessions[sessionId] = session.copyWith(
-      agentState: AgentState(
-        controlledByUser: session.agentState?.controlledByUser,
-        completedRequests: session.agentState?.completedRequests,
-      ),
-    );
-    _notifyDataChanged();
+    // Also cancel any pending permissions on tool-call messages so
+    // the UI stops showing Allow/Deny buttons that will always fail.
+    final messages = _sessionMessages[sessionId];
+    if (messages != null) {
+      var changed = false;
+      final updated = List<Map<String, dynamic>>.from(messages);
+      for (var i = 0; i < updated.length; i++) {
+        final msg = updated[i];
+        if (msg['kind'] != 'tool-call') continue;
+        final perm = msg['permission'] as Map<String, dynamic>?;
+        if (perm == null || perm['status'] != 'pending') continue;
+        updated[i] = {
+          ...msg,
+          'permission': {...perm, 'status': 'canceled'},
+        };
+        changed = true;
+      }
+      if (changed) {
+        _sessionMessages[sessionId] = updated;
+        _sessionMessagesCache = null;
+      }
+    }
+    if (hadRequests || messages != null) {
+      _notifyDataChanged();
+    }
   }
 
   /// Allow a permission request for a session.
@@ -5649,6 +5673,32 @@ what you have, you must use the options mode.
             if (info.decision != null) 'decision': info.decision,
             if (info.reason != null) 'reason': info.reason,
           },
+        };
+        changed = true;
+      }
+    }
+
+    // Clear stale pending permissions: if a tool-call message has
+    // status 'pending' but its permission ID is no longer in
+    // agentState.requests, the CLI already resolved it (the server-
+    // side agentState update may have failed or been cleaned up).
+    // Remove the stale permission so the UI stops showing buttons
+    // that will always fail with "failed to resolve permission".
+    final pendingIds = requests?.keys.toSet() ?? <String>{};
+    for (var i = 0; i < updated.length; i++) {
+      final msg = updated[i];
+      if (msg['kind'] != 'tool-call') continue;
+      final perm = msg['permission'] as Map<String, dynamic>?;
+      if (perm == null) continue;
+      final status = perm['status'] as String?;
+      if (status != 'pending') continue;
+      final permId = perm['id'] as String?;
+      if (permId != null && !pendingIds.contains(permId)) {
+        // Permission was pending locally but is no longer in
+        // agentState.requests — treat as expired/canceled.
+        updated[i] = {
+          ...msg,
+          'permission': {...perm, 'status': 'canceled'},
         };
         changed = true;
       }
