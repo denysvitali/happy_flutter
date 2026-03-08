@@ -84,6 +84,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   final _selectionNotifier = ValueNotifier<_SelectionState>(
     const _SelectionState(),
   );
+  final _searchController = TextEditingController();
+  bool _isSearching = false;
 
   @override
   void initState() {
@@ -147,6 +149,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     _selectionNotifier
       ..removeListener(_onSelectionChanged)
       ..dispose();
+    _searchController.dispose();
     _syncSubscription?.cancel();
     super.dispose();
   }
@@ -226,13 +229,56 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     AppLocalizations l10n,
   ) {
     final connectionStatus = ref.watch(connectionNotifierProvider);
+
+    if (_isSearching) {
+      return AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            setState(() {
+              _isSearching = false;
+              _searchController.clear();
+            });
+          },
+        ),
+        title: TextField(
+          controller: _searchController,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: l10n.commonSearch,
+            border: InputBorder.none,
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        actions: [
+          if (_searchController.text.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () {
+                _searchController.clear();
+                setState(() {});
+              },
+            ),
+        ],
+      );
+    }
+
     return AppBar(
       title: Text(l10n.sessionHistoryTitle),
       actions: [
         ConnectionStatusBadge(status: connectionStatus),
         IconButton(
+          icon: const Icon(Icons.search),
+          onPressed: () => setState(
+            () => _isSearching = true,
+          ),
+        ),
+        IconButton(
           icon: const Icon(Icons.add),
-          onPressed: () => _SessionsListContent.showNewSessionDialog(context),
+          onPressed: () =>
+              _SessionsListContent.showNewSessionDialog(
+                context,
+              ),
         ),
       ],
     );
@@ -297,7 +343,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       index: _activeTab.index,
       children: [
         const InboxScreen(),
-        _SessionsListContent(selectionNotifier: _selectionNotifier),
+        _SessionsListContent(
+          selectionNotifier: _selectionNotifier,
+          searchQuery: _searchController.text,
+        ),
         const SettingsScreen(),
       ],
     );
@@ -378,9 +427,13 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
 /// Sessions list content widget.
 class _SessionsListContent extends ConsumerStatefulWidget {
-  const _SessionsListContent({required this.selectionNotifier});
+  const _SessionsListContent({
+    required this.selectionNotifier,
+    this.searchQuery = '',
+  });
 
   final ValueNotifier<_SelectionState> selectionNotifier;
+  final String searchQuery;
 
   static Future<void> showNewSessionDialog(BuildContext context) async {
     final sessionId = await showDialog<String>(
@@ -465,7 +518,7 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
     final avatarStyle = ref.watch(
       settingsNotifierProvider.select((s) => _parseAvatarStyle(s.avatarStyle)),
     );
-    final sessionList = sessions.values.toList();
+    var sessionList = sessions.values.toList();
 
     // Mark as loaded once we get any data or sync is initialized.
     if (!_hasLoaded && (sessionList.isNotEmpty || sync.isInitialized)) {
@@ -474,11 +527,33 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
       });
     }
 
-    final activeSessions = sessionList.where(isSessionActive).toList()
-      ..sort((a, b) => b.activeAt.compareTo(a.activeAt));
+    // Apply search filter.
+    final query = widget.searchQuery.toLowerCase().trim();
+    if (query.isNotEmpty) {
+      sessionList = sessionList.where((s) {
+        final name =
+            (s.metadata?.name ?? '').toLowerCase();
+        final path =
+            (s.metadata?.path ?? '').toLowerCase();
+        final summary =
+            (s.metadata?.summary?.text ?? '')
+                .toLowerCase();
+        return name.contains(query) ||
+            path.contains(query) ||
+            summary.contains(query);
+      }).toList();
+    }
+
+    final activeSessions =
+        sessionList.where(isSessionActive).toList()
+          ..sort(
+            (a, b) => b.activeAt.compareTo(a.activeAt),
+          );
     final inactiveSessions =
         sessionList.where((s) => !isSessionActive(s)).toList()
-          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+          ..sort(
+            (a, b) => b.updatedAt.compareTo(a.updatedAt),
+          );
 
     if (sessionList.isEmpty && !_hasLoaded) {
       return _SessionListShimmer();

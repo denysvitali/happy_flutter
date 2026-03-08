@@ -115,7 +115,9 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           _buildAboutSection(context),
           const SizedBox(height: AppSpacing.xl),
-          const _AccountSection(),
+          _DangerZone(
+            onSignOut: () => confirmSignOut(context, ref),
+          ),
           const SizedBox(height: AppSpacing.xxxl),
         ],
       ),
@@ -218,21 +220,15 @@ class SettingsScreen extends ConsumerWidget {
     required WidgetRef ref,
   }) {
     final l10n = AppLocalizations.of(context);
-    final themeModeLabel = switch (themeMode) {
-      'light' => l10n.appearanceThemeLight,
-      'dark' => l10n.appearanceThemeDark,
-      'adaptive' => l10n.appearanceThemeAdaptive,
-      _ => l10n.appearanceThemeAdaptive,
-    };
 
     return SettingsSection(
       title: l10n.settingsAppearance,
       children: [
-        SettingsNavRow(
-          icon: Icons.palette,
-          title: l10n.appearanceTheme,
-          subtitle: themeModeLabel,
-          onTap: () => context.pushNamed('theme'),
+        _InlineThemePicker(
+          currentMode: themeMode,
+          onChanged: (mode) => ref
+              .read(settingsNotifierProvider.notifier)
+              .updateSetting('themeMode', mode),
         ),
         SettingsNavRow(
           icon: Icons.language,
@@ -826,7 +822,14 @@ class _ProfileHeader extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           decoration: BoxDecoration(
-            color: cs.surface.withAlpha(150),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                cs.primaryContainer.withAlpha(dark ? 80 : 60),
+                cs.surface.withAlpha(150),
+              ],
+            ),
             border: Border.all(
               color: dark
                   ? Colors.white.withAlpha(20)
@@ -835,12 +838,12 @@ class _ProfileHeader extends StatelessWidget {
           ),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
-            vertical: AppSpacing.lg,
+            vertical: AppSpacing.xl,
           ),
           child: Column(
             children: [
               CircleAvatar(
-                radius: 36,
+                radius: 40,
                 backgroundColor: cs.primaryContainer,
                 backgroundImage: avatarUrl != null
                     ? CachedNetworkImageProvider(
@@ -883,63 +886,129 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-/// Sign-out / account management area at the bottom of the settings list.
-class _AccountSection extends ConsumerWidget {
-  const _AccountSection();
+/// Danger zone section with sign-out in a red-tinted card.
+class _DangerZone extends StatelessWidget {
+  const _DangerZone({required this.onSignOut});
+
+  final VoidCallback onSignOut;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final errorColor = Theme.of(context).colorScheme.error;
+    final cs = Theme.of(context).colorScheme;
 
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        icon: const Icon(Icons.logout, size: 18),
-        label: Text(l10n.settingsSignOut),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: errorColor,
-          side: BorderSide(color: errorColor),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.md,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
+    return SettingsSection(
+      title: l10n.settingsAccount,
+      danger: true,
+      description: l10n.settingsSignOutConfirm,
+      children: [
+        SettingsRow(
+          icon: Icons.logout,
+          iconColor: cs.error,
+          title: l10n.settingsSignOut,
+          subtitle: l10n.settingsAccountSubtitle,
+          onTap: onSignOut,
+          trailing: Icon(
+            Icons.chevron_right,
+            size: 20,
+            color: cs.error.withAlpha(120),
           ),
         ),
-        onPressed: () => _confirmSignOut(context, ref),
-      ),
+      ],
     );
   }
+}
 
-  void _confirmSignOut(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        final l10nDialog = AppLocalizations.of(dialogContext);
-        final colorScheme = Theme.of(dialogContext).colorScheme;
-        return AlertDialog(
-          title: Text(l10nDialog.settingsSignOut),
-          content: Text(l10nDialog.settingsSignOutConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(l10nDialog.commonCancel),
+/// Inline theme picker showing three selectable chips for theme modes.
+class _InlineThemePicker extends StatelessWidget {
+  const _InlineThemePicker({
+    required this.currentMode,
+    required this.onChanged,
+  });
+
+  final String currentMode;
+  final ValueChanged<String> onChanged;
+
+  static const _modes = [
+    ('adaptive', Icons.brightness_auto, 'Auto'),
+    ('light', Icons.light_mode, 'Light'),
+    ('dark', Icons.dark_mode, 'Dark'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          SettingsIconContainer(icon: Icons.palette),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Row(
+              children: _modes.map((m) {
+                final selected = m.$1 == currentMode;
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 3,
+                    ),
+                    child: Material(
+                      color: selected
+                          ? cs.primaryContainer
+                          : cs.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(
+                        AppRadius.sm,
+                      ),
+                      child: InkWell(
+                        onTap: () => onChanged(m.$1),
+                        borderRadius: BorderRadius.circular(
+                          AppRadius.sm,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.sm,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                m.$2,
+                                size: 20,
+                                color: selected
+                                    ? cs.onPrimaryContainer
+                                    : cs.onSurfaceVariant,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                m.$3,
+                                style: theme.textTheme.labelSmall
+                                    ?.copyWith(
+                                  color: selected
+                                      ? cs.onPrimaryContainer
+                                      : cs.onSurfaceVariant,
+                                  fontWeight: selected
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colorScheme.error,
-              ),
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                ref.read(authStateNotifierProvider.notifier).signOut();
-              },
-              child: Text(l10nDialog.settingsSignOut),
-            ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
   }
 }

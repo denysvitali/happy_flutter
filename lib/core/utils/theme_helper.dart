@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:happy_flutter/core/theme/app_color_scheme.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 /// Theme mode enumeration matching React Native's themePreference
@@ -71,8 +72,8 @@ extension ThemeModeExtension on AppThemeMode {
             : Brightness.dark,
         statusBarBrightness: brightness,
         systemNavigationBarColor: brightness == Brightness.dark
-            ? Colors.black
-            : Colors.white,
+            ? _kDarkBackground
+            : _kLightBackground,
         systemNavigationBarIconBrightness: brightness == Brightness.dark
             ? Brightness.light
             : Brightness.dark,
@@ -142,18 +143,20 @@ TextTheme _buildTextTheme({required bool dark}) {
     // Titles — DM Sans
     displayLarge: GoogleFonts.dmSans(
       fontSize: 57,
-      fontWeight: FontWeight.w400,
-      letterSpacing: -0.25,
+      fontWeight: FontWeight.w300,
+      letterSpacing: -0.5,
       color: dark ? Colors.white : const Color(0xFF0F172A),
     ),
     displayMedium: GoogleFonts.dmSans(
       fontSize: 45,
-      fontWeight: FontWeight.w400,
+      fontWeight: FontWeight.w300,
+      letterSpacing: -0.25,
       color: dark ? Colors.white : const Color(0xFF0F172A),
     ),
     displaySmall: GoogleFonts.dmSans(
       fontSize: 36,
       fontWeight: FontWeight.w400,
+      letterSpacing: -0.15,
       color: dark ? Colors.white : const Color(0xFF0F172A),
     ),
     headlineLarge: GoogleFonts.dmSans(
@@ -562,8 +565,8 @@ DividerThemeData _buildDividerTheme({required bool dark}) {
     color: dark
         ? Colors.white.withAlpha(15)
         : Colors.black.withAlpha(10),
-    thickness: 1,
-    space: 1,
+    thickness: 0.5,
+    space: 0.5,
   );
 }
 
@@ -651,18 +654,25 @@ class ThemeHelper {
       textTheme: _buildTextTheme(dark: false),
       appBarTheme: _buildAppBarTheme(dark: false),
       cardTheme: _buildCardTheme(dark: false),
-      inputDecorationTheme: _buildInputDecorationTheme(dark: false),
+      inputDecorationTheme:
+          _buildInputDecorationTheme(dark: false),
       chipTheme: _buildChipTheme(dark: false),
       elevatedButtonTheme: _buildElevatedButtonTheme(),
       filledButtonTheme: _buildFilledButtonTheme(),
-      outlinedButtonTheme: _buildOutlinedButtonTheme(dark: false),
+      outlinedButtonTheme:
+          _buildOutlinedButtonTheme(dark: false),
       listTileTheme: _buildListTileTheme(dark: false),
-      navigationBarTheme: _buildNavigationBarTheme(dark: false),
+      navigationBarTheme:
+          _buildNavigationBarTheme(dark: false),
       dividerTheme: _buildDividerTheme(dark: false),
-      bottomSheetTheme: _buildBottomSheetTheme(dark: false),
+      bottomSheetTheme:
+          _buildBottomSheetTheme(dark: false),
       dialogTheme: _buildDialogTheme(dark: false),
       snackBarTheme: _buildSnackBarTheme(dark: false),
       splashFactory: InkSparkle.splashFactory,
+      extensions: <ThemeExtension<dynamic>>[
+        AppColorScheme.light(),
+      ],
     );
   }
 
@@ -676,6 +686,10 @@ class ThemeHelper {
       brightness: Brightness.dark,
     ).copyWith(
       surface: _kDarkSurface,
+      surfaceContainerLowest: _kDarkBackground,
+      surfaceContainerLow: const Color(0xFF161922),
+      surfaceContainer: _kDarkSurface,
+      surfaceContainerHigh: const Color(0xFF1F222E),
       surfaceContainerHighest: _kDarkSurfaceVariant,
       onSurface: const Color(0xFFE2E8F0),
       onSurfaceVariant: const Color(0xFF94A3B8),
@@ -691,18 +705,25 @@ class ThemeHelper {
       textTheme: _buildTextTheme(dark: true),
       appBarTheme: _buildAppBarTheme(dark: true),
       cardTheme: _buildCardTheme(dark: true),
-      inputDecorationTheme: _buildInputDecorationTheme(dark: true),
+      inputDecorationTheme:
+          _buildInputDecorationTheme(dark: true),
       chipTheme: _buildChipTheme(dark: true),
       elevatedButtonTheme: _buildElevatedButtonTheme(),
       filledButtonTheme: _buildFilledButtonTheme(),
-      outlinedButtonTheme: _buildOutlinedButtonTheme(dark: true),
+      outlinedButtonTheme:
+          _buildOutlinedButtonTheme(dark: true),
       listTileTheme: _buildListTileTheme(dark: true),
-      navigationBarTheme: _buildNavigationBarTheme(dark: true),
+      navigationBarTheme:
+          _buildNavigationBarTheme(dark: true),
       dividerTheme: _buildDividerTheme(dark: true),
-      bottomSheetTheme: _buildBottomSheetTheme(dark: true),
+      bottomSheetTheme:
+          _buildBottomSheetTheme(dark: true),
       dialogTheme: _buildDialogTheme(dark: true),
       snackBarTheme: _buildSnackBarTheme(dark: true),
       splashFactory: InkSparkle.splashFactory,
+      extensions: <ThemeExtension<dynamic>>[
+        AppColorScheme.dark(),
+      ],
     );
   }
 

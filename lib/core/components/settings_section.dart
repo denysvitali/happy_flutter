@@ -3,8 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 /// 36x36 rounded icon container used as the leading widget in settings rows.
+///
+/// Uses a tinted background derived from the icon colour for a modern,
+/// iOS-style grouped settings look.
 class SettingsIconContainer extends StatelessWidget {
-  const SettingsIconContainer({required this.icon, this.color, super.key});
+  const SettingsIconContainer({
+    required this.icon,
+    this.color,
+    super.key,
+  });
 
   final IconData icon;
   final Color? color;
@@ -12,13 +19,15 @@ class SettingsIconContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final effectiveColor = color ?? cs.primary;
+    final bgAlpha = dark ? 40 : 25;
 
     return Container(
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
+        color: effectiveColor.withAlpha(bgAlpha),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Icon(icon, size: 18, color: effectiveColor),
@@ -206,25 +215,35 @@ class SettingsNavRow extends StatelessWidget {
   }
 }
 
-/// Settings section wrapper with optional title and dividers between children.
+/// Settings section wrapper with optional title, description,
+/// and dividers between children.
 class SettingsSection extends StatelessWidget {
   const SettingsSection({
     required this.children,
     super.key,
     this.title,
+    this.description,
     this.uppercase = true,
+    this.danger = false,
   });
 
   /// Optional section heading text.
   final String? title;
 
+  /// Optional description shown below the section card.
+  final String? description;
+
   /// Whether to force the title to uppercase. Defaults to true.
   final bool uppercase;
+
+  /// When true, renders a red-tinted border to indicate a
+  /// destructive section (e.g. sign-out, delete account).
+  final bool danger;
 
   /// Child widgets rendered inside the section card.
   final List<Widget> children;
 
-  // Leading padding (16) + icon container width (36) + icon gap (12) = 64.
+  // Leading padding (16) + icon container width (36) + gap (12).
   static const double _dividerIndent =
       AppSpacing.lg + 36 + AppSpacing.md;
 
@@ -232,6 +251,8 @@ class SettingsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final borderColor =
+        danger ? cs.error.withAlpha(120) : cs.outlineVariant;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,7 +266,7 @@ class SettingsSection extends StatelessWidget {
             child: Text(
               uppercase ? title!.toUpperCase() : title!,
               style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
+                color: danger ? cs.error : cs.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.8,
                 fontSize: 12,
@@ -254,17 +275,36 @@ class SettingsSection extends StatelessWidget {
           ),
         Card(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(color: cs.outlineVariant),
+            borderRadius:
+                BorderRadius.circular(AppRadius.md),
+            side: BorderSide(color: borderColor),
           ),
-          child: Column(children: _intersperse(children, cs)),
+          child: Column(
+            children: _intersperse(children, cs),
+          ),
         ),
+        if (description != null)
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AppSpacing.xs,
+              top: AppSpacing.xs,
+            ),
+            child: Text(
+              description!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ),
       ],
     );
   }
 
   /// Inserts a slim divider between children (but not before/after).
-  List<Widget> _intersperse(List<Widget> items, ColorScheme cs) {
+  List<Widget> _intersperse(
+    List<Widget> items,
+    ColorScheme cs,
+  ) {
     if (items.length <= 1) return items;
     final result = <Widget>[];
     for (var i = 0; i < items.length; i++) {
