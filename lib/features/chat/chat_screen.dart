@@ -796,6 +796,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ? AppSpacing.xs
                 : AppSpacing.md;
 
+        // Compute grouping for bubble corner radii.
+        // In the reversed list, index+1 = visually above, index-1 = visually below.
+        Map<String, dynamic>? prevMessage;
+        for (var j = reversedIndex - 1; j >= 0; j--) {
+          if (items[j] != null) {
+            prevMessage = items[j];
+            break;
+          }
+        }
+        final prevRole = prevMessage?['role'] as String?;
+        // First in group = different sender above (or none)
+        final isFirstInGroup = nextRole != currentRole;
+        // Last in group = different sender below (or none)
+        final isLastInGroup = prevRole != currentRole;
+
         final messageKey =
             message['id'] as String? ??
             message['toolUseId'] as String? ??
@@ -820,6 +835,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               onOptionPress: _onOptionPress,
               animate:
                   _initialLoadComplete && !_seenMessageIds.contains(messageKey),
+              isFirstInGroup: isFirstInGroup,
+              isLastInGroup: isLastInGroup,
             ),
           ),
         );

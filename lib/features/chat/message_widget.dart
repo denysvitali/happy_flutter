@@ -24,6 +24,8 @@ class MessageWidget extends StatefulWidget {
     this.isSessionOnline = true,
     this.onOptionPress,
     this.animate = true,
+    this.isFirstInGroup = true,
+    this.isLastInGroup = true,
   });
 
   final Map<String, dynamic> messageData;
@@ -40,6 +42,12 @@ class MessageWidget extends StatefulWidget {
   /// opened (bulk-loaded history) so that 50 simultaneous
   /// [AnimationController]s don't all compete for frame time on open.
   final bool animate;
+
+  /// Whether this is the first message in a group from the same sender.
+  final bool isFirstInGroup;
+
+  /// Whether this is the last message in a group from the same sender.
+  final bool isLastInGroup;
 
   @override
   State<MessageWidget> createState() => _MessageWidgetState();
@@ -148,11 +156,15 @@ class _MessageWidgetState extends State<MessageWidget>
                 text: text,
                 onOptionPress: widget.onOptionPress,
                 sendStatus: sendStatus,
+                isFirstInGroup: widget.isFirstInGroup,
+                isLastInGroup: widget.isLastInGroup,
               )
             : _BotMessage(
                 text: text,
                 messageData: widget.messageData,
                 onOptionPress: widget.onOptionPress,
+                isFirstInGroup: widget.isFirstInGroup,
+                isLastInGroup: widget.isLastInGroup,
               ),
       ),
     );
@@ -168,6 +180,8 @@ class _UserBubble extends StatelessWidget {
     required this.text,
     this.onOptionPress,
     this.sendStatus,
+    this.isFirstInGroup = true,
+    this.isLastInGroup = true,
   });
 
   final String text;
@@ -176,11 +190,24 @@ class _UserBubble extends StatelessWidget {
   /// `null` = confirmed (server-origin), `'sending'`, `'sent'`,
   /// `'failed'`.
   final String? sendStatus;
+  final bool isFirstInGroup;
+  final bool isLastInGroup;
+
+  static const _full = Radius.circular(18);
+  static const _small = Radius.circular(6);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final color = theme.colorScheme.primary;
+
+    // Grouped radii: right side pinches for consecutive messages.
+    final radius = BorderRadius.only(
+      topLeft: _full,
+      topRight: isFirstInGroup ? _full : _small,
+      bottomLeft: _full,
+      bottomRight: isLastInGroup ? _small : _small,
+    );
 
     return Align(
       alignment: Alignment.centerRight,
@@ -207,16 +234,12 @@ class _UserBubble extends StatelessWidget {
                 ),
                 constraints: BoxConstraints(
                   maxWidth:
-                      MediaQuery.sizeOf(context).width * 0.80,
+                      MediaQuery.sizeOf(context).width *
+                      0.80,
                 ),
                 decoration: BoxDecoration(
                   color: color,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(18),
-                    topRight: Radius.circular(18),
-                    bottomLeft: Radius.circular(18),
-                    bottomRight: Radius.circular(6),
-                  ),
+                  borderRadius: radius,
                 ),
                 child: MarkdownView(
                   markdown: text,
@@ -320,51 +343,76 @@ class _BotMessage extends StatelessWidget {
     required this.text,
     required this.messageData,
     this.onOptionPress,
+    this.isFirstInGroup = true,
+    this.isLastInGroup = true,
   });
 
   final String text;
   final Map<String, dynamic> messageData;
   final void Function(String)? onOptionPress;
+  final bool isFirstInGroup;
+  final bool isLastInGroup;
+
+  static const _full = Radius.circular(18);
+  static const _small = Radius.circular(6);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
+    // Grouped radii: left side pinches for consecutive messages.
+    final radius = BorderRadius.only(
+      topLeft: isFirstInGroup ? _small : _small,
+      topRight: _full,
+      bottomLeft: isLastInGroup ? _full : _small,
+      bottomRight: _full,
+    );
+
     return GestureDetector(
-      onTap: () => _showMessageDetailSheet(context, messageData),
+      onTap: () =>
+          _showMessageDetailSheet(context, messageData),
       onLongPress: () {
         HapticFeedback.mediumImpact();
         _showRawMarkdownSheet(context, text);
       },
-      child: Padding(
-        padding: const EdgeInsets.only(
-          left: AppSpacing.sm,
-          right: AppSpacing.xxl,
-          top: AppSpacing.xxs,
-          bottom: AppSpacing.xxs,
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.only(
+            left: AppSpacing.sm,
+            right: AppSpacing.xxl,
+            top: AppSpacing.xxs,
+            bottom: AppSpacing.xxs,
           ),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerLow,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(6),
-              topRight: Radius.circular(18),
-              bottomLeft: Radius.circular(18),
-              bottomRight: Radius.circular(18),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth:
+                  MediaQuery.sizeOf(context).width * 0.85,
             ),
-            border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
-              width: 0.5,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
+              ),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerLow,
+                borderRadius: radius,
+                border: Border.all(
+                  color: cs.outlineVariant.withValues(
+                    alpha: AppOpacity.subtle,
+                  ),
+                  width: 0.5,
+                ),
+              ),
+              child: DefaultTextStyle.merge(
+                style: TextStyle(color: cs.onSurface),
+                child: MarkdownView(
+                  markdown: text,
+                  onOptionPress: onOptionPress,
+                ),
+              ),
             ),
-          ),
-          child: DefaultTextStyle.merge(
-            style: TextStyle(color: cs.onSurface),
-            child: MarkdownView(markdown: text, onOptionPress: onOptionPress),
           ),
         ),
       ),
