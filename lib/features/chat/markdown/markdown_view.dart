@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markdown/markdown.dart' as md;
 
+import '../code_block_widget.dart';
+
 /// Callback type for when an option is pressed in an options block.
 typedef OptionPressedCallback = void Function(String option);
 
@@ -109,6 +111,7 @@ class _MarkdownViewState extends State<MarkdownView> {
       data: widget.markdown,
       extensionSet: md.ExtensionSet.gitHubFlavored,
       builders: {
+        'pre': _CodeBlockBuilder(),
         'options': OptionsElementBuilder(
           onOptionPress: widget.onOptionPress,
           textColor: widget.textColor,
@@ -183,7 +186,52 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
     return MarkdownBody(
       data: widget.markdown,
       extensionSet: md.ExtensionSet.gitHubFlavored,
+      builders: {
+        'pre': _CodeBlockBuilder(),
+      },
       styleSheet: _styleSheet!,
+    );
+  }
+}
+
+/// Builder that renders fenced code blocks using [CodeBlockWidget].
+///
+/// Extracts the language from the `code` child element's `class` attribute
+/// (e.g. `language-dart`) and renders a fully styled code block with syntax
+/// highlighting, line numbers, and a copy button.
+class _CodeBlockBuilder extends MarkdownElementBuilder {
+  @override
+  bool isBlockElement() => true;
+
+  @override
+  Widget? visitElementAfterWithContext(
+    BuildContext context,
+    md.Element element,
+    TextStyle? preferredStyle,
+    TextStyle? parentStyle,
+  ) {
+    final code = element.textContent;
+    String? language;
+
+    // Fenced code: <pre><code class="language-dart">…</code></pre>
+    final children = element.children;
+    if (children != null && children.isNotEmpty) {
+      final first = children.first;
+      if (first is md.Element && first.tag == 'code') {
+        final cls = first.attributes['class'] ?? '';
+        if (cls.startsWith('language-')) {
+          language = cls.substring('language-'.length);
+        }
+      }
+    }
+
+    // Strip trailing newline that the parser appends.
+    final trimmed =
+        code.endsWith('\n') ? code.substring(0, code.length - 1) : code;
+
+    return CodeBlockWidget(
+      code: trimmed,
+      language: language,
     );
   }
 }
