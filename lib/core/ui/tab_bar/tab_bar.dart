@@ -150,10 +150,16 @@ class _TabItem extends StatelessWidget {
     final itemColor = isActive ? activeColor : inactiveColor;
 
     return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: SizedBox(
+      child: Semantics(
+        selected: isActive,
+        button: true,
+        label: label,
+        child: Tooltip(
+          message: label,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: SizedBox(
           height: double.infinity,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -198,7 +204,7 @@ class _TabItem extends StatelessWidget {
               Text(
                 label,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: 10,
+                  fontSize: 11,
                   color: itemColor,
                   fontWeight: isActive
                       ? FontWeight.w700
@@ -207,6 +213,8 @@ class _TabItem extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        ),
         ),
       ),
     );

@@ -16,10 +16,14 @@ class AppSectionHeader extends StatelessWidget {
     super.key,
     this.trailing,
     this.padding,
+    this.uppercase = false,
   });
 
-  /// The section label text. Rendered in ALL CAPS.
+  /// The section label text.
   final String title;
+
+  /// Whether to render the title in ALL CAPS. Defaults to false.
+  final bool uppercase;
 
   /// Optional widget aligned to the trailing edge.
   final Widget? trailing;
@@ -47,7 +51,7 @@ class AppSectionHeader extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              title.toUpperCase(),
+              uppercase ? title.toUpperCase() : title,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.primary,
                 fontWeight: FontWeight.w600,

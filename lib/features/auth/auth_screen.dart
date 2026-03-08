@@ -792,8 +792,8 @@ class _AuthHeader extends StatelessWidget {
             ],
           ),
           child: Icon(
-            Icons.android,
-            size: AppSpacing.xxxl + AppSpacing.xxxl,
+            Icons.chat_bubble_rounded,
+            size: 64,
             color: theme.colorScheme.onPrimary,
           ),
         ),
@@ -854,8 +854,8 @@ class _LandingLogoMark extends StatelessWidget {
         ],
       ),
       child: Icon(
-        Icons.android,
-        size: AppSpacing.xxxl + AppSpacing.xxxl + AppSpacing.lg,
+        Icons.chat_bubble_rounded,
+        size: 64,
         color: theme.colorScheme.onPrimary,
       ),
     );
@@ -1032,11 +1032,14 @@ class _QRCodeSection extends StatelessWidget {
             onDismiss: onDismissError,
           ),
         if (isPolling && publicKey != null)
-          QRCodeDisplay(
-            data:
-                'happy:///account?'
-                '${base64Url.encode(publicKey!).replaceAll('=', '')}',
-            size: 250,
+          Semantics(
+            label: 'Account linking QR code',
+            child: QRCodeDisplay(
+              data:
+                  'happy:///account?'
+                  '${base64Url.encode(publicKey!).replaceAll('=', '')}',
+              size: 250,
+            ),
           )
         else if (isPolling)
           Container(
@@ -1058,7 +1061,24 @@ class _QRCodeSection extends StatelessWidget {
                 ),
               ],
             ),
-            child: const AppLoadingIndicator(),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const AppLoadingIndicator(),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Generating secure QR code...',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ),
           ),
       ],
     );
@@ -1676,7 +1696,27 @@ class AuthGate extends ConsumerWidget {
     return switch (authState) {
       AuthState.authenticated => child,
       AuthState.unauthenticated => AuthScreen(initialDeepLink: initialDeepLink),
-      AuthState.authenticating => const Scaffold(body: AppLoadingIndicator()),
+      AuthState.authenticating => Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.chat_bubble_rounded,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  'Checking sign-in status...',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+                const CircularProgressIndicator(),
+              ],
+            ),
+          ),
+        ),
       AuthState.error => AuthScreen(
         initialDeepLink: initialDeepLink,
         showError: true,

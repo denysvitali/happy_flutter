@@ -22,6 +22,8 @@ class AppTappable extends StatefulWidget {
     this.onTap,
     this.borderRadius,
     this.haptic = true,
+    this.semanticLabel,
+    this.tooltip,
   });
 
   /// The widget below this widget in the tree.
@@ -40,6 +42,12 @@ class AppTappable extends StatefulWidget {
   /// Defaults to true.
   final bool haptic;
 
+  /// Optional semantic label for accessibility.
+  final String? semanticLabel;
+
+  /// Optional tooltip message.
+  final String? tooltip;
+
   @override
   State<AppTappable> createState() => _AppTappableState();
 }
@@ -55,40 +63,71 @@ class _AppTappableState extends State<AppTappable> {
   @override
   Widget build(BuildContext context) {
     final radius =
-        widget.borderRadius ?? BorderRadius.circular(AppRadius.sm);
+        widget.borderRadius ??
+        BorderRadius.circular(AppRadius.sm);
 
     final isIOS = !kIsWeb && Platform.isIOS;
 
+    Widget result;
+
     if (isIOS) {
-      return GestureDetector(
-        onTap: widget.onTap == null ? null : _handleTap,
-        onTapDown: widget.onTap == null
-            ? null
-            : (_) => setState(() => _pressed = true),
-        onTapUp: widget.onTap == null
-            ? null
-            : (_) => setState(() => _pressed = false),
-        onTapCancel: widget.onTap == null
-            ? null
-            : () => setState(() => _pressed = false),
-        child: AnimatedScale(
-          scale: _pressed ? 0.97 : 1.0,
-          duration: AppDuration.fast,
-          curve: Curves.easeInOut,
-          child: widget.child,
+      result = ConstrainedBox(
+        constraints: const BoxConstraints(
+          minWidth: AppTouchTarget.min,
+          minHeight: AppTouchTarget.min,
         ),
+        child: GestureDetector(
+          onTap: widget.onTap == null ? null : _handleTap,
+          onTapDown: widget.onTap == null
+              ? null
+              : (_) => setState(() => _pressed = true),
+          onTapUp: widget.onTap == null
+              ? null
+              : (_) =>
+                  setState(() => _pressed = false),
+          onTapCancel: widget.onTap == null
+              ? null
+              : () => setState(() => _pressed = false),
+          child: AnimatedScale(
+            scale: _pressed ? 0.97 : 1.0,
+            duration: AppDuration.fast,
+            curve: Curves.easeInOut,
+            child: widget.child,
+          ),
+        ),
+      );
+    } else {
+      result = InkWell(
+        onTap: widget.onTap == null ? null : _handleTap,
+        borderRadius: radius,
+        splashColor: Theme.of(context)
+            .colorScheme
+            .primary
+            .withValues(alpha: 0.08),
+        highlightColor: Theme.of(context)
+            .colorScheme
+            .primary
+            .withValues(alpha: 0.04),
+        splashFactory: InkRipple.splashFactory,
+        child: widget.child,
       );
     }
 
-    return InkWell(
-      onTap: widget.onTap == null ? null : _handleTap,
-      borderRadius: radius,
-      splashColor:
-          Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
-      highlightColor:
-          Theme.of(context).colorScheme.primary.withValues(alpha: 0.04),
-      splashFactory: InkRipple.splashFactory,
-      child: widget.child,
-    );
+    if (widget.tooltip != null) {
+      result = Tooltip(
+        message: widget.tooltip!,
+        child: result,
+      );
+    }
+
+    if (widget.semanticLabel != null) {
+      result = Semantics(
+        label: widget.semanticLabel,
+        button: true,
+        child: result,
+      );
+    }
+
+    return result;
   }
 }

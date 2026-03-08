@@ -682,27 +682,39 @@ class _InputToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final model = modelMode ?? ClaudeModel.defaultModel;
 
-    return Row(
-      children: [
-        if (onPermissionModeChanged != null) ...[
-          perm.PermissionModeSelector(
-            selectedMode: permissionMode,
-            onModeChanged: onPermissionModeChanged,
-            availableModes: perm.PermissionModeExtension.claudeGeminiModes,
-          ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
+      child: Row(
+        children: [
+          if (onPermissionModeChanged != null) ...[
+            perm.PermissionModeSelector(
+              selectedMode: permissionMode,
+              onModeChanged: onPermissionModeChanged,
+              availableModes:
+                  perm.PermissionModeExtension.claudeGeminiModes,
+            ),
+            const SizedBox(width: 6),
+          ],
+          _ModelChip(model: model, onTap: onShowModelPicker),
           const SizedBox(width: 6),
+          _ProfileChip(
+            profile: selectedProfile,
+            onTap: onShowProfilePicker,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          if (showAbort) ...[
+            _AbortButton(
+              isAborting: isAborting,
+              onTap: onAbort,
+            ),
+            if (contextSize != null && contextSize! > 0)
+              const SizedBox(width: 6),
+          ],
+          if (contextSize != null && contextSize! > 0)
+            _ContextSizeIndicator(contextSize: contextSize!),
         ],
-        _ModelChip(model: model, onTap: onShowModelPicker),
-        const SizedBox(width: 6),
-        _ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
-        const Spacer(),
-        if (showAbort) ...[
-          _AbortButton(isAborting: isAborting, onTap: onAbort),
-          if (contextSize != null && contextSize! > 0) const SizedBox(width: 6),
-        ],
-        if (contextSize != null && contextSize! > 0)
-          _ContextSizeIndicator(contextSize: contextSize!),
-      ],
+      ),
     );
   }
 }
@@ -1382,7 +1394,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         ),
       ),
       style: theme.textTheme.bodyMedium,
-      maxLines: 4,
+      maxLines: 6,
       minLines: 1,
       textInputAction: defaultTargetPlatform == TargetPlatform.android
           ? TextInputAction.newline
@@ -1398,122 +1410,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
   // ---------------------------------------------------------------------------
 
   Widget _buildContextInfoBar(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.xs,
-        AppSpacing.md,
-        0,
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: 3,
-      ),
-      decoration: BoxDecoration(
-        color: cs.onSurface.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(AppRadius.sm + 2),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.3),
-          width: 0.5,
-        ),
-      ),
-      child: Row(
-        children: [
-          if (widget.machineName != null && widget.onMachinePressed != null)
-            _buildInfoChip(
-              context,
-              icon: Icons.computer_outlined,
-              label: widget.machineName!,
-              onTap: widget.onMachinePressed,
-            ),
-          if (widget.machineName != null &&
-              widget.currentPath != null &&
-              widget.onMachinePressed != null &&
-              widget.onPathPressed != null)
-            _buildInfoSeparator(context),
-          if (widget.currentPath != null && widget.onPathPressed != null)
-            Flexible(
-              child: _buildInfoChip(
-                context,
-                icon: Icons.folder_open_outlined,
-                label: widget.currentPath!,
-                onTap: widget.onPathPressed,
-                ellipsis: true,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoChip(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    VoidCallback? onTap,
-    bool ellipsis = false,
-  }) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    final Widget inner = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: cs.onSurfaceVariant),
-        const SizedBox(width: AppSpacing.xs),
-        if (ellipsis)
-          Flexible(
-            child: Text(
-              label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          )
-        else
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onSurfaceVariant,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-      ],
-    );
-
-    if (onTap != null) {
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.xs + 2),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          child: inner,
-        ),
-      );
-    }
-
-    return inner;
-  }
-
-  Widget _buildInfoSeparator(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Text(
-        '/',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-        ),
-      ),
-    );
+    // Context info (machine/path) is already shown in the app bar.
+    return const SizedBox.shrink();
   }
 
   // ---------------------------------------------------------------------------

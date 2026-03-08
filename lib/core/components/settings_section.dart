@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 /// 36x36 rounded icon container used as the leading widget in settings rows.
@@ -50,7 +51,12 @@ class SettingsRow extends StatelessWidget {
     final cs = theme.colorScheme;
 
     return InkWell(
-      onTap: onTap,
+      onTap: onTap == null
+          ? null
+          : () {
+              HapticFeedback.selectionClick();
+              onTap!();
+            },
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: SizedBox(
         height: subtitle != null ? null : 48,
@@ -109,11 +115,13 @@ class SettingsToggleRow extends StatelessWidget {
     required this.onChanged,
     super.key,
     this.subtitle,
+    this.iconColor,
   });
 
   final IconData icon;
   final String title;
   final String? subtitle;
+  final Color? iconColor;
   final bool value;
   final ValueChanged<bool> onChanged;
 
@@ -132,7 +140,7 @@ class SettingsToggleRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            SettingsIconContainer(icon: icon),
+            SettingsIconContainer(icon: icon, color: iconColor),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(

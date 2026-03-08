@@ -871,7 +871,6 @@ class _DismissibleActiveSession extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs = Theme.of(context).colorScheme;
     return Dismissible(
       key: ValueKey('active-${session.id}'),
       direction: DismissDirection.endToStart,
@@ -880,17 +879,23 @@ class _DismissibleActiveSession extends ConsumerWidget {
       onDismissed: (_) {},
       background: Container(
         alignment: Alignment.centerRight,
-        color: cs.error,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+        color: Colors.orange,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xl,
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.archive_outlined, color: cs.onError, size: 22),
+            const Icon(
+              Icons.archive_outlined,
+              color: Colors.white,
+              size: 22,
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               context.l10n.sessionsArchive,
-              style: TextStyle(
-                color: cs.onError,
+              style: const TextStyle(
+                color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -1079,7 +1084,8 @@ class _StaggeredSlideInState extends State<_StaggeredSlideIn>
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     if (widget.animate) {
-      final delay = Duration(milliseconds: _kStaggerStep * widget.index);
+      final delayMs = (_kStaggerStep * widget.index).clamp(0, 300);
+      final delay = Duration(milliseconds: delayMs);
       Future.delayed(delay, () {
         if (mounted) _controller.forward();
       });
@@ -2224,66 +2230,127 @@ class SessionCard extends StatelessWidget {
 // ─── Shimmer loading skeleton ────────────────────────────────────────────────
 
 /// Skeleton placeholder shown while sessions are loading.
+///
+/// Mirrors the real list hierarchy with section headers and
+/// active/archived row styles for a smoother content transition.
 class _SessionListShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final base = cs.onSurface.withValues(alpha: 0.08);
-    return ListView.builder(
+
+    Widget sectionHeader(double width) {
+      return Padding(
+        padding: const EdgeInsets.only(
+          top: AppSpacing.lg,
+          bottom: AppSpacing.sm,
+        ),
+        child: Container(
+          height: 14,
+          width: width,
+          decoration: BoxDecoration(
+            color: base,
+            borderRadius: BorderRadius.circular(
+              AppRadius.xs,
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget row({
+      double avatarSize = 32,
+      double height = 56,
+    }) {
+      return ShimmerView(
+        child: SizedBox(
+          height: height,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: AppSpacing.xs,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: avatarSize,
+                  height: avatarSize,
+                  decoration: BoxDecoration(
+                    color: base,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    mainAxisAlignment:
+                        MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        height: 14,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: base,
+                          borderRadius:
+                              BorderRadius.circular(
+                            AppRadius.xs,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(
+                        height: AppSpacing.xs,
+                      ),
+                      Container(
+                        height: 12,
+                        width: 160,
+                        decoration: BoxDecoration(
+                          color: base,
+                          borderRadius:
+                              BorderRadius.circular(
+                            AppRadius.xs,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Container(
+                  height: 12,
+                  width: 36,
+                  decoration: BoxDecoration(
+                    color: base,
+                    borderRadius: BorderRadius.circular(
+                      AppRadius.xs,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return ListView(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
       ),
-      itemCount: 6,
-      itemBuilder: (_, i) => ShimmerView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-          child: Row(
-            children: [
-              // Avatar placeholder
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(color: base, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      height: 14,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: base,
-                        borderRadius: BorderRadius.circular(AppRadius.xs),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Container(
-                      height: 12,
-                      width: 180,
-                      decoration: BoxDecoration(
-                        color: base,
-                        borderRadius: BorderRadius.circular(AppRadius.xs),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Container(
-                height: 12,
-                width: 36,
-                decoration: BoxDecoration(
-                  color: base,
-                  borderRadius: BorderRadius.circular(AppRadius.xs),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      children: [
+        // Active section header
+        sectionHeader(80),
+        // Active session rows (compact, 56px)
+        row(),
+        row(),
+        row(),
+        // Archived section header
+        sectionHeader(100),
+        // Archived rows (taller with subtitle)
+        row(avatarSize: 40, height: 68),
+        row(avatarSize: 40, height: 68),
+      ],
     );
   }
 }

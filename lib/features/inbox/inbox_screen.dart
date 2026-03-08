@@ -25,7 +25,8 @@ class InboxScreen extends ConsumerStatefulWidget {
 
 class _InboxScreenState extends ConsumerState<InboxScreen> {
   final SocialService _socialService = SocialService();
-  bool _isBusy = false;
+  final Set<String> _busyIds = {};
+  bool _isLoading = true;
   StreamSubscription<void>? _syncSubscription;
 
   @override
@@ -48,13 +49,19 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   Future<void> _refresh() async {
     await ref.read(friendsNotifierProvider.notifier).refreshFromSync();
     await ref.read(feedNotifierProvider.notifier).refreshFromSync();
+    if (mounted && _isLoading) {
+      setState(() => _isLoading = false);
+    }
   }
 
+  bool _isItemBusy(String id) => _busyIds.contains(id);
+
   Future<void> _runFriendAction(
+    String itemId,
     Future<void> Function() action,
     String successMessage,
   ) async {
-    setState(() => _isBusy = true);
+    setState(() => _busyIds.add(itemId));
     try {
       await action();
       await _refresh();
@@ -70,10 +77,12 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(context.l10n.friendsActionFailed)));
+      ).showSnackBar(SnackBar(
+        content: Text(context.l10n.friendsActionFailed),
+      ));
     } finally {
       if (mounted) {
-        setState(() => _isBusy = false);
+        setState(() => _busyIds.remove(itemId));
       }
     }
   }
@@ -93,6 +102,10 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         incoming.isEmpty &&
         requested.isEmpty &&
         friends.isEmpty;
+
+    if (_isLoading) {
+      return _InboxLoadingShimmer();
+    }
 
     if (isEmpty) {
       return _InboxEmptyView(
@@ -186,12 +199,14 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             (request) => _FriendRequestCard(
               key: ValueKey('incoming_${request.fromUserId}'),
               request: request,
-              disabled: _isBusy,
+              disabled: _isItemBusy(request.fromUserId),
               onAccept: () => _runFriendAction(
+                request.fromUserId,
                 () => _socialService.addFriend(request.fromUserId),
                 context.l10n.friendsRequestAccepted,
               ),
               onReject: () => _runFriendAction(
+                request.fromUserId,
                 () => _socialService.removeFriend(request.fromUserId),
                 context.l10n.friendsRequestRejected,
               ),
@@ -219,9 +234,10 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               userId: friend.id,
               avatarUrl: friend.avatarUrl,
               trailing: TextButton(
-                onPressed: _isBusy
+                onPressed: _isItemBusy(friend.id)
                     ? null
                     : () => _runFriendAction(
+                        friend.id,
                         () => _socialService.removeFriend(friend.id),
                         context.l10n.inboxRequestCanceled,
                       ),
@@ -251,7 +267,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               userId: friend.id,
               avatarUrl: friend.avatarUrl,
               trailing: TextButton(
-                onPressed: _isBusy
+                onPressed: _isItemBusy(friend.id)
                     ? null
                     : () => _showRemoveFriendDialog(friend),
                 child: Text(context.l10n.friendsRemoveAction),
@@ -286,6 +302,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
     if (confirmed ?? false) {
       await _runFriendAction(
+        friend.id,
         () => _socialService.removeFriend(friend.id),
         l10n.friendsRemoved,
       );
@@ -679,6 +696,102 @@ class _UserRow extends StatelessWidget {
       userId: userId,
       avatarUrl: avatarUrl,
       trailing: trailing,
+    );
+  }
+}
+
+// ─── Loading shimmer ──────────────────────────────────────────────
+
+class _InboxLoadingShimmer extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final base = cs.surfaceContainerHighest.withValues(
+      alpha: 0.5,
+    );
+
+    Widget header() => Padding(
+          padding: const EdgeInsets.only(
+            top: AppSpacing.lg,
+            bottom: AppSpacing.sm,
+            left: AppSpacing.lg,
+          ),
+          child: Container(
+            height: 12,
+            width: 100,
+            decoration: BoxDecoration(
+              color: base,
+              borderRadius: BorderRadius.circular(
+                AppRadius.xs,
+              ),
+            ),
+          ),
+        );
+
+    Widget row() => Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: base,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 14,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: base,
+                        borderRadius:
+                            BorderRadius.circular(
+                          AppRadius.xs,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: AppSpacing.xs,
+                    ),
+                    Container(
+                      height: 12,
+                      width: 140,
+                      decoration: BoxDecoration(
+                        color: base,
+                        borderRadius:
+                            BorderRadius.circular(
+                          AppRadius.xs,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+
+    return ListView(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      children: [
+        header(),
+        row(),
+        row(),
+        row(),
+        header(),
+        row(),
+        row(),
+      ],
     );
   }
 }

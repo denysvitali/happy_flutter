@@ -161,7 +161,7 @@ class SettingsScreen extends ConsumerWidget {
                 );
               }
             } else {
-              unawaited(context.pushNamed('account'));
+              unawaited(context.pushNamed('claude-connect'));
             }
           },
         ),
