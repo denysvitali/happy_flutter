@@ -193,7 +193,7 @@ class _UserBubble extends StatelessWidget {
   final bool isFirstInGroup;
   final bool isLastInGroup;
 
-  static const _full = Radius.circular(18);
+  static const _full = Radius.circular(20);
   static const _small = Radius.circular(6);
 
   @override
@@ -206,7 +206,7 @@ class _UserBubble extends StatelessWidget {
       topLeft: _full,
       topRight: isFirstInGroup ? _full : _small,
       bottomLeft: _full,
-      bottomRight: isLastInGroup ? _small : _small,
+      bottomRight: isLastInGroup ? _full : _small,
     );
 
     return Align(
@@ -240,6 +240,13 @@ class _UserBubble extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: radius,
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withAlpha(40),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: MarkdownView(
                   markdown: text,
@@ -353,7 +360,7 @@ class _BotMessage extends StatelessWidget {
   final bool isFirstInGroup;
   final bool isLastInGroup;
 
-  static const _full = Radius.circular(18);
+  static const _full = Radius.circular(20);
   static const _small = Radius.circular(6);
 
   @override
@@ -363,7 +370,7 @@ class _BotMessage extends StatelessWidget {
 
     // Grouped radii: left side pinches for consecutive messages.
     final radius = BorderRadius.only(
-      topLeft: isFirstInGroup ? _small : _small,
+      topLeft: isFirstInGroup ? _full : _small,
       topRight: _full,
       bottomLeft: isLastInGroup ? _full : _small,
       bottomRight: _full,
