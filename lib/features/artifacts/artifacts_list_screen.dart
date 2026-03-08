@@ -9,6 +9,7 @@ import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/ui/shimmer/shimmer.dart';
 
 /// Screen displaying the list of all artifacts.
 class ArtifactsListScreen extends ConsumerStatefulWidget {
@@ -22,6 +23,7 @@ class ArtifactsListScreen extends ConsumerStatefulWidget {
 class _ArtifactsListScreenState
     extends ConsumerState<ArtifactsListScreen> {
   StreamSubscription<void>? _syncSubscription;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -30,6 +32,7 @@ class _ArtifactsListScreenState
       await ref
           .read(artifactsNotifierProvider.notifier)
           .refreshFromSync();
+      if (mounted) setState(() => _isLoading = false);
     });
     _syncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
@@ -52,9 +55,11 @@ class _ArtifactsListScreenState
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.artifactsTitle)),
-      body: sortedArtifacts.isEmpty
-          ? _buildEmptyState(l10n)
-          : _buildList(sortedArtifacts),
+      body: _isLoading
+          ? const _ArtifactsLoadingShimmer()
+          : sortedArtifacts.isEmpty
+              ? _buildEmptyState(l10n)
+              : _buildList(sortedArtifacts),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/artifacts/new'),
         tooltip: l10n.commonCreate,
@@ -221,6 +226,89 @@ class _TypeBadge extends StatelessWidget {
               fontWeight: FontWeight.w700,
               fontSize: 11,
             ),
+      ),
+    );
+  }
+}
+
+class _ArtifactsLoadingShimmer extends StatelessWidget {
+  const _ArtifactsLoadingShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final color = cs.surfaceContainerHighest;
+
+    return Shimmer(
+      child: ListView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        itemCount: 5,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
+              ),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerLow,
+                borderRadius:
+                    BorderRadius.circular(AppRadius.md),
+                border: Border.all(
+                  color: cs.outlineVariant.withValues(
+                    alpha: 0.3,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius:
+                          BorderRadius.circular(AppRadius.md),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 14,
+                          width: 120 + (index * 20.0) % 60,
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius:
+                                BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Container(
+                          height: 12,
+                          width: 80,
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius:
+                                BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

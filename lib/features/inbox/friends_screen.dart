@@ -8,6 +8,7 @@ import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/social_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/ui/shimmer/shimmer.dart';
 
 /// Friends screen with two tabs: accepted friends and incoming requests.
 class FriendsScreen extends ConsumerStatefulWidget {
@@ -22,13 +23,17 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
     with SingleTickerProviderStateMixin {
   final SocialService _socialService = SocialService();
   bool _isBusy = false;
+  bool _isLoading = true;
   late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    Future<void>.microtask(_refresh);
+    Future<void>.microtask(() async {
+      await _refresh();
+      if (mounted) setState(() => _isLoading = false);
+    });
   }
 
   @override
@@ -152,24 +157,26 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _FriendsTab(
-            friends: friends,
-            isBusy: _isBusy,
-            onRemove: _removeFriend,
-            onRefresh: _refresh,
-          ),
-          _RequestsTab(
-            requests: incoming,
-            isBusy: _isBusy,
-            onAccept: _accept,
-            onReject: _reject,
-            onRefresh: _refresh,
-          ),
-        ],
-      ),
+      body: _isLoading
+          ? const _FriendsLoadingShimmer()
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _FriendsTab(
+                  friends: friends,
+                  isBusy: _isBusy,
+                  onRemove: _removeFriend,
+                  onRefresh: _refresh,
+                ),
+                _RequestsTab(
+                  requests: incoming,
+                  isBusy: _isBusy,
+                  onAccept: _accept,
+                  onReject: _reject,
+                  onRefresh: _refresh,
+                ),
+              ],
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/friends/search'),
         tooltip: l10n.friendsAddFriend,
@@ -533,6 +540,94 @@ class _CountBadge extends StatelessWidget {
           fontWeight: FontWeight.w700,
           fontSize: 11,
         ),
+      ),
+    );
+  }
+}
+
+class _FriendsLoadingShimmer extends StatelessWidget {
+  const _FriendsLoadingShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final color = cs.surfaceContainerHighest;
+
+    return Shimmer(
+      child: ListView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.xxxl,
+        ),
+        itemCount: 5,
+        itemBuilder: (context, index) {
+          return Card(
+            elevation: AppElevation.none,
+            margin: const EdgeInsets.only(
+              bottom: AppSpacing.sm,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(AppRadius.md),
+              side: BorderSide(
+                color: cs.outlineVariant.withValues(
+                  alpha: 0.3,
+                ),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 14,
+                          width: 100 + (index * 20.0) % 60,
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius:
+                                BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(
+                          height: AppSpacing.xs,
+                        ),
+                        Container(
+                          height: 12,
+                          width: 150 + (index * 15.0) % 50,
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius:
+                                BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

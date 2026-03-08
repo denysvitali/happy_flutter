@@ -10,6 +10,7 @@ import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/ui/shimmer/shimmer.dart';
 
 /// Zen home screen — displays all todo items grouped by status.
 class ZenHomeScreen extends ConsumerStatefulWidget {
@@ -22,6 +23,7 @@ class ZenHomeScreen extends ConsumerStatefulWidget {
 
 class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen> {
   StreamSubscription<void>? _syncSubscription;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -30,6 +32,7 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen> {
       await ref
           .read(todoStateNotifierProvider.notifier)
           .refreshFromSync();
+      if (mounted) setState(() => _isLoading = false);
     });
     _syncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
@@ -77,7 +80,9 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen> {
           ],
         ),
       ),
-      body: allTodos.isEmpty
+      body: _isLoading
+          ? const _ZenLoadingShimmer()
+          : allTodos.isEmpty
           ? AppEmptyState(
               icon: Icons.check_circle_outline,
               title: context.l10n.zenEmptyTitle,
@@ -303,5 +308,97 @@ class _PriorityDot extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _color(priority, Theme.of(context).colorScheme);
     return AppStatusDot(color: color, size: 10);
+  }
+}
+
+class _ZenLoadingShimmer extends StatelessWidget {
+  const _ZenLoadingShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final color = cs.surfaceContainerHighest;
+
+    return Shimmer(
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.lg,
+          80,
+        ),
+        children: [
+          // Section header placeholder.
+          Container(
+            height: 14,
+            width: 80,
+            margin: const EdgeInsets.symmetric(
+              vertical: AppSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          for (int i = 0; i < 4; i++)
+            Card(
+              margin: const EdgeInsets.only(
+                bottom: AppSpacing.md,
+              ),
+              elevation: AppElevation.none,
+              shape: RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.circular(AppRadius.md),
+                side: BorderSide(
+                  color: cs.outlineVariant.withValues(
+                    alpha: 0.3,
+                  ),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.lg,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Container(
+                        height: 14,
+                        width: 140 + (i * 25.0) % 80,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius:
+                              BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

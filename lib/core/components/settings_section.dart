@@ -212,10 +212,14 @@ class SettingsSection extends StatelessWidget {
     required this.children,
     super.key,
     this.title,
+    this.uppercase = true,
   });
 
   /// Optional section heading text.
   final String? title;
+
+  /// Whether to force the title to uppercase. Defaults to true.
+  final bool uppercase;
 
   /// Child widgets rendered inside the section card.
   final List<Widget> children;
@@ -239,7 +243,7 @@ class SettingsSection extends StatelessWidget {
               bottom: AppSpacing.xs,
             ),
             child: Text(
-              title!.toUpperCase(),
+              uppercase ? title!.toUpperCase() : title!,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant,
                 fontWeight: FontWeight.w600,

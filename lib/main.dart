@@ -202,6 +202,43 @@ class _HappyAppState extends ConsumerState<HappyApp>
     ).applySystemChromeWithContext(ref.context);
   }
 
+  /// Fade transition for tab-level routes.
+  static Page<void> _fadePage(Widget child, GoRouterState state) {
+    return CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionsBuilder: (context, animation, _, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+      transitionDuration: const Duration(milliseconds: 200),
+    );
+  }
+
+  /// Slide-up transition for creation / modal flows.
+  static Page<void> _slideUpPage(
+    Widget child,
+    GoRouterState state,
+  ) {
+    return CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionsBuilder: (context, animation, _, child) {
+        final tween = Tween(
+          begin: const Offset(0, 0.15),
+          end: Offset.zero,
+        ).chain(CurveTween(curve: Curves.easeOutCubic));
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          ),
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 300),
+    );
+  }
+
   GoRouter _buildRouter() {
     return GoRouter(
       initialLocation: '/',
@@ -210,20 +247,26 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/',
           name: 'auth',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final tabParam = state.uri.queryParameters['tab'];
-            return AuthGate(
-              initialDeepLink: widget.initialDeepLink,
-              child: SessionsScreen(initialTab: tabParam),
+            return _fadePage(
+              AuthGate(
+                initialDeepLink: widget.initialDeepLink,
+                child: SessionsScreen(initialTab: tabParam),
+              ),
+              state,
             );
           },
         ),
         GoRoute(
           path: '/sessions',
           name: 'sessions',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final tabParam = state.uri.queryParameters['tab'];
-            return AuthGate(child: SessionsScreen(initialTab: tabParam));
+            return _fadePage(
+              AuthGate(child: SessionsScreen(initialTab: tabParam)),
+              state,
+            );
           },
         ),
         GoRoute(
@@ -237,7 +280,10 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/inbox',
           name: 'inbox',
-          builder: (context, state) => const AuthGate(child: InboxScreen()),
+          pageBuilder: (context, state) => _fadePage(
+            const AuthGate(child: InboxScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/friends/search',
@@ -248,7 +294,10 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/settings',
           name: 'settings',
-          builder: (context, state) => const AuthGate(child: SettingsScreen()),
+          pageBuilder: (context, state) => _fadePage(
+            const AuthGate(child: SettingsScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/settings/account',
@@ -399,8 +448,10 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/new',
           name: 'new-session',
-          builder: (context, state) =>
-              const AuthGate(child: NewSessionScreen()),
+          pageBuilder: (context, state) => _slideUpPage(
+            const AuthGate(child: NewSessionScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/new/pick/machine',
@@ -444,8 +495,10 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/artifacts/new',
           name: 'artifact-new',
-          builder: (context, state) =>
-              const AuthGate(child: NewArtifactScreen()),
+          pageBuilder: (context, state) => _slideUpPage(
+            const AuthGate(child: NewArtifactScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/artifacts/:artifactId',
@@ -471,7 +524,10 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/zen/new',
           name: 'zen-new',
-          builder: (context, state) => const AuthGate(child: ZenNewScreen()),
+          pageBuilder: (context, state) => _slideUpPage(
+            const AuthGate(child: ZenNewScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/zen/view',
