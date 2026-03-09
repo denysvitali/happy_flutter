@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 
-/// Animated shimmer gradient loading effect
+import '../../theme/app_color_scheme.dart';
+
+/// Animated shimmer gradient loading effect.
+///
+/// When [colors] is omitted, the shimmer automatically adapts to the
+/// current theme using [AppColorScheme.shimmerBase] and
+/// [AppColorScheme.shimmerHighlight].
 class Shimmer extends StatefulWidget {
 
   const Shimmer({
     required this.child,
-    this.colors = const [
-      Color(0xFFE0E0E0),
-      Color(0xFFF0F0F0),
-      Color(0xFFF8F8F8),
-      Color(0xFFF0F0F0),
-      Color(0xFFE0E0E0),
-    ],
+    this.colors,
     this.shimmerWidthPercent = 80,
     this.duration = const Duration(milliseconds: 1500),
     this.enabled = true,
     super.key,
   });
   final Widget child;
-  final List<Color> colors;
+  final List<Color>? colors;
   final double shimmerWidthPercent;
   final Duration duration;
   final bool enabled;
@@ -65,6 +65,26 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
       return widget.child;
     }
 
+    final appColors =
+        Theme.of(context).extension<AppColorScheme>();
+    final effectiveColors = widget.colors ??
+        (appColors != null
+            ? [
+                appColors.shimmerBase,
+                appColors.shimmerHighlight,
+                appColors.shimmerHighlight,
+                appColors.shimmerBase,
+              ]
+            : const [
+                Color(0xFFE0E0E0),
+                Color(0xFFF8F8F8),
+                Color(0xFFF8F8F8),
+                Color(0xFFE0E0E0),
+              ]);
+    final effectiveStops = widget.colors != null
+        ? const [0.0, 0.2, 0.5, 0.8, 1.0]
+        : const [0.0, 0.35, 0.65, 1.0];
+
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
@@ -72,8 +92,8 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
           child: ShaderMask(
             shaderCallback: (bounds) {
               return LinearGradient(
-                colors: widget.colors,
-                stops: const [0.0, 0.2, 0.5, 0.8, 1.0],
+                colors: effectiveColors,
+                stops: effectiveStops,
                 begin: Alignment.topLeft,
                 end: Alignment.topRight,
                 transform: _ShimmerGradientTransform(

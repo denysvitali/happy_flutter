@@ -103,12 +103,17 @@ class QRCodeDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        boxShadow: AppShadow.card,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(
+          color: Theme.of(context)
+              .colorScheme
+              .outlineVariant
+              .withValues(alpha: 0.5),
+        ),
+        boxShadow: AppShadow.floating,
       ),
       child: CustomPaint(
         size: Size(size, size),
@@ -128,20 +133,30 @@ class QRCodePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.black
+      ..color = const Color(0xFF1E293B)
       ..style = PaintingStyle.fill;
 
-    final qrCode = QrCode(8, QrErrorCorrectLevel.L)..addData(data);
+    final qrCode = QrCode(8, QrErrorCorrectLevel.L)
+      ..addData(data);
     final qrImage = QrImage(qrCode);
 
     final moduleCount = qrImage.moduleCount;
     final cellSize = size.width / moduleCount;
+    final radius = cellSize * 0.3;
 
     for (var row = 0; row < moduleCount; row++) {
       for (var col = 0; col < moduleCount; col++) {
         if (qrImage.isDark(row, col)) {
-          canvas.drawRect(
-            Rect.fromLTWH(col * cellSize, row * cellSize, cellSize, cellSize),
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromLTWH(
+                col * cellSize,
+                row * cellSize,
+                cellSize,
+                cellSize,
+              ),
+              Radius.circular(radius),
+            ),
             paint,
           );
         }

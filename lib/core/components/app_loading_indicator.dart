@@ -16,6 +16,7 @@ class AppLoadingIndicator extends StatelessWidget {
     this.size = AppSpacing.xxl,
     this.strokeWidth = 2.5,
     this.color,
+    this.label,
   });
 
   /// The width and height of the indicator's bounding box.
@@ -31,20 +32,43 @@ class AppLoadingIndicator extends StatelessWidget {
   /// Defaults to [ColorScheme.primary] when null.
   final Color? color;
 
+  /// Optional text label shown below the spinner.
+  final String? label;
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final effectiveColor =
-        color ?? Theme.of(context).colorScheme.primary;
+        color ?? theme.colorScheme.primary;
+
+    final spinner = SizedBox(
+      width: size,
+      height: size,
+      child: CircularProgressIndicator(
+        strokeWidth: strokeWidth,
+        strokeCap: StrokeCap.round,
+        valueColor:
+            AlwaysStoppedAnimation<Color>(effectiveColor),
+      ),
+    );
+
+    if (label == null) {
+      return Center(child: spinner);
+    }
 
     return Center(
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: CircularProgressIndicator(
-          strokeWidth: strokeWidth,
-          strokeCap: StrokeCap.round,
-          valueColor: AlwaysStoppedAnimation<Color>(effectiveColor),
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          spinner,
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            label!,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }

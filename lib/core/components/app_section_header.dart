@@ -49,6 +49,19 @@ class AppSectionHeader extends StatelessWidget {
       padding: effectivePadding,
       child: Row(
         children: [
+          Container(
+            width: 3,
+            height: 14,
+            margin: const EdgeInsets.only(
+              right: AppSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary
+                  .withValues(alpha: 0.5),
+              borderRadius:
+                  BorderRadius.circular(AppRadius.xs),
+            ),
+          ),
           Expanded(
             child: Text(
               uppercase ? title.toUpperCase() : title,

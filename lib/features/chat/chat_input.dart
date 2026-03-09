@@ -199,7 +199,10 @@ class _SendButton extends StatelessWidget {
     final canSend = !isSendDisabled && !isSending;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        if (canSend) HapticFeedback.lightImpact();
+        onTap();
+      },
       behavior: HitTestBehavior.opaque,
       child: ConstrainedBox(
         constraints: const BoxConstraints(
@@ -218,6 +221,16 @@ class _SendButton extends StatelessWidget {
                 color: canSend
                     ? cs.primary
                     : cs.onSurface.withValues(alpha: 0.08),
+                boxShadow: canSend
+                    ? [
+                        BoxShadow(
+                          color: cs.primary
+                              .withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
               ),
               child: AnimatedSwitcher(
                 duration: _kSwitchAnim,
@@ -228,7 +241,9 @@ class _SendButton extends StatelessWidget {
                 child: isSending
                     ? Padding(
                         key: const ValueKey('spinner'),
-                        padding: const EdgeInsets.all(AppSpacing.sm),
+                        padding: const EdgeInsets.all(
+                          AppSpacing.sm,
+                        ),
                         child: CircularProgressIndicator(
                           strokeWidth: 1.5,
                           color: cs.onSurfaceVariant,
@@ -240,7 +255,8 @@ class _SendButton extends StatelessWidget {
                         size: 18,
                         color: canSend
                             ? cs.onPrimary
-                            : cs.onSurface.withValues(alpha: 0.25),
+                            : cs.onSurface
+                                .withValues(alpha: 0.25),
                       ),
               ),
             ),

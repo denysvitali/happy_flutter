@@ -432,19 +432,32 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
 
           // Create button
           SizedBox(
-            height: 48,
-            child: FilledButton(
-              onPressed: _canCreate(connectionStatus) ? _createSession : null,
-              child: _isCreating
+            width: double.infinity,
+            height: 52,
+            child: FilledButton.icon(
+              onPressed: _canCreate(connectionStatus)
+                  ? _createSession
+                  : null,
+              icon: _isCreating
                   ? const SizedBox(
-                      width: 20,
-                      height: 20,
+                      width: 18,
+                      height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         color: Colors.white,
                       ),
                     )
-                  : Text(l10n.commonCreate),
+                  : const Icon(
+                      Icons.add_rounded,
+                      size: 20,
+                    ),
+              label: Text(
+                l10n.commonCreate,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
             ),
           ),
         ],

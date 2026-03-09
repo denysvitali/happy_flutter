@@ -670,6 +670,16 @@ class ThemeHelper {
       dialogTheme: _buildDialogTheme(dark: false),
       snackBarTheme: _buildSnackBarTheme(dark: false),
       splashFactory: InkSparkle.splashFactory,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android:
+              FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS:
+              CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS:
+              CupertinoPageTransitionsBuilder(),
+        },
+      ),
       extensions: <ThemeExtension<dynamic>>[
         AppColorScheme.light(),
       ],
@@ -721,6 +731,16 @@ class ThemeHelper {
       dialogTheme: _buildDialogTheme(dark: true),
       snackBarTheme: _buildSnackBarTheme(dark: true),
       splashFactory: InkSparkle.splashFactory,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android:
+              FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS:
+              CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS:
+              CupertinoPageTransitionsBuilder(),
+        },
+      ),
       extensions: <ThemeExtension<dynamic>>[
         AppColorScheme.dark(),
       ],

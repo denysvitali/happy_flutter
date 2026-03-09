@@ -25,8 +25,24 @@ class CommandPaletteOverlay extends StatefulWidget {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Dismiss',
-      barrierColor: Colors.black54,
-      transitionDuration: AppDuration.fast,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      transitionDuration: AppDuration.normal,
+      transitionBuilder: (context, animation, _, child) {
+        final curve = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+        );
+        return FadeTransition(
+          opacity: curve,
+          child: SlideTransition(
+            position: Tween(
+              begin: const Offset(0, -0.02),
+              end: Offset.zero,
+            ).animate(curve),
+            child: child,
+          ),
+        );
+      },
       pageBuilder: (context, animation, secondaryAnimation) {
         return CommandPaletteOverlay(
           commands: commands,

@@ -61,7 +61,13 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
       width: sidebarWidth,
       decoration: BoxDecoration(
         border: Border(
-          right: BorderSide(color: Theme.of(context).dividerColor, width: 1),
+          right: BorderSide(
+            color: Theme.of(context)
+                .colorScheme
+                .outlineVariant
+                .withValues(alpha: 0.3),
+            width: 0.5,
+          ),
         ),
         color: Theme.of(context).scaffoldBackgroundColor,
       ),

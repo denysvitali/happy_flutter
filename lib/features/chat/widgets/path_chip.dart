@@ -23,16 +23,30 @@ class PathChip extends StatelessWidget {
           width: 0.5,
         ),
       ),
-      child: Text(
-        path,
-        style: GoogleFonts.sourceCodePro(
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-          color: colorScheme.onSurfaceVariant,
-          letterSpacing: -0.2,
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.folder_outlined,
+            size: 10,
+            color: colorScheme.onSurfaceVariant
+                .withValues(alpha: 0.7),
+          ),
+          const SizedBox(width: 3),
+          Flexible(
+            child: Text(
+              path,
+              style: GoogleFonts.sourceCodePro(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: colorScheme.onSurfaceVariant,
+                letterSpacing: -0.2,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -3,12 +3,10 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 /// Displays an icon, title, and optional subtitle for empty list states.
 ///
-/// The icon sits inside a soft rounded container
-/// ([AppSpacing.xxxl] × [AppSpacing.xxxl], radius [AppRadius.xl])
-/// with a [ColorScheme.surfaceContainerHighest] background. Title uses
-/// [TextTheme.titleMedium]; subtitle uses [TextTheme.bodyMedium] at
-/// 60 % opacity.
-class AppEmptyState extends StatelessWidget {
+/// The icon sits inside a gradient-tinted rounded container with a
+/// subtle breathing scale animation to feel alive. Title uses
+/// [TextTheme.titleMedium]; subtitle uses [TextTheme.bodyMedium].
+class AppEmptyState extends StatefulWidget {
   /// Creates an empty-state placeholder.
   const AppEmptyState({
     required this.icon,
@@ -27,8 +25,38 @@ class AppEmptyState extends StatelessWidget {
   /// Secondary description shown beneath the title.
   final String? subtitle;
 
-  /// Optional action widget shown below the description (e.g. a button).
+  /// Optional action widget (e.g. a button).
   final Widget? action;
+
+  @override
+  State<AppEmptyState> createState() => _AppEmptyStateState();
+}
+
+class _AppEmptyStateState extends State<AppEmptyState>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _breathe;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _breathe = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3000),
+    )..repeat(reverse: true);
+    _scale = Tween(begin: 1.0, end: 1.04).animate(
+      CurvedAnimation(
+        parent: _breathe,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _breathe.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,32 +72,49 @@ class AppEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Icon container.
-            Container(
-              width: AppSpacing.xxxl * 2,
-              height: AppSpacing.xxxl * 2,
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
+            // Breathing icon container with gradient.
+            AnimatedBuilder(
+              animation: _scale,
+              builder: (context, child) => Transform.scale(
+                scale: _scale.value,
+                child: child,
               ),
-              child: Icon(
-                icon,
-                size: AppSpacing.xxxl + AppSpacing.sm,
-                color: cs.onSurfaceVariant,
+              child: Container(
+                width: AppSpacing.xxxl * 2,
+                height: AppSpacing.xxxl * 2,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      cs.surfaceContainerHighest,
+                      cs.surfaceContainerHighest
+                          .withValues(alpha: 0.6),
+                    ],
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(AppRadius.pill),
+                ),
+                child: Icon(
+                  widget.icon,
+                  size: AppSpacing.xxxl + AppSpacing.sm,
+                  color: cs.onSurfaceVariant
+                      .withValues(alpha: 0.7),
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
             // Title.
             Text(
-              title,
+              widget.title,
               style: theme.textTheme.titleMedium,
               textAlign: TextAlign.center,
             ),
             // Subtitle.
-            if (subtitle != null) ...[
+            if (widget.subtitle != null) ...[
               const SizedBox(height: AppSpacing.sm),
               Text(
-                subtitle!,
+                widget.subtitle!,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: cs.onSurfaceVariant,
                 ),
@@ -77,9 +122,9 @@ class AppEmptyState extends StatelessWidget {
               ),
             ],
             // Action widget.
-            if (action != null) ...[
+            if (widget.action != null) ...[
               const SizedBox(height: AppSpacing.xxl),
-              action!,
+              widget.action!,
             ],
           ],
         ),

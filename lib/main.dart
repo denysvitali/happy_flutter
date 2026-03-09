@@ -239,6 +239,36 @@ class _HappyAppState extends ConsumerState<HappyApp>
     );
   }
 
+  /// Shared-axis horizontal transition for detail/push screens.
+  static Page<void> _slidePage(
+    Widget child,
+    GoRouterState state,
+  ) {
+    return CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionsBuilder: (context, animation, secondary, child) {
+        final slideTween = Tween(
+          begin: const Offset(0.08, 0),
+          end: Offset.zero,
+        ).chain(CurveTween(curve: Curves.easeOutCubic));
+        final fadeTween = Tween(begin: 0.0, end: 1.0).chain(
+          CurveTween(curve: Curves.easeOut),
+        );
+        return FadeTransition(
+          opacity: animation.drive(fadeTween),
+          child: SlideTransition(
+            position: animation.drive(slideTween),
+            child: child,
+          ),
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 250),
+      reverseTransitionDuration:
+          const Duration(milliseconds: 200),
+    );
+  }
+
   GoRouter _buildRouter() {
     return GoRouter(
       initialLocation: '/',
@@ -272,9 +302,12 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/chat/:sessionId',
           name: 'chat',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final sessionId = state.pathParameters['sessionId']!;
-            return AuthGate(child: ChatScreen(sessionId: sessionId));
+            return _slidePage(
+              AuthGate(child: ChatScreen(sessionId: sessionId)),
+              state,
+            );
           },
         ),
         GoRoute(
@@ -302,7 +335,10 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/settings/account',
           name: 'account',
-          builder: (context, state) => const AuthGate(child: AccountScreen()),
+          pageBuilder: (context, state) => _slidePage(
+            const AuthGate(child: AccountScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/settings/account/restore',
@@ -325,58 +361,82 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/settings/theme',
           name: 'theme',
-          builder: (context, state) =>
-              const AuthGate(child: ThemeSettingsScreen()),
+          pageBuilder: (context, state) => _slidePage(
+            const AuthGate(child: ThemeSettingsScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/settings/language',
           name: 'language',
-          builder: (context, state) =>
-              const AuthGate(child: LanguageSettingsScreen()),
+          pageBuilder: (context, state) => _slidePage(
+            const AuthGate(child: LanguageSettingsScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/settings/voice',
           name: 'voice',
-          builder: (context, state) =>
-              const AuthGate(child: VoiceSettingsScreen()),
+          pageBuilder: (context, state) => _slidePage(
+            const AuthGate(child: VoiceSettingsScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/settings/features',
           name: 'features',
-          builder: (context, state) =>
-              const AuthGate(child: FeaturesSettingsScreen()),
+          pageBuilder: (context, state) => _slidePage(
+            const AuthGate(child: FeaturesSettingsScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/settings/profiles',
           name: 'profiles',
-          builder: (context, state) => const AuthGate(child: ProfilesScreen()),
+          pageBuilder: (context, state) => _slidePage(
+            const AuthGate(child: ProfilesScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/settings/usage',
           name: 'usage',
-          builder: (context, state) => const AuthGate(child: UsageScreen()),
+          pageBuilder: (context, state) => _slidePage(
+            const AuthGate(child: UsageScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/settings/changelog',
           name: 'changelog',
-          builder: (context, state) => const AuthGate(child: ChangelogScreen()),
+          pageBuilder: (context, state) => _slidePage(
+            const AuthGate(child: ChangelogScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/settings/developer',
           name: 'developer',
-          builder: (context, state) => AuthGate(child: DeveloperScreen()),
+          pageBuilder: (context, state) => _slidePage(
+            AuthGate(child: DeveloperScreen()),
+            state,
+          ),
           routes: [
             GoRoute(
               path: 'logs',
               name: 'dev-logs',
-              builder: (context, state) =>
-                  AuthGate(child: const DevLogsScreen()),
+              pageBuilder: (context, state) => _slidePage(
+                AuthGate(child: const DevLogsScreen()),
+                state,
+              ),
             ),
             GoRoute(
               path: 'network',
               name: 'dev-network',
-              builder: (context, state) =>
-                  const AuthGate(child: NetworkInspectorScreen()),
+              pageBuilder: (context, state) => _slidePage(
+                const AuthGate(child: NetworkInspectorScreen()),
+                state,
+              ),
             ),
           ],
         ),
@@ -389,59 +449,77 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/chat/:sessionId/info',
           name: 'session-info',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final id = state.pathParameters['sessionId']!;
-            return AuthGate(child: SessionInfoScreen(sessionId: id));
+            return _slidePage(
+              AuthGate(child: SessionInfoScreen(sessionId: id)),
+              state,
+            );
           },
         ),
         GoRoute(
           path: '/chat/:sessionId/files',
           name: 'session-files',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final id = state.pathParameters['sessionId']!;
-            return AuthGate(child: SessionFilesScreen(sessionId: id));
+            return _slidePage(
+              AuthGate(child: SessionFilesScreen(sessionId: id)),
+              state,
+            );
           },
         ),
         GoRoute(
           path: '/chat/:sessionId/file',
           name: 'session-file',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final path2 = state.uri.queryParameters['path'] ?? '';
             final content = state.uri.queryParameters['content'];
-            return AuthGate(
-              child: SessionFileViewerScreen(path: path2, content: content),
+            return _slidePage(
+              AuthGate(
+                child: SessionFileViewerScreen(
+                  path: path2,
+                  content: content,
+                ),
+              ),
+              state,
             );
           },
         ),
         GoRoute(
           path: '/chat/:sessionId/message/:messageId',
           name: 'message-detail',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final sid = state.pathParameters['sessionId']!;
             final mid = state.pathParameters['messageId']!;
             final extra = state.extra as Map<String, dynamic>?;
-            return AuthGate(
-              child: MessageDetailScreen(
-                sessionId: sid,
-                messageId: mid,
-                messageData: extra,
+            return _slidePage(
+              AuthGate(
+                child: MessageDetailScreen(
+                  sessionId: sid,
+                  messageId: mid,
+                  messageData: extra,
+                ),
               ),
+              state,
             );
           },
         ),
         GoRoute(
           path: '/chat/:sessionId/agent/:messageId',
           name: 'agent-conversation',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final sid = state.pathParameters['sessionId']!;
             final mid = state.pathParameters['messageId']!;
             final extra = state.extra as Map<String, dynamic>?;
-            return AuthGate(
-              child: AgentConversationScreen(
-                sessionId: sid,
-                messageId: mid,
-                taskData: extra,
+            return _slidePage(
+              AuthGate(
+                child: AgentConversationScreen(
+                  sessionId: sid,
+                  messageId: mid,
+                  taskData: extra,
+                ),
               ),
+              state,
             );
           },
         ),
@@ -456,34 +534,47 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/new/pick/machine',
           name: 'pick-machine',
-          builder: (context, state) =>
-              const AuthGate(child: PickMachineScreen()),
+          pageBuilder: (context, state) => _slidePage(
+            const AuthGate(child: PickMachineScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/new/pick/path',
           name: 'pick-path',
-          builder: (context, state) => const AuthGate(child: PickPathScreen()),
+          pageBuilder: (context, state) => _slidePage(
+            const AuthGate(child: PickPathScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/new/pick/profile',
           name: 'pick-profile',
-          builder: (context, state) =>
-              const AuthGate(child: PickProfileScreen()),
+          pageBuilder: (context, state) => _slidePage(
+            const AuthGate(child: PickProfileScreen()),
+            state,
+          ),
         ),
         GoRoute(
           path: '/machine/:machineId',
           name: 'machine-detail',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final id = state.pathParameters['machineId']!;
-            return AuthGate(child: MachineDetailScreen(machineId: id));
+            return _slidePage(
+              AuthGate(child: MachineDetailScreen(machineId: id)),
+              state,
+            );
           },
         ),
         GoRoute(
           path: '/user/:userId',
           name: 'user-profile',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final id = state.pathParameters['userId']!;
-            return AuthGate(child: UserProfileScreen(userId: id));
+            return _slidePage(
+              AuthGate(child: UserProfileScreen(userId: id)),
+              state,
+            );
           },
         ),
         GoRoute(
@@ -503,17 +594,23 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/artifacts/:artifactId',
           name: 'artifact-detail',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final id = state.pathParameters['artifactId']!;
-            return AuthGate(child: ArtifactDetailScreen(artifactId: id));
+            return _slidePage(
+              AuthGate(child: ArtifactDetailScreen(artifactId: id)),
+              state,
+            );
           },
         ),
         GoRoute(
           path: '/artifacts/:artifactId/edit',
           name: 'artifact-edit',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final id = state.pathParameters['artifactId']!;
-            return AuthGate(child: EditArtifactScreen(artifactId: id));
+            return _slidePage(
+              AuthGate(child: EditArtifactScreen(artifactId: id)),
+              state,
+            );
           },
         ),
         GoRoute(
@@ -532,12 +629,19 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/zen/view',
           name: 'zen-view',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final extra = state.extra as Map<String, dynamic>?;
             final todoId = extra?['todoId'] as String? ?? '';
-            final sessionId = extra?['sessionId'] as String? ?? 'global';
-            return AuthGate(
-              child: ZenViewScreen(todoId: todoId, sessionId: sessionId),
+            final sessionId =
+                extra?['sessionId'] as String? ?? 'global';
+            return _slidePage(
+              AuthGate(
+                child: ZenViewScreen(
+                  todoId: todoId,
+                  sessionId: sessionId,
+                ),
+              ),
+              state,
             );
           },
         ),

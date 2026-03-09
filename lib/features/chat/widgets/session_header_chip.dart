@@ -20,12 +20,16 @@ class SessionHeaderChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 7,
+        vertical: 2.5,
+      ),
       decoration: BoxDecoration(
-        color: cs.surface,
+        color: cs.surfaceContainerHighest
+            .withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.4),
+          color: cs.outlineVariant.withValues(alpha: 0.3),
           width: 0.5,
         ),
       ),

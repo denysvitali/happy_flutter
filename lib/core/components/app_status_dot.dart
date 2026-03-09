@@ -140,6 +140,13 @@ class _AppStatusDotState extends State<AppStatusDot>
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: widget.color,
+        boxShadow: [
+          BoxShadow(
+            color: widget.color.withValues(alpha: 0.4),
+            blurRadius: widget.size * 0.75,
+            spreadRadius: widget.size * 0.1,
+          ),
+        ],
       ),
     );
   }

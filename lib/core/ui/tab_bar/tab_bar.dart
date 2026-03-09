@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart' hide TabBar;
+import 'package:flutter/services.dart';
 
 import '../../../platform_io.dart'
     if (dart.library.js_interop) '../../../platform_stub.dart';
@@ -158,7 +159,10 @@ class _TabItem extends StatelessWidget {
           message: label,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: onTap,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onTap();
+            },
             child: SizedBox(
           height: double.infinity,
           child: Column(
