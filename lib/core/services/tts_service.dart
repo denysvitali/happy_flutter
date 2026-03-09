@@ -66,24 +66,52 @@ class TtsService {
 
   /// Get available TTS engines.
   Future<List<Map<String, String>>> getEngines() async {
-    if (kIsWeb || _tts == null) return [];
-    final engines = await _tts!.getEngines;
-    if (engines == null) return [];
-    return (engines as List).map((e) {
-      final map = e as Map<Object?, Object?>;
-      return map.map((k, v) => MapEntry(k.toString(), v.toString()));
-    }).toList();
+    if (kIsWeb) return [];
+    _tts ??= FlutterTts();
+    try {
+      final engines = await _tts!.getEngines;
+      return _normalisePluginList(
+        engines,
+        stringKey: 'identifier',
+        fallbackName: 'Engine',
+      );
+    } catch (error, stackTrace) {
+      logger.error('[TTS] Failed to fetch engines: $error');
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'tts_service',
+          context: ErrorDescription('while fetching TTS engines'),
+        ),
+      );
+      return [];
+    }
   }
 
   /// Get available languages for the current engine.
   Future<List<Map<String, String>>> getLanguages() async {
-    if (kIsWeb || _tts == null) return [];
-    final languages = await _tts!.getLanguages;
-    if (languages == null) return [];
-    return (languages as List).map((e) {
-      final map = e as Map<Object?, Object?>;
-      return map.map((k, v) => MapEntry(k.toString(), v.toString()));
-    }).toList();
+    if (kIsWeb) return [];
+    _tts ??= FlutterTts();
+    try {
+      final languages = await _tts!.getLanguages;
+      return _normalisePluginList(
+        languages,
+        stringKey: 'code',
+        fallbackName: 'Language',
+      );
+    } catch (error, stackTrace) {
+      logger.error('[TTS] Failed to fetch languages: $error');
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'tts_service',
+          context: ErrorDescription('while fetching TTS languages'),
+        ),
+      );
+      return [];
+    }
   }
 
   /// Speak the given markdown text after stripping formatting.
@@ -163,5 +191,49 @@ class TtsService {
     // Collapse whitespace
     text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
     return text.trim();
+  }
+
+  static List<Map<String, String>> _normalisePluginList(
+    dynamic rawList, {
+    required String stringKey,
+    required String fallbackName,
+  }) {
+    if (rawList is! List) return const [];
+    return rawList
+        .map(
+          (entry) => _normalisePluginEntry(
+            entry,
+            stringKey: stringKey,
+            fallbackName: fallbackName,
+          ),
+        )
+        .whereType<Map<String, String>>()
+        .toList();
+  }
+
+  static Map<String, String>? _normalisePluginEntry(
+    dynamic entry, {
+    required String stringKey,
+    required String fallbackName,
+  }) {
+    if (entry is Map) {
+      final mapped = <String, String>{};
+      for (final MapEntry<dynamic, dynamic> pair in entry.entries) {
+        mapped[pair.key.toString()] = pair.value.toString();
+      }
+      return mapped;
+    }
+    if (entry is String) {
+      return <String, String>{
+        'name': entry,
+        stringKey: entry,
+      };
+    }
+    if (entry == null) return null;
+    final value = entry.toString();
+    return <String, String>{
+      'name': '$fallbackName $value',
+      stringKey: value,
+    };
   }
 }
