@@ -482,6 +482,26 @@ what you have, you must use the options mode.
     return lastMessage['createdAt'] as int?;
   }
 
+  /// Returns a brief preview of the last message in a session.
+  ///
+  /// Scans from the end to find the last assistant or human message
+  /// with non-empty text content. Returns null when no suitable
+  /// preview is available.
+  String? getLastMessagePreview(String sessionId) {
+    final messages = _sessionMessages[sessionId];
+    if (messages == null || messages.isEmpty) return null;
+    for (var i = messages.length - 1; i >= 0; i--) {
+      final msg = messages[i];
+      final role = msg['role'] as String?;
+      if (role != 'assistant' && role != 'human') continue;
+      final text = msg['text'] as String?;
+      if (text != null && text.trim().isNotEmpty) {
+        return text.trim();
+      }
+    }
+    return null;
+  }
+
   /// Returns true when there are older messages available for [sessionId]
   /// that have not yet been loaded.
   bool hasOlderMessages(String sessionId) {
@@ -5754,11 +5774,104 @@ what you have, you must use the options mode.
     }
   }
 
+  bool _isMessageListOrdered(List<Map<String, dynamic>> messages) {
+    for (var i = 1; i < messages.length; i++) {
+      final prevCreated = _asInt(messages[i - 1]['createdAt']) ?? 0;
+      final currCreated = _asInt(messages[i]['createdAt']) ?? 0;
+      if (prevCreated > currCreated) {
+        return false;
+      }
+      if (prevCreated == currCreated) {
+        final prevSeq = messages[i - 1]['seq'] as int? ?? 0;
+        final currSeq = messages[i]['seq'] as int? ?? 0;
+        if (prevSeq > currSeq) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  bool _canAppendMessagesFastPath(
+    List<Map<String, dynamic>> existing,
+    List<Map<String, dynamic>> incoming,
+  ) {
+    if (existing.isEmpty || incoming.isEmpty) return false;
+    if (!_isMessageListOrdered(incoming)) return false;
+
+    final existingIds = <String>{};
+    final existingLocalIds = <String>{};
+    for (final message in existing) {
+      final id = message['id'] as String?;
+      if (id != null && id.isNotEmpty) {
+        existingIds.add(id);
+      }
+      final localId = message['localId'] as String?;
+      if (localId != null && localId.isNotEmpty) {
+        existingLocalIds.add(localId);
+      }
+    }
+
+    final lastMessage = existing.last;
+    final lastCreatedAt = _asInt(lastMessage['createdAt']) ?? 0;
+    final lastSeq = lastMessage['seq'] as int? ?? 0;
+
+    for (final message in incoming) {
+      final messageId = message['id'] as String?;
+      if (messageId == null || messageId.isEmpty) {
+        return false;
+      }
+      if (existingIds.contains(messageId)) {
+        return false;
+      }
+
+      final localId = message['localId'] as String?;
+      if (localId != null && localId.isNotEmpty) {
+        if (existingIds.contains(localId) ||
+            existingLocalIds.contains(localId)) {
+          return false;
+        }
+      }
+
+      final createdAt = _asInt(message['createdAt']) ?? 0;
+      final seq = message['seq'] as int? ?? 0;
+      if (createdAt < lastCreatedAt) {
+        return false;
+      }
+      if (createdAt == lastCreatedAt && seq < lastSeq) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   void _upsertSessionMessages(
     String sessionId,
     List<Map<String, dynamic>> messages,
   ) {
     final existing = _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
+    const maxMessages = 3000;
+
+    if (_canAppendMessagesFastPath(existing, messages)) {
+      final appended = <Map<String, dynamic>>[...existing, ...messages];
+      _sessionMessages[sessionId] = appended.length > maxMessages
+          ? appended.sublist(appended.length - maxMessages)
+          : appended;
+      if (sessionId == _visibleSessionId) {
+        final afterCount = _sessionMessages[sessionId]?.length ?? 0;
+        logger.info(
+          '[messages] upsert session=$sessionId '
+          'incoming=${messages.length} '
+          'before=${existing.length} '
+          'after=$afterCount '
+          'mode=append',
+        );
+      }
+      _sessionMessagesCache = null;
+      return;
+    }
+
     final merged = <String, Map<String, dynamic>>{
       for (final message in existing) message['id'] as String: message,
     };
@@ -5832,7 +5945,6 @@ what you have, you must use the options mode.
       });
     }
 
-    const maxMessages = 3000;
     _sessionMessages[sessionId] = sorted.length > maxMessages
         ? sorted.sublist(sorted.length - maxMessages)
         : sorted;
@@ -5842,7 +5954,8 @@ what you have, you must use the options mode.
         '[messages] upsert session=$sessionId '
         'incoming=${messages.length} '
         'before=${existing.length} '
-        'after=$afterCount',
+        'after=$afterCount '
+        'mode=merge',
       );
     }
     _sessionMessagesCache = null;
