@@ -25,6 +25,10 @@ class ModelChip extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final isDefault = model == ClaudeModel.defaultModel;
+    final iconColor = isDefault ? cs.onSurfaceVariant : cs.primary;
+    final chevronColor = isDefault
+        ? cs.onSurfaceVariant.withValues(alpha: 0.5)
+        : cs.primary.withValues(alpha: 0.6);
 
     return GestureDetector(
       onTap: enabled ? onTap : null,
@@ -42,27 +46,29 @@ class ModelChip extends StatelessWidget {
             Icon(
               model == ClaudeModel.opus
                   ? Icons.diamond_outlined
-                  : Icons.auto_awesome_outlined,
+                  : model == ClaudeModel.sonnet
+                  ? Icons.auto_awesome_outlined
+                  : Icons.smart_toy_outlined,
               size: 11,
-              color: isDefault ? cs.onSurfaceVariant : cs.primary,
+              color: enabled ? iconColor : iconColor.withValues(alpha: 0.7),
             ),
             const SizedBox(width: 3),
             Text(
               model.label,
               style: theme.textTheme.labelSmall?.copyWith(
                 fontSize: 11,
-                color: isDefault ? cs.onSurfaceVariant : cs.primary,
+                color: enabled ? iconColor : iconColor.withValues(alpha: 0.7),
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(width: 1),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 12,
-              color: isDefault
-                  ? cs.onSurfaceVariant.withValues(alpha: 0.5)
-                  : cs.primary.withValues(alpha: 0.6),
-            ),
+            if (enabled) ...[
+              const SizedBox(width: 1),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 12,
+                color: chevronColor,
+              ),
+            ],
           ],
         ),
       ),
