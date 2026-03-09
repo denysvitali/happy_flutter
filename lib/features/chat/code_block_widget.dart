@@ -129,32 +129,30 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   }
 
   Widget _buildCodeRow(bool isDark) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (widget.showLineNumbers)
-            _LineNumbers(
-              lineCount: _lineCount,
-              fontSize: widget.fontSize,
-              lineHeight: _lineHeight,
-              isDark: isDark,
-            ),
-          Padding(
-            padding: EdgeInsets.only(
-              left: widget.showLineNumbers ? AppSpacing.md : AppSpacing.lg,
-              right: AppSpacing.lg,
-            ),
-            child: SyntaxHighlighter(
-              code: widget.code,
-              language: widget.language,
-              isDarkMode: isDark,
-              fontSize: widget.fontSize,
-              lineHeight: _lineHeight,
-            ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.showLineNumbers)
+          _LineNumbers(
+            lineCount: _lineCount,
+            fontSize: widget.fontSize,
+            lineHeight: _lineHeight,
+            isDark: isDark,
           ),
-        ],
-      ),
+        Padding(
+          padding: EdgeInsets.only(
+            left: widget.showLineNumbers ? AppSpacing.md : AppSpacing.lg,
+            right: AppSpacing.lg,
+          ),
+          child: SyntaxHighlighter(
+            code: widget.code,
+            language: widget.language,
+            isDarkMode: isDark,
+            fontSize: widget.fontSize,
+            lineHeight: _lineHeight,
+          ),
+        ),
+      ],
     );
   }
 
