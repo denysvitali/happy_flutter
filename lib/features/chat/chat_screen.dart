@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
-import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
@@ -371,12 +370,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  Machine? _getMachine() {
-    final machineId = _session?.metadata?.machineId;
-    if (machineId == null) return null;
-    return sync.machines[machineId];
-  }
-
   String _getSessionTitle() {
     final summary = _session?.metadata?.summary?.text;
     if (summary != null && summary.isNotEmpty) {
@@ -387,15 +380,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return path.split('/').last;
     }
     return 'Chat';
-  }
-
-  String _formatRelativePath(String? path) {
-    if (path == null || path.isEmpty) return '';
-    final homeDir = _session?.metadata?.homeDir;
-    if (homeDir != null && path.startsWith(homeDir)) {
-      return '~${path.substring(homeDir.length)}';
-    }
-    return path;
   }
 
   String _getStatusText(BuildContext context) {
@@ -466,10 +450,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         appBar: ChatAppBar(
           session: _session,
           sessionTitle: _getSessionTitle(),
-          relativePath: _formatRelativePath(
-            _session?.metadata?.path,
-          ),
-          machine: _getMachine(),
           statusText: _getStatusText(context),
           statusColor: _getStatusColor(context),
           isThinking: isThinking,
