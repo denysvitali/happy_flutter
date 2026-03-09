@@ -27,7 +27,6 @@ class SessionAvatar extends StatelessWidget {
     this.showFlavorIcon = true,
     this.square = false,
     this.monochrome = false,
-    this.minimal = false,
   });
 
   /// The unique ID used to generate consistent avatar colors and selection.
@@ -56,9 +55,6 @@ class SessionAvatar extends StatelessWidget {
 
   /// Whether to render in monochrome mode.
   final bool monochrome;
-
-  /// Whether to render the simpler session icon treatment.
-  final bool minimal;
 
   @override
   Widget build(BuildContext context) {
@@ -129,13 +125,11 @@ class SessionAvatar extends StatelessWidget {
         ? (effectiveSize * 0.28).round()
         : (effectiveSize * 0.35).round();
 
-    final avatarWidget = minimal
-        ? _buildMinimalAvatar(context)
-        : switch (style ?? _getStyleFromHash()) {
-            AvatarStyle.gradient => AvatarGradient(id: id, size: size),
-            AvatarStyle.pixelated => AvatarPixelated(id: id, size: size),
-            AvatarStyle.brutalist => AvatarBrutalist(id: id, size: size),
-          };
+    final avatarWidget = switch (style ?? _getStyleFromHash()) {
+      AvatarStyle.gradient => AvatarGradient(id: id, size: size),
+      AvatarStyle.pixelated => AvatarPixelated(id: id, size: size),
+      AvatarStyle.brutalist => AvatarBrutalist(id: id, size: size),
+    };
 
     if (showFlavorIcon && flavor != null) {
       return Stack(
@@ -213,58 +207,12 @@ class SessionAvatar extends StatelessWidget {
   }
 
   Widget _buildFallbackAvatar(BuildContext context) {
-    if (minimal) {
-      return _buildMinimalAvatar(context);
-    }
     final usedStyle = style ?? _getStyleFromHash();
     return switch (usedStyle) {
       AvatarStyle.gradient => AvatarGradient(id: id, size: size),
       AvatarStyle.pixelated => AvatarPixelated(id: id, size: size),
       AvatarStyle.brutalist => AvatarBrutalist(id: id, size: size),
     };
-  }
-
-  Widget _buildMinimalAvatar(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final radius = BorderRadius.circular(size * 0.28);
-    final iconColor = monochrome
-        ? cs.onSurfaceVariant.withValues(alpha: 0.75)
-        : cs.onSurface;
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            cs.surfaceContainer.withValues(alpha: 0.95),
-            cs.surfaceContainerHigh.withValues(alpha: 0.98),
-          ],
-        ),
-        borderRadius: radius,
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.55),
-          width: 0.75,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Icon(
-          Icons.terminal_rounded,
-          size: size * 0.42,
-          color: iconColor,
-        ),
-      ),
-    );
   }
 
   /// Determines avatar style based on ID hash for consistent selection.

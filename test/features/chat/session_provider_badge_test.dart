@@ -30,7 +30,7 @@ Session _session({required String flavor}) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('chat app bar uses the same minimal session avatar', (
+  testWidgets('chat app bar uses the same pixelated session avatar', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -50,11 +50,11 @@ void main() {
     await tester.pumpAndSettle();
 
     final avatar = tester.widget<SessionAvatar>(find.byType(SessionAvatar));
-    expect(avatar.minimal, isTrue);
+    expect(avatar.style, AvatarStyle.pixelated);
     expect(avatar.showFlavorIcon, isTrue);
   });
 
-  testWidgets('session cards use the same minimal session avatar', (
+  testWidgets('session cards use the same pixelated session avatar', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -71,7 +71,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final avatar = tester.widget<SessionAvatar>(find.byType(SessionAvatar));
-    expect(avatar.minimal, isTrue);
+    expect(avatar.style, AvatarStyle.pixelated);
     expect(avatar.showFlavorIcon, isTrue);
   });
 }
