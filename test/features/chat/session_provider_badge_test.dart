@@ -30,7 +30,9 @@ Session _session({required String flavor}) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('chat app bar shows the provider badge', (tester) async {
+  testWidgets('chat app bar uses the same minimal session avatar', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -47,10 +49,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('OpenAI'), findsOneWidget);
+    final avatar = tester.widget<SessionAvatar>(find.byType(SessionAvatar));
+    expect(avatar.minimal, isTrue);
+    expect(avatar.showFlavorIcon, isTrue);
   });
 
-  testWidgets('session cards show a compact logo badge', (tester) async {
+  testWidgets('session cards use the same minimal session avatar', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -64,7 +70,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(SessionFlavorBadge), findsOneWidget);
-    expect(find.text('Claude'), findsNothing);
+    final avatar = tester.widget<SessionAvatar>(find.byType(SessionAvatar));
+    expect(avatar.minimal, isTrue);
+    expect(avatar.showFlavorIcon, isTrue);
   });
 }

@@ -1,7 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_tokens.dart';
 import '../../core/ui/avatars/avatar_brutalist.dart';
 import '../../core/ui/avatars/avatar_gradient.dart';
 import '../../core/ui/avatars/avatar_pixelated.dart';
@@ -28,6 +27,7 @@ class SessionAvatar extends StatelessWidget {
     this.showFlavorIcon = true,
     this.square = false,
     this.monochrome = false,
+    this.minimal = false,
   });
 
   /// The unique ID used to generate consistent avatar colors and selection.
@@ -56,6 +56,9 @@ class SessionAvatar extends StatelessWidget {
 
   /// Whether to render in monochrome mode.
   final bool monochrome;
+
+  /// Whether to render the simpler session icon treatment.
+  final bool minimal;
 
   @override
   Widget build(BuildContext context) {
@@ -126,14 +129,13 @@ class SessionAvatar extends StatelessWidget {
         ? (effectiveSize * 0.28).round()
         : (effectiveSize * 0.35).round();
 
-    // Determine which avatar style to use
-    final usedStyle = style ?? _getStyleFromHash();
-
-    final Widget avatarWidget = switch (usedStyle) {
-      AvatarStyle.gradient => AvatarGradient(id: id, size: size),
-      AvatarStyle.pixelated => AvatarPixelated(id: id, size: size),
-      AvatarStyle.brutalist => AvatarBrutalist(id: id, size: size),
-    };
+    final avatarWidget = minimal
+        ? _buildMinimalAvatar(context)
+        : switch (style ?? _getStyleFromHash()) {
+            AvatarStyle.gradient => AvatarGradient(id: id, size: size),
+            AvatarStyle.pixelated => AvatarPixelated(id: id, size: size),
+            AvatarStyle.brutalist => AvatarBrutalist(id: id, size: size),
+          };
 
     if (showFlavorIcon && flavor != null) {
       return Stack(
@@ -211,12 +213,58 @@ class SessionAvatar extends StatelessWidget {
   }
 
   Widget _buildFallbackAvatar(BuildContext context) {
+    if (minimal) {
+      return _buildMinimalAvatar(context);
+    }
     final usedStyle = style ?? _getStyleFromHash();
     return switch (usedStyle) {
       AvatarStyle.gradient => AvatarGradient(id: id, size: size),
       AvatarStyle.pixelated => AvatarPixelated(id: id, size: size),
       AvatarStyle.brutalist => AvatarBrutalist(id: id, size: size),
     };
+  }
+
+  Widget _buildMinimalAvatar(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final radius = BorderRadius.circular(size * 0.28);
+    final iconColor = monochrome
+        ? cs.onSurfaceVariant.withValues(alpha: 0.75)
+        : cs.onSurface;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            cs.surfaceContainer.withValues(alpha: 0.95),
+            cs.surfaceContainerHigh.withValues(alpha: 0.98),
+          ],
+        ),
+        borderRadius: radius,
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.55),
+          width: 0.75,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Icon(
+          Icons.terminal_rounded,
+          size: size * 0.42,
+          color: iconColor,
+        ),
+      ),
+    );
   }
 
   /// Determines avatar style based on ID hash for consistent selection.
@@ -252,95 +300,4 @@ SessionAvatar createSessionAvatar(
     size: size,
     showFlavorIcon: showFlavorIcon,
   );
-}
-
-/// Compact provider badge for showing the session flavor inline.
-class SessionFlavorBadge extends StatelessWidget {
-  const SessionFlavorBadge({
-    required this.flavor,
-    super.key,
-    this.compact = false,
-    this.showLabel = true,
-  });
-
-  final String flavor;
-  final bool compact;
-  final bool showLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final iconSize = compact ? 12.0 : 14.0;
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: showLabel ? (compact ? 6 : 8) : (compact ? 4 : 6),
-        vertical: compact ? 2 : 3,
-      ),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
-          width: 0.5,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image.asset(
-            _flavorIconPath(flavor),
-            width: iconSize,
-            height: iconSize,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              return Icon(
-                _flavorIcon(flavor),
-                size: iconSize,
-                color: cs.onSurfaceVariant,
-              );
-            },
-          ),
-          if (showLabel) ...[
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              _flavorLabel(context, flavor),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  String _flavorLabel(BuildContext context, String flavorName) {
-    return switch (flavorName) {
-      'claude' => 'Claude',
-      'codex' => 'OpenAI',
-      'gemini' => 'Gemini',
-      _ => flavorName,
-    };
-  }
-
-  String _flavorIconPath(String flavorName) {
-    return switch (flavorName) {
-      'claude' => 'assets/images/icon-claude.png',
-      'codex' => 'assets/images/icon-gpt.png',
-      'gemini' => 'assets/images/icon-gemini.png',
-      _ => 'assets/images/icon-claude.png',
-    };
-  }
-
-  IconData _flavorIcon(String flavorName) {
-    return switch (flavorName) {
-      'claude' => Icons.auto_awesome,
-      'codex' => Icons.code,
-      'gemini' => Icons.auto_awesome,
-      _ => Icons.auto_awesome,
-    };
-  }
 }

@@ -64,6 +64,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
             flavor: flavor,
             size: 32,
             showFlavorIcon: true,
+            minimal: true,
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -71,23 +72,13 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      sessionTitle,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (flavor != null) ...[
-                    const SizedBox(width: AppSpacing.sm),
-                    SessionFlavorBadge(flavor: flavor, compact: true),
-                  ],
-                ],
+              Text(
+                sessionTitle,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
               AnimatedSwitcher(

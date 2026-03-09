@@ -114,8 +114,8 @@ class ActiveSessionCard extends StatelessWidget {
                                 id: avatarId,
                                 flavor: sessionFlavor,
                                 size: 44,
-                                showFlavorIcon: showFlavorIcon,
-                                style: avatarStyle,
+                                showFlavorIcon: true,
+                                minimal: true,
                               ),
                               if (hasDraft) const DraftBadge(),
                             ],
@@ -140,14 +140,6 @@ class ActiveSessionCard extends StatelessWidget {
                                       maxLines: 1,
                                     ),
                                   ),
-                                  if (sessionFlavor != null) ...[
-                                    const SizedBox(width: AppSpacing.xs),
-                                    SessionFlavorBadge(
-                                      flavor: sessionFlavor,
-                                      compact: true,
-                                      showLabel: false,
-                                    ),
-                                  ],
                                   const SizedBox(width: AppSpacing.sm),
                                   AppStatusDot(
                                     color: Color(sessionStatus.statusDotColor),
@@ -490,8 +482,8 @@ class SessionCard extends StatelessWidget {
                                 flavor: sessionFlavor,
                                 size: compact ? 36 : 44,
                                 monochrome: !sessionStatus.isConnected,
-                                showFlavorIcon: showFlavorIcon,
-                                style: avatarStyle,
+                                showFlavorIcon: true,
+                                minimal: true,
                               ),
                               if (hasDraft) const DraftBadge(),
                             ],
@@ -518,14 +510,6 @@ class SessionCard extends StatelessWidget {
                                       maxLines: 1,
                                     ),
                                   ),
-                                  if (sessionFlavor != null) ...[
-                                    const SizedBox(width: AppSpacing.xs),
-                                    SessionFlavorBadge(
-                                      flavor: sessionFlavor,
-                                      compact: true,
-                                      showLabel: false,
-                                    ),
-                                  ],
                                   const SizedBox(width: AppSpacing.sm),
                                   AppStatusDot(
                                     color: sessionStatus.isConnected
