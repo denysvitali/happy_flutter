@@ -64,6 +64,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
             flavor: flavor,
             size: 32,
             showFlavorIcon: true,
+            square: true,
             style: AvatarStyle.pixelated,
           ),
         ),
