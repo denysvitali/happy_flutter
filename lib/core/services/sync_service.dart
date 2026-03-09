@@ -321,6 +321,7 @@ what you have, you must use the options mode.
   final List<DecryptedArtifact> _artifacts = <DecryptedArtifact>[];
   final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
   Map<String, List<Map<String, dynamic>>>? _sessionMessagesCache;
+  final Map<String, List<Map<String, dynamic>>> _sessionMessagesViewCache = {};
   final Map<String, Map<String, dynamic>> _sessionUsage = {};
   Settings _settingsSnapshot = Settings();
   int _settingsVersion = 0;
@@ -414,6 +415,7 @@ what you have, you must use the options mode.
   ) {
     _sessionMessages[sessionId] = List<Map<String, dynamic>>.from(messages);
     _sessionMessagesCache = null;
+    _sessionMessagesViewCache.clear();
   }
 
   @visibleForTesting
@@ -469,7 +471,12 @@ what you have, you must use the options mode.
 
   /// Returns the messages for a single session without copying all sessions.
   List<Map<String, dynamic>> messagesForSession(String sessionId) =>
-      List.unmodifiable(_sessionMessages[sessionId] ?? const []);
+      _sessionMessagesViewCache.putIfAbsent(
+        sessionId,
+        () => List<Map<String, dynamic>>.unmodifiable(
+          _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[],
+        ),
+      );
 
   /// Returns the timestamp of the last message in a session, or null if
   /// there are no messages.
@@ -784,9 +791,7 @@ what you have, you must use the options mode.
       );
       if (decryptedKey != null) {
         _sessionDataKeys[restoredSessionId] = decryptedKey;
-        await encryption.initializeSessions({
-          restoredSessionId: decryptedKey,
-        });
+        await encryption.initializeSessions({restoredSessionId: decryptedKey});
       } else {
         logger.warning(
           '[sendMessage] auto-restore DEK decrypt failed '
@@ -997,10 +1002,9 @@ what you have, you must use the options mode.
     }
 
     try {
-      final processed = await sessionEncryption.decryptAndProcessMessages(
-        [wireMessage],
-        sessionId,
-      );
+      final processed = await sessionEncryption.decryptAndProcessMessages([
+        wireMessage,
+      ], sessionId);
 
       if (processed.messages.isEmpty && processed.toolResults.isEmpty) {
         // Nothing displayable (e.g. a 'ready' event or system message).
@@ -1072,6 +1076,7 @@ what you have, you must use the options mode.
       _loadingOlderMessages.remove(sessionId);
       _sessionMessages.remove(sessionId);
       _sessionMessagesCache = null;
+      _sessionMessagesViewCache.clear();
       _todoLists.remove(sessionId);
       _sessions.remove(sessionId);
       _presenceTimers.remove(sessionId)?.cancel();
@@ -1114,16 +1119,12 @@ what you have, you must use the options mode.
     );
   }
 
-  static const Duration _sessionsRefreshDebounce = Duration(
-    milliseconds: 250,
-  );
+  static const Duration _sessionsRefreshDebounce = Duration(milliseconds: 250);
 
   /// Minimum interval between consecutive message fetches for a session.
   /// Prevents rapid-fire HTTP refetches when many socket events arrive
   /// in quick succession (e.g. during streaming).
-  static const Duration _messagesSyncMinInterval = Duration(
-    milliseconds: 500,
-  );
+  static const Duration _messagesSyncMinInterval = Duration(milliseconds: 500);
 
   void _scheduleSessionsRefresh() {
     _sessionsRefreshDebounceTimer?.cancel();
@@ -2576,7 +2577,18 @@ what you have, you must use the options mode.
       }
 
       final messaging = FirebaseMessaging.instance;
-      await messaging.requestPermission();
+      var notificationSettings = await messaging.getNotificationSettings();
+      if (notificationSettings.authorizationStatus ==
+          AuthorizationStatus.notDetermined) {
+        notificationSettings = await messaging.requestPermission();
+      }
+      if (notificationSettings.authorizationStatus ==
+              AuthorizationStatus.denied ||
+          notificationSettings.authorizationStatus ==
+              AuthorizationStatus.notDetermined) {
+        return;
+      }
+
       final token = await messaging.getToken();
       if (token == null || token.isEmpty) {
         return;
@@ -2665,14 +2677,15 @@ what you have, you must use the options mode.
       profile != null ? _profileEnvironmentVariables(profile) : null,
     );
     final agent = _settingsSnapshot.lastUsedAgent;
+    final permMode = profile?.defaultPermissionMode ??
+        _settingsSnapshot.lastUsedPermissionMode;
     final req = SpawnSessionRequest(
       type: 'spawn-in-directory',
       directory: path,
       approvedNewDirectoryCreation: true, // Always approve like React Native
       agent: agent,
+      permissionMode: permMode,
       environmentVariables: envVars,
-      // Note: startupBashScript removed to match React Native behavior
-      // Note: permissionMode is set via storage after spawn, not in request
     );
 
     final result = await _typedMachineRPC(
@@ -3308,7 +3321,9 @@ what you have, you must use the options mode.
     final effectiveModelMode =
         requestedModelMode != null && requestedModelMode != 'default'
         ? requestedModelMode
-        : isGemini ? 'gemini-2.5-pro' : 'default';
+        : isGemini
+        ? 'gemini-2.5-pro'
+        : 'default';
     final localId = encryption.generateId();
     final sentFrom = switch (defaultTargetPlatform) {
       TargetPlatform.android => 'android',
@@ -3574,6 +3589,7 @@ what you have, you must use the options mode.
       if (m['localId'] == localId || m['id'] == localId) {
         msgs[i] = {...m, 'sendStatus': status};
         _sessionMessagesCache = null;
+        _sessionMessagesViewCache.clear();
         break;
       }
     }
@@ -3631,11 +3647,10 @@ what you have, you must use the options mode.
     }
 
     final encrypted = await machineEncryption.encryptRaw(params);
-    final result = await socketIoClient.emitWithAck(
-      'rpc-call',
-      {'method': '$machineId:$method', 'params': encrypted},
-      timeout: timeout,
-    );
+    final result = await socketIoClient.emitWithAck('rpc-call', {
+      'method': '$machineId:$method',
+      'params': encrypted,
+    }, timeout: timeout);
 
     if (result is Map && result['ok'] == true) {
       final encryptedResult = result['result'] as String?;
@@ -3700,12 +3715,7 @@ what you have, you must use the options mode.
     Resp Function(Map<String, dynamic>) fromJson, {
     Duration timeout = const Duration(seconds: 30),
   }) async {
-    final raw = await machineRPC(
-      machineId,
-      method,
-      params,
-      timeout: timeout,
-    );
+    final raw = await machineRPC(machineId, method, params, timeout: timeout);
     // Handle null or non-Map responses gracefully
     if (raw == null) {
       throw StateError(
@@ -3793,6 +3803,7 @@ what you have, you must use the options mode.
         directory: path,
         sessionId: sessionId,
         agent: session.metadata?.flavor ?? 'claude',
+        permissionMode: session.permissionMode,
         environmentVariables: _spawnEnvironmentVariables(null),
       );
       final result = await _typedMachineRPC(
@@ -3829,7 +3840,8 @@ what you have, you must use the options mode.
   void _clearStalePermissionRequests(String sessionId) {
     final session = _sessions[sessionId];
     if (session == null) return;
-    final hadRequests = session.agentState?.requests != null &&
+    final hadRequests =
+        session.agentState?.requests != null &&
         session.agentState!.requests!.isNotEmpty;
     if (hadRequests) {
       _sessions[sessionId] = session.copyWith(
@@ -3859,6 +3871,7 @@ what you have, you must use the options mode.
       if (changed) {
         _sessionMessages[sessionId] = updated;
         _sessionMessagesCache = null;
+        _sessionMessagesViewCache.clear();
       }
     }
     if (hadRequests || messages != null) {
@@ -5429,6 +5442,7 @@ what you have, you must use the options mode.
 
     _sessionMessages[sessionId] = filtered;
     _sessionMessagesCache = null;
+    _sessionMessagesViewCache.clear();
 
     // Pass 4: Recursively group nested Task children.
     // After pass 3, inner Task tool-calls appear in their
@@ -5476,8 +5490,7 @@ what you have, you must use the options mode.
         final prompt = child['prompt'] as String?;
         final uuid = child['uuid'] as String?;
         final parentUuid = child['parentUuid'] as String?;
-        final task =
-            (parentUuid != null && uuidToTask.containsKey(parentUuid))
+        final task = (parentUuid != null && uuidToTask.containsKey(parentUuid))
             ? uuidToTask[parentUuid]
             : (prompt != null ? promptToTask[prompt] : null);
         if (task != null && uuid != null) {
@@ -5554,6 +5567,7 @@ what you have, you must use the options mode.
     if (changed) {
       _sessionMessages[sessionId] = updated;
       _sessionMessagesCache = null;
+      _sessionMessagesViewCache.clear();
     }
   }
 
@@ -5748,6 +5762,7 @@ what you have, you must use the options mode.
     if (changed) {
       _sessionMessages[sessionId] = updated;
       _sessionMessagesCache = null;
+      _sessionMessagesViewCache.clear();
     }
   }
 
@@ -5869,6 +5884,7 @@ what you have, you must use the options mode.
         );
       }
       _sessionMessagesCache = null;
+      _sessionMessagesViewCache.clear();
       return;
     }
 
@@ -5885,9 +5901,7 @@ what you have, you must use the options mode.
     final localIdToId = <String, String>{};
     for (final message in merged.values) {
       final localId = message['localId'] as String?;
-      if (localId != null &&
-          localId.isNotEmpty &&
-          localId != message['id']) {
+      if (localId != null && localId.isNotEmpty && localId != message['id']) {
         localIdToId[localId] = message['id'] as String;
       }
     }
@@ -5959,6 +5973,7 @@ what you have, you must use the options mode.
       );
     }
     _sessionMessagesCache = null;
+    _sessionMessagesViewCache.clear();
   }
 
   /// Suspend the sync engine when the app goes to the background.
@@ -6067,6 +6082,7 @@ what you have, you must use the options mode.
     _artifacts.clear();
     _sessionMessages.clear();
     _sessionMessagesCache = null;
+    _sessionMessagesViewCache.clear();
     _sessions.clear();
     _lastSessionsFetchedAt = null;
     MMKVStorage().clearSessionsCache();
