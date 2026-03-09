@@ -175,10 +175,12 @@ ProcessedMessages processDecryptedMessages({
           localId: localId,
           seq: seq,
           createdAt: createdAt,
+          sessionId: sessionId,
           outerContent: content,
           nestedContent: nestedContent,
           messages: messages,
           toolResults: toolResults,
+          usageUpdates: usageUpdates,
         );
       } else if (contentType == 'acp') {
         _processAcpContent(
@@ -540,13 +542,28 @@ void _processCodexContent({
   required String? localId,
   required int seq,
   required int createdAt,
+  required String sessionId,
   required Map<String, dynamic> outerContent,
   required Map<String, dynamic> nestedContent,
   required List<Map<String, dynamic>> messages,
   required List<Map<String, dynamic>> toolResults,
+  required List<Map<String, dynamic>> usageUpdates,
 }) {
   final data = nestedContent['data'];
   if (data is! Map<String, dynamic>) return;
+
+  final usageData =
+      _extractUsageMap(data['usage']) ??
+      _extractUsageMap(
+        data['message'] is Map ? (data['message'] as Map)['usage'] : null,
+      );
+  if (usageData != null) {
+    usageUpdates.add({
+      'sessionId': sessionId,
+      'usage': usageData,
+      'timestamp': createdAt,
+    });
+  }
 
   final dataType = data['type'] as String?;
 
@@ -591,6 +608,18 @@ void _processCodexContent({
       'createdAt': createdAt,
     });
   }
+}
+
+Map<String, dynamic>? _extractUsageMap(dynamic value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) {
+    try {
+      return Map<String, dynamic>.from(value);
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
 }
 
 void _processAcpContent({

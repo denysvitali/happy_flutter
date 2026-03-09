@@ -452,6 +452,38 @@ void main() {
       expect(usage['contextSize'], 1500); // 200 + 300 + 1000
     });
 
+    test('extracts usage data from codex messages', () {
+      instance.testProcessDecryptedMessage(
+        id: 'msg_usage_codex',
+        seq: 1,
+        sessionId: 'session_codex',
+        content: {
+          'role': 'agent',
+          'content': {
+            'type': 'codex',
+            'data': {
+              'type': 'message',
+              'message': 'Working...',
+              'usage': {
+                'input_tokens': 1200,
+                'output_tokens': 250,
+                'cache_creation_input_tokens': 100,
+                'cache_read_input_tokens': 50,
+              },
+            },
+          },
+        },
+      );
+
+      final usage = instance.sessionUsage['session_codex'];
+      expect(usage, isNotNull);
+      expect(usage!['inputTokens'], 1200);
+      expect(usage['outputTokens'], 250);
+      expect(usage['cacheCreation'], 100);
+      expect(usage['cacheRead'], 50);
+      expect(usage['contextSize'], 1350);
+    });
+
     test('only updates usage with newer timestamps', () {
       // First message - use a different session to avoid singleton state
       instance.testProcessDecryptedMessage(

@@ -2692,7 +2692,8 @@ what you have, you must use the options mode.
       profile != null ? _profileEnvironmentVariables(profile) : null,
     );
     final agent = _settingsSnapshot.lastUsedAgent;
-    final permMode = profile?.defaultPermissionMode ??
+    final permMode =
+        profile?.defaultPermissionMode ??
         _settingsSnapshot.lastUsedPermissionMode;
     final req = SpawnSessionRequest(
       type: 'spawn-in-directory',
@@ -4625,7 +4626,13 @@ what you have, you must use the options mode.
 
       // Codex type: Codex agent messages
       if (contentType == 'codex') {
-        return _processCodexContent(message, nestedContent, createdAt, content);
+        return _processCodexContent(
+          message,
+          nestedContent,
+          createdAt,
+          content,
+          sessionId,
+        );
       }
 
       // ACP type: unified agent communication protocol
@@ -4947,9 +4954,19 @@ what you have, you must use the options mode.
     Map<String, dynamic> nestedContent,
     int createdAt,
     Map<String, dynamic> outerContent,
+    String sessionId,
   ) {
     final data = nestedContent['data'];
     if (data is! Map<String, dynamic>) return ([], []);
+
+    final usageData =
+        _extractUsageMap(data['usage']) ??
+        _extractUsageMap(
+          data['message'] is Map ? (data['message'] as Map)['usage'] : null,
+        );
+    if (usageData != null) {
+      _updateSessionUsage(sessionId, usageData, createdAt);
+    }
 
     final dataType = data['type'] as String?;
 
@@ -5010,6 +5027,18 @@ what you have, you must use the options mode.
     }
 
     return ([], []);
+  }
+
+  Map<String, dynamic>? _extractUsageMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      try {
+        return Map<String, dynamic>.from(value);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
   }
 
   (List<Map<String, dynamic>>, List<Map<String, dynamic>>) _processAcpContent(
