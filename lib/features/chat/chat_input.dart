@@ -485,11 +485,16 @@ class _ChatInputState extends ConsumerState<ChatInput>
         ],
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Expanded(child: _buildTextField(context)),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: _buildTextField(context),
+            ),
+          ),
           Padding(
-            padding: const EdgeInsets.only(right: 6, bottom: 6),
+            padding: const EdgeInsets.all(6),
             child: SendButton(
               isSending: widget.isSending,
               isSendDisabled: widget.isSendDisabled,
@@ -520,12 +525,13 @@ class _ChatInputState extends ConsumerState<ChatInput>
         disabledBorder: InputBorder.none,
         contentPadding: const EdgeInsets.fromLTRB(
           AppSpacing.lg,
-          AppSpacing.sm + 2,
-          AppSpacing.sm,
-          AppSpacing.sm + 2,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
         ),
       ),
       style: theme.textTheme.bodyMedium,
+      textAlignVertical: TextAlignVertical.center,
       keyboardType: TextInputType.multiline,
       textCapitalization: TextCapitalization.sentences,
       enableSuggestions: true,
