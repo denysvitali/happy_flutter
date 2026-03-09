@@ -26,16 +26,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   final _socialService = SocialService();
   bool _isActionInProgress = false;
 
-  UserProfile? _findUser() {
-    final friends =
-        ref.read(friendsNotifierProvider).friends;
-    try {
-      return friends.firstWhere((f) => f.id == widget.userId);
-    } catch (_) {
-      return null;
-    }
-  }
-
   Future<void> _addFriend(UserProfile user) async {
     setState(() => _isActionInProgress = true);
     try {
@@ -116,9 +106,16 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Watch for live updates
-    ref.watch(friendsNotifierProvider);
-    final user = _findUser();
+    final user = ref.watch(
+      friendsNotifierProvider.select((state) {
+        for (final friend in state.friends) {
+          if (friend.id == widget.userId) {
+            return friend;
+          }
+        }
+        return null;
+      }),
+    );
     final theme = Theme.of(context);
 
     return Scaffold(

@@ -38,20 +38,26 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final settings = ref.watch(settingsNotifierProvider);
+    final experimentsEnabled = ref.watch(
+      settingsNotifierProvider.select((s) => s.experiments),
+    );
     final connectionStatus = ref.watch(connectionNotifierProvider);
-    final friendRequests = ref.watch(friendsNotifierProvider);
-    final inboxState = ref.watch(feedNotifierProvider);
+    final friendRequestCount = ref.watch(
+      friendsNotifierProvider.select((s) => s.incomingRequests.length),
+    );
+    final inboxHasContent = ref.watch(
+      feedNotifierProvider.select((s) => s.unreadNotifications > 0),
+    );
 
     // Calculate sidebar width - same formula as SidebarNavigator.tsx
     final screenWidth = MediaQuery.sizeOf(context).width;
     final sidebarWidth = _calculateSidebarWidth(
       screenWidth,
-      settings.experiments,
+      experimentsEnabled,
     );
 
     // Determine title positioning
-    final shouldLeftJustify = settings.experiments || sidebarWidth < 340;
+    final shouldLeftJustify = experimentsEnabled || sidebarWidth < 340;
 
     // Connection status info
     final cs = Theme.of(context).colorScheme;
@@ -78,11 +84,11 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
           _buildHeader(
             context,
             l10n,
-            settings.experiments,
+            experimentsEnabled,
             connectionInfo,
             shouldLeftJustify,
-            friendRequests.incomingRequests.length,
-            inboxState.unreadNotifications > 0,
+            friendRequestCount,
+            inboxHasContent,
           ),
 
           // Voice assistant status bar (shown when connected or connecting)

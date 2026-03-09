@@ -23,11 +23,16 @@ import '../../core/theme/app_tokens.dart';
 // ─── Settings Screen ─────────────────────────────────────────────────────────
 
 /// Settings screen
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(
       settingsNotifierProvider.select((s) => s.themeMode),
     );
@@ -104,9 +109,9 @@ class SettingsScreen extends ConsumerWidget {
           if (machines.isNotEmpty) const SizedBox(height: AppSpacing.lg),
           _buildAccountSection(context),
           const SizedBox(height: AppSpacing.lg),
-          _buildCertificatesSection(context),
+          const _CertificatesSection(),
           const SizedBox(height: AppSpacing.lg),
-          _buildServerSection(context),
+          const _ServerSection(),
           const SizedBox(height: AppSpacing.lg),
           _buildDeveloperSection(
             context,
@@ -486,76 +491,16 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildCertificatesSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return SettingsSection(
-      title: l10n.settingsCertificates,
-      children: [
-        FutureBuilder<bool>(
-          future: Future.value(CertificateProvider().hasUserCertificates()),
-          builder: (context, snapshot) {
-            final hasCerts = snapshot.data ?? false;
-            return SettingsRow(
-              icon: hasCerts ? Icons.verified_user : Icons.info_outline,
-              iconColor: hasCerts
-                  ? Theme.of(context).colorScheme.primary
-                  : null,
-              title: l10n.settingsUserCaCertificates,
-              subtitle: hasCerts
-                  ? l10n.settingsUserCertificatesInstalled
-                  : l10n.settingsNoUserCertificates,
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildServerSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return SettingsSection(
-      title: l10n.settingsServer,
-      children: [
-        FutureBuilder<Map<String, dynamic>>(
-          future: _getServerInfo(),
-          builder: (context, snapshot) {
-            final url = snapshot.data?['url'] as String? ?? 'Loading...';
-            final isCustom = snapshot.data?['isCustom'] as bool? ?? false;
-
-            return SettingsRow(
-              icon: isCustom ? Icons.edit : Icons.cloud_outlined,
-              title: l10n.settingsServerUrl,
-              subtitle: url,
-              trailing: Icon(
-                isCustom ? Icons.edit : Icons.chevron_right,
-                size: 20,
-                color: isCustom
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.3),
-              ),
-              onTap: () => showServerUrlDialog(context, url),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Future<Map<String, dynamic>> _getServerInfo() async {
-    final url = getServerUrl();
-    final isCustom = isUsingCustomServer();
-    return {'url': url, 'isCustom': isCustom};
-  }
-
-  void showServerUrlDialog(BuildContext context, String currentUrl) {
+  Future<void> showServerUrlDialog(
+    BuildContext context,
+    String currentUrl,
+  ) async {
     final controller = TextEditingController(text: currentUrl);
     final formKey = GlobalKey<FormState>();
     String? errorText;
     var isVerifying = false;
 
-    showDialog(
+    await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) {
@@ -788,6 +733,120 @@ class SettingsScreen extends ConsumerWidget {
   Future<void> openUrl(String url) async {
     final uri = Uri.parse(url);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+class _CertificatesSection extends StatefulWidget {
+  const _CertificatesSection();
+
+  @override
+  State<_CertificatesSection> createState() => _CertificatesSectionState();
+}
+
+class _CertificatesSectionState extends State<_CertificatesSection> {
+  late final Future<bool> _hasCertificatesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _hasCertificatesFuture = Future.value(
+      CertificateProvider().hasUserCertificates(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return SettingsSection(
+      title: l10n.settingsCertificates,
+      children: [
+        FutureBuilder<bool>(
+          future: _hasCertificatesFuture,
+          builder: (context, snapshot) {
+            final hasCerts = snapshot.data ?? false;
+            return SettingsRow(
+              icon: hasCerts ? Icons.verified_user : Icons.info_outline,
+              iconColor: hasCerts
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
+              title: l10n.settingsUserCaCertificates,
+              subtitle: hasCerts
+                  ? l10n.settingsUserCertificatesInstalled
+                  : l10n.settingsNoUserCertificates,
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ServerSection extends StatefulWidget {
+  const _ServerSection();
+
+  @override
+  State<_ServerSection> createState() => _ServerSectionState();
+}
+
+class _ServerSectionState extends State<_ServerSection> {
+  late Future<Map<String, dynamic>> _serverInfoFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _serverInfoFuture = _getServerInfo();
+  }
+
+  Future<Map<String, dynamic>> _getServerInfo() async {
+    final url = getServerUrl();
+    final isCustom = isUsingCustomServer();
+    return {'url': url, 'isCustom': isCustom};
+  }
+
+  Future<void> _showServerUrlDialog(
+    BuildContext context,
+    String currentUrl,
+  ) async {
+    final state = context.findAncestorStateOfType<_SettingsScreenState>();
+    if (state == null) return;
+    await state.showServerUrlDialog(context, currentUrl);
+    if (!mounted) return;
+    setState(() {
+      _serverInfoFuture = _getServerInfo();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return SettingsSection(
+      title: l10n.settingsServer,
+      children: [
+        FutureBuilder<Map<String, dynamic>>(
+          future: _serverInfoFuture,
+          builder: (context, snapshot) {
+            final url = snapshot.data?['url'] as String? ?? 'Loading...';
+            final isCustom = snapshot.data?['isCustom'] as bool? ?? false;
+
+            return SettingsRow(
+              icon: isCustom ? Icons.edit : Icons.cloud_outlined,
+              title: l10n.settingsServerUrl,
+              subtitle: url,
+              trailing: Icon(
+                isCustom ? Icons.edit : Icons.chevron_right,
+                size: 20,
+                color: isCustom
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.3),
+              ),
+              onTap: () => _showServerUrlDialog(context, url),
+            );
+          },
+        ),
+      ],
+    );
   }
 }
 
