@@ -103,7 +103,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       ref.read(machinesNotifierProvider.notifier).loadFromSync();
       ref.read(friendsNotifierProvider.notifier).loadFromSync();
       ref.read(feedNotifierProvider.notifier).loadFromSync();
-      ref.read(todoStateNotifierProvider.notifier).loadFromSync();
     });
   }
 
@@ -269,16 +268,11 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
         ConnectionStatusBadge(status: connectionStatus),
         IconButton(
           icon: const Icon(Icons.search),
-          onPressed: () => setState(
-            () => _isSearching = true,
-          ),
+          onPressed: () => setState(() => _isSearching = true),
         ),
         IconButton(
           icon: const Icon(Icons.add),
-          onPressed: () =>
-              _SessionsListContent.showNewSessionDialog(
-                context,
-              ),
+          onPressed: () => _SessionsListContent.showNewSessionDialog(context),
         ),
       ],
     );
@@ -306,9 +300,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
               ? null
               : () => _toggleSelectAll(allIds, allSelected),
           child: Text(
-            allSelected
-                ? l10n.sessionsDeselectAll
-                : l10n.sessionsSelectAll,
+            allSelected ? l10n.sessionsDeselectAll : l10n.sessionsSelectAll,
           ),
         ),
         if (hasActiveSelected)
@@ -324,10 +316,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
                   )
                 : const Icon(Icons.archive_outlined),
             tooltip: l10n.sessionsArchive,
-            onPressed:
-                (sel.selectedIds.isEmpty || sel.isBatchDeleting)
-                    ? null
-                    : () => _confirmBatchArchive(context, sel),
+            onPressed: (sel.selectedIds.isEmpty || sel.isBatchDeleting)
+                ? null
+                : () => _confirmBatchArchive(context, sel),
           ),
         IconButton(
           icon: sel.isBatchDeleting
@@ -340,10 +331,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
                   ),
                 )
               : Icon(Icons.delete_outline, color: cs.error),
-          onPressed:
-              (sel.selectedIds.isEmpty || sel.isBatchDeleting)
-                  ? null
-                  : () => _confirmBatchDelete(context, sel),
+          onPressed: (sel.selectedIds.isEmpty || sel.isBatchDeleting)
+              ? null
+              : () => _confirmBatchDelete(context, sel),
         ),
       ],
     );
@@ -408,12 +398,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final sessions = ref.read(sessionsNotifierProvider);
     // Only archive active sessions from the selection.
-    final activeIds = sel.selectedIds
-        .where((id) {
-          final s = sessions[id];
-          return s != null && isSessionActive(s);
-        })
-        .toList();
+    final activeIds = sel.selectedIds.where((id) {
+      final s = sessions[id];
+      return s != null && isSessionActive(s);
+    }).toList();
     if (activeIds.isEmpty) return;
 
     final count = activeIds.length;
@@ -451,20 +439,14 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     }
 
     if (mounted) {
-      await ref
-          .read(sessionsNotifierProvider.notifier)
-          .refreshFromSync();
+      await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
     }
 
     _exitSelectionMode();
 
     if (failCount > 0 && mounted) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            l10n.sessionsArchivePartialFail(failCount),
-          ),
-        ),
+        SnackBar(content: Text(l10n.sessionsArchivePartialFail(failCount))),
       );
     }
   }
@@ -507,9 +489,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     final results = await Future.wait(ids.map(sync.deleteSession));
 
     if (mounted) {
-      await ref
-          .read(sessionsNotifierProvider.notifier)
-          .refreshFromSync();
+      await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
     }
 
     _exitSelectionMode();
@@ -517,11 +497,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     final failCount = results.where((r) => !r).length;
     if (failCount > 0 && mounted) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            l10n.sessionsDeletePartialFail(failCount),
-          ),
-        ),
+        SnackBar(content: Text(l10n.sessionsDeletePartialFail(failCount))),
       );
     }
   }
@@ -555,6 +531,13 @@ class _SessionsListContent extends ConsumerStatefulWidget {
       _SessionsListContentState();
 }
 
+class _SessionBuckets {
+  const _SessionBuckets({required this.active, required this.inactive});
+
+  final List<Session> active;
+  final List<Session> inactive;
+}
+
 class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
   bool _hasLoaded = false;
   bool _animationTriggered = false;
@@ -562,6 +545,10 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
   final Set<String> _collapsedFolderKeys = {};
   final Set<String> _collapsedDateKeys = {};
   _ArchivedGrouping _archivedGrouping = _ArchivedGrouping.date;
+  Map<String, Session>? _cachedSessionsSource;
+  String _cachedSearchQuery = '';
+  List<Session> _cachedActiveSessions = const [];
+  List<Session> _cachedInactiveSessions = const [];
 
   ValueNotifier<_SelectionState> get _sel => widget.selectionNotifier;
 
@@ -620,48 +607,26 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
     final avatarStyle = ref.watch(
       settingsNotifierProvider.select((s) => _parseAvatarStyle(s.avatarStyle)),
     );
-    var sessionList = sessions.values.toList();
 
     // Mark as loaded once we get any data or sync is initialized.
-    if (!_hasLoaded && (sessionList.isNotEmpty || sync.isInitialized)) {
+    if (!_hasLoaded && (sessions.isNotEmpty || sync.isInitialized)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _hasLoaded = true);
       });
     }
 
-    // Apply search filter.
-    final query = widget.searchQuery.toLowerCase().trim();
-    if (query.isNotEmpty) {
-      sessionList = sessionList.where((s) {
-        final name =
-            (s.metadata?.name ?? '').toLowerCase();
-        final path =
-            (s.metadata?.path ?? '').toLowerCase();
-        final summary =
-            (s.metadata?.summary?.text ?? '')
-                .toLowerCase();
-        return name.contains(query) ||
-            path.contains(query) ||
-            summary.contains(query);
-      }).toList();
-    }
+    final sessionBuckets = _getSessionBuckets(
+      sessions: sessions,
+      searchQuery: widget.searchQuery.toLowerCase().trim(),
+    );
+    final activeSessions = sessionBuckets.active;
+    final inactiveSessions = sessionBuckets.inactive;
 
-    final activeSessions =
-        sessionList.where(isSessionActive).toList()
-          ..sort(
-            (a, b) => b.activeAt.compareTo(a.activeAt),
-          );
-    final inactiveSessions =
-        sessionList.where((s) => !isSessionActive(s)).toList()
-          ..sort(
-            (a, b) => b.updatedAt.compareTo(a.updatedAt),
-          );
-
-    if (sessionList.isEmpty && !_hasLoaded) {
+    if (sessions.isEmpty && !_hasLoaded) {
       return _SessionListShimmer();
     }
 
-    if (sessionList.isEmpty) {
+    if (activeSessions.isEmpty && inactiveSessions.isEmpty) {
       return const EmptySessionsView();
     }
 
@@ -687,6 +652,44 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
         avatarStyle: avatarStyle,
       ),
     );
+  }
+
+  _SessionBuckets _getSessionBuckets({
+    required Map<String, Session> sessions,
+    required String searchQuery,
+  }) {
+    if (identical(_cachedSessionsSource, sessions) &&
+        _cachedSearchQuery == searchQuery) {
+      return _SessionBuckets(
+        active: _cachedActiveSessions,
+        inactive: _cachedInactiveSessions,
+      );
+    }
+
+    var sessionList = sessions.values.toList();
+    if (searchQuery.isNotEmpty) {
+      sessionList = sessionList.where((session) {
+        final metadata = session.metadata;
+        final name = metadata?.name?.toLowerCase() ?? '';
+        final path = metadata?.path?.toLowerCase() ?? '';
+        final summary = metadata?.summary?.text.toLowerCase() ?? '';
+        return name.contains(searchQuery) ||
+            path.contains(searchQuery) ||
+            summary.contains(searchQuery);
+      }).toList();
+    }
+
+    final active = sessionList.where(isSessionActive).toList()
+      ..sort((a, b) => b.activeAt.compareTo(a.activeAt));
+    final inactive = sessionList.where((s) => !isSessionActive(s)).toList()
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
+    _cachedSessionsSource = sessions;
+    _cachedSearchQuery = searchQuery;
+    _cachedActiveSessions = active;
+    _cachedInactiveSessions = inactive;
+
+    return _SessionBuckets(active: active, inactive: inactive);
   }
 
   Widget _buildSessionsList(
@@ -755,25 +758,19 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
                     : () => unawaited(
                         context.pushNamed(
                           'chat',
-                          pathParameters: {
-                            'sessionId': session.id,
-                          },
+                          pathParameters: {'sessionId': session.id},
                         ),
                       ),
                 showFlavorIcon: showFlavorIcons,
                 avatarStyle: avatarStyle,
-                lastMessageTimestamp:
-                    sync.getLastMessageTimestamp(session.id),
+                lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
                 isSelected: sel.selectedIds.contains(session.id),
                 selectionMode: sel.isActive,
               ),
             );
             final child = sel.isActive
                 ? card
-                : _DismissibleActiveSession(
-                    session: session,
-                    child: card,
-                  );
+                : _DismissibleActiveSession(session: session, child: card);
             children.add(
               _StaggeredSlideIn(
                 index: capturedIndex,
@@ -1076,17 +1073,11 @@ class _DismissibleActiveSession extends ConsumerWidget {
       background: Container(
         alignment: Alignment.centerRight,
         color: Colors.orange,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xl,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.archive_outlined,
-              color: Colors.white,
-              size: 22,
-            ),
+            const Icon(Icons.archive_outlined, color: Colors.white, size: 22),
             const SizedBox(height: AppSpacing.xs),
             Text(
               context.l10n.sessionsArchive,
@@ -1229,9 +1220,7 @@ class _DismissibleInactiveSession extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(context.l10n.sessionsFailedToDelete)),
         );
       }
@@ -2397,8 +2386,7 @@ class SessionCard extends StatelessWidget {
                               const SizedBox(height: 2),
                               Text(
                                 sessionSubtitle,
-                                style: theme.textTheme.labelSmall
-                                    ?.copyWith(
+                                style: theme.textTheme.labelSmall?.copyWith(
                                   color: cs.onSurfaceVariant,
                                   fontFamily: 'monospace',
                                   fontSize: 11,
@@ -2410,10 +2398,10 @@ class SessionCard extends StatelessWidget {
                                 const SizedBox(height: 3),
                                 Text(
                                   lastMessagePreview!,
-                                  style: theme.textTheme.bodySmall
-                                      ?.copyWith(
-                                    color: cs.onSurfaceVariant
-                                        .withValues(alpha: 0.7),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: cs.onSurfaceVariant.withValues(
+                                      alpha: 0.7,
+                                    ),
                                     fontSize: 11,
                                     height: 1.3,
                                   ),
@@ -2430,12 +2418,10 @@ class SessionCard extends StatelessWidget {
                           children: [
                             Text(
                               formatTimestamp(
-                                lastMessageTimestamp ??
-                                    session.updatedAt,
+                                lastMessageTimestamp ?? session.updatedAt,
                                 relative: true,
                               ),
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(
+                              style: theme.textTheme.labelSmall?.copyWith(
                                 color: cs.onSurfaceVariant,
                                 fontSize: 11,
                               ),
@@ -2486,25 +2472,18 @@ class _SessionListShimmer extends StatelessWidget {
           width: width,
           decoration: BoxDecoration(
             color: base,
-            borderRadius: BorderRadius.circular(
-              AppRadius.xs,
-            ),
+            borderRadius: BorderRadius.circular(AppRadius.xs),
           ),
         ),
       );
     }
 
-    Widget row({
-      double avatarSize = 32,
-      double height = 56,
-    }) {
+    Widget row({double avatarSize = 32, double height = 56}) {
       return ShimmerView(
         child: SizedBox(
           height: height,
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: AppSpacing.xs,
-            ),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
             child: Row(
               children: [
                 Container(
@@ -2518,34 +2497,24 @@ class _SessionListShimmer extends StatelessWidget {
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    mainAxisAlignment:
-                        MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
                         height: 14,
                         width: double.infinity,
                         decoration: BoxDecoration(
                           color: base,
-                          borderRadius:
-                              BorderRadius.circular(
-                            AppRadius.xs,
-                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.xs),
                         ),
                       ),
-                      const SizedBox(
-                        height: AppSpacing.xs,
-                      ),
+                      const SizedBox(height: AppSpacing.xs),
                       Container(
                         height: 12,
                         width: 160,
                         decoration: BoxDecoration(
                           color: base,
-                          borderRadius:
-                              BorderRadius.circular(
-                            AppRadius.xs,
-                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.xs),
                         ),
                       ),
                     ],
@@ -2557,9 +2526,7 @@ class _SessionListShimmer extends StatelessWidget {
                   width: 36,
                   decoration: BoxDecoration(
                     color: base,
-                    borderRadius: BorderRadius.circular(
-                      AppRadius.xs,
-                    ),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                   ),
                 ),
               ],

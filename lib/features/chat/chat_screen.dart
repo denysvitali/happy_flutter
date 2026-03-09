@@ -43,7 +43,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   bool _didStartInitialLoad = false;
   int _prevMessagesLength = 0;
-  int _messagesFingerprint = 0;
   bool _autoScroll = true;
   static const double _autoScrollThreshold = 100;
 
@@ -60,6 +59,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   // Cached slicing / index data for _buildMessageList.
   List<Map<String, dynamic>>? _cachedVisibleMessages;
+  List<Map<String, dynamic>>? _cachedVisibleSource;
   int _cachedMessagesLength = -1;
   int _cachedVisibleCount = -1;
 
@@ -120,8 +120,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (seen.add(p.id)) deduped.add(p);
     }
 
-    final savedId = await DraftStorage().getProfileId(widget.sessionId)
-        ?? settings.lastUsedProfile;
+    final savedId =
+        await DraftStorage().getProfileId(widget.sessionId) ??
+        settings.lastUsedProfile;
     if (!mounted) return;
 
     AIBackendProfile? found;
@@ -214,12 +215,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _refreshFromSync({bool markLoaded = false}) {
     final latestSession = sync.sessions[widget.sessionId];
     final latestMessages = sync.messagesForSession(widget.sessionId);
-    final latestMessagesFingerprint = _computeMessagesFingerprint(
-      latestMessages,
-    );
 
     final sessionChanged = latestSession != _session;
-    final messagesChanged = latestMessagesFingerprint != _messagesFingerprint;
+    final messagesChanged = !identical(latestMessages, _messages);
     if (!sessionChanged && !messagesChanged && !markLoaded) {
       return;
     }
@@ -248,7 +246,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       _messages = latestMessages;
       _prevMessagesLength = latestMessages.length;
-      _messagesFingerprint = latestMessagesFingerprint;
 
       if (sessionChanged) {
         _metadataJson = latestSession?.metadata?.toJson();
@@ -297,49 +294,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   String _messageKey(Map<String, dynamic> m) =>
       m['id'] as String? ?? m['toolUseId'] as String? ?? '';
-
-  int _computeMessagesFingerprint(List<Map<String, dynamic>> messages) {
-    var hash = messages.length;
-    for (final message in messages) {
-      final content = message['content'];
-      final children = message['children'];
-      final permission = message['permission'];
-      final childList = children is List<dynamic> ? children : null;
-      final childCount = childList?.length ?? 0;
-      final lastChild = childCount > 0 ? childList!.last : null;
-      final lastChildId = lastChild is Map<String, dynamic>
-          ? lastChild['id']
-          : null;
-      final contentHash = switch (content) {
-        final String text => Object.hash(text.length, text.hashCode),
-        final List<dynamic> list => list.length,
-        final Map<dynamic, dynamic> map => map.length,
-        _ => content?.hashCode ?? 0,
-      };
-      final permissionStatus = permission is Map<String, dynamic>
-          ? permission['status']
-          : null;
-      final sendStatus = message['sendStatus'];
-      hash = Object.hash(
-        hash,
-        message['id'],
-        message['localId'],
-        message['seq'],
-        message['role'],
-        message['kind'],
-        message['state'],
-        message['isThinking'],
-        message['completedAt'],
-        message['result'],
-        contentHash,
-        childCount,
-        lastChildId,
-        permissionStatus,
-        sendStatus,
-      );
-    }
-    return hash;
-  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -565,18 +519,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _onModelModeChanged(ClaudeModel model) {
     setState(() => _modelMode = model);
-    unawaited(
-      DraftStorage().saveModelMode(widget.sessionId, model.modeString),
-    );
+    unawaited(DraftStorage().saveModelMode(widget.sessionId, model.modeString));
   }
 
   void _onProfileChanged(AIBackendProfile? profile) {
     setState(() => _selectedProfile = profile);
     final profileId = profile?.id;
     if (profileId != null) {
-      unawaited(
-        DraftStorage().saveProfileId(widget.sessionId, profileId),
-      );
+      unawaited(DraftStorage().saveProfileId(widget.sessionId, profileId));
     }
     // Persist globally so new sessions default to this profile.
     sync.applySettings({'lastUsedProfile': profileId});
@@ -680,8 +630,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final startIndex = (totalCount - _visibleCount).clamp(0, totalCount);
 
     // Reuse cached sublist when messages haven't changed.
-    if (totalCount != _cachedMessagesLength ||
+    if (!identical(_messages, _cachedVisibleSource) ||
+        totalCount != _cachedMessagesLength ||
         _visibleCount != _cachedVisibleCount) {
+      _cachedVisibleSource = _messages;
       _cachedMessagesLength = totalCount;
       _cachedVisibleCount = _visibleCount;
       _cachedVisibleMessages = _messages.sublist(startIndex);
@@ -793,11 +745,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         final bottomPad = (isToolCall && nextIsToolCall)
             ? 0.0
             : sameSender
-                ? AppSpacing.xs
-                : AppSpacing.md;
+            ? AppSpacing.xs
+            : AppSpacing.md;
 
         // Compute grouping for bubble corner radii.
-        // In the reversed list, index+1 = visually above, index-1 = visually below.
+        // In the reversed list, index+1 is visually above and index-1 below.
         Map<String, dynamic>? prevMessage;
         for (var j = reversedIndex - 1; j >= 0; j--) {
           if (items[j] != null) {
@@ -1291,8 +1243,7 @@ class _ChatLoadingShimmer extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
           child: ShimmerView(
             child: Align(
-              alignment:
-                  isUser ? Alignment.centerRight : Alignment.centerLeft,
+              alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
               child: Container(
                 height: isUser ? 40 : 60,
                 width: isUser ? 200 : 260,

@@ -19,7 +19,12 @@ class SessionRecentScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final sessions = ref.watch(sessionsNotifierProvider);
-    final settings = ref.watch(settingsNotifierProvider);
+    final showFlavorIcons = ref.watch(
+      settingsNotifierProvider.select((s) => s.showFlavorIcons),
+    );
+    final avatarStyle = ref.watch(
+      settingsNotifierProvider.select((s) => _parseAvatarStyle(s.avatarStyle)),
+    );
     final sessionList = sessions.values.toList()
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
@@ -42,8 +47,8 @@ class SessionRecentScreen extends ConsumerWidget {
               child: _SessionRecentList(
                 sessionList: sessionList,
                 localizeDateGroup: localizeDateGroup,
-                showFlavorIcons: settings.showFlavorIcons,
-                avatarStyle: _parseAvatarStyle(settings.avatarStyle),
+                showFlavorIcons: showFlavorIcons,
+                avatarStyle: avatarStyle,
               ),
             ),
     );
