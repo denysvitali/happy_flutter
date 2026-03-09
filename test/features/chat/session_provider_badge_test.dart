@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_app_bar.dart';
+import 'package:happy_flutter/features/sessions/session_avatar.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_cards.dart';
 
 Session _session({required String flavor}) {
@@ -46,10 +47,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Codex'), findsOneWidget);
+    expect(find.text('OpenAI'), findsOneWidget);
   });
 
-  testWidgets('session cards show the provider badge', (tester) async {
+  testWidgets('session cards show a compact logo badge', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -63,6 +64,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Claude'), findsOneWidget);
+    expect(find.byType(SessionFlavorBadge), findsOneWidget);
+    expect(find.text('Claude'), findsNothing);
   });
 }

@@ -260,10 +260,12 @@ class SessionFlavorBadge extends StatelessWidget {
     required this.flavor,
     super.key,
     this.compact = false,
+    this.showLabel = true,
   });
 
   final String flavor;
   final bool compact;
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -273,7 +275,7 @@ class SessionFlavorBadge extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 6 : 8,
+        horizontal: showLabel ? (compact ? 6 : 8) : (compact ? 4 : 6),
         vertical: compact ? 2 : 3,
       ),
       decoration: BoxDecoration(
@@ -300,14 +302,16 @@ class SessionFlavorBadge extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            _flavorLabel(context, flavor),
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
+          if (showLabel) ...[
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              _flavorLabel(context, flavor),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -316,7 +320,7 @@ class SessionFlavorBadge extends StatelessWidget {
   String _flavorLabel(BuildContext context, String flavorName) {
     return switch (flavorName) {
       'claude' => 'Claude',
-      'codex' => 'Codex',
+      'codex' => 'OpenAI',
       'gemini' => 'Gemini',
       _ => flavorName,
     };

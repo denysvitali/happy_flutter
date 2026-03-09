@@ -145,6 +145,7 @@ class ActiveSessionCard extends StatelessWidget {
                                     SessionFlavorBadge(
                                       flavor: sessionFlavor,
                                       compact: true,
+                                      showLabel: false,
                                     ),
                                   ],
                                   const SizedBox(width: AppSpacing.sm),
@@ -522,6 +523,7 @@ class SessionCard extends StatelessWidget {
                                     SessionFlavorBadge(
                                       flavor: sessionFlavor,
                                       compact: true,
+                                      showLabel: false,
                                     ),
                                   ],
                                   const SizedBox(width: AppSpacing.sm),
