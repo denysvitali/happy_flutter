@@ -35,6 +35,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.onPermissionModeChanged,
     this.modelMode,
     this.onModelModeChanged,
+    this.availableModels = ClaudeModel.values,
     this.fileSuggestions = const [],
     this.machineName,
     this.currentPath,
@@ -70,14 +71,16 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Callback invoked when the user changes the
   /// permission mode.
-  final ValueChanged<perm.PermissionMode>?
-      onPermissionModeChanged;
+  final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
 
   /// Active model selection, or null for server default.
   final ClaudeModel? modelMode;
 
   /// Callback invoked when the user changes the model.
   final ValueChanged<ClaudeModel>? onModelModeChanged;
+
+  /// Model options available for the current session flavor.
+  final List<ClaudeModel> availableModels;
 
   /// File path suggestions for `@`-autocomplete.
   final List<AutocompleteSuggestion> fileSuggestions;
@@ -129,15 +132,13 @@ class ChatInput extends ConsumerStatefulWidget {
   final Future<void> Function()? onAbort;
 
   @override
-  ConsumerState<ChatInput> createState() =>
-      _ChatInputState();
+  ConsumerState<ChatInput> createState() => _ChatInputState();
 }
 
 class _ChatInputState extends ConsumerState<ChatInput>
     with TickerProviderStateMixin {
   _ChatInputState()
-      : _draftAutoSave =
-            DraftAutoSave(sessionId: '', onSave: (_) {});
+    : _draftAutoSave = DraftAutoSave(sessionId: '', onSave: (_) {});
   final FocusNode _focusNode = FocusNode();
   final AutocompleteController _autocompleteController =
       AutocompleteController();
@@ -163,12 +164,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
       duration: kSendAnimDuration,
       value: 1.0,
     );
-    _sendScale =
-        Tween<double>(begin: 0.82, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _sendScaleController,
-        curve: Curves.easeOutBack,
-      ),
+    _sendScale = Tween<double>(begin: 0.82, end: 1.0).animate(
+      CurvedAnimation(parent: _sendScaleController, curve: Curves.easeOutBack),
     );
 
     _loadDraft();
@@ -204,11 +201,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
   // -----------------------------------------------------------
 
   Future<void> _loadDraft() async {
-    final draft =
-        await DraftStorage().getDraft(widget.sessionId);
-    if (draft != null &&
-        draft.isNotEmpty &&
-        widget.controller.text.isEmpty) {
+    final draft = await DraftStorage().getDraft(widget.sessionId);
+    if (draft != null && draft.isNotEmpty && widget.controller.text.isEmpty) {
       widget.controller.text = draft;
       _previousText = draft;
     }
@@ -218,8 +212,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     if (draft.trim().isEmpty) {
       await DraftStorage().removeDraft(widget.sessionId);
     } else {
-      await DraftStorage()
-          .saveDraft(widget.sessionId, draft);
+      await DraftStorage().saveDraft(widget.sessionId, draft);
     }
   }
 
@@ -231,10 +224,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final currentText = widget.controller.text;
     _updateAutocomplete(currentText);
 
-    if (DraftStateTransition.isStateTransition(
-      _previousText,
-      currentText,
-    )) {
+    if (DraftStateTransition.isStateTransition(_previousText, currentText)) {
       _draftAutoSave.saveNow();
     } else if (currentText.trim().isNotEmpty) {
       _draftAutoSave.update(currentText);
@@ -244,49 +234,32 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   void _updateAutocomplete(String text) {
-    final cursorPosition =
-        widget.controller.selection.base.offset;
+    final cursorPosition = widget.controller.selection.base.offset;
     if (cursorPosition < 0) {
       _clearAutocomplete();
       return;
     }
 
-    final textBeforeCursor =
-        text.substring(0, cursorPosition);
-    final lastWordMatch =
-        RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor);
+    final textBeforeCursor = text.substring(0, cursorPosition);
+    final lastWordMatch = RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor);
 
     if (lastWordMatch == null) {
       _clearAutocomplete();
       return;
     }
 
-    final trigger =
-        lastWordMatch.group(0)!.substring(0, 1);
+    final trigger = lastWordMatch.group(0)!.substring(0, 1);
     final query = lastWordMatch.group(1) ?? '';
 
     if (trigger == '@') {
       final suggestions = widget.fileSuggestions
-          .where(
-            (s) => s.label
-                .toLowerCase()
-                .contains(query.toLowerCase()),
-          )
+          .where((s) => s.label.toLowerCase().contains(query.toLowerCase()))
           .toList();
-      _autocompleteController.setSuggestions(
-        suggestions,
-        query,
-      );
-      setState(
-        () => _showAutocomplete = suggestions.isNotEmpty,
-      );
+      _autocompleteController.setSuggestions(suggestions, query);
+      setState(() => _showAutocomplete = suggestions.isNotEmpty);
     } else if (trigger == '/') {
       final suggestions = slashCommands
-          .where(
-            (c) => c.command
-                .toLowerCase()
-                .contains(query.toLowerCase()),
-          )
+          .where((c) => c.command.toLowerCase().contains(query.toLowerCase()))
           .map(
             (c) => AutocompleteSuggestion(
               id: c.command,
@@ -297,13 +270,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
             ),
           )
           .toList();
-      _autocompleteController.setSuggestions(
-        suggestions,
-        query,
-      );
-      setState(
-        () => _showAutocomplete = suggestions.isNotEmpty,
-      );
+      _autocompleteController.setSuggestions(suggestions, query);
+      setState(() => _showAutocomplete = suggestions.isNotEmpty);
     } else {
       _clearAutocomplete();
     }
@@ -319,23 +287,15 @@ class _ChatInputState extends ConsumerState<ChatInput>
     if (!_focusNode.hasFocus) _draftAutoSave.saveNow();
   }
 
-  void _applySuggestion(
-    AutocompleteSuggestion suggestion,
-  ) {
+  void _applySuggestion(AutocompleteSuggestion suggestion) {
     final text = widget.controller.text;
-    final cursorPosition =
-        widget.controller.selection.base.offset;
-    final textBeforeCursor =
-        text.substring(0, cursorPosition);
-    final lastWordMatch =
-        RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor);
+    final cursorPosition = widget.controller.selection.base.offset;
+    final textBeforeCursor = text.substring(0, cursorPosition);
+    final lastWordMatch = RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor);
 
     if (lastWordMatch != null) {
       final startIndex = lastWordMatch.start;
-      final trigger =
-          suggestion.type == SuggestionType.command
-              ? '/'
-              : '@';
+      final trigger = suggestion.type == SuggestionType.command ? '/' : '@';
       final replacement = '$trigger${suggestion.label} ';
       final newText = text.replaceRange(
         startIndex,
@@ -354,10 +314,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     _focusNode.requestFocus();
   }
 
-  KeyEventResult _handleFocusKeyEvent(
-    FocusNode node,
-    KeyEvent event,
-  ) {
+  KeyEventResult _handleFocusKeyEvent(FocusNode node, KeyEvent event) {
     if (!_showAutocomplete) {
       return KeyEventResult.ignored;
     }
@@ -369,22 +326,18 @@ class _ChatInputState extends ConsumerState<ChatInput>
       _autocompleteController.moveSelectionUp();
       setState(() {});
       return KeyEventResult.handled;
-    } else if (event.logicalKey ==
-        LogicalKeyboardKey.arrowDown) {
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
       _autocompleteController.moveSelectionDown();
       setState(() {});
       return KeyEventResult.handled;
-    } else if (event.logicalKey ==
-            LogicalKeyboardKey.enter ||
+    } else if (event.logicalKey == LogicalKeyboardKey.enter ||
         event.logicalKey == LogicalKeyboardKey.tab) {
-      final selected =
-          _autocompleteController.selectedSuggestion;
+      final selected = _autocompleteController.selectedSuggestion;
       if (selected != null) {
         _applySuggestion(selected);
         return KeyEventResult.handled;
       }
-    } else if (event.logicalKey ==
-        LogicalKeyboardKey.escape) {
+    } else if (event.logicalKey == LogicalKeyboardKey.escape) {
       _clearAutocomplete();
       return KeyEventResult.handled;
     }
@@ -430,20 +383,14 @@ class _ChatInputState extends ConsumerState<ChatInput>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (widget.machineName != null ||
-            widget.currentPath != null)
+        if (widget.machineName != null || widget.currentPath != null)
           const SizedBox.shrink(),
         if (_showAutocomplete)
           FileAutocomplete(
-            suggestions:
-                _autocompleteController.suggestions,
-            selectedIndex:
-                _autocompleteController.selectedIndex,
+            suggestions: _autocompleteController.suggestions,
+            selectedIndex: _autocompleteController.selectedIndex,
             onSelect: (index) {
-              _applySuggestion(
-                _autocompleteController
-                    .suggestions[index],
-              );
+              _applySuggestion(_autocompleteController.suggestions[index]);
             },
           ),
         _buildInputContainer(context),
@@ -470,8 +417,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
             ),
             border: Border(
               top: BorderSide(
-                color: cs.outlineVariant
-                    .withValues(alpha: 0.2),
+                color: cs.outlineVariant.withValues(alpha: 0.2),
                 width: 0.5,
               ),
             ),
@@ -486,25 +432,20 @@ class _ChatInputState extends ConsumerState<ChatInput>
                 AppSpacing.sm,
               ),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildCardInputArea(context),
                   const SizedBox(height: 10),
                   InputToolbar(
-                    permissionMode:
-                        widget.permissionMode,
-                    onPermissionModeChanged:
-                        widget.onPermissionModeChanged,
+                    permissionMode: widget.permissionMode,
+                    onPermissionModeChanged: widget.onPermissionModeChanged,
                     modelMode: widget.modelMode,
-                    onShowModelPicker: () =>
-                        widget.onModelModeChanged != null
-                            ? _showModelPicker(context)
-                            : null,
-                    selectedProfile:
-                        widget.selectedProfile,
-                    onShowProfilePicker: () =>
-                        _showProfilePicker(context),
+                    availableModels: widget.availableModels,
+                    onShowModelPicker: () => widget.onModelModeChanged != null
+                        ? _showModelPicker(context)
+                        : null,
+                    selectedProfile: widget.selectedProfile,
+                    onShowProfilePicker: () => _showProfilePicker(context),
                     contextSize: widget.contextSize,
                     showAbort: widget.isSessionOnline,
                     isAborting: _isAborting,
@@ -533,14 +474,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius:
-            BorderRadius.circular(AppRadius.xl),
-        border:
-            Border.all(color: borderColor, width: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: borderColor, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color:
-                Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -551,10 +489,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         children: [
           Expanded(child: _buildTextField(context)),
           Padding(
-            padding: const EdgeInsets.only(
-              right: 6,
-              bottom: 6,
-            ),
+            padding: const EdgeInsets.only(right: 6, bottom: 6),
             child: SendButton(
               isSending: widget.isSending,
               isSendDisabled: widget.isSendDisabled,
@@ -578,9 +513,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       focusNode: _focusNode,
       decoration: InputDecoration(
         hintText: l10n.chatInputHint,
-        hintStyle: theme.textTheme.bodyMedium?.copyWith(
-          color: hintColor,
-        ),
+        hintStyle: theme.textTheme.bodyMedium?.copyWith(color: hintColor),
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,
@@ -599,23 +532,21 @@ class _ChatInputState extends ConsumerState<ChatInput>
       autocorrect: true,
       maxLines: 6,
       minLines: 1,
-      textInputAction:
-          defaultTargetPlatform == TargetPlatform.android
-              ? TextInputAction.newline
-              : TextInputAction.send,
-      onSubmitted:
-          defaultTargetPlatform == TargetPlatform.android
-              ? null
-              : (_) => widget.onSend(),
+      textInputAction: defaultTargetPlatform == TargetPlatform.android
+          ? TextInputAction.newline
+          : TextInputAction.send,
+      onSubmitted: defaultTargetPlatform == TargetPlatform.android
+          ? null
+          : (_) => widget.onSend(),
     );
   }
 
   void _showModelPicker(BuildContext context) {
-    final current =
-        widget.modelMode ?? ClaudeModel.defaultModel;
+    final current = widget.modelMode ?? ClaudeModel.defaultModel;
     showModelPickerSheet(
       context,
       current,
+      widget.availableModels,
       (model) => widget.onModelModeChanged?.call(model),
     );
   }
@@ -625,8 +556,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       context,
       widget.selectedProfile,
       widget.availableProfiles,
-      (profile) =>
-          widget.onProfileChanged?.call(profile),
+      (profile) => widget.onProfileChanged?.call(profile),
     );
   }
 }

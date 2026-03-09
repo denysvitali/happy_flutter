@@ -12,11 +12,13 @@ class ModelChip extends StatelessWidget {
   const ModelChip({
     required this.model,
     required this.onTap,
+    this.enabled = true,
     super.key,
   });
 
   final ClaudeModel model;
   final VoidCallback onTap;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -25,18 +27,14 @@ class ModelChip extends StatelessWidget {
     final isDefault = model == ClaudeModel.defaultModel;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: enabled ? onTap : null,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 4,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: isDefault
               ? cs.onSurface.withValues(alpha: 0.05)
               : cs.primary.withValues(alpha: 0.1),
-          borderRadius:
-              BorderRadius.circular(AppRadius.pill),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -46,18 +44,14 @@ class ModelChip extends StatelessWidget {
                   ? Icons.diamond_outlined
                   : Icons.auto_awesome_outlined,
               size: 11,
-              color: isDefault
-                  ? cs.onSurfaceVariant
-                  : cs.primary,
+              color: isDefault ? cs.onSurfaceVariant : cs.primary,
             ),
             const SizedBox(width: 3),
             Text(
               model.label,
               style: theme.textTheme.labelSmall?.copyWith(
                 fontSize: 11,
-                color: isDefault
-                    ? cs.onSurfaceVariant
-                    : cs.primary,
+                color: isDefault ? cs.onSurfaceVariant : cs.primary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -66,8 +60,7 @@ class ModelChip extends StatelessWidget {
               Icons.keyboard_arrow_down_rounded,
               size: 12,
               color: isDefault
-                  ? cs.onSurfaceVariant
-                      .withValues(alpha: 0.5)
+                  ? cs.onSurfaceVariant.withValues(alpha: 0.5)
                   : cs.primary.withValues(alpha: 0.6),
             ),
           ],
@@ -80,11 +73,7 @@ class ModelChip extends StatelessWidget {
 /// Inline chip for profile selection — shown next to
 /// model chip.
 class ProfileChip extends StatelessWidget {
-  const ProfileChip({
-    required this.profile,
-    required this.onTap,
-    super.key,
-  });
+  const ProfileChip({required this.profile, required this.onTap, super.key});
 
   final AIBackendProfile? profile;
   final VoidCallback onTap;
@@ -94,22 +83,18 @@ class ProfileChip extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final isDefault = profile == null;
-    final label = profile?.name ??
-        AppLocalizations.of(context).chatInputProfileDefault;
+    final label =
+        profile?.name ?? AppLocalizations.of(context).chatInputProfileDefault;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 4,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: isDefault
               ? cs.onSurface.withValues(alpha: 0.05)
               : cs.tertiary.withValues(alpha: 0.1),
-          borderRadius:
-              BorderRadius.circular(AppRadius.pill),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -117,21 +102,16 @@ class ProfileChip extends StatelessWidget {
             Icon(
               Icons.swap_horiz_rounded,
               size: 11,
-              color: isDefault
-                  ? cs.onSurfaceVariant
-                  : cs.tertiary,
+              color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
             ),
             const SizedBox(width: 3),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 80),
               child: Text(
                 label,
-                style:
-                    theme.textTheme.labelSmall?.copyWith(
+                style: theme.textTheme.labelSmall?.copyWith(
                   fontSize: 11,
-                  color: isDefault
-                      ? cs.onSurfaceVariant
-                      : cs.tertiary,
+                  color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
                   fontWeight: FontWeight.w500,
                 ),
                 maxLines: 1,
@@ -143,8 +123,7 @@ class ProfileChip extends StatelessWidget {
               Icons.keyboard_arrow_down_rounded,
               size: 12,
               color: isDefault
-                  ? cs.onSurfaceVariant
-                      .withValues(alpha: 0.5)
+                  ? cs.onSurfaceVariant.withValues(alpha: 0.5)
                   : cs.tertiary.withValues(alpha: 0.6),
             ),
           ],
@@ -156,10 +135,7 @@ class ProfileChip extends StatelessWidget {
 
 /// Context-size indicator showing token usage.
 class ContextSizeIndicator extends StatelessWidget {
-  const ContextSizeIndicator({
-    required this.contextSize,
-    super.key,
-  });
+  const ContextSizeIndicator({required this.contextSize, super.key});
 
   final int contextSize;
 
@@ -169,8 +145,7 @@ class ContextSizeIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final pctUsed =
-        (contextSize / _maxContext * 100).clamp(0.0, 100.0);
+    final pctUsed = (contextSize / _maxContext * 100).clamp(0.0, 100.0);
     final pctRemaining = (100 - pctUsed).round();
 
     final Color indicatorColor;
@@ -179,14 +154,12 @@ class ContextSizeIndicator extends StatelessWidget {
     } else if (pctRemaining <= 15) {
       indicatorColor = Colors.orange;
     } else {
-      indicatorColor =
-          cs.onSurfaceVariant.withValues(alpha: 0.4);
+      indicatorColor = cs.onSurfaceVariant.withValues(alpha: 0.4);
     }
 
     final String label;
     if (contextSize >= 1000) {
-      final kVal =
-          (contextSize / 1000).toStringAsFixed(0);
+      final kVal = (contextSize / 1000).toStringAsFixed(0);
       label = '${kVal}k';
     } else {
       label = '$contextSize';
@@ -203,11 +176,8 @@ class ContextSizeIndicator extends StatelessWidget {
             borderRadius: BorderRadius.circular(1),
             child: LinearProgressIndicator(
               value: pctUsed / 100,
-              backgroundColor:
-                  cs.onSurface.withValues(alpha: 0.06),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                indicatorColor,
-              ),
+              backgroundColor: cs.onSurface.withValues(alpha: 0.06),
+              valueColor: AlwaysStoppedAnimation<Color>(indicatorColor),
             ),
           ),
         ),
@@ -234,6 +204,7 @@ class InputToolbar extends StatelessWidget {
     this.permissionMode,
     this.onPermissionModeChanged,
     this.modelMode,
+    this.availableModels = ClaudeModel.values,
     this.selectedProfile,
     this.contextSize,
     this.showAbort = false,
@@ -242,9 +213,9 @@ class InputToolbar extends StatelessWidget {
   });
 
   final perm.PermissionMode? permissionMode;
-  final ValueChanged<perm.PermissionMode>?
-      onPermissionModeChanged;
+  final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
   final ClaudeModel? modelMode;
+  final List<ClaudeModel> availableModels;
   final VoidCallback onShowModelPicker;
   final AIBackendProfile? selectedProfile;
   final VoidCallback onShowProfilePicker;
@@ -266,33 +237,25 @@ class InputToolbar extends StatelessWidget {
             perm.PermissionModeSelector(
               selectedMode: permissionMode,
               onModeChanged: onPermissionModeChanged,
-              availableModes: perm
-                  .PermissionModeExtension.claudeGeminiModes,
+              availableModes: perm.PermissionModeExtension.claudeGeminiModes,
             ),
             const SizedBox(width: 6),
           ],
           ModelChip(
             model: model,
+            enabled: availableModels.length > 1,
             onTap: onShowModelPicker,
           ),
           const SizedBox(width: 6),
-          ProfileChip(
-            profile: selectedProfile,
-            onTap: onShowProfilePicker,
-          ),
+          ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
           const SizedBox(width: AppSpacing.sm),
           if (showAbort) ...[
-            AbortButton(
-              isAborting: isAborting,
-              onTap: onAbort,
-            ),
+            AbortButton(isAborting: isAborting, onTap: onAbort),
             if (contextSize != null && contextSize! > 0)
               const SizedBox(width: 6),
           ],
           if (contextSize != null && contextSize! > 0)
-            ContextSizeIndicator(
-              contextSize: contextSize!,
-            ),
+            ContextSizeIndicator(contextSize: contextSize!),
         ],
       ),
     );

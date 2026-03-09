@@ -29,15 +29,12 @@ class ChatScreen extends ConsumerStatefulWidget {
   final String sessionId;
 
   @override
-  ConsumerState<ChatScreen> createState() =>
-      _ChatScreenState();
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
-  final TextEditingController _controller =
-      TextEditingController();
-  final ScrollController _scrollController =
-      ScrollController();
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   StreamSubscription<void>? _dataSyncSubscription;
   StreamSubscription<String>? _messageSyncSubscription;
   bool _isSending = false;
@@ -49,8 +46,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _autoScroll = true;
   static const double _autoScrollThreshold = 100;
 
-  PermissionMode _permissionMode =
-      PermissionMode.defaultMode;
+  PermissionMode _permissionMode = PermissionMode.defaultMode;
   ClaudeModel _modelMode = ClaudeModel.defaultModel;
   AIBackendProfile? _selectedProfile;
   List<AIBackendProfile> _availableProfiles = const [];
@@ -88,35 +84,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _loadSavedPermissionMode() async {
-    final savedMode = await DraftStorage()
-        .getPermissionMode(widget.sessionId);
+    final savedMode = await DraftStorage().getPermissionMode(widget.sessionId);
     if (!mounted) return;
     if (savedMode != null) {
-      final parsedMode =
-          PermissionModeExtension.fromString(savedMode);
+      final parsedMode = PermissionModeExtension.fromString(savedMode);
       setState(() {
-        _permissionMode =
-            parsedMode ?? PermissionMode.defaultMode;
+        _permissionMode = parsedMode ?? PermissionMode.defaultMode;
       });
     }
   }
 
   Future<void> _loadSavedModelMode() async {
-    final savedMode =
-        await DraftStorage().getModelMode(widget.sessionId);
+    final savedMode = await DraftStorage().getModelMode(widget.sessionId);
+    final session = sync.sessions[widget.sessionId];
+    final flavor = session?.metadata?.flavor;
     if (!mounted) return;
     if (savedMode != null) {
       setState(
-        () => _modelMode = ClaudeModel.fromString(
-          savedMode,
+        () => _modelMode = ClaudeModel.normalizeForFlavor(
+          ClaudeModel.fromString(savedMode),
+          flavor,
         ),
       );
     } else {
-      final session = sync.sessions[widget.sessionId];
       if (session?.modelMode != null) {
         setState(
-          () => _modelMode = ClaudeModel.fromString(
-            session!.modelMode,
+          () => _modelMode = ClaudeModel.normalizeForFlavor(
+            ClaudeModel.fromString(session!.modelMode),
+            flavor,
           ),
         );
       }
@@ -127,16 +122,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final settings = ref.read(settingsNotifierProvider);
     final seen = <String>{};
     final deduped = <AIBackendProfile>[];
-    for (final p in [
-      ...settings.profiles,
-      ...builtInProfiles,
-    ]) {
+    for (final p in [...settings.profiles, ...builtInProfiles]) {
       if (seen.add(p.id)) deduped.add(p);
     }
 
     final savedId =
-        await DraftStorage()
-            .getProfileId(widget.sessionId) ??
+        await DraftStorage().getProfileId(widget.sessionId) ??
         settings.lastUsedProfile;
     if (!mounted) return;
 
@@ -169,8 +160,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _messageSyncSubscription = sync.onSessionMessagesChanged
         .where((id) => id == widget.sessionId)
         .listen((_) {
-      if (mounted) _refreshFromSync();
-    });
+          if (mounted) _refreshFromSync();
+        });
     _dataSyncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
       if (!_didStartInitialLoad && sync.isInitialized) {
@@ -197,10 +188,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     sync.onSessionVisible(widget.sessionId);
     var success = true;
     try {
-      await sync
-          .messagesSync[widget.sessionId]
-          ?.awaitQueue()
-          .timeout(const Duration(seconds: 5));
+      await sync.messagesSync[widget.sessionId]?.awaitQueue().timeout(
+        const Duration(seconds: 5),
+      );
     } catch (_) {
       success = false;
     }
@@ -222,44 +212,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _refreshFromSync({bool markLoaded = false}) {
-    final latestSession =
-        sync.sessions[widget.sessionId];
-    final latestMessages =
-        sync.messagesForSession(widget.sessionId);
+    final latestSession = sync.sessions[widget.sessionId];
+    final latestMessages = sync.messagesForSession(widget.sessionId);
 
     final sessionChanged = latestSession != _session;
-    final messagesChanged =
-        !identical(latestMessages, _messages);
-    if (!sessionChanged &&
-        !messagesChanged &&
-        !markLoaded) {
+    final messagesChanged = !identical(latestMessages, _messages);
+    if (!sessionChanged && !messagesChanged && !markLoaded) {
       return;
     }
 
     if (!mounted) return;
 
-    final hadRequests =
-        _session?.agentState?.requests?.isNotEmpty ??
-            false;
+    final hadRequests = _session?.agentState?.requests?.isNotEmpty ?? false;
     final hasRequests =
-        latestSession
-            ?.agentState
-            ?.requests
-            ?.isNotEmpty ??
-        false;
+        latestSession?.agentState?.requests?.isNotEmpty ?? false;
     final newPermission = !hadRequests && hasRequests;
 
     setState(() {
       _session = latestSession;
+      _modelMode = ClaudeModel.normalizeForFlavor(
+        _modelMode,
+        latestSession?.metadata?.flavor,
+      );
 
-      if (messagesChanged &&
-          latestMessages.length > _prevMessagesLength) {
-        final prepended =
-            latestMessages.length - _prevMessagesLength;
-        if (_visibleCount >= _prevMessagesLength &&
-            _prevMessagesLength > 0) {
-          _visibleCount =
-              (_visibleCount + prepended).clamp(
+      if (messagesChanged && latestMessages.length > _prevMessagesLength) {
+        final prepended = latestMessages.length - _prevMessagesLength;
+        if (_visibleCount >= _prevMessagesLength && _prevMessagesLength > 0) {
+          _visibleCount = (_visibleCount + prepended).clamp(
             0,
             latestMessages.length,
           );
@@ -298,12 +277,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final role = last['role'] as String? ?? '';
       final kind = last['kind'] as String?;
       if (role == 'assistant' && kind != 'tool-call') {
-        final ttsOn =
-            ref.read(settingsNotifierProvider).ttsEnabled;
+        final ttsOn = ref.read(settingsNotifierProvider).ttsEnabled;
         if (ttsOn) {
-          final text =
-              (last['content'] ?? last['text'] ?? '')
-                  .toString();
+          final text = (last['content'] ?? last['text'] ?? '').toString();
           if (text.isNotEmpty) {
             unawaited(TtsService().speak(text));
           }
@@ -313,9 +289,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   String _messageKey(Map<String, dynamic> m) =>
-      m['id'] as String? ??
-      m['toolUseId'] as String? ??
-      '';
+      m['id'] as String? ?? m['toolUseId'] as String? ?? '';
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -352,11 +326,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (_visibleCount < _messages.length) {
       _isLoadingMore = true;
       setState(() {
-        _visibleCount =
-            (_visibleCount + _pageSize).clamp(
-          0,
-          _messages.length,
-        );
+        _visibleCount = (_visibleCount + _pageSize).clamp(0, _messages.length);
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _isLoadingMore = false;
@@ -387,8 +357,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (session == null) return '';
     final l10n = context.l10n;
 
-    final hasRequests =
-        session.agentState?.requests?.isNotEmpty ?? false;
+    final hasRequests = session.agentState?.requests?.isNotEmpty ?? false;
     if (hasRequests) return l10n.chatPermissionRequired;
 
     if (session.thinking) return l10n.chatThinking;
@@ -397,9 +366,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return l10n.chatOnline;
     }
 
-    final lastSeen = DateTime.fromMillisecondsSinceEpoch(
-      session.updatedAt,
-    );
+    final lastSeen = DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
     final diff = DateTime.now().difference(lastSeen);
     if (diff.inMinutes < 1) return l10n.chatLastSeenJustNow;
     if (diff.inMinutes < 60) {
@@ -416,8 +383,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final session = _session;
     if (session == null) return colorScheme.outline;
 
-    if (session.agentState?.requests?.isNotEmpty ??
-        false) {
+    if (session.agentState?.requests?.isNotEmpty ?? false) {
       return AppColors.info;
     }
     if (session.thinking) return colorScheme.primary;
@@ -430,12 +396,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final isThinking = _session?.thinking ?? false;
+    final availableModels = ClaudeModel.availableForFlavor(
+      _session?.metadata?.flavor,
+    );
 
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: _controller,
       builder: (context, value, child) {
-        final hasUnsentMessage =
-            value.text.trim().isNotEmpty;
+        final hasUnsentMessage = value.text.trim().isNotEmpty;
         return PopScope(
           canPop: !hasUnsentMessage,
           onPopInvokedWithResult: (didPop, _) {
@@ -463,56 +431,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   AnimatedSwitcher(
                     duration: AppDuration.normal,
                     child: _isLoadingMessages
-                        ? const ChatLoadingShimmer(
-                            key: ValueKey('loading'),
-                          )
+                        ? const ChatLoadingShimmer(key: ValueKey('loading'))
                         : _messages.isEmpty
-                            ? (_loadFailed
-                                ? _buildRetryView()
-                                : EmptyChatView(
-                                    key: const ValueKey(
-                                      'empty',
-                                    ),
-                                  ))
-                            : _buildMessageList(),
+                        ? (_loadFailed
+                              ? _buildRetryView()
+                              : EmptyChatView(key: const ValueKey('empty')))
+                        : _buildMessageList(),
                   ),
                   IgnorePointer(
-                    ignoring:
-                        _autoScroll || _isLoadingMessages,
+                    ignoring: _autoScroll || _isLoadingMessages,
                     child: AnimatedOpacity(
-                      opacity: (!_autoScroll &&
-                              !_isLoadingMessages)
+                      opacity: (!_autoScroll && !_isLoadingMessages)
                           ? 1.0
                           : 0.0,
-                      duration: const Duration(
-                        milliseconds: 200,
-                      ),
+                      duration: const Duration(milliseconds: 200),
                       curve: Curves.easeInOut,
                       child: AnimatedScale(
-                        scale: (!_autoScroll &&
-                                !_isLoadingMessages)
+                        scale: (!_autoScroll && !_isLoadingMessages)
                             ? 1.0
                             : 0.8,
-                        duration: const Duration(
-                          milliseconds: 200,
-                        ),
+                        duration: const Duration(milliseconds: 200),
                         curve: Curves.easeInOut,
                         child: Align(
-                          alignment:
-                              Alignment.bottomCenter,
+                          alignment: Alignment.bottomCenter,
                           child: Padding(
-                            padding:
-                                const EdgeInsets.only(
+                            padding: const EdgeInsets.only(
                               bottom: AppSpacing.md,
                             ),
                             child: ScrollToBottomPill(
                               onTap: () {
-                                HapticFeedback
-                                    .lightImpact();
-                                setState(
-                                  () =>
-                                      _autoScroll = true,
-                                );
+                                HapticFeedback.lightImpact();
+                                setState(() => _autoScroll = true);
                                 _scrollToBottom();
                               },
                             ),
@@ -530,21 +479,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               onSend: _sendMessage,
               isSending: _isSending,
               permissionMode: _permissionMode,
-              onPermissionModeChanged:
-                  _onPermissionModeChanged,
+              onPermissionModeChanged: _onPermissionModeChanged,
               modelMode: _modelMode,
+              availableModels: availableModels,
               onModelModeChanged: _onModelModeChanged,
               selectedProfile: _selectedProfile,
               availableProfiles: _availableProfiles,
               onProfileChanged: _onProfileChanged,
               contextSize:
-                  sync.sessionUsage[widget.sessionId]
-                          ?['contextSize']
-                      as int?,
-              isSessionOnline:
-                  _session?.isPresenceOnline ?? false,
-              isAgentThinking:
-                  _session?.thinking ?? false,
+                  sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
+              isSessionOnline: _session?.isPresenceOnline ?? false,
+              isAgentThinking: _session?.thinking ?? false,
               onAbort: _abortSession,
             ),
           ],
@@ -555,22 +500,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _onPermissionModeChanged(PermissionMode mode) {
     setState(() => _permissionMode = mode);
-    DraftStorage().savePermissionMode(
-      widget.sessionId,
-      mode.toModeString(),
-    );
-    sync.applySettings(
-      {'lastUsedPermissionMode': mode.toModeString()},
-    );
+    DraftStorage().savePermissionMode(widget.sessionId, mode.toModeString());
+    sync.applySettings({'lastUsedPermissionMode': mode.toModeString()});
   }
 
   void _onModelModeChanged(ClaudeModel model) {
-    setState(() => _modelMode = model);
+    final normalized = ClaudeModel.normalizeForFlavor(
+      model,
+      _session?.metadata?.flavor,
+    );
+    setState(() => _modelMode = normalized);
     unawaited(
-      DraftStorage().saveModelMode(
-        widget.sessionId,
-        model.modeString,
-      ),
+      DraftStorage().saveModelMode(widget.sessionId, normalized.modeString),
     );
   }
 
@@ -578,16 +519,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     setState(() => _selectedProfile = profile);
     final profileId = profile?.id;
     if (profileId != null) {
-      unawaited(
-        DraftStorage().saveProfileId(
-          widget.sessionId,
-          profileId,
-        ),
-      );
+      unawaited(DraftStorage().saveProfileId(widget.sessionId, profileId));
     }
-    sync.applySettings(
-      {'lastUsedProfile': profileId},
-    );
+    sync.applySettings({'lastUsedProfile': profileId});
   }
 
   static const _abortReason =
@@ -599,10 +533,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Future<void> _abortSession() async {
     if (!sync.isInitialized) return;
-    await sync.abortSession(
-      widget.sessionId,
-      reason: _abortReason,
-    );
+    await sync.abortSession(widget.sessionId, reason: _abortReason);
   }
 
   void _showSessionMenu(BuildContext context) {
@@ -611,9 +542,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xl),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       ),
       backgroundColor: cs.surface,
       builder: (context) => SafeArea(
@@ -629,10 +558,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   bottom: AppSpacing.md,
                 ),
                 decoration: BoxDecoration(
-                  color: cs.onSurface
-                      .withValues(alpha: 0.12),
-                  borderRadius:
-                      BorderRadius.circular(2.5),
+                  color: cs.onSurface.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(2.5),
                 ),
               ),
             ),
@@ -647,17 +574,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 Navigator.pop(context);
                 context.pushNamed(
                   'session-info',
-                  pathParameters: {
-                    'sessionId': widget.sessionId,
-                  },
+                  pathParameters: {'sessionId': widget.sessionId},
                 );
               },
             ),
             ListTile(
-              leading: Icon(
-                Icons.delete_outline,
-                color: cs.error,
-              ),
+              leading: Icon(Icons.delete_outline, color: cs.error),
               title: Text(
                 l10n.chatDeleteSession,
                 style: TextStyle(color: cs.error),
@@ -682,14 +604,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         children: [
           Text(
             context.l10n.chatFailedToLoadMessages,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurfaceVariant,
-                ),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           FilledButton.tonal(
@@ -703,8 +620,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildMessageList() {
     final totalCount = _messages.length;
-    final startIndex =
-        (totalCount - _visibleCount).clamp(0, totalCount);
+    final startIndex = (totalCount - _visibleCount).clamp(0, totalCount);
 
     if (!identical(_messages, _cachedVisibleSource) ||
         totalCount != _cachedMessagesLength ||
@@ -712,20 +628,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _cachedVisibleSource = _messages;
       _cachedMessagesLength = totalCount;
       _cachedVisibleCount = _visibleCount;
-      _cachedVisibleMessages =
-          _messages.sublist(startIndex);
+      _cachedVisibleMessages = _messages.sublist(startIndex);
     }
     final visibleMessages = _cachedVisibleMessages!;
 
     final hasLocalMore = startIndex > 0;
 
     final allLocalVisible = _visibleCount >= totalCount;
-    final isLoadingFromServer = allLocalVisible &&
-        sync.isLoadingOlderMessages(widget.sessionId);
-    final hasServerMore = allLocalVisible &&
-        sync.hasOlderMessages(widget.sessionId);
+    final isLoadingFromServer =
+        allLocalVisible && sync.isLoadingOlderMessages(widget.sessionId);
+    final hasServerMore =
+        allLocalVisible && sync.hasOlderMessages(widget.sessionId);
 
-    final showHeader = hasLocalMore ||
+    final showHeader =
+        hasLocalMore ||
         isLoadingFromServer ||
         (!hasServerMore && allLocalVisible && totalCount > 0);
 
@@ -736,9 +652,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       items.add(msg);
       final role = msg['role'] as String?;
       final content = msg['content'] ?? msg['text'];
-      final text = content is String
-          ? content
-          : content?.toString() ?? '';
+      final text = content is String ? content : content?.toString() ?? '';
       if (role == 'user' && text.trim() == '/clear') {
         items.add(null);
       }
@@ -748,8 +662,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     for (var i = 0; i < items.length; i++) {
       final m = items[i];
       if (m == null) continue;
-      final k = m['id'] as String? ??
-          m['toolUseId'] as String?;
+      final k = m['id'] as String? ?? m['toolUseId'] as String?;
       if (k != null) {
         keyToListIndex[k] = items.length - 1 - i;
       }
@@ -772,23 +685,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           if (hasLocalMore || isLoadingFromServer) {
             return Center(
               key: ValueKey(
-                hasLocalMore
-                    ? 'header-local-more'
-                    : 'header-server-loading',
+                hasLocalMore ? 'header-local-more' : 'header-server-loading',
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: AppSpacing.md,
-                ),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                 child: SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 1.5,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant
-                        .withValues(alpha: 0.3),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                   ),
                 ),
               ),
@@ -807,30 +715,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
         final message = item;
         Map<String, dynamic>? nextMessage;
-        for (var j = reversedIndex + 1;
-            j < items.length;
-            j++) {
+        for (var j = reversedIndex + 1; j < items.length; j++) {
           if (items[j] != null) {
             nextMessage = items[j];
             break;
           }
         }
 
-        final currentRole =
-            message['role'] as String?;
-        final nextRole =
-            nextMessage?['role'] as String?;
+        final currentRole = message['role'] as String?;
+        final nextRole = nextMessage?['role'] as String?;
         final sameSender = nextRole == currentRole;
-        final isToolCall =
-            message['kind'] == 'tool-call';
-        final nextIsToolCall =
-            nextMessage?['kind'] == 'tool-call';
-        final bottomPad =
-            (isToolCall && nextIsToolCall)
-                ? 0.0
-                : sameSender
-                    ? AppSpacing.xs
-                    : AppSpacing.md;
+        final isToolCall = message['kind'] == 'tool-call';
+        final nextIsToolCall = nextMessage?['kind'] == 'tool-call';
+        final bottomPad = (isToolCall && nextIsToolCall)
+            ? 0.0
+            : sameSender
+            ? AppSpacing.xs
+            : AppSpacing.md;
 
         Map<String, dynamic>? prevMessage;
         for (var j = reversedIndex - 1; j >= 0; j--) {
@@ -839,14 +740,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             break;
           }
         }
-        final prevRole =
-            prevMessage?['role'] as String?;
-        final isFirstInGroup =
-            nextRole != currentRole;
-        final isLastInGroup =
-            prevRole != currentRole;
+        final prevRole = prevMessage?['role'] as String?;
+        final isFirstInGroup = nextRole != currentRole;
+        final isLastInGroup = prevRole != currentRole;
 
-        final messageKey = message['id'] as String? ??
+        final messageKey =
+            message['id'] as String? ??
             message['toolUseId'] as String? ??
             'msg-$reversedIndex';
         return RepaintBoundary(
@@ -855,26 +754,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             padding: EdgeInsets.only(bottom: bottomPad),
             child: MessageWidget(
               messageData: message,
-              isFromCurrentUser:
-                  message['role'] == 'user',
+              isFromCurrentUser: message['role'] == 'user',
               metadata: metadataJson,
               messages: _messages,
               sessionId: widget.sessionId,
               isSessionOnline:
                   (_session?.isOnline ?? false) ||
-                      ((_session
-                                  ?.metadata
-                                  ?.machineId
-                                  ?.isNotEmpty ??
-                              false) &&
-                          (_session
-                                  ?.metadata
-                                  ?.path
-                                  ?.isNotEmpty ??
-                              false)),
+                  ((_session?.metadata?.machineId?.isNotEmpty ?? false) &&
+                      (_session?.metadata?.path?.isNotEmpty ?? false)),
               onOptionPress: _onOptionPress,
-              animate: _initialLoadComplete &&
-                  !_seenMessageIds.contains(messageKey),
+              animate:
+                  _initialLoadComplete && !_seenMessageIds.contains(messageKey),
               isFirstInGroup: isFirstInGroup,
               isLastInGroup: isLastInGroup,
             ),
@@ -884,26 +774,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _buildConversationStartLabel(
-    BuildContext context,
-  ) {
+  Widget _buildConversationStartLabel(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Padding(
       key: const ValueKey('header-beginning'),
-      padding: const EdgeInsets.symmetric(
-        vertical: 20,
-        horizontal: 24,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
       child: Center(
         child: Text(
           context.l10n.chatBeginningOfConversation,
-          style: Theme.of(context)
-              .textTheme
-              .labelSmall
-              ?.copyWith(
-                color: cs.onSurfaceVariant
-                    .withValues(alpha: 0.4),
-              ),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+          ),
         ),
       ),
     );
@@ -911,8 +792,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildClearedDivider(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final labelColor =
-        cs.onSurfaceVariant.withValues(alpha: 0.45);
+    final labelColor = cs.onSurfaceVariant.withValues(alpha: 0.45);
     return Padding(
       key: const ValueKey('cleared-divider'),
       padding: const EdgeInsets.symmetric(
@@ -924,31 +804,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Expanded(
             child: Container(
               height: 1,
-              color:
-                  labelColor.withValues(alpha: 0.3),
+              color: labelColor.withValues(alpha: 0.3),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
             child: Text(
               context.l10n.chatConversationCleared,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.copyWith(
-                    color: labelColor,
-                    fontSize: 10,
-                    letterSpacing: 0.5,
-                  ),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: labelColor,
+                fontSize: 10,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
           Expanded(
             child: Container(
               height: 1,
-              color:
-                  labelColor.withValues(alpha: 0.3),
+              color: labelColor.withValues(alpha: 0.3),
             ),
           ),
         ],
@@ -976,11 +849,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${context.l10n.chatFailedToSend}: $e',
-            ),
-          ),
+          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
         );
       }
     }
@@ -994,9 +863,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     if (text == '/clear') {
       _controller.clear();
-      unawaited(
-        DraftStorage().removeDraft(widget.sessionId),
-      );
+      unawaited(DraftStorage().removeDraft(widget.sessionId));
       setState(() {
         _isSending = true;
         _visibleCount = _pageSize;
@@ -1022,10 +889,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           setState(() => _controller.text = text);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                context.l10n
-                    .chatFailedToClear(e.toString()),
-              ),
+              content: Text(context.l10n.chatFailedToClear(e.toString())),
             ),
           );
         }
@@ -1040,9 +904,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _autoScroll = true;
     });
 
-    unawaited(
-      DraftStorage().removeDraft(widget.sessionId),
-    );
+    unawaited(DraftStorage().removeDraft(widget.sessionId));
 
     if (!sync.isInitialized) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1072,11 +934,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${context.l10n.chatFailedToSend}: $e',
-            ),
-          ),
+          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
         );
         _controller.text = text;
       }
@@ -1087,10 +945,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (!mounted || sentSessionId == widget.sessionId) {
       return false;
     }
-    context.goNamed(
-      'chat',
-      pathParameters: {'sessionId': sentSessionId},
-    );
+    context.goNamed('chat', pathParameters: {'sessionId': sentSessionId});
     return true;
   }
 
@@ -1100,24 +955,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(context.l10n.chatUnsentMessageTitle),
-        content: Text(
-          context.l10n.chatUnsentMessageContent,
-        ),
+        content: Text(context.l10n.chatUnsentMessageContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(context.l10n.chatStay),
           ),
           TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: cs.error,
-            ),
+            style: TextButton.styleFrom(foregroundColor: cs.error),
             onPressed: () {
               _controller.clear();
-              unawaited(
-                DraftStorage()
-                    .removeDraft(widget.sessionId),
-              );
+              unawaited(DraftStorage().removeDraft(widget.sessionId));
               Navigator.pop(context);
               Navigator.of(this.context).pop();
             },
@@ -1142,27 +990,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: Text(l10n.commonCancel),
           ),
           TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: cs.error,
-            ),
+            style: TextButton.styleFrom(foregroundColor: cs.error),
             onPressed: () async {
               Navigator.pop(context);
               final failedL10n = l10n;
-              final deleted = await sync
-                  .deleteSession(widget.sessionId);
+              final deleted = await sync.deleteSession(widget.sessionId);
               if (!mounted) return;
               if (deleted) {
                 Navigator.of(this.context).pop();
                 return;
               }
-              ScaffoldMessenger.of(this.context)
-                  .showSnackBar(
-                SnackBar(
-                  content: Text(
-                    failedL10n
-                        .chatFailedToDeleteSession,
-                  ),
-                ),
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                SnackBar(content: Text(failedL10n.chatFailedToDeleteSession)),
               );
             },
             child: Text(l10n.commonDelete),

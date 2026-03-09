@@ -23,13 +23,10 @@ AvatarStyle? parseAvatarStyle(String? style) {
 
 /// Computes todo progress, returning (completed, total) or
 /// null if todos are empty or all completed.
-({int completed, int total})? getTodoProgress(
-  List<TodoItem>? todos,
-) {
+({int completed, int total})? getTodoProgress(List<TodoItem>? todos) {
   if (todos == null || todos.isEmpty) return null;
   final total = todos.length;
-  final completed =
-      todos.where((t) => t.status == TodoState.completed).length;
+  final completed = todos.where((t) => t.status == TodoState.completed).length;
   if (completed >= total) return null;
   return (completed: completed, total: total);
 }
@@ -60,8 +57,7 @@ class ActiveSessionCard extends StatelessWidget {
     final sessionName = getSessionName(session);
     final sessionSubtitle = getSessionSubtitle(session);
     final sessionFlavor = session.metadata?.flavor;
-    final hasDraft =
-        session.draft != null && session.draft!.isNotEmpty;
+    final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
 
     return Container(
@@ -89,20 +85,15 @@ class ActiveSessionCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: IntrinsicHeight(
             child: Row(
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
                   width: 3,
                   decoration: BoxDecoration(
-                    color: Color(
-                      sessionStatus.statusDotColor,
-                    ),
+                    color: Color(sessionStatus.statusDotColor),
                     borderRadius: const BorderRadius.only(
-                      topLeft:
-                          Radius.circular(AppRadius.md),
-                      bottomLeft:
-                          Radius.circular(AppRadius.md),
+                      topLeft: Radius.circular(AppRadius.md),
+                      bottomLeft: Radius.circular(AppRadius.md),
                     ),
                   ),
                 ),
@@ -115,8 +106,7 @@ class ActiveSessionCard extends StatelessWidget {
                     child: Row(
                       children: [
                         Hero(
-                          tag:
-                              'session-avatar-${session.id}',
+                          tag: 'session-avatar-${session.id}',
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
@@ -124,54 +114,43 @@ class ActiveSessionCard extends StatelessWidget {
                                 id: avatarId,
                                 flavor: sessionFlavor,
                                 size: 44,
-                                showFlavorIcon:
-                                    showFlavorIcon,
+                                showFlavorIcon: showFlavorIcon,
                                 style: avatarStyle,
                               ),
-                              if (hasDraft)
-                                const DraftBadge(),
+                              if (hasDraft) const DraftBadge(),
                             ],
                           ),
                         ),
-                        const SizedBox(
-                          width: AppSpacing.md,
-                        ),
+                        const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            mainAxisAlignment:
-                                MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Row(
                                 children: [
                                   Flexible(
                                     child: Text(
                                       sessionName,
-                                      style: theme
-                                          .textTheme
-                                          .bodyMedium
+                                      style: theme.textTheme.bodyMedium
                                           ?.copyWith(
-                                        fontWeight:
-                                            FontWeight
-                                                .w600,
-                                      ),
-                                      overflow:
-                                          TextOverflow
-                                              .ellipsis,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                      overflow: TextOverflow.ellipsis,
                                       maxLines: 1,
                                     ),
                                   ),
-                                  const SizedBox(
-                                    width: AppSpacing.sm,
-                                  ),
-                                  AppStatusDot(
-                                    color: Color(
-                                      sessionStatus
-                                          .statusDotColor,
+                                  if (sessionFlavor != null) ...[
+                                    const SizedBox(width: AppSpacing.xs),
+                                    SessionFlavorBadge(
+                                      flavor: sessionFlavor,
+                                      compact: true,
                                     ),
-                                    pulse: sessionStatus
-                                        .isPulsing,
+                                  ],
+                                  const SizedBox(width: AppSpacing.sm),
+                                  AppStatusDot(
+                                    color: Color(sessionStatus.statusDotColor),
+                                    pulse: sessionStatus.isPulsing,
                                     size: 8,
                                   ),
                                 ],
@@ -179,53 +158,36 @@ class ActiveSessionCard extends StatelessWidget {
                               const SizedBox(height: 2),
                               Text(
                                 sessionSubtitle,
-                                style: theme
-                                    .textTheme.labelSmall
-                                    ?.copyWith(
-                                  color:
-                                      cs.onSurfaceVariant,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: cs.onSurfaceVariant,
                                   fontFamily: 'monospace',
                                 ),
-                                overflow:
-                                    TextOverflow.ellipsis,
+                                overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(
-                          width: AppSpacing.sm,
-                        ),
+                        const SizedBox(width: AppSpacing.sm),
                         Column(
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
-                          crossAxisAlignment:
-                              CrossAxisAlignment.end,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
                               formatTimestamp(
-                                lastMessageTimestamp ??
-                                    session.updatedAt,
+                                lastMessageTimestamp ?? session.updatedAt,
                                 relative: true,
                               ),
-                              style: theme
-                                  .textTheme.labelSmall
-                                  ?.copyWith(
-                                color:
-                                    cs.onSurfaceVariant,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: cs.onSurfaceVariant,
                               ),
                             ),
-                            const SizedBox(
-                              height: AppSpacing.xs,
-                            ),
-                            if (todoProgress !=
-                                null) ...[
+                            const SizedBox(height: AppSpacing.xs),
+                            if (todoProgress != null) ...[
                               const SizedBox(height: 3),
                               TodoProgressBadge(
-                                completed: todoProgress
-                                    .completed,
-                                total:
-                                    todoProgress.total,
+                                completed: todoProgress.completed,
+                                total: todoProgress.total,
                               ),
                             ],
                           ],
@@ -272,8 +234,7 @@ class CompactActiveSessionCard extends StatelessWidget {
     final avatarId = getSessionAvatarId(session);
     final sessionName = getSessionName(session);
     final sessionFlavor = session.metadata?.flavor;
-    final hasDraft =
-        session.draft != null && session.draft!.isNotEmpty;
+    final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
 
     final cardColor = isSelected
@@ -306,28 +267,21 @@ class CompactActiveSessionCard extends StatelessWidget {
           child: SizedBox(
             height: 56,
             child: Row(
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (selectionMode)
                   SelectionCheckbox(
                     isSelected: isSelected,
-                    borderRadius:
-                        BorderRadius.circular(AppRadius.md),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   )
                 else
                   Container(
                     width: 3,
                     decoration: BoxDecoration(
-                      color: Color(
-                        sessionStatus.statusDotColor,
-                      ),
-                      borderRadius:
-                          const BorderRadius.only(
-                        topLeft:
-                            Radius.circular(AppRadius.md),
-                        bottomLeft:
-                            Radius.circular(AppRadius.md),
+                      color: Color(sessionStatus.statusDotColor),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(AppRadius.md),
+                        bottomLeft: Radius.circular(AppRadius.md),
                       ),
                     ),
                   ),
@@ -339,8 +293,7 @@ class CompactActiveSessionCard extends StatelessWidget {
                     child: Row(
                       children: [
                         Hero(
-                          tag:
-                              'session-avatar-${session.id}',
+                          tag: 'session-avatar-${session.id}',
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
@@ -348,83 +301,57 @@ class CompactActiveSessionCard extends StatelessWidget {
                                 id: avatarId,
                                 flavor: sessionFlavor,
                                 size: 36,
-                                showFlavorIcon:
-                                    showFlavorIcon,
+                                showFlavorIcon: showFlavorIcon,
                                 style: avatarStyle,
                               ),
-                              if (hasDraft)
-                                const DraftBadge(),
+                              if (hasDraft) const DraftBadge(),
                             ],
                           ),
                         ),
-                        const SizedBox(
-                          width: AppSpacing.sm,
-                        ),
+                        const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Row(
                             children: [
                               Flexible(
                                 child: Text(
                                   sessionName,
-                                  style: theme
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                    fontWeight:
-                                        FontWeight.w500,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w500,
                                     color: cs.onSurface,
                                   ),
-                                  overflow: TextOverflow
-                                      .ellipsis,
+                                  overflow: TextOverflow.ellipsis,
                                   maxLines: 1,
                                 ),
                               ),
-                              const SizedBox(
-                                width: AppSpacing.sm,
-                              ),
+                              const SizedBox(width: AppSpacing.sm),
                               AppStatusDot(
-                                color: Color(
-                                  sessionStatus
-                                      .statusDotColor,
-                                ),
-                                pulse: sessionStatus
-                                    .isPulsing,
+                                color: Color(sessionStatus.statusDotColor),
+                                pulse: sessionStatus.isPulsing,
                                 size: 8,
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(
-                          width: AppSpacing.sm,
-                        ),
+                        const SizedBox(width: AppSpacing.sm),
                         Column(
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
-                          crossAxisAlignment:
-                              CrossAxisAlignment.end,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
                               formatTimestamp(
-                                lastMessageTimestamp ??
-                                    session.updatedAt,
+                                lastMessageTimestamp ?? session.updatedAt,
                                 relative: true,
                               ),
-                              style: theme
-                                  .textTheme.labelSmall
-                                  ?.copyWith(
-                                color:
-                                    cs.onSurfaceVariant,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: cs.onSurfaceVariant,
                                 fontSize: 11,
                               ),
                             ),
-                            if (todoProgress !=
-                                null) ...[
+                            if (todoProgress != null) ...[
                               const SizedBox(height: 2),
                               TodoProgressBadge(
-                                completed: todoProgress
-                                    .completed,
-                                total:
-                                    todoProgress.total,
+                                completed: todoProgress.completed,
+                                total: todoProgress.total,
                               ),
                             ],
                           ],
@@ -486,8 +413,7 @@ class SessionCard extends StatelessWidget {
     final sessionName = getSessionName(session);
     final sessionSubtitle = getSessionSubtitle(session);
     final sessionFlavor = session.metadata?.flavor;
-    final hasDraft =
-        session.draft != null && session.draft!.isNotEmpty;
+    final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
 
     BorderRadius borderRadius;
@@ -519,10 +445,7 @@ class SessionCard extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: borderRadius,
           side: isSelected
-              ? BorderSide(
-                  color:
-                      cs.primary.withValues(alpha: 0.3),
-                )
+              ? BorderSide(color: cs.primary.withValues(alpha: 0.3))
               : BorderSide.none,
         ),
         elevation: 0,
@@ -533,8 +456,7 @@ class SessionCard extends StatelessWidget {
           borderRadius: borderRadius,
           child: IntrinsicHeight(
             child: Row(
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (selectionMode)
                   SelectionCheckbox(
@@ -545,25 +467,20 @@ class SessionCard extends StatelessWidget {
                   Container(
                     width: 3,
                     color: sessionStatus.isConnected
-                        ? Color(
-                            sessionStatus.statusDotColor,
-                          )
+                        ? Color(sessionStatus.statusDotColor)
                         : cs.outlineVariant,
                   ),
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: AppSpacing.md,
-                      vertical:
-                          compact ? 6 : AppSpacing.sm,
+                      vertical: compact ? 6 : AppSpacing.sm,
                     ),
                     child: Row(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Hero(
-                          tag:
-                              'session-avatar-${session.id}',
+                          tag: 'session-avatar-${session.id}',
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
@@ -571,62 +488,48 @@ class SessionCard extends StatelessWidget {
                                 id: avatarId,
                                 flavor: sessionFlavor,
                                 size: compact ? 36 : 44,
-                                monochrome: !sessionStatus
-                                    .isConnected,
-                                showFlavorIcon:
-                                    showFlavorIcon,
+                                monochrome: !sessionStatus.isConnected,
+                                showFlavorIcon: showFlavorIcon,
                                 style: avatarStyle,
                               ),
-                              if (hasDraft)
-                                const DraftBadge(),
+                              if (hasDraft) const DraftBadge(),
                             ],
                           ),
                         ),
                         SizedBox(
-                          width: compact
-                              ? AppSpacing.sm
-                              : AppSpacing.md,
+                          width: compact ? AppSpacing.sm : AppSpacing.md,
                         ),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
                                   Flexible(
                                     child: Text(
                                       sessionName,
-                                      style: theme
-                                          .textTheme
-                                          .bodyMedium
+                                      style: theme.textTheme.bodyMedium
                                           ?.copyWith(
-                                        fontWeight:
-                                            FontWeight
-                                                .w600,
-                                        color:
-                                            titleColor,
-                                      ),
-                                      overflow:
-                                          TextOverflow
-                                              .ellipsis,
+                                            fontWeight: FontWeight.w600,
+                                            color: titleColor,
+                                          ),
+                                      overflow: TextOverflow.ellipsis,
                                       maxLines: 1,
                                     ),
                                   ),
-                                  const SizedBox(
-                                    width: AppSpacing.sm,
-                                  ),
+                                  if (sessionFlavor != null) ...[
+                                    const SizedBox(width: AppSpacing.xs),
+                                    SessionFlavorBadge(
+                                      flavor: sessionFlavor,
+                                      compact: true,
+                                    ),
+                                  ],
+                                  const SizedBox(width: AppSpacing.sm),
                                   AppStatusDot(
-                                    color: sessionStatus
-                                            .isConnected
-                                        ? Color(
-                                            sessionStatus
-                                                .statusDotColor,
-                                          )
-                                        : cs
-                                            .outlineVariant,
-                                    pulse: sessionStatus
-                                        .isPulsing,
+                                    color: sessionStatus.isConnected
+                                        ? Color(sessionStatus.statusDotColor)
+                                        : cs.outlineVariant,
+                                    pulse: sessionStatus.isPulsing,
                                     size: 8,
                                   ),
                                 ],
@@ -634,75 +537,52 @@ class SessionCard extends StatelessWidget {
                               const SizedBox(height: 2),
                               Text(
                                 sessionSubtitle,
-                                style: theme
-                                    .textTheme.labelSmall
-                                    ?.copyWith(
-                                  color:
-                                      cs.onSurfaceVariant,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: cs.onSurfaceVariant,
                                   fontFamily: 'monospace',
                                   fontSize: 11,
                                 ),
-                                overflow:
-                                    TextOverflow.ellipsis,
+                                overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
-                              if (lastMessagePreview !=
-                                  null) ...[
+                              if (lastMessagePreview != null) ...[
                                 const SizedBox(height: 3),
                                 Text(
                                   lastMessagePreview!,
-                                  style: theme
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                    color: cs
-                                        .onSurfaceVariant
-                                        .withValues(
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: cs.onSurfaceVariant.withValues(
                                       alpha: 0.7,
                                     ),
                                     fontSize: 11,
                                     height: 1.3,
                                   ),
-                                  overflow: TextOverflow
-                                      .ellipsis,
+                                  overflow: TextOverflow.ellipsis,
                                   maxLines: 1,
                                 ),
                               ],
                             ],
                           ),
                         ),
-                        const SizedBox(
-                          width: AppSpacing.sm,
-                        ),
+                        const SizedBox(width: AppSpacing.sm),
                         Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.end,
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
                               formatTimestamp(
-                                lastMessageTimestamp ??
-                                    session.updatedAt,
+                                lastMessageTimestamp ?? session.updatedAt,
                                 relative: true,
                               ),
-                              style: theme
-                                  .textTheme.labelSmall
-                                  ?.copyWith(
-                                color:
-                                    cs.onSurfaceVariant,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: cs.onSurfaceVariant,
                                 fontSize: 11,
                               ),
                             ),
                             const SizedBox(height: 6),
-                            if (todoProgress !=
-                                null) ...[
-                              const SizedBox(
-                                height: AppSpacing.xs,
-                              ),
+                            if (todoProgress != null) ...[
+                              const SizedBox(height: AppSpacing.xs),
                               TodoProgressBadge(
-                                completed: todoProgress
-                                    .completed,
-                                total:
-                                    todoProgress.total,
+                                completed: todoProgress.completed,
+                                total: todoProgress.total,
                               ),
                             ],
                           ],

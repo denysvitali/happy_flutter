@@ -46,12 +46,10 @@ Widget _buildModelTile(
               model == ClaudeModel.opus
                   ? Icons.diamond_outlined
                   : model == ClaudeModel.sonnet
-                      ? Icons.auto_awesome_outlined
-                      : Icons.smart_toy_outlined,
+                  ? Icons.auto_awesome_outlined
+                  : Icons.smart_toy_outlined,
               size: 16,
-              color: isSelected
-                  ? cs.primary
-                  : cs.onSurfaceVariant,
+              color: isSelected ? cs.primary : cs.onSurfaceVariant,
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -59,20 +57,13 @@ Widget _buildModelTile(
             child: Text(
               model.label,
               style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: isSelected
-                    ? FontWeight.w600
-                    : FontWeight.w400,
-                color:
-                    isSelected ? cs.primary : cs.onSurface,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? cs.primary : cs.onSurface,
               ),
             ),
           ),
           if (isSelected)
-            Icon(
-              Icons.check_rounded,
-              size: 18,
-              color: cs.primary,
-            ),
+            Icon(Icons.check_rounded, size: 18, color: cs.primary),
         ],
       ),
     ),
@@ -83,6 +74,7 @@ Widget _buildModelTile(
 void showModelPickerSheet(
   BuildContext context,
   ClaudeModel current,
+  List<ClaudeModel> models,
   ValueChanged<ClaudeModel> onChanged,
 ) {
   final theme = Theme.of(context);
@@ -92,9 +84,7 @@ void showModelPickerSheet(
     context: context,
     backgroundColor: cs.surface,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(AppRadius.xl),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
     ),
     builder: (ctx) => SafeArea(
       child: Padding(
@@ -110,14 +100,10 @@ void showModelPickerSheet(
               child: Container(
                 width: 36,
                 height: 5,
-                margin: const EdgeInsets.only(
-                  bottom: AppSpacing.md,
-                ),
+                margin: const EdgeInsets.only(bottom: AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: cs.onSurface
-                      .withValues(alpha: 0.12),
-                  borderRadius:
-                      BorderRadius.circular(2.5),
+                  color: cs.onSurface.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(2.5),
                 ),
               ),
             ),
@@ -130,20 +116,13 @@ void showModelPickerSheet(
               ),
               child: Text(
                 'Model',
-                style:
-                    theme.textTheme.titleSmall?.copyWith(
+                style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-            for (final model in ClaudeModel.values)
-              _buildModelTile(
-                ctx,
-                model,
-                current,
-                theme,
-                onChanged,
-              ),
+            for (final model in models)
+              _buildModelTile(ctx, model, current, theme, onChanged),
           ],
         ),
       ),
@@ -190,34 +169,25 @@ Widget _buildProfileTile(
             child: Icon(
               Icons.swap_horiz_rounded,
               size: 16,
-              color: isSelected
-                  ? cs.tertiary
-                  : cs.onSurfaceVariant,
+              color: isSelected ? cs.tertiary : cs.onSurfaceVariant,
             ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   profile.name,
-                  style:
-                      theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: isSelected
-                        ? FontWeight.w600
-                        : FontWeight.w400,
-                    color: isSelected
-                        ? cs.tertiary
-                        : cs.onSurface,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: isSelected ? cs.tertiary : cs.onSurface,
                   ),
                 ),
                 if (profile.description != null)
                   Text(
                     profile.description!,
-                    style: theme.textTheme.labelSmall
-                        ?.copyWith(
+                    style: theme.textTheme.labelSmall?.copyWith(
                       color: cs.onSurfaceVariant,
                     ),
                   ),
@@ -225,11 +195,7 @@ Widget _buildProfileTile(
             ),
           ),
           if (isSelected)
-            Icon(
-              Icons.check_rounded,
-              size: 18,
-              color: cs.tertiary,
-            ),
+            Icon(Icons.check_rounded, size: 18, color: cs.tertiary),
         ],
       ),
     ),
@@ -251,9 +217,7 @@ void showProfilePickerSheet(
     context: context,
     backgroundColor: cs.surface,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(AppRadius.xl),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
     ),
     builder: (ctx) {
       final sheetL10n = AppLocalizations.of(ctx);
@@ -265,21 +229,16 @@ void showProfilePickerSheet(
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
                 child: Container(
                   width: 36,
                   height: 5,
-                  margin: const EdgeInsets.only(
-                    bottom: AppSpacing.md,
-                  ),
+                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
                   decoration: BoxDecoration(
-                    color: cs.onSurface
-                        .withValues(alpha: 0.12),
-                    borderRadius:
-                        BorderRadius.circular(2.5),
+                    color: cs.onSurface.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(2.5),
                   ),
                 ),
               ),
@@ -292,8 +251,7 @@ void showProfilePickerSheet(
                 ),
                 child: Text(
                   sheetL10n.chatInputProfileTitle,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(
+                  style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -306,14 +264,12 @@ void showProfilePickerSheet(
                       // Default (no profile) option
                       InkWell(
                         onTap: () {
-                          HapticFeedback
-                              .selectionClick();
+                          HapticFeedback.selectionClick();
                           Navigator.pop(ctx);
                           onChanged(null);
                         },
                         child: Padding(
-                          padding:
-                              const EdgeInsets.symmetric(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.lg,
                             vertical: AppSpacing.md,
                           ),
@@ -324,67 +280,41 @@ void showProfilePickerSheet(
                                 height: 32,
                                 decoration: BoxDecoration(
                                   color: current == null
-                                      ? cs.tertiary
-                                          .withValues(
-                                          alpha: 0.12,
-                                        )
-                                      : cs.onSurface
-                                          .withValues(
-                                          alpha: 0.05,
-                                        ),
-                                  shape:
-                                      BoxShape.circle,
+                                      ? cs.tertiary.withValues(alpha: 0.12)
+                                      : cs.onSurface.withValues(alpha: 0.05),
+                                  shape: BoxShape.circle,
                                 ),
                                 child: Icon(
-                                  Icons
-                                      .settings_outlined,
+                                  Icons.settings_outlined,
                                   size: 16,
                                   color: current == null
                                       ? cs.tertiary
-                                      : cs
-                                          .onSurfaceVariant,
+                                      : cs.onSurfaceVariant,
                                 ),
                               ),
-                              const SizedBox(
-                                width: AppSpacing.md,
-                              ),
+                              const SizedBox(width: AppSpacing.md),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment
-                                          .start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      sheetL10n
-                                          .chatInputProfileDefault,
-                                      style: theme
-                                          .textTheme
-                                          .bodyMedium
+                                      sheetL10n.chatInputProfileDefault,
+                                      style: theme.textTheme.bodyMedium
                                           ?.copyWith(
-                                        fontWeight: current ==
-                                                null
-                                            ? FontWeight
-                                                .w600
-                                            : FontWeight
-                                                .w400,
-                                        color: current ==
-                                                null
-                                            ? cs
-                                                .tertiary
-                                            : cs
-                                                .onSurface,
-                                      ),
+                                            fontWeight: current == null
+                                                ? FontWeight.w600
+                                                : FontWeight.w400,
+                                            color: current == null
+                                                ? cs.tertiary
+                                                : cs.onSurface,
+                                          ),
                                     ),
                                     Text(
-                                      sheetL10n
-                                          .chatInputProfileDefaultSubtitle,
-                                      style: theme
-                                          .textTheme
-                                          .labelSmall
+                                      sheetL10n.chatInputProfileDefaultSubtitle,
+                                      style: theme.textTheme.labelSmall
                                           ?.copyWith(
-                                        color: cs
-                                            .onSurfaceVariant,
-                                      ),
+                                            color: cs.onSurfaceVariant,
+                                          ),
                                     ),
                                   ],
                                 ),

@@ -29,4 +29,21 @@ enum ClaudeModel {
     'opus' => ClaudeModel.opus,
     _ => ClaudeModel.defaultModel,
   };
+
+  /// Returns the model options available for a session flavor.
+  static List<ClaudeModel> availableForFlavor(String? flavor) {
+    return switch (flavor) {
+      'claude' => ClaudeModel.values,
+      _ => const [ClaudeModel.defaultModel],
+    };
+  }
+
+  /// Normalizes a model selection so it is valid for the session flavor.
+  static ClaudeModel normalizeForFlavor(ClaudeModel model, String? flavor) {
+    final available = availableForFlavor(flavor);
+    if (available.contains(model)) {
+      return model;
+    }
+    return ClaudeModel.defaultModel;
+  }
 }

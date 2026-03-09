@@ -1,32 +1,25 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_tokens.dart';
 import '../../core/ui/avatars/avatar_brutalist.dart';
 import '../../core/ui/avatars/avatar_gradient.dart';
 import '../../core/ui/avatars/avatar_pixelated.dart';
 
 /// Avatar style options for session avatars.
-enum AvatarStyle {
-  gradient,
-  pixelated,
-  brutalist,
-}
+enum AvatarStyle { gradient, pixelated, brutalist }
 
 /// AI provider flavors for flavor icon display.
-enum AiFlavor {
-  claude,
-  codex,
-  gemini,
-}
+enum AiFlavor { claude, codex, gemini }
 
 /// Session avatar widget that supports custom images, multiple styles,
 /// and AI provider flavor icons.
 ///
 /// Matches the React Native Avatar.tsx implementation.
 class SessionAvatar extends StatelessWidget {
-
   const SessionAvatar({
-    required this.id, super.key,
+    required this.id,
+    super.key,
     this.imageUrl,
     this.thumbhash,
     this.flavor,
@@ -36,6 +29,7 @@ class SessionAvatar extends StatelessWidget {
     this.square = false,
     this.monochrome = false,
   });
+
   /// The unique ID used to generate consistent avatar colors and selection.
   final String id;
 
@@ -81,14 +75,14 @@ class SessionAvatar extends StatelessWidget {
     final iconSize = effectiveFlavor == 'codex'
         ? (effectiveSize * 0.25).round()
         : effectiveFlavor == 'claude'
-            ? (effectiveSize * 0.28).round()
-            : (effectiveSize * 0.35).round();
+        ? (effectiveSize * 0.28).round()
+        : (effectiveSize * 0.35).round();
 
     final avatarWidget = ClipRRect(
       clipBehavior: Clip.hardEdge,
-      borderRadius: square ? BorderRadius.zero : BorderRadius.circular(
-        size / 2,
-      ),
+      borderRadius: square
+          ? BorderRadius.zero
+          : BorderRadius.circular(size / 2),
       child: CachedNetworkImage(
         imageUrl: imageUrl!,
         width: size,
@@ -129,8 +123,8 @@ class SessionAvatar extends StatelessWidget {
     final iconSize = effectiveFlavor == 'codex'
         ? (effectiveSize * 0.25).round()
         : effectiveFlavor == 'claude'
-            ? (effectiveSize * 0.28).round()
-            : (effectiveSize * 0.35).round();
+        ? (effectiveSize * 0.28).round()
+        : (effectiveSize * 0.35).round();
 
     // Determine which avatar style to use
     final usedStyle = style ?? _getStyleFromHash();
@@ -258,4 +252,91 @@ SessionAvatar createSessionAvatar(
     size: size,
     showFlavorIcon: showFlavorIcon,
   );
+}
+
+/// Compact provider badge for showing the session flavor inline.
+class SessionFlavorBadge extends StatelessWidget {
+  const SessionFlavorBadge({
+    required this.flavor,
+    super.key,
+    this.compact = false,
+  });
+
+  final String flavor;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final iconSize = compact ? 12.0 : 14.0;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 8,
+        vertical: compact ? 2 : 3,
+      ),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.5),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(
+            _flavorIconPath(flavor),
+            width: iconSize,
+            height: iconSize,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return Icon(
+                _flavorIcon(flavor),
+                size: iconSize,
+                color: cs.onSurfaceVariant,
+              );
+            },
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            _flavorLabel(context, flavor),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _flavorLabel(BuildContext context, String flavorName) {
+    return switch (flavorName) {
+      'claude' => 'Claude',
+      'codex' => 'Codex',
+      'gemini' => 'Gemini',
+      _ => flavorName,
+    };
+  }
+
+  String _flavorIconPath(String flavorName) {
+    return switch (flavorName) {
+      'claude' => 'assets/images/icon-claude.png',
+      'codex' => 'assets/images/icon-gpt.png',
+      'gemini' => 'assets/images/icon-gemini.png',
+      _ => 'assets/images/icon-claude.png',
+    };
+  }
+
+  IconData _flavorIcon(String flavorName) {
+    return switch (flavorName) {
+      'claude' => Icons.auto_awesome,
+      'codex' => Icons.code,
+      'gemini' => Icons.auto_awesome,
+      _ => Icons.auto_awesome,
+    };
+  }
 }
