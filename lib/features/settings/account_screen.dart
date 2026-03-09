@@ -17,7 +17,7 @@ import '../../core/services/logger_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/backup_key_utils.dart';
-import '../auth/auth_screen.dart' show QRCodeDisplay;
+import '../auth/widgets/qr_code_display.dart';
 
 /// Account management screen
 class AccountScreen extends ConsumerWidget {

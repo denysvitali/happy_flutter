@@ -7,7 +7,7 @@ import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/utils/session_utils.dart';
 import '../sessions/session_avatar.dart';
-import '../sessions/sessions_screen.dart';
+import '../sessions/widgets/session_cards.dart';
 
 /// Screen that shows ALL sessions sorted by date, grouped by
 /// "Today"/"Yesterday"/etc. Reuses SessionCard from sessions_screen.dart.

@@ -1,915 +1,28 @@
 import 'dart:async';
 import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/settings.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/autocomplete_overlay.dart';
+import 'widgets/chat_input_buttons.dart';
+import 'widgets/claude_model.dart';
+import 'widgets/file_autocomplete.dart';
+import 'widgets/input_toolbar.dart';
 import 'widgets/permission_mode_selector.dart' as perm;
+import 'widgets/picker_sheets.dart';
+import 'widgets/slash_commands.dart';
 
-/// Slash command suggestions
-final class SlashCommand {
-  /// Creates a slash command entry.
-  const SlashCommand({
-    required this.command,
-    required this.description,
-    required this.icon,
-  });
+export 'widgets/claude_model.dart' show ClaudeModel;
 
-  /// The slash command name, e.g. `test`.
-  final String command;
-
-  /// Short human-readable description.
-  final String description;
-
-  /// Icon to display alongside this command.
-  final IconData icon;
-}
-
-/// Available slash commands
-const List<SlashCommand> _slashCommands = [
-  SlashCommand(
-    command: 'clear',
-    description: 'Clear conversation history',
-    icon: Icons.delete_sweep_outlined,
-  ),
-  SlashCommand(
-    command: 'test',
-    description: 'Run tests',
-    icon: Icons.check_circle_outline,
-  ),
-  SlashCommand(
-    command: 'lint',
-    description: 'Run linter',
-    icon: Icons.warning_amber_outlined,
-  ),
-  SlashCommand(
-    command: 'review',
-    description: 'Code review',
-    icon: Icons.rate_review_outlined,
-  ),
-  SlashCommand(
-    command: 'explain',
-    description: 'Explain code',
-    icon: Icons.info_outline,
-  ),
-  SlashCommand(
-    command: 'refactor',
-    description: 'Refactor code',
-    icon: Icons.restart_alt_outlined,
-  ),
-  SlashCommand(
-    command: 'docs',
-    description: 'Generate docs',
-    icon: Icons.description_outlined,
-  ),
-];
-
-/// Model options for Claude sessions.
-enum ClaudeModel {
-  /// Use the server-configured default model.
-  defaultModel,
-
-  /// Claude Sonnet.
-  sonnet,
-
-  /// Claude Opus.
-  opus;
-
-  /// Human-readable label shown in the UI.
-  String get label => switch (this) {
-    ClaudeModel.defaultModel => 'Default',
-    ClaudeModel.sonnet => 'Sonnet',
-    ClaudeModel.opus => 'Opus',
-  };
-
-  /// Wire-format string sent to the API.
-  String get modeString => switch (this) {
-    ClaudeModel.defaultModel => 'default',
-    ClaudeModel.sonnet => 'sonnet',
-    ClaudeModel.opus => 'opus',
-  };
-
-  /// Parse a wire-format string back to a [ClaudeModel].
-  static ClaudeModel fromString(String? value) => switch (value) {
-    'sonnet' => ClaudeModel.sonnet,
-    'opus' => ClaudeModel.opus,
-    _ => ClaudeModel.defaultModel,
-  };
-}
-
-// Animation duration constants.
-const _kBorderAnim = Duration(milliseconds: 200);
-const _kSendAnim = Duration(milliseconds: 120);
-const _kSwitchAnim = Duration(milliseconds: 180);
-
-// ---------------------------------------------------------------------------
-// Private sub-widgets
-// ---------------------------------------------------------------------------
-
-/// Abort button — minimal pill with stop icon.
-class _AbortButton extends StatelessWidget {
-  const _AbortButton({required this.isAborting, this.onTap});
-
-  final bool isAborting;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return GestureDetector(
-      onTap: isAborting ? null : onTap,
-      behavior: HitTestBehavior.opaque,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-        child: Center(
-          child: AnimatedContainer(
-            duration: _kBorderAnim,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: 5,
-            ),
-            decoration: BoxDecoration(
-              color: cs.error.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              border: Border.all(
-                color: cs.error.withValues(alpha: 0.2),
-                width: 0.5,
-              ),
-            ),
-            child: AnimatedSwitcher(
-              duration: _kSwitchAnim,
-              child: isAborting
-                  ? SizedBox(
-                      key: const ValueKey('abort-spinner'),
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 1.5,
-                        color: cs.error,
-                      ),
-                    )
-                  : Row(
-                      key: const ValueKey('abort-icon'),
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.stop_rounded, size: 14, color: cs.error),
-                        const SizedBox(width: 3),
-                        Text(
-                          'Stop',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: cs.error,
-                            height: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Send button — circular, matches iMessage's arrow-up design.
-class _SendButton extends StatelessWidget {
-  const _SendButton({
-    required this.isSending,
-    required this.isSendDisabled,
-    required this.onTap,
-    required this.scaleAnimation,
-  });
-
-  final bool isSending;
-  final bool isSendDisabled;
-  final VoidCallback onTap;
-  final Animation<double> scaleAnimation;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final canSend = !isSendDisabled && !isSending;
-
-    return GestureDetector(
-      onTap: () {
-        if (canSend) HapticFeedback.lightImpact();
-        onTap();
-      },
-      behavior: HitTestBehavior.opaque,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          minWidth: AppTouchTarget.min,
-          minHeight: AppTouchTarget.min,
-        ),
-        child: Center(
-          child: ScaleTransition(
-            scale: scaleAnimation,
-            child: AnimatedContainer(
-              duration: _kBorderAnim,
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: canSend
-                    ? cs.primary
-                    : cs.onSurface.withValues(alpha: 0.08),
-                boxShadow: canSend
-                    ? [
-                        BoxShadow(
-                          color: cs.primary
-                              .withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: AnimatedSwitcher(
-                duration: _kSwitchAnim,
-                switchInCurve: Curves.easeIn,
-                switchOutCurve: Curves.easeOut,
-                transitionBuilder: (child, anim) =>
-                    FadeTransition(opacity: anim, child: child),
-                child: isSending
-                    ? Padding(
-                        key: const ValueKey('spinner'),
-                        padding: const EdgeInsets.all(
-                          AppSpacing.sm,
-                        ),
-                        child: CircularProgressIndicator(
-                          strokeWidth: 1.5,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      )
-                    : Icon(
-                        key: const ValueKey('send'),
-                        Icons.arrow_upward_rounded,
-                        size: 18,
-                        color: canSend
-                            ? cs.onPrimary
-                            : cs.onSurface
-                                .withValues(alpha: 0.25),
-                      ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Inline chip for model selection — subtle, tappable.
-class _ModelChip extends StatelessWidget {
-  const _ModelChip({required this.model, required this.onTap});
-
-  final ClaudeModel model;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final isDefault = model == ClaudeModel.defaultModel;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: isDefault
-              ? cs.onSurface.withValues(alpha: 0.05)
-              : cs.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              model == ClaudeModel.opus
-                  ? Icons.diamond_outlined
-                  : Icons.auto_awesome_outlined,
-              size: 11,
-              color: isDefault ? cs.onSurfaceVariant : cs.primary,
-            ),
-            const SizedBox(width: 3),
-            Text(
-              model.label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontSize: 11,
-                color: isDefault ? cs.onSurfaceVariant : cs.primary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(width: 1),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 12,
-              color: isDefault
-                  ? cs.onSurfaceVariant.withValues(alpha: 0.5)
-                  : cs.primary.withValues(alpha: 0.6),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Inline chip for profile selection — shown next to model chip.
-class _ProfileChip extends StatelessWidget {
-  const _ProfileChip({required this.profile, required this.onTap});
-
-  final AIBackendProfile? profile;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final isDefault = profile == null;
-    final label = profile?.name ??
-        AppLocalizations.of(context).chatInputProfileDefault;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: isDefault
-              ? cs.onSurface.withValues(alpha: 0.05)
-              : cs.tertiary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.swap_horiz_rounded,
-              size: 11,
-              color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
-            ),
-            const SizedBox(width: 3),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 80),
-              child: Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: 11,
-                  color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
-                  fontWeight: FontWeight.w500,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 1),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 12,
-              color: isDefault
-                  ? cs.onSurfaceVariant.withValues(alpha: 0.5)
-                  : cs.tertiary.withValues(alpha: 0.6),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Profile picker bottom sheet helpers
-// ---------------------------------------------------------------------------
-
-Widget _buildProfileTile(
-  BuildContext ctx,
-  AIBackendProfile profile,
-  AIBackendProfile? current,
-  ThemeData theme,
-  ValueChanged<AIBackendProfile?> onChanged,
-) {
-  final cs = theme.colorScheme;
-  final isSelected = current?.id == profile.id;
-
-  return InkWell(
-    onTap: () {
-      HapticFeedback.selectionClick();
-      Navigator.pop(ctx);
-      onChanged(profile);
-    },
-    child: Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? cs.tertiary.withValues(alpha: 0.12)
-                  : cs.onSurface.withValues(alpha: 0.05),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.swap_horiz_rounded,
-              size: 16,
-              color: isSelected ? cs.tertiary : cs.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  profile.name,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.w400,
-                    color: isSelected ? cs.tertiary : cs.onSurface,
-                  ),
-                ),
-                if (profile.description != null)
-                  Text(
-                    profile.description!,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (isSelected)
-            Icon(Icons.check_rounded, size: 18, color: cs.tertiary),
-        ],
-      ),
-    ),
-  );
-}
-
-void _showProfilePickerSheet(
-  BuildContext context,
-  AIBackendProfile? current,
-  List<AIBackendProfile> profiles,
-  ValueChanged<AIBackendProfile?> onChanged,
-) {
-  final theme = Theme.of(context);
-  final cs = theme.colorScheme;
-
-  showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: cs.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius:
-          BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-    ),
-    builder: (ctx) {
-      final sheetL10n = AppLocalizations.of(ctx);
-      return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.only(
-          top: AppSpacing.sm,
-          bottom: AppSpacing.xs,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 5,
-                margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(2.5),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                0,
-                AppSpacing.lg,
-                AppSpacing.sm,
-              ),
-              child: Text(
-                sheetL10n.chatInputProfileTitle,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Flexible(
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Default (no profile) option
-                    InkWell(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        Navigator.pop(ctx);
-                        onChanged(null);
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.lg,
-                          vertical: AppSpacing.md,
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: current == null
-                                    ? cs.tertiary.withValues(alpha: 0.12)
-                                    : cs.onSurface.withValues(alpha: 0.05),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.settings_outlined,
-                                size: 16,
-                                color: current == null
-                                    ? cs.tertiary
-                                    : cs.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    sheetL10n.chatInputProfileDefault,
-                                    style: theme.textTheme.bodyMedium
-                                        ?.copyWith(
-                                      fontWeight: current == null
-                                          ? FontWeight.w600
-                                          : FontWeight.w400,
-                                      color: current == null
-                                          ? cs.tertiary
-                                          : cs.onSurface,
-                                    ),
-                                  ),
-                                  Text(
-                                    sheetL10n.chatInputProfileDefaultSubtitle,
-                                    style: theme.textTheme.labelSmall
-                                        ?.copyWith(
-                                      color: cs.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (current == null)
-                              Icon(
-                                Icons.check_rounded,
-                                size: 18,
-                                color: cs.tertiary,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    for (final profile in profiles)
-                      _buildProfileTile(
-                        ctx,
-                        profile,
-                        current,
-                        theme,
-                        onChanged,
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  },
-  );
-}
-
-/// Context-size indicator showing token usage.
-class _ContextSizeIndicator extends StatelessWidget {
-  const _ContextSizeIndicator({required this.contextSize});
-
-  final int contextSize;
-
-  static const int _maxContext = 190000;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final pctUsed = (contextSize / _maxContext * 100).clamp(0.0, 100.0);
-    final pctRemaining = (100 - pctUsed).round();
-
-    final Color indicatorColor;
-    if (pctRemaining <= 5) {
-      indicatorColor = cs.error;
-    } else if (pctRemaining <= 15) {
-      indicatorColor = Colors.orange;
-    } else {
-      indicatorColor = cs.onSurfaceVariant.withValues(alpha: 0.4);
-    }
-
-    final String label;
-    if (contextSize >= 1000) {
-      final kVal = (contextSize / 1000).toStringAsFixed(0);
-      label = '${kVal}k';
-    } else {
-      label = '$contextSize';
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 24,
-          height: 2,
-          child: ClipRRect(
-            clipBehavior: Clip.hardEdge,
-            borderRadius: BorderRadius.circular(1),
-            child: LinearProgressIndicator(
-              value: pctUsed / 100,
-              backgroundColor: cs.onSurface.withValues(alpha: 0.06),
-              valueColor: AlwaysStoppedAnimation<Color>(indicatorColor),
-            ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: indicatorColor,
-            fontSize: 10,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Toolbar row — clean horizontal strip with inline chips.
-class _InputToolbar extends StatelessWidget {
-  const _InputToolbar({
-    required this.onShowModelPicker,
-    required this.onShowProfilePicker,
-    this.permissionMode,
-    this.onPermissionModeChanged,
-    this.modelMode,
-    this.selectedProfile,
-    this.contextSize,
-    this.showAbort = false,
-    this.isAborting = false,
-    this.onAbort,
-  });
-
-  final perm.PermissionMode? permissionMode;
-  final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
-  final ClaudeModel? modelMode;
-  final VoidCallback onShowModelPicker;
-  final AIBackendProfile? selectedProfile;
-  final VoidCallback onShowProfilePicker;
-  final int? contextSize;
-  final bool showAbort;
-  final bool isAborting;
-  final VoidCallback? onAbort;
-
-  @override
-  Widget build(BuildContext context) {
-    final model = modelMode ?? ClaudeModel.defaultModel;
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      clipBehavior: Clip.none,
-      child: Row(
-        children: [
-          if (onPermissionModeChanged != null) ...[
-            perm.PermissionModeSelector(
-              selectedMode: permissionMode,
-              onModeChanged: onPermissionModeChanged,
-              availableModes:
-                  perm.PermissionModeExtension.claudeGeminiModes,
-            ),
-            const SizedBox(width: 6),
-          ],
-          _ModelChip(model: model, onTap: onShowModelPicker),
-          const SizedBox(width: 6),
-          _ProfileChip(
-            profile: selectedProfile,
-            onTap: onShowProfilePicker,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          if (showAbort) ...[
-            _AbortButton(
-              isAborting: isAborting,
-              onTap: onAbort,
-            ),
-            if (contextSize != null && contextSize! > 0)
-              const SizedBox(width: 6),
-          ],
-          if (contextSize != null && contextSize! > 0)
-            _ContextSizeIndicator(contextSize: contextSize!),
-        ],
-      ),
-    );
-  }
-}
-
-/// Floating autocomplete suggestion list rendered above the input.
-class _FileAutocomplete extends StatelessWidget {
-  const _FileAutocomplete({
-    required this.suggestions,
-    required this.selectedIndex,
-    required this.onSelect,
-  });
-
-  final List<AutocompleteSuggestion> suggestions;
-  final int selectedIndex;
-  final ValueChanged<int> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          decoration: BoxDecoration(
-            color: cs.surface,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.3),
-              width: 0.5,
-            ),
-            boxShadow: AppShadow.floating,
-          ),
-          child: ClipRRect(
-            clipBehavior: Clip.hardEdge,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            child: AutocompleteOverlay(
-              suggestions: suggestions,
-              selectedIndex: selectedIndex,
-              onSelect: onSelect,
-              padding: EdgeInsets.zero,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Model picker bottom sheet helpers (standalone functions)
-// ---------------------------------------------------------------------------
-
-Widget _buildModelTile(
-  BuildContext ctx,
-  ClaudeModel model,
-  ClaudeModel current,
-  ThemeData theme,
-  ValueChanged<ClaudeModel> onChanged,
-) {
-  final cs = theme.colorScheme;
-  final isSelected = model == current;
-
-  return InkWell(
-    onTap: () {
-      HapticFeedback.selectionClick();
-      Navigator.pop(ctx);
-      onChanged(model);
-    },
-    child: Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? cs.primary.withValues(alpha: 0.12)
-                  : cs.onSurface.withValues(alpha: 0.05),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              model == ClaudeModel.opus
-                  ? Icons.diamond_outlined
-                  : model == ClaudeModel.sonnet
-                  ? Icons.auto_awesome_outlined
-                  : Icons.smart_toy_outlined,
-              size: 16,
-              color: isSelected ? cs.primary : cs.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              model.label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? cs.primary : cs.onSurface,
-              ),
-            ),
-          ),
-          if (isSelected)
-            Icon(Icons.check_rounded, size: 18, color: cs.primary),
-        ],
-      ),
-    ),
-  );
-}
-
-void _showModelPickerSheet(
-  BuildContext context,
-  ClaudeModel current,
-  ValueChanged<ClaudeModel> onChanged,
-) {
-  final theme = Theme.of(context);
-  final cs = theme.colorScheme;
-
-  showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: cs.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-    ),
-    builder: (ctx) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.only(
-          top: AppSpacing.sm,
-          bottom: AppSpacing.xs,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Drag handle
-            Center(
-              child: Container(
-                width: 36,
-                height: 5,
-                margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(2.5),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                0,
-                AppSpacing.lg,
-                AppSpacing.sm,
-              ),
-              child: Text(
-                'Model',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            for (final model in ClaudeModel.values)
-              _buildModelTile(ctx, model, current, theme, onChanged),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Public widget
-// ---------------------------------------------------------------------------
-
-/// Enhanced chat input with autocomplete, draft persistence, and
-/// polished animations.
+/// Enhanced chat input with autocomplete, draft
+/// persistence, and polished animations.
 class ChatInput extends ConsumerStatefulWidget {
   /// Creates a [ChatInput].
   const ChatInput({
@@ -939,7 +52,8 @@ class ChatInput extends ConsumerStatefulWidget {
     this.onAbort,
   });
 
-  /// Stable identifier for the current session (used for draft storage).
+  /// Stable identifier for the current session
+  /// (used for draft storage).
   final String sessionId;
 
   /// Controller for the message text field.
@@ -954,8 +68,10 @@ class ChatInput extends ConsumerStatefulWidget {
   /// Active permission mode, or null for server default.
   final perm.PermissionMode? permissionMode;
 
-  /// Callback invoked when the user changes the permission mode.
-  final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
+  /// Callback invoked when the user changes the
+  /// permission mode.
+  final ValueChanged<perm.PermissionMode>?
+      onPermissionModeChanged;
 
   /// Active model selection, or null for server default.
   final ClaudeModel? modelMode;
@@ -978,13 +94,15 @@ class ChatInput extends ConsumerStatefulWidget {
   /// Called when the path label is tapped.
   final VoidCallback? onPathPressed;
 
-  /// The currently active AI backend profile, or null for default.
+  /// The currently active AI backend profile,
+  /// or null for default.
   final AIBackendProfile? selectedProfile;
 
   /// All available profiles to show in the picker.
   final List<AIBackendProfile> availableProfiles;
 
-  /// Called when the user selects a profile (null = default).
+  /// Called when the user selects a profile
+  /// (null = default).
   final ValueChanged<AIBackendProfile?>? onProfileChanged;
 
   /// Profile identifier (reserved for future use).
@@ -999,24 +117,27 @@ class ChatInput extends ConsumerStatefulWidget {
   /// Current context window usage in tokens.
   final int? contextSize;
 
-  /// Whether the session CLI is currently connected (presence == 'online').
+  /// Whether the session CLI is currently connected
+  /// (presence == 'online').
   final bool isSessionOnline;
 
-  /// Whether the agent is actively thinking / processing a request.
+  /// Whether the agent is actively thinking /
+  /// processing a request.
   final bool isAgentThinking;
 
-  /// Called when the user taps the abort button.  Must return a [Future]
-  /// so the button can show a spinner until the RPC completes.
+  /// Called when the user taps the abort button.
   final Future<void> Function()? onAbort;
 
   @override
-  ConsumerState<ChatInput> createState() => _ChatInputState();
+  ConsumerState<ChatInput> createState() =>
+      _ChatInputState();
 }
 
 class _ChatInputState extends ConsumerState<ChatInput>
     with TickerProviderStateMixin {
   _ChatInputState()
-    : _draftAutoSave = DraftAutoSave(sessionId: '', onSave: (_) {});
+      : _draftAutoSave =
+            DraftAutoSave(sessionId: '', onSave: (_) {});
   final FocusNode _focusNode = FocusNode();
   final AutocompleteController _autocompleteController =
       AutocompleteController();
@@ -1039,11 +160,15 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
     _sendScaleController = AnimationController(
       vsync: this,
-      duration: _kSendAnim,
+      duration: kSendAnimDuration,
       value: 1.0,
     );
-    _sendScale = Tween<double>(begin: 0.82, end: 1.0).animate(
-      CurvedAnimation(parent: _sendScaleController, curve: Curves.easeOutBack),
+    _sendScale =
+        Tween<double>(begin: 0.82, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _sendScaleController,
+        curve: Curves.easeOutBack,
+      ),
     );
 
     _loadDraft();
@@ -1074,13 +199,16 @@ class _ChatInputState extends ConsumerState<ChatInput>
     super.dispose();
   }
 
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------
   // Draft helpers
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------
 
   Future<void> _loadDraft() async {
-    final draft = await DraftStorage().getDraft(widget.sessionId);
-    if (draft != null && draft.isNotEmpty && widget.controller.text.isEmpty) {
+    final draft =
+        await DraftStorage().getDraft(widget.sessionId);
+    if (draft != null &&
+        draft.isNotEmpty &&
+        widget.controller.text.isEmpty) {
       widget.controller.text = draft;
       _previousText = draft;
     }
@@ -1090,19 +218,23 @@ class _ChatInputState extends ConsumerState<ChatInput>
     if (draft.trim().isEmpty) {
       await DraftStorage().removeDraft(widget.sessionId);
     } else {
-      await DraftStorage().saveDraft(widget.sessionId, draft);
+      await DraftStorage()
+          .saveDraft(widget.sessionId, draft);
     }
   }
 
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------
   // Event handlers
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------
 
   void _onTextChanged() {
     final currentText = widget.controller.text;
     _updateAutocomplete(currentText);
 
-    if (DraftStateTransition.isStateTransition(_previousText, currentText)) {
+    if (DraftStateTransition.isStateTransition(
+      _previousText,
+      currentText,
+    )) {
       _draftAutoSave.saveNow();
     } else if (currentText.trim().isNotEmpty) {
       _draftAutoSave.update(currentText);
@@ -1112,32 +244,49 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   void _updateAutocomplete(String text) {
-    final cursorPosition = widget.controller.selection.base.offset;
+    final cursorPosition =
+        widget.controller.selection.base.offset;
     if (cursorPosition < 0) {
       _clearAutocomplete();
       return;
     }
 
-    final textBeforeCursor = text.substring(0, cursorPosition);
-    final lastWordMatch = RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor);
+    final textBeforeCursor =
+        text.substring(0, cursorPosition);
+    final lastWordMatch =
+        RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor);
 
     if (lastWordMatch == null) {
       _clearAutocomplete();
       return;
     }
 
-    final trigger = lastWordMatch.group(0)!.substring(0, 1);
+    final trigger =
+        lastWordMatch.group(0)!.substring(0, 1);
     final query = lastWordMatch.group(1) ?? '';
 
     if (trigger == '@') {
       final suggestions = widget.fileSuggestions
-          .where((s) => s.label.toLowerCase().contains(query.toLowerCase()))
+          .where(
+            (s) => s.label
+                .toLowerCase()
+                .contains(query.toLowerCase()),
+          )
           .toList();
-      _autocompleteController.setSuggestions(suggestions, query);
-      setState(() => _showAutocomplete = suggestions.isNotEmpty);
+      _autocompleteController.setSuggestions(
+        suggestions,
+        query,
+      );
+      setState(
+        () => _showAutocomplete = suggestions.isNotEmpty,
+      );
     } else if (trigger == '/') {
-      final suggestions = _slashCommands
-          .where((c) => c.command.toLowerCase().contains(query.toLowerCase()))
+      final suggestions = slashCommands
+          .where(
+            (c) => c.command
+                .toLowerCase()
+                .contains(query.toLowerCase()),
+          )
           .map(
             (c) => AutocompleteSuggestion(
               id: c.command,
@@ -1148,8 +297,13 @@ class _ChatInputState extends ConsumerState<ChatInput>
             ),
           )
           .toList();
-      _autocompleteController.setSuggestions(suggestions, query);
-      setState(() => _showAutocomplete = suggestions.isNotEmpty);
+      _autocompleteController.setSuggestions(
+        suggestions,
+        query,
+      );
+      setState(
+        () => _showAutocomplete = suggestions.isNotEmpty,
+      );
     } else {
       _clearAutocomplete();
     }
@@ -1165,15 +319,23 @@ class _ChatInputState extends ConsumerState<ChatInput>
     if (!_focusNode.hasFocus) _draftAutoSave.saveNow();
   }
 
-  void _applySuggestion(AutocompleteSuggestion suggestion) {
+  void _applySuggestion(
+    AutocompleteSuggestion suggestion,
+  ) {
     final text = widget.controller.text;
-    final cursorPosition = widget.controller.selection.base.offset;
-    final textBeforeCursor = text.substring(0, cursorPosition);
-    final lastWordMatch = RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor);
+    final cursorPosition =
+        widget.controller.selection.base.offset;
+    final textBeforeCursor =
+        text.substring(0, cursorPosition);
+    final lastWordMatch =
+        RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor);
 
     if (lastWordMatch != null) {
       final startIndex = lastWordMatch.start;
-      final trigger = suggestion.type == SuggestionType.command ? '/' : '@';
+      final trigger =
+          suggestion.type == SuggestionType.command
+              ? '/'
+              : '@';
       final replacement = '$trigger${suggestion.label} ';
       final newText = text.replaceRange(
         startIndex,
@@ -1192,29 +354,37 @@ class _ChatInputState extends ConsumerState<ChatInput>
     _focusNode.requestFocus();
   }
 
-  /// Handles key events from the TextField's own FocusNode.
-  /// Returns [KeyEventResult.handled] when autocomplete consumes the
-  /// event, so the TextField does not also act on it.
-  KeyEventResult _handleFocusKeyEvent(FocusNode node, KeyEvent event) {
-    if (!_showAutocomplete) return KeyEventResult.ignored;
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+  KeyEventResult _handleFocusKeyEvent(
+    FocusNode node,
+    KeyEvent event,
+  ) {
+    if (!_showAutocomplete) {
+      return KeyEventResult.ignored;
+    }
+    if (event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
 
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
       _autocompleteController.moveSelectionUp();
       setState(() {});
       return KeyEventResult.handled;
-    } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+    } else if (event.logicalKey ==
+        LogicalKeyboardKey.arrowDown) {
       _autocompleteController.moveSelectionDown();
       setState(() {});
       return KeyEventResult.handled;
-    } else if (event.logicalKey == LogicalKeyboardKey.enter ||
+    } else if (event.logicalKey ==
+            LogicalKeyboardKey.enter ||
         event.logicalKey == LogicalKeyboardKey.tab) {
-      final selected = _autocompleteController.selectedSuggestion;
+      final selected =
+          _autocompleteController.selectedSuggestion;
       if (selected != null) {
         _applySuggestion(selected);
         return KeyEventResult.handled;
       }
-    } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+    } else if (event.logicalKey ==
+        LogicalKeyboardKey.escape) {
       _clearAutocomplete();
       return KeyEventResult.handled;
     }
@@ -1251,33 +421,35 @@ class _ChatInputState extends ConsumerState<ChatInput>
     }
   }
 
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------
   // Build
-  // ---------------------------------------------------------------------------
+  // -----------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (widget.machineName != null || widget.currentPath != null)
-          _buildContextInfoBar(context),
+        if (widget.machineName != null ||
+            widget.currentPath != null)
+          const SizedBox.shrink(),
         if (_showAutocomplete)
-          _FileAutocomplete(
-            suggestions: _autocompleteController.suggestions,
-            selectedIndex: _autocompleteController.selectedIndex,
+          FileAutocomplete(
+            suggestions:
+                _autocompleteController.suggestions,
+            selectedIndex:
+                _autocompleteController.selectedIndex,
             onSelect: (index) {
-              _applySuggestion(_autocompleteController.suggestions[index]);
+              _applySuggestion(
+                _autocompleteController
+                    .suggestions[index],
+              );
             },
           ),
         _buildInputContainer(context),
       ],
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // Input container
-  // ---------------------------------------------------------------------------
 
   Widget _buildInputContainer(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -1298,7 +470,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
             ),
             border: Border(
               top: BorderSide(
-                color: cs.outlineVariant.withValues(alpha: 0.2),
+                color: cs.outlineVariant
+                    .withValues(alpha: 0.2),
                 width: 0.5,
               ),
             ),
@@ -1313,19 +486,25 @@ class _ChatInputState extends ConsumerState<ChatInput>
                 AppSpacing.sm,
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment:
+                    CrossAxisAlignment.stretch,
                 children: [
                   _buildCardInputArea(context),
                   const SizedBox(height: 10),
-                  _InputToolbar(
-                    permissionMode: widget.permissionMode,
-                    onPermissionModeChanged: widget.onPermissionModeChanged,
+                  InputToolbar(
+                    permissionMode:
+                        widget.permissionMode,
+                    onPermissionModeChanged:
+                        widget.onPermissionModeChanged,
                     modelMode: widget.modelMode,
-                    onShowModelPicker: () => widget.onModelModeChanged != null
-                        ? _showModelPicker(context)
-                        : null,
-                    selectedProfile: widget.selectedProfile,
-                    onShowProfilePicker: () => _showProfilePicker(context),
+                    onShowModelPicker: () =>
+                        widget.onModelModeChanged != null
+                            ? _showModelPicker(context)
+                            : null,
+                    selectedProfile:
+                        widget.selectedProfile,
+                    onShowProfilePicker: () =>
+                        _showProfilePicker(context),
                     contextSize: widget.contextSize,
                     showAbort: widget.isSessionOnline,
                     isAborting: _isAborting,
@@ -1340,10 +519,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Card text area + send button
-  // ---------------------------------------------------------------------------
-
   Widget _buildCardInputArea(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
@@ -1353,16 +528,19 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final cardColor = cs.surfaceContainerLow;
 
     return AnimatedContainer(
-      duration: _kBorderAnim,
+      duration: kBorderAnimDuration,
       curve: Curves.easeInOut,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: borderColor, width: 0.5),
+        borderRadius:
+            BorderRadius.circular(AppRadius.xl),
+        border:
+            Border.all(color: borderColor, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color:
+                Colors.black.withValues(alpha: 0.04),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -1373,8 +551,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
         children: [
           Expanded(child: _buildTextField(context)),
           Padding(
-            padding: const EdgeInsets.only(right: 6, bottom: 6),
-            child: _SendButton(
+            padding: const EdgeInsets.only(
+              right: 6,
+              bottom: 6,
+            ),
+            child: SendButton(
               isSending: widget.isSending,
               isSendDisabled: widget.isSendDisabled,
               onTap: _onSendTap,
@@ -1418,47 +599,34 @@ class _ChatInputState extends ConsumerState<ChatInput>
       autocorrect: true,
       maxLines: 6,
       minLines: 1,
-      textInputAction: defaultTargetPlatform == TargetPlatform.android
-          ? TextInputAction.newline
-          : TextInputAction.send,
-      onSubmitted: defaultTargetPlatform == TargetPlatform.android
-          ? null
-          : (_) => widget.onSend(),
+      textInputAction:
+          defaultTargetPlatform == TargetPlatform.android
+              ? TextInputAction.newline
+              : TextInputAction.send,
+      onSubmitted:
+          defaultTargetPlatform == TargetPlatform.android
+              ? null
+              : (_) => widget.onSend(),
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Context info bar (machine / path)
-  // ---------------------------------------------------------------------------
-
-  Widget _buildContextInfoBar(BuildContext context) {
-    // Context info (machine/path) is already shown in the app bar.
-    return const SizedBox.shrink();
-  }
-
-  // ---------------------------------------------------------------------------
-  // Model picker (bottom sheet)
-  // ---------------------------------------------------------------------------
-
   void _showModelPicker(BuildContext context) {
-    final current = widget.modelMode ?? ClaudeModel.defaultModel;
-    _showModelPickerSheet(
+    final current =
+        widget.modelMode ?? ClaudeModel.defaultModel;
+    showModelPickerSheet(
       context,
       current,
       (model) => widget.onModelModeChanged?.call(model),
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Profile picker (bottom sheet)
-  // ---------------------------------------------------------------------------
-
   void _showProfilePicker(BuildContext context) {
-    _showProfilePickerSheet(
+    showProfilePickerSheet(
       context,
       widget.selectedProfile,
       widget.availableProfiles,
-      (profile) => widget.onProfileChanged?.call(profile),
+      (profile) =>
+          widget.onProfileChanged?.call(profile),
     );
   }
 }
