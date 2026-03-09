@@ -290,9 +290,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     _SelectionState sel,
   ) {
     final cs = Theme.of(context).colorScheme;
-    final allIds = _allInactiveSessionIds();
+    final allIds = _allSelectableSessionIds();
     final allSelected =
         allIds.isNotEmpty && allIds.every(sel.selectedIds.contains);
+    final hasActiveSelected = _hasActiveSessionsInSelection(sel);
     return AppBar(
       leading: IconButton(
         icon: const Icon(Icons.close),
@@ -305,9 +306,29 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
               ? null
               : () => _toggleSelectAll(allIds, allSelected),
           child: Text(
-            allSelected ? l10n.sessionsDeselectAll : l10n.sessionsSelectAll,
+            allSelected
+                ? l10n.sessionsDeselectAll
+                : l10n.sessionsSelectAll,
           ),
         ),
+        if (hasActiveSelected)
+          IconButton(
+            icon: sel.isBatchDeleting
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  )
+                : const Icon(Icons.archive_outlined),
+            tooltip: l10n.sessionsArchive,
+            onPressed:
+                (sel.selectedIds.isEmpty || sel.isBatchDeleting)
+                    ? null
+                    : () => _confirmBatchArchive(context, sel),
+          ),
         IconButton(
           icon: sel.isBatchDeleting
               ? SizedBox(
@@ -319,9 +340,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
                   ),
                 )
               : Icon(Icons.delete_outline, color: cs.error),
-          onPressed: (sel.selectedIds.isEmpty || sel.isBatchDeleting)
-              ? null
-              : () => _confirmBatchDelete(context, sel),
+          onPressed:
+              (sel.selectedIds.isEmpty || sel.isBatchDeleting)
+                  ? null
+                  : () => _confirmBatchDelete(context, sel),
         ),
       ],
     );
@@ -354,12 +376,17 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
   // ── Selection helpers ───────────────────────────────────
 
-  Set<String> _allInactiveSessionIds() {
+  Set<String> _allSelectableSessionIds() {
     final sessions = ref.read(sessionsNotifierProvider);
-    return sessions.values
-        .where((s) => !isSessionActive(s))
-        .map((s) => s.id)
-        .toSet();
+    return sessions.values.map((s) => s.id).toSet();
+  }
+
+  bool _hasActiveSessionsInSelection(_SelectionState sel) {
+    final sessions = ref.read(sessionsNotifierProvider);
+    return sel.selectedIds.any((id) {
+      final s = sessions[id];
+      return s != null && isSessionActive(s);
+    });
   }
 
   void _exitSelectionMode() {
@@ -371,6 +398,75 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     _selectionNotifier.value = current.copyWith(
       selectedIds: currentlyAllSelected ? {} : Set<String>.of(allIds),
     );
+  }
+
+  Future<void> _confirmBatchArchive(
+    BuildContext context,
+    _SelectionState sel,
+  ) async {
+    final l10n = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+    final sessions = ref.read(sessionsNotifierProvider);
+    // Only archive active sessions from the selection.
+    final activeIds = sel.selectedIds
+        .where((id) {
+          final s = sessions[id];
+          return s != null && isSessionActive(s);
+        })
+        .toList();
+    if (activeIds.isEmpty) return;
+
+    final count = activeIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final dl10n = AppLocalizations.of(ctx);
+        return AlertDialog(
+          title: Text(dl10n.sessionsArchiveSession),
+          content: Text(dl10n.sessionsArchiveNConfirm(count)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(dl10n.commonCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(dl10n.sessionsArchive),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) return;
+
+    _selectionNotifier.value = sel.copyWith(isBatchDeleting: true);
+
+    var failCount = 0;
+    for (final id in activeIds) {
+      try {
+        await sync.killSession(id);
+      } catch (_) {
+        failCount++;
+      }
+    }
+
+    if (mounted) {
+      await ref
+          .read(sessionsNotifierProvider.notifier)
+          .refreshFromSync();
+    }
+
+    _exitSelectionMode();
+
+    if (failCount > 0 && mounted) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.sessionsArchivePartialFail(failCount),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _confirmBatchDelete(
@@ -411,7 +507,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     final results = await Future.wait(ids.map(sync.deleteSession));
 
     if (mounted) {
-      await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
+      await ref
+          .read(sessionsNotifierProvider.notifier)
+          .refreshFromSync();
     }
 
     _exitSelectionMode();
@@ -419,7 +517,11 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     final failCount = results.where((r) => !r).length;
     if (failCount > 0 && mounted) {
       messenger.showSnackBar(
-        SnackBar(content: Text(l10n.sessionsDeletePartialFail(failCount))),
+        SnackBar(
+          content: Text(
+            l10n.sessionsDeletePartialFail(failCount),
+          ),
+        ),
       );
     }
   }
@@ -641,25 +743,42 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
           ),
         );
         if (!isPathCollapsed) {
+          final sel = _sel.value;
           for (final session in entry.value) {
             final capturedIndex = staggerIndex;
-            final card = CompactActiveSessionCard(
-              session: session,
-              onTap: () => unawaited(
-                context.pushNamed(
-                  'chat',
-                  pathParameters: {'sessionId': session.id},
-                ),
+            final card = GestureDetector(
+              onLongPress: () => _onSessionLongPress(session.id),
+              child: CompactActiveSessionCard(
+                session: session,
+                onTap: sel.isActive
+                    ? () => _onSessionTapInSelectionMode(session.id)
+                    : () => unawaited(
+                        context.pushNamed(
+                          'chat',
+                          pathParameters: {
+                            'sessionId': session.id,
+                          },
+                        ),
+                      ),
+                showFlavorIcon: showFlavorIcons,
+                avatarStyle: avatarStyle,
+                lastMessageTimestamp:
+                    sync.getLastMessageTimestamp(session.id),
+                isSelected: sel.selectedIds.contains(session.id),
+                selectionMode: sel.isActive,
               ),
-              showFlavorIcon: showFlavorIcons,
-              avatarStyle: avatarStyle,
-              lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
             );
+            final child = sel.isActive
+                ? card
+                : _DismissibleActiveSession(
+                    session: session,
+                    child: card,
+                  );
             children.add(
               _StaggeredSlideIn(
                 index: capturedIndex,
                 animate: triggerStagger,
-                child: _DismissibleActiveSession(session: session, child: card),
+                child: child,
               ),
             );
             staggerIndex++;
@@ -802,6 +921,7 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
                 showFlavorIcon: showFlavorIcons,
                 avatarStyle: avatarStyle,
                 lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
+                lastMessagePreview: sync.getLastMessagePreview(session.id),
               ),
               if (!isLast && !isSingle)
                 Divider(
@@ -904,6 +1024,7 @@ class _SessionsListContentState extends ConsumerState<_SessionsListContent> {
                 showFlavorIcon: showFlavorIcons,
                 avatarStyle: avatarStyle,
                 lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
+                lastMessagePreview: sync.getLastMessagePreview(session.id),
               ),
               if (!item.isLast && !item.isSingle)
                 Divider(
@@ -1913,6 +2034,8 @@ class CompactActiveSessionCard extends StatelessWidget {
     this.onTap,
     this.avatarStyle,
     this.lastMessageTimestamp,
+    this.selectionMode = false,
+    this.isSelected = false,
   });
 
   /// The session to display.
@@ -1931,6 +2054,12 @@ class CompactActiveSessionCard extends StatelessWidget {
   /// If null, falls back to session.updatedAt.
   final int? lastMessageTimestamp;
 
+  /// Whether multi-select mode is active.
+  final bool selectionMode;
+
+  /// Whether this card is currently selected.
+  final bool isSelected;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1942,6 +2071,13 @@ class CompactActiveSessionCard extends StatelessWidget {
     final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = _getTodoProgress(session.todos);
 
+    final cardColor = isSelected
+        ? cs.primary.withValues(alpha: 0.10)
+        : cs.primary.withValues(alpha: 0.04);
+    final borderColor = isSelected
+        ? cs.primary.withValues(alpha: 0.3)
+        : cs.primary.withValues(alpha: 0.12);
+
     return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
@@ -1949,11 +2085,8 @@ class CompactActiveSessionCard extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        color: cs.primary.withValues(alpha: 0.04),
-        border: Border.all(
-          color: cs.primary.withValues(alpha: 0.12),
-          width: 0.5,
-        ),
+        color: cardColor,
+        border: Border.all(color: borderColor, width: 0.5),
       ),
       child: Material(
         color: Colors.transparent,
@@ -1970,16 +2103,22 @@ class CompactActiveSessionCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  width: 3,
-                  decoration: BoxDecoration(
-                    color: Color(sessionStatus.statusDotColor),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(AppRadius.md),
-                      bottomLeft: Radius.circular(AppRadius.md),
+                if (selectionMode)
+                  _SelectionCheckbox(
+                    isSelected: isSelected,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  )
+                else
+                  Container(
+                    width: 3,
+                    decoration: BoxDecoration(
+                      color: Color(sessionStatus.statusDotColor),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(AppRadius.md),
+                        bottomLeft: Radius.circular(AppRadius.md),
+                      ),
                     ),
                   ),
-                ),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
@@ -2086,6 +2225,7 @@ class SessionCard extends StatelessWidget {
     this.isSelected = false,
     this.avatarStyle,
     this.lastMessageTimestamp,
+    this.lastMessagePreview,
   });
 
   /// The session to display.
@@ -2126,6 +2266,9 @@ class SessionCard extends StatelessWidget {
 
   /// Timestamp of the last message (ms since epoch).
   final int? lastMessageTimestamp;
+
+  /// Brief preview of the last message text.
+  final String? lastMessagePreview;
 
   @override
   Widget build(BuildContext context) {
@@ -2254,7 +2397,8 @@ class SessionCard extends StatelessWidget {
                               const SizedBox(height: 2),
                               Text(
                                 sessionSubtitle,
-                                style: theme.textTheme.labelSmall?.copyWith(
+                                style: theme.textTheme.labelSmall
+                                    ?.copyWith(
                                   color: cs.onSurfaceVariant,
                                   fontFamily: 'monospace',
                                   fontSize: 11,
@@ -2262,6 +2406,21 @@ class SessionCard extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               ),
+                              if (lastMessagePreview != null) ...[
+                                const SizedBox(height: 3),
+                                Text(
+                                  lastMessagePreview!,
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(
+                                    color: cs.onSurfaceVariant
+                                        .withValues(alpha: 0.7),
+                                    fontSize: 11,
+                                    height: 1.3,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -2271,10 +2430,12 @@ class SessionCard extends StatelessWidget {
                           children: [
                             Text(
                               formatTimestamp(
-                                lastMessageTimestamp ?? session.updatedAt,
+                                lastMessageTimestamp ??
+                                    session.updatedAt,
                                 relative: true,
                               ),
-                              style: theme.textTheme.labelSmall?.copyWith(
+                              style: theme.textTheme.labelSmall
+                                  ?.copyWith(
                                 color: cs.onSurfaceVariant,
                                 fontSize: 11,
                               ),

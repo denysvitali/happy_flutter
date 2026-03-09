@@ -149,6 +149,11 @@ class AppLocalizations {
   String sessionsDeletePartialFail(int count) =>
       '${count == 1 ? '1 session' : '$count sessions'}'
       ' failed to delete';
+  String sessionsArchiveNConfirm(int count) =>
+      'Archive ${count == 1 ? '1 session' : '$count sessions'}?';
+  String sessionsArchivePartialFail(int count) =>
+      '${count == 1 ? '1 session' : '$count sessions'}'
+      ' failed to archive';
 
   // Recent Sessions screen
   String get sessionsRecentTitle => 'Recent Sessions';

@@ -1397,7 +1397,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
       focusNode: _focusNode,
       decoration: InputDecoration(
         hintText: l10n.chatInputHint,
-        hintStyle: theme.textTheme.bodyMedium?.copyWith(color: hintColor),
+        hintStyle: theme.textTheme.bodyMedium?.copyWith(
+          color: hintColor,
+        ),
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,
@@ -1410,6 +1412,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
         ),
       ),
       style: theme.textTheme.bodyMedium,
+      keyboardType: TextInputType.multiline,
+      textCapitalization: TextCapitalization.sentences,
+      enableSuggestions: true,
+      autocorrect: true,
       maxLines: 6,
       minLines: 1,
       textInputAction: defaultTargetPlatform == TargetPlatform.android

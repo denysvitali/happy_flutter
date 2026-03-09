@@ -3,6 +3,7 @@ import 'dart:convert' show base64;
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -105,16 +106,8 @@ Future<void> _runApp() async {
     }
   }
 
-  if (!kIsWeb) {
-    try {
-      await Firebase.initializeApp();
-    } catch (e) {
-      // Firebase is optional — only needed for push notifications.
-      // If google-services.json is absent (e.g. unsigned builds),
-      // the app still works; background push notifications won't fire.
-      logger.warning('Firebase.initializeApp() failed: $e');
-    }
-  }
+  final firebaseInitialization = _initializeOptionalFirebase();
+  final deepLinkFuture = _getInitialDeepLink();
 
   await storage.Storage().initialize();
 
@@ -122,7 +115,8 @@ Future<void> _runApp() async {
   await ApiClient().initialize(serverUrl: serverUrl);
 
   // Handle initial deep link if the app was opened from a link
-  final deepLink = await _getInitialDeepLink();
+  final deepLink = await deepLinkFuture;
+  await firebaseInitialization;
 
   runApp(
     ErrorBoundary(
@@ -131,6 +125,21 @@ Future<void> _runApp() async {
       ),
     ),
   );
+}
+
+Future<void> _initializeOptionalFirebase() async {
+  if (kIsWeb) {
+    return;
+  }
+
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    // Firebase is optional — only needed for push notifications.
+    // If google-services.json is absent (e.g. unsigned builds),
+    // the app still works; background push notifications won't fire.
+    logger.warning('Firebase.initializeApp() failed: $e');
+  }
 }
 
 /// Get the initial deep link if the app was opened from one
@@ -215,10 +224,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
   }
 
   /// Slide-up transition for creation / modal flows.
-  static Page<void> _slideUpPage(
-    Widget child,
-    GoRouterState state,
-  ) {
+  static Page<void> _slideUpPage(Widget child, GoRouterState state) {
     return CustomTransitionPage<void>(
       key: state.pageKey,
       child: child,
@@ -239,34 +245,10 @@ class _HappyAppState extends ConsumerState<HappyApp>
     );
   }
 
-  /// Shared-axis horizontal transition for detail/push screens.
-  static Page<void> _slidePage(
-    Widget child,
-    GoRouterState state,
-  ) {
-    return CustomTransitionPage<void>(
-      key: state.pageKey,
-      child: child,
-      transitionsBuilder: (context, animation, secondary, child) {
-        final slideTween = Tween(
-          begin: const Offset(0.08, 0),
-          end: Offset.zero,
-        ).chain(CurveTween(curve: Curves.easeOutCubic));
-        final fadeTween = Tween(begin: 0.0, end: 1.0).chain(
-          CurveTween(curve: Curves.easeOut),
-        );
-        return FadeTransition(
-          opacity: animation.drive(fadeTween),
-          child: SlideTransition(
-            position: animation.drive(slideTween),
-            child: child,
-          ),
-        );
-      },
-      transitionDuration: const Duration(milliseconds: 250),
-      reverseTransitionDuration:
-          const Duration(milliseconds: 200),
-    );
+  /// Slide-in transition for detail/push screens with swipe-back
+  /// gesture support via [_SwipeBackPage].
+  static Page<void> _slidePage(Widget child, GoRouterState state) {
+    return _SwipeBackPage(key: state.pageKey, child: child);
   }
 
   GoRouter _buildRouter() {
@@ -313,10 +295,8 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/inbox',
           name: 'inbox',
-          pageBuilder: (context, state) => _fadePage(
-            const AuthGate(child: InboxScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _fadePage(const AuthGate(child: InboxScreen()), state),
         ),
         GoRoute(
           path: '/friends/search',
@@ -327,18 +307,14 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/settings',
           name: 'settings',
-          pageBuilder: (context, state) => _fadePage(
-            const AuthGate(child: SettingsScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _fadePage(const AuthGate(child: SettingsScreen()), state),
         ),
         GoRoute(
           path: '/settings/account',
           name: 'account',
-          pageBuilder: (context, state) => _slidePage(
-            const AuthGate(child: AccountScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _slidePage(const AuthGate(child: AccountScreen()), state),
         ),
         GoRoute(
           path: '/settings/account/restore',
@@ -361,10 +337,8 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/settings/theme',
           name: 'theme',
-          pageBuilder: (context, state) => _slidePage(
-            const AuthGate(child: ThemeSettingsScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _slidePage(const AuthGate(child: ThemeSettingsScreen()), state),
         ),
         GoRoute(
           path: '/settings/language',
@@ -377,10 +351,8 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/settings/voice',
           name: 'voice',
-          pageBuilder: (context, state) => _slidePage(
-            const AuthGate(child: VoiceSettingsScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _slidePage(const AuthGate(child: VoiceSettingsScreen()), state),
         ),
         GoRoute(
           path: '/settings/features',
@@ -393,42 +365,32 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/settings/profiles',
           name: 'profiles',
-          pageBuilder: (context, state) => _slidePage(
-            const AuthGate(child: ProfilesScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _slidePage(const AuthGate(child: ProfilesScreen()), state),
         ),
         GoRoute(
           path: '/settings/usage',
           name: 'usage',
-          pageBuilder: (context, state) => _slidePage(
-            const AuthGate(child: UsageScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _slidePage(const AuthGate(child: UsageScreen()), state),
         ),
         GoRoute(
           path: '/settings/changelog',
           name: 'changelog',
-          pageBuilder: (context, state) => _slidePage(
-            const AuthGate(child: ChangelogScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _slidePage(const AuthGate(child: ChangelogScreen()), state),
         ),
         GoRoute(
           path: '/settings/developer',
           name: 'developer',
-          pageBuilder: (context, state) => _slidePage(
-            AuthGate(child: DeveloperScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _slidePage(AuthGate(child: DeveloperScreen()), state),
           routes: [
             GoRoute(
               path: 'logs',
               name: 'dev-logs',
-              pageBuilder: (context, state) => _slidePage(
-                AuthGate(child: const DevLogsScreen()),
-                state,
-              ),
+              pageBuilder: (context, state) =>
+                  _slidePage(AuthGate(child: const DevLogsScreen()), state),
             ),
             GoRoute(
               path: 'network',
@@ -476,10 +438,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
             final content = state.uri.queryParameters['content'];
             return _slidePage(
               AuthGate(
-                child: SessionFileViewerScreen(
-                  path: path2,
-                  content: content,
-                ),
+                child: SessionFileViewerScreen(path: path2, content: content),
               ),
               state,
             );
@@ -526,34 +485,26 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/new',
           name: 'new-session',
-          pageBuilder: (context, state) => _slideUpPage(
-            const AuthGate(child: NewSessionScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _slideUpPage(const AuthGate(child: NewSessionScreen()), state),
         ),
         GoRoute(
           path: '/new/pick/machine',
           name: 'pick-machine',
-          pageBuilder: (context, state) => _slidePage(
-            const AuthGate(child: PickMachineScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _slidePage(const AuthGate(child: PickMachineScreen()), state),
         ),
         GoRoute(
           path: '/new/pick/path',
           name: 'pick-path',
-          pageBuilder: (context, state) => _slidePage(
-            const AuthGate(child: PickPathScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _slidePage(const AuthGate(child: PickPathScreen()), state),
         ),
         GoRoute(
           path: '/new/pick/profile',
           name: 'pick-profile',
-          pageBuilder: (context, state) => _slidePage(
-            const AuthGate(child: PickProfileScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _slidePage(const AuthGate(child: PickProfileScreen()), state),
         ),
         GoRoute(
           path: '/machine/:machineId',
@@ -586,10 +537,8 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/artifacts/new',
           name: 'artifact-new',
-          pageBuilder: (context, state) => _slideUpPage(
-            const AuthGate(child: NewArtifactScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _slideUpPage(const AuthGate(child: NewArtifactScreen()), state),
         ),
         GoRoute(
           path: '/artifacts/:artifactId',
@@ -621,10 +570,8 @@ class _HappyAppState extends ConsumerState<HappyApp>
         GoRoute(
           path: '/zen/new',
           name: 'zen-new',
-          pageBuilder: (context, state) => _slideUpPage(
-            const AuthGate(child: ZenNewScreen()),
-            state,
-          ),
+          pageBuilder: (context, state) =>
+              _slideUpPage(const AuthGate(child: ZenNewScreen()), state),
         ),
         GoRoute(
           path: '/zen/view',
@@ -632,14 +579,10 @@ class _HappyAppState extends ConsumerState<HappyApp>
           pageBuilder: (context, state) {
             final extra = state.extra as Map<String, dynamic>?;
             final todoId = extra?['todoId'] as String? ?? '';
-            final sessionId =
-                extra?['sessionId'] as String? ?? 'global';
+            final sessionId = extra?['sessionId'] as String? ?? 'global';
             return _slidePage(
               AuthGate(
-                child: ZenViewScreen(
-                  todoId: todoId,
-                  sessionId: sessionId,
-                ),
+                child: ZenViewScreen(todoId: todoId, sessionId: sessionId),
               ),
               state,
             );
@@ -796,5 +739,67 @@ class _HappyAppState extends ConsumerState<HappyApp>
       (l) => l.languageCode == candidate.languageCode,
     );
     return isSupported ? candidate : null;
+  }
+}
+
+/// A [Page] that slides in from the right and supports iOS-style
+/// swipe-back gesture on all platforms.
+class _SwipeBackPage extends Page<void> {
+  const _SwipeBackPage({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Route<void> createRoute(BuildContext context) {
+    return _SwipeBackRoute(page: this);
+  }
+}
+
+class _SwipeBackRoute extends PageRoute<void> {
+  _SwipeBackRoute({required _SwipeBackPage page}) : super(settings: page);
+
+  _SwipeBackPage get _page => settings as _SwipeBackPage;
+
+  @override
+  bool get popGestureEnabled => true;
+
+  @override
+  bool get maintainState => true;
+
+  @override
+  Color? get barrierColor => null;
+
+  @override
+  String? get barrierLabel => null;
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 300);
+
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 250);
+
+  @override
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) {
+    return _page.child;
+  }
+
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return CupertinoRouteTransitionMixin.buildPageTransitions<void>(
+      this,
+      context,
+      animation,
+      secondaryAnimation,
+      child,
+    );
   }
 }
