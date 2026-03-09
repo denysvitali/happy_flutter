@@ -342,6 +342,7 @@ what you have, you must use the options mode.
   final _dataChangeController = StreamController<void>.broadcast();
   final _sessionMessageChangeController = StreamController<String>.broadcast();
   Timer? _dataChangeDebounceTimer;
+  final Map<String, Timer> _sessionMessageDebounceTimers = {};
   Timer? _saveSeqDebounceTimer;
   Timer? _saveSessionsCacheDebounceTimer;
   final Map<String, Timer> _postSendCatchUpTimers = {};
@@ -681,6 +682,22 @@ what you have, you must use the options mode.
         _dataChangeController.add(null);
       }
     });
+  }
+
+  /// Debounced session-message change notification.
+  /// Coalesces rapid token-level updates into one emission per 100ms window
+  /// per session, preventing the chat screen from rebuilding on every token.
+  void _notifySessionMessagesChanged(String sessionId) {
+    _sessionMessageDebounceTimers[sessionId]?.cancel();
+    _sessionMessageDebounceTimers[sessionId] = Timer(
+      const Duration(milliseconds: 100),
+      () {
+        _sessionMessageDebounceTimers.remove(sessionId);
+        if (!_sessionMessageChangeController.isClosed) {
+          _sessionMessageChangeController.add(sessionId);
+        }
+      },
+    );
   }
 
   /// Debounced MMKV persist for session seq cursors.
@@ -1043,9 +1060,7 @@ what you have, you must use the options mode.
         _scheduleSaveSeq();
       }
 
-      if (!_sessionMessageChangeController.isClosed) {
-        _sessionMessageChangeController.add(sessionId);
-      }
+      _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged();
     } catch (error, stack) {
       logger.warning(
@@ -4295,9 +4310,7 @@ what you have, you must use the options mode.
         // ── Yield between pages ──
         await Future<void>.delayed(Duration.zero);
       }
-      if (!_sessionMessageChangeController.isClosed) {
-        _sessionMessageChangeController.add(sessionId);
-      }
+      _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged();
     } catch (error, stack) {
       logger.error('Error fetching messages', error, stack);
@@ -4375,9 +4388,7 @@ what you have, you must use the options mode.
         Map.unmodifiable(_sessionFirstLoadedSeq),
       );
 
-      if (!_sessionMessageChangeController.isClosed) {
-        _sessionMessageChangeController.add(sessionId);
-      }
+      _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged();
     } catch (error, stack) {
       logger.error('Error fetching older messages', error, stack);
@@ -5986,6 +5997,10 @@ what you have, you must use the options mode.
     if (!isInitialized) return;
     logger.info('[Sync] suspending — disconnecting socket');
     _dataChangeDebounceTimer?.cancel();
+    for (final timer in _sessionMessageDebounceTimers.values) {
+      timer.cancel();
+    }
+    _sessionMessageDebounceTimers.clear();
     _sessionsRefreshDebounceTimer?.cancel();
     _saveSeqDebounceTimer?.cancel();
     _saveSessionsCacheDebounceTimer?.cancel();
@@ -6031,6 +6046,10 @@ what you have, you must use the options mode.
 
     _dataChangeDebounceTimer?.cancel();
     _dataChangeDebounceTimer = null;
+    for (final timer in _sessionMessageDebounceTimers.values) {
+      timer.cancel();
+    }
+    _sessionMessageDebounceTimers.clear();
     // Flush any pending seq write before shutdown so cursors aren't lost.
     _saveSeqDebounceTimer?.cancel();
     _saveSeqDebounceTimer = null;
