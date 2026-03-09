@@ -98,6 +98,7 @@ class Metadata {
     this.hostPid,
     this.flavor,
     this.lifecycleState,
+    this.lifecycleStateSince,
     this.sandboxEnabled,
   });
 
@@ -119,6 +120,7 @@ class Metadata {
       hostPid: _asApiIntOptional(json['hostPid']),
       flavor: _asApiStringOptional(json['flavor']),
       lifecycleState: _asApiStringOptional(json['lifecycleState']),
+      lifecycleStateSince: _asApiIntOptional(json['lifecycleStateSince']),
       sandboxEnabled: _sandboxEnabledFromMetadata(json['sandbox']),
     );
   }
@@ -137,6 +139,7 @@ class Metadata {
   final int? hostPid;
   final String? flavor;
   final String? lifecycleState;
+  final int? lifecycleStateSince;
   final bool? sandboxEnabled;
 
   Map<String, dynamic> toJson() {
@@ -156,6 +159,7 @@ class Metadata {
       'hostPid': hostPid,
       'flavor': flavor,
       'lifecycleState': lifecycleState,
+      'lifecycleStateSince': lifecycleStateSince,
       if (sandboxEnabled != null) 'sandbox': {'enabled': sandboxEnabled},
     };
   }

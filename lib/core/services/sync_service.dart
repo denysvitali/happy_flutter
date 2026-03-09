@@ -2998,17 +2998,28 @@ what you have, you must use the options mode.
     final lifecycleState = session.metadata?.lifecycleState;
     final agentIsStartingOrRunning =
         lifecycleState == 'starting' || lifecycleState == 'running';
+    // Guard against stale lifecycleState: if the agent process crashed without
+    // updating metadata to "archived", lifecycleState stays "running" even
+    // though the session is offline.  Only trust lifecycleState if the
+    // timestamp is recent (< 2 minutes).
+    final lifecycleStateSince = session.metadata?.lifecycleStateSince;
+    final lifecycleRecent =
+        lifecycleStateSince != null &&
+        DateTime.now().millisecondsSinceEpoch - lifecycleStateSince < 120000;
     final spawnedAt = _sessionSpawnedAt[sessionId];
     final recentlySpawned =
         spawnedAt != null &&
         DateTime.now().millisecondsSinceEpoch - spawnedAt < 120000;
     final looksReady =
-        session.isOnline || agentIsStartingOrRunning || recentlySpawned;
+        session.isOnline ||
+        (agentIsStartingOrRunning && lifecycleRecent) ||
+        recentlySpawned;
     logger.info(
       '[sendMessage] _resolveSendTargetSession '
       'session=$sessionId looksReady=$looksReady '
       '(isOnline=${session.isOnline}, '
       'lifecycleState=$lifecycleState, '
+      'lifecycleRecent=$lifecycleRecent, '
       'recentlySpawned=$recentlySpawned, '
       'agentStateVersion=${session.agentStateVersion})',
     );
@@ -3729,10 +3740,15 @@ what you have, you must use the options mode.
     if (session == null) return false;
 
     final lifecycleState = session.metadata?.lifecycleState;
+    // Guard against stale lifecycleState (same logic as _resolveSendTargetSession).
+    final lifecycleStateSince = session.metadata?.lifecycleStateSince;
+    final lifecycleRecent =
+        lifecycleStateSince != null &&
+        DateTime.now().millisecondsSinceEpoch - lifecycleStateSince < 120000;
+    final agentIsStartingOrRunning =
+        lifecycleState == 'starting' || lifecycleState == 'running';
     final looksReady =
-        session.isOnline ||
-        lifecycleState == 'starting' ||
-        lifecycleState == 'running';
+        session.isOnline || (agentIsStartingOrRunning && lifecycleRecent);
     if (looksReady) return false;
 
     final machineId = session.metadata?.machineId;
@@ -4340,10 +4356,15 @@ what you have, you must use the options mode.
 
   /// Whether a session's agent is connected enough to receive messages.
   /// Checks both ephemeral presence and lifecycle metadata.
+  /// Guards against stale lifecycleState by requiring a recent timestamp.
   bool _isSessionReady(Session s) {
     if (s.isOnline) return true;
     final lc = s.metadata?.lifecycleState;
-    return lc == 'running';
+    if (lc != 'running') return false;
+    // Only trust "running" if the timestamp is recent (< 2 minutes).
+    final since = s.metadata?.lifecycleStateSince;
+    if (since == null) return false;
+    return DateTime.now().millisecondsSinceEpoch - since < 120000;
   }
 
   /// Wait for agent to be ready.
