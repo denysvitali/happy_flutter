@@ -132,7 +132,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                       title,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -163,8 +163,8 @@ class ThemeSettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildCurrentThemePreview(BuildContext context) {
-    final brightness = MediaQuery.platformBrightnessOf(context);
-    final isDark = brightness == Brightness.dark;
+    final isDark =
+        Theme.of(context).brightness == Brightness.dark;
     final l10n = AppLocalizations.of(context);
 
     return Column(

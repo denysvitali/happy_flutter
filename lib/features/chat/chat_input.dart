@@ -179,8 +179,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
   void didUpdateWidget(ChatInput oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.sessionId != widget.sessionId) {
-      _draftAutoSave.sessionId = widget.sessionId;
-      _draftAutoSave.saveNow();
+      // Save the OLD session's draft before switching.
+      _draftAutoSave
+        ..saveNow()
+        ..sessionId = widget.sessionId;
       _loadDraft();
     }
   }
@@ -201,8 +203,13 @@ class _ChatInputState extends ConsumerState<ChatInput>
   // -----------------------------------------------------------
 
   Future<void> _loadDraft() async {
-    final draft = await DraftStorage().getDraft(widget.sessionId);
-    if (draft != null && draft.isNotEmpty && widget.controller.text.isEmpty) {
+    final targetSessionId = widget.sessionId;
+    final draft =
+        await DraftStorage().getDraft(targetSessionId);
+    if (targetSessionId != widget.sessionId) return;
+    if (draft != null &&
+        draft.isNotEmpty &&
+        widget.controller.text.isEmpty) {
       widget.controller.text = draft;
       _previousText = draft;
     }
@@ -447,7 +454,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
                     selectedProfile: widget.selectedProfile,
                     onShowProfilePicker: () => _showProfilePicker(context),
                     contextSize: widget.contextSize,
-                    showAbort: widget.isSessionOnline,
+                    showAbort: widget.isAgentThinking,
                     isAborting: _isAborting,
                     onAbort: _onAbortTap,
                   ),
