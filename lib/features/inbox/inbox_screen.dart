@@ -8,6 +8,7 @@ import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/components/app_tappable.dart';
 import '../../core/components/avatar.dart';
+import '../../core/components/shimmer_view.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/feed.dart';
 import '../../core/models/friend.dart';
@@ -781,17 +782,21 @@ class _InboxLoadingShimmer extends StatelessWidget {
           ),
         );
 
-    return ListView(
-      padding: const EdgeInsets.only(top: AppSpacing.sm),
-      children: [
-        header(),
-        row(),
-        row(),
-        row(),
-        header(),
-        row(),
-        row(),
-      ],
+    return ShimmerView(
+      child: ListView(
+        padding: const EdgeInsets.only(
+          top: AppSpacing.sm,
+        ),
+        children: [
+          header(),
+          row(),
+          row(),
+          row(),
+          header(),
+          row(),
+          row(),
+        ],
+      ),
     );
   }
 }

@@ -125,6 +125,12 @@ abstract final class AppOpacity {
   /// 0.30 – medium overlay (disabled surface).
   static const double medium = 0.30;
 
-  /// 0.50 – strong scrim (modal backdrop).
-  static const double strong = 0.50;
+  /// 0.50 – half opacity, placeholder text, modal backdrop.
+  static const double half = 0.50;
+
+  /// 0.50 – alias for [half].
+  static const double strong = half;
+
+  /// 0.70 – prominent but not full opacity.
+  static const double high = 0.70;
 }

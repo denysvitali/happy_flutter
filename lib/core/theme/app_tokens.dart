@@ -209,28 +209,6 @@ abstract final class AppShadow {
   ];
 }
 
-// ─── Opacity ────────────────────────────────────────────────────────────────
-
-/// Opacity constants for consistent transparency levels.
-///
-/// Usage: `color.withValues(alpha: AppOpacity.medium)`
-abstract final class AppOpacity {
-  /// 0.08 – very faint backgrounds, disabled overlays.
-  static const double faint = 0.08;
-
-  /// 0.12 – subtle borders, dividers.
-  static const double subtle = 0.12;
-
-  /// 0.30 – secondary text, inactive icons.
-  static const double medium = 0.30;
-
-  /// 0.50 – half opacity, placeholder text.
-  static const double half = 0.50;
-
-  /// 0.70 – prominent but not full opacity.
-  static const double high = 0.70;
-}
-
 // ─── Borders ────────────────────────────────────────────────────────────────
 
 /// Border width constants.

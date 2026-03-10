@@ -21,6 +21,7 @@ class AppStatusDot extends StatefulWidget {
     this.pulse = false,
     this.pulseColor,
     this.margin,
+    this.semanticLabel,
   });
 
   /// The color of the dot.
@@ -39,6 +40,9 @@ class AppStatusDot extends StatefulWidget {
 
   /// Optional margin around the dot.
   final EdgeInsets? margin;
+
+  /// Optional semantic label for screen readers.
+  final String? semanticLabel;
 
   @override
   State<AppStatusDot> createState() => _AppStatusDotState();
@@ -125,6 +129,12 @@ class _AppStatusDotState extends State<AppStatusDot>
             ),
           );
         },
+      );
+    }
+    if (widget.semanticLabel != null) {
+      dot = Semantics(
+        label: widget.semanticLabel,
+        child: dot,
       );
     }
     if (widget.margin != null) {

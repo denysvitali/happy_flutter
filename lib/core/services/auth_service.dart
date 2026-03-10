@@ -107,7 +107,7 @@ class AuthService {
 
       final credentials =
           AuthCredentials(token: token, secret: base64Encode(secret));
-      await TokenStorage().setCredentials(credentials);
+      await _persistCredentials(credentials);
       _apiClient.updateToken(token);
     } else if (response.statusCode == 409) {
       throw AuthRequestError(
@@ -198,7 +198,7 @@ class AuthService {
 
               final credentials =
                   AuthCredentials(token: token, secret: base64Encode(secret));
-              await TokenStorage().setCredentials(credentials);
+              await _persistCredentials(credentials);
               _apiClient.updateToken(token);
               _pendingQRSecretKey = null;
 
@@ -264,7 +264,7 @@ class AuthService {
 
     final credentials =
         AuthCredentials(token: token, secret: base64Encode(secret));
-    await TokenStorage().setCredentials(credentials);
+    await _persistCredentials(credentials);
 
     return credentials;
   }
@@ -371,7 +371,7 @@ class AuthService {
 
       final credentials =
           AuthCredentials(token: token, secret: base64Encode(secret));
-      await TokenStorage().setCredentials(credentials);
+      await _persistCredentials(credentials);
       _apiClient.updateToken(token);
 
       return credentials;
@@ -527,7 +527,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
 
               final credentials =
                   AuthCredentials(token: token, secret: base64Encode(secret));
-              await TokenStorage().setCredentials(credentials);
+              await _persistCredentials(credentials);
               _apiClient.updateToken(token);
 
               return credentials;
@@ -692,6 +692,25 @@ Timestamp: ${DateTime.now().toIso8601String()}
     final uri = response.realUri.toString();
     final statusCode = response.statusCode;
     return 'URL: $uri\nStatus: $statusCode';
+  }
+
+  Future<void> _persistCredentials(AuthCredentials credentials) async {
+    final tokenStorage = TokenStorage();
+    final previous = await tokenStorage.getCredentials();
+    final changedAccountContext =
+        previous != null &&
+        (previous.token != credentials.token ||
+            previous.secret != credentials.secret);
+
+    if (changedAccountContext && sync.isInitialized) {
+      logger.info(
+        'Auth credentials changed; shutting down sync and clearing cached '
+        'encrypted state before reinitialization.',
+      );
+      await syncShutdown();
+    }
+
+    await tokenStorage.setCredentials(credentials);
   }
 
   /// Sign a challenge using Ed25519 detached signature

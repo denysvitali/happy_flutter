@@ -71,8 +71,8 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
             color: Theme.of(context)
                 .colorScheme
                 .outlineVariant
-                .withValues(alpha: 0.3),
-            width: 0.5,
+                .withValues(alpha: AppOpacity.medium),
+            width: AppBorder.hairline,
           ),
         ),
         color: Theme.of(context).scaffoldBackgroundColor,
@@ -207,8 +207,8 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                           const SizedBox(width: AppSpacing.xs),
                           Text(
                             connectionInfo.text,
-                            style: TextStyle(
-                              fontSize: 11,
+                            style: theme.textTheme.labelSmall
+                                ?.copyWith(
                               color: connectionInfo.color,
                               fontWeight: FontWeight.w500,
                             ),
@@ -288,8 +288,8 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                           const SizedBox(width: AppSpacing.xs),
                           Text(
                             connectionInfo.text,
-                            style: TextStyle(
-                              fontSize: 11,
+                            style: theme.textTheme.labelSmall
+                                ?.copyWith(
                               color: connectionInfo.color,
                               fontWeight: FontWeight.w500,
                             ),
@@ -364,7 +364,10 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
               ),
               child: Text(
                 friendRequestCount > 99 ? '99+' : friendRequestCount.toString(),
-                style: TextStyle(
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(
                   color: cs.onError,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
@@ -425,7 +428,9 @@ class _DefaultSessionContent extends ConsumerWidget {
             const SizedBox(height: AppSpacing.lg),
             Text(
               l10n.sessionNoSessionsYet,
-              style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -506,8 +511,7 @@ class _SessionListItem extends StatelessWidget {
                     if (session.metadata?.path != null)
                       Text(
                         session.metadata!.path!,
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: cs.onSurfaceVariant,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -519,7 +523,9 @@ class _SessionListItem extends StatelessWidget {
               // Timestamp
               Text(
                 _formatTimestamp(lastMessageTimestamp ?? session.updatedAt),
-                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
               ),
             ],
           ),

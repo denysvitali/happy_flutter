@@ -836,8 +836,14 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     }
 
     // Default fallback content
+    final toolId =
+        widget.tool['toolUseId'] as String? ??
+        widget.tool['id'] as String? ??
+        toolName;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm + 2,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -848,9 +854,14 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
               child: SmartOutputContainer(content: toolInput),
             ),
           if (state == ToolState.completed && toolResult != null)
-            ToolSectionView(
-              title: 'OUTPUT',
-              child: SmartOutputContainer(content: toolResult),
+            _CollapsibleOutput(
+              toolId: toolId,
+              child: ToolSectionView(
+                title: 'OUTPUT',
+                child: SmartOutputContainer(
+                  content: toolResult,
+                ),
+              ),
             ),
           if (state == ToolState.error &&
               toolResult != null &&
@@ -1199,6 +1210,121 @@ class _ToolDuration extends StatelessWidget {
   }
 }
 
+
+/// Wraps tool output in a height-constrained container with a
+/// "Show more" / "Show less" toggle button.
+///
+/// When collapsed the content is clipped at [_kCollapsedHeight]
+/// logical pixels. Tapping the toggle reveals or hides the full
+/// output with an animated transition.
+class _CollapsibleOutput extends StatefulWidget {
+  const _CollapsibleOutput({
+    required this.toolId,
+    required this.child,
+  });
+
+  /// Unique identifier used to track expansion state.
+  final String toolId;
+
+  /// The output content widget to wrap.
+  final Widget child;
+
+  @override
+  State<_CollapsibleOutput> createState() =>
+      _CollapsibleOutputState();
+}
+
+class _CollapsibleOutputState extends State<_CollapsibleOutput> {
+  static const double _kCollapsedHeight = 200;
+
+  bool _expanded = false;
+  final GlobalKey _contentKey = GlobalKey();
+  double? _contentHeight;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _measureContent();
+    });
+  }
+
+  void _measureContent() {
+    final box = _contentKey.currentContext
+        ?.findRenderObject() as RenderBox?;
+    if (box != null && mounted) {
+      setState(() {
+        _contentHeight = box.size.height;
+      });
+    }
+  }
+
+  bool get _needsCollapsing =>
+      _contentHeight != null &&
+      _contentHeight! > _kCollapsedHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    // If the content fits within the threshold, render it
+    // directly without any collapse mechanism.
+    if (!_needsCollapsing) {
+      return KeyedSubtree(
+        key: _contentKey,
+        child: widget.child,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedContainer(
+          duration: AppDuration.normal,
+          curve: AppCurve.standard,
+          constraints: BoxConstraints(
+            maxHeight: _expanded
+                ? _contentHeight!
+                : _kCollapsedHeight,
+          ),
+          clipBehavior: Clip.hardEdge,
+          decoration: const BoxDecoration(),
+          child: widget.child,
+        ),
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          behavior: HitTestBehavior.opaque,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: AppSpacing.xs,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _expanded
+                      ? Icons.expand_less
+                      : Icons.expand_more,
+                  size: 16,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  _expanded ? 'Show less' : 'Show more',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 /// A [CircularProgressIndicator] whose opacity pulses via [animation].
 class _PulsingProgressIndicator extends StatelessWidget {

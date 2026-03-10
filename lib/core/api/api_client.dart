@@ -57,15 +57,36 @@ class ApiClient {
           return handler.next(options);
         },
         onResponse: (response, handler) {
+          if (response.statusCode == 401) {
+            logger.warning(
+              'Received 401 - Unauthorized: '
+              '${response.realUri}',
+            );
+          }
           if (response.statusCode == 403) {
-            logger.info('Received 403 - Forbidden: ${response.realUri}');
+            logger.info(
+              'Received 403 - Forbidden: '
+              '${response.realUri}',
+            );
           }
           return handler.next(response);
         },
         onError: (DioException error, handler) {
-          logger.warning('Dio error: ${error.type} - ${error.message}');
+          logger.warning(
+            'Dio error: ${error.type} - '
+            '${error.message}',
+          );
+          if (error.response?.statusCode == 401) {
+            logger.warning(
+              '401 Unauthorized response: '
+              '${error.response?.data}',
+            );
+          }
           if (error.response?.statusCode == 403) {
-            logger.warning('403 Forbidden response: ${error.response?.data}');
+            logger.warning(
+              '403 Forbidden response: '
+              '${error.response?.data}',
+            );
           }
           return handler.next(error);
         },
@@ -199,10 +220,19 @@ class ApiClient {
   }
 
   /// Update authentication token
-  void updateToken(String token) {
+  void updateToken(String? token) {
+    if (token != null && token.isEmpty) {
+      logger.warning('Attempted to set empty auth token');
+      return;
+    }
     _authToken = token;
     if (_dio != null) {
-      _dio!.options.headers['Authorization'] = 'Bearer $token';
+      if (token != null) {
+        _dio!.options.headers['Authorization'] =
+            'Bearer $token';
+      } else {
+        _dio!.options.headers.remove('Authorization');
+      }
     }
   }
 
@@ -279,9 +309,11 @@ class ApiClient {
     );
   }
 
-  /// Check if response indicates authentication error (403)
-  bool isAuthError(Response response) {
-    return response.statusCode == 403;
+  /// Check if response indicates authentication error
+  /// (401 or 403)
+  bool isAuthError(Response<dynamic> response) {
+    return response.statusCode == 401 ||
+        response.statusCode == 403;
   }
 
   /// Check if response indicates success

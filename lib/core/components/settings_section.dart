@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 /// 36x36 rounded icon container used as the leading widget in settings rows.
@@ -21,13 +22,15 @@ class SettingsIconContainer extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final effectiveColor = color ?? cs.primary;
-    final bgAlpha = dark ? 40 : 25;
+    final bgAlpha = dark
+        ? AppOpacity.subtle  // 0.12
+        : AppOpacity.faint;  // 0.08
 
     return Container(
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        color: effectiveColor.withAlpha(bgAlpha),
+        color: effectiveColor.withValues(alpha: bgAlpha),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Icon(icon, size: 18, color: effectiveColor),
@@ -209,7 +212,7 @@ class SettingsNavRow extends StatelessWidget {
       trailing: Icon(
         Icons.chevron_right,
         size: 20,
-        color: cs.onSurface.withValues(alpha: 0.3),
+        color: cs.onSurface.withValues(alpha: AppOpacity.medium),
       ),
     );
   }
@@ -265,11 +268,10 @@ class SettingsSection extends StatelessWidget {
             ),
             child: Text(
               uppercase ? title!.toUpperCase() : title!,
-              style: theme.textTheme.labelSmall?.copyWith(
+              style: theme.textTheme.labelMedium?.copyWith(
                 color: danger ? cs.error : cs.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.8,
-                fontSize: 12,
               ),
             ),
           ),
@@ -313,7 +315,7 @@ class SettingsSection extends StatelessWidget {
         result.add(
           Divider(
             height: 1,
-            thickness: 0.5,
+            thickness: AppBorder.hairline,
             indent: _dividerIndent,
             endIndent: 0,
             color: cs.outlineVariant,

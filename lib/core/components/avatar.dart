@@ -494,9 +494,18 @@ class AvatarBrutalist extends StatelessWidget {
 
     final imagePath = _allImages[imageIndex];
     final colorPair = _colorPairs[colorIndex];
-    final tintColor = monochrome ? const Color(0xFF999999) : colorPair.tint;
-    final backgroundColor =
-        monochrome ? const Color(0xFFF0F0F0) : colorPair.background;
+    final isDark =
+        Theme.of(context).brightness == Brightness.dark;
+    final tintColor = monochrome
+        ? (isDark
+            ? const Color(0xFF888888)
+            : const Color(0xFF999999))
+        : colorPair.tint;
+    final backgroundColor = monochrome
+        ? Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+        : colorPair.background;
 
     final borderRadius = square ? 0.0 : size / 2;
 
@@ -666,8 +675,14 @@ class AvatarGradient extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.cover,
-        color: monochrome ? const Color(0xFF808080) : null,
-        colorBlendMode: monochrome ? BlendMode.saturation : BlendMode.srcIn,
+        color: monochrome
+            ? (Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF707070)
+                : const Color(0xFF808080))
+            : null,
+        colorBlendMode: monochrome
+            ? BlendMode.saturation
+            : BlendMode.srcIn,
         errorBuilder: (context, error, stackTrace) => Container(
           width: size,
           height: size,

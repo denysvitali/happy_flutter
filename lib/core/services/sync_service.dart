@@ -123,7 +123,11 @@ Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
           final d = await CryptoSecretBox.decrypt(encMeta, item.secretKey);
           if (d is Map<String, dynamic>) metadata = d;
         }
-      } catch (_) {}
+      } catch (e) {
+        logger.warning(
+          'Failed to decrypt machine metadata: $e',
+        );
+      }
     }
 
     final encDs = item.encryptedDaemonState;
@@ -139,7 +143,11 @@ Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
         } else {
           daemonState = await CryptoSecretBox.decrypt(encDs, item.secretKey);
         }
-      } catch (_) {}
+      } catch (e) {
+        logger.warning(
+          'Failed to decrypt machine daemon state: $e',
+        );
+      }
     }
 
     results.add(
@@ -171,7 +179,11 @@ Future<List<_ArtifactIsolateResult>> _decryptArtifactsInIsolate(
           item.secretKey,
         );
         if (d is Map<String, dynamic>) header = d;
-      } catch (_) {}
+      } catch (e) {
+        logger.warning(
+          'Failed to decrypt artifact header: $e',
+        );
+      }
     }
 
     final bRaw = item.encryptedBody;
@@ -184,7 +196,11 @@ Future<List<_ArtifactIsolateResult>> _decryptArtifactsInIsolate(
         if (d is Map<String, dynamic>) {
           body = {'body': d['body'] as String?};
         }
-      } catch (_) {}
+      } catch (e) {
+        logger.warning(
+          'Failed to decrypt artifact body: $e',
+        );
+      }
     }
 
     results.add(
@@ -1593,9 +1609,25 @@ what you have, you must use the options mode.
         _presenceTimers.clear();
         // Atomic update: build new map then swap to avoid the clear()
         // window where concurrent operations see an empty _sessions.
-        _sessions = Map<String, Session>.fromEntries(
+        final newSessions = Map<String, Session>.fromEntries(
           decryptedSessions.map((s) => MapEntry(s.id, s)),
         );
+        // Preserve recently-spawned optimistic sessions that the server
+        // hasn't propagated yet (replication lag). Without this, the full
+        // fetch wipes the placeholder added by createSession(), causing
+        // "Session not loaded" errors when the user tries to send a
+        // message immediately after creating a session.
+        final now = DateTime.now().millisecondsSinceEpoch;
+        for (final entry in _sessionSpawnedAt.entries) {
+          final sid = entry.key;
+          final spawnedAt = entry.value;
+          if (!newSessions.containsKey(sid) &&
+              _sessions.containsKey(sid) &&
+              now - spawnedAt < 30000) {
+            newSessions[sid] = _sessions[sid]!;
+          }
+        }
+        _sessions = newSessions;
       } else {
         // Delta fetch: merge updated sessions, cancel their stale timers.
         for (final session in decryptedSessions) {
@@ -2882,6 +2914,13 @@ what you have, you must use the options mode.
           presence: 'offline',
         );
         _notifyDataChanged();
+      }
+
+      // Pre-initialise messagesSync so the chat screen doesn't need to
+      // wait for onSessionVisible() — prevents a window where the user
+      // navigates to the chat screen before the sync entry exists.
+      if (!messagesSync.containsKey(sessionId)) {
+        onSessionVisible(sessionId);
       }
 
       return sessionId;

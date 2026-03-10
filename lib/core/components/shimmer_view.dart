@@ -35,9 +35,17 @@ class ShimmerView extends StatefulWidget {
   /// light and dark mode.
   final List<Color>? colors;
 
-  /// Default shimmer colors for light mode; used as a fallback when no
-  /// explicit [colors] are provided and the theme is light.
-  static const List<Color> _defaultColors = [
+  /// Default shimmer colors for dark mode.
+  static const List<Color> _defaultDarkColors = [
+    Color(0xFF2A2A2A),
+    Color(0xFF333333),
+    Color(0xFF3A3A3A),
+    Color(0xFF333333),
+    Color(0xFF2A2A2A),
+  ];
+
+  /// Default shimmer colors for light mode.
+  static const List<Color> _defaultLightColors = [
     Color(0xFFE0E0E0),
     Color(0xFFF0F0F0),
     Color(0xFFF8F8F8),
@@ -110,17 +118,12 @@ class _ShimmerViewState extends State<ShimmerView>
         return RepaintBoundary(
           child: ShaderMask(
             shaderCallback: (bounds) {
-              final cs = Theme.of(context).colorScheme;
+              final isDark = Theme.of(context).brightness ==
+                  Brightness.dark;
               final resolvedColors = widget.colors ??
-                  (cs.brightness == Brightness.dark
-                      ? [
-                          cs.surfaceContainerLowest,
-                          cs.surfaceContainer,
-                          cs.surfaceContainerHigh,
-                          cs.surfaceContainer,
-                          cs.surfaceContainerLowest,
-                        ]
-                      : ShimmerView._defaultColors);
+                  (isDark
+                      ? ShimmerView._defaultDarkColors
+                      : ShimmerView._defaultLightColors);
             return LinearGradient(
                 colors: resolvedColors,
                 stops: const [0.0, 0.2, 0.5, 0.8, 1.0],

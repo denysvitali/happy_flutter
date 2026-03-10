@@ -86,6 +86,7 @@ class _SessionsScreenState
   );
   final _searchController = TextEditingController();
   bool _isSearching = false;
+  Timer? _searchDebounce;
 
   @override
   void initState() {
@@ -164,6 +165,7 @@ class _SessionsScreenState
     _selectionNotifier
       ..removeListener(_onSelectionChanged)
       ..dispose();
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _syncSubscription?.cancel();
     super.dispose();
@@ -269,7 +271,15 @@ class _SessionsScreenState
             hintText: l10n.commonSearch,
             border: InputBorder.none,
           ),
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) {
+            _searchDebounce?.cancel();
+            _searchDebounce = Timer(
+              const Duration(milliseconds: 300),
+              () {
+                if (mounted) setState(() {});
+              },
+            );
+          },
         ),
         actions: [
           if (_searchController.text.isNotEmpty)

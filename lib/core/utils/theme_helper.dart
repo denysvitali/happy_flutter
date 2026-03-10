@@ -306,7 +306,7 @@ InputDecorationTheme _buildInputDecorationTheme({required bool dark}) {
     fillColor: dark ? _kDarkSurfaceVariant : _kLightSurfaceVariant,
     contentPadding: EdgeInsets.symmetric(
       horizontal: AppSpacing.lg,
-      vertical: 14,
+      vertical: AppSpacing.lg,
     ),
     border: OutlineInputBorder(
       borderRadius: radius,
@@ -318,7 +318,10 @@ InputDecorationTheme _buildInputDecorationTheme({required bool dark}) {
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: radius,
-      borderSide: const BorderSide(color: focusColor, width: 2),
+      borderSide: const BorderSide(
+        color: focusColor,
+        width: AppBorder.thick,
+      ),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: radius,
@@ -326,8 +329,10 @@ InputDecorationTheme _buildInputDecorationTheme({required bool dark}) {
     ),
     focusedErrorBorder: OutlineInputBorder(
       borderRadius: radius,
-      borderSide:
-          const BorderSide(color: Color(0xFFEF4444), width: 2),
+      borderSide: const BorderSide(
+        color: Color(0xFFEF4444),
+        width: AppBorder.thick,
+      ),
     ),
     hintStyle: GoogleFonts.inter(
       fontSize: 14,
@@ -384,7 +389,7 @@ ElevatedButtonThemeData _buildElevatedButtonTheme() {
       elevation: AppElevation.none,
       padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.xxl,
-        vertical: 14,
+        vertical: AppSpacing.lg,
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -421,7 +426,7 @@ FilledButtonThemeData _buildFilledButtonTheme() {
       padding: WidgetStatePropertyAll(
         EdgeInsets.symmetric(
           horizontal: AppSpacing.xxl,
-          vertical: 14,
+          vertical: AppSpacing.lg,
         ),
       ),
       shape: WidgetStatePropertyAll(
@@ -487,14 +492,16 @@ OutlinedButtonThemeData _buildOutlinedButtonTheme({
             states.contains(WidgetState.focused) ? 255 : 120;
         return BorderSide(
           color: _kSeedColor.withAlpha(alpha),
-          width: states.contains(WidgetState.focused) ? 2 : 1,
+          width: states.contains(WidgetState.focused)
+              ? AppBorder.thick
+              : AppBorder.thin,
         );
       }),
       elevation: const WidgetStatePropertyAll(AppElevation.none),
       padding: WidgetStatePropertyAll(
         EdgeInsets.symmetric(
           horizontal: AppSpacing.xxl,
-          vertical: 14,
+          vertical: AppSpacing.lg,
         ),
       ),
       shape: WidgetStatePropertyAll(
@@ -565,8 +572,8 @@ DividerThemeData _buildDividerTheme({required bool dark}) {
     color: dark
         ? Colors.white.withAlpha(15)
         : Colors.black.withAlpha(10),
-    thickness: 0.5,
-    space: 0.5,
+    thickness: AppBorder.hairline,
+    space: AppBorder.hairline,
   );
 }
 
@@ -576,7 +583,7 @@ BottomSheetThemeData _buildBottomSheetTheme({required bool dark}) {
     surfaceTintColor: Colors.transparent,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
-        top: Radius.circular(20),
+        top: Radius.circular(AppRadius.xl),
       ),
     ),
     showDragHandle: true,
@@ -591,7 +598,7 @@ DialogThemeData _buildDialogTheme({required bool dark}) {
     backgroundColor: dark ? _kDarkSurface : _kLightSurface,
     surfaceTintColor: Colors.transparent,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(AppRadius.xl),
     ),
     titleTextStyle: GoogleFonts.dmSans(
       fontSize: 20,
@@ -616,7 +623,7 @@ SnackBarThemeData _buildSnackBarTheme({required bool dark}) {
       color: Colors.white,
     ),
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadius.md),
     ),
     behavior: SnackBarBehavior.floating,
     elevation: 4,

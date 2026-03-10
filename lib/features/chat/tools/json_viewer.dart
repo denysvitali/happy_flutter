@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../../core/services/logger_service.dart';
 import '../../../core/theme/app_tokens.dart';
 
 // ---------------------------------------------------------------------------
@@ -117,7 +118,11 @@ class SmartOutputContainer extends StatelessWidget {
       if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
         try {
           return (true, jsonDecode(unwrapped));
-        } catch (_) {}
+        } catch (e) {
+          logger.warning(
+            'Failed to parse JSON in viewer: $e',
+          );
+        }
       }
       return (false, null);
     }

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../../../platform_io.dart'
     if (dart.library.js_interop) '../../../platform_stub.dart';
 import '../../i18n/app_localizations.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/app_tokens.dart';
 
 /// Tab type for the app
@@ -64,7 +65,7 @@ class _TabBadge extends StatelessWidget {
           fontSize: 10,
           color: cs.onError,
           fontWeight: FontWeight.w600,
-          height: 1,
+          height: AppLineHeight.tight,
         ),
         textAlign: TextAlign.center,
       ),
@@ -146,8 +147,8 @@ class _TabItem extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context);
     final activeColor = colorScheme.primary;
-    final inactiveColor =
-        colorScheme.onSurface.withValues(alpha: 0.5);
+    final inactiveColor = colorScheme.onSurface
+        .withValues(alpha: AppOpacity.half);
     final itemColor = isActive ? activeColor : inactiveColor;
 
     return Expanded(
@@ -208,7 +209,6 @@ class _TabItem extends StatelessWidget {
               Text(
                 label,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: 11,
                   color: itemColor,
                   fontWeight: isActive
                       ? FontWeight.w700
@@ -310,7 +310,8 @@ class _TabBarState extends State<TabBar> {
         // Subtle top border instead of a hard shadow line
         border: Border(
           top: BorderSide(
-            color: colorScheme.onSurface.withValues(alpha: 0.08),
+            color: colorScheme.onSurface.withValues(
+                alpha: AppOpacity.faint),
           ),
         ),
         // Frosted glass elevation on iOS; clean card on Android
@@ -520,7 +521,8 @@ class SegmentTabBar extends StatelessWidget {
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
                                     color: colorScheme.onSurface
-                                        .withValues(alpha: 0.6),
+                                        .withValues(
+                                            alpha: AppOpacity.high),
                                     height: AppLineHeight.tight,
                                   )),
                         ),

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/logger_service.dart';
 import 'tools/json_viewer.dart';
 import 'tools/known_tools.dart';
 import 'tools/tool_status_indicator.dart';
@@ -367,7 +368,9 @@ class _ToolResultSection extends StatelessWidget {
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
       try {
         return jsonDecode(t);
-      } catch (_) {}
+      } catch (e) {
+        logger.warning('Failed to parse JSON: $e');
+      }
     }
     return null;
   }
