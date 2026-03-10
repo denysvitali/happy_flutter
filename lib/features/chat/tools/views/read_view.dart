@@ -5,6 +5,7 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 
 import '../tool_section_view.dart';
+import '../tool_view_colors.dart';
 import 'bash_view.dart' show FilePillChip;
 
 /// View for displaying Read tool file content preview.
@@ -201,12 +202,13 @@ class _FileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final c = ToolViewColors.of(context);
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
+        color: c.bg,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: const Color(0xFF30363D)),
+        border: Border.all(color: c.border),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -217,14 +219,14 @@ class _FileHeader extends StatelessWidget {
               horizontal: AppSpacing.sm + 2,
               vertical: AppSpacing.sm - 2,
             ),
-            decoration: const BoxDecoration(
-              color: Color(0xFF161B22),
-              borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+              color: c.headerBg,
+              borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(AppRadius.sm),
                 topRight: Radius.circular(AppRadius.sm),
               ),
               border: Border(
-                bottom: BorderSide(color: Color(0xFF30363D)),
+                bottom: BorderSide(color: c.border),
               ),
             ),
             child: Row(
@@ -234,10 +236,10 @@ class _FileHeader extends StatelessWidget {
                 Expanded(
                   child: Text(
                     resolvedPath,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 12,
-                      color: Color(0xFFE6EDF3),
+                      color: c.primaryText,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -259,7 +261,7 @@ class _FileHeader extends StatelessWidget {
                 Text(
                   'read',
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: const Color(0xFF8B949E),
+                    color: c.mutedText,
                     fontFamily: 'monospace',
                     letterSpacing: 0.4,
                   ),
@@ -272,16 +274,17 @@ class _FileHeader extends StatelessWidget {
                       vertical: 1,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1F2937),
-                      borderRadius: BorderRadius.circular(AppRadius.xs - 1),
-                      border: Border.all(color: const Color(0xFF374151)),
+                      color: c.chipBg,
+                      borderRadius:
+                          BorderRadius.circular(AppRadius.xs - 1),
+                      border: Border.all(color: c.chipBorder),
                     ),
                     child: Text(
                       extension.replaceFirst('.', ''),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'monospace',
                         fontSize: 10,
-                        color: Color(0xFF60A5FA),
+                        color: c.blue,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -437,21 +440,23 @@ class _MetaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm - 1,
         vertical: AppSpacing.xs - 1,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2937),
+        color: c.chipBg,
         borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: const Color(0xFF374151)),
+        border: Border.all(color: c.chipBorder),
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
-          color: Color(0xFF8B949E),
+          color: c.mutedText,
           fontFamily: 'monospace',
         ),
       ),
@@ -476,6 +481,7 @@ class _ContentBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
     final lines = content.split('\n');
     final totalLines = lines.length;
     final needsTruncation = totalLines > maxLines;
@@ -486,9 +492,9 @@ class _ContentBlock extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
+        color: c.bg,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: const Color(0xFF30363D)),
+        border: Border.all(color: c.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -510,10 +516,10 @@ class _ContentBlock extends StatelessWidget {
                 Expanded(
                   child: SelectableText(
                     visibleLines.join('\n'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 12,
-                      color: Color(0xFFE6EDF3),
+                      color: c.primaryText,
                       height: 1.5,
                     ),
                   ),
@@ -542,6 +548,7 @@ class _LineNumbers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
     final buffer = StringBuffer();
     for (var i = 0; i < count; i++) {
       if (i > 0) buffer.write('\n');
@@ -550,10 +557,10 @@ class _LineNumbers extends StatelessWidget {
 
     return SelectableText(
       buffer.toString(),
-      style: const TextStyle(
+      style: TextStyle(
         fontFamily: 'monospace',
         fontSize: 12,
-        color: Color(0xFF484F58),
+        color: c.lineNumberText,
         height: 1.5,
       ),
       textAlign: TextAlign.right,
@@ -574,15 +581,17 @@ class _ShowMoreButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
+
     return InkWell(
       onTap: onToggle,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm - 2),
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0xFF30363D))),
-          color: Color(0xFF161B22),
-          borderRadius: BorderRadius.only(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: c.border)),
+          color: c.headerBg,
+          borderRadius: const BorderRadius.only(
             bottomLeft: Radius.circular(AppRadius.sm),
             bottomRight: Radius.circular(AppRadius.sm),
           ),
@@ -593,7 +602,7 @@ class _ShowMoreButton extends StatelessWidget {
             Icon(
               expanded ? Icons.expand_less : Icons.expand_more,
               size: 14,
-              color: const Color(0xFF8B949E),
+              color: c.mutedText,
             ),
             const SizedBox(width: AppSpacing.xs),
             Text(
@@ -601,9 +610,9 @@ class _ShowMoreButton extends StatelessWidget {
                   ? 'Show less'
                   : 'Show $hiddenCount more line'
                       '${hiddenCount == 1 ? '' : 's'}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                color: Color(0xFF8B949E),
+                color: c.mutedText,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -638,6 +647,8 @@ class _CopyButtonState extends State<_CopyButton> {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
+
     return GestureDetector(
       onTap: _handleCopy,
       child: AnimatedSwitcher(
@@ -646,9 +657,7 @@ class _CopyButtonState extends State<_CopyButton> {
           _copied ? Icons.check : Icons.copy,
           key: ValueKey(_copied),
           size: widget.iconSize,
-          color: _copied
-              ? const Color(0xFF3FB950)
-              : const Color(0xFF8B949E),
+          color: _copied ? c.copyIconDone : c.copyIcon,
         ),
       ),
     );

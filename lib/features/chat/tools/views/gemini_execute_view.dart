@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../tool_section_view.dart';
+import '../tool_view_colors.dart';
 
 /// View for displaying Gemini execute tool (lowercase 'execute').
 class GeminiExecuteView extends StatefulWidget {
@@ -167,12 +168,13 @@ class _TerminalCommandBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final c = ToolViewColors.of(context);
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
+        color: c.bg,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF30363D)),
+        border: Border.all(color: c.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,39 +186,39 @@ class _TerminalCommandBar extends StatelessWidget {
               horizontal: 10,
               vertical: 6,
             ),
-            decoration: const BoxDecoration(
-              color: Color(0xFF161B22),
-              borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+              color: c.headerBg,
+              borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(8),
                 topRight: Radius.circular(8),
               ),
               border: Border(
-                bottom: BorderSide(color: Color(0xFF30363D)),
+                bottom: BorderSide(color: c.border),
               ),
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.terminal,
                   size: 14,
-                  color: Color(0xFF8B949E),
+                  color: c.mutedText,
                 ),
                 const SizedBox(width: 6),
                 Text(
                   'execute',
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: const Color(0xFF8B949E),
+                    color: c.mutedText,
                     fontFamily: 'monospace',
                     letterSpacing: 0.5,
                   ),
                 ),
                 if (cwd != null && cwd!.isNotEmpty) ...[
                   const SizedBox(width: 8),
-                  const Text(
-                    '·',
+                  Text(
+                    '\u00b7',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF484F58),
+                      color: c.lineNumberText,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -224,10 +226,10 @@ class _TerminalCommandBar extends StatelessWidget {
                     child: Text(
                       cwd!,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'monospace',
                         fontSize: 11,
-                        color: Color(0xFF484F58),
+                        color: c.lineNumberText,
                       ),
                     ),
                   ),
@@ -246,12 +248,12 @@ class _TerminalCommandBar extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   r'$',
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 13,
-                    color: Color(0xFF3FB950),
+                    color: c.green,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -259,10 +261,10 @@ class _TerminalCommandBar extends StatelessWidget {
                 Expanded(
                   child: SelectableText(
                     command,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 13,
-                      color: Color(0xFFE6EDF3),
+                      color: c.primaryText,
                       height: 1.4,
                     ),
                   ),
@@ -278,30 +280,30 @@ class _TerminalCommandBar extends StatelessWidget {
                 horizontal: 12,
                 vertical: 7,
               ),
-              decoration: const BoxDecoration(
-                color: Color(0xFF161B22),
+              decoration: BoxDecoration(
+                color: c.headerBg,
                 border: Border(
-                  top: BorderSide(color: Color(0xFF30363D)),
+                  top: BorderSide(color: c.border),
                 ),
-                borderRadius: BorderRadius.only(
+                borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(8),
                   bottomRight: Radius.circular(8),
                 ),
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.info_outline,
                     size: 12,
-                    color: Color(0xFF58A6FF),
+                    color: c.blue,
                   ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       description!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF8B949E),
+                        color: c.mutedText,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -339,6 +341,7 @@ class _TerminalOutputSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final c = ToolViewColors.of(context);
     final lines = output.split('\n');
     final totalLines = lines.length;
     final needsTruncation = totalLines > maxLines;
@@ -347,12 +350,9 @@ class _TerminalOutputSection extends StatelessWidget {
         : lines.take(maxLines).toList();
     final visibleText = visibleLines.join('\n');
 
-    final labelColor =
-        isError ? const Color(0xFFF85149) : const Color(0xFF8B949E);
-    final borderColor =
-        isError ? const Color(0xFF5A1E1E) : const Color(0xFF30363D);
-    final bgColor =
-        isError ? const Color(0xFF160B0B) : const Color(0xFF0D1117);
+    final labelColor = isError ? c.red : c.mutedText;
+    final borderColor = isError ? c.errorBorder : c.border;
+    final bgColor = isError ? c.errorBg : c.bg;
 
     return Container(
       margin: const EdgeInsets.only(top: 6),
@@ -371,7 +371,7 @@ class _TerminalOutputSection extends StatelessWidget {
               vertical: 5,
             ),
             decoration: BoxDecoration(
-              color: const Color(0xFF161B22),
+              color: c.headerBg,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(8),
                 topRight: Radius.circular(8),
@@ -381,12 +381,12 @@ class _TerminalOutputSection extends StatelessWidget {
             child: Row(
               children: [
                 if (isError)
-                  const Padding(
-                    padding: EdgeInsets.only(right: 5),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 5),
                     child: Icon(
                       Icons.error_outline,
                       size: 13,
-                      color: Color(0xFFF85149),
+                      color: c.red,
                     ),
                   ),
                 Text(
@@ -403,7 +403,7 @@ class _TerminalOutputSection extends StatelessWidget {
                 Text(
                   '$totalLines line${totalLines == 1 ? '' : 's'}',
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: const Color(0xFF484F58),
+                    color: c.lineNumberText,
                     fontSize: 10,
                   ),
                 ),
@@ -419,9 +419,7 @@ class _TerminalOutputSection extends StatelessWidget {
               style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 12,
-                color: isError
-                    ? const Color(0xFFFFA198)
-                    : const Color(0xFFE6EDF3),
+                color: isError ? c.errorText : c.primaryText,
                 height: 1.5,
               ),
             ),
@@ -450,13 +448,12 @@ class _ExitCodeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
     final isSuccess = exitCode == 0;
-    final color =
-        isSuccess ? const Color(0xFF3FB950) : const Color(0xFFF85149);
-    final bgColor =
-        isSuccess ? const Color(0xFF0D2818) : const Color(0xFF2D1117);
+    final color = isSuccess ? c.green : c.red;
+    final bgColor = isSuccess ? c.greenBadgeBg : c.redBadgeBg;
     final borderColor =
-        isSuccess ? const Color(0xFF1A4328) : const Color(0xFF5A1E1E);
+        isSuccess ? c.greenBadgeBorder : c.redBadgeBorder;
 
     return Padding(
       padding: const EdgeInsets.only(top: 6),
@@ -516,6 +513,8 @@ class _ShowMoreButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
+
     return InkWell(
       onTap: onToggle,
       child: Container(
@@ -523,7 +522,7 @@ class _ShowMoreButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: borderColor)),
-          color: const Color(0xFF161B22),
+          color: c.headerBg,
           borderRadius: const BorderRadius.only(
             bottomLeft: Radius.circular(8),
             bottomRight: Radius.circular(8),
@@ -535,7 +534,7 @@ class _ShowMoreButton extends StatelessWidget {
             Icon(
               expanded ? Icons.expand_less : Icons.expand_more,
               size: 14,
-              color: const Color(0xFF8B949E),
+              color: c.mutedText,
             ),
             const SizedBox(width: 4),
             Text(
@@ -543,9 +542,9 @@ class _ShowMoreButton extends StatelessWidget {
                   ? 'Show less'
                   : 'Show $hiddenCount more '
                       'line${hiddenCount == 1 ? '' : 's'}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                color: Color(0xFF8B949E),
+                color: c.mutedText,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -584,6 +583,8 @@ class _CopyButtonState extends State<_CopyButton> {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
+
     return GestureDetector(
       onTap: _handleCopy,
       child: AnimatedSwitcher(
@@ -592,9 +593,7 @@ class _CopyButtonState extends State<_CopyButton> {
           _copied ? Icons.check : Icons.copy,
           key: ValueKey(_copied),
           size: widget.iconSize,
-          color: _copied
-              ? const Color(0xFF3FB950)
-              : const Color(0xFF8B949E),
+          color: _copied ? c.copyIconDone : c.copyIcon,
         ),
       ),
     );

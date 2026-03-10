@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../tool_section_view.dart';
+import '../tool_view_colors.dart';
 
 /// File change model for CodexPatch results.
 class FileChange {
@@ -65,6 +66,7 @@ class CodexPatchView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
     final input = tool['input'] as Map<String, dynamic>? ?? {};
     final changes = input['changes'] as Map<String, dynamic>?;
     final autoApproved = input['auto_approved'] as bool?;
@@ -78,9 +80,9 @@ class CodexPatchView extends StatelessWidget {
     return ToolSectionView(
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF0D1117),
+          color: c.bg,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF30363D)),
+          border: Border.all(color: c.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,33 +132,34 @@ class _PatchHeaderBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final c = ToolViewColors.of(context);
     final label =
         '$fileCount file${fileCount != 1 ? 's' : ''} changed';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: const BoxDecoration(
-        color: Color(0xFF161B22),
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: c.headerBg,
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(8),
           topRight: Radius.circular(8),
         ),
         border: Border(
-          bottom: BorderSide(color: Color(0xFF30363D)),
+          bottom: BorderSide(color: c.border),
         ),
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.edit_note,
             size: 14,
-            color: Color(0xFF8B949E),
+            color: c.mutedText,
           ),
           const SizedBox(width: 6),
           Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
-              color: const Color(0xFF8B949E),
+              color: c.mutedText,
               fontFamily: 'monospace',
               letterSpacing: 0.5,
             ),
@@ -169,26 +172,26 @@ class _PatchHeaderBar extends StatelessWidget {
                 vertical: 2,
               ),
               decoration: BoxDecoration(
-                color: const Color(0xFF0D2818),
+                color: c.greenBadgeBg,
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(
-                  color: const Color(0xFF1A4328),
+                  color: c.greenBadgeBorder,
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
+                children: [
                   Icon(
                     Icons.check_circle_outline,
                     size: 11,
-                    color: Color(0xFF3FB950),
+                    color: c.green,
                   ),
-                  SizedBox(width: 4),
+                  const SizedBox(width: 4),
                   Text(
                     'auto-approved',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF3FB950),
+                      color: c.green,
                       fontWeight: FontWeight.w500,
                       fontFamily: 'monospace',
                     ),
@@ -263,27 +266,29 @@ class _FileChangeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
+
     final IconData icon;
     final Color iconColor;
 
     if (change.hasDelete && !change.hasAdd && !change.hasModify) {
       icon = Icons.delete_forever_outlined;
-      iconColor = const Color(0xFFF85149);
+      iconColor = c.red;
     } else if (change.hasAdd && !change.hasModify && !change.hasDelete) {
       icon = Icons.add_circle_outline;
-      iconColor = const Color(0xFF3FB950);
+      iconColor = c.green;
     } else {
       icon = Icons.edit_outlined;
-      iconColor = const Color(0xFF58A6FF);
+      iconColor = c.blue;
     }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF161B22),
+          color: c.headerBg,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFF30363D)),
+          border: Border.all(color: c.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,18 +315,18 @@ class _FileChangeRow extends StatelessWidget {
                             if (change.dir.isNotEmpty)
                               TextSpan(
                                 text: change.dir,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: 'monospace',
                                   fontSize: 12,
-                                  color: Color(0xFF8B949E),
+                                  color: c.mutedText,
                                 ),
                               ),
                             TextSpan(
                               text: change.displayName,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'monospace',
                                 fontSize: 12,
-                                color: Color(0xFFE6EDF3),
+                                color: c.primaryText,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -337,7 +342,7 @@ class _FileChangeRow extends StatelessWidget {
                           ? Icons.expand_less
                           : Icons.expand_more,
                       size: 14,
-                      color: const Color(0xFF484F58),
+                      color: c.lineNumberText,
                     ),
                   ],
                 ),
@@ -364,19 +369,21 @@ class _OperationChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C2128),
+        color: c.chipBg,
         borderRadius: BorderRadius.circular(3),
-        border: Border.all(color: const Color(0xFF30363D)),
+        border: Border.all(color: c.chipBorder),
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'monospace',
           fontSize: 10,
-          color: Color(0xFF8B949E),
+          color: c.mutedText,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -395,6 +402,7 @@ class _FileChangeDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
     final sections = <Widget>[];
 
     void addSection(
@@ -414,29 +422,20 @@ class _FileChangeDetail extends StatelessWidget {
       );
     }
 
-    addSection(
-      'add',
-      changeData['add'] as Map<String, dynamic>?,
-      const Color(0xFF3FB950),
-    );
-    addSection(
-      'modify',
-      changeData['modify'] as Map<String, dynamic>?,
-      const Color(0xFF58A6FF),
-    );
-    addSection(
-      'delete',
-      changeData['delete'] as Map<String, dynamic>?,
-      const Color(0xFFF85149),
-    );
+    addSection('add', changeData['add'] as Map<String, dynamic>?,
+        c.green);
+    addSection('modify', changeData['modify'] as Map<String, dynamic>?,
+        c.blue);
+    addSection('delete', changeData['delete'] as Map<String, dynamic>?,
+        c.red);
 
     if (sections.isEmpty) return const SizedBox.shrink();
 
     return Container(
       padding: const EdgeInsets.only(left: 10, right: 10, bottom: 10),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: Color(0xFF30363D)),
+          top: BorderSide(color: c.border),
         ),
       ),
       child: Column(
@@ -461,6 +460,8 @@ class _DetailSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
+
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Column(
@@ -497,16 +498,16 @@ class _DetailSection extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF0D1117),
+              color: c.bg,
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: const Color(0xFF30363D)),
+              border: Border.all(color: c.border),
             ),
             child: SelectableText(
               content,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 11,
-                color: Color(0xFFE6EDF3),
+                color: c.primaryText,
                 height: 1.5,
               ),
             ),
@@ -545,6 +546,8 @@ class _CopyButtonState extends State<_CopyButton> {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
+
     return GestureDetector(
       onTap: _handleCopy,
       child: AnimatedSwitcher(
@@ -553,9 +556,7 @@ class _CopyButtonState extends State<_CopyButton> {
           _copied ? Icons.check : Icons.copy,
           key: ValueKey(_copied),
           size: widget.iconSize,
-          color: _copied
-              ? const Color(0xFF3FB950)
-              : const Color(0xFF8B949E),
+          color: _copied ? c.copyIconDone : c.copyIcon,
         ),
       ),
     );

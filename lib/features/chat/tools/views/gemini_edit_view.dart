@@ -4,6 +4,7 @@ import 'package:happy_flutter/core/ui/diff/diff_view.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 
 import '../tool_section_view.dart';
+import '../tool_view_colors.dart';
 
 /// View for displaying Gemini edit tool (lowercase 'edit').
 class GeminiEditView extends StatefulWidget {
@@ -27,6 +28,7 @@ class _GeminiEditViewState extends State<GeminiEditView> {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
     final input = widget.tool['input'] as Map<String, dynamic>? ?? {};
 
     String? filePath;
@@ -87,15 +89,15 @@ class _GeminiEditViewState extends State<GeminiEditView> {
     return ToolSectionView(
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF0D1117),
+          color: c.bg,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF30363D)),
+          border: Border.all(color: c.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Header bar ───────────────────────────────────
+            // -- Header bar
             _EditHeaderBar(
               resolvedPath: resolvedPath,
               hasContent: hasContent,
@@ -103,7 +105,7 @@ class _GeminiEditViewState extends State<GeminiEditView> {
               newLines: newLines,
             ),
 
-            // ── Expand / collapse ────────────────────────────
+            // -- Expand / collapse
             if (hasContent && !isShort)
               _ExpandToggle(
                 expanded: _expanded,
@@ -112,7 +114,7 @@ class _GeminiEditViewState extends State<GeminiEditView> {
                     setState(() => _expanded = !_expanded),
               ),
 
-            // ── Diff content ─────────────────────────────────
+            // -- Diff content
             if (hasContent && showDiff)
               _EditDiffBody(
                 oldText: trimmedOld,
@@ -158,6 +160,7 @@ class _EditHeaderBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
     final lastSlash = resolvedPath.lastIndexOf('/');
     final dir = lastSlash >= 0
         ? resolvedPath.substring(0, lastSlash + 1)
@@ -168,22 +171,22 @@ class _EditHeaderBar extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: const BoxDecoration(
-        color: Color(0xFF161B22),
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: c.headerBg,
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(8),
           topRight: Radius.circular(8),
         ),
         border: Border(
-          bottom: BorderSide(color: Color(0xFF30363D)),
+          bottom: BorderSide(color: c.border),
         ),
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.edit_document,
             size: 14,
-            color: Color(0xFF58A6FF),
+            color: c.blue,
           ),
           const SizedBox(width: 6),
           Expanded(
@@ -194,18 +197,18 @@ class _EditHeaderBar extends StatelessWidget {
                   if (dir.isNotEmpty)
                     TextSpan(
                       text: dir,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'monospace',
                         fontSize: 12,
-                        color: Color(0xFF8B949E),
+                        color: c.mutedText,
                       ),
                     ),
                   TextSpan(
                     text: filename,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: 12,
-                      color: Color(0xFFE6EDF3),
+                      color: c.primaryText,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -217,20 +220,20 @@ class _EditHeaderBar extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               '-$oldLines',
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 12,
-                color: Color(0xFFF85149),
+                color: c.red,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(width: 6),
             Text(
               '+$newLines',
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 12,
-                color: Color(0xFF3FB950),
+                color: c.green,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -258,6 +261,8 @@ class _ExpandToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
+
     return InkWell(
       onTap: onToggle,
       child: Container(
@@ -266,9 +271,9 @@ class _ExpandToggle extends StatelessWidget {
           horizontal: 12,
           vertical: 7,
         ),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: Color(0xFF30363D)),
+            bottom: BorderSide(color: c.border),
           ),
         ),
         child: Row(
@@ -277,16 +282,16 @@ class _ExpandToggle extends StatelessWidget {
             Icon(
               expanded ? Icons.expand_less : Icons.expand_more,
               size: 14,
-              color: const Color(0xFF58A6FF),
+              color: c.blue,
             ),
             const SizedBox(width: 4),
             Text(
               expanded
                   ? 'Hide diff'
                   : 'Show diff ($totalLines lines)',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: Color(0xFF58A6FF),
+                color: c.blue,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -312,6 +317,8 @@ class _EditDiffBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = ToolViewColors.of(context);
+
     return ClipRRect(
       clipBehavior: Clip.hardEdge,
       borderRadius: const BorderRadius.only(
@@ -321,28 +328,12 @@ class _EditDiffBody extends StatelessWidget {
       child: DiffView(
         oldText: oldText,
         newText: newText,
-        config: const DiffViewConfig(
+        config: DiffViewConfig(
           showLineNumbers: true,
           showPlusMinusSymbols: true,
           showDiffStats: false,
           contextLines: 3,
-          theme: DiffTheme(
-            addedBg: Color(0xFF0D2818),
-            addedText: Color(0xFF3FB950),
-            removedBg: Color(0xFF2D1117),
-            removedText: Color(0xFFF85149),
-            contextBg: Colors.transparent,
-            contextText: Color(0xFFE6EDF3),
-            lineNumberBg: Color(0xFF161B22),
-            lineNumberText: Color(0xFF484F58),
-            hunkHeaderBg: Color(0xFF1C2128),
-            hunkHeaderText: Color(0xFF8B949E),
-            inlineAddedBg: Color(0xFF1A4328),
-            inlineAddedText: Color(0xFF3FB950),
-            inlineRemovedBg: Color(0xFF5A1E1E),
-            inlineRemovedText: Color(0xFFF85149),
-            leadingSpaceDot: Color(0xFF484F58),
-          ),
+          theme: c.diffTheme,
         ),
       ),
     );
