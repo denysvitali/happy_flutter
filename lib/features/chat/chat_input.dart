@@ -520,6 +520,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         hintText: l10n.chatInputHint,
         hintStyle: theme.textTheme.bodyMedium?.copyWith(color: hintColor),
         filled: false,
+        isDense: true,
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,
