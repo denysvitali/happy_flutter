@@ -22,7 +22,6 @@ import 'widgets/chat_loading_shimmer.dart';
 import 'widgets/empty_chat_view.dart';
 import 'widgets/permission_mode_selector.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
-import 'widgets/typing_indicator.dart';
 
 /// Chat screen for a session
 class ChatScreen extends ConsumerStatefulWidget {
@@ -669,9 +668,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     }
 
-    final isThinking = _session?.thinking ?? false;
-    final typingOffset = isThinking ? 1 : 0;
-
     return ListView.builder(
       controller: _scrollController,
       reverse: true,
@@ -679,20 +675,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         top: AppSpacing.xsm,
         bottom: AppSpacing.xs,
       ),
-      itemCount:
-          items.length + (showHeader ? 1 : 0) + typingOffset,
+      itemCount: items.length + (showHeader ? 1 : 0),
       findChildIndexCallback: (key) {
         if (key is! ValueKey<String>) return null;
-        final i = keyToListIndex[key.value];
-        return i == null ? null : i + typingOffset;
+        return keyToListIndex[key.value];
       },
       itemBuilder: (context, index) {
-        if (isThinking && index == 0) {
-          return const TypingIndicator(
-            key: ValueKey('typing-indicator'),
-          );
-        }
-        final adjusted = index - typingOffset;
+        final adjusted = index;
         if (showHeader && adjusted == items.length) {
           if (hasLocalMore || isLoadingFromServer) {
             return Center(
