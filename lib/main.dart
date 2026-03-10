@@ -51,6 +51,7 @@ import 'features/settings/claude_connect_screen.dart';
 import 'features/settings/developer_screen.dart';
 import 'features/settings/features_settings_screen.dart';
 import 'features/settings/language_settings_screen.dart';
+import 'features/settings/machines_screen.dart';
 import 'features/settings/profiles_screen.dart';
 import 'features/settings/server_settings_screen.dart';
 import 'features/settings/settings_screen.dart';
@@ -333,6 +334,12 @@ class _HappyAppState extends ConsumerState<HappyApp>
           name: 'devices',
           builder: (context, state) =>
               const AuthGate(child: LinkedDevicesScreen()),
+        ),
+        GoRoute(
+          path: '/settings/machines',
+          name: 'machines',
+          pageBuilder: (context, state) =>
+              _slidePage(const AuthGate(child: MachinesScreen()), state),
         ),
         GoRoute(
           path: '/settings/theme',

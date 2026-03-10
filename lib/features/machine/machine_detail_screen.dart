@@ -114,6 +114,7 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
       final response = await ApiClient().delete('/v1/machines/$machineId');
       if (!context.mounted) return;
       if (ApiClient().isSuccess(response)) {
+        ref.read(machinesNotifierProvider.notifier).remove(machineId);
         sync.machinesSync.invalidate();
         context.pop();
       } else {

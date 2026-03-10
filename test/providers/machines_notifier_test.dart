@@ -88,11 +88,26 @@ void main() {
       expect(state, isEmpty);
     });
 
+    test('remove should ignore unknown machine ids', () {
+      final notifier = container.read(machinesNotifierProvider.notifier);
+
+      notifier.remove('missing-machine');
+
+      expect(container.read(machinesNotifierProvider), isEmpty);
+    });
+
+    test('remove should delete an existing machine from state', () {
+      final notifier = container.read(machinesNotifierProvider.notifier);
+      final machine = createTestMachine(id: 'machine-1', host: 'host-1');
+
+      notifier.state = {'machine-1': machine};
+      notifier.remove('machine-1');
+
+      expect(container.read(machinesNotifierProvider), isEmpty);
+    });
+
     test('should create machines with correct structure', () {
-      final machine = createTestMachine(
-        id: 'machine-1',
-        host: 'test-host-1',
-      );
+      final machine = createTestMachine(id: 'machine-1', host: 'test-host-1');
 
       expect(machine.id, 'machine-1');
       expect(machine.metadata?.host, 'test-host-1');
@@ -166,11 +181,7 @@ void main() {
           happyHomeDir: 'C:\\Users\\test\\.happy',
           homeDir: 'C:\\Users\\test',
         ),
-        daemonState: {
-          'status': 'running',
-          'pid': 1234,
-          'uptime': 3600,
-        },
+        daemonState: {'status': 'running', 'pid': 1234, 'uptime': 3600},
       );
 
       expect(machine.daemonState, isNotNull);

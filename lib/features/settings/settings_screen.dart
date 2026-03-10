@@ -120,9 +120,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: AppSpacing.lg),
           _buildAboutSection(context),
           const SizedBox(height: AppSpacing.xl),
-          _DangerZone(
-            onSignOut: () => confirmSignOut(context, ref),
-          ),
+          _DangerZone(onSignOut: () => confirmSignOut(context, ref)),
           const SizedBox(height: AppSpacing.xxxl),
         ],
       ),
@@ -158,9 +156,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     .read(profileNotifierProvider.notifier)
                     .refreshFromSync();
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(claudeMsg)),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(claudeMsg)));
               } catch (error) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -189,9 +187,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     .read(profileNotifierProvider.notifier)
                     .refreshFromSync();
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(githubMsg)),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(githubMsg)));
               } catch (error) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -421,38 +419,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   ) {
     if (machines.isEmpty) return const SizedBox.shrink();
 
-    final cs = Theme.of(context).colorScheme;
-    final machineList = machines.values.toList()
-      ..sort((a, b) {
-        if (a.active == b.active) {
-          return b.activeAt.compareTo(a.activeAt);
-        }
-        return a.active ? -1 : 1;
-      });
-
     final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsMachines,
-      children: machineList
-          .map((machine) {
-            final metadata = machine.metadata;
-            final title = metadata?.displayName ?? metadata?.host ?? machine.id;
-            final onlineStatus = machine.active
-                ? l10n.machineOnline
-                : l10n.machineOffline;
-            final subtitle =
-                '${metadata?.platform ?? l10n.commonUnknown}'
-                ' • $onlineStatus';
-            return SettingsRow(
-              icon: Icons.computer_outlined,
-              iconColor: machine.active
-                  ? cs.primary
-                  : cs.onSurface.withValues(alpha: 0.4),
-              title: title,
-              subtitle: subtitle,
-            );
-          })
-          .toList(growable: false),
+      children: [
+        SettingsNavRow(
+          icon: Icons.computer_outlined,
+          title: l10n.settingsMachines,
+          subtitle:
+              machines.values.first.metadata?.displayName ??
+              machines.values.first.metadata?.host,
+          onTap: () => context.pushNamed('machines'),
+        ),
+      ],
     );
   }
 
@@ -486,6 +465,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: l10n.accountAccountSettings,
           subtitle: l10n.settingsAccountSubtitle,
           onTap: () => context.pushNamed('account'),
+        ),
+        SettingsNavRow(
+          icon: Icons.devices_outlined,
+          title: l10n.accountLinkedDevices,
+          subtitle: l10n.accountLinkedDevicesSubtitle,
+          onTap: () => context.pushNamed('devices'),
         ),
       ],
     );
@@ -1014,21 +999,15 @@ class _InlineThemePicker extends StatelessWidget {
                 final selected = m.$1 == currentMode;
                 return Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 3,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
                     child: Material(
                       color: selected
                           ? cs.primaryContainer
                           : cs.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(
-                        AppRadius.sm,
-                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
                       child: InkWell(
                         onTap: () => onChanged(m.$1),
-                        borderRadius: BorderRadius.circular(
-                          AppRadius.sm,
-                        ),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             vertical: AppSpacing.sm,
@@ -1046,8 +1025,7 @@ class _InlineThemePicker extends StatelessWidget {
                               const SizedBox(height: 4),
                               Text(
                                 m.$3,
-                                style: theme.textTheme.labelSmall
-                                    ?.copyWith(
+                                style: theme.textTheme.labelSmall?.copyWith(
                                   color: selected
                                       ? cs.onPrimaryContainer
                                       : cs.onSurfaceVariant,

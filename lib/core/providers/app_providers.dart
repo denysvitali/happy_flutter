@@ -20,7 +20,6 @@ import '../services/logger_service.dart' show logger;
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
 
-
 // Sentinel for distinguishing 'not provided' from null
 const Object _unset = Object();
 
@@ -194,6 +193,13 @@ class MachinesNotifier extends Notifier<Map<String, Machine>> {
     loadFromSync();
   }
 
+  void remove(String machineId) {
+    if (!state.containsKey(machineId)) {
+      return;
+    }
+    state = Map<String, Machine>.from(state)..remove(machineId);
+  }
+
   void clear() {
     state = {};
   }
@@ -236,9 +242,7 @@ class SettingsNotifier extends Notifier<Settings> {
     if (sync.isInitialized) {
       // Profiles must be serialized to JSON maps for applySettings.
       final syncValue = key == 'profiles'
-          ? (value as List<AIBackendProfile>)
-              .map((p) => p.toJson())
-              .toList()
+          ? (value as List<AIBackendProfile>).map((p) => p.toJson()).toList()
           : value;
       await sync.applySettings({key: syncValue});
     }
@@ -250,61 +254,75 @@ class SettingsNotifier extends Notifier<Settings> {
       'schemaVersion' => settings.copyWith(schemaVersion: value as int),
       'themeMode' => settings.copyWith(themeMode: value as String),
       'viewInline' => settings.copyWith(viewInline: value as bool),
-      'inferenceOpenAIKey' =>
-          settings.copyWith(inferenceOpenAIKey: value as String?),
+      'inferenceOpenAIKey' => settings.copyWith(
+        inferenceOpenAIKey: value as String?,
+      ),
       'expandTodos' => settings.copyWith(expandTodos: value as bool),
       'showLineNumbers' => settings.copyWith(showLineNumbers: value as bool),
-      'showLineNumbersInToolViews' =>
-          settings.copyWith(showLineNumbersInToolViews: value as bool),
+      'showLineNumbersInToolViews' => settings.copyWith(
+        showLineNumbersInToolViews: value as bool,
+      ),
       'wrapLinesInDiffs' => settings.copyWith(wrapLinesInDiffs: value as bool),
       'analyticsOptOut' => settings.copyWith(analyticsOptOut: value as bool),
       'experiments' => settings.copyWith(experiments: value as bool),
       'markdownCopyV2' => settings.copyWith(markdownCopyV2: value as bool),
-      'useEnhancedSessionWizard' =>
-          settings.copyWith(useEnhancedSessionWizard: value as bool),
-      'alwaysShowContextSize' =>
-          settings.copyWith(alwaysShowContextSize: value as bool),
-      'agentInputEnterToSend' =>
-          settings.copyWith(agentInputEnterToSend: value as bool),
-      'developerModeEnabled' =>
-          settings.copyWith(developerModeEnabled: value as bool),
+      'useEnhancedSessionWizard' => settings.copyWith(
+        useEnhancedSessionWizard: value as bool,
+      ),
+      'alwaysShowContextSize' => settings.copyWith(
+        alwaysShowContextSize: value as bool,
+      ),
+      'agentInputEnterToSend' => settings.copyWith(
+        agentInputEnterToSend: value as bool,
+      ),
+      'developerModeEnabled' => settings.copyWith(
+        developerModeEnabled: value as bool,
+      ),
       'avatarStyle' => settings.copyWith(avatarStyle: value as String),
       'showFlavorIcons' => settings.copyWith(showFlavorIcons: value as bool),
-      'compactSessionView' =>
-          settings.copyWith(compactSessionView: value as bool),
-      'hideInactiveSessions' =>
-          settings.copyWith(hideInactiveSessions: value as bool),
-      'reviewPromptAnswered' =>
-          settings.copyWith(reviewPromptAnswered: value as bool),
-      'reviewPromptLikedApp' =>
-          settings.copyWith(reviewPromptLikedApp: value as bool?),
+      'compactSessionView' => settings.copyWith(
+        compactSessionView: value as bool,
+      ),
+      'hideInactiveSessions' => settings.copyWith(
+        hideInactiveSessions: value as bool,
+      ),
+      'reviewPromptAnswered' => settings.copyWith(
+        reviewPromptAnswered: value as bool,
+      ),
+      'reviewPromptLikedApp' => settings.copyWith(
+        reviewPromptLikedApp: value as bool?,
+      ),
       'ttsEnabled' => settings.copyWith(ttsEnabled: value as bool),
-      'voiceAssistantLanguage' =>
-          settings.copyWith(voiceAssistantLanguage: value as String?),
-      'preferredLanguage' =>
-          settings.copyWith(preferredLanguage: value as String?),
+      'voiceAssistantLanguage' => settings.copyWith(
+        voiceAssistantLanguage: value as String?,
+      ),
+      'preferredLanguage' => settings.copyWith(
+        preferredLanguage: value as String?,
+      ),
       'usagePeriod' => settings.copyWith(usagePeriod: value as String),
       'lastUsedAgent' => settings.copyWith(lastUsedAgent: value as String?),
-      'lastUsedPermissionMode' =>
-          settings.copyWith(lastUsedPermissionMode: value as String?),
-      'lastUsedModelMode' =>
-          settings.copyWith(lastUsedModelMode: value as String?),
+      'lastUsedPermissionMode' => settings.copyWith(
+        lastUsedPermissionMode: value as String?,
+      ),
+      'lastUsedModelMode' => settings.copyWith(
+        lastUsedModelMode: value as String?,
+      ),
       // copyWith uses ??, so passing null keeps old value.
       // Use JSON roundtrip to correctly clear the field.
-      'lastUsedProfile' => Settings.fromJson(
-          {...settings.toJson(), 'lastUsedProfile': value},
-        ),
+      'lastUsedProfile' => Settings.fromJson({
+        ...settings.toJson(),
+        'lastUsedProfile': value,
+      }),
       'profiles' => settings.copyWith(
-          profiles: value as List<AIBackendProfile>,
-        ),
+        profiles: value as List<AIBackendProfile>,
+      ),
       _ => settings,
     };
   }
 }
 
 /// WebSocket connection provider
-class ConnectionNotifier
-    extends Notifier<socket_io.ConnectionStatus> {
+class ConnectionNotifier extends Notifier<socket_io.ConnectionStatus> {
   void Function()? _unsubscribe;
 
   @override
@@ -354,10 +372,7 @@ class CurrentSessionNotifier extends Notifier<Session?> {
 
   void updateModelMode(String? mode) {
     if (state != null) {
-      state = state!.copyWith(
-        modelMode: mode,
-        clearModelMode: mode == null,
-      );
+      state = state!.copyWith(modelMode: mode, clearModelMode: mode == null);
     }
   }
 
@@ -452,14 +467,11 @@ class ProfileNotifier extends Notifier<Profile?> {
 
 /// Artifacts provider
 final artifactsNotifierProvider =
-    NotifierProvider<ArtifactsNotifier, Map<String, DecryptedArtifact>>(
-      () {
-        return ArtifactsNotifier();
-      },
-    );
+    NotifierProvider<ArtifactsNotifier, Map<String, DecryptedArtifact>>(() {
+      return ArtifactsNotifier();
+    });
 
-class ArtifactsNotifier
-    extends Notifier<Map<String, DecryptedArtifact>> {
+class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
   @override
   Map<String, DecryptedArtifact> build() => {};
 
@@ -526,10 +538,7 @@ class FriendsNotifier extends Notifier<FriendsState> {
         listEquals(state.pendingRequests, nextRequests)) {
       return;
     }
-    state = state.copyWith(
-      friends: nextFriends,
-      pendingRequests: nextRequests,
-    );
+    state = state.copyWith(friends: nextFriends, pendingRequests: nextRequests);
   }
 
   Future<void> refreshFromSync() async {
@@ -589,7 +598,6 @@ class FriendsNotifier extends Notifier<FriendsState> {
 }
 
 class FriendsState {
-
   FriendsState({this.friends = const [], this.pendingRequests = const []});
   final List<UserProfile> friends;
   final List<FriendRequest> pendingRequests;
@@ -612,10 +620,8 @@ class FriendsState {
       .where((f) => f.status == RelationshipStatus.friend)
       .toList();
 
-  List<FriendRequest> get incomingRequests =>
-      _incomingRequests ??= pendingRequests
-          .where((r) => r.status == 'pending')
-          .toList();
+  List<FriendRequest> get incomingRequests => _incomingRequests ??=
+      pendingRequests.where((r) => r.status == 'pending').toList();
 }
 
 /// Feed/activity provider
@@ -659,7 +665,6 @@ class FeedNotifier extends Notifier<FeedState> {
 }
 
 class FeedState {
-
   FeedState({this.items = const [], this.notifications = const []});
   final List<FeedItem> items;
   final List<AppNotification> notifications;
@@ -709,9 +714,7 @@ class TodoStateNotifier extends Notifier<TodoListState> {
   }
 
   void setTodoList(TodoList list) {
-    state = state.copyWith(
-      lists: {...state.lists, list.sessionId: list},
-    );
+    state = state.copyWith(lists: {...state.lists, list.sessionId: list});
   }
 
   void addTodo(String sessionId, TodoItem item) {
@@ -722,9 +725,7 @@ class TodoStateNotifier extends Notifier<TodoListState> {
         items: updatedItems,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
-      state = state.copyWith(
-        lists: {...state.lists, sessionId: updatedList},
-      );
+      state = state.copyWith(lists: {...state.lists, sessionId: updatedList});
     }
   }
 
@@ -745,9 +746,7 @@ class TodoStateNotifier extends Notifier<TodoListState> {
         items: updatedItems,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
-      state = state.copyWith(
-        lists: {...state.lists, sessionId: updatedList},
-      );
+      state = state.copyWith(lists: {...state.lists, sessionId: updatedList});
     }
   }
 
@@ -761,9 +760,7 @@ class TodoStateNotifier extends Notifier<TodoListState> {
         items: updatedItems,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
-      state = state.copyWith(
-        lists: {...state.lists, sessionId: updatedList},
-      );
+      state = state.copyWith(lists: {...state.lists, sessionId: updatedList});
     }
   }
 
@@ -776,9 +773,7 @@ class TodoStateNotifier extends Notifier<TodoListState> {
     final list = state.lists[sessionId];
     if (list != null) {
       final parentChanged = !identical(newParentId, _unset);
-      final resolvedParentId = parentChanged
-          ? newParentId as String?
-          : null;
+      final resolvedParentId = parentChanged ? newParentId as String? : null;
       final updatedItems = list.items.map((item) {
         if (item.id == todoId) {
           return item.copyWith(
@@ -796,9 +791,7 @@ class TodoStateNotifier extends Notifier<TodoListState> {
         items: updatedItems,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       );
-      state = state.copyWith(
-        lists: {...state.lists, sessionId: updatedList},
-      );
+      state = state.copyWith(lists: {...state.lists, sessionId: updatedList});
     }
   }
 
