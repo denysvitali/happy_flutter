@@ -75,6 +75,24 @@ class SessionsApi {
     return allSessions;
   }
 
+  /// Fetch a single session by ID.
+  /// Returns the raw session map (encrypted), or null if not found.
+  Future<Map<String, dynamic>?> fetchSessionById(String sessionId) async {
+    try {
+      final response = await _client.get('/v1/sessions/$sessionId');
+
+      if (!_isSuccess(response)) {
+        return null;
+      }
+
+      final data = response.data as Map<String, dynamic>;
+      return data['session'] as Map<String, dynamic>?;
+    } catch (e) {
+      logger.warning('fetchSessionById failed for $sessionId: $e');
+      return null;
+    }
+  }
+
   /// Delete a session by ID
   Future<void> deleteSession(String sessionId) async {
     final response = await _client.delete('/v1/sessions/$sessionId');

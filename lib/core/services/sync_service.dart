@@ -1642,6 +1642,123 @@ what you have, you must use the options mode.
     }
   }
 
+  /// Fetch a single session by ID from the server, decrypt it, and add it to
+  /// the local cache. Returns the session if found, or null otherwise.
+  /// This avoids a full session list re-fetch when only one session is needed.
+  Future<Session?> fetchSingleSession(String sessionId) async {
+    try {
+      final apiClient = ApiClient();
+      final raw = await SessionsApi(client: apiClient).fetchSessionById(
+        sessionId,
+      );
+      if (raw == null) return null;
+
+      // Initialize encryption for this session.
+      final dataEncryptionKey = WireParsers.parseString(
+        raw['dataEncryptionKey'],
+      );
+      Uint8List? sessionKey;
+      if (dataEncryptionKey != null) {
+        _sessionEncryptedDataKeys[sessionId] = dataEncryptionKey;
+        try {
+          sessionKey = await encryption.decryptEncryptionKey(dataEncryptionKey);
+          if (sessionKey != null) {
+            _sessionDataKeys[sessionId] = sessionKey;
+          }
+        } catch (e) {
+          logger.info(
+            '[Encryption] DEK decryption threw for single session '
+            '$sessionId: $e — falling back to legacy encryption.',
+          );
+        }
+      } else {
+        _sessionEncryptedDataKeys.remove(sessionId);
+      }
+      await encryption.initializeSessions({sessionId: sessionKey});
+
+      final sessionEncryption = encryption.getSessionEncryption(sessionId);
+
+      // Decrypt metadata and agent state.
+      final metadataVersion = _asSessionInt(raw['metadataVersion']) ?? 0;
+      final agentStateVersion = _asSessionInt(raw['agentStateVersion']) ?? 0;
+
+      Map<String, dynamic>? metadata;
+      Map<String, dynamic>? agentState;
+      if (sessionEncryption != null) {
+        try {
+          metadata = await sessionEncryption.decryptMetadata(
+            metadataVersion,
+            WireParsers.parseString(raw['metadata']) ?? '',
+          );
+        } catch (e) {
+          logger.warning('fetchSingleSession: decrypt metadata failed', e);
+        }
+        try {
+          agentState = await sessionEncryption.decryptAgentState(
+            agentStateVersion,
+            WireParsers.parseString(raw['agentState']),
+          );
+        } catch (e) {
+          logger.warning('fetchSingleSession: decrypt agentState failed', e);
+        }
+      }
+
+      Metadata? parsedMetadata;
+      if (metadata != null) {
+        try {
+          parsedMetadata = Metadata.fromJson(metadata);
+        } catch (e) {
+          logger.warning(
+            'fetchSingleSession: parse metadata failed for $sessionId',
+            e,
+          );
+        }
+      }
+
+      AgentState? parsedAgentState;
+      if (agentState != null && agentState.isNotEmpty) {
+        try {
+          parsedAgentState = AgentState.fromJson(agentState);
+        } catch (e) {
+          logger.warning(
+            'fetchSingleSession: parse agentState failed for $sessionId',
+            e,
+          );
+        }
+      }
+
+      final session = Session(
+        id: sessionId,
+        seq: _asSessionInt(raw['seq']) ?? 0,
+        createdAt:
+            _asSessionInt(raw['createdAt']) ??
+            DateTime.now().millisecondsSinceEpoch,
+        updatedAt:
+            _asSessionInt(raw['updatedAt']) ??
+            DateTime.now().millisecondsSinceEpoch,
+        active: _asSessionBool(raw['active']) ?? false,
+        activeAt:
+            _asSessionInt(raw['activeAt']) ??
+            DateTime.now().millisecondsSinceEpoch,
+        metadata: parsedMetadata,
+        metadataVersion: metadataVersion,
+        agentState: parsedAgentState,
+        agentStateVersion: agentStateVersion,
+        thinking: false,
+        presence: _sessions[sessionId]?.presence ?? 'offline',
+        lastSeq: _asSessionInt(raw['lastSeq']),
+      );
+
+      _sessions[sessionId] = session;
+      _notifyDataChanged();
+      _scheduleSaveSessionsCache();
+      return session;
+    } catch (error, stack) {
+      logger.error('fetchSingleSession failed for $sessionId', error, stack);
+      return null;
+    }
+  }
+
   /// Fetch machines from server
   Future<void> fetchMachines() async {
     logger.info('Fetching machines...');
@@ -3263,8 +3380,13 @@ what you have, you must use the options mode.
   }) async {
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
-      await sessionsSync.invalidateAndAwait();
+      // Try fetching just this session before doing a full list re-fetch.
+      await fetchSingleSession(sessionId);
       sessionEncryption = encryption.getSessionEncryption(sessionId);
+      if (sessionEncryption == null) {
+        await sessionsSync.invalidateAndAwait();
+        sessionEncryption = encryption.getSessionEncryption(sessionId);
+      }
       if (sessionEncryption == null) {
         _forceFullFetchNext = true;
         await sessionsSync.invalidateAndAwait();
@@ -3277,9 +3399,13 @@ what you have, you must use the options mode.
 
     var session = _sessions[sessionId];
     if (session == null) {
-      _forceFullFetchNext = true;
-      await sessionsSync.invalidateAndAwait();
-      session = _sessions[sessionId];
+      // Try fetching just this session instead of a full list re-fetch.
+      session = await fetchSingleSession(sessionId);
+      if (session == null) {
+        _forceFullFetchNext = true;
+        await sessionsSync.invalidateAndAwait();
+        session = _sessions[sessionId];
+      }
     }
     if (session == null) {
       final now = DateTime.now().millisecondsSinceEpoch;
