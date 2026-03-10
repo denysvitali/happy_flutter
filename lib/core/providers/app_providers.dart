@@ -72,7 +72,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
 
           // syncRestore() already kicks off the initial server sync.
           // Await those queues here instead of triggering a second full wave.
-          await Future.wait([
+          await Future.wait<void>([
             sync.sessionsSync.awaitQueue(),
             sync.machinesSync.awaitQueue(),
             sync.settingsSync.awaitQueue(),
@@ -81,7 +81,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
             sync.feedSync.awaitQueue(),
             sync.artifactsSync.awaitQueue(),
             sync.todosSync.awaitQueue(),
-          ]);
+          ], eagerError: false);
           ref.read(sessionsNotifierProvider.notifier).loadFromSync();
           ref.read(machinesNotifierProvider.notifier).loadFromSync();
           ref.read(settingsNotifierProvider.notifier).loadFromSync();
@@ -162,7 +162,11 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     if (!sync.isInitialized) {
       return;
     }
-    await sync.refreshSessions();
+    try {
+      await sync.refreshSessions();
+    } catch (e) {
+      logger.warning('Failed to refresh sessions: $e');
+    }
     loadFromSync();
   }
 
@@ -189,7 +193,11 @@ class MachinesNotifier extends Notifier<Map<String, Machine>> {
     if (!sync.isInitialized) {
       return;
     }
-    await sync.refreshMachines();
+    try {
+      await sync.refreshMachines();
+    } catch (e) {
+      logger.warning('Failed to refresh machines: $e');
+    }
     loadFromSync();
   }
 
@@ -232,8 +240,12 @@ class SettingsNotifier extends Notifier<Settings> {
     if (!sync.isInitialized) {
       return;
     }
-    await sync.settingsSync.invalidateAndAwait();
-    state = sync.settingsSnapshot;
+    try {
+      await sync.settingsSync.invalidateAndAwait();
+    } catch (e) {
+      logger.warning('Failed to refresh settings: $e');
+    }
+    loadFromSync();
   }
 
   Future<void> updateSetting<T>(String key, T value) async {
@@ -432,7 +444,11 @@ class ProfileNotifier extends Notifier<Profile?> {
     if (!sync.isInitialized) {
       return;
     }
-    await sync.profileSync.invalidateAndAwait();
+    try {
+      await sync.profileSync.invalidateAndAwait();
+    } catch (e) {
+      logger.warning('Failed to refresh profile: $e');
+    }
     loadFromSync();
   }
 
@@ -510,7 +526,11 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
     if (!sync.isInitialized) {
       return;
     }
-    await sync.artifactsSync.invalidateAndAwait();
+    try {
+      await sync.artifactsSync.invalidateAndAwait();
+    } catch (e) {
+      logger.warning('Failed to refresh artifacts: $e');
+    }
     loadFromSync();
   }
 
@@ -545,7 +565,11 @@ class FriendsNotifier extends Notifier<FriendsState> {
     if (!sync.isInitialized) {
       return;
     }
-    await sync.friendsSync.invalidateAndAwait();
+    try {
+      await sync.friendsSync.invalidateAndAwait();
+    } catch (e) {
+      logger.warning('Failed to refresh friends: $e');
+    }
     loadFromSync();
   }
 
@@ -644,7 +668,11 @@ class FeedNotifier extends Notifier<FeedState> {
     if (!sync.isInitialized) {
       return;
     }
-    await sync.feedSync.invalidateAndAwait();
+    try {
+      await sync.feedSync.invalidateAndAwait();
+    } catch (e) {
+      logger.warning('Failed to refresh feed: $e');
+    }
     loadFromSync();
   }
 
@@ -709,7 +737,11 @@ class TodoStateNotifier extends Notifier<TodoListState> {
     if (!sync.isInitialized) {
       return;
     }
-    await sync.todosSync.invalidateAndAwait();
+    try {
+      await sync.todosSync.invalidateAndAwait();
+    } catch (e) {
+      logger.warning('Failed to refresh todos: $e');
+    }
     loadFromSync();
   }
 
@@ -846,7 +878,11 @@ class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
     if (!sync.isInitialized) {
       return;
     }
-    await sync.sessionGitStatusSync.invalidateAndAwait();
+    try {
+      await sync.sessionGitStatusSync.invalidateAndAwait();
+    } catch (e) {
+      logger.warning('Failed to refresh git status: $e');
+    }
     loadFromSync();
   }
 
