@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:math';
 
+import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -1669,6 +1670,8 @@ what you have, you must use the options mode.
       _lastSessionsFetchedAt = fetchStartMs;
       _scheduleSaveSessionsCache();
       _notifyDataChanged();
+    } on DioException {
+      rethrow;
     } catch (error, stack) {
       logger.error('Error fetching sessions', error, stack);
     }
@@ -2056,8 +2059,14 @@ what you have, you must use the options mode.
         ..clear()
         ..addAll(decryptedArtifacts);
       logger.info('Fetched artifacts: ${_artifacts.length}');
+    } on DioException {
+      rethrow;
     } catch (error, stack) {
-      logger.error('Failed to fetch artifacts', error, stack);
+      logger.error(
+        'Failed to fetch artifacts',
+        error,
+        stack,
+      );
     }
   }
 
@@ -2213,8 +2222,14 @@ what you have, you must use the options mode.
         'Fetched friends: ${_friends.length}, '
         'pending requests: ${_friendRequests.length}',
       );
+    } on DioException {
+      rethrow;
     } catch (error, stack) {
-      logger.error('Failed to fetch friends', error, stack);
+      logger.error(
+        'Failed to fetch friends',
+        error,
+        stack,
+      );
     }
   }
 
@@ -2254,6 +2269,8 @@ what you have, you must use the options mode.
         ..clear()
         ..addAll(parsed);
       logger.info('Fetched feed items: ${_feedItems.length}');
+    } on DioException {
+      rethrow;
     } catch (error, stack) {
       logger.error('Failed to fetch feed', error, stack);
     }
@@ -2301,6 +2318,8 @@ what you have, you must use the options mode.
         'Fetched todos: ${parsedTodoLists.length} list(s),'
         ' $totalItems item(s)',
       );
+    } on DioException {
+      rethrow;
     } catch (error, stack) {
       logger.error('Failed to fetch todos', error, stack);
     }
@@ -2627,8 +2646,14 @@ what you have, you must use the options mode.
       } else {
         logger.warning('Failed to fetch settings: ${response.statusCode}');
       }
+    } on DioException {
+      rethrow;
     } catch (error, stack) {
-      logger.error('Error syncing settings', error, stack);
+      logger.error(
+        'Error syncing settings',
+        error,
+        stack,
+      );
     }
   }
 
@@ -2671,8 +2696,14 @@ what you have, you must use the options mode.
       } else {
         logger.warning('Failed to fetch profile: ${response.statusCode}');
       }
+    } on DioException {
+      rethrow;
     } catch (error, stack) {
-      logger.error('Error fetching profile', error, stack);
+      logger.error(
+        'Error fetching profile',
+        error,
+        stack,
+      );
     }
   }
 
@@ -4478,8 +4509,14 @@ what you have, you must use the options mode.
       }
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged();
+    } on DioException {
+      rethrow;
     } catch (error, stack) {
-      logger.error('Error fetching messages', error, stack);
+      logger.error(
+        'Error fetching messages',
+        error,
+        stack,
+      );
     }
   }
 
