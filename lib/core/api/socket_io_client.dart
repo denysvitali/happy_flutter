@@ -222,19 +222,19 @@ class SocketIoClient {
     _messageHandlers.remove(event);
   }
 
-  /// Update auth token and reconnect if needed
-  void updateToken(String newToken) {
-    if (_authToken != newToken) {
-      _authToken = newToken;
-
-      if (_socket != null) {
-        disconnect();
-        connect(
-          serverUrl: _serverUrl!,
-          token: newToken,
-          clientType: _clientType ?? 'user-scoped',
-        );
-      }
+  /// Update the auth token for the current connection.
+  ///
+  /// If connected, disconnects and reconnects with the new token
+  /// to ensure the server accepts the updated credentials.
+  void updateToken(String token) {
+    if (_authToken == token) return;
+    _authToken = token;
+    if (_socket != null && _serverUrl != null) {
+      // Update auth on existing socket for next reconnect
+      _socket!.auth = {
+        'token': token,
+        'clientType': _clientType ?? 'user-scoped',
+      };
     }
   }
 
