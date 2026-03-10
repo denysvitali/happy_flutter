@@ -1,7 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/components/app_status_dot.dart';
 import '../../core/ui/avatars/avatar_brutalist.dart';
 import '../../core/ui/avatars/avatar_gradient.dart';
 import '../../core/ui/avatars/avatar_pixelated.dart';
@@ -28,7 +27,6 @@ class SessionAvatar extends StatelessWidget {
     this.showFlavorIcon = true,
     this.square = false,
     this.monochrome = false,
-    this.presence,
   });
 
   /// The unique ID used to generate consistent avatar colors and selection.
@@ -57,10 +55,6 @@ class SessionAvatar extends StatelessWidget {
 
   /// Whether to render in monochrome mode.
   final bool monochrome;
-
-  /// Session presence status ('online' or 'offline').
-  /// When 'online', a green dot is shown at bottom-right.
-  final String? presence;
 
   @override
   Widget build(BuildContext context) {
@@ -105,8 +99,7 @@ class SessionAvatar extends StatelessWidget {
       ),
     );
 
-    final showPresence = presence == 'online';
-    if (showFlavorIcon && flavor != null || showPresence) {
+    if (showFlavorIcon && flavor != null) {
       return Stack(
         children: [
           SizedBox(
@@ -114,25 +107,15 @@ class SessionAvatar extends StatelessWidget {
             height: size,
             child: avatarWidget,
           ),
-          if (showFlavorIcon && flavor != null)
-            Positioned(
-              bottom: -2,
-              right: -2,
-              child: _buildFlavorIcon(
-                effectiveFlavor,
-                circleSize,
-                iconSize,
-              ),
+          Positioned(
+            bottom: -2,
+            right: -2,
+            child: _buildFlavorIcon(
+              effectiveFlavor,
+              circleSize,
+              iconSize,
             ),
-          if (showPresence)
-            const Positioned(
-              bottom: 0,
-              right: 0,
-              child: AppStatusDot(
-                color: Colors.green,
-                size: 8,
-              ),
-            ),
+          ),
         ],
       );
     }
@@ -156,30 +139,19 @@ class SessionAvatar extends StatelessWidget {
       AvatarStyle.brutalist => AvatarBrutalist(id: id, size: size),
     };
 
-    final showPresence = presence == 'online';
-    if (showFlavorIcon && flavor != null || showPresence) {
+    if (showFlavorIcon && flavor != null) {
       return Stack(
         children: [
           avatarWidget,
-          if (showFlavorIcon && flavor != null)
-            Positioned(
-              bottom: -2,
-              right: -2,
-              child: _buildFlavorIcon(
-                effectiveFlavor,
-                circleSize,
-                iconSize,
-              ),
+          Positioned(
+            bottom: -2,
+            right: -2,
+            child: _buildFlavorIcon(
+              effectiveFlavor,
+              circleSize,
+              iconSize,
             ),
-          if (showPresence)
-            const Positioned(
-              bottom: 0,
-              right: 0,
-              child: AppStatusDot(
-                color: Colors.green,
-                size: 8,
-              ),
-            ),
+          ),
         ],
       );
     }
