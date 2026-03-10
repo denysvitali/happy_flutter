@@ -356,22 +356,15 @@ class DiffParser {
         final bestNewMatch = _findBestMatch(oldLine, newLines, newIdx);
 
         if (bestOldMatch != -1 &&
-            (bestNewMatch == -1 ||
-                (bestOldMatch - oldIdx) <= (newIdx - bestNewMatch))) {
-          // Found a better match in old lines
-          // Add context lines before the change
-          for (int j = math.max(0, oldIdx - contextLines); j < oldIdx; j++) {
-            allLines.add(DiffLine(
-              type: DiffLineType.normal,
-              content: oldLines[j],
-              oldLineNumber: oldLineNum++,
-              newLineNumber: newLineNum++,
-            ));
-          }
+            bestNewMatch != -1 &&
+            (bestOldMatch > oldIdx || bestNewMatch > newIdx)) {
+          // Found matching lines nearby — emit removals/additions
+          // leading up to them.
 
-          // Add removed lines
-          for (var j = oldIdx; j <= bestOldMatch; j++) {
-            final tokens = _calculateInlineDiff(oldLines[j], newLines[newIdx]);
+          // Add removed lines (old lines before the match)
+          for (var j = oldIdx; j < bestOldMatch; j++) {
+            final tokens =
+                _calculateInlineDiff(oldLines[j], newLines[newIdx]);
             allLines.add(DiffLine(
               type: DiffLineType.remove,
               content: oldLines[j],
@@ -381,10 +374,10 @@ class DiffParser {
             deletions++;
           }
 
-          // Add added lines
-          for (var j = newIdx; j <= bestNewMatch; j++) {
+          // Add added lines (new lines before the match)
+          for (var j = newIdx; j < bestNewMatch; j++) {
             final tokens = _calculateInlineDiff(
-              oldLines[bestOldMatch],
+              oldLines[math.min(bestOldMatch, oldLines.length - 1)],
               newLines[j],
             );
             allLines.add(DiffLine(
@@ -396,8 +389,8 @@ class DiffParser {
             additions++;
           }
 
-          oldIdx = bestOldMatch + 1;
-          newIdx = bestNewMatch + 1;
+          oldIdx = bestOldMatch;
+          newIdx = bestNewMatch;
         } else {
           // No good match - simple replace
           final tokens = _calculateInlineDiff(oldLine, newLine);

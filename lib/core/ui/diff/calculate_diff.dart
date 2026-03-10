@@ -172,16 +172,18 @@ List<_LineChange> _diffLines(List<String> oldLines, List<String> newLines) {
       final matchBackward = _findBestMatchBackward(oldLines, i, newLines[j]);
 
       if (matchForward != -1 &&
-          (matchBackward == -1 || matchForward <= matchBackward)) {
-        // Lines were added
+          matchForward > j &&
+          (matchBackward == -1 ||
+              matchForward - j <= matchBackward - i)) {
+        // Lines were added before the match
         changes.add(_LineChange(
           lines: newLines.sublist(j, matchForward),
           added: true,
           removed: false,
         ));
         j = matchForward;
-      } else if (matchBackward != -1) {
-        // Lines were removed
+      } else if (matchBackward != -1 && matchBackward > i) {
+        // Lines were removed before the match
         changes.add(_LineChange(
           lines: oldLines.sublist(i, matchBackward),
           added: false,
