@@ -199,7 +199,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Container(
-                  height: 40,
+                  height: AppTouchTarget.min,
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -221,7 +221,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: Container(
-                        height: 40,
+                        height: AppTouchTarget.min,
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -241,7 +241,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Container(
-                        height: 40,
+                        height: AppTouchTarget.min,
                         decoration: BoxDecoration(
                           color:
                               Theme.of(context).colorScheme.secondaryContainer,

@@ -10,12 +10,13 @@ import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
 import '../../core/utils/session_utils.dart';
 import '../inbox/inbox_screen.dart';
-import 'session_avatar.dart';
 import '../settings/settings_screen.dart';
+import 'session_avatar.dart';
 import 'widgets/connection_status_badge.dart';
 import 'widgets/empty_sessions_view.dart';
 import 'widgets/new_session_dialog.dart';
@@ -726,6 +727,10 @@ class _SessionsListContentState
       return const SessionListShimmer();
     }
 
+    if (sessionList.isEmpty && query.isNotEmpty) {
+      return _buildSearchEmptyState(context);
+    }
+
     if (sessionList.isEmpty) {
       return const EmptySessionsView();
     }
@@ -751,6 +756,53 @@ class _SessionsListContentState
         hideInactive: hideInactive,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
+      ),
+    );
+  }
+
+  Widget _buildSearchEmptyState(BuildContext context) {
+    final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.search_off,
+            size: 56,
+            color: cs.onSurfaceVariant
+                .withValues(alpha: AppOpacity.medium),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          Text(
+            l10n.sessionsNoSearchResults,
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(
+                  color: cs.onSurfaceVariant
+                      .withValues(alpha: 0.6),
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          TextButton.icon(
+            onPressed: () {
+              // Find the parent state to clear search
+              final parent = context
+                  .findAncestorStateOfType<
+                      _SessionsScreenState>();
+              if (parent != null && parent.mounted) {
+                parent._searchController.clear();
+                parent.setState(() {
+                  parent._isSearching = false;
+                });
+              }
+            },
+            icon: const Icon(Icons.clear),
+            label: Text(l10n.sessionsClearSearch),
+          ),
+        ],
       ),
     );
   }

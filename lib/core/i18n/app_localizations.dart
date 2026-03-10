@@ -998,6 +998,9 @@ class AppLocalizations {
 
   // Common (extended)
   String get commonClear => 'Clear';
+  String get sessionsNoSearchResults =>
+      'No sessions match your search';
+  String get sessionsClearSearch => 'Clear search';
   String get commonUnknown => 'unknown';
   String get commonTryAgain => 'Try Again';
   String get commonGoHome => 'Go Home';
