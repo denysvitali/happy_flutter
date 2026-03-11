@@ -24,7 +24,8 @@ class ScrollToBottomPill extends StatefulWidget {
       _ScrollToBottomPillState();
 }
 
-class _ScrollToBottomPillState extends State<ScrollToBottomPill>
+class _ScrollToBottomPillState
+    extends State<ScrollToBottomPill>
     with SingleTickerProviderStateMixin {
   late final AnimationController _entryCtrl;
   late final Animation<double> _scale;
@@ -152,13 +153,15 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
                       child: child,
                     ),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
+                      padding:
+                          const EdgeInsets.symmetric(
                         horizontal: 5,
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
                         color: cs.primary,
-                        borderRadius: BorderRadius.circular(
+                        borderRadius:
+                            BorderRadius.circular(
                           AppRadius.pill,
                         ),
                         boxShadow: [
@@ -170,7 +173,8 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
                           ),
                         ],
                       ),
-                      constraints: const BoxConstraints(
+                      constraints:
+                          const BoxConstraints(
                         minWidth: 18,
                         minHeight: 18,
                       ),
