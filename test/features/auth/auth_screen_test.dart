@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/auth.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
-import 'package:happy_flutter/features/auth/auth_screen.dart';
+import 'package:happy_flutter/core/widgets/auth_gate.dart';
 
 /// A stub [AuthStateNotifier] that can be seeded with a specific [AuthState].
 class _StubAuthNotifier extends AuthStateNotifier {

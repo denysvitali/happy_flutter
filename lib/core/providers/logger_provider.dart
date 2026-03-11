@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:riverpod/riverpod.dart';
 import '../services/logger_service.dart';
 
@@ -57,18 +59,25 @@ class LoggerState {
 /// Logger notifier for Riverpod integration
 class LoggerNotifier extends Notifier<LoggerState> {
   final _logger = LoggerService();
+  Timer? _logDebounceTimer;
 
   @override
   LoggerState build() {
     // Subscribe to logger changes
     final unsubscribe = _logger.onChange(_onLogChanged);
-    ref.onDispose(unsubscribe);
+    ref.onDispose(() {
+      _logDebounceTimer?.cancel();
+      unsubscribe();
+    });
 
     return LoggerState(logs: _logger.getLogs());
   }
 
   void _onLogChanged() {
-    state = state.copyWith(logs: _logger.getLogs());
+    _logDebounceTimer?.cancel();
+    _logDebounceTimer = Timer(const Duration(milliseconds: 200), () {
+      state = state.copyWith(logs: _logger.getLogs());
+    });
   }
 
   /// Add a log entry
@@ -78,6 +87,7 @@ class LoggerNotifier extends Notifier<LoggerState> {
     dynamic error,
     StackTrace? stackTrace,
   }) {
+    _logDebounceTimer?.cancel();
     _logger.log(
       message,
       level: level,
@@ -110,6 +120,7 @@ class LoggerNotifier extends Notifier<LoggerState> {
 
   /// Clear all logs
   void clear() {
+    _logDebounceTimer?.cancel();
     _logger.clear();
     state = state.copyWith(logs: _logger.getLogs());
   }

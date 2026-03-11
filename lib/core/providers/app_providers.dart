@@ -144,6 +144,8 @@ class AuthStateNotifier extends Notifier<AuthState> {
 
 /// Sessions provider
 class SessionsNotifier extends Notifier<Map<String, Session>> {
+  int _lastDataChangeCounter = 0;
+
   @override
   Map<String, Session> build() => {};
 
@@ -153,6 +155,9 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
+    final counter = sync.dataChangeCounter;
+    if (counter == _lastDataChangeCounter) return;
+    _lastDataChangeCounter = counter;
     final next = sync.sessions;
     if (_mapEquals(state, next)) return;
     state = Map<String, Session>.from(next);
@@ -179,11 +184,16 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
 
 /// Machines provider
 class MachinesNotifier extends Notifier<Map<String, Machine>> {
+  int _lastDataChangeCounter = 0;
+
   @override
   Map<String, Machine> build() => {};
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
+    final counter = sync.dataChangeCounter;
+    if (counter == _lastDataChangeCounter) return;
+    _lastDataChangeCounter = counter;
     final next = sync.machines;
     if (_mapEquals(state, next)) return;
     state = Map<String, Machine>.from(next);
@@ -216,6 +226,7 @@ class MachinesNotifier extends Notifier<Map<String, Machine>> {
 /// Settings provider
 class SettingsNotifier extends Notifier<Settings> {
   final _storage = SettingsStorage();
+  int _lastDataChangeCounter = 0;
 
   @override
   Settings build() => Settings();
@@ -231,6 +242,9 @@ class SettingsNotifier extends Notifier<Settings> {
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
+    final counter = sync.dataChangeCounter;
+    if (counter == _lastDataChangeCounter) return;
+    _lastDataChangeCounter = counter;
     final next = sync.settingsSnapshot;
     if (state == next) return;
     state = next;
@@ -430,11 +444,16 @@ final profileNotifierProvider = NotifierProvider<ProfileNotifier, Profile?>(() {
 });
 
 class ProfileNotifier extends Notifier<Profile?> {
+  int _lastDataChangeCounter = 0;
+
   @override
   Profile? build() => null;
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
+    final counter = sync.dataChangeCounter;
+    if (counter == _lastDataChangeCounter) return;
+    _lastDataChangeCounter = counter;
     final next = sync.profile;
     if (state == next) return;
     state = next;
@@ -488,6 +507,8 @@ final artifactsNotifierProvider =
     });
 
 class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
+  int _lastDataChangeCounter = 0;
+
   @override
   Map<String, DecryptedArtifact> build() => {};
 
@@ -514,9 +535,12 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
+    final counter = sync.dataChangeCounter;
+    if (counter == _lastDataChangeCounter) return;
+    _lastDataChangeCounter = counter;
     final next = sync.artifacts;
     if (next.length == state.length &&
-        next.every((a) => state.containsKey(a.id))) {
+        next.every((a) => state.containsKey(a.id) && state[a.id] == a)) {
       return;
     }
     state = {for (final a in next) a.id: a};
@@ -547,11 +571,16 @@ final friendsNotifierProvider = NotifierProvider<FriendsNotifier, FriendsState>(
 );
 
 class FriendsNotifier extends Notifier<FriendsState> {
+  int _lastDataChangeCounter = 0;
+
   @override
   FriendsState build() => FriendsState();
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
+    final counter = sync.dataChangeCounter;
+    if (counter == _lastDataChangeCounter) return;
+    _lastDataChangeCounter = counter;
     final nextFriends = sync.friends;
     final nextRequests = sync.friendRequests;
     if (listEquals(state.friends, nextFriends) &&
@@ -637,7 +666,8 @@ class FriendsState {
     return FriendsState(
       friends: friends ?? this.friends,
       pendingRequests: pendingRequests ?? this.pendingRequests,
-    );
+    ).._friendList = null
+    .._incomingRequests = null;
   }
 
   List<UserProfile> get friendList => _friendList ??= friends
@@ -654,11 +684,16 @@ final feedNotifierProvider = NotifierProvider<FeedNotifier, FeedState>(() {
 });
 
 class FeedNotifier extends Notifier<FeedState> {
+  int _lastDataChangeCounter = 0;
+
   @override
   FeedState build() => FeedState();
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
+    final counter = sync.dataChangeCounter;
+    if (counter == _lastDataChangeCounter) return;
+    _lastDataChangeCounter = counter;
     final next = sync.feedItems;
     if (listEquals(state.items, next)) return;
     state = state.copyWith(items: next);
@@ -719,11 +754,16 @@ final todoStateNotifierProvider =
     });
 
 class TodoStateNotifier extends Notifier<TodoListState> {
+  int _lastDataChangeCounter = 0;
+
   @override
   TodoListState build() => TodoListState();
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
+    final counter = sync.dataChangeCounter;
+    if (counter == _lastDataChangeCounter) return;
+    _lastDataChangeCounter = counter;
     final next = sync.todoLists;
     if (_mapEquals(state.lists, next)) return;
     final mapped = <String?, TodoList>{};
@@ -864,11 +904,16 @@ final sessionGitStatusNotifierProvider =
     });
 
 class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
+  int _lastDataChangeCounter = 0;
+
   @override
   Map<String, GitStatus> build() => {};
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
+    final counter = sync.dataChangeCounter;
+    if (counter == _lastDataChangeCounter) return;
+    _lastDataChangeCounter = counter;
     final next = sync.sessionGitStatus;
     if (_mapEquals(state, next)) return;
     state = Map<String, GitStatus>.from(next);

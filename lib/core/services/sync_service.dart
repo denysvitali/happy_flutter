@@ -360,6 +360,10 @@ what you have, you must use the options mode.
   final _sessionMessageChangeController = StreamController<String>.broadcast();
   Timer? _dataChangeDebounceTimer;
   final Map<String, Timer> _sessionMessageDebounceTimers = {};
+  /// Monotonic counter incremented on every data change. Providers compare
+  /// this against their last-seen value to skip expensive equality checks
+  /// when nothing has changed.
+  int _dataChangeCounter = 0;
   Timer? _saveSeqDebounceTimer;
   Timer? _saveSessionsCacheDebounceTimer;
   final Map<String, Timer> _postSendCatchUpTimers = {};
@@ -542,6 +546,10 @@ what you have, you must use the options mode.
   /// Stream that emits when session/machine/general data changes.
   Stream<void> get onDataChanged => _dataChangeController.stream;
 
+  /// Monotonic counter incremented on every data change notification.
+  /// Providers compare this to skip expensive equality checks.
+  int get dataChangeCounter => _dataChangeCounter;
+
   /// Stream that emits the sessionId when messages for that session change.
   Stream<String> get onSessionMessagesChanged =>
       _sessionMessageChangeController.stream;
@@ -696,6 +704,7 @@ what you have, you must use the options mode.
     _dataChangeDebounceTimer?.cancel();
     _dataChangeDebounceTimer = Timer(const Duration(milliseconds: 100), () {
       if (!_dataChangeController.isClosed) {
+        _dataChangeCounter++;
         _dataChangeController.add(null);
       }
     });
@@ -1954,8 +1963,9 @@ what you have, you must use the options mode.
   Future<void> fetchArtifactsList() async {
     logger.info('Fetching artifacts...');
     try {
-      final response = await ApiClient().get('/v1/artifacts');
-      if (!ApiClient().isSuccess(response)) {
+      final api = ApiClient();
+      final response = await api.get('/v1/artifacts');
+      if (!api.isSuccess(response)) {
         logger.warning('Failed to fetch artifacts: ${response.statusCode}');
         return;
       }
@@ -2073,8 +2083,9 @@ what you have, you must use the options mode.
   /// Fetch a single artifact with full body decrypted.
   Future<DecryptedArtifact?> fetchArtifactWithBody(String id) async {
     try {
-      final response = await ApiClient().get('/v1/artifacts/$id');
-      if (!ApiClient().isSuccess(response)) {
+      final api = ApiClient();
+      final response = await api.get('/v1/artifacts/$id');
+      if (!api.isSuccess(response)) {
         logger.warning('Failed to fetch artifact: ${response.statusCode}');
         return null;
       }
@@ -2128,11 +2139,12 @@ what you have, you must use the options mode.
       body: encryptedBody,
       dataEncryptionKey: encryptedDekB64,
     );
-    final response = await ApiClient().post(
+    final api = ApiClient();
+    final response = await api.post(
       '/v1/artifacts',
       data: request.toJson(),
     );
-    if (!ApiClient().isSuccess(response)) {
+    if (!api.isSuccess(response)) {
       throw StateError('Failed to create artifact: ${response.statusCode}');
     }
     _artifactDataKeys[artifactId] = dek;
@@ -2163,11 +2175,12 @@ what you have, you must use the options mode.
       body: encryptedBody,
       expectedBodyVersion: existing.bodyVersion,
     );
-    final response = await ApiClient().post(
+    final api = ApiClient();
+    final response = await api.post(
       '/v1/artifacts/$id',
       data: request.toJson(),
     );
-    if (!ApiClient().isSuccess(response)) {
+    if (!api.isSuccess(response)) {
       throw StateError('Failed to update artifact: ${response.statusCode}');
     }
     artifactsSync.invalidate();
@@ -2175,8 +2188,9 @@ what you have, you must use the options mode.
 
   /// Delete an artifact by ID.
   Future<void> deleteArtifact(String id) async {
-    final response = await ApiClient().delete('/v1/artifacts/$id');
-    if (!ApiClient().isSuccess(response)) {
+    final api = ApiClient();
+    final response = await api.delete('/v1/artifacts/$id');
+    if (!api.isSuccess(response)) {
       throw StateError('Failed to delete artifact: ${response.statusCode}');
     }
     _artifactDataKeys.remove(id);

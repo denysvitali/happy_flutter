@@ -98,12 +98,6 @@ class _SessionsScreenState
       await ref
           .read(sessionsNotifierProvider.notifier)
           .refreshFromSync();
-      await ref
-          .read(friendsNotifierProvider.notifier)
-          .refreshFromSync();
-      await ref
-          .read(feedNotifierProvider.notifier)
-          .refreshFromSync();
     });
     _syncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
