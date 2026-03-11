@@ -1,22 +1,28 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/components/app_empty_state.dart';
+import '../../core/components/app_status_dot.dart';
+import '../../core/components/app_tappable.dart';
+import '../../core/components/avatar.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/social_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/shimmer/shimmer.dart';
 
-/// Friends screen with two tabs: accepted friends and incoming requests.
+/// Friends screen with two tabs: accepted friends
+/// and incoming requests.
 class FriendsScreen extends ConsumerStatefulWidget {
   /// Creates the friends screen.
   const FriendsScreen({super.key});
 
   @override
-  ConsumerState<FriendsScreen> createState() => _FriendsScreenState();
+  ConsumerState<FriendsScreen> createState() =>
+      _FriendsScreenState();
 }
 
 class _FriendsScreenState extends ConsumerState<FriendsScreen>
@@ -43,7 +49,9 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
   }
 
   Future<void> _refresh() async {
-    await ref.read(friendsNotifierProvider.notifier).refreshFromSync();
+    await ref
+        .read(friendsNotifierProvider.notifier)
+        .refreshFromSync();
   }
 
   Future<void> _runAction(
@@ -54,25 +62,19 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
     try {
       await action();
       await _refresh();
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(successMsg)));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(successMsg)),
+      );
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(content: Text(context.l10n.friendsActionFailed)),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.friendsActionFailed),
+        ),
       );
     } finally {
-      if (mounted) {
-        setState(() => _isBusy = false);
-      }
+      if (mounted) setState(() => _isBusy = false);
     }
   }
 
@@ -85,7 +87,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
 
   Future<void> _reject(FriendRequest request) async {
     await _runAction(
-      () => _socialService.removeFriend(request.fromUserId),
+      () =>
+          _socialService.removeFriend(request.fromUserId),
       context.l10n.friendsRequestRejected,
     );
   }
@@ -95,7 +98,11 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(ctx.l10n.friendsRemoveTitle),
-        content: Text(ctx.l10n.friendsRemoveConfirm(friend.name ?? friend.id)),
+        content: Text(
+          ctx.l10n.friendsRemoveConfirm(
+            friend.name ?? friend.id,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -108,9 +115,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
         ],
       ),
     );
-    if (confirmed != true || !mounted) {
-      return;
-    }
+    if (confirmed != true || !mounted) return;
     await _runAction(
       () => _socialService.removeFriend(friend.id),
       context.l10n.friendsRemoved,
@@ -132,7 +137,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
           tabs: [
             Tab(
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment:
+                    MainAxisAlignment.center,
                 children: [
                   Text(l10n.friendsTabFriends),
                   if (friends.isNotEmpty) ...[
@@ -144,7 +150,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
             ),
             Tab(
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment:
+                    MainAxisAlignment.center,
                 children: [
                   Text(l10n.friendsTabRequests),
                   if (incoming.isNotEmpty) ...[
@@ -186,9 +193,9 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
   }
 }
 
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────
 // Friends tab
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────
 
 class _FriendsTab extends StatelessWidget {
   const _FriendsTab({
@@ -209,25 +216,23 @@ class _FriendsTab extends StatelessWidget {
       return RefreshIndicator(
         onRefresh: onRefresh,
         child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.xxxl),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xxl,
+            vertical: AppSpacing.xxxl,
+          ),
           children: [
-            Icon(
-              Icons.people_outline,
-              size: 64,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              context.l10n.friendsEmptyTitle,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              context.l10n.friendsEmptySubtitle,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+            AppEmptyState(
+              icon: Icons.people_outline,
+              title: context.l10n.friendsEmptyTitle,
+              subtitle:
+                  context.l10n.friendsEmptySubtitle,
+              action: FilledButton.icon(
+                onPressed: () =>
+                    context.push('/friends/search'),
+                icon: const Icon(Icons.person_search),
+                label: Text(
+                  context.l10n.friendsAddFriend,
+                ),
               ),
             ),
           ],
@@ -273,86 +278,94 @@ class _FriendTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final name = friend.name ?? friend.id;
-    return Card(
-      elevation: AppElevation.none,
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(
-          color: Theme.of(
-            context,
-          ).colorScheme.outlineVariant.withValues(alpha: 0.4),
-        ),
+
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: AppSpacing.sm,
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              backgroundImage: friend.avatarUrl != null
-                  ? CachedNetworkImageProvider(
-                      friend.avatarUrl!,
-                      maxWidth: 108,
-                      maxHeight: 108,
-                    )
-                  : null,
-              child: friend.avatarUrl == null
-                  ? Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : '?',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+      child: AppTappable(
+        borderRadius:
+            BorderRadius.circular(AppRadius.md),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius:
+                BorderRadius.circular(AppRadius.md),
+            border: Border.all(
+              color: cs.outlineVariant.withValues(
+                alpha: 0.4,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              // Avatar with status indicator
+              _AvatarWithStatus(
+                userId: friend.id,
+                avatarUrl: friend.avatarUrl,
+                size: 48,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              // Name + bio/username
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (friend.bio != null) ...[
-                    const SizedBox(height: AppSpacing.xsm),
+                    const SizedBox(
+                      height: AppSpacing.xsm,
+                    ),
                     Text(
-                      friend.bio!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      friend.bio ??
+                          '@${friend.username}',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(
+                        color: cs.onSurfaceVariant,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            TextButton(
-              onPressed: isBusy ? null : onRemove,
-              child: Text(context.l10n.friendsRemoveAction),
-            ),
-          ],
+              const SizedBox(width: AppSpacing.sm),
+              IconButton(
+                onPressed: isBusy ? null : onRemove,
+                icon: Icon(
+                  Icons.person_remove_outlined,
+                  color: cs.error,
+                  size: AppSpacing.xl,
+                ),
+                tooltip:
+                    context.l10n.friendsRemoveAction,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────
 // Requests tab
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────
 
 class _RequestsTab extends StatelessWidget {
   const _RequestsTab({
@@ -375,18 +388,16 @@ class _RequestsTab extends StatelessWidget {
       return RefreshIndicator(
         onRefresh: onRefresh,
         child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.xxxl),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xxl,
+            vertical: AppSpacing.xxxl,
+          ),
           children: [
-            Icon(
-              Icons.inbox_outlined,
-              size: 64,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              context.l10n.friendsNoRequests,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
+            AppEmptyState(
+              icon: Icons.mark_email_read_outlined,
+              title: context.l10n.friendsNoRequests,
+              subtitle:
+                  'Friend requests will appear here',
             ),
           ],
         ),
@@ -434,87 +445,182 @@ class _RequestTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final l10n = context.l10n;
-    return Card(
-      elevation: AppElevation.none,
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(
-          color: Theme.of(
-            context,
-          ).colorScheme.outlineVariant.withValues(alpha: 0.4),
-        ),
+
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: AppSpacing.sm,
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              backgroundImage: request.fromUserAvatarUrl != null
-                  ? CachedNetworkImageProvider(
-                      request.fromUserAvatarUrl!,
-                      maxWidth: 108,
-                      maxHeight: 108,
-                    )
-                  : null,
-              child: request.fromUserAvatarUrl == null
-                  ? Text(
-                      request.fromUserName.isNotEmpty
-                          ? request.fromUserName[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+      child: AppTappable(
+        borderRadius:
+            BorderRadius.circular(AppRadius.md),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius:
+                BorderRadius.circular(AppRadius.md),
+            border: Border.all(
+              color: cs.outlineVariant.withValues(
+                alpha: 0.4,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              // Avatar
+              Avatar(
+                id: request.fromUserId,
+                size: 48,
+                imageUrl: request.fromUserAvatarUrl,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              // Name + status text
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      request.fromUserName,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(
+                      height: AppSpacing.xsm,
+                    ),
+                    Row(
+                      children: [
+                        AppStatusDot(
+                          color: AppColors.warning,
+                          size: AppSpacing.xsm,
+                        ),
+                        const SizedBox(
+                          width: AppSpacing.xs,
+                        ),
+                        Text(
+                          l10n.friendsWantsToConnect,
+                          style: theme
+                              .textTheme.bodySmall
+                              ?.copyWith(
+                            color:
+                                cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              // Action buttons
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    request.fromUserName,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                  IconButton.outlined(
+                    onPressed:
+                        isBusy ? null : onReject,
+                    icon: const Icon(
+                      Icons.close,
+                      size: AppSpacing.xl,
+                    ),
+                    tooltip: l10n.friendsReject,
+                    style: IconButton.styleFrom(
+                      side: BorderSide(
+                        color: cs.outlineVariant,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xsm),
-                  Text(
-                    l10n.friendsWantsToConnect,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  const SizedBox(
+                    width: AppSpacing.sm,
+                  ),
+                  IconButton.filled(
+                    onPressed:
+                        isBusy ? null : onAccept,
+                    icon: const Icon(
+                      Icons.check,
+                      size: AppSpacing.xl,
                     ),
+                    tooltip: l10n.friendsAccept,
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            TextButton(
-              onPressed: isBusy ? null : onReject,
-              child: Text(l10n.friendsReject),
-            ),
-            const SizedBox(width: AppSpacing.xsm),
-            FilledButton(
-              onPressed: isBusy ? null : onAccept,
-              child: Text(l10n.friendsAccept),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────
+// Avatar with online/offline status dot
+// ─────────────────────────────────────────────────────
+
+class _AvatarWithStatus extends StatelessWidget {
+  const _AvatarWithStatus({
+    required this.userId,
+    required this.size,
+    this.avatarUrl,
+    this.isOnline = false,
+  });
+
+  final String userId;
+  final String? avatarUrl;
+  final double size;
+  final bool isOnline;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final dotSize = size * 0.26;
+    final borderWidth = size * 0.06;
+
+    return SizedBox(
+      width: size + dotSize / 2,
+      height: size + dotSize / 2,
+      child: Stack(
+        children: [
+          Avatar(
+            id: userId,
+            size: size,
+            imageUrl: avatarUrl,
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              width: dotSize,
+              height: dotSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isOnline
+                    ? AppColors.success
+                    : cs.onSurfaceVariant.withValues(
+                        alpha: 0.4,
+                      ),
+                border: Border.all(
+                  color: cs.surface,
+                  width: borderWidth,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────
 // Helpers
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────
 
 class _CountBadge extends StatelessWidget {
   const _CountBadge({required this.count});
@@ -531,7 +637,8 @@ class _CountBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius:
+            BorderRadius.circular(AppRadius.sm),
       ),
       child: Text(
         '$count',
@@ -564,36 +671,38 @@ class _FriendsLoadingShimmer extends StatelessWidget {
         ),
         itemCount: 5,
         itemBuilder: (context, index) {
-          return Card(
-            elevation: AppElevation.none,
-            margin: const EdgeInsets.only(
+          return Padding(
+            padding: const EdgeInsets.only(
               bottom: AppSpacing.sm,
             ),
-            shape: RoundedRectangleBorder(
-              borderRadius:
-                  BorderRadius.circular(AppRadius.md),
-              side: BorderSide(
-                color: cs.outlineVariant.withValues(
-                  alpha: 0.3,
-                ),
-              ),
-            ),
-            child: Padding(
+            child: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
+                vertical: AppSpacing.md,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(
+                  AppRadius.md,
+                ),
+                border: Border.all(
+                  color: cs.outlineVariant.withValues(
+                    alpha: 0.3,
+                  ),
+                ),
               ),
               child: Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
                       color: color,
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
+                  const SizedBox(
+                    width: AppSpacing.md,
+                  ),
                   Expanded(
                     child: Column(
                       crossAxisAlignment:
@@ -601,11 +710,14 @@ class _FriendsLoadingShimmer extends StatelessWidget {
                       children: [
                         Container(
                           height: 14,
-                          width: 100 + (index * 20.0) % 60,
+                          width: 100 +
+                              (index * 20.0) % 60,
                           decoration: BoxDecoration(
                             color: color,
                             borderRadius:
-                                BorderRadius.circular(4),
+                                BorderRadius.circular(
+                              AppRadius.xs,
+                            ),
                           ),
                         ),
                         const SizedBox(
@@ -613,11 +725,14 @@ class _FriendsLoadingShimmer extends StatelessWidget {
                         ),
                         Container(
                           height: 12,
-                          width: 150 + (index * 15.0) % 50,
+                          width: 150 +
+                              (index * 15.0) % 50,
                           decoration: BoxDecoration(
                             color: color,
                             borderRadius:
-                                BorderRadius.circular(4),
+                                BorderRadius.circular(
+                              AppRadius.xs,
+                            ),
                           ),
                         ),
                       ],
