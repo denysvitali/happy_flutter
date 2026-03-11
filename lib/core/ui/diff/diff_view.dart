@@ -137,7 +137,6 @@ class _DiffViewState extends State<DiffView> {
 
   Widget _buildHunkHeader(DiffHunk hunk, ThemeData theme, DiffTheme colors) {
     return Container(
-      width: double.infinity,
       padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.sm,
@@ -164,16 +163,14 @@ class _DiffViewState extends State<DiffView> {
         ? colors.removedText
         : colors.contextText;
 
-    return IntrinsicWidth(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (widget.config.showLineNumbers)
-            _buildLineNumber(line, theme, colors),
-          if (widget.config.showPlusMinusSymbols) _buildSymbol(line, textColor),
-          Expanded(child: _buildContent(line, theme, colors)),
-        ],
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.config.showLineNumbers)
+          _buildLineNumber(line, theme, colors),
+        if (widget.config.showPlusMinusSymbols) _buildSymbol(line, textColor),
+        _buildContent(line, theme, colors),
+      ],
     );
   }
 

@@ -524,57 +524,34 @@ class DiffParser {
 
     var oldIdx = 0;
     var newIdx = 0;
-    var lcsIdx = 0;
 
-    while (oldIdx < oldWords.length || newIdx < newWords.length) {
-      if (lcsIdx < lcs.length &&
-          oldIdx < oldWords.length &&
-          newIdx < newWords.length) {
-        // Check if we're at a common subsequence element
-        final lcsElement = lcs[lcsIdx];
-        final oldLcsIdx = oldWords.indexOf(lcsElement, oldIdx);
-        final newLcsIdx = newWords.indexOf(lcsElement, newIdx);
+    for (final lcsElement in lcs) {
+      // Find where this LCS element appears next in each list
+      final oldLcsIdx = oldWords.indexOf(lcsElement, oldIdx);
+      final newLcsIdx = newWords.indexOf(lcsElement, newIdx);
 
-        if (oldLcsIdx == newLcsIdx && oldLcsIdx != -1 && newLcsIdx != -1) {
-          // Add removed words
-          for (var i = oldIdx; i < oldLcsIdx; i++) {
-            tokens.add(DiffToken(value: oldWords[i], removed: true));
-          }
-          // Add added words
-          for (var i = newIdx; i < newLcsIdx; i++) {
-            tokens.add(DiffToken(value: newWords[i], added: true));
-          }
-          // Add common word
-          tokens.add(DiffToken(value: lcsElement));
-          oldIdx = oldLcsIdx + 1;
-          newIdx = newLcsIdx + 1;
-          lcsIdx++;
-        } else if (oldLcsIdx != -1 &&
-            (newLcsIdx == -1 || oldLcsIdx <= newLcsIdx)) {
-          // Add removed words up to LCS match
-          for (var i = oldIdx; i < oldLcsIdx; i++) {
-            tokens.add(DiffToken(value: oldWords[i], removed: true));
-          }
-          oldIdx = oldLcsIdx;
-        } else if (newLcsIdx != -1) {
-          // Add added words up to LCS match
-          for (var i = newIdx; i < newLcsIdx; i++) {
-            tokens.add(DiffToken(value: newWords[i], added: true));
-          }
-          newIdx = newLcsIdx;
-        } else {
-          break;
-        }
-      } else {
-        // Add remaining words
-        for (var i = oldIdx; i < oldWords.length; i++) {
-          tokens.add(DiffToken(value: oldWords[i], removed: true));
-        }
-        for (var i = newIdx; i < newWords.length; i++) {
-          tokens.add(DiffToken(value: newWords[i], added: true));
-        }
-        break;
+      if (oldLcsIdx == -1 || newLcsIdx == -1) continue;
+
+      // Emit removed words before the match in old
+      for (var i = oldIdx; i < oldLcsIdx; i++) {
+        tokens.add(DiffToken(value: oldWords[i], removed: true));
       }
+      // Emit added words before the match in new
+      for (var i = newIdx; i < newLcsIdx; i++) {
+        tokens.add(DiffToken(value: newWords[i], added: true));
+      }
+      // Emit common word
+      tokens.add(DiffToken(value: lcsElement));
+      oldIdx = oldLcsIdx + 1;
+      newIdx = newLcsIdx + 1;
+    }
+
+    // Emit remaining words after the last LCS element
+    for (var i = oldIdx; i < oldWords.length; i++) {
+      tokens.add(DiffToken(value: oldWords[i], removed: true));
+    }
+    for (var i = newIdx; i < newWords.length; i++) {
+      tokens.add(DiffToken(value: newWords[i], added: true));
     }
 
     // Merge consecutive tokens of the same type
