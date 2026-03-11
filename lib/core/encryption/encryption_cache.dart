@@ -142,28 +142,36 @@ class EncryptionCache {
 
   /// Clear all cache entries for a specific machine
   void clearMachineCache(String machineId) {
-    _machineMetadataCache.keys
+    final metadataKeys = _machineMetadataCache.keys
         .where((key) => key.startsWith('$machineId:'))
-        .toList()
-        .forEach((key) => _machineMetadataCache.remove(key));
+        .toList();
+    for (final key in metadataKeys) {
+      _machineMetadataCache.remove(key);
+    }
 
-    _daemonStateCache.keys
+    final daemonKeys = _daemonStateCache.keys
         .where((key) => key.startsWith('$machineId:'))
-        .toList()
-        .forEach((key) => _daemonStateCache.remove(key));
+        .toList();
+    for (final key in daemonKeys) {
+      _daemonStateCache.remove(key);
+    }
   }
 
   /// Clear all cache entries for a specific session
   void clearSessionCache(String sessionId) {
-    _agentStateCache.keys
+    final agentKeys = _agentStateCache.keys
         .where((key) => key.startsWith('$sessionId:'))
-        .toList()
-        .forEach((key) => _agentStateCache.remove(key));
+        .toList();
+    for (final key in agentKeys) {
+      _agentStateCache.remove(key);
+    }
 
-    _metadataCache.keys
+    final metaKeys = _metadataCache.keys
         .where((key) => key.startsWith('$sessionId:'))
-        .toList()
-        .forEach((key) => _metadataCache.remove(key));
+        .toList();
+    for (final key in metaKeys) {
+      _metadataCache.remove(key);
+    }
   }
 
   /// Clear all cached data

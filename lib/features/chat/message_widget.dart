@@ -476,9 +476,12 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
     }
   }
 
+  static final _thinkingPrefix =
+      RegExp(r'^\*Thinking\.\.\.\*\s*\n*');
+
   String _getCleanContent() {
     var text = widget.content
-        .replaceFirst(RegExp(r'^\*Thinking\.\.\.\*\s*\n*'), '')
+        .replaceFirst(_thinkingPrefix, '')
         .trim();
     // Strip outer *...* italic markers baked in by
     // message_processor/sync_service.
@@ -495,96 +498,98 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        child: Container(
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerLow,
-            border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
-              width: 0.5,
+    return RepaintBoundary(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          child: Container(
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerLow,
+              border: Border.all(
+                color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
+                width: 0.5,
+              ),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header — always visible, tap to toggle.
-              GestureDetector(
-                onTap: _toggle,
-                behavior: HitTestBehavior.opaque,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm + 2,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.psychology_outlined,
-                        size: 14,
-                        color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Thinking',
-                        style: theme.textTheme.labelSmall?.copyWith(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header — always visible, tap to toggle.
+                GestureDetector(
+                  onTap: _toggle,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm + 2,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.psychology_outlined,
+                          size: 14,
                           color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.3,
                         ),
-                      ),
-                      const Spacer(),
-                      AnimatedRotation(
-                        turns: _expanded ? 0.5 : 0,
-                        duration: const Duration(milliseconds: 200),
-                        child: Icon(
-                          Icons.expand_more_rounded,
-                          size: 16,
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.35),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Expanded content — ClipRect prevents overflow during animation.
-              ClipRect(
-                child: SizeTransition(
-                  sizeFactor: _expandAnimation,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Divider(
-                        height: 0.5,
-                        thickness: 0.5,
-                        color: cs.outlineVariant.withValues(alpha: 0.2),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: DefaultTextStyle.merge(
-                          style: TextStyle(
-                            color: cs.onSurfaceVariant.withValues(alpha: 0.85),
-                            fontSize: AppFontSize.md,
-                            height: 1.5,
-                          ),
-                          child: SimpleMarkdownView(
-                            markdown: _getCleanContent(),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Thinking',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.3,
                           ),
                         ),
-                      ),
-                    ],
+                        const Spacer(),
+                        AnimatedRotation(
+                          turns: _expanded ? 0.5 : 0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            Icons.expand_more_rounded,
+                            size: 16,
+                            color: cs.onSurfaceVariant.withValues(alpha: 0.35),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+                // Expanded content — ClipRect prevents overflow during animation.
+                ClipRect(
+                  child: SizeTransition(
+                    sizeFactor: _expandAnimation,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Divider(
+                          height: 0.5,
+                          thickness: 0.5,
+                          color: cs.outlineVariant.withValues(alpha: 0.2),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: DefaultTextStyle.merge(
+                            style: TextStyle(
+                              color: cs.onSurfaceVariant.withValues(alpha: 0.85),
+                              fontSize: AppFontSize.md,
+                              height: 1.5,
+                            ),
+                            child: SimpleMarkdownView(
+                              markdown: _getCleanContent(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -665,6 +670,9 @@ void _showMessageDetailSheet(
 
   final hasDetails = model != null || permissionMode != null;
 
+  // Capture now once when the sheet is opened, not on every rebuild.
+  final now = DateTime.now();
+
   showModalBottomSheet<void>(
     context: context,
     backgroundColor: cs.surface,
@@ -735,7 +743,7 @@ void _showMessageDetailSheet(
               _MessageInfoRow(
                 icon: Icons.access_time_outlined,
                 label: l10n.messageDetailSent,
-                value: _formatTimestamp(createdAt),
+                value: _formatTimestamp(createdAt, now),
               ),
           ],
         ),
@@ -915,6 +923,8 @@ void _showRawMarkdownSheet(BuildContext context, String markdown) {
 class _ErrorMessageWidget extends StatelessWidget {
   const _ErrorMessageWidget({required this.messageData});
 
+  static const _jsonEncoder = JsonEncoder.withIndent('  ');
+
   final Map<String, dynamic> messageData;
 
   @override
@@ -991,7 +1001,7 @@ class _ErrorMessageWidget extends StatelessWidget {
         ? DateTime.fromMillisecondsSinceEpoch(createdAt).toString()
         : 'Unknown';
 
-    final jsonString = const JsonEncoder.withIndent('  ').convert({
+    final jsonString = _jsonEncoder.convert({
       'errorType': errorType,
       'errorMessage': errorMessage,
       'messageId': messageId,
@@ -1110,9 +1120,7 @@ class _ErrorMessageWidget extends StatelessWidget {
                     ),
                     child: SelectableText(
                       debugData != null
-                          ? const JsonEncoder.withIndent(
-                              '  ',
-                            ).convert(debugData)
+                          ? _jsonEncoder.convert(debugData)
                           : 'No debug data',
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontFamily: 'monospace',

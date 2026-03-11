@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -43,14 +44,14 @@ class LogEntry {
         '${timestamp.second.toString().padLeft(2, '0')}.'
         '${timestamp.millisecond.toString().padLeft(3, '0')}';
     final levelStr = level.name.toUpperCase().padRight(7);
-    var result = '[$time] [$levelStr] $message';
+    final buffer = StringBuffer('[$time] [$levelStr] $message');
     if (error != null) {
-      result += '\nError: $error';
+      buffer.write('\nError: $error');
     }
     if (stackTrace != null) {
-      result += '\nStack trace:\n$stackTrace';
+      buffer.write('\nStack trace:\n$stackTrace');
     }
-    return result;
+    return buffer.toString();
   }
 
   @override
@@ -241,14 +242,14 @@ class LoggerService {
 
   /// Export logs in JSON format
   String exportLogsAsJson() {
-    final json = _logs.map((entry) => {
+    final jsonList = _logs.map((entry) => {
           'timestamp': entry.timestamp.toIso8601String(),
           'level': entry.level.name,
           'message': entry.message,
           'error': entry.error?.toString(),
           'stackTrace': entry.stackTrace?.toString(),
         }).toList();
-    return '[${json.map((j) => j.toString()).join(', ')}]';
+    return jsonEncode(jsonList);
   }
 }
 
