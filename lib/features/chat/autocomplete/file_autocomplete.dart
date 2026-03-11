@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_tokens.dart';
+
 /// Characters that stop the active word search
 const List<String> _stopCharacters = [
   '\n',
@@ -492,11 +494,11 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Material(
                 elevation: 8,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.md),
                 color: theme.colorScheme.surface,
                 child: ClipRRect(
                   clipBehavior: Clip.hardEdge,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -667,7 +669,7 @@ class _FileSuggestionItem extends StatelessWidget {
       height: 32,
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Icon(iconData, size: 18, color: iconColor),
     );
@@ -682,7 +684,7 @@ class _FileSuggestionItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Text(
         badgeText,

@@ -337,7 +337,7 @@ class _ZenLoadingShimmer extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: color,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(AppRadius.xs),
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
