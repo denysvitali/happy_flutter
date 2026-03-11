@@ -52,8 +52,19 @@ String _generateHex(int length) {
 /// Timestamp utilities
 int timestampNow() => DateTime.now().millisecondsSinceEpoch;
 
-/// Format timestamp for display
-String formatTimestamp(int timestamp, {bool relative = false}) {
+/// Format timestamp for display.
+///
+/// When [relative] is true, returns human-friendly strings:
+/// - Under 1 min  -> "Just now"
+/// - Under 1 hour -> "2m ago"
+/// - Same day     -> "3h ago"
+/// - Yesterday    -> "Yesterday"
+/// - Under 7 days -> "3d ago"
+/// - Otherwise    -> "M/d/yyyy"
+String formatTimestamp(
+  int timestamp, {
+  bool relative = false,
+}) {
   final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
   final now = DateTime.now();
 
@@ -62,6 +73,18 @@ String formatTimestamp(int timestamp, {bool relative = false}) {
     if (diff.inMinutes < 1) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
+
+    // Check for "Yesterday" by comparing calendar dates.
+    final today = DateTime(now.year, now.month, now.day);
+    final dateDay = DateTime(
+      date.year,
+      date.month,
+      date.day,
+    );
+    if (today.difference(dateDay).inDays == 1) {
+      return 'Yesterday';
+    }
+
     if (diff.inDays < 7) return '${diff.inDays}d ago';
   }
 
