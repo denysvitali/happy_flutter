@@ -688,7 +688,7 @@ void _showMessageDetailSheet(
                 margin: const EdgeInsets.only(bottom: AppSpacing.md),
                 decoration: BoxDecoration(
                   color: cs.onSurface.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(2.5),
+                  borderRadius: BorderRadius.circular(AppRadius.xxs),
                 ),
               ),
             ),
@@ -851,7 +851,7 @@ void _showRawMarkdownSheet(BuildContext context, String markdown) {
             height: 4,
             decoration: BoxDecoration(
               color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.circular(AppRadius.xxs),
             ),
           ),
           // Header row
@@ -1022,7 +1022,7 @@ class _ErrorMessageWidget extends StatelessWidget {
               height: 4,
               decoration: BoxDecoration(
                 color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(AppRadius.xxs),
               ),
             ),
             // Header row

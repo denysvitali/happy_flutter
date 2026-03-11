@@ -318,7 +318,7 @@ class _ToolResultSection extends StatelessWidget {
       elevation: 0,
       color: cs.surfaceContainerHighest,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -529,7 +529,7 @@ class _ChildToolItem extends StatelessWidget {
       color: theme.colorScheme.surfaceContainerHighest,
       margin: const EdgeInsets.only(bottom: 4),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         onTap: () => _showToolDetail(context, tool),
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -631,7 +631,7 @@ class _ToolDetailBottomSheet extends StatelessWidget {
           height: 4,
           decoration: BoxDecoration(
             color: theme.colorScheme.onSurfaceVariant.withAlpha(77),
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: BorderRadius.circular(AppRadius.xxs),
           ),
         ),
         Padding(
@@ -729,7 +729,7 @@ class _DetailCard extends StatelessWidget {
       elevation: 0,
       color: theme.colorScheme.surfaceContainerHighest,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -813,7 +813,7 @@ class _JsonTreeBlock extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.smd),
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Theme(
         // Force dark brightness so JsonTreeViewer always uses the dark palette
@@ -844,7 +844,7 @@ class _CodeBlock extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.smd),
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: SelectableText(
         content,
