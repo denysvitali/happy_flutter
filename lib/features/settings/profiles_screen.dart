@@ -4,6 +4,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/shell_script_parser.dart';
 import 'profile_editor_screen.dart';
@@ -166,7 +167,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
             color: profile == null
                 ? Theme.of(context).colorScheme.onSurfaceVariant
                 : profile.isBuiltIn
-                    ? _colorForProfile(profile.id)
+                    ? colorForProfile(profile.id)
                     : Theme.of(context).colorScheme.primary,
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
@@ -390,22 +391,5 @@ IconData _iconForProfile(String id) {
       return Icons.cloud;
     default:
       return Icons.computer;
-  }
-}
-
-Color _colorForProfile(String id) {
-  switch (id) {
-    case 'anthropic':
-      return const Color(0xFFD97757);
-    case 'deepseek':
-      return const Color(0xFF4A6CF7);
-    case 'zai':
-      return const Color(0xFF6366F1);
-    case 'openai':
-      return const Color(0xFF10A37F);
-    case 'azure-openai':
-      return const Color(0xFF0078D4);
-    default:
-      return const Color(0xFF6B7280);
   }
 }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Screen for selecting an AI backend profile.
@@ -69,7 +70,7 @@ class PickProfileScreen extends ConsumerWidget {
               name: profile.name,
               description: profile.description ?? '',
               icon: _iconForProfile(profile.id),
-              color: _colorForProfile(profile.id),
+              color: colorForProfile(profile.id),
               isSelected: selectedId == profile.id,
               onTap: () => context.pop<String?>(profile.id),
             ),
@@ -126,22 +127,7 @@ IconData _iconForProfile(String id) {
   }
 }
 
-Color _colorForProfile(String id) {
-  switch (id) {
-    case 'anthropic':
-      return const Color(0xFFD97757);
-    case 'deepseek':
-      return const Color(0xFF4A6CF7);
-    case 'zai':
-      return const Color(0xFF6366F1);
-    case 'openai':
-      return const Color(0xFF10A37F);
-    case 'azure-openai':
-      return const Color(0xFF0078D4);
-    default:
-      return const Color(0xFF6B7280);
-  }
-}
+
 
 class _ProfileCard extends StatelessWidget {
   const _ProfileCard({

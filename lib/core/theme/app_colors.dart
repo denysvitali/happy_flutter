@@ -111,6 +111,26 @@ abstract final class AppColors {
 
 // ─── Opacity ─────────────────────────────────────────────────────────────────
 
+// ─── Profile Colors ──────────────────────────────────────────────────────────
+
+/// Returns the brand color associated with a profile ID.
+Color colorForProfile(String id) {
+  switch (id) {
+    case 'anthropic':
+      return const Color(0xFFD97757);
+    case 'deepseek':
+      return const Color(0xFF4A6CF7);
+    case 'zai':
+      return const Color(0xFF6366F1);
+    case 'openai':
+      return const Color(0xFF10A37F);
+    case 'azure-openai':
+      return const Color(0xFF0078D4);
+    default:
+      return const Color(0xFF6B7280);
+  }
+}
+
 /// Shared opacity levels for overlays, tints, and disabled states.
 abstract final class AppOpacity {
   /// 0.08 – barely visible tint (hover state).
