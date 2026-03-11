@@ -85,7 +85,7 @@ class AnsiParser {
       currentStyle = style;
     }
 
-    int lastIndex = 0;
+    var lastIndex = 0;
     for (final match in _ansiRegex.allMatches(text)) {
       // Add text before this escape sequence.
       if (match.start > lastIndex) {

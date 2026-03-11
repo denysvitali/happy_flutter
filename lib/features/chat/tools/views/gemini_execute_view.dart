@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/utils/ansi_parser.dart';
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
 
@@ -409,19 +410,23 @@ class _TerminalOutputSection extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _CopyButton(text: output, iconSize: 13),
+                _CopyButton(text: AnsiParser.strip(output), iconSize: 13),
               ],
             ),
           ),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.smd),
-            child: SelectableText(
-              visibleText,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: AppFontSize.sm,
-                color: isError ? c.errorText : c.primaryText,
-                height: 1.5,
+            child: SelectableText.rich(
+              TextSpan(
+                children: AnsiParser.parse(
+                  visibleText,
+                  defaultStyle: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: AppFontSize.sm,
+                    color: isError ? c.errorText : c.primaryText,
+                    height: 1.5,
+                  ),
+                ),
               ),
             ),
           ),

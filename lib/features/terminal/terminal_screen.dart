@@ -5,6 +5,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart'
     show AppSpacing, AppDuration, AppCurve;
+import '../../core/utils/ansi_parser.dart';
 
 /// Terminal emulator screen — displays terminal output with a dark
 /// background and allows entering commands.
@@ -177,14 +178,21 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                 return Padding(
                   key: ValueKey(index),
                   padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Text(
-                    line,
-                    style: _terminalTextStyle.copyWith(
-                      color: isCommand
-                          ? const Color(0xFF569CD6)
-                          : const Color(0xFFD4D4D4),
-                    ),
-                  ),
+                  child: isCommand
+                      ? Text(
+                          line,
+                          style: _terminalTextStyle.copyWith(
+                            color: const Color(0xFF569CD6),
+                          ),
+                        )
+                      : SelectableText.rich(
+                          TextSpan(
+                            children: AnsiParser.parse(
+                              line,
+                              defaultStyle: _terminalTextStyle,
+                            ),
+                          ),
+                        ),
                 );
               },
             ),
