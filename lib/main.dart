@@ -19,8 +19,8 @@ import 'core/services/server_config.dart';
 import 'core/services/storage_service.dart' as storage;
 import 'core/services/sync_service.dart';
 import 'core/utils/theme_helper.dart';
-import 'features/command_palette/command_palette.dart';
 import 'core/widgets/error_boundary.dart';
+import 'features/command_palette/command_palette.dart';
 import 'platform_io.dart' if (dart.library.js_interop) 'platform_stub.dart';
 import 'security_context_io.dart'
     if (dart.library.js_interop) 'security_context_stub.dart';

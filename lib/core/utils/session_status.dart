@@ -3,7 +3,6 @@ import 'package:flutter/painting.dart';
 import '../models/session.dart';
 import '../theme/app_colors.dart';
 import 'session_utils.dart';
-import 'vibing_messages.dart';
 
 /// Session state enum representing the current state of a session.
 enum SessionState {
@@ -86,12 +85,11 @@ SessionStatus getSessionStatus(Session session) {
   }
 
   if (session.thinking) {
-    final vibingMessage = getRandomVibingMessage();
     return SessionStatus(
       state: SessionState.thinking,
       isConnected: true,
-      statusText: '${vibingMessage.toLowerCase()}...',
-      shouldShowStatus: true,
+      statusText: '',
+      shouldShowStatus: false,
       statusColor: AppColors.iosBlue.toARGB32(),
       statusDotColor: AppColors.iosBlue.toARGB32(),
       isPulsing: true,

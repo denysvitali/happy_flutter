@@ -1,11 +1,7 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../models/auth.dart';
-import '../providers/app_providers.dart';
-import '../widgets/auth_gate.dart';
 import '../../features/artifacts/artifact_detail_screen.dart';
 import '../../features/artifacts/artifacts_list_screen.dart';
 import '../../features/artifacts/edit_artifact_screen.dart';
@@ -54,6 +50,9 @@ import '../../features/zen/zen_new_screen.dart';
 import '../../features/zen/zen_view_screen.dart';
 import '../../sentry_widget.dart'
     if (dart.library.js_interop) '../../sentry_widget_stub.dart';
+import '../models/auth.dart';
+import '../providers/app_providers.dart';
+import '../widgets/auth_gate.dart';
 
 /// Fade transition for tab-level routes.
 Page<void> _fadePage(Widget child, GoRouterState state) {
@@ -558,8 +557,7 @@ GoRouter createRouter(String? initialDeepLink) {
           final directory = extra?['directory'] as SftpDirectory;
           return _slidePage(
             AuthGate(
-              child:
-                  SftpDirectoryManagerScreen(directory: directory),
+              child: SftpDirectoryManagerScreen(directory: directory),
             ),
             state,
           );
