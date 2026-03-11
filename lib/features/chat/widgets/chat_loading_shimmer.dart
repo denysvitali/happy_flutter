@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/components/shimmer_view.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/ui/shimmer/shimmer.dart';
 
 /// Shimmer loading skeleton for the chat message list.
 class ChatLoadingShimmer extends StatelessWidget {
@@ -24,7 +24,7 @@ class ChatLoadingShimmer extends StatelessWidget {
           padding: const EdgeInsets.symmetric(
             vertical: AppSpacing.xs,
           ),
-          child: ShimmerView(
+          child: Shimmer(
             child: Align(
               alignment: isUser
                   ? Alignment.centerRight

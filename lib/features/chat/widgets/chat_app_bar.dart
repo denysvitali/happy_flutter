@@ -60,10 +60,11 @@ class ChatAppBar extends StatelessWidget
   }
 
   Widget _buildTitle(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     if (session == null) {
       return Text(
         context.l10n.chatChat,
-        style: Theme.of(context).textTheme.titleMedium
+        style: textTheme.titleMedium
             ?.copyWith(fontWeight: FontWeight.w600),
       );
     }
@@ -96,9 +97,7 @@ class ChatAppBar extends StatelessWidget
               children: [
                 Text(
                   sessionTitle,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
+                  style: textTheme.titleSmall
                       ?.copyWith(
                         fontWeight: FontWeight.w600,
                         height: 1.2,
@@ -139,10 +138,9 @@ class _StatusRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final statusStyle = Theme.of(context)
-        .textTheme
-        .labelSmall
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final statusStyle = theme.textTheme.labelSmall
         ?.copyWith(
           color: cs.onSurfaceVariant,
           fontWeight: FontWeight.w400,
@@ -293,7 +291,8 @@ class _AppBarTypingIndicatorState
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return SizedBox(
       height: 16,
       child: Row(
@@ -331,9 +330,7 @@ class _AppBarTypingIndicatorState
             const SizedBox(width: AppSpacing.xs),
             Text(
               widget.label!,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
+              style: theme.textTheme.labelSmall
                   ?.copyWith(
                     color: cs.primary,
                     fontWeight: FontWeight.w500,

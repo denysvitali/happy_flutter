@@ -925,7 +925,7 @@ class _InboxLoadingShimmer extends StatelessWidget {
           ),
         );
 
-    return ShimmerView(
+    return Shimmer(
       child: ListView(
         padding: const EdgeInsets.only(
           top: AppSpacing.sm,

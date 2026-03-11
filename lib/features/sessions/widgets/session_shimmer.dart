@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/components/shimmer_view.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/ui/shimmer/shimmer.dart';
 
 /// Skeleton placeholder shown while sessions are loading.
 ///
@@ -38,7 +38,7 @@ class SessionListShimmer extends StatelessWidget {
       double avatarSize = 32,
       double height = 56,
     }) {
-      return ShimmerView(
+      return Shimmer(
         child: SizedBox(
           height: height,
           child: Padding(

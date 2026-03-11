@@ -272,8 +272,9 @@ class _SendStatusIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final style = Theme.of(context).textTheme.labelSmall?.copyWith(
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final style = theme.textTheme.labelSmall?.copyWith(
       fontSize: AppFontSize.xxs,
       height: 1.2,
     );

@@ -43,6 +43,7 @@ void main() {
             statusColor: Colors.green,
             isThinking: false,
             onMenuTap: () {},
+            onInfoTap: () {},
           ),
         ),
       ),
