@@ -3554,7 +3554,7 @@ what you have, you must use the options mode.
         'model': model,
         'fallbackModel': null,
         'appendSystemPrompt': _appendSystemPrompt,
-        if (displayText != null) 'displayText': displayText,
+        'displayText': ?displayText,
       },
     };
     logger.info(
@@ -3982,7 +3982,8 @@ what you have, you must use the options mode.
     if (session == null) return false;
 
     final lifecycleState = session.metadata?.lifecycleState;
-    // Guard against stale lifecycleState (same logic as _resolveSendTargetSession).
+    // Guard against stale lifecycleState
+    // (same logic as _resolveSendTargetSession).
     final lifecycleStateSince = session.metadata?.lifecycleStateSince;
     final lifecycleRecent =
         lifecycleStateSince != null &&
@@ -5025,7 +5026,7 @@ what you have, you must use the options mode.
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
             'uuid': dataUuid,
-            if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+            'parentUuid': ?dataParentUuid,
           });
         } else if (type == 'thinking') {
           results.add({
@@ -5040,7 +5041,7 @@ what you have, you must use the options mode.
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
             'uuid': dataUuid,
-            if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+            'parentUuid': ?dataParentUuid,
           });
         } else if (type == 'tool_use') {
           results.add({
@@ -5058,7 +5059,7 @@ what you have, you must use the options mode.
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
             'uuid': dataUuid,
-            if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+            'parentUuid': ?dataParentUuid,
           });
         }
         i++;
@@ -5082,8 +5083,8 @@ what you have, you must use the options mode.
                 'kind': 'sidechain-root',
                 'isSidechain': true,
                 'prompt': msgContent,
-                if (dataUuid != null) 'uuid': dataUuid,
-                if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+                'uuid': ?dataUuid,
+                'parentUuid': ?dataParentUuid,
               },
             ],
             [],
@@ -5105,8 +5106,8 @@ what you have, you must use the options mode.
               'createdAt': createdAt,
               'permissions': c['permissions'],
               if (isSidechain) 'isSidechain': true,
-              if (dataUuid != null) 'uuid': dataUuid,
-              if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+              'uuid': ?dataUuid,
+              'parentUuid': ?dataParentUuid,
             });
           }
         }
@@ -5440,7 +5441,7 @@ what you have, you must use the options mode.
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
             if (uuid.isNotEmpty) 'uuid': uuid,
-            if (parentUuid != null) 'parentUuid': parentUuid,
+            'parentUuid': ?parentUuid,
           },
         ],
         [],
@@ -5465,7 +5466,7 @@ what you have, you must use the options mode.
               'raw': outerContent,
               if (isSidechain) 'isSidechain': true,
               if (uuid.isNotEmpty) 'uuid': uuid,
-              if (parentUuid != null) 'parentUuid': parentUuid,
+              'parentUuid': ?parentUuid,
             },
           ],
           [],
@@ -5536,7 +5537,7 @@ what you have, you must use the options mode.
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
             if (uuid.isNotEmpty) 'uuid': uuid,
-            if (parentUuid != null) 'parentUuid': parentUuid,
+            'parentUuid': ?parentUuid,
           },
         ],
         [],
@@ -5557,7 +5558,7 @@ what you have, you must use the options mode.
             'createdAt': eventCreatedAt,
             if (isSidechain) 'isSidechain': true,
             if (uuid.isNotEmpty) 'uuid': uuid,
-            if (parentUuid != null) 'parentUuid': parentUuid,
+            'parentUuid': ?parentUuid,
           },
         ],
       );
@@ -5587,7 +5588,7 @@ what you have, you must use the options mode.
               'ref': event['ref'],
               'name': event['name'],
               'size': event['size'],
-              if (imageMeta != null) 'image': imageMeta,
+              'image': ?imageMeta,
             },
             'toolUseId': envelopeId,
             'state': 'completed',
@@ -5595,7 +5596,7 @@ what you have, you must use the options mode.
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
             if (uuid.isNotEmpty) 'uuid': uuid,
-            if (parentUuid != null) 'parentUuid': parentUuid,
+            'parentUuid': ?parentUuid,
           },
         ],
         [],
@@ -5865,7 +5866,7 @@ what you have, you must use the options mode.
             'state': isError ? 'error' : 'completed',
             'result': result['result'],
             'completedAt': result['createdAt'],
-            if (permissionUpdate != null) 'permission': permissionUpdate,
+            'permission': ?permissionUpdate,
           };
           changed = true;
         }
