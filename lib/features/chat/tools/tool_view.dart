@@ -5,7 +5,7 @@ import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/sync_service.dart';
-import '../utils/tool_error_parser.dart';
+import '../../../core/utils/tool_error_parser.dart';
 import 'elapsed_time.dart';
 import 'json_viewer.dart';
 import 'known_tools.dart';
@@ -625,7 +625,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     // Check for tool-use error
     final resultStr = toolResult?.toString() ?? '';
     final errorResult = ToolErrorParser.parse(resultStr);
-    final isToolUseError = errorResult.isToolUseError;
+    final isToolUseError = errorResult != null;
 
     // Build status icon
     Widget? statusIcon;
@@ -808,7 +808,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     Map<String, dynamic>? toolInput,
     dynamic toolResult,
     ToolState state,
-    ToolErrorParseResult errorResult,
+    ParsedToolError? errorResult,
     Map<String, dynamic>? permission,
   ) {
     final toolName = widget.tool['name'] as String? ?? '';
@@ -828,7 +828,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
                 permission['status'] != 'denied' &&
                 permission['status'] != 'canceled' &&
                 !(knownTool?.hideDefaultError ?? false) &&
-                !errorResult.isToolUseError)
+                !(errorResult?.isToolUseError ?? false))
               ToolError(message: toolResult.toString()),
           ],
         ),
@@ -868,7 +868,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
               permission != null &&
               permission['status'] != 'denied' &&
               permission['status'] != 'canceled' &&
-              !errorResult.isToolUseError)
+              !(errorResult?.isToolUseError ?? false))
             ToolError(message: toolResult.toString()),
         ],
       ),

@@ -129,11 +129,14 @@ class ApiClient {
   static int _estimateRequestBytes(dynamic data) {
     if (data == null) return 0;
     if (data is String) return utf8.encode(data).length;
-    try {
-      return utf8.encode(jsonEncode(data)).length;
-    } catch (_) {
-      return 0;
+    if (data is List<int>) return data.length;
+    if (data is Map) {
+      return data.length * 250;
     }
+    if (data is List) {
+      return data.length * 150;
+    }
+    return 0;
   }
 
   static int? _estimateResponseBytes(Response<dynamic> response) {
@@ -147,11 +150,15 @@ class ApiClient {
     if (data == null) return 0;
     if (data is String) return utf8.encode(data).length;
     if (data is List<int>) return data.length;
-    try {
-      return utf8.encode(jsonEncode(data)).length;
-    } catch (_) {
-      return null;
+    // For Map/List, skip expensive jsonEncode — use rough approximation.
+    if (data is Map) {
+      // ~250 bytes per entry on average (keys + values overhead).
+      return data.length * 250;
     }
+    if (data is List) {
+      return data.length * 150;
+    }
+    return null;
   }
 
   static void _recordTrackedRequest(

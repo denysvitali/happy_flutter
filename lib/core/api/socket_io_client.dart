@@ -122,18 +122,22 @@ class SocketIoClient {
     });
 
     _socket!.onAny((event, data) {
-      _messageController.add(
-        SocketMessage(event: event, data: data),
-      );
+      if (_messageController.hasListener) {
+        _messageController.add(
+          SocketMessage(event: event, data: data),
+        );
+      }
 
       final handlers = _messageHandlers[event];
       if (handlers != null) {
-        for (final h in List.of(handlers)) {
-        h(data);
-      }
+        for (final h in handlers) {
+          h(data);
+        }
       }
 
-      if (event == 'update' && data is Map<String, dynamic>) {
+      if (event == 'update' &&
+          data is Map<String, dynamic> &&
+          _updateController.hasListener) {
         try {
           _updateController.add(ApiUpdate.fromJson(data));
         } catch (e, s) {

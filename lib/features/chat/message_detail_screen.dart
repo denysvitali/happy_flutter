@@ -286,7 +286,7 @@ class _MessageHeader extends StatelessWidget {
 /// valid JSON, renders an interactive [JsonTreeViewer] with syntax
 /// highlighting and expand/collapse.  Plain text falls back to a dark
 /// monospace [_CodeBlock].
-class _ToolResultSection extends StatelessWidget {
+class _ToolResultSection extends StatefulWidget {
   const _ToolResultSection({
     required this.title,
     required this.icon,
@@ -302,17 +302,46 @@ class _ToolResultSection extends StatelessWidget {
   final bool isError;
 
   @override
+  State<_ToolResultSection> createState() =>
+      _ToolResultSectionState();
+}
+
+class _ToolResultSectionState extends State<_ToolResultSection> {
+  static const _jsonEncoder = JsonEncoder.withIndent('  ');
+
+  late final String _copyText;
+  late final dynamic _jsonValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _copyText = widget.json != null
+        ? _jsonEncoder.convert(widget.json)
+        : (widget.text ?? '');
+    _jsonValue = _resolveJson();
+  }
+
+  /// Returns a parsed JSON value (Map or List) if the content is JSON,
+  /// or null if it should be rendered as plain text.
+  dynamic _resolveJson() {
+    if (widget.json is Map || widget.json is List) return widget.json;
+    final t = widget.text;
+    if (t == null) return null;
+    final trimmed = t.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        return jsonDecode(t);
+      } catch (e) {
+        logger.warning('Failed to parse JSON: $e');
+      }
+    }
+    return null;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-
-    // Resolve a copyable plain-text representation for the copy button.
-    final copyText = json != null
-        ? const JsonEncoder.withIndent('  ').convert(json)
-        : (text ?? '');
-
-    // Determine whether to show the interactive JSON tree.
-    final dynamic jsonValue = _resolveJson();
 
     return Card(
       elevation: 0,
@@ -329,51 +358,34 @@ class _ToolResultSection extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  icon,
+                  widget.icon,
                   size: 18,
-                  color: isError ? cs.error : cs.primary,
+                  color: widget.isError ? cs.error : cs.primary,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    title,
+                    widget.title,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: isError ? cs.error : null,
+                      color: widget.isError ? cs.error : null,
                     ),
                   ),
                 ),
                 // Copy button — always copies the raw JSON string
-                _CopyButton(content: copyText),
+                _CopyButton(content: _copyText),
               ],
             ),
             const SizedBox(height: 8),
             // Interactive JSON tree or plain code block
-            if (jsonValue != null)
-              _JsonTreeBlock(value: jsonValue)
+            if (_jsonValue != null)
+              _JsonTreeBlock(value: _jsonValue)
             else
-              _CodeBlock(content: copyText),
+              _CodeBlock(content: _copyText),
           ],
         ),
       ),
     );
-  }
-
-  /// Returns a parsed JSON value (Map or List) if the content is JSON,
-  /// or null if it should be rendered as plain text.
-  dynamic _resolveJson() {
-    if (json is Map || json is List) return json;
-    final t = text;
-    if (t == null) return null;
-    final trimmed = t.trim();
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-      try {
-        return jsonDecode(t);
-      } catch (e) {
-        logger.warning('Failed to parse JSON: $e');
-      }
-    }
-    return null;
   }
 }
 

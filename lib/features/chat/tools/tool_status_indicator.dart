@@ -92,45 +92,47 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
     final theme = Theme.of(context);
     final ringColor = theme.colorScheme.primary;
 
-    return SizedBox(
-      width: widget.size,
-      height: widget.size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Pulsing ring
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: _pulseScale.value,
-                child: Opacity(
-                  opacity: _pulseOpacity.value,
-                  child: Container(
-                    width: widget.size,
-                    height: widget.size,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: ringColor,
-                        width: 2,
+    return RepaintBoundary(
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Pulsing ring
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _pulseScale.value,
+                  child: Opacity(
+                    opacity: _pulseOpacity.value,
+                    child: Container(
+                      width: widget.size,
+                      height: widget.size,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: ringColor,
+                          width: 2,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
-          ),
-          // Inner spinner
-          SizedBox(
-            width: widget.size * 0.7,
-            height: widget.size * 0.7,
-            child: CircularProgressIndicator(
-              strokeWidth: 1.8,
-              valueColor: AlwaysStoppedAnimation<Color>(ringColor),
+                );
+              },
             ),
-          ),
-        ],
+            // Inner spinner
+            SizedBox(
+              width: widget.size * 0.7,
+              height: widget.size * 0.7,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.8,
+                valueColor: AlwaysStoppedAnimation<Color>(ringColor),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

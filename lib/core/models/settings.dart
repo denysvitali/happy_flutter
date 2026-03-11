@@ -138,7 +138,11 @@ class Settings {
           lastUsedAgent == other.lastUsedAgent &&
           lastUsedPermissionMode == other.lastUsedPermissionMode &&
           lastUsedModelMode == other.lastUsedModelMode &&
-          lastUsedProfile == other.lastUsedProfile;
+          lastUsedProfile == other.lastUsedProfile &&
+          profiles.length == other.profiles.length &&
+          profiles.asMap().entries.every(
+                (e) => identical(e.value, other.profiles[e.key]),
+              );
 
   @override
   int get hashCode => Object.hash(
@@ -154,6 +158,8 @@ class Settings {
     ttsEnabled,
     preferredLanguage,
     usagePeriod,
+    lastUsedProfile,
+    Object.hashAll(profiles),
   );
 
   Map<String, dynamic> toJson() {

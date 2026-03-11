@@ -67,7 +67,9 @@ class HttpRequestLogger {
     if (_entries.length > _maxEntries) {
       _entries.removeAt(0);
     }
-    _controller.add(List.unmodifiable(_entries));
+    if (_controller.hasListener) {
+      _controller.add(List.unmodifiable(_entries));
+    }
   }
 
   void clear() {

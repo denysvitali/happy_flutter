@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
-import '../utils/tool_error_parser.dart';
+import '../../../core/utils/tool_error_parser.dart';
 
 /// Error display for tool use errors.
 class ToolError extends StatelessWidget {
@@ -12,8 +12,7 @@ class ToolError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final result = ToolErrorParser.parse(message);
-    final displayMessage = result.displayMessage;
+    final parsed = ToolErrorParser.parse(message);
 
     final errorColor = theme.colorScheme.error;
     final surfaceColor = theme.colorScheme.errorContainer
@@ -39,7 +38,9 @@ class ToolError extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              displayMessage.isNotEmpty ? displayMessage : message,
+              parsed != null && parsed.displayMessage.isNotEmpty
+                  ? parsed.displayMessage
+                  : message,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: textColor,
                 fontSize: AppFontSize.sm,
@@ -65,14 +66,10 @@ class ToolResultError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final result = ToolErrorParser.parse(message);
-    final isToolUseError = result.isToolUseError;
+    final parsed = ToolErrorParser.parse(message);
     final errorColor = theme.colorScheme.error;
 
-    final displayText =
-        isToolUseError && result.errorMessage != null
-            ? result.errorMessage!
-            : message;
+    final displayText = parsed != null ? parsed.message : message;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),

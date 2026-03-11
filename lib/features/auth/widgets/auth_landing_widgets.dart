@@ -441,8 +441,8 @@ class _StatusBannerState extends State<StatusBanner>
                 onPressed: widget.onDismiss,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(
-                  minWidth: AppSpacing.xxxl,
-                  minHeight: AppSpacing.xxxl,
+                  minWidth: AppTouchTarget.min,
+                  minHeight: AppTouchTarget.min,
                 ),
               ),
           ],

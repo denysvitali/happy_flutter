@@ -133,6 +133,12 @@ class ParsedToolError {
         'message: $message, suggestion: $suggestion, context: $context)';
   }
 
+  /// Whether this parsed error represents a tool use error.
+  bool get isToolUseError => true;
+
+  /// User-friendly display message.
+  String get displayMessage => message;
+
   /// Convert to a user-friendly display string
   String toDisplayString() {
     return ToolErrorParser.formatForDisplay(this);

@@ -824,89 +824,31 @@ class _SessionsListContentState
     }
 
     var staggerIndex = 0;
-    final children = <Widget>[];
+    final items = <_ListItem>[];
 
     if (activeSessions.isNotEmpty) {
-      children.add(
-        FadeInSection(
-          delay: Duration(
-            milliseconds: kStaggerStep * staggerIndex,
-          ),
-          child: SectionHeader(
-            title: context.l10n.sessionsActiveSessions,
-          ),
-        ),
-      );
+      items.add(_ListItem.sectionHeader(
+        context.l10n.sessionsActiveSessions,
+        staggerIndex,
+      ));
 
       for (final entry in (activeByPath.entries.toList()
         ..sort((a, b) => a.key.compareTo(b.key)))) {
         final pathKey = entry.key;
         final isPathCollapsed =
             _collapsedActivePaths.contains(pathKey);
-        children.add(
-          FadeInSection(
-            delay: Duration(
-              milliseconds: kStaggerStep * staggerIndex,
-            ),
-            child: PathHeader(
-              path: pathKey,
-              sessionCount: entry.value.length,
-              isCollapsed: isPathCollapsed,
-              onToggle: () => setState(() {
-                if (isPathCollapsed) {
-                  _collapsedActivePaths.remove(pathKey);
-                } else {
-                  _collapsedActivePaths.add(pathKey);
-                }
-              }),
-            ),
-          ),
-        );
+        items.add(_ListItem.pathHeader(
+          pathKey,
+          entry.value.length,
+          isPathCollapsed,
+          staggerIndex,
+        ));
         if (!isPathCollapsed) {
-          final sel = _sel.value;
           for (final session in entry.value) {
-            final capturedIndex = staggerIndex;
-            final card = GestureDetector(
-              onLongPress: () =>
-                  _onSessionLongPress(session.id),
-              child: CompactActiveSessionCard(
-                session: session,
-                onTap: sel.isActive
-                    ? () => _onSessionTapInSelectionMode(
-                          session.id,
-                        )
-                    : () => unawaited(
-                          context.pushNamed(
-                            'chat',
-                            pathParameters: {
-                              'sessionId': session.id,
-                            },
-                          ),
-                        ),
-                showFlavorIcon: showFlavorIcons,
-                avatarStyle: avatarStyle,
-                lastMessageTimestamp:
-                    sync.getLastMessageTimestamp(
-                  session.id,
-                ),
-                isSelected:
-                    sel.selectedIds.contains(session.id),
-                selectionMode: sel.isActive,
-              ),
-            );
-            final child = sel.isActive
-                ? card
-                : DismissibleActiveSession(
-                    session: session,
-                    child: card,
-                  );
-            children.add(
-              StaggeredSlideIn(
-                index: capturedIndex,
-                animate: triggerStagger,
-                child: child,
-              ),
-            );
+            items.add(_ListItem.activeSession(
+              session,
+              staggerIndex,
+            ));
             staggerIndex++;
           }
         }
@@ -918,43 +860,24 @@ class _SessionsListContentState
       activeCount: activeSessions.length,
       inactiveCount: inactiveSessions.length,
     )) {
-      children.add(
-        FadeInSection(
-          delay: Duration(
-            milliseconds: kStaggerStep * staggerIndex,
-          ),
-          child: ArchiveSectionHeader(
-            count: inactiveSessions.length,
-            grouping: _archivedGrouping,
-            onGroupingChanged: (g) =>
-                setState(() => _archivedGrouping = g),
-          ),
-        ),
-      );
+      items.add(_ListItem.archiveHeader(
+        inactiveSessions.length,
+        _archivedGrouping,
+        staggerIndex,
+      ));
 
-      final sel = _sel.value;
       final archivedItems =
           _archivedGrouping == ArchivedGrouping.folder
               ? _buildFolderGroupedItems(
-                  context,
                   inactiveSessions,
                   machines,
                   startIndex: staggerIndex,
-                  animate: triggerStagger,
-                  showFlavorIcons: showFlavorIcons,
-                  avatarStyle: avatarStyle,
-                  selectionState: sel,
                 )
               : _buildDateGroupedItems(
-                  context,
                   inactiveSessions,
                   startIndex: staggerIndex,
-                  animate: triggerStagger,
-                  showFlavorIcons: showFlavorIcons,
-                  avatarStyle: avatarStyle,
-                  selectionState: sel,
                 );
-      children.addAll(archivedItems);
+      items.addAll(archivedItems);
     }
 
     return ListView.builder(
@@ -962,37 +885,261 @@ class _SessionsListContentState
         top: AppSpacing.xs,
         bottom: AppSpacing.lg,
       ),
-      itemCount: children.length,
-      itemBuilder: (ctx, i) => children[i],
+      itemCount: items.length,
+      itemBuilder: (ctx, i) {
+        final item = items[i];
+        final child = _buildItemWidget(
+          context,
+          item,
+          showFlavorIcons: showFlavorIcons,
+          avatarStyle: avatarStyle,
+          triggerStagger: triggerStagger,
+        );
+        return StaggeredSlideIn(
+          index: item.staggerIndex,
+          animate: triggerStagger,
+          child: child,
+        );
+      },
     );
   }
 
-  List<Widget> _buildDateGroupedItems(
+  Widget _buildItemWidget(
     BuildContext context,
-    List<Session> sessions, {
-    required int startIndex,
-    required bool animate,
+    _ListItem item, {
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
-    required _SelectionState selectionState,
+    required bool triggerStagger,
   }) {
-    final l10n = context.l10n;
+    final sel = _sel.value;
+
+    switch (item.type) {
+      case _ListItemType.sectionHeader:
+        return FadeInSection(
+          delay: Duration(
+            milliseconds: kStaggerStep * item.staggerIndex,
+          ),
+          child: SectionHeader(title: item.title!),
+        );
+
+      case _ListItemType.pathHeader:
+        final isPathCollapsed =
+            _collapsedActivePaths.contains(item.pathKey!);
+        return FadeInSection(
+          delay: Duration(
+            milliseconds: kStaggerStep * item.staggerIndex,
+          ),
+          child: PathHeader(
+            path: item.pathKey!,
+            sessionCount: item.sessionCount!,
+            isCollapsed: isPathCollapsed,
+            onToggle: () => setState(() {
+              if (isPathCollapsed) {
+                _collapsedActivePaths.remove(item.pathKey!);
+              } else {
+                _collapsedActivePaths.add(item.pathKey!);
+              }
+            }),
+          ),
+        );
+
+      case _ListItemType.activeSession:
+        final session = item.session!;
+        final card = GestureDetector(
+          onLongPress: () => _onSessionLongPress(session.id),
+          child: CompactActiveSessionCard(
+            session: session,
+            onTap: sel.isActive
+                ? () => _onSessionTapInSelectionMode(session.id)
+                : () => unawaited(
+                      context.pushNamed(
+                        'chat',
+                        pathParameters: {
+                          'sessionId': session.id,
+                        },
+                      ),
+                    ),
+            showFlavorIcon: showFlavorIcons,
+            avatarStyle: avatarStyle,
+            lastMessageTimestamp:
+                sync.getLastMessageTimestamp(session.id),
+            isSelected: sel.selectedIds.contains(session.id),
+            selectionMode: sel.isActive,
+          ),
+        );
+        return sel.isActive
+            ? card
+            : DismissibleActiveSession(
+                session: session,
+                child: card,
+              );
+
+      case _ListItemType.archiveHeader:
+        return FadeInSection(
+          delay: Duration(
+            milliseconds: kStaggerStep * item.staggerIndex,
+          ),
+          child: ArchiveSectionHeader(
+            count: item.sessionCount!,
+            grouping: item.archivedGrouping!,
+            onGroupingChanged: (g) =>
+                setState(() => _archivedGrouping = g),
+          ),
+        );
+
+      case _ListItemType.dateHeader:
+        return FadeInSection(
+          delay: Duration(
+            milliseconds: kStaggerStep * item.staggerIndex,
+          ),
+          child: CollapsibleDateHeader(
+            date: item.title!,
+            sessionCount: item.sessionCount!,
+            isCollapsed:
+                _collapsedDateKeys.contains(item.dateKey!),
+            onToggle: () => setState(() {
+              if (_collapsedDateKeys.contains(item.dateKey!)) {
+                _collapsedDateKeys.remove(item.dateKey!);
+              } else {
+                _collapsedDateKeys.add(item.dateKey!);
+              }
+            }),
+          ),
+        );
+
+      case _ListItemType.archivedSession:
+        final session = item.session!;
+        final card = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SessionCard(
+              session: session,
+              onTap: sel.isActive
+                  ? () => _onSessionTapInSelectionMode(session.id)
+                  : () => unawaited(
+                        context.pushNamed(
+                          'chat',
+                          pathParameters: {
+                            'sessionId': session.id,
+                          },
+                        ),
+                      ),
+              onLongPress: () =>
+                  _onSessionLongPress(session.id),
+              isFirst: item.isFirst!,
+              isLast: item.isLast!,
+              isSingle: item.isSingle!,
+              compact: true,
+              selectionMode: sel.isActive,
+              isSelected:
+                  sel.selectedIds.contains(session.id),
+              showFlavorIcon: showFlavorIcons,
+              avatarStyle: avatarStyle,
+              lastMessageTimestamp:
+                  sync.getLastMessageTimestamp(session.id),
+              lastMessagePreview:
+                  sync.getLastMessagePreview(session.id),
+            ),
+            if (!item.isLast! && !item.isSingle!)
+              Divider(
+                height: 1,
+                indent: 64,
+                color: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withValues(alpha: 0.2),
+              ),
+          ],
+        );
+        return sel.isActive
+            ? card
+            : DismissibleInactiveSession(
+                session: session,
+                child: card,
+              );
+
+      case _ListItemType.folderHeader:
+        return FadeInSection(
+          delay: Duration(
+            milliseconds: kStaggerStep * item.staggerIndex,
+          ),
+          child: CollapsibleFolderHeader(
+            header: item.folderHeader!,
+            isCollapsed: _collapsedFolderKeys
+                .contains(item.folderHeader!.folderKey),
+            onToggle: () => setState(() {
+              final key = item.folderHeader!.folderKey;
+              if (_collapsedFolderKeys.contains(key)) {
+                _collapsedFolderKeys.remove(key);
+              } else {
+                _collapsedFolderKeys.add(key);
+              }
+            }),
+          ),
+        );
+
+      case _ListItemType.folderEntry:
+        final session = item.session!;
+        final card = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SessionCard(
+              session: session,
+              onTap: sel.isActive
+                  ? () => _onSessionTapInSelectionMode(session.id)
+                  : () => unawaited(
+                        context.pushNamed(
+                          'chat',
+                          pathParameters: {
+                            'sessionId': session.id,
+                          },
+                        ),
+                      ),
+              onLongPress: () =>
+                  _onSessionLongPress(session.id),
+              isFirst: item.isFirst!,
+              isLast: item.isLast!,
+              isSingle: item.isSingle!,
+              compact: true,
+              selectionMode: sel.isActive,
+              isSelected:
+                  sel.selectedIds.contains(session.id),
+              showFlavorIcon: showFlavorIcons,
+              avatarStyle: avatarStyle,
+              lastMessageTimestamp:
+                  sync.getLastMessageTimestamp(session.id),
+              lastMessagePreview:
+                  sync.getLastMessagePreview(session.id),
+            ),
+            if (!item.isLast! && !item.isSingle!)
+              Divider(
+                height: 1,
+                indent: 64,
+                color: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withValues(alpha: 0.2),
+              ),
+          ],
+        );
+        return sel.isActive
+            ? card
+            : DismissibleInactiveSession(
+                session: session,
+                child: card,
+              );
+    }
+  }
+
+  List<_ListItem> _buildDateGroupedItems(
+    List<Session> sessions, {
+    required int startIndex,
+  }) {
     final grouped =
         groupSessionsByDateCategory(sessions);
 
-    String localize(DateGroup g) => switch (g) {
-          DateGroup.today => l10n.sessionsToday,
-          DateGroup.yesterday =>
-            l10n.sessionsYesterday,
-          DateGroup.thisWeek =>
-            l10n.sessionsThisWeek,
-          DateGroup.thisMonth =>
-            l10n.sessionsThisMonth,
-          DateGroup.older => l10n.sessionsOlder,
-        };
-
     var itemIndex = startIndex;
-    final widgets = <Widget>[];
+    final items = <_ListItem>[];
 
     for (final group in dateGroupOrder) {
       final dateSessions = grouped[group];
@@ -1005,161 +1152,70 @@ class _SessionsListContentState
       final isCollapsed =
           _collapsedDateKeys.contains(dateKey);
 
-      widgets.add(
-        FadeInSection(
-          delay: Duration(
-            milliseconds:
-                kStaggerStep * itemIndex,
-          ),
-          child: CollapsibleDateHeader(
-            date: localize(group),
-            sessionCount: dateSessions.length,
-            isCollapsed: isCollapsed,
-            onToggle: () => setState(() {
-              if (_collapsedDateKeys
-                  .contains(dateKey)) {
-                _collapsedDateKeys.remove(dateKey);
-              } else {
-                _collapsedDateKeys.add(dateKey);
-              }
-            }),
-          ),
-        ),
-      );
+      items.add(_ListItem.dateHeader(
+        dateKey,
+        _localizeDateGroup(group),
+        dateSessions.length,
+        itemIndex,
+      ));
 
       if (!isCollapsed) {
         for (var i = 0;
             i < dateSessions.length;
             i++) {
           final session = dateSessions[i];
-          final capturedIndex = itemIndex;
           final isFirst = i == 0;
           final isLast =
               i == dateSessions.length - 1;
           final isSingle =
               dateSessions.length == 1;
 
-          final card = Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SessionCard(
-                session: session,
-                onTap: selectionState.isActive
-                    ? () =>
-                        _onSessionTapInSelectionMode(
-                          session.id,
-                        )
-                    : () => unawaited(
-                          context.pushNamed(
-                            'chat',
-                            pathParameters: {
-                              'sessionId':
-                                  session.id,
-                            },
-                          ),
-                        ),
-                onLongPress: () =>
-                    _onSessionLongPress(
-                  session.id,
-                ),
-                isFirst: isFirst,
-                isLast: isLast,
-                isSingle: isSingle,
-                compact: true,
-                selectionMode:
-                    selectionState.isActive,
-                isSelected: selectionState
-                    .selectedIds
-                    .contains(session.id),
-                showFlavorIcon: showFlavorIcons,
-                avatarStyle: avatarStyle,
-                lastMessageTimestamp:
-                    sync.getLastMessageTimestamp(
-                  session.id,
-                ),
-                lastMessagePreview:
-                    sync.getLastMessagePreview(
-                  session.id,
-                ),
-              ),
-              if (!isLast && !isSingle)
-                Divider(
-                  height: 1,
-                  indent: 64,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outlineVariant
-                      .withValues(alpha: 0.2),
-                ),
-            ],
-          );
-
-          final child = selectionState.isActive
-              ? card
-              : DismissibleInactiveSession(
-                  session: session,
-                  child: card,
-                );
-
-          widgets.add(
-            StaggeredSlideIn(
-              index: capturedIndex,
-              animate: animate,
-              child: child,
-            ),
-          );
+          items.add(_ListItem.archivedSession(
+            session,
+            itemIndex,
+            isFirst: isFirst,
+            isLast: isLast,
+            isSingle: isSingle,
+          ));
           itemIndex++;
         }
       }
     }
 
-    return widgets;
+    return items;
   }
 
-  List<Widget> _buildFolderGroupedItems(
-    BuildContext context,
+  String _localizeDateGroup(DateGroup g) {
+    final l10n = context.l10n;
+    return switch (g) {
+      DateGroup.today => l10n.sessionsToday,
+      DateGroup.yesterday => l10n.sessionsYesterday,
+      DateGroup.thisWeek => l10n.sessionsThisWeek,
+      DateGroup.thisMonth => l10n.sessionsThisMonth,
+      DateGroup.older => l10n.sessionsOlder,
+    };
+  }
+
+  List<_ListItem> _buildFolderGroupedItems(
     List<Session> sessions,
     Map<String, Machine> machines, {
     required int startIndex,
-    required bool animate,
-    required bool showFlavorIcons,
-    required AvatarStyle? avatarStyle,
-    required _SelectionState selectionState,
   }) {
     final folderItems =
         groupSessionsByFolder(sessions, machines);
 
     var itemIndex = startIndex;
-    final widgets = <Widget>[];
+    final items = <_ListItem>[];
     String? currentFolderKey;
 
     for (final item in folderItems) {
       switch (item) {
         case SessionFolderHeader():
           currentFolderKey = item.folderKey;
-          final isCollapsed =
-              _collapsedFolderKeys.contains(
-            item.folderKey,
-          );
-          widgets.add(
-            FadeInSection(
-              delay: Duration(
-                milliseconds: kStaggerStep * itemIndex,
-              ),
-              child: CollapsibleFolderHeader(
-                header: item,
-                isCollapsed: isCollapsed,
-                onToggle: () => setState(() {
-                  final key = item.folderKey;
-                  if (_collapsedFolderKeys.contains(key)) {
-                    _collapsedFolderKeys.remove(key);
-                  } else {
-                    _collapsedFolderKeys.add(key);
-                  }
-                }),
-              ),
-            ),
-          );
+          items.add(_ListItem.folderHeader(
+            item,
+            itemIndex,
+          ));
         case SessionFolderEntry():
           if (currentFolderKey != null &&
               _collapsedFolderKeys
@@ -1167,75 +1223,156 @@ class _SessionsListContentState
             continue;
           }
           final session = item.session;
-          final capturedIndex = itemIndex;
 
-          final card = Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SessionCard(
-                session: session,
-                onTap: selectionState.isActive
-                    ? () => _onSessionTapInSelectionMode(
-                          session.id,
-                        )
-                    : () => unawaited(
-                          context.pushNamed(
-                            'chat',
-                            pathParameters: {
-                              'sessionId': session.id,
-                            },
-                          ),
-                        ),
-                onLongPress: () =>
-                    _onSessionLongPress(session.id),
-                isFirst: item.isFirst,
-                isLast: item.isLast,
-                isSingle: item.isSingle,
-                compact: true,
-                selectionMode: selectionState.isActive,
-                isSelected: selectionState.selectedIds
-                    .contains(session.id),
-                showFlavorIcon: showFlavorIcons,
-                avatarStyle: avatarStyle,
-                lastMessageTimestamp:
-                    sync.getLastMessageTimestamp(
-                  session.id,
-                ),
-                lastMessagePreview:
-                    sync.getLastMessagePreview(
-                  session.id,
-                ),
-              ),
-              if (!item.isLast && !item.isSingle)
-                Divider(
-                  height: 1,
-                  indent: 64,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outlineVariant
-                      .withValues(alpha: 0.2),
-                ),
-            ],
-          );
-
-          final child = selectionState.isActive
-              ? card
-              : DismissibleInactiveSession(
-                  session: session,
-                  child: card,
-                );
-
-          widgets.add(
-            StaggeredSlideIn(
-              index: capturedIndex,
-              animate: animate,
-              child: child,
-            ),
-          );
+          items.add(_ListItem.folderEntry(
+            session,
+            itemIndex,
+            isFirst: item.isFirst,
+            isLast: item.isLast,
+            isSingle: item.isSingle,
+          ));
           itemIndex++;
       }
     }
 
-    return widgets;
+    return items;
   }
+}
+
+// ── List item descriptors ────────────────────────────────────────────────
+
+enum _ListItemType {
+  sectionHeader,
+  pathHeader,
+  activeSession,
+  archiveHeader,
+  dateHeader,
+  archivedSession,
+  folderHeader,
+  folderEntry,
+}
+
+/// Lightweight descriptor for a list item. Widgets are built on demand
+/// by [_SessionsListContentState._buildItemWidget].
+class _ListItem {
+  // Fields are non-nullable and populated by each named constructor.
+  final _ListItemType type;
+  final int staggerIndex;
+  // Active/session items.
+  final Session? session;
+  final SessionFolderHeader? folderHeader;
+  // Grouping metadata.
+  final String? title;
+  final String? pathKey;
+  final int? sessionCount;
+  final String? dateKey;
+  final ArchivedGrouping? archivedGrouping;
+  // Archived session card shapes.
+  final bool? isFirst;
+  final bool? isLast;
+  final bool? isSingle;
+
+  _ListItem._raw({
+    required this.type,
+    required this.staggerIndex,
+    this.session,
+    this.folderHeader,
+    this.title,
+    this.pathKey,
+    this.sessionCount,
+    this.dateKey,
+    this.archivedGrouping,
+    this.isFirst,
+    this.isLast,
+    this.isSingle,
+  });
+
+  _ListItem.sectionHeader(String title, int staggerIndex)
+      : this._raw(
+          type: _ListItemType.sectionHeader,
+          staggerIndex: staggerIndex,
+          title: title,
+        );
+
+  _ListItem.pathHeader(
+    String pathKey,
+    int sessionCount,
+    bool _, // isCollapsed - unused at descriptor level
+    int staggerIndex,
+  ) : this._raw(
+          type: _ListItemType.pathHeader,
+          staggerIndex: staggerIndex,
+          pathKey: pathKey,
+          sessionCount: sessionCount,
+        );
+
+  _ListItem.activeSession(Session session, int staggerIndex)
+      : this._raw(
+          type: _ListItemType.activeSession,
+          staggerIndex: staggerIndex,
+          session: session,
+        );
+
+  _ListItem.archiveHeader(
+    int sessionCount,
+    ArchivedGrouping grouping,
+    int staggerIndex,
+  ) : this._raw(
+          type: _ListItemType.archiveHeader,
+          staggerIndex: staggerIndex,
+          sessionCount: sessionCount,
+          archivedGrouping: grouping,
+        );
+
+  _ListItem.dateHeader(
+    String dateKey,
+    String title,
+    int sessionCount,
+    int staggerIndex,
+  ) : this._raw(
+          type: _ListItemType.dateHeader,
+          staggerIndex: staggerIndex,
+          dateKey: dateKey,
+          title: title,
+          sessionCount: sessionCount,
+        );
+
+  _ListItem.archivedSession(
+    Session session,
+    int staggerIndex, {
+    required bool isFirst,
+    required bool isLast,
+    required bool isSingle,
+  }) : this._raw(
+          type: _ListItemType.archivedSession,
+          staggerIndex: staggerIndex,
+          session: session,
+          isFirst: isFirst,
+          isLast: isLast,
+          isSingle: isSingle,
+        );
+
+  _ListItem.folderHeader(
+    SessionFolderHeader header,
+    int staggerIndex,
+  ) : this._raw(
+          type: _ListItemType.folderHeader,
+          staggerIndex: staggerIndex,
+          folderHeader: header,
+        );
+
+  _ListItem.folderEntry(
+    Session session,
+    int staggerIndex, {
+    required bool isFirst,
+    required bool isLast,
+    required bool isSingle,
+  }) : this._raw(
+          type: _ListItemType.folderEntry,
+          staggerIndex: staggerIndex,
+          session: session,
+          isFirst: isFirst,
+          isLast: isLast,
+          isSingle: isSingle,
+        );
 }

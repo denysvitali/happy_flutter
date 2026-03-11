@@ -136,9 +136,17 @@ Map<String, String> parseQueryParams(String query) {
   return params;
 }
 
-/// Deep copy JSON
+/// Deep copy JSON without serialization roundtrip.
 dynamic deepCopyJson(dynamic json) {
-  return jsonDecode(jsonEncode(json));
+  if (json is Map) {
+    return Map<String, dynamic>.fromEntries(
+      json.entries.map((e) => MapEntry(e.key, deepCopyJson(e.value))),
+    );
+  }
+  if (json is List) {
+    return json.map(deepCopyJson).toList();
+  }
+  return json;
 }
 
 /// Compact JSON

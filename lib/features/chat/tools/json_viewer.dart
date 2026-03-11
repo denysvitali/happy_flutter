@@ -73,15 +73,24 @@ TextStyle _mono(BuildContext context) {
 /// plain monospace text when the content is not valid JSON.
 ///
 /// [content] may be a [String] (JSON or plain text), a [Map], or a [List].
-class SmartOutputContainer extends StatelessWidget {
+class SmartOutputContainer extends StatefulWidget {
   const SmartOutputContainer({required this.content, super.key});
 
   final dynamic content;
 
   @override
+  State<SmartOutputContainer> createState() =>
+      _SmartOutputContainerState();
+}
+
+class _SmartOutputContainerState extends State<SmartOutputContainer> {
+  late final (bool, dynamic) _parsedJson =
+      _tryParseJson(widget.content);
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final (isJson, jsonValue) = _tryParseJson(content);
+    final (isJson, jsonValue) = _parsedJson;
 
     return Container(
       constraints: const BoxConstraints(maxHeight: 300),
@@ -97,7 +106,9 @@ class SmartOutputContainer extends StatelessWidget {
         child: isJson
             ? JsonTreeViewer(value: jsonValue)
             : SelectableText(
-                content is String ? content as String : content.toString(),
+                widget.content is String
+                    ? widget.content as String
+                    : widget.content.toString(),
                 style: TextStyle(
                   fontFamily: 'monospace',
                   fontFamilyFallback: const ['Courier New', 'Courier'],

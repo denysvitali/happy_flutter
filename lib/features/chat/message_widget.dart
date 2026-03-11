@@ -752,9 +752,8 @@ void _showMessageDetailSheet(
   );
 }
 
-String _formatTimestamp(int milliseconds) {
+String _formatTimestamp(int milliseconds, DateTime now) {
   final dt = DateTime.fromMillisecondsSinceEpoch(milliseconds);
-  final now = DateTime.now();
   final diff = now.difference(dt);
 
   final timeStr =
