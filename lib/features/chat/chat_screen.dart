@@ -421,6 +421,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           statusText: _getStatusText(context),
           statusColor: _getStatusColor(context),
           isThinking: isThinking,
+          modelLabel:
+              _modelMode == ClaudeModel.defaultModel
+                  ? null
+                  : _modelMode.label,
+          onInfoTap: () {
+            HapticFeedback.lightImpact();
+            context.pushNamed(
+              'session-info',
+              pathParameters: {
+                'sessionId': widget.sessionId,
+              },
+            );
+          },
           onMenuTap: () => _showSessionMenu(context),
         ),
         body: Column(

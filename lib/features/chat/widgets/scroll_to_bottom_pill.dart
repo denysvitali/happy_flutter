@@ -2,22 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_tokens.dart';
 
-/// A pill-shaped button that scrolls to the bottom of the chat.
-///
-/// Enters with a scale+fade animation and bounces the arrow
-/// icon subtly to draw the user's eye.
+/// A pill-shaped button that scrolls to the bottom of the
+/// chat. Enters with a scale+fade+slide animation and
+/// uses a subtle shadow for depth.
 class ScrollToBottomPill extends StatefulWidget {
-  /// Creates a scroll-to-bottom pill
+  /// Creates a scroll-to-bottom pill.
   const ScrollToBottomPill({
     required this.onTap,
     super.key,
     this.unreadCount,
   });
 
-  /// Callback when the pill is tapped
+  /// Callback when the pill is tapped.
   final VoidCallback onTap;
 
-  /// Optional unread message count to show as a badge.
+  /// Optional unread message count badge.
   final int? unreadCount;
 
   @override
@@ -25,20 +24,22 @@ class ScrollToBottomPill extends StatefulWidget {
       _ScrollToBottomPillState();
 }
 
-class _ScrollToBottomPillState extends State<ScrollToBottomPill>
+class _ScrollToBottomPillState
+    extends State<ScrollToBottomPill>
     with SingleTickerProviderStateMixin {
   late final AnimationController _entryCtrl;
   late final Animation<double> _scale;
   late final Animation<double> _opacity;
+  late final Animation<Offset> _slide;
 
   @override
   void initState() {
     super.initState();
     _entryCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 250),
+      duration: AppDuration.normal,
     );
-    _scale = Tween(begin: 0.6, end: 1.0).animate(
+    _scale = Tween(begin: 0.7, end: 1.0).animate(
       CurvedAnimation(
         parent: _entryCtrl,
         curve: Curves.easeOutBack,
@@ -48,6 +49,15 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
       CurvedAnimation(
         parent: _entryCtrl,
         curve: Curves.easeOut,
+      ),
+    );
+    _slide = Tween(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _entryCtrl,
+        curve: Curves.easeOutCubic,
       ),
     );
     _entryCtrl.forward();
@@ -62,16 +72,19 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final showBadge =
-        widget.unreadCount != null && widget.unreadCount! > 0;
+    final showBadge = widget.unreadCount != null &&
+        widget.unreadCount! > 0;
 
     return AnimatedBuilder(
       animation: _entryCtrl,
-      builder: (context, child) => Opacity(
-        opacity: _opacity.value,
-        child: Transform.scale(
-          scale: _scale.value,
-          child: child,
+      builder: (context, child) => FadeTransition(
+        opacity: _opacity,
+        child: SlideTransition(
+          position: _slide,
+          child: ScaleTransition(
+            scale: _scale,
+            child: child,
+          ),
         ),
       ),
       child: Semantics(
@@ -82,37 +95,17 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              Material(
-                color: cs.surface,
-                borderRadius: BorderRadius.circular(
-                  AppRadius.pill,
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(
+                    AppRadius.pill,
+                  ),
+                  boxShadow: AppShadow.card,
                 ),
-                elevation: 0,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(
-                      AppRadius.pill,
-                    ),
-                    border: Border.all(
-                      color: cs.outlineVariant.withValues(
-                        alpha: 0.4,
-                      ),
-                      width: 0.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            cs.shadow.withValues(alpha: 0.1),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                      BoxShadow(
-                        color:
-                            cs.shadow.withValues(alpha: 0.06),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                child: Material(
+                  color: cs.surfaceContainer,
+                  borderRadius: BorderRadius.circular(
+                    AppRadius.pill,
                   ),
                   child: InkWell(
                     onTap: () {
@@ -122,14 +115,26 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
                     borderRadius: BorderRadius.circular(
                       AppRadius.pill,
                     ),
-                    child: Padding(
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius:
+                            BorderRadius.circular(
+                          AppRadius.pill,
+                        ),
+                        border: Border.all(
+                          color: cs.outlineVariant
+                              .withValues(alpha: 0.3),
+                          width: AppBorder.hairline,
+                        ),
                       ),
                       child: Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 22,
+                        Icons
+                            .keyboard_double_arrow_down_rounded,
+                        size: 20,
                         color: cs.onSurfaceVariant,
                       ),
                     ),
@@ -141,10 +146,11 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
                   top: -4,
                   right: -4,
                   child: TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    duration: const Duration(
-                      milliseconds: 200,
+                    tween: Tween(
+                      begin: 0.0,
+                      end: 1.0,
                     ),
+                    duration: AppDuration.fast,
                     curve: Curves.easeOutBack,
                     builder: (context, value, child) =>
                         Transform.scale(
@@ -152,17 +158,29 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
                       child: child,
                     ),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
+                      padding:
+                          const EdgeInsets.symmetric(
                         horizontal: 5,
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
                         color: cs.primary,
-                        borderRadius: BorderRadius.circular(
+                        borderRadius:
+                            BorderRadius.circular(
                           AppRadius.pill,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: cs.primary
+                                .withValues(alpha: 0.3),
+                            blurRadius: 4,
+                            offset:
+                                const Offset(0, 1),
+                          ),
+                        ],
                       ),
-                      constraints: const BoxConstraints(
+                      constraints:
+                          const BoxConstraints(
                         minWidth: 18,
                         minHeight: 18,
                       ),
