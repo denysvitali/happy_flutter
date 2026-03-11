@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/http_request_logger.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../core/utils/datetime_extensions.dart';
 
 /// Debug screen that shows all HTTP requests made by [ApiClient].
@@ -478,7 +479,7 @@ class _RequestRow extends StatelessWidget {
         expand: false,
         builder: (ctx, scroll) => ListView(
           controller: scroll,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(AppSpacing.xl),
           children: [
             // ── Header ──────────────────────────────────────────
             Row(

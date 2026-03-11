@@ -7,6 +7,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/logger_provider.dart';
 import '../../core/services/logger_service.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../core/utils/datetime_extensions.dart';
 
 /// Debug logs screen - available when developer mode is enabled
@@ -23,7 +24,7 @@ class DevLogsScreen extends ConsumerWidget {
         appBar: AppBar(title: Text(l10n.devLogsTitle)),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.xxl),
             child: Text(
               l10n.devLogsOnlyAvailableInDevMode,
               textAlign: TextAlign.center,
@@ -448,7 +449,7 @@ class LogEntryWidget extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         width: double.infinity,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

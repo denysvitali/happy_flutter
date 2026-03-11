@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart';
+import '../../core/theme/app_tokens.dart';
 import 'tools/json_viewer.dart';
 import 'tools/known_tools.dart';
 import 'tools/tool_status_indicator.dart';
@@ -78,7 +79,7 @@ class _TextDetailView extends StatelessWidget {
     final content = data['content'] ?? data['text'] ?? '';
     final text = content is String ? content : content.toString();
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         _DetailCard(
           title: context.l10n.messageDetailContent,
@@ -119,7 +120,7 @@ class _ToolDetailView extends StatelessWidget {
     final state = _parseState(toolState);
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         // Header card
         _MessageHeader(
@@ -320,7 +321,7 @@ class _ToolResultSection extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -662,7 +663,7 @@ class _ToolDetailBottomSheet extends StatelessWidget {
         Expanded(
           child: ListView(
             controller: scrollController,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               if (input != null)
                 _ToolResultSection(
@@ -731,7 +732,7 @@ class _DetailCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -809,7 +810,7 @@ class _JsonTreeBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(AppSpacing.smd),
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(8),
@@ -840,7 +841,7 @@ class _CodeBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(AppSpacing.smd),
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(8),

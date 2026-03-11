@@ -684,8 +684,14 @@ class _HappyAppState extends ConsumerState<HappyApp>
   Widget build(BuildContext context) {
     return Consumer(
       builder: (context, ref, child) {
-        final settings = ref.watch(settingsNotifierProvider);
-        final themeMode = AppThemeMode.fromString(settings.themeMode);
+        // Watch only the specific fields needed to avoid unnecessary rebuilds
+        final themeModeString = ref.watch(
+          settingsNotifierProvider.select((s) => s.themeMode),
+        );
+        final preferredLanguage = ref.watch(
+          settingsNotifierProvider.select((s) => s.preferredLanguage),
+        );
+        final themeMode = AppThemeMode.fromString(themeModeString);
 
         // Apply system chrome only when theme mode actually changes.
         if (themeMode != _lastAppliedThemeMode) {
@@ -706,7 +712,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
                   theme: ThemeHelper.buildLightTheme(),
                   darkTheme: ThemeHelper.buildDarkTheme(),
                   themeMode: _getThemeMode(themeMode),
-                  locale: _resolveLocale(settings.preferredLanguage),
+                  locale: _resolveLocale(preferredLanguage),
                   localizationsDelegates:
                       AppLocalizations.localizationsDelegates,
                   supportedLocales: supportedLocales,

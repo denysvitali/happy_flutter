@@ -501,7 +501,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(AppSpacing.xsm),
             child: SendButton(
               isSending: widget.isSending,
               isSendDisabled: widget.isSendDisabled,

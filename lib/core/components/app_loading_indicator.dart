@@ -53,22 +53,29 @@ class AppLoadingIndicator extends StatelessWidget {
     );
 
     if (label == null) {
-      return Center(child: spinner);
+      // Add semantic label for accessibility when no label is provided
+      return Semantics(
+        label: 'Loading',
+        child: Center(child: spinner),
+      );
     }
 
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          spinner,
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            label!,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+    return Semantics(
+      label: label,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            spinner,
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              label!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../i18n/app_localizations.dart';
 import '../services/logger_service.dart';
+import '../theme/app_tokens.dart';
 import '../utils/tool_error_parser.dart';
 
 /// Error boundary widget that catches and displays errors gracefully.
@@ -136,7 +137,7 @@ class _DefaultErrorWidget extends StatelessWidget {
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.xxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -145,7 +146,7 @@ class _DefaultErrorWidget extends StatelessWidget {
               size: 64,
               color: theme.colorScheme.error,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             Text(
               toolError?.errorName ?? 'Something went wrong',
               style: theme.textTheme.headlineSmall?.copyWith(
@@ -153,7 +154,7 @@ class _DefaultErrorWidget extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               toolError?.message ??
                   (error?.toString() ?? 'An unknown error occurred'),
@@ -163,12 +164,12 @@ class _DefaultErrorWidget extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             if (toolError?.context != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Text(
                   toolError!.context!,
@@ -177,12 +178,12 @@ class _DefaultErrorWidget extends StatelessWidget {
               ),
             ],
             if (toolError?.suggestion != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,7 +193,7 @@ class _DefaultErrorWidget extends StatelessWidget {
                       color: theme.colorScheme.onPrimaryContainer,
                       size: 20,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
                         toolError!.suggestion!,
@@ -206,7 +207,7 @@ class _DefaultErrorWidget extends StatelessWidget {
               ),
             ],
             if (isDebugMode && stackTrace != null) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.xxl),
               ExpansionTile(
                 title: Text(
                   'Stack Trace',
@@ -215,10 +216,10 @@ class _DefaultErrorWidget extends StatelessWidget {
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                     child: SelectableText(
                       stackTrace.toString(),
@@ -230,7 +231,7 @@ class _DefaultErrorWidget extends StatelessWidget {
                 ],
               ),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xxl),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -239,7 +240,7 @@ class _DefaultErrorWidget extends StatelessWidget {
                   icon: const Icon(Icons.refresh),
                   label: Text(AppLocalizations.of(context).commonTryAgain),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: AppSpacing.lg),
                 OutlinedButton.icon(
                   onPressed: () => context.go('/'),
                   icon: const Icon(Icons.home),
@@ -284,7 +285,7 @@ class ErrorSnackbarManager {
               Icons.error_outline,
               color: theme.colorScheme.onErrorContainer,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

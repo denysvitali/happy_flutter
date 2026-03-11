@@ -25,6 +25,9 @@ abstract final class AppSpacing {
   /// 8 px – tight internal padding.
   static const double sm = 8;
 
+  /// 10 px – compact element padding.
+  static const double smd = 10;
+
   /// 12 px – compact section padding.
   static const double md = 12;
 
@@ -272,4 +275,29 @@ abstract final class AppBreakpoint {
 
   /// 360 px – maximum sidebar width.
   static const double sidebarMax = 360;
+}
+
+// ─── Screen padding ────────────────────────────────────────────────────────
+
+/// Standard screen padding presets.
+///
+/// Usage: `padding: AppScreenPadding.standard`
+abstract final class AppScreenPadding {
+  /// 16 px all sides – standard content padding.
+  static const EdgeInsets standard = EdgeInsets.all(AppSpacing.lg);
+
+  /// 12 px all sides – compact content padding.
+  static const EdgeInsets compact = EdgeInsets.all(AppSpacing.md);
+
+  /// 20 px horizontal, 16 px vertical – settings screens.
+  static const EdgeInsets settings = EdgeInsets.symmetric(
+    horizontal: AppSpacing.xl,
+    vertical: AppSpacing.lg,
+  );
+
+  /// 16 px horizontal, 12 px vertical – list items.
+  static const EdgeInsets listItem = EdgeInsets.symmetric(
+    horizontal: AppSpacing.lg,
+    vertical: AppSpacing.md,
+  );
 }

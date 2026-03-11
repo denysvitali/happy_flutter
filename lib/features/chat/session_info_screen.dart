@@ -221,17 +221,17 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
         !_isVersionSupported(meta!.version!);
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       children: [
         // Header card
         Card(
           elevation: 0,
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(AppSpacing.xl),
             child: Column(
               children: [
                 Icon(
@@ -269,20 +269,20 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             elevation: 0,
             color: theme.colorScheme.tertiaryContainer,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.md),
               side: BorderSide(
                 color: theme.colorScheme.tertiary,
                 width: 1,
               ),
             ),
             child: InkWell(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.md),
               onTap: () => _copyToClipboard(
                 'npm install -g happy-coder@latest',
                 message: l10n.sessionInfoUpdateCommandCopied,
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Row(
                   children: [
                     Icon(
@@ -334,7 +334,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           elevation: 0,
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           child: Column(
             children: [
@@ -377,7 +377,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           elevation: 0,
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           child: Column(
             children: [
@@ -423,7 +423,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             elevation: 0,
             color: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Column(
               children: [
@@ -541,7 +541,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             elevation: 0,
             color: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Column(
               children: [
@@ -575,7 +575,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           elevation: 0,
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           child: Column(
             children: [
@@ -610,10 +610,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             elevation: 0,
             color: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -656,7 +656,7 @@ class _StatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: chipColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
