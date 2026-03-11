@@ -976,42 +976,48 @@ class _SessionsListContentState
     required AvatarStyle? avatarStyle,
     required _SelectionState selectionState,
   }) {
-    final dateItems = groupSessionsByExactDate(sessions);
+    final l10n = context.l10n;
+    final grouped =
+        groupSessionsByDateCategory(sessions);
 
-    final groups = <String, List<Session>>{};
-    String? currentDate;
-    for (final item in dateItems) {
-      switch (item) {
-        case SessionHistoryDateHeader(:final date):
-          currentDate = date;
-          groups.putIfAbsent(date, () => []);
-        case SessionHistorySession(:final session):
-          if (currentDate != null) {
-            groups[currentDate]!.add(session);
-          }
-      }
-    }
+    String localize(DateGroup g) => switch (g) {
+          DateGroup.today => l10n.sessionsToday,
+          DateGroup.yesterday =>
+            l10n.sessionsYesterday,
+          DateGroup.thisWeek =>
+            l10n.sessionsThisWeek,
+          DateGroup.thisMonth =>
+            l10n.sessionsThisMonth,
+          DateGroup.older => l10n.sessionsOlder,
+        };
 
     var itemIndex = startIndex;
     final widgets = <Widget>[];
 
-    for (final entry in groups.entries) {
-      final dateKey = entry.key;
-      final dateSessions = entry.value;
+    for (final group in dateGroupOrder) {
+      final dateSessions = grouped[group];
+      if (dateSessions == null ||
+          dateSessions.isEmpty) {
+        continue;
+      }
+
+      final dateKey = group.name;
       final isCollapsed =
           _collapsedDateKeys.contains(dateKey);
 
       widgets.add(
         FadeInSection(
           delay: Duration(
-            milliseconds: kStaggerStep * itemIndex,
+            milliseconds:
+                kStaggerStep * itemIndex,
           ),
           child: CollapsibleDateHeader(
-            date: dateKey,
+            date: localize(group),
             sessionCount: dateSessions.length,
             isCollapsed: isCollapsed,
             onToggle: () => setState(() {
-              if (_collapsedDateKeys.contains(dateKey)) {
+              if (_collapsedDateKeys
+                  .contains(dateKey)) {
                 _collapsedDateKeys.remove(dateKey);
               } else {
                 _collapsedDateKeys.add(dateKey);
@@ -1022,12 +1028,16 @@ class _SessionsListContentState
       );
 
       if (!isCollapsed) {
-        for (var i = 0; i < dateSessions.length; i++) {
+        for (var i = 0;
+            i < dateSessions.length;
+            i++) {
           final session = dateSessions[i];
           final capturedIndex = itemIndex;
           final isFirst = i == 0;
-          final isLast = i == dateSessions.length - 1;
-          final isSingle = dateSessions.length == 1;
+          final isLast =
+              i == dateSessions.length - 1;
+          final isSingle =
+              dateSessions.length == 1;
 
           final card = Column(
             mainAxisSize: MainAxisSize.min,
@@ -1035,25 +1045,31 @@ class _SessionsListContentState
               SessionCard(
                 session: session,
                 onTap: selectionState.isActive
-                    ? () => _onSessionTapInSelectionMode(
+                    ? () =>
+                        _onSessionTapInSelectionMode(
                           session.id,
                         )
                     : () => unawaited(
                           context.pushNamed(
                             'chat',
                             pathParameters: {
-                              'sessionId': session.id,
+                              'sessionId':
+                                  session.id,
                             },
                           ),
                         ),
                 onLongPress: () =>
-                    _onSessionLongPress(session.id),
+                    _onSessionLongPress(
+                  session.id,
+                ),
                 isFirst: isFirst,
                 isLast: isLast,
                 isSingle: isSingle,
                 compact: true,
-                selectionMode: selectionState.isActive,
-                isSelected: selectionState.selectedIds
+                selectionMode:
+                    selectionState.isActive,
+                isSelected: selectionState
+                    .selectedIds
                     .contains(session.id),
                 showFlavorIcon: showFlavorIcons,
                 avatarStyle: avatarStyle,

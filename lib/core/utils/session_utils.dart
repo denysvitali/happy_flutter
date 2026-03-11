@@ -28,28 +28,44 @@ String formatDateHeader(DateTime date) {
   }
 }
 
-/// Date grouping categories for session history
-enum DateGroup { today, yesterday, lastSevenDays, older }
+/// Date grouping categories for session history.
+enum DateGroup {
+  today,
+  yesterday,
+  thisWeek,
+  thisMonth,
+  older,
+}
 
 /// Groups sessions into date-based categories.
-/// Categories: "Today", "Yesterday", "Last 7 Days", "Older"
+///
+/// Categories: "Today", "Yesterday", "This Week",
+/// "This Month", "Older".
 Map<DateGroup, List<Session>> groupSessionsByDateCategory(
   List<Session> sessions,
 ) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
-  final yesterday = today.subtract(const Duration(days: 1));
-  final sevenDaysAgo = today.subtract(const Duration(days: 7));
+  final yesterday =
+      today.subtract(const Duration(days: 1));
+  final weekAgo =
+      today.subtract(const Duration(days: 7));
+  final monthStart =
+      DateTime(now.year, now.month);
 
   final groups = <DateGroup, List<Session>>{
     DateGroup.today: [],
     DateGroup.yesterday: [],
-    DateGroup.lastSevenDays: [],
+    DateGroup.thisWeek: [],
+    DateGroup.thisMonth: [],
     DateGroup.older: [],
   };
 
   for (final session in sessions) {
-    final sessionDate = DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
+    final sessionDate =
+        DateTime.fromMillisecondsSinceEpoch(
+      session.updatedAt,
+    );
     final dateOnly = DateTime(
       sessionDate.year,
       sessionDate.month,
@@ -60,31 +76,46 @@ Map<DateGroup, List<Session>> groupSessionsByDateCategory(
       groups[DateGroup.today]!.add(session);
     } else if (dateOnly.isAtSameMomentAs(yesterday)) {
       groups[DateGroup.yesterday]!.add(session);
-    } else if (dateOnly.isAfter(sevenDaysAgo)) {
-      groups[DateGroup.lastSevenDays]!.add(session);
+    } else if (dateOnly.isAfter(weekAgo)) {
+      groups[DateGroup.thisWeek]!.add(session);
+    } else if (!dateOnly.isBefore(monthStart)) {
+      groups[DateGroup.thisMonth]!.add(session);
     } else {
       groups[DateGroup.older]!.add(session);
     }
   }
 
-  // Remove empty groups and sort sessions within each group (newest first)
+  // Remove empty groups and sort within each
+  // group (newest first).
   groups
     ..removeWhere((_, sessions) => sessions.isEmpty)
     ..forEach((_, sessions) {
-      sessions.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      sessions.sort(
+        (a, b) => b.updatedAt.compareTo(a.updatedAt),
+      );
     });
 
   return groups;
 }
 
 /// Returns the display name for a date group.
-/// Uses a callback for localization to avoid importing generated l10n.
+/// Uses a callback for localization to avoid
+/// importing generated l10n.
 String getDateGroupHeader(
   DateGroup group, {
   required String Function(DateGroup) localize,
 }) {
   return localize(group);
 }
+
+/// Ordered list of [DateGroup] values for display.
+const dateGroupOrder = <DateGroup>[
+  DateGroup.today,
+  DateGroup.yesterday,
+  DateGroup.thisWeek,
+  DateGroup.thisMonth,
+  DateGroup.older,
+];
 
 /// Session history item types for grouped list display
 sealed class SessionHistoryItem {
@@ -113,20 +144,16 @@ List<SessionHistoryItem> createSessionHistoryList(
   required String Function(DateGroup) localize,
 }) {
   final items = <SessionHistoryItem>[];
-  final order = <DateGroup>[
-    DateGroup.today,
-    DateGroup.yesterday,
-    DateGroup.lastSevenDays,
-    DateGroup.older,
-  ];
 
-  for (final group in order) {
+  for (final group in dateGroupOrder) {
     final sessions = groupedSessions[group];
     if (sessions == null || sessions.isEmpty) {
       continue;
     }
 
-    items.add(SessionHistoryDateHeader(localize(group)));
+    items.add(
+      SessionHistoryDateHeader(localize(group)),
+    );
 
     for (final session in sessions) {
       items.add(SessionHistorySession(session));
@@ -219,7 +246,8 @@ List<SessionHistoryItem> groupSessionsByDate(
     return switch (group) {
       DateGroup.today => 'Today',
       DateGroup.yesterday => 'Yesterday',
-      DateGroup.lastSevenDays => 'Last 7 Days',
+      DateGroup.thisWeek => 'This Week',
+      DateGroup.thisMonth => 'This Month',
       DateGroup.older => 'Older',
     };
   }
