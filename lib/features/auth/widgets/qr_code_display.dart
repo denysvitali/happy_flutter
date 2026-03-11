@@ -3,7 +3,10 @@ import 'package:qr/qr.dart';
 
 import '../../../core/theme/app_tokens.dart';
 
-/// QR Code widget using the qr package.
+/// QR Code widget with polished container styling.
+///
+/// Displays a QR code inside a white card with a subtle
+/// primary-color accent border and floating shadow.
 class QRCodeDisplay extends StatelessWidget {
   const QRCodeDisplay({
     required this.data,
@@ -16,30 +19,83 @@ class QRCodeDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final containerSize = size + AppSpacing.xxxl +
+        AppSpacing.xl;
+
     return Container(
+      width: containerSize,
+      height: containerSize,
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(AppRadius.xl),
-        border: Border.all(
-          color: Theme.of(context)
-              .colorScheme
-              .outlineVariant
-              .withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(
+          AppRadius.xl,
         ),
-        boxShadow: AppShadow.floating,
+        border: Border.all(
+          color: scheme.outlineVariant
+              .withValues(alpha: 0.3),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.primary
+                .withValues(alpha: 0.10),
+            blurRadius: AppSpacing.xxxl,
+            spreadRadius: -AppSpacing.xs,
+            offset: const Offset(0, AppSpacing.sm),
+          ),
+          ...AppShadow.floating,
+        ],
       ),
-      child: CustomPaint(
-        size: Size(size, size),
-        painter: QRCodePainter(data: data, size: size),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(
+                AppRadius.md,
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: CustomPaint(
+              size: Size(size, size),
+              painter: QRCodePainter(
+                data: data,
+                size: size,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.lock_outline,
+                size: 12,
+                color: scheme.onSurfaceVariant
+                    .withValues(alpha: 0.6),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                'End-to-end encrypted',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: scheme.onSurfaceVariant
+                      .withValues(alpha: 0.6),
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
 /// Custom painter that renders a QR code via the [qr]
-/// package.
+/// package with rounded module corners.
 class QRCodePainter extends CustomPainter {
   QRCodePainter({
     required this.data,
@@ -52,7 +108,7 @@ class QRCodePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF1E293B)
+      ..color = const Color(0xFF1A1A2E)
       ..style = PaintingStyle.fill;
 
     final qrCode = QrCode(8, QrErrorCorrectLevel.L)
@@ -84,7 +140,9 @@ class QRCodePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+  bool shouldRepaint(
+    covariant CustomPainter oldDelegate,
+  ) {
     return oldDelegate is! QRCodePainter ||
         oldDelegate.data != data;
   }
