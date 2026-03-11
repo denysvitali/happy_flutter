@@ -5,14 +5,20 @@ import '../../core/models/built_in_profiles.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/shell_script_parser.dart';
 import 'profile_editor_screen.dart';
 
 /// Profiles screen - AI backend profiles management in Settings.
-class ProfilesScreen extends ConsumerWidget {
+class ProfilesScreen extends ConsumerStatefulWidget {
   const ProfilesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfilesScreen> createState() => _ProfilesScreenState();
+}
+
+class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final settings = ref.watch(settingsNotifierProvider);
     final customProfiles = settings.profiles;
@@ -22,6 +28,11 @@ class ProfilesScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(l10n.profilesTitle),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.paste),
+            tooltip: l10n.profilesImportTitle,
+            onPressed: () => _showImportDialog(),
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => Navigator.of(context).push(
@@ -201,6 +212,128 @@ class ProfilesScreen extends ConsumerWidget {
         onTap: onTap,
       ),
     );
+  }
+
+  Future<void> _showImportDialog() async {
+    final l10n = AppLocalizations.of(context);
+    final controller = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.profilesImportTitle),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.profilesImportHint,
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                controller: controller,
+                maxLines: 10,
+                decoration: InputDecoration(
+                  labelText: l10n.profilesImportLabel,
+                  hintText: 'export ANTHROPIC_BASE_URL=...\nexport '
+                      'ANTHROPIC_AUTH_TOKEN=...',
+                  border: const OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.commonCancel),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.profilesImportButton),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      controller.dispose();
+      return;
+    }
+
+    final text = controller.text;
+    controller.dispose();
+
+    if (text.trim().isEmpty) return;
+
+    final result = parseShellScript(text);
+    if (result.envVars.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.profilesImportNoVars)),
+        );
+      }
+      return;
+    }
+
+    final name = _deriveProfileName(result);
+    final profile = buildProfileFromEnvVars(name, result);
+
+    final settings = ref.read(settingsNotifierProvider);
+    final updatedProfiles = [...settings.profiles, profile];
+
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      await ref
+          .read(settingsNotifierProvider.notifier)
+          .updateSetting('profiles', updatedProfiles);
+
+      await ref
+          .read(settingsNotifierProvider.notifier)
+          .updateSetting('lastUsedProfile', profile.id);
+
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              l10n.profilesImportParsed
+                  .replaceAll('{count}', '${result.envVars.length}'),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.profilesFailedToSave)),
+        );
+      }
+    }
+  }
+
+  String _deriveProfileName(ShellScriptParseResult result) {
+    final modelVar = result.envVars.firstWhere(
+      (e) =>
+          e.name == 'ANTHROPIC_MODEL' ||
+          e.name == 'ANTHROPIC_DEFAULT_OPUS_MODEL' ||
+          e.name == 'OPENAI_MODEL',
+      orElse: () => result.envVars.first,
+    );
+    final modelValue = modelVar.value;
+    if (modelValue.isNotEmpty) {
+      final parts = modelValue.split('/');
+      return parts.length > 1 ? parts.last : modelValue;
+    }
+    return 'Imported Profile';
   }
 
   void _confirmDeleteProfile(

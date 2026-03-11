@@ -4,6 +4,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/shell_script_parser.dart';
 
 /// Full-screen editor for creating or editing a custom AI backend profile.
 class ProfileEditorScreen extends ConsumerStatefulWidget {
@@ -60,6 +61,105 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     setState(() {
       _envRows[index].dispose();
       _envRows.removeAt(index);
+    });
+  }
+
+  Future<void> _showImportDialog() async {
+    final l10n = AppLocalizations.of(context);
+    final controller = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.profilesImportTitle),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.profilesImportHint,
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                controller: controller,
+                maxLines: 10,
+                decoration: InputDecoration(
+                  labelText: l10n.profilesImportLabel,
+                  hintText: 'export ANTHROPIC_BASE_URL=...\nexport '
+                      'ANTHROPIC_AUTH_TOKEN=...',
+                  border: const OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.commonCancel),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.profilesImportButton),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      controller.dispose();
+      return;
+    }
+
+    final text = controller.text;
+    controller.dispose();
+
+    if (text.trim().isEmpty) return;
+
+    final result = parseShellScript(text);
+    if (result.envVars.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.profilesImportNoVars)),
+        );
+      }
+      return;
+    }
+
+    // Auto-fill name if empty
+    if (_nameCtrl.text.trim().isEmpty) {
+      final modelVar = result.envVars.firstWhere(
+        (e) =>
+            e.name == 'ANTHROPIC_MODEL' ||
+            e.name == 'ANTHROPIC_DEFAULT_OPUS_MODEL' ||
+            e.name == 'OPENAI_MODEL',
+        orElse: () => result.envVars.first,
+      );
+      final modelValue = modelVar.value;
+      if (modelValue.isNotEmpty) {
+        final parts = modelValue.split('/');
+        _nameCtrl.text = parts.length > 1 ? parts.last : modelValue;
+      }
+    }
+
+    setState(() {
+      for (final r in _envRows) {
+        r.dispose();
+      }
+      _envRows.clear();
+      for (final env in result.envVars) {
+        _envRows.add(_EnvRow(name: env.name, value: env.value));
+      }
+      _scriptCtrl.text = result.rawScript;
+      _showScript = true;
     });
   }
 
@@ -182,6 +282,12 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
                   ),
                 ),
                 const Spacer(),
+                TextButton.icon(
+                  onPressed: _showImportDialog,
+                  icon: const Icon(Icons.paste, size: 18),
+                  label: Text(l10n.profilesImportLabelShort),
+                ),
+                const SizedBox(width: AppSpacing.xs),
                 TextButton.icon(
                   onPressed: _addEnvRow,
                   icon: const Icon(Icons.add, size: 18),

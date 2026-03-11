@@ -829,6 +829,16 @@ class AppLocalizations {
       'Runs before each session starts. '
       'Use to export variables or configure the environment.';
   String get profilesScriptLabel => 'Bash script';
+  String get profilesImportTitle => 'Import from Shell Script';
+  String get profilesImportHint =>
+      'Paste the contents of a shell script containing '
+      'export statements (e.g., setup-hunter-alpha.sh)';
+  String get profilesImportButton => 'Import';
+  String get profilesImportLabel => 'Shell script content';
+  String get profilesImportParsed => 'Parsed {count} environment variable(s)';
+  String get profilesImportNoVars =>
+      'No environment variables found in the script.';
+  String get profilesImportLabelShort => 'Import from script';
   String get commonOptional => '(optional)';
 
   // Changelog
