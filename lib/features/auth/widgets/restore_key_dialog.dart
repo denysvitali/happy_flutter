@@ -132,13 +132,62 @@ class _RestoreKeyDialogState
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+
     return AlertDialog(
-      title: Text(l10n.authSignInWithSecretKey),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(
+          AppRadius.xl,
+        ),
+      ),
+      titlePadding: const EdgeInsets.fromLTRB(
+        AppSpacing.xxl,
+        AppSpacing.xxl,
+        AppSpacing.xxl,
+        0,
+      ),
+      contentPadding: const EdgeInsets.fromLTRB(
+        AppSpacing.xxl,
+        AppSpacing.lg,
+        AppSpacing.xxl,
+        0,
+      ),
+      actionsPadding: const EdgeInsets.all(
+        AppSpacing.lg,
+      ),
+      title: Row(
+        children: [
+          Icon(
+            Icons.key_outlined,
+            color: scheme.primary,
+            size: 24,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              l10n.authSignInWithSecretKey,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
-          Text(l10n.authSecretKeyInstruction),
-          const SizedBox(height: AppSpacing.md),
+          Text(
+            l10n.authSecretKeyInstruction,
+            style: TextStyle(
+              color: scheme.onSurfaceVariant,
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
           TextField(
             controller: _controller,
             enabled: !_isSubmitting,
@@ -146,40 +195,54 @@ class _RestoreKeyDialogState
               labelText: l10n.authSecretKeyLabel,
               hintText: l10n.authSecretKeyHint,
               errorText: _errorText,
+              prefixIcon: Icon(
+                Icons.vpn_key_outlined,
+                size: 20,
+                color: scheme.onSurfaceVariant,
+              ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  AppRadius.pill,
+                borderRadius:
+                    BorderRadius.circular(
+                  AppRadius.md,
                 ),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  AppRadius.pill,
+                borderRadius:
+                    BorderRadius.circular(
+                  AppRadius.md,
+                ),
+                borderSide: BorderSide(
+                  color: scheme.outline
+                      .withValues(alpha: 0.5),
                 ),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  AppRadius.pill,
+                borderRadius:
+                    BorderRadius.circular(
+                  AppRadius.md,
                 ),
                 borderSide: BorderSide(
-                  color:
-                      Theme.of(context).colorScheme.primary,
+                  color: scheme.primary,
                   width: 2,
                 ),
               ),
               errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  AppRadius.pill,
+                borderRadius:
+                    BorderRadius.circular(
+                  AppRadius.md,
                 ),
-                borderSide: const BorderSide(
-                  color: Colors.red,
+                borderSide: BorderSide(
+                  color: scheme.error,
                 ),
               ),
-              focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  AppRadius.pill,
+              focusedErrorBorder:
+                  OutlineInputBorder(
+                borderRadius:
+                    BorderRadius.circular(
+                  AppRadius.md,
                 ),
-                borderSide: const BorderSide(
-                  color: Colors.red,
+                borderSide: BorderSide(
+                  color: scheme.error,
                   width: 2,
                 ),
               ),
@@ -188,26 +251,39 @@ class _RestoreKeyDialogState
             minLines: 1,
             onChanged: (_) {
               if (_errorText != null) {
-                setState(() => _errorText = null);
+                setState(
+                  () => _errorText = null,
+                );
               }
             },
           ),
         ],
       ),
       actions: [
-        TextButton(
+        TextButton.icon(
           onPressed: _isSubmitting
               ? null
               : () async {
-                  final clip = await Clipboard.getData(
+                  final clip =
+                      await Clipboard.getData(
                     Clipboard.kTextPlain,
                   );
-                  final text = clip?.text?.trim();
-                  if (text == null || text.isEmpty) return;
+                  final text =
+                      clip?.text?.trim();
+                  if (text == null ||
+                      text.isEmpty) {
+                    return;
+                  }
                   _controller.text = text;
-                  setState(() => _errorText = null);
+                  setState(
+                    () => _errorText = null,
+                  );
                 },
-          child: Text(l10n.authPaste),
+          icon: const Icon(
+            Icons.content_paste_rounded,
+            size: 18,
+          ),
+          label: Text(l10n.authPaste),
         ),
         TextButton(
           onPressed: _isSubmitting
@@ -216,7 +292,16 @@ class _RestoreKeyDialogState
           child: Text(l10n.commonCancel),
         ),
         FilledButton(
-          onPressed: _isSubmitting ? null : _submit,
+          onPressed:
+              _isSubmitting ? null : _submit,
+          style: FilledButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(
+                AppRadius.sm,
+              ),
+            ),
+          ),
           child: _isSubmitting
               ? const AppLoadingIndicator(
                   size: 16,

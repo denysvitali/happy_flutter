@@ -17,7 +17,10 @@ import 'widgets/auth_landing_widgets.dart';
 import 'widgets/restore_key_dialog.dart';
 import 'widgets/server_url_dialog.dart';
 
-/// Authentication screen with landing page pattern
+/// Authentication screen with landing page pattern.
+///
+/// Uses [AnimatedSwitcher] for smooth transitions
+/// between the landing page and QR linking views.
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({
     super.key,
@@ -28,8 +31,8 @@ class AuthScreen extends ConsumerStatefulWidget {
   final String? initialDeepLink;
 
   /// When [true], a banner is shown saying
-  /// authentication failed and the user should sign in
-  /// again.
+  /// authentication failed and the user should sign
+  /// in again.
   final bool showError;
 
   @override
@@ -56,7 +59,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     super.initState();
     _fadeController = AnimationController(
       vsync: this,
-      duration: AppDuration.slow,
+      duration: AppDuration.slower,
     );
     _fadeAnimation = CurvedAnimation(
       parent: _fadeController,
@@ -66,8 +69,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
     _checkServerError();
     if (widget.initialDeepLink != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _handleIncomingLink(widget.initialDeepLink!);
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) {
+        _handleIncomingLink(
+          widget.initialDeepLink!,
+        );
       });
     }
 
@@ -82,16 +88,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     super.dispose();
   }
 
-  // ── deep-link handling ────────────────────────
+  // -- deep-link handling ---------------------
 
-  Future<void> _handleIncomingLink(String url) async {
+  Future<void> _handleIncomingLink(
+    String url,
+  ) async {
     setState(() {
       _isProcessingLink = true;
       _error = null;
     });
 
     try {
-      final publicKey = AuthService.parseAuthUrl(url);
+      final publicKey =
+          AuthService.parseAuthUrl(url);
       if (publicKey == null) {
         setState(() {
           _error = context.l10n.authInvalidQR;
@@ -110,8 +119,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         return;
       }
 
-      final success =
-          await AuthService().approveLinkingRequest(url);
+      final success = await AuthService()
+          .approveLinkingRequest(url);
 
       if (success) {
         setState(() {
@@ -121,7 +130,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         });
       } else {
         setState(() {
-          _error = context.l10n.authFailedToLinkDevice;
+          _error =
+              context.l10n.authFailedToLinkDevice;
           _isProcessingLink = false;
         });
       }
@@ -143,7 +153,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     }
   }
 
-  // ── account actions ───────────────────────────
+  // -- account actions ------------------------
 
   Future<void> _createAccount() async {
     setState(() {
@@ -158,17 +168,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       if (mounted) {
         unawaited(
           ref
-              .read(authStateNotifierProvider.notifier)
+              .read(
+                authStateNotifierProvider.notifier,
+              )
               .checkAuth(),
         );
       }
     } catch (e) {
       logger.warning('Create account error: $e');
       if (e is Error) {
-        logger.info('Stack trace: ${e.stackTrace}');
+        logger.info(
+          'Stack trace: ${e.stackTrace}',
+        );
       }
       setState(() {
-        _error = _formatErrorMessage(e, context);
+        _error =
+            _formatErrorMessage(e, context);
       });
     } finally {
       if (mounted) {
@@ -184,12 +199,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       context: context,
       builder: (ctx) => RestoreKeyDialog(
         onRestore: (normalized) async {
-          await AuthService().restoreAccount(normalized);
+          await AuthService()
+              .restoreAccount(normalized);
           if (!mounted) return;
           Navigator.of(context).pop();
           unawaited(
             ref
-                .read(authStateNotifierProvider.notifier)
+                .read(
+                  authStateNotifierProvider
+                      .notifier,
+                )
                 .checkAuth(),
           );
         },
@@ -231,13 +250,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       unawaited(_pollForApproval(publicKey));
     } catch (e) {
       setState(() {
-        _error = _formatErrorMessage(e, context);
+        _error =
+            _formatErrorMessage(e, context);
         _isPolling = false;
       });
     }
   }
 
-  // ── helpers ──────────────────────────────────
+  // -- helpers --------------------------------
 
   String _formatErrorMessage(
     dynamic e,
@@ -245,15 +265,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   ) {
     final l10n = ctx.l10n;
     if (e is AuthForbiddenError) {
-      return '${l10n.authAccessDenied}\n${e.message}';
+      return '${l10n.authAccessDenied}\n'
+          '${e.message}';
     } else if (e is AuthRequestError) {
       final statusCode = e.statusCode ?? 400;
-      return '${l10n.authClientError} ($statusCode)\n'
-          '${e.message}';
+      return '${l10n.authClientError} '
+          '($statusCode)\n${e.message}';
     } else if (e is ServerError) {
       final statusCode = e.statusCode ?? 500;
-      return '${l10n.authServerError} ($statusCode)\n'
-          '${e.message}';
+      return '${l10n.authServerError} '
+          '($statusCode)\n${e.message}';
     } else if (e is SSLError) {
       return '${l10n.authCertificateError}\n'
           '${e.message}';
@@ -277,14 +298,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         setState(() => _isPolling = false);
         unawaited(
           ref
-              .read(authStateNotifierProvider.notifier)
+              .read(
+                authStateNotifierProvider.notifier,
+              )
               .checkAuth(),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = _formatErrorMessage(e, context);
+          _error =
+              _formatErrorMessage(e, context);
           _isPolling = false;
         });
       }
@@ -337,7 +361,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     );
   }
 
-  // ── build ───────────────────────────────────
+  // -- build ----------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -345,11 +369,75 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         MediaQuery.of(context).orientation ==
             Orientation.landscape;
 
+    return Scaffold(
+      appBar: _buildAppBar(context),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: AnimatedGradientBackground(
+          child: AnimatedSwitcher(
+            duration: AppDuration.slow,
+            switchInCurve: AppCurve.enter,
+            switchOutCurve: AppCurve.exit,
+            transitionBuilder: (child, animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: _showQRScreen
+                        ? const Offset(0.05, 0)
+                        : const Offset(-0.05, 0),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                ),
+              );
+            },
+            child: _showQRScreen
+                ? _buildQRScreen(
+                    context,
+                    isLandscape,
+                  )
+                : _buildLandingScreen(
+                    context,
+                    isLandscape,
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(
+    BuildContext context,
+  ) {
     if (_showQRScreen) {
-      return _buildQRScreen(context, isLandscape);
+      return AppBar(
+        title: Text(
+          context.l10n.authLinkAccount,
+        ),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+          ),
+          onPressed: _goBack,
+        ),
+      );
     }
 
-    return _buildLandingScreen(context, isLandscape);
+    return AppBar(
+      title: Text(context.l10n.appTitle),
+      actions: [
+        IconButton(
+          icon: const Icon(
+            Icons.settings_outlined,
+          ),
+          tooltip:
+              context.l10n.authServerSettings,
+          onPressed: () =>
+              _showServerDialog(context),
+        ),
+      ],
+    );
   }
 
   Widget _buildLandingScreen(
@@ -358,17 +446,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   ) {
     final theme = Theme.of(context);
     final padding = MediaQuery.of(context).padding;
-
-    final appBar = AppBar(
-      title: Text(context.l10n.appTitle),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.settings),
-          tooltip: context.l10n.authServerSettings,
-          onPressed: () => _showServerDialog(context),
-        ),
-      ],
-    );
 
     final notices = _buildNotices(context);
     final header = AuthHeader(theme: theme);
@@ -380,51 +457,60 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       l10n: context.l10n,
     );
 
-    Widget body;
     if (isLandscape) {
-      body = SafeArea(
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: AppSpacing.xxxl + AppSpacing.lg,
-            right: AppSpacing.xxxl + AppSpacing.lg,
-            bottom: padding.bottom + AppSpacing.xxl,
-          ),
-          child: Row(
-            children: [
-              const Expanded(
-                child: Center(
-                  child: LandingLogoMark(),
-                ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisAlignment:
-                        MainAxisAlignment.center,
-                    children: [
-                      ...notices,
-                      header,
-                      const SizedBox(
-                        height: AppSpacing.xxxl,
-                      ),
-                      SizedBox(
-                        width: 280,
-                        child: buttons,
-                      ),
-                    ],
+      return KeyedSubtree(
+        key: const ValueKey('landing'),
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left:
+                  AppSpacing.xxxl + AppSpacing.lg,
+              right:
+                  AppSpacing.xxxl + AppSpacing.lg,
+              bottom:
+                  padding.bottom + AppSpacing.xxl,
+            ),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Center(
+                    child: LandingLogoMark(),
                   ),
                 ),
-              ),
-            ],
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisAlignment:
+                          MainAxisAlignment.center,
+                      children: [
+                        ...notices,
+                        header,
+                        const SizedBox(
+                          height: AppSpacing.xxxl,
+                        ),
+                        SizedBox(
+                          width: 300,
+                          child: buttons,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
-    } else {
-      body = SafeArea(
+    }
+
+    return KeyedSubtree(
+      key: const ValueKey('landing'),
+      child: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints:
-                const BoxConstraints(maxWidth: 480),
+            constraints: const BoxConstraints(
+              maxWidth: 480,
+            ),
             child: SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(
@@ -435,7 +521,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                       MainAxisAlignment.center,
                   children: [
                     const SizedBox(
-                      height: AppSpacing.xxl,
+                      height: AppSpacing.xxxl,
                     ),
                     ...notices,
                     header,
@@ -444,7 +530,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                           AppSpacing.lg,
                     ),
                     SizedBox(
-                      width: 280,
+                      width: 300,
                       child: buttons,
                     ),
                     const SizedBox(
@@ -456,28 +542,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             ),
           ),
         ),
-      );
-    }
-
-    return Scaffold(
-      appBar: appBar,
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: AnimatedGradientBackground(child: body),
       ),
     );
   }
 
   List<Widget> _buildNotices(BuildContext context) {
     final notices = <Widget>[];
+    final scheme =
+        Theme.of(context).colorScheme;
 
     if (_isProcessingLink) {
       notices.add(
         StatusBanner(
           icon: null,
-          message:
-              context.l10n.authProcessingDeviceLink,
-          color: Theme.of(context).colorScheme.primary,
+          message: context
+              .l10n.authProcessingDeviceLink,
+          color: scheme.primary,
           isLoading: true,
           onDismiss: null,
         ),
@@ -487,12 +567,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     if (_linkSuccessMessage != null) {
       notices.add(
         StatusBanner(
-          icon: Icons.check_circle,
+          icon: Icons.check_circle_rounded,
           message: _linkSuccessMessage!,
           color: AppColors.success,
           isLoading: false,
-          onDismiss: () =>
-              setState(() => _linkSuccessMessage = null),
+          onDismiss: () => setState(
+            () => _linkSuccessMessage = null,
+          ),
         ),
       );
     }
@@ -500,13 +581,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     if (_serverError != null) {
       notices.add(
         StatusBanner(
-          icon: Icons.warning,
-          message:
-              context.l10n.authServerConnectionError,
-          color: Theme.of(context).colorScheme.error,
+          icon: Icons.warning_amber_rounded,
+          message: context
+              .l10n.authServerConnectionError,
+          color: scheme.error,
           isLoading: false,
-          onDismiss: () =>
-              setState(() => _serverError = null),
+          onDismiss: () => setState(
+            () => _serverError = null,
+          ),
         ),
       );
     }
@@ -514,9 +596,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     if (_error != null) {
       notices.add(
         StatusBanner(
-          icon: Icons.error_outline,
+          icon: Icons.error_outline_rounded,
           message: _error!,
-          color: Theme.of(context).colorScheme.error,
+          color: scheme.error,
           isLoading: false,
           onDismiss: () =>
               setState(() => _error = null),
@@ -534,15 +616,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     final theme = Theme.of(context);
     final padding = MediaQuery.of(context).padding;
 
-    final appBar = AppBar(
-      title: Text(context.l10n.authLinkAccount),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: _goBack,
-      ),
-    );
-
-    final instructions = QRInstructions(theme: theme);
+    final instructions =
+        QRInstructions(theme: theme);
 
     final qrSection = QRCodeSection(
       isPolling: _isPolling,
@@ -562,14 +637,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     );
 
     if (isLandscape) {
-      return Scaffold(
-        appBar: appBar,
-        body: SafeArea(
+      return KeyedSubtree(
+        key: const ValueKey('qr-screen'),
+        child: SafeArea(
           child: Padding(
             padding: EdgeInsets.only(
-              left: AppSpacing.xxxl + AppSpacing.lg,
-              right: AppSpacing.xxxl + AppSpacing.lg,
-              bottom: padding.bottom + AppSpacing.xxl,
+              left:
+                  AppSpacing.xxxl + AppSpacing.lg,
+              right:
+                  AppSpacing.xxxl + AppSpacing.lg,
+              bottom:
+                  padding.bottom + AppSpacing.xxl,
             ),
             child: Row(
               children: [
@@ -590,7 +668,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                         height: AppSpacing.xxl,
                       ),
                       SizedBox(
-                        width: 280,
+                        width: 300,
                         child: actions,
                       ),
                     ],
@@ -603,35 +681,34 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       );
     }
 
-    return Scaffold(
-      appBar: appBar,
-      body: SafeArea(
+    return KeyedSubtree(
+      key: const ValueKey('qr-screen'),
+      child: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints:
-                const BoxConstraints(maxWidth: 480),
+            constraints: const BoxConstraints(
+              maxWidth: 480,
+            ),
             child: SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(
                   AppSpacing.xxl,
                 ),
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.center,
                   children: [
                     const SizedBox(
                       height: AppSpacing.lg,
                     ),
                     instructions,
                     const SizedBox(
-                      height: AppSpacing.xxxl,
+                      height: AppSpacing.xxl,
                     ),
                     qrSection,
                     const SizedBox(
                       height: AppSpacing.xxl,
                     ),
                     SizedBox(
-                      width: 280,
+                      width: 300,
                       child: actions,
                     ),
                     const SizedBox(
@@ -648,7 +725,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   }
 }
 
-/// Authentication gate widget
+/// Authentication gate widget that switches between
+/// the auth screen and the main app content.
 class AuthGate extends ConsumerWidget {
   const AuthGate({
     required this.child,
@@ -666,48 +744,110 @@ class AuthGate extends ConsumerWidget {
 
     if (initialDeepLink != null &&
         authState == AuthState.authenticated) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) {
         ref
-            .read(authStateNotifierProvider.notifier)
+            .read(
+              authStateNotifierProvider.notifier,
+            )
             .handleDeepLink(initialDeepLink!);
       });
     }
 
-    return switch (authState) {
-      AuthState.authenticated => child,
-      AuthState.unauthenticated => AuthScreen(
-          initialDeepLink: initialDeepLink,
-        ),
-      AuthState.authenticating => Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisAlignment:
-                  MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.chat_bubble_rounded,
-                  size: 48,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                Text(
-                  'Checking sign-in status...',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium,
-                ),
-                const SizedBox(height: AppSpacing.xxl),
-                const CircularProgressIndicator(),
-              ],
-            ),
+    return AnimatedSwitcher(
+      duration: AppDuration.slow,
+      switchInCurve: AppCurve.enter,
+      child: switch (authState) {
+        AuthState.authenticated => KeyedSubtree(
+            key: const ValueKey('authenticated'),
+            child: child,
           ),
+        AuthState.unauthenticated => AuthScreen(
+            key: const ValueKey('unauth'),
+            initialDeepLink: initialDeepLink,
+          ),
+        AuthState.authenticating =>
+          _AuthenticatingView(
+            key: const ValueKey('checking'),
+          ),
+        AuthState.error => AuthScreen(
+            key: const ValueKey('auth-error'),
+            initialDeepLink: initialDeepLink,
+            showError: true,
+          ),
+      },
+    );
+  }
+}
+
+/// Checking auth status view with branded logo
+/// spinner.
+class _AuthenticatingView extends StatelessWidget {
+  const _AuthenticatingView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment:
+              MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    scheme.primary,
+                    Color.lerp(
+                      scheme.primary,
+                      scheme.tertiary,
+                      0.4,
+                    )!,
+                  ],
+                ),
+              ),
+              child: const Icon(
+                Icons.chat_bubble_rounded,
+                size: 32,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(
+              height: AppSpacing.xxl,
+            ),
+            Text(
+              'Checking sign-in status\u2026',
+              style:
+                  theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(
+              height: AppSpacing.xl,
+            ),
+            SizedBox(
+              width: AppSpacing.xxl,
+              height: AppSpacing.xxl,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                strokeCap: StrokeCap.round,
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(
+                  scheme.primary,
+                ),
+              ),
+            ),
+          ],
         ),
-      AuthState.error => AuthScreen(
-          initialDeepLink: initialDeepLink,
-          showError: true,
-        ),
-    };
+      ),
+    );
   }
 }
