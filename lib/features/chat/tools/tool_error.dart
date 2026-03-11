@@ -42,7 +42,7 @@ class ToolError extends StatelessWidget {
               displayMessage.isNotEmpty ? displayMessage : message,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: textColor,
-                fontSize: 12.5,
+                fontSize: AppFontSize.sm,
                 height: 1.5,
                 fontFamily: 'monospace',
                 fontFamilyFallback: const ['Courier New', 'Courier'],
@@ -96,7 +96,7 @@ class ToolResultError extends StatelessWidget {
             child: Text(
               displayText,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: AppFontSize.sm,
                 color: errorColor,
                 height: 1.45,
               ),
