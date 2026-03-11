@@ -15,6 +15,7 @@ import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/social_service.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 class InboxScreen extends ConsumerStatefulWidget {
@@ -264,14 +265,26 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             (friend) => _UserRow(
               key: ValueKey('friend_${friend.id}'),
               title: friend.name ?? friend.id,
-              subtitle: context.l10n.inboxFriendSubtitle,
+              subtitle:
+                  friend.bio ?? '@${friend.username}',
               userId: friend.id,
               avatarUrl: friend.avatarUrl,
-              trailing: TextButton(
+              showStatusDot: true,
+              trailing: IconButton(
                 onPressed: _isItemBusy(friend.id)
                     ? null
-                    : () => _showRemoveFriendDialog(friend),
-                child: Text(context.l10n.friendsRemoveAction),
+                    : () => _showRemoveFriendDialog(
+                        friend,
+                      ),
+                icon: Icon(
+                  Icons.person_remove_outlined,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .error,
+                  size: AppSpacing.xl,
+                ),
+                tooltip: context
+                    .l10n.friendsRemoveAction,
               ),
             ),
           ),
@@ -389,26 +402,44 @@ class _InboxEmptyView extends StatelessWidget {
 // ── Section header ─────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required Key key, required this.title})
-    : super(key: key);
+  const _SectionHeader({
+    required Key key,
+    required this.title,
+  }) : super(key: key);
 
   final String title;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.md,
+        AppSpacing.xs,
         AppSpacing.lg,
         AppSpacing.xs,
+        AppSpacing.sm,
       ),
-      child: Text(
-        title,
-        style: theme.textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.w700,
-        ),
+      child: Row(
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Divider(
+              height: 1,
+              color: cs.outlineVariant.withValues(
+                alpha: 0.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -560,8 +591,9 @@ class _FeedCard extends StatelessWidget {
 
 // ── Inbox item row (alias used by friend rows) ─────────────────────────────
 
-/// A polished inbox list row: 40 px avatar on the left, name + subtitle
-/// in the center, optional trailing widget on the right.
+/// A polished inbox list row: 44 px avatar on the left,
+/// name + subtitle in the center, optional trailing
+/// widget on the right.
 class _InboxItem extends StatelessWidget {
   const _InboxItem({
     required this.title,
@@ -569,6 +601,8 @@ class _InboxItem extends StatelessWidget {
     required this.userId,
     required this.avatarUrl,
     required this.trailing,
+    this.showStatusDot = false,
+    this.isOnline = false,
   });
 
   final String title;
@@ -576,55 +610,146 @@ class _InboxItem extends StatelessWidget {
   final String userId;
   final String? avatarUrl;
   final Widget trailing;
+  final bool showStatusDot;
+  final bool isOnline;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return AppTappable(
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.sm,
-          AppSpacing.sm,
-          AppSpacing.sm,
-        ),
-        child: Row(
-          children: [
-            // 40 px avatar
-            Avatar(id: userId, size: 40, imageUrl: avatarUrl),
-            const SizedBox(width: AppSpacing.md),
-            // Name + subtitle
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: AppSpacing.xsm),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: AppSpacing.sm,
+      ),
+      child: AppTappable(
+        borderRadius:
+            BorderRadius.circular(AppRadius.md),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius:
+                BorderRadius.circular(AppRadius.md),
+            border: Border.all(
+              color: cs.outlineVariant.withValues(
+                alpha: 0.4,
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
-            trailing,
-          ],
+          ),
+          child: Row(
+            children: [
+              // Avatar with optional status dot
+              if (showStatusDot)
+                _InboxAvatarWithStatus(
+                  userId: userId,
+                  avatarUrl: avatarUrl,
+                  size: 44,
+                  isOnline: isOnline,
+                )
+              else
+                Avatar(
+                  id: userId,
+                  size: 44,
+                  imageUrl: avatarUrl,
+                ),
+              const SizedBox(width: AppSpacing.md),
+              // Name + subtitle
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme
+                          .textTheme.bodyMedium
+                          ?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(
+                      height: AppSpacing.xsm,
+                    ),
+                    Text(
+                      subtitle,
+                      style: theme
+                          .textTheme.bodySmall
+                          ?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              trailing,
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+/// Small avatar overlay with an online/offline dot.
+class _InboxAvatarWithStatus extends StatelessWidget {
+  const _InboxAvatarWithStatus({
+    required this.userId,
+    required this.size,
+    this.avatarUrl,
+    this.isOnline = false,
+  });
+
+  final String userId;
+  final String? avatarUrl;
+  final double size;
+  final bool isOnline;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final dotSize = size * 0.26;
+    final borderWidth = size * 0.06;
+
+    return SizedBox(
+      width: size + dotSize / 2,
+      height: size + dotSize / 2,
+      child: Stack(
+        children: [
+          Avatar(
+            id: userId,
+            size: size,
+            imageUrl: avatarUrl,
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              width: dotSize,
+              height: dotSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isOnline
+                    ? AppColors.success
+                    : cs.onSurfaceVariant.withValues(
+                        alpha: 0.4,
+                      ),
+                border: Border.all(
+                  color: cs.surface,
+                  width: borderWidth,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -656,14 +781,29 @@ class _FriendRequestCard extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextButton(
+          IconButton.outlined(
             onPressed: disabled ? null : onReject,
-            child: Text(context.l10n.friendsReject),
+            icon: const Icon(
+              Icons.close,
+              size: AppSpacing.xl,
+            ),
+            tooltip: context.l10n.friendsReject,
+            style: IconButton.styleFrom(
+              side: BorderSide(
+                color: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant,
+              ),
+            ),
           ),
-          const SizedBox(width: AppSpacing.xs),
-          FilledButton(
+          const SizedBox(width: AppSpacing.sm),
+          IconButton.filled(
             onPressed: disabled ? null : onAccept,
-            child: Text(context.l10n.friendsAccept),
+            icon: const Icon(
+              Icons.check,
+              size: AppSpacing.xl,
+            ),
+            tooltip: context.l10n.friendsAccept,
           ),
         ],
       ),
@@ -681,6 +821,7 @@ class _UserRow extends StatelessWidget {
     required this.userId,
     required this.avatarUrl,
     required this.trailing,
+    this.showStatusDot = false,
   }) : super(key: key);
 
   final String title;
@@ -688,6 +829,7 @@ class _UserRow extends StatelessWidget {
   final String userId;
   final String? avatarUrl;
   final Widget trailing;
+  final bool showStatusDot;
 
   @override
   Widget build(BuildContext context) {
@@ -697,6 +839,7 @@ class _UserRow extends StatelessWidget {
       userId: userId,
       avatarUrl: avatarUrl,
       trailing: trailing,
+      showStatusDot: showStatusDot,
     );
   }
 }

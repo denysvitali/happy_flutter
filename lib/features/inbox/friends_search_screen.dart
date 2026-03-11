@@ -1,6 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/components/app_empty_state.dart';
+import '../../core/components/app_tappable.dart';
+import '../../core/components/avatar.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/friend.dart';
 import '../../core/services/social_service.dart';
@@ -10,277 +12,396 @@ class FriendsSearchScreen extends StatefulWidget {
   const FriendsSearchScreen({super.key});
 
   @override
-  State<FriendsSearchScreen> createState() => _FriendsSearchScreenState();
+  State<FriendsSearchScreen> createState() =>
+      _FriendsSearchScreenState();
 }
 
-class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
+class _FriendsSearchScreenState
+    extends State<FriendsSearchScreen> {
   final SocialService _socialService = SocialService();
-  final TextEditingController _controller = TextEditingController();
+  final TextEditingController _controller =
+      TextEditingController();
+  final FocusNode _focusNode = FocusNode();
 
   bool _isSearching = false;
   bool _isMutating = false;
+  bool _hasSearched = false;
   List<UserProfile> _results = const <UserProfile>[];
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-focus the search field on open.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
   Future<void> _search() async {
     final query = _controller.text.trim();
     if (query.isEmpty) {
-      setState(() => _results = const <UserProfile>[]);
+      setState(() {
+        _results = const <UserProfile>[];
+        _hasSearched = false;
+      });
       return;
     }
 
-    final searchFailedMsg = context.l10n.friendsSearchFailed;
+    final searchFailedMsg =
+        context.l10n.friendsSearchFailed;
     setState(() => _isSearching = true);
     try {
-      final results = await _socialService.searchUsers(query);
-      if (!mounted) {
-        return;
-      }
-      setState(() => _results = results);
+      final results =
+          await _socialService.searchUsers(query);
+      if (!mounted) return;
+      setState(() {
+        _results = results;
+        _hasSearched = true;
+      });
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(searchFailedMsg)));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(searchFailedMsg)),
+      );
     } finally {
-      if (mounted) {
-        setState(() => _isSearching = false);
-      }
+      if (mounted) setState(() => _isSearching = false);
     }
   }
 
   Future<void> _sendRequest(String userId) async {
-    final requestSentMsg = context.l10n.friendsRequestSent;
-    final actionFailedMsg = context.l10n.friendsActionFailed;
+    final requestSentMsg =
+        context.l10n.friendsRequestSent;
+    final actionFailedMsg =
+        context.l10n.friendsActionFailed;
     setState(() => _isMutating = true);
     try {
       await _socialService.addFriend(userId);
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(requestSentMsg)));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(requestSentMsg)),
+      );
       await _search();
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(actionFailedMsg)));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(actionFailedMsg)),
+      );
     } finally {
-      if (mounted) {
-        setState(() => _isMutating = false);
-      }
+      if (mounted) setState(() => _isMutating = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final l10n = context.l10n;
+
     return Scaffold(
       appBar: AppBar(title: Text(l10n.friendsAddFriend)),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.lg,
-          AppSpacing.lg,
-          AppSpacing.md,
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    textInputAction: TextInputAction.search,
-                    onSubmitted: (_) => _search(),
-                    decoration: InputDecoration(
-                      hintText: context.l10n.friendsSearchByUsername,
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius:
-                            BorderRadius.circular(AppRadius.md),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.lg,
-                        vertical: AppSpacing.sm,
-                      ),
-                    ),
+      body: Column(
+        children: [
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.sm,
+            ),
+            child: TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _search(),
+              onChanged: (value) {
+                if (value.isEmpty && _hasSearched) {
+                  setState(() {
+                    _results = const <UserProfile>[];
+                    _hasSearched = false;
+                  });
+                }
+              },
+              decoration: InputDecoration(
+                hintText: l10n.friendsSearchByUsername,
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _isSearching
+                    ? const Padding(
+                        padding: EdgeInsets.all(
+                          AppSpacing.md,
+                        ),
+                        child: SizedBox(
+                          width: AppSpacing.xl,
+                          height: AppSpacing.xl,
+                          child:
+                              CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      )
+                    : _controller.text.isNotEmpty
+                        ? IconButton(
+                            onPressed: () {
+                              _controller.clear();
+                              setState(() {
+                                _results = const <
+                                    UserProfile>[];
+                                _hasSearched = false;
+                              });
+                            },
+                            icon: const Icon(
+                              Icons.clear,
+                            ),
+                          )
+                        : null,
+                filled: true,
+                fillColor:
+                    cs.surfaceContainerHighest
+                        .withValues(alpha: 0.5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(
+                    AppRadius.pill,
+                  ),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(
+                    AppRadius.pill,
+                  ),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(
+                    AppRadius.pill,
+                  ),
+                  borderSide: BorderSide(
+                    color: cs.primary,
+                    width: AppBorder.thick,
                   ),
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                FilledButton(
-                  onPressed: _isSearching ? null : _search,
-                  child: Text(l10n.commonSearch),
+                contentPadding:
+                    const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
                 ),
-              ],
+              ),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            Expanded(
-              child: _isSearching
-                  ? const Center(child: CircularProgressIndicator())
-                  : _results.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.person_search,
-                            size: 64,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          Text(
-                            l10n.friendsSearchEmptyTitle,
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            l10n.friendsSearchEmptySubtitle,
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(
-                              color:
-                                  theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: _results.length,
-                      itemBuilder: (context, index) {
-                        final user = _results[index];
-                        final isFriend =
-                            user.status == RelationshipStatus.friend;
-                        final isPending = user.status.isPending;
+          ),
+          // Results
+          Expanded(
+            child: _buildResults(theme, cs, l10n),
+          ),
+        ],
+      ),
+    );
+  }
 
-                        return Card(
-                          key: ValueKey(user.id),
-                          elevation: AppElevation.none,
-                          margin:
-                              const EdgeInsets.only(bottom: AppSpacing.sm),
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppRadius.md),
-                            side: BorderSide(
-                              color: theme.colorScheme.outlineVariant
-                                  .withValues(alpha: 0.4),
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md,
-                              vertical: AppSpacing.sm,
-                            ),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  backgroundColor: theme
-                                      .colorScheme
-                                      .primaryContainer,
-                                  backgroundImage: user.avatarUrl != null
-                                      ? CachedNetworkImageProvider(
-                                          user.avatarUrl!,
-                                          maxWidth: 108,
-                                          maxHeight: 108,
-                                        )
-                                      : null,
-                                  child: user.avatarUrl == null
-                                      ? Text(
-                                          _initials(
-                                            user.name ?? user.id,
-                                          ),
-                                          style: TextStyle(
-                                            color: theme.colorScheme
-                                                .onPrimaryContainer,
-                                            fontWeight:
-                                                FontWeight.w600,
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                                const SizedBox(
-                                  width: AppSpacing.md,
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        user.name ?? user.id,
-                                        style: theme.textTheme
-                                            .bodyMedium
-                                            ?.copyWith(
-                                          fontWeight:
-                                              FontWeight.w600,
-                                        ),
-                                        maxLines: 1,
-                                        overflow:
-                                            TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(
-                                        height: AppSpacing.xsm,
-                                      ),
-                                      Text(
-                                        _statusLabel(user.status, l10n),
-                                        style: theme.textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                          color: theme.colorScheme
-                                              .onSurfaceVariant,
-                                        ),
-                                        maxLines: 1,
-                                        overflow:
-                                            TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(
-                                  width: AppSpacing.md,
-                                ),
-                                FilledButton.tonal(
-                                  onPressed: isFriend ||
-                                          isPending ||
-                                          _isMutating
-                                      ? null
-                                      : () => _sendRequest(user.id),
-                                  child: Text(
-                                    isFriend
-                                        ? l10n.friendsStatusFriends
-                                        : isPending
-                                        ? l10n.friendsStatusPending
-                                        : l10n.friendsAddFriendAction,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+  Widget _buildResults(
+    ThemeData theme,
+    ColorScheme cs,
+    AppLocalizations l10n,
+  ) {
+    // Empty state: never searched yet
+    if (!_hasSearched && _results.isEmpty) {
+      return AppEmptyState(
+        icon: Icons.person_search,
+        title: l10n.friendsSearchEmptyTitle,
+        subtitle: l10n.friendsSearchEmptySubtitle,
+      );
+    }
+
+    // Empty state: searched but nothing found
+    if (_hasSearched && _results.isEmpty) {
+      return AppEmptyState(
+        icon: Icons.search_off,
+        title: l10n.friendsSearchEmptyTitle,
+        subtitle: l10n.friendsSearchEmptySubtitle,
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.xxxl,
+      ),
+      itemCount: _results.length,
+      itemBuilder: (context, index) {
+        final user = _results[index];
+        return _SearchResultTile(
+          key: ValueKey(user.id),
+          user: user,
+          l10n: l10n,
+          isMutating: _isMutating,
+          onAdd: () => _sendRequest(user.id),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// Search result tile
+// ─────────────────────────────────────────────────────
+
+class _SearchResultTile extends StatelessWidget {
+  const _SearchResultTile({
+    required this.user,
+    required this.l10n,
+    required this.isMutating,
+    required this.onAdd,
+    super.key,
+  });
+
+  final UserProfile user;
+  final AppLocalizations l10n;
+  final bool isMutating;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isFriend =
+        user.status == RelationshipStatus.friend;
+    final isPending = user.status.isPending;
+    final name = user.name ?? user.id;
+
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: AppSpacing.sm,
+      ),
+      child: AppTappable(
+        borderRadius:
+            BorderRadius.circular(AppRadius.md),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius:
+                BorderRadius.circular(AppRadius.md),
+            border: Border.all(
+              color: cs.outlineVariant.withValues(
+                alpha: 0.4,
+              ),
             ),
-          ],
+          ),
+          child: Row(
+            children: [
+              // Avatar
+              Avatar(
+                id: user.id,
+                size: 48,
+                imageUrl: user.avatarUrl,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              // Name + status
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(
+                      height: AppSpacing.xsm,
+                    ),
+                    Row(
+                      children: [
+                        if (isFriend)
+                          Icon(
+                            Icons.check_circle,
+                            size: 14,
+                            color: cs.primary,
+                          ),
+                        if (isPending)
+                          Icon(
+                            Icons.schedule,
+                            size: 14,
+                            color:
+                                cs.onSurfaceVariant,
+                          ),
+                        if (isFriend || isPending)
+                          const SizedBox(
+                            width: AppSpacing.xs,
+                          ),
+                        Flexible(
+                          child: Text(
+                            _statusLabel(
+                              user.status,
+                            ),
+                            style: theme
+                                .textTheme.bodySmall
+                                ?.copyWith(
+                              color: isFriend
+                                  ? cs.primary
+                                  : cs
+                                      .onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              // Action button
+              if (isFriend)
+                FilledButton.tonal(
+                  onPressed: null,
+                  child: Text(
+                    l10n.friendsStatusFriends,
+                  ),
+                )
+              else if (isPending)
+                FilledButton.tonal(
+                  onPressed: null,
+                  child: Text(
+                    l10n.friendsStatusPending,
+                  ),
+                )
+              else
+                FilledButton.icon(
+                  onPressed:
+                      isMutating ? null : onAdd,
+                  icon: const Icon(
+                    Icons.person_add_alt_1,
+                    size: 18,
+                  ),
+                  label: Text(
+                    l10n.friendsAddFriendAction,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  String _statusLabel(RelationshipStatus status, AppLocalizations l10n) {
+  String _statusLabel(RelationshipStatus status) {
     switch (status) {
       case RelationshipStatus.friend:
         return l10n.friendsAlreadyFriends;
@@ -293,12 +414,5 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
       case RelationshipStatus.none:
         return l10n.friendsNotConnected;
     }
-  }
-
-  String _initials(String value) {
-    if (value.isEmpty) {
-      return '?';
-    }
-    return value.substring(0, 1).toUpperCase();
   }
 }
