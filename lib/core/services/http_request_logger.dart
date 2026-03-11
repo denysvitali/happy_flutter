@@ -50,11 +50,13 @@ class HttpRequestLogger {
   static final HttpRequestLogger _instance = HttpRequestLogger._();
 
   static const int _maxEntries = 500;
+  static const int _debounceMs = 100;
 
   int _nextId = 1;
   final List<HttpRequestEntry> _entries = [];
   final _controller =
       StreamController<List<HttpRequestEntry>>.broadcast();
+  int _lastEmitMs = 0;
 
   List<HttpRequestEntry> get entries => List.unmodifiable(_entries);
 
@@ -67,9 +69,11 @@ class HttpRequestLogger {
     if (_entries.length > _maxEntries) {
       _entries.removeAt(0);
     }
-    if (_controller.hasListener) {
-      _controller.add(List.unmodifiable(_entries));
-    }
+    if (!_controller.hasListener) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastEmitMs < _debounceMs) return;
+    _lastEmitMs = now;
+    _controller.add(List.unmodifiable(_entries));
   }
 
   void clear() {

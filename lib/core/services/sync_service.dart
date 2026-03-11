@@ -2202,8 +2202,9 @@ what you have, you must use the options mode.
   Future<void> fetchFriends() async {
     logger.info('Fetching friends...');
     try {
-      final response = await ApiClient().get('/v1/friends');
-      if (!ApiClient().isSuccess(response)) {
+      final api = ApiClient();
+      final response = await api.get('/v1/friends');
+      if (!api.isSuccess(response)) {
         logger.warning('Failed to fetch friends: ${response.statusCode}');
         return;
       }
@@ -2256,11 +2257,12 @@ what you have, you must use the options mode.
   Future<void> fetchFeed() async {
     logger.info('Fetching feed...');
     try {
-      final response = await ApiClient().get(
+      final api = ApiClient();
+      final response = await api.get(
         '/v1/feed',
         queryParameters: <String, dynamic>{'limit': 50},
       );
-      if (!ApiClient().isSuccess(response)) {
+      if (!api.isSuccess(response)) {
         logger.warning('Failed to fetch feed: ${response.statusCode}');
         return;
       }
@@ -2840,8 +2842,9 @@ what you have, you must use the options mode.
   /// Delete a session.
   Future<bool> deleteSession(String sessionId) async {
     try {
-      final response = await ApiClient().delete('/v1/sessions/$sessionId');
-      if (!ApiClient().isSuccess(response)) {
+      final api = ApiClient();
+      final response = await api.delete('/v1/sessions/$sessionId');
+      if (!api.isSuccess(response)) {
         return false;
       }
 

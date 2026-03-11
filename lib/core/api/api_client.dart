@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -128,7 +127,7 @@ class ApiClient {
 
   static int _estimateRequestBytes(dynamic data) {
     if (data == null) return 0;
-    if (data is String) return utf8.encode(data).length;
+    if (data is String) return data.length;
     if (data is List<int>) return data.length;
     if (data is Map) {
       return data.length * 250;
@@ -148,7 +147,7 @@ class ApiClient {
     }
     final data = response.data;
     if (data == null) return 0;
-    if (data is String) return utf8.encode(data).length;
+    if (data is String) return data.length;
     if (data is List<int>) return data.length;
     // For Map/List, skip expensive jsonEncode — use rough approximation.
     if (data is Map) {
