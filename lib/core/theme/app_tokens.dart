@@ -50,6 +50,9 @@ abstract final class AppRadius {
   /// 4 px – subtle rounding (chips, tags).
   static const double xs = 4;
 
+  /// 6 px – grouped message corners, compact elements.
+  static const double xsm = 6;
+
   /// 8 px – small components (badges, small chips).
   static const double sm = 8;
 
@@ -59,11 +62,38 @@ abstract final class AppRadius {
   /// 16 px – cards and larger containers.
   static const double lg = 16;
 
-  /// 20 px – bottom sheets, dialogs.
+  /// 20 px – bottom sheets, dialogs, message bubbles.
   static const double xl = 20;
 
   /// 100 px – fully-pill / stadium shape.
   static const double pill = 100;
+}
+
+// ─── Font sizes ──────────────────────────────────────────────────────────────
+
+/// Raw font size tokens for cases where [AppTypography] text styles
+/// are too opinionated (e.g. code blocks, tool views, badges).
+///
+/// Prefer [AppTypography] for body/label/title text. Use [AppFontSize]
+/// only when you need a bare size without the full TextStyle.
+abstract final class AppFontSize {
+  /// 10 px – micro labels, status badges.
+  static const double xxs = 10;
+
+  /// 11 px – compact labels, timestamps.
+  static const double xs = 11;
+
+  /// 12 px – body small, secondary text.
+  static const double sm = 12;
+
+  /// 13 px – code blocks, tool output.
+  static const double md = 13;
+
+  /// 14 px – body medium, primary text.
+  static const double base = 14;
+
+  /// 16 px – body large, titles.
+  static const double lg = 16;
 }
 
 // ─── Durations ───────────────────────────────────────────────────────────────

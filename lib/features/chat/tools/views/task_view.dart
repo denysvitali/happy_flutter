@@ -215,7 +215,7 @@ class _SubAgentBadge extends StatelessWidget {
           Text(
             type,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: AppFontSize.xxs,
               fontWeight: FontWeight.w500,
               color:
                   theme.colorScheme.onPrimaryContainer,
@@ -295,7 +295,7 @@ class _InlineToolRow extends StatelessWidget {
                 color:
                     theme.colorScheme.onSurfaceVariant,
                 fontFamily: 'monospace',
-                fontSize: 11,
+                fontSize: AppFontSize.xs,
               ),
               overflow: TextOverflow.ellipsis,
             ),

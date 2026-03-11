@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../tool_section_view.dart';
 
 /// Search result item model.
@@ -134,7 +135,7 @@ class _WebSearchViewState extends State<WebSearchView> {
               Text(
                 '${results.length} result${results.length == 1 ? '' : 's'}',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: AppFontSize.sm,
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -159,7 +160,7 @@ class _WebSearchViewState extends State<WebSearchView> {
                   ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(AppRadius.xl),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -178,7 +179,7 @@ class _WebSearchViewState extends State<WebSearchView> {
                             : '+ $remaining more result'
                                 '${remaining == 1 ? '' : 's'}',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: AppFontSize.sm,
                           color: theme.colorScheme.primary,
                           fontWeight: FontWeight.w500,
                         ),
@@ -230,7 +231,7 @@ class _SearchBar extends StatelessWidget {
             child: Text(
               query,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: AppFontSize.md,
                 color: theme.colorScheme.onSurface,
                 fontWeight: FontWeight.w500,
               ),
@@ -340,7 +341,7 @@ class _ResultCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -356,7 +357,7 @@ class _ResultCard extends StatelessWidget {
                         child: Text(
                           _domain(searchResult.url),
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: AppFontSize.xxs,
                             color: theme.colorScheme.onSurfaceVariant,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -371,7 +372,7 @@ class _ResultCard extends StatelessWidget {
               Text(
                 searchResult.title,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: AppFontSize.md,
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.primary,
                   height: 1.3,
@@ -387,7 +388,7 @@ class _ResultCard extends StatelessWidget {
                   child: Text(
                     searchResult.snippet!,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: AppFontSize.sm,
                       color: theme.colorScheme.onSurfaceVariant,
                       height: 1.4,
                     ),
@@ -425,7 +426,7 @@ class _LoadingIndicator extends StatelessWidget {
           Text(
             'Searching the web...',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: AppFontSize.sm,
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
@@ -450,7 +451,7 @@ class _ErrorBanner extends StatelessWidget {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: theme.colorScheme.errorContainer.withAlpha(128),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(
             color: theme.colorScheme.error.withAlpha(77),
             width: 0.5,
@@ -471,7 +472,7 @@ class _ErrorBanner extends StatelessWidget {
                     ? message!
                     : 'Search failed. Please try again.',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: AppFontSize.sm,
                   color: theme.colorScheme.onErrorContainer,
                 ),
               ),

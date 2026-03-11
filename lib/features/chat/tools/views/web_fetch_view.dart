@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../../../../core/i18n/app_localizations.dart';
 import '../tool_section_view.dart';
 
@@ -23,7 +24,7 @@ class _WebFetchViewState extends State<WebFetchView> {
       isScrollControlled: true,
       useSafeArea: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
@@ -64,7 +65,7 @@ class _WebFetchViewState extends State<WebFetchView> {
                 padding: const EdgeInsets.all(16),
                 child: SelectableText(
                   content,
-                  style: const TextStyle(fontSize: 13, height: 1.5),
+                  style: const TextStyle(fontSize: AppFontSize.md, height: 1.5),
                 ),
               ),
             ),
@@ -125,7 +126,7 @@ class _WebFetchViewState extends State<WebFetchView> {
                   Text(
                     'Fetching page...',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: AppFontSize.sm,
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
@@ -179,7 +180,7 @@ class _UrlChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(
           color: theme.colorScheme.outlineVariant,
           width: 0.5,
@@ -192,7 +193,7 @@ class _UrlChip extends StatelessWidget {
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               color: stateColor.withAlpha(26),
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(AppRadius.xsm),
             ),
             child: Icon(
               _stateIcon(),
@@ -206,7 +207,7 @@ class _UrlChip extends StatelessWidget {
             child: Text(
               url,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 color: theme.colorScheme.primary,
                 decoration: TextDecoration.underline,
                 decorationColor: theme.colorScheme.primary.withAlpha(128),
@@ -243,7 +244,7 @@ class _PromptBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
           color: theme.colorScheme.secondaryContainer.withAlpha(128),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(
             color: theme.colorScheme.outlineVariant,
             width: 0.5,
@@ -262,7 +263,7 @@ class _PromptBadge extends StatelessWidget {
               child: Text(
                 prompt,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: AppFontSize.sm,
                   color: theme.colorScheme.onSurfaceVariant,
                   fontStyle: FontStyle.italic,
                 ),
@@ -321,7 +322,7 @@ class _ResultSection extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(
             color: theme.colorScheme.outlineVariant,
             width: 0.5,
@@ -340,7 +341,7 @@ class _ResultSection extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFF16A34A).withAlpha(20),
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(8),
+                  top: Radius.circular(AppRadius.sm),
                 ),
               ),
               child: Row(
@@ -354,7 +355,7 @@ class _ResultSection extends StatelessWidget {
                   Text(
                     'Content preview',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: AppFontSize.xs,
                       fontWeight: FontWeight.w600,
                       color: const Color(0xFF16A34A).withAlpha(204),
                       letterSpacing: 0.3,
@@ -364,7 +365,7 @@ class _ResultSection extends StatelessWidget {
                   Text(
                     '${content.length} chars',
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: AppFontSize.xxs,
                       color: theme.colorScheme.onSurfaceVariant
                           .withAlpha(153),
                     ),
@@ -378,7 +379,7 @@ class _ResultSection extends StatelessWidget {
               child: SelectableText(
                 preview,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: AppFontSize.sm,
                   height: 1.5,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -428,7 +429,7 @@ class _ErrorBanner extends StatelessWidget {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: theme.colorScheme.errorContainer.withAlpha(128),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(
             color: theme.colorScheme.error.withAlpha(77),
             width: 0.5,
@@ -447,7 +448,7 @@ class _ErrorBanner extends StatelessWidget {
               child: Text(
                 message.isNotEmpty ? message : 'Failed to fetch content.',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: AppFontSize.sm,
                   color: theme.colorScheme.onErrorContainer,
                 ),
               ),

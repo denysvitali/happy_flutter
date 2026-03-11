@@ -227,7 +227,7 @@ class _GlobViewState extends State<GlobView> {
                           ? 'Show less'
                           : 'Show all ${files.length} files',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: AppFontSize.sm,
                         color: cs.primary,
                         fontWeight: FontWeight.w500,
                       ),
@@ -315,7 +315,7 @@ class _ResultCountChip extends StatelessWidget {
             ? 'No files found'
             : '$count file${count != 1 ? 's' : ''} found',
         style: TextStyle(
-          fontSize: 11,
+          fontSize: AppFontSize.xs,
           fontWeight: FontWeight.w600,
           color: cs.primary,
         ),
@@ -357,7 +357,7 @@ class _PatternBadge extends StatelessWidget {
           Text(
             'glob',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: AppFontSize.xs,
               fontWeight: FontWeight.w600,
               color: cs.onSurfaceVariant,
               letterSpacing: 0.3,
@@ -376,7 +376,7 @@ class _PatternBadge extends StatelessWidget {
               pattern,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 fontWeight: FontWeight.w600,
                 color: cs.primary,
               ),
@@ -425,7 +425,7 @@ class _PathChip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 11,
+                fontSize: AppFontSize.xs,
                 color: cs.onSurfaceVariant,
               ),
             ),
@@ -492,7 +492,7 @@ class _FileRow extends StatelessWidget {
                   SelectableText(
                     file.displayName,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: AppFontSize.md,
                       fontWeight: FontWeight.w500,
                       color: cs.onSurface,
                     ),
@@ -502,7 +502,7 @@ class _FileRow extends StatelessWidget {
                       _parentDir(file.path),
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: AppFontSize.xxs,
                         color: cs.onSurfaceVariant,
                         fontFamily: 'monospace',
                       ),
@@ -524,7 +524,7 @@ class _FileRow extends StatelessWidget {
                 child: Text(
                   ext,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: AppFontSize.xxs,
                     fontWeight: FontWeight.w600,
                     color: color,
                     fontFamily: 'monospace',

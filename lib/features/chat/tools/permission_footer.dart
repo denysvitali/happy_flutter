@@ -376,7 +376,7 @@ class _ActionButtons extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(7),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   elevation: 0,
                 ),
@@ -419,7 +419,7 @@ class _ActionButtons extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(7),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
               ),
             ),
@@ -469,7 +469,7 @@ class _CodexActionButtons extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(7),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               elevation: 0,
             ),
@@ -502,7 +502,7 @@ class _CodexActionButtons extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(7),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
           ),
         ),
@@ -532,7 +532,7 @@ class _SecondaryButton extends StatelessWidget {
         textStyle: theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w500,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
       ),
       child: Text(label),
     );
@@ -576,7 +576,7 @@ class PermissionButtons extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             textStyle: theme.textTheme.labelMedium,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(7),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
           ),
         ),
@@ -593,7 +593,7 @@ class PermissionButtons extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             textStyle: theme.textTheme.labelMedium,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(7),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
           ),
         ),

@@ -277,7 +277,7 @@ class _GrepViewState extends State<GrepView> {
             child: Text(
               '+ ${files.length - 15} more files',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 fontStyle: FontStyle.italic,
                 color: cs.onSurfaceVariant,
               ),
@@ -321,7 +321,7 @@ class _GrepPatternBadge extends StatelessWidget {
           Text(
             'grep',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: AppFontSize.xs,
               fontWeight: FontWeight.w600,
               color: cs.onSurfaceVariant,
               letterSpacing: 0.3,
@@ -340,7 +340,7 @@ class _GrepPatternBadge extends StatelessWidget {
               pattern,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 fontWeight: FontWeight.w600,
                 color: cs.tertiary,
               ),
@@ -385,7 +385,7 @@ class _GrepPathChip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 11,
+                fontSize: AppFontSize.xs,
                 color: cs.onSurfaceVariant,
               ),
             ),
@@ -425,7 +425,7 @@ class _MatchCountBadge extends StatelessWidget {
       child: Text(
         displayLabel,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: AppFontSize.xs,
           fontWeight: FontWeight.w600,
           color: cs.tertiary,
         ),
@@ -506,7 +506,7 @@ class _GroupedMatchList extends StatelessWidget {
                         ? 'Show less'
                         : 'Show all $totalMatches matches',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: AppFontSize.sm,
                       color: cs.tertiary,
                       fontWeight: FontWeight.w500,
                     ),
@@ -562,7 +562,7 @@ class _FileMatchGroup extends StatelessWidget {
                   displayFile,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: AppFontSize.sm,
                     fontWeight: FontWeight.w600,
                     color: cs.onSurface,
                     fontFamily: 'monospace',
@@ -577,7 +577,7 @@ class _FileMatchGroup extends StatelessWidget {
                     parentDir,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: AppFontSize.xxs,
                       color: cs.onSurfaceVariant,
                       fontFamily: 'monospace',
                     ),
@@ -648,7 +648,7 @@ class _MatchCountPill extends StatelessWidget {
       child: Text(
         '$count',
         style: TextStyle(
-          fontSize: 10,
+          fontSize: AppFontSize.xxs,
           fontWeight: FontWeight.w600,
           color: cs.secondary,
         ),
@@ -706,7 +706,7 @@ class _MatchRow extends StatelessWidget {
                 child: Text(
                   '${match.lineNumber}',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: AppFontSize.xs,
                     fontFamily: 'monospace',
                     color:
                         cs.onSurfaceVariant.withValues(alpha: 0.6),
@@ -750,7 +750,7 @@ class _HighlightedText extends StatelessWidget {
       return SelectableText(
         content,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: AppFontSize.sm,
           fontFamily: 'monospace',
           color: baseColor,
         ),
@@ -770,7 +770,7 @@ class _HighlightedText extends StatelessWidget {
             TextSpan(
               text: content.substring(start),
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 fontFamily: 'monospace',
                 color: baseColor,
               ),
@@ -784,7 +784,7 @@ class _HighlightedText extends StatelessWidget {
           TextSpan(
             text: content.substring(start, idx),
             style: TextStyle(
-              fontSize: 12,
+              fontSize: AppFontSize.sm,
               fontFamily: 'monospace',
               color: baseColor,
             ),
@@ -795,7 +795,7 @@ class _HighlightedText extends StatelessWidget {
         TextSpan(
           text: content.substring(idx, idx + pattern.length),
           style: TextStyle(
-            fontSize: 12,
+            fontSize: AppFontSize.sm,
             fontFamily: 'monospace',
             fontWeight: FontWeight.w700,
             color: highlightColor,
@@ -866,7 +866,7 @@ class _FileMatchRow extends StatelessWidget {
                       TextSpan(
                         text: dir,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: AppFontSize.sm,
                           fontFamily: 'monospace',
                           color: cs.onSurfaceVariant,
                         ),
@@ -874,7 +874,7 @@ class _FileMatchRow extends StatelessWidget {
                     TextSpan(
                       text: filename,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: AppFontSize.sm,
                         fontFamily: 'monospace',
                         fontWeight: FontWeight.w600,
                         color: cs.onSurface,

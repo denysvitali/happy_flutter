@@ -97,7 +97,7 @@ class _WriteViewState extends State<WriteView> {
                         _languageHint(filePath),
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: cs.onSurfaceVariant,
-                          fontSize: 11,
+                          fontSize: AppFontSize.xs,
                         ),
                       ),
                       const Spacer(),
@@ -105,7 +105,7 @@ class _WriteViewState extends State<WriteView> {
                         '${allLines.length} lines',
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: cs.onSurfaceVariant,
-                          fontSize: 11,
+                          fontSize: AppFontSize.xs,
                         ),
                       ),
                     ],
@@ -281,7 +281,7 @@ class _InfoPill extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: AppFontSize.xxs,
               color: cs.onSurfaceVariant.withValues(alpha: 0.7),
               fontWeight: FontWeight.w500,
             ),
@@ -374,7 +374,7 @@ class _WritePathHeader extends StatelessWidget {
                                 theme.textTheme.bodySmall?.copyWith(
                               color: cs.onSurfaceVariant,
                               fontFamily: 'monospace',
-                              fontSize: 12,
+                              fontSize: AppFontSize.sm,
                             ),
                           ),
                         TextSpan(
@@ -383,7 +383,7 @@ class _WritePathHeader extends StatelessWidget {
                               theme.textTheme.bodySmall?.copyWith(
                             color: cs.onSurface,
                             fontFamily: 'monospace',
-                            fontSize: 12,
+                            fontSize: AppFontSize.sm,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -467,7 +467,7 @@ class _CreatedBadgeState extends State<_CreatedBadge>
               style: theme.textTheme.labelSmall?.copyWith(
                 color: _green,
                 fontWeight: FontWeight.w600,
-                fontSize: 11,
+                fontSize: AppFontSize.xs,
               ),
             ),
           ],
@@ -507,7 +507,7 @@ class _LineNumberedCode extends StatelessWidget {
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                   fontFamily: 'monospace',
-                  fontSize: 12,
+                  fontSize: AppFontSize.sm,
                   height: 1.5,
                 ),
               ),
@@ -523,7 +523,7 @@ class _LineNumberedCode extends StatelessWidget {
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurface,
                 fontFamily: 'monospace',
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 height: 1.5,
               ),
             );

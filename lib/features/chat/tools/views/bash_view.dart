@@ -289,7 +289,7 @@ class _TerminalCommandBar extends StatelessWidget {
                   r'$',
                   style: TextStyle(
                     fontFamily: 'monospace',
-                    fontSize: 13,
+                    fontSize: AppFontSize.md,
                     color: c.green,
                     fontWeight: FontWeight.bold,
                   ),
@@ -303,7 +303,7 @@ class _TerminalCommandBar extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: 'monospace',
-                      fontSize: 13,
+                      fontSize: AppFontSize.md,
                       color: c.primaryText,
                       height: 1.4,
                     ),
@@ -391,7 +391,7 @@ class _TerminalOutputSection extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontFamily: 'monospace',
-                    fontSize: 11,
+                    fontSize: AppFontSize.xs,
                     color: labelColor,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.4,
@@ -402,7 +402,7 @@ class _TerminalOutputSection extends StatelessWidget {
                   '$totalLines line${totalLines == 1 ? '' : 's'}',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: c.lineNumberText,
-                    fontSize: 10,
+                    fontSize: AppFontSize.xxs,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -417,7 +417,7 @@ class _TerminalOutputSection extends StatelessWidget {
               visibleText,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 color: isError ? c.errorText : c.primaryText,
                 height: 1.5,
               ),
@@ -481,7 +481,7 @@ class _ExitCodeBadge extends StatelessWidget {
                   'exit $exitCode',
                   style: TextStyle(
                     fontFamily: 'monospace',
-                    fontSize: 11,
+                    fontSize: AppFontSize.xs,
                     color: color,
                     fontWeight: FontWeight.w600,
                   ),
@@ -540,7 +540,7 @@ class _ShowMoreButton extends StatelessWidget {
                   : 'Show $hiddenCount more line'
                       '${hiddenCount == 1 ? '' : 's'}',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: AppFontSize.xs,
                 color: c.mutedText,
                 fontWeight: FontWeight.w500,
               ),
@@ -669,7 +669,7 @@ class FilePillChip extends StatelessWidget {
                       text: dir,
                       style: TextStyle(
                         fontFamily: 'monospace',
-                        fontSize: 11,
+                        fontSize: AppFontSize.xs,
                         color: cs.onSurfaceVariant,
                       ),
                     ),
@@ -677,7 +677,7 @@ class FilePillChip extends StatelessWidget {
                     text: filename,
                     style: TextStyle(
                       fontFamily: 'monospace',
-                      fontSize: 11,
+                      fontSize: AppFontSize.xs,
                       fontWeight: FontWeight.w600,
                       color: cs.onSurface,
                     ),

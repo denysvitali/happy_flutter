@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 
 import '../tool_section_view.dart';
@@ -224,7 +225,7 @@ class _FileOperationBar extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: c.bg,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: c.border),
       ),
       child: Column(
@@ -240,8 +241,8 @@ class _FileOperationBar extends StatelessWidget {
             decoration: BoxDecoration(
               color: c.headerBg,
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
+                topLeft: Radius.circular(AppRadius.sm),
+                topRight: Radius.circular(AppRadius.sm),
               ),
               border: Border(
                 bottom: BorderSide(color: c.border),
@@ -287,7 +288,7 @@ class _FileOperationBar extends StatelessWidget {
                             text: dir,
                             style: TextStyle(
                               fontFamily: 'monospace',
-                              fontSize: 13,
+                              fontSize: AppFontSize.md,
                               color: c.mutedText,
                             ),
                           ),
@@ -295,7 +296,7 @@ class _FileOperationBar extends StatelessWidget {
                           text: filename,
                           style: TextStyle(
                             fontFamily: 'monospace',
-                            fontSize: 13,
+                            fontSize: AppFontSize.md,
                             color: c.primaryText,
                             fontWeight: FontWeight.w600,
                           ),
@@ -318,7 +319,7 @@ class _FileOperationBar extends StatelessWidget {
                 detail!,
                 style: TextStyle(
                   fontFamily: 'monospace',
-                  fontSize: 12,
+                  fontSize: AppFontSize.sm,
                   color: c.mutedText,
                   height: 1.4,
                 ),
@@ -425,7 +426,7 @@ class _TerminalCommandBar extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: c.bg,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: c.border),
       ),
       child: Column(
@@ -441,8 +442,8 @@ class _TerminalCommandBar extends StatelessWidget {
             decoration: BoxDecoration(
               color: c.headerBg,
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
+                topLeft: Radius.circular(AppRadius.sm),
+                topRight: Radius.circular(AppRadius.sm),
               ),
               border: Border(
                 bottom: BorderSide(color: c.border),
@@ -469,7 +470,7 @@ class _TerminalCommandBar extends StatelessWidget {
                   Text(
                     '\u00b7',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: AppFontSize.xs,
                       color: c.lineNumberText,
                     ),
                   ),
@@ -480,7 +481,7 @@ class _TerminalCommandBar extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontFamily: 'monospace',
-                        fontSize: 11,
+                        fontSize: AppFontSize.xs,
                         color: c.lineNumberText,
                       ),
                     ),
@@ -504,7 +505,7 @@ class _TerminalCommandBar extends StatelessWidget {
                   r'$',
                   style: TextStyle(
                     fontFamily: 'monospace',
-                    fontSize: 13,
+                    fontSize: AppFontSize.md,
                     color: c.green,
                     fontWeight: FontWeight.bold,
                   ),
@@ -515,7 +516,7 @@ class _TerminalCommandBar extends StatelessWidget {
                     command,
                     style: TextStyle(
                       fontFamily: 'monospace',
-                      fontSize: 13,
+                      fontSize: AppFontSize.md,
                       color: c.primaryText,
                       height: 1.4,
                     ),
@@ -567,7 +568,7 @@ class _TerminalOutputSection extends StatelessWidget {
       margin: const EdgeInsets.only(top: 6),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: borderColor),
       ),
       child: Column(
@@ -582,8 +583,8 @@ class _TerminalOutputSection extends StatelessWidget {
             decoration: BoxDecoration(
               color: c.headerBg,
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
+                topLeft: Radius.circular(AppRadius.sm),
+                topRight: Radius.circular(AppRadius.sm),
               ),
               border: Border(bottom: BorderSide(color: borderColor)),
             ),
@@ -602,7 +603,7 @@ class _TerminalOutputSection extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontFamily: 'monospace',
-                    fontSize: 11,
+                    fontSize: AppFontSize.xs,
                     color: labelColor,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.4,
@@ -613,7 +614,7 @@ class _TerminalOutputSection extends StatelessWidget {
                   '$totalLines line${totalLines == 1 ? '' : 's'}',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: c.lineNumberText,
-                    fontSize: 10,
+                    fontSize: AppFontSize.xxs,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -627,7 +628,7 @@ class _TerminalOutputSection extends StatelessWidget {
               visibleText,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 color: isError ? c.errorText : c.primaryText,
                 height: 1.5,
               ),
@@ -669,7 +670,7 @@ class _ExitCodeBadge extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(AppRadius.xs),
           border: Border.all(color: borderColor),
         ),
         child: Row(
@@ -687,7 +688,7 @@ class _ExitCodeBadge extends StatelessWidget {
               'exit $exitCode',
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 11,
+                fontSize: AppFontSize.xs,
                 color: color,
                 fontWeight: FontWeight.w600,
               ),
@@ -725,8 +726,8 @@ class _ShowMoreButton extends StatelessWidget {
           border: Border(top: BorderSide(color: borderColor)),
           color: c.headerBg,
           borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(8),
-            bottomRight: Radius.circular(8),
+            bottomLeft: Radius.circular(AppRadius.sm),
+            bottomRight: Radius.circular(AppRadius.sm),
           ),
         ),
         child: Row(
@@ -744,7 +745,7 @@ class _ShowMoreButton extends StatelessWidget {
                   : 'Show $hiddenCount more '
                       'line${hiddenCount == 1 ? '' : 's'}',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: AppFontSize.xs,
                 color: c.mutedText,
                 fontWeight: FontWeight.w500,
               ),

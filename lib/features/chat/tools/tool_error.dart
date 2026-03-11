@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../utils/tool_error_parser.dart';
 
 /// Error display for tool use errors.
@@ -26,8 +27,8 @@ class ToolError extends StatelessWidget {
           left: BorderSide(color: errorColor, width: 3),
         ),
         borderRadius: const BorderRadius.only(
-          topRight: Radius.circular(6),
-          bottomRight: Radius.circular(6),
+          topRight: Radius.circular(AppRadius.xsm),
+          bottomRight: Radius.circular(AppRadius.xsm),
         ),
       ),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -81,8 +82,8 @@ class ToolResultError extends StatelessWidget {
           left: BorderSide(color: errorColor, width: 3),
         ),
         borderRadius: const BorderRadius.only(
-          topRight: Radius.circular(4),
-          bottomRight: Radius.circular(4),
+          topRight: Radius.circular(AppRadius.xs),
+          bottomRight: Radius.circular(AppRadius.xs),
         ),
       ),
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/components/diff_view_widget.dart'
     as dw show DiffView;
 import '../tool_section_view.dart';
@@ -132,14 +133,14 @@ class _MultiEditHeader extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             color: cs.primaryContainer,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           child: Text(
             '$editCount ${editCount == 1 ? 'edit' : 'edits'}',
             style: theme.textTheme.labelSmall?.copyWith(
               color: cs.onPrimaryContainer,
               fontWeight: FontWeight.w700,
-              fontSize: 11,
+              fontSize: AppFontSize.xs,
             ),
           ),
         ),
@@ -154,7 +155,7 @@ class _MultiEditHeader extends StatelessWidget {
               ),
               decoration: BoxDecoration(
                 color: cs.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(AppRadius.xsm),
                 border: Border.all(
                   color: cs.outlineVariant,
                   width: 0.5,
@@ -181,7 +182,7 @@ class _MultiEditHeader extends StatelessWidget {
                                   ?.copyWith(
                                 color: cs.onSurfaceVariant,
                                 fontFamily: 'monospace',
-                                fontSize: 12,
+                                fontSize: AppFontSize.sm,
                               ),
                             ),
                           TextSpan(
@@ -190,7 +191,7 @@ class _MultiEditHeader extends StatelessWidget {
                                 ?.copyWith(
                               color: cs.onSurface,
                               fontFamily: 'monospace',
-                              fontSize: 12,
+                              fontSize: AppFontSize.sm,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -240,7 +241,7 @@ class _EditCardState extends State<_EditCard> {
           color: cs.outlineVariant,
           width: 0.5,
         ),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -273,7 +274,7 @@ class _EditCardState extends State<_EditCard> {
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: cs.onPrimary,
                         fontWeight: FontWeight.w700,
-                        fontSize: 11,
+                        fontSize: AppFontSize.xs,
                       ),
                     ),
                   ),
@@ -294,14 +295,14 @@ class _EditCardState extends State<_EditCard> {
                       ),
                       decoration: BoxDecoration(
                         color: cs.tertiaryContainer,
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(AppRadius.xs),
                       ),
                       child: Text(
                         'replace all',
                         style:
                             theme.textTheme.labelSmall?.copyWith(
                           color: cs.onTertiaryContainer,
-                          fontSize: 10,
+                          fontSize: AppFontSize.xxs,
                         ),
                       ),
                     ),

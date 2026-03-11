@@ -172,7 +172,7 @@ class _LineDeltaBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: AppFontSize.xxs,
           fontWeight: FontWeight.w700,
           color: color,
           fontFamily: 'monospace',

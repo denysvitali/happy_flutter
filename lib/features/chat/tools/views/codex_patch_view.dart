@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
 
@@ -81,7 +82,7 @@ class CodexPatchView extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: c.bg,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(color: c.border),
         ),
         child: Column(
@@ -141,8 +142,8 @@ class _PatchHeaderBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: c.headerBg,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
+          topLeft: Radius.circular(AppRadius.sm),
+          topRight: Radius.circular(AppRadius.sm),
         ),
         border: Border(
           bottom: BorderSide(color: c.border),
@@ -173,7 +174,7 @@ class _PatchHeaderBar extends StatelessWidget {
               ),
               decoration: BoxDecoration(
                 color: c.greenBadgeBg,
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(AppRadius.xs),
                 border: Border.all(
                   color: c.greenBadgeBorder,
                 ),
@@ -190,7 +191,7 @@ class _PatchHeaderBar extends StatelessWidget {
                   Text(
                     'auto-approved',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: AppFontSize.xs,
                       color: c.green,
                       fontWeight: FontWeight.w500,
                       fontFamily: 'monospace',
@@ -287,7 +288,7 @@ class _FileChangeRow extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: c.headerBg,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(AppRadius.xsm),
           border: Border.all(color: c.border),
         ),
         child: Column(
@@ -297,7 +298,7 @@ class _FileChangeRow extends StatelessWidget {
             // Row header
             InkWell(
               onTap: onToggle,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(AppRadius.xsm),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -317,7 +318,7 @@ class _FileChangeRow extends StatelessWidget {
                                 text: change.dir,
                                 style: TextStyle(
                                   fontFamily: 'monospace',
-                                  fontSize: 12,
+                                  fontSize: AppFontSize.sm,
                                   color: c.mutedText,
                                 ),
                               ),
@@ -325,7 +326,7 @@ class _FileChangeRow extends StatelessWidget {
                               text: change.displayName,
                               style: TextStyle(
                                 fontFamily: 'monospace',
-                                fontSize: 12,
+                                fontSize: AppFontSize.sm,
                                 color: c.primaryText,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -382,7 +383,7 @@ class _OperationChip extends StatelessWidget {
         label,
         style: TextStyle(
           fontFamily: 'monospace',
-          fontSize: 10,
+          fontSize: AppFontSize.xxs,
           color: c.mutedText,
           fontWeight: FontWeight.w500,
         ),
@@ -483,7 +484,7 @@ class _DetailSection extends StatelessWidget {
                 heading,
                 style: TextStyle(
                   fontFamily: 'monospace',
-                  fontSize: 11,
+                  fontSize: AppFontSize.xs,
                   color: color,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
@@ -499,14 +500,14 @@ class _DetailSection extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: c.bg,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(AppRadius.xs),
               border: Border.all(color: c.border),
             ),
             child: SelectableText(
               content,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 11,
+                fontSize: AppFontSize.xs,
                 color: c.primaryText,
                 height: 1.5,
               ),

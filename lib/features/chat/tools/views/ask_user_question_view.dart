@@ -256,7 +256,7 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
           decoration: BoxDecoration(
             color:
                 theme.colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
               color: primary.withAlpha(borderAlpha),
               width: 1.5,
@@ -348,7 +348,7 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
             height: 32,
             decoration: BoxDecoration(
               color: primary.withAlpha(22),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
               border: Border.all(
                 color: primary.withAlpha(60),
                 width: 1,
@@ -394,7 +394,7 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
             ),
             decoration: BoxDecoration(
               color: primary.withAlpha(25),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(AppRadius.xl),
               border: Border.all(
                 color: primary.withAlpha(60),
                 width: 1,
@@ -403,7 +403,7 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
             child: Text(
               'ACTION',
               style: TextStyle(
-                fontSize: 10,
+                fontSize: AppFontSize.xxs,
                 fontWeight: FontWeight.w800,
                 color: primary,
                 letterSpacing: 0.8,
@@ -604,12 +604,12 @@ class _QuestionSection extends StatelessWidget {
                   color: theme
                       .colorScheme.secondaryContainer,
                   borderRadius:
-                      BorderRadius.circular(6),
+                      BorderRadius.circular(AppRadius.xsm),
                 ),
                 child: Text(
                   question.header.toUpperCase(),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: AppFontSize.xs,
                     fontWeight: FontWeight.w700,
                     color: theme.colorScheme
                         .onSecondaryContainer,
@@ -825,7 +825,7 @@ class _OptionChipState extends State<_OptionChip>
         Text(
           widget.option.label,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: AppFontSize.md,
             fontWeight: isSelected
                 ? FontWeight.w600
                 : FontWeight.w500,
@@ -863,7 +863,7 @@ class _OptionChipState extends State<_OptionChip>
               Text(
                 widget.option.label,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: AppFontSize.base,
                   fontWeight: isSelected
                       ? FontWeight.w600
                       : FontWeight.w500,
@@ -876,7 +876,7 @@ class _OptionChipState extends State<_OptionChip>
               Text(
                 widget.option.description,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: AppFontSize.sm,
                   color: theme
                       .colorScheme.onSurfaceVariant,
                   height: 1.3,

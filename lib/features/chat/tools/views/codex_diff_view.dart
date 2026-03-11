@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/ui/diff/diff_types.dart';
 import 'package:happy_flutter/core/ui/diff/diff_view.dart';
 
@@ -147,7 +148,7 @@ class _DiffContainerState extends State<_DiffContainer> {
     return Container(
       decoration: BoxDecoration(
         color: c.bg,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: c.border),
       ),
       child: Column(
@@ -213,8 +214,8 @@ class _DiffHeaderBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: c.headerBg,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
+          topLeft: Radius.circular(AppRadius.sm),
+          topRight: Radius.circular(AppRadius.sm),
         ),
         border: Border(
           bottom: BorderSide(color: c.border),
@@ -234,7 +235,7 @@ class _DiffHeaderBar extends StatelessWidget {
                 dir!,
                 style: TextStyle(
                   fontFamily: 'monospace',
-                  fontSize: 12,
+                  fontSize: AppFontSize.sm,
                   color: c.mutedText,
                 ),
               ),
@@ -242,7 +243,7 @@ class _DiffHeaderBar extends StatelessWidget {
               filename!,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 color: c.primaryText,
                 fontWeight: FontWeight.w600,
               ),
@@ -286,7 +287,7 @@ class _StatBadge extends StatelessWidget {
       label,
       style: TextStyle(
         fontFamily: 'monospace',
-        fontSize: 12,
+        fontSize: AppFontSize.sm,
         color: color,
         fontWeight: FontWeight.w600,
       ),
@@ -340,7 +341,7 @@ class _ExpandToggle extends StatelessWidget {
                   ? 'Hide diff'
                   : 'Show diff ($totalLines lines)',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 color: c.blue,
                 fontWeight: FontWeight.w500,
               ),
@@ -372,8 +373,8 @@ class _DiffBody extends StatelessWidget {
     return ClipRRect(
       clipBehavior: Clip.hardEdge,
       borderRadius: const BorderRadius.only(
-        bottomLeft: Radius.circular(8),
-        bottomRight: Radius.circular(8),
+        bottomLeft: Radius.circular(AppRadius.sm),
+        bottomRight: Radius.circular(AppRadius.sm),
       ),
       child: DiffView(
         oldText: oldText,

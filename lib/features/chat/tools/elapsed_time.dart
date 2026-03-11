@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 /// Timer widget that updates every second to show elapsed time.
 class ElapsedTimeWidget extends StatefulWidget {
@@ -68,7 +69,7 @@ class _ElapsedTimeWidgetState extends State<ElapsedTimeWidget> {
     final effectiveStyle =
         widget.style ??
         TextStyle(
-          fontSize: 13,
+          fontSize: AppFontSize.md,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
           fontFamily: 'monospace',
         );

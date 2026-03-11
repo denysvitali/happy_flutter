@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 import '../tool_section_view.dart';
 
@@ -205,11 +206,11 @@ class _LSViewState extends State<LSView> {
                   border: Border.all(
                     color: cs.outlineVariant.withValues(alpha: 0.5),
                   ),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: ClipRRect(
                   clipBehavior: Clip.hardEdge,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -248,7 +249,7 @@ class _LSViewState extends State<LSView> {
                           ? 'Show less'
                           : 'Show all ${sorted.length} items',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: AppFontSize.sm,
                         color: cs.primary,
                         fontWeight: FontWeight.w500,
                       ),
@@ -346,7 +347,7 @@ class _PathHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.xsm),
         border: Border.all(
           color: cs.outlineVariant.withValues(alpha: 0.6),
         ),
@@ -364,7 +365,7 @@ class _PathHeader extends StatelessWidget {
               resolvedPath,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 fontWeight: FontWeight.w500,
                 color: cs.onSurface,
               ),
@@ -398,7 +399,7 @@ class _CountChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -408,7 +409,7 @@ class _CountChip extends StatelessWidget {
           Text(
             '$count $label',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: AppFontSize.xs,
               fontWeight: FontWeight.w600,
               color: color,
             ),
@@ -474,7 +475,7 @@ class _EntryRow extends StatelessWidget {
                   SelectableText(
                     entry.name,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: AppFontSize.md,
                       fontWeight: entry.isDirectory
                           ? FontWeight.w600
                           : FontWeight.w400,
@@ -485,7 +486,7 @@ class _EntryRow extends StatelessWidget {
                     Text(
                       entry.permissions!,
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: AppFontSize.xxs,
                         fontFamily: 'monospace',
                         color: cs.onSurfaceVariant
                             .withValues(alpha: 0.7),
@@ -499,7 +500,7 @@ class _EntryRow extends StatelessWidget {
               Text(
                 _formatSize(entry.size!),
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: AppFontSize.xs,
                   fontFamily: 'monospace',
                   color: cs.onSurfaceVariant,
                 ),
@@ -514,12 +515,12 @@ class _EntryRow extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
                 ),
                 child: Text(
                   entry.extension,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: AppFontSize.xxs,
                     fontWeight: FontWeight.w600,
                     color: color,
                     fontFamily: 'monospace',

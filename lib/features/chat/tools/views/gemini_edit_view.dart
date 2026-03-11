@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/ui/diff/diff_types.dart';
 import 'package:happy_flutter/core/ui/diff/diff_view.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
@@ -90,7 +91,7 @@ class _GeminiEditViewState extends State<GeminiEditView> {
       child: Container(
         decoration: BoxDecoration(
           color: c.bg,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(color: c.border),
         ),
         child: Column(
@@ -174,8 +175,8 @@ class _EditHeaderBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: c.headerBg,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
+          topLeft: Radius.circular(AppRadius.sm),
+          topRight: Radius.circular(AppRadius.sm),
         ),
         border: Border(
           bottom: BorderSide(color: c.border),
@@ -199,7 +200,7 @@ class _EditHeaderBar extends StatelessWidget {
                       text: dir,
                       style: TextStyle(
                         fontFamily: 'monospace',
-                        fontSize: 12,
+                        fontSize: AppFontSize.sm,
                         color: c.mutedText,
                       ),
                     ),
@@ -207,7 +208,7 @@ class _EditHeaderBar extends StatelessWidget {
                     text: filename,
                     style: TextStyle(
                       fontFamily: 'monospace',
-                      fontSize: 12,
+                      fontSize: AppFontSize.sm,
                       color: c.primaryText,
                       fontWeight: FontWeight.w600,
                     ),
@@ -222,7 +223,7 @@ class _EditHeaderBar extends StatelessWidget {
               '-$oldLines',
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 color: c.red,
                 fontWeight: FontWeight.w600,
               ),
@@ -232,7 +233,7 @@ class _EditHeaderBar extends StatelessWidget {
               '+$newLines',
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 color: c.green,
                 fontWeight: FontWeight.w600,
               ),
@@ -290,7 +291,7 @@ class _ExpandToggle extends StatelessWidget {
                   ? 'Hide diff'
                   : 'Show diff ($totalLines lines)',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 color: c.blue,
                 fontWeight: FontWeight.w500,
               ),
@@ -322,8 +323,8 @@ class _EditDiffBody extends StatelessWidget {
     return ClipRRect(
       clipBehavior: Clip.hardEdge,
       borderRadius: const BorderRadius.only(
-        bottomLeft: Radius.circular(8),
-        bottomRight: Radius.circular(8),
+        bottomLeft: Radius.circular(AppRadius.sm),
+        bottomRight: Radius.circular(AppRadius.sm),
       ),
       child: DiffView(
         oldText: oldText,

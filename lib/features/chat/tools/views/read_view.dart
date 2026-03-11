@@ -238,7 +238,7 @@ class _FileHeader extends StatelessWidget {
                     resolvedPath,
                     style: TextStyle(
                       fontFamily: 'monospace',
-                      fontSize: 12,
+                      fontSize: AppFontSize.sm,
                       color: c.primaryText,
                     ),
                     maxLines: 1,
@@ -283,7 +283,7 @@ class _FileHeader extends StatelessWidget {
                       extension.replaceFirst('.', ''),
                       style: TextStyle(
                         fontFamily: 'monospace',
-                        fontSize: 10,
+                        fontSize: AppFontSize.xxs,
                         color: c.blue,
                         fontWeight: FontWeight.w500,
                       ),
@@ -455,7 +455,7 @@ class _MetaChip extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: AppFontSize.xs,
           color: c.mutedText,
           fontFamily: 'monospace',
         ),
@@ -518,7 +518,7 @@ class _ContentBlock extends StatelessWidget {
                     visibleLines.join('\n'),
                     style: TextStyle(
                       fontFamily: 'monospace',
-                      fontSize: 12,
+                      fontSize: AppFontSize.sm,
                       color: c.primaryText,
                       height: 1.5,
                     ),
@@ -559,7 +559,7 @@ class _LineNumbers extends StatelessWidget {
       buffer.toString(),
       style: TextStyle(
         fontFamily: 'monospace',
-        fontSize: 12,
+        fontSize: AppFontSize.sm,
         color: c.lineNumberText,
         height: 1.5,
       ),
@@ -611,7 +611,7 @@ class _ShowMoreButton extends StatelessWidget {
                   : 'Show $hiddenCount more line'
                       '${hiddenCount == 1 ? '' : 's'}',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: AppFontSize.xs,
                 color: c.mutedText,
                 fontWeight: FontWeight.w500,
               ),
