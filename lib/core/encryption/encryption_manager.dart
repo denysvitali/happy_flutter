@@ -113,6 +113,12 @@ class Encryption {
     _cache.clearSessionCache(sessionId);
   }
 
+  /// Remove machine encryption when machine is deleted
+  void removeMachineEncryption(String machineId) {
+    _machineEncryptions.remove(machineId);
+    _cache.clearMachineCache(machineId);
+  }
+
   /// Initialize machines with their encryption keys
   Future<void> initializeMachines(
     Map<String, Uint8List?> machines,

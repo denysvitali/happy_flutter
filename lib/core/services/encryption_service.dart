@@ -6,6 +6,9 @@ import '../encryption/encryption_manager.dart';
 
 /// Encryption service wrapper for backward compatibility
 class EncryptionService {
+  /// Shared cryptographic random instance
+  static final Random _random = Random.secure();
+
   Encryption? _encryption;
 
   Future<void> initialize(Uint8List masterSecret) async {
@@ -42,10 +45,9 @@ class EncryptionService {
   }
 
   Uint8List randomBytes(int length) {
-    final random = Random.secure();
     final bytes = Uint8List(length);
     for (var i = 0; i < length; i++) {
-      bytes[i] = random.nextInt(256);
+      bytes[i] = _random.nextInt(256);
     }
     return bytes;
   }

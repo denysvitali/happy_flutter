@@ -272,7 +272,7 @@ class DevLogsScreen extends ConsumerWidget {
           ],
         );
       },
-    );
+    ).whenComplete(controller.dispose);
   }
 }
 

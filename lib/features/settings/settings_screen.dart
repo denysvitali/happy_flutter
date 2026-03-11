@@ -599,7 +599,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           );
         },
       ),
-    );
+    ).whenComplete(controller.dispose);
   }
 
   Widget _buildAboutSection(BuildContext context) {

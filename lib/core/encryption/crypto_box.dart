@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:sodium/sodium.dart';
 
 import '../services/logger_service.dart' show logger;
-import 'sodium_loader.dart';
+import 'sodium_singleton.dart';
 
 /// Constants for encryption (libsodium compatible)
 class CryptoBoxConstants {
@@ -17,25 +17,17 @@ class CryptoBoxConstants {
 /// CryptoBox encryption using libsodium (crypto_box_easy)
 /// Compatible with React Native's @more-tech/react-native-libsodium
 class CryptoBox {
-  static Sodium? _sodium;
-
-  /// Initialize sodium (lazy initialization)
-  static Future<Sodium> get _sodiumInstance async {
-    if (_sodium != null) return _sodium!;
-    _sodium = await loadSodium();
-    return _sodium!;
-  }
 
   /// Generate a random nonce (24 bytes for libsodium compatibility)
   static Future<Uint8List> randomNonce() async {
-    final sodium = await _sodiumInstance;
+    final sodium = await sodiumSingleton;
     final nonce = sodium.randombytes.buf(CryptoBoxConstants.nonceBytes);
     return nonce;
   }
 
   /// Generate keypair from seed (libsodium compatible)
   static Future<KeyPair> keypairFromSeed(Uint8List seed) async {
-    final sodium = await _sodiumInstance;
+    final sodium = await sodiumSingleton;
     final seedKey = SecureKey.fromList(sodium, seed);
     final keypair = sodium.crypto.box.seedKeyPair(seedKey);
     seedKey.dispose();
@@ -48,7 +40,7 @@ class CryptoBox {
 
   /// Generate new random keypair
   static Future<KeyPair> generateKeypair() async {
-    final sodium = await _sodiumInstance;
+    final sodium = await sodiumSingleton;
     final keypair = sodium.crypto.box.keyPair();
 
     return KeyPair(
@@ -65,7 +57,7 @@ class CryptoBox {
     Uint8List data,
     Uint8List recipientPublicKey,
   ) async {
-    final sodium = await _sodiumInstance;
+    final sodium = await sodiumSingleton;
     final ephemeralKeyPair = await generateKeypair();
     final nonce = await randomNonce();
 
@@ -119,7 +111,7 @@ class CryptoBox {
         CryptoBoxConstants.publicKeyBytes + CryptoBoxConstants.nonceBytes,
       );
 
-      final sodium = await _sodiumInstance;
+      final sodium = await sodiumSingleton;
 
       // Decrypt using libsodium crypto_box.openEasy
       final decrypted = sodium.crypto.box.openEasy(

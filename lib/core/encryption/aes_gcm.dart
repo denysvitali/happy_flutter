@@ -21,6 +21,9 @@ import 'base64.dart';
 /// - 16-byte authentication tag (built into GCM, not 32-byte HMAC)
 /// - Returns Base64-encoded string (matching rn-encryption format)
 class AesGcmEncryption {
+  /// Shared cryptographic random instance
+  static final Random _random = Random.secure();
+
   /// Auth tag size in bytes (GCM standard = 16 bytes)
   static const int authTagSize = 16;
 
@@ -152,10 +155,9 @@ class AesGcmEncryption {
 
   /// Generate cryptographically secure random nonce.
   static Uint8List _generateNonce() {
-    final random = Random.secure();
     final nonce = Uint8List(nonceSize);
     for (var i = 0; i < nonceSize; i++) {
-      nonce[i] = random.nextInt(256);
+      nonce[i] = _random.nextInt(256);
     }
     return nonce;
   }

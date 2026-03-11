@@ -4,24 +4,16 @@ import 'dart:typed_data';
 import 'package:sodium/sodium.dart';
 
 import '../services/logger_service.dart' show logger;
-import 'sodium_loader.dart';
+import 'sodium_singleton.dart';
 
 /// CryptoSecretBox encryption using libsodium (crypto_secretbox_easy)
 /// Compatible with React Native's @more-tech/react-native-libsodium
 class CryptoSecretBox {
   static const int _nonceSize = 24; // crypto_secretbox_NONCEBYTES (libsodium)
   static const int _keySize = 32; // crypto_secretbox_KEYBYTES
-  static Sodium? _sodium;
-
-  /// Initialize sodium (lazy initialization)
-  static Future<Sodium> get _sodiumInstance async {
-    if (_sodium != null) return _sodium!;
-    _sodium = await loadSodium();
-    return _sodium!;
-  }
 
   static Future<Uint8List> encrypt(dynamic data, Uint8List secretKey) async {
-    final sodium = await _sodiumInstance;
+    final sodium = await sodiumSingleton;
     final nonce = sodium.randombytes.buf(_nonceSize);
     final jsonData = jsonEncode(data);
     final dataBytes = utf8.encode(jsonData);
@@ -67,7 +59,7 @@ class CryptoSecretBox {
           ? secretKey.sublist(0, _keySize)
           : Uint8List.fromList(secretKey);
 
-      final sodium = await _sodiumInstance;
+      final sodium = await sodiumSingleton;
 
       // Create SecureKey from the key bytes
       final secureKey = SecureKey.fromList(sodium, key);
