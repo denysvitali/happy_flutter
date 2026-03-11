@@ -532,7 +532,9 @@ class _SecondaryButton extends StatelessWidget {
         textStyle: theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w500,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+        ),
       ),
       child: Text(label),
     );

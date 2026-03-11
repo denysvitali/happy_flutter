@@ -10,7 +10,6 @@ import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/ui/shimmer/shimmer.dart';
 
 /// Zen home screen — displays all todo items grouped by status.
 class ZenHomeScreen extends ConsumerStatefulWidget {

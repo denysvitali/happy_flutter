@@ -35,8 +35,8 @@ class InvalidateSync {
     // start of the next to avoid rapid-fire back-to-back fetches.
     if (_minInterval != null && _lastRunEnd != null) {
       final elapsed = DateTime.now().difference(_lastRunEnd!);
-      if (elapsed < _minInterval!) {
-        final remaining = _minInterval! - elapsed;
+      if (elapsed < _minInterval) {
+        final remaining = _minInterval - elapsed;
         _cooldownTimer = Timer(remaining, () {
           _cooldownTimer = null;
           if (_invalidated) {

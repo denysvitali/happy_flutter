@@ -568,13 +568,11 @@ class _AvatarWithStatus extends StatelessWidget {
     required this.userId,
     required this.size,
     this.avatarUrl,
-    this.isOnline = false,
   });
 
   final String userId;
   final String? avatarUrl;
   final double size;
-  final bool isOnline;
 
   @override
   Widget build(BuildContext context) {
@@ -600,11 +598,9 @@ class _AvatarWithStatus extends StatelessWidget {
               height: dotSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isOnline
-                    ? AppColors.success
-                    : cs.onSurfaceVariant.withValues(
-                        alpha: 0.4,
-                      ),
+                color: cs.onSurfaceVariant.withValues(
+                  alpha: 0.4,
+                ),
                 border: Border.all(
                   color: cs.surface,
                   width: borderWidth,

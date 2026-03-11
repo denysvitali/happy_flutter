@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/socket_io_client.dart'
+    show ConnectionStatus;
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/api/socket_io_client.dart'
-    show ConnectionStatus;
 
 /// New session dialog.
 class NewSessionDialog extends ConsumerStatefulWidget {

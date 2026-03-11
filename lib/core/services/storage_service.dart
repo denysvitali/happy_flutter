@@ -175,8 +175,9 @@ class SettingsStorage {
       settings.profiles.map(_profileWithApiKeys),
     );
 
-    settings.inferenceOpenAIKey = await inferenceKeyFuture;
-    settings.profiles = await updatedProfilesFuture;
+    settings
+      ..inferenceOpenAIKey = await inferenceKeyFuture
+      ..profiles = await updatedProfilesFuture;
   }
 
   Future<AIBackendProfile> _profileWithApiKeys(AIBackendProfile profile) async {

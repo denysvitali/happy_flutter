@@ -10,7 +10,6 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/ui/shimmer/shimmer.dart';
 
 /// Screen displaying the list of all artifacts.
 class ArtifactsListScreen extends ConsumerStatefulWidget {

@@ -337,7 +337,8 @@ class _StatusBannerState extends State<StatusBanner>
     final scheme = Theme.of(context).colorScheme;
     final isError =
         widget.color == scheme.error ||
-            widget.color.red > 200;
+            (widget.color.r * 255.0).round().clamp(0, 255) >
+                200;
 
     return AnimatedBuilder(
       animation: _ctrl,

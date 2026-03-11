@@ -52,7 +52,7 @@ class MessagesApi {
         'messages': [
           {
             'content': encryptedContent,
-            if (localId != null) 'localId': localId,
+            'localId': ?localId,
           },
         ],
       },

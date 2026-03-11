@@ -218,7 +218,7 @@ class TtsService {
   }) {
     if (entry is Map) {
       final mapped = <String, String>{};
-      for (final MapEntry<dynamic, dynamic> pair in entry.entries) {
+      for (final pair in entry.entries) {
         mapped[pair.key.toString()] = pair.value.toString();
       }
       return mapped;

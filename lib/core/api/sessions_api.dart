@@ -45,8 +45,8 @@ class SessionsApi {
         '/v2/sessions',
         queryParameters: {
           'limit': limit,
-          if (nextCursor != null) 'cursor': nextCursor,
-          if (changedSince != null) 'changedSince': changedSince,
+          'cursor': ?nextCursor,
+          'changedSince': ?changedSince,
         },
       );
 

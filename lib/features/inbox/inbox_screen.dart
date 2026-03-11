@@ -602,7 +602,6 @@ class _InboxItem extends StatelessWidget {
     required this.avatarUrl,
     required this.trailing,
     this.showStatusDot = false,
-    this.isOnline = false,
   });
 
   final String title;
@@ -611,7 +610,6 @@ class _InboxItem extends StatelessWidget {
   final String? avatarUrl;
   final Widget trailing;
   final bool showStatusDot;
-  final bool isOnline;
 
   @override
   Widget build(BuildContext context) {
@@ -648,7 +646,7 @@ class _InboxItem extends StatelessWidget {
                   userId: userId,
                   avatarUrl: avatarUrl,
                   size: 44,
-                  isOnline: isOnline,
+                  isOnline: false,
                 )
               else
                 Avatar(

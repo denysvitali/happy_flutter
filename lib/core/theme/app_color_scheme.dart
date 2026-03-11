@@ -26,25 +26,6 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
     required this.bubbleAssistantText,
   });
 
-  final Color success;
-  final Color onSuccess;
-  final Color successContainer;
-  final Color warning;
-  final Color onWarning;
-  final Color warningContainer;
-  final Color info;
-  final Color onInfo;
-  final Color infoContainer;
-  final Color danger;
-  final Color onDanger;
-  final Color dangerContainer;
-  final Color shimmerBase;
-  final Color shimmerHighlight;
-  final Color bubbleUser;
-  final Color bubbleAssistant;
-  final Color bubbleUserText;
-  final Color bubbleAssistantText;
-
   factory AppColorScheme.light() {
     return const AppColorScheme(
       success: AppColors.success,
@@ -90,6 +71,25 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       bubbleAssistantText: Color(0xFFE2E8F0),
     );
   }
+
+  final Color success;
+  final Color onSuccess;
+  final Color successContainer;
+  final Color warning;
+  final Color onWarning;
+  final Color warningContainer;
+  final Color info;
+  final Color onInfo;
+  final Color infoContainer;
+  final Color danger;
+  final Color onDanger;
+  final Color dangerContainer;
+  final Color shimmerBase;
+  final Color shimmerHighlight;
+  final Color bubbleUser;
+  final Color bubbleAssistant;
+  final Color bubbleUserText;
+  final Color bubbleAssistantText;
 
   @override
   AppColorScheme copyWith({
