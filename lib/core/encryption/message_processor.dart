@@ -424,10 +424,10 @@ void _processOutputContent({
           'kind': 'text',
           'content': c['text']?.toString() ?? '',
           'raw': outerContent,
-          if (agentModel != null) 'model': agentModel,
+          'model': ?agentModel,
           if (isSidechain) 'isSidechain': true,
           'uuid': dataUuid,
-          if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+          'parentUuid': ?dataParentUuid,
         });
       } else if (type == 'thinking') {
         messages.add({
@@ -440,10 +440,10 @@ void _processOutputContent({
           'isThinking': true,
           'content': '*Thinking...*\n\n*${c['thinking']}*',
           'raw': outerContent,
-          if (agentModel != null) 'model': agentModel,
+          'model': ?agentModel,
           if (isSidechain) 'isSidechain': true,
           'uuid': dataUuid,
-          if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+          'parentUuid': ?dataParentUuid,
         });
       } else if (type == 'tool_use') {
         messages.add({
@@ -459,10 +459,10 @@ void _processOutputContent({
           'state': 'running',
           'content': c,
           'raw': outerContent,
-          if (agentModel != null) 'model': agentModel,
+          'model': ?agentModel,
           if (isSidechain) 'isSidechain': true,
           'uuid': dataUuid,
-          if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+          'parentUuid': ?dataParentUuid,
         });
       }
       i++;
@@ -481,8 +481,8 @@ void _processOutputContent({
           'kind': 'sidechain-root',
           'isSidechain': true,
           'prompt': msgContent,
-          if (dataUuid != null) 'uuid': dataUuid,
-          if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+          'uuid': ?dataUuid,
+          'parentUuid': ?dataParentUuid,
         });
         return;
       }
@@ -499,8 +499,8 @@ void _processOutputContent({
             'createdAt': createdAt,
             'permissions': c['permissions'],
             if (isSidechain) 'isSidechain': true,
-            if (dataUuid != null) 'uuid': dataUuid,
-            if (dataParentUuid != null) 'parentUuid': dataParentUuid,
+            'uuid': ?dataUuid,
+            'parentUuid': ?dataParentUuid,
           });
         }
       }
@@ -795,7 +795,7 @@ void _processSessionContent({
       'raw': outerContent,
       if (isSidechain) 'isSidechain': true,
       if (uuid.isNotEmpty) 'uuid': uuid,
-      if (parentUuid != null) 'parentUuid': parentUuid,
+      'parentUuid': ?parentUuid,
     });
     return;
   }
@@ -816,7 +816,7 @@ void _processSessionContent({
         'raw': outerContent,
         if (isSidechain) 'isSidechain': true,
         if (uuid.isNotEmpty) 'uuid': uuid,
-        if (parentUuid != null) 'parentUuid': parentUuid,
+        'parentUuid': ?parentUuid,
       });
       return;
     }
@@ -858,7 +858,7 @@ void _processSessionContent({
       'raw': outerContent,
       if (isSidechain) 'isSidechain': true,
       if (uuid.isNotEmpty) 'uuid': uuid,
-      if (parentUuid != null) 'parentUuid': parentUuid,
+      'parentUuid': ?parentUuid,
     });
     return;
   }
@@ -874,7 +874,7 @@ void _processSessionContent({
       'createdAt': envelopeCreatedAt,
       if (isSidechain) 'isSidechain': true,
       if (uuid.isNotEmpty) 'uuid': uuid,
-      if (parentUuid != null) 'parentUuid': parentUuid,
+      'parentUuid': ?parentUuid,
     });
     return;
   }
@@ -901,7 +901,7 @@ void _processSessionContent({
         'ref': event['ref'],
         'name': event['name'],
         'size': event['size'],
-        if (imageMeta != null) 'image': imageMeta,
+        'image': ?imageMeta,
       },
       'toolUseId': envelopeId,
       'state': 'completed',
@@ -909,7 +909,7 @@ void _processSessionContent({
       'raw': outerContent,
       if (isSidechain) 'isSidechain': true,
       if (uuid.isNotEmpty) 'uuid': uuid,
-      if (parentUuid != null) 'parentUuid': parentUuid,
+      'parentUuid': ?parentUuid,
     });
   }
 }
