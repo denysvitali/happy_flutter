@@ -376,7 +376,7 @@ class _OperationChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: c.chipBg,
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(AppRadius.xxxs),
         border: Border.all(color: c.chipBorder),
       ),
       child: Text(
@@ -480,7 +480,7 @@ class _DetailSection extends StatelessWidget {
                 height: 12,
                 decoration: BoxDecoration(
                   color: color,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(AppRadius.xxs),
                 ),
               ),
               const SizedBox(width: 6),

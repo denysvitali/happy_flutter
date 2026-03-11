@@ -56,6 +56,12 @@ abstract final class AppSpacing {
 ///
 /// Usage: `BorderRadius.circular(AppRadius.md)`
 abstract final class AppRadius {
+  /// 2 px – minimal rounding, hairline corners.
+  static const double xxs = 2;
+
+  /// 3 px – tiny rounding, inline elements.
+  static const double xxxs = 3;
+
   /// 4 px – subtle rounding (chips, tags).
   static const double xs = 4;
 
@@ -73,6 +79,9 @@ abstract final class AppRadius {
 
   /// 20 px – bottom sheets, dialogs, message bubbles.
   static const double xl = 20;
+
+  /// 24 px – large containers, modals.
+  static const double xxl = 24;
 
   /// 100 px – fully-pill / stadium shape.
   static const double pill = 100;
