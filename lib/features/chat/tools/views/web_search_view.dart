@@ -327,7 +327,7 @@ class _ResultCard extends StatelessWidget {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(AppSpacing.smd),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -448,7 +448,7 @@ class _ErrorBanner extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(AppSpacing.smd),
         decoration: BoxDecoration(
           color: theme.colorScheme.errorContainer.withAlpha(128),
           borderRadius: BorderRadius.circular(AppRadius.sm),

@@ -62,7 +62,7 @@ class _WebFetchViewState extends State<WebFetchView> {
             Expanded(
               child: SingleChildScrollView(
                 controller: scrollController,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: SelectableText(
                   content,
                   style: const TextStyle(fontSize: AppFontSize.md, height: 1.5),
@@ -190,7 +190,7 @@ class _UrlChip extends StatelessWidget {
         children: [
           // Globe indicator badge
           Container(
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(AppSpacing.xs),
             decoration: BoxDecoration(
               color: stateColor.withAlpha(26),
               borderRadius: BorderRadius.circular(AppRadius.xsm),
@@ -375,7 +375,7 @@ class _ResultSection extends StatelessWidget {
             ),
             // Preview text
             Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(AppSpacing.smd),
               child: SelectableText(
                 preview,
                 style: TextStyle(
@@ -426,7 +426,7 @@ class _ErrorBanner extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(AppSpacing.smd),
         decoration: BoxDecoration(
           color: theme.colorScheme.errorContainer.withAlpha(128),
           borderRadius: BorderRadius.circular(AppRadius.sm),

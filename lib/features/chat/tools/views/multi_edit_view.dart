@@ -63,7 +63,7 @@ class MultiEditView extends StatelessWidget {
             final edit = entry.value;
             return Padding(
               key: Key('edit_$index'),
-              padding: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.only(bottom: AppSpacing.xsm),
               child: _EditCard(
                 number: index + 1,
                 oldString: _trimIndent(

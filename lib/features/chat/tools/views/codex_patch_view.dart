@@ -225,7 +225,7 @@ class _PatchFileListState extends State<_PatchFileList> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -284,7 +284,7 @@ class _FileChangeRow extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: Container(
         decoration: BoxDecoration(
           color: c.headerBg,
@@ -433,7 +433,11 @@ class _FileChangeDetail extends StatelessWidget {
     if (sections.isEmpty) return const SizedBox.shrink();
 
     return Container(
-      padding: const EdgeInsets.only(left: 10, right: 10, bottom: 10),
+      padding: const EdgeInsets.only(
+        left: AppSpacing.smd,
+        right: AppSpacing.smd,
+        bottom: AppSpacing.smd,
+      ),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(color: c.border),
@@ -464,7 +468,7 @@ class _DetailSection extends StatelessWidget {
     final c = ToolViewColors.of(context);
 
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -497,7 +501,7 @@ class _DetailSection extends StatelessWidget {
           const SizedBox(height: 6),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
               color: c.bg,
               borderRadius: BorderRadius.circular(AppRadius.xs),

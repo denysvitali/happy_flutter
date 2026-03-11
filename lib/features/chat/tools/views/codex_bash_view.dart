@@ -623,7 +623,7 @@ class _TerminalOutputSection extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(AppSpacing.smd),
             child: SelectableText(
               visibleText,
               style: TextStyle(

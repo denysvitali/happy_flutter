@@ -16,8 +16,14 @@ abstract final class AppSpacing {
   /// 2 px – micro gap, hairline nudge.
   static const double xxs = 2;
 
+  /// 3 px – tiny gap, inline spacing.
+  static const double xxxs = 3;
+
   /// 4 px – hairline gap, icon-to-label nudge.
   static const double xs = 4;
+
+  /// 5 px – inline compact spacing.
+  static const double xxs2 = 5;
 
   /// 6 px – between xs and sm.
   static const double xsm = 6;
