@@ -1,6 +1,5 @@
 /// Settings model matching the original Zod schema
 class Settings {
-
   Settings();
 
   factory Settings.fromJson(Map<String, dynamic> json) {
@@ -25,7 +24,7 @@ class Settings {
       ..avatarStyle = json['avatarStyle'] as String? ?? 'brutalist'
       ..showFlavorIcons = json['showFlavorIcons'] as bool? ?? false
       ..compactSessionView = json['compactSessionView'] as bool? ?? false
-      ..hideInactiveSessions = json['hideInactiveSessions'] as bool? ?? true
+      ..hideInactiveSessions = json['hideInactiveSessions'] as bool? ?? false
       ..reviewPromptAnswered = json['reviewPromptAnswered'] as bool? ?? false
       ..reviewPromptLikedApp = json['reviewPromptLikedApp'] as bool?
       ..ttsEnabled = json['ttsEnabled'] as bool? ?? false
@@ -33,30 +32,36 @@ class Settings {
       ..ttsEngine = json['ttsEngine'] as String?
       ..preferredLanguage = json['preferredLanguage'] as String?
       ..usagePeriod = json['usagePeriod'] as String? ?? 'thirtyDays'
-      ..recentMachinePaths = (json['recentMachinePaths'] as List<dynamic>?)
+      ..recentMachinePaths =
+          (json['recentMachinePaths'] as List<dynamic>?)
               ?.map(
-                  (e) => RecentMachinePath.fromJson(e as Map<String, dynamic>))
+                (e) => RecentMachinePath.fromJson(e as Map<String, dynamic>),
+              )
               .toList() ??
           []
       ..lastUsedAgent = json['lastUsedAgent'] as String?
       ..lastUsedPermissionMode = json['lastUsedPermissionMode'] as String?
       ..lastUsedModelMode = json['lastUsedModelMode'] as String?
-      ..profiles = (json['profiles'] as List<dynamic>?)
+      ..profiles =
+          (json['profiles'] as List<dynamic>?)
               ?.map((e) => AIBackendProfile.fromJson(e as Map<String, dynamic>))
               .toList() ??
           []
       ..lastUsedProfile = json['lastUsedProfile'] as String?
-      ..favoriteDirectories = (json['favoriteDirectories'] as List<dynamic>?)
+      ..favoriteDirectories =
+          (json['favoriteDirectories'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           ['~/src', '~/Desktop', '~/Documents']
-      ..favoriteMachines = (json['favoriteMachines'] as List<dynamic>?)
+      ..favoriteMachines =
+          (json['favoriteMachines'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           []
       ..dismissedCLIWarnings = json['dismissedCLIWarnings'] != null
           ? DismissedCLIWarnings.fromJson(
-              json['dismissedCLIWarnings'] as Map<String, dynamic>)
+              json['dismissedCLIWarnings'] as Map<String, dynamic>,
+            )
           : DismissedCLIWarnings();
   }
   int schemaVersion = 2;
@@ -77,7 +82,7 @@ class Settings {
   String avatarStyle = 'brutalist';
   bool showFlavorIcons = false;
   bool compactSessionView = false;
-  bool hideInactiveSessions = true;
+  bool hideInactiveSessions = false;
   bool reviewPromptAnswered = false;
   bool? reviewPromptLikedApp;
   bool ttsEnabled = false;
@@ -85,11 +90,13 @@ class Settings {
   String? ttsEngine;
   String? preferredLanguage;
   String usagePeriod = 'thirtyDays';
+
   /// Alias for preferredLanguage to maintain compatibility
   String get locale => preferredLanguage ?? '';
   set locale(String value) {
     preferredLanguage = value.isEmpty ? null : value;
   }
+
   List<RecentMachinePath> recentMachinePaths = [];
   String? lastUsedAgent;
   String? lastUsedPermissionMode;
@@ -110,51 +117,44 @@ class Settings {
           inferenceOpenAIKey == other.inferenceOpenAIKey &&
           expandTodos == other.expandTodos &&
           showLineNumbers == other.showLineNumbers &&
-          showLineNumbersInToolViews ==
-              other.showLineNumbersInToolViews &&
+          showLineNumbersInToolViews == other.showLineNumbersInToolViews &&
           wrapLinesInDiffs == other.wrapLinesInDiffs &&
           analyticsOptOut == other.analyticsOptOut &&
           experiments == other.experiments &&
           markdownCopyV2 == other.markdownCopyV2 &&
-          useEnhancedSessionWizard ==
-              other.useEnhancedSessionWizard &&
-          alwaysShowContextSize ==
-              other.alwaysShowContextSize &&
-          agentInputEnterToSend ==
-              other.agentInputEnterToSend &&
+          useEnhancedSessionWizard == other.useEnhancedSessionWizard &&
+          alwaysShowContextSize == other.alwaysShowContextSize &&
+          agentInputEnterToSend == other.agentInputEnterToSend &&
           developerModeEnabled == other.developerModeEnabled &&
           avatarStyle == other.avatarStyle &&
           showFlavorIcons == other.showFlavorIcons &&
           compactSessionView == other.compactSessionView &&
-          hideInactiveSessions ==
-              other.hideInactiveSessions &&
+          hideInactiveSessions == other.hideInactiveSessions &&
           ttsEnabled == other.ttsEnabled &&
-          voiceAssistantLanguage ==
-              other.voiceAssistantLanguage &&
+          voiceAssistantLanguage == other.voiceAssistantLanguage &&
           ttsEngine == other.ttsEngine &&
           preferredLanguage == other.preferredLanguage &&
           usagePeriod == other.usagePeriod &&
           lastUsedAgent == other.lastUsedAgent &&
-          lastUsedPermissionMode ==
-              other.lastUsedPermissionMode &&
+          lastUsedPermissionMode == other.lastUsedPermissionMode &&
           lastUsedModelMode == other.lastUsedModelMode &&
           lastUsedProfile == other.lastUsedProfile;
 
   @override
   int get hashCode => Object.hash(
-        schemaVersion,
-        themeMode,
-        viewInline,
-        expandTodos,
-        showLineNumbers,
-        analyticsOptOut,
-        avatarStyle,
-        compactSessionView,
-        hideInactiveSessions,
-        ttsEnabled,
-        preferredLanguage,
-        usagePeriod,
-      );
+    schemaVersion,
+    themeMode,
+    viewInline,
+    expandTodos,
+    showLineNumbers,
+    analyticsOptOut,
+    avatarStyle,
+    compactSessionView,
+    hideInactiveSessions,
+    ttsEnabled,
+    preferredLanguage,
+    usagePeriod,
+  );
 
   Map<String, dynamic> toJson() {
     return {
@@ -253,16 +253,13 @@ class Settings {
           alwaysShowContextSize ?? this.alwaysShowContextSize
       ..agentInputEnterToSend =
           agentInputEnterToSend ?? this.agentInputEnterToSend
-      ..developerModeEnabled =
-          developerModeEnabled ?? this.developerModeEnabled
+      ..developerModeEnabled = developerModeEnabled ?? this.developerModeEnabled
       ..avatarStyle = avatarStyle ?? this.avatarStyle
       ..showFlavorIcons = showFlavorIcons ?? this.showFlavorIcons
       ..compactSessionView = compactSessionView ?? this.compactSessionView
       ..hideInactiveSessions = hideInactiveSessions ?? this.hideInactiveSessions
-      ..reviewPromptAnswered =
-          reviewPromptAnswered ?? this.reviewPromptAnswered
-      ..reviewPromptLikedApp =
-          reviewPromptLikedApp ?? this.reviewPromptLikedApp
+      ..reviewPromptAnswered = reviewPromptAnswered ?? this.reviewPromptAnswered
+      ..reviewPromptLikedApp = reviewPromptLikedApp ?? this.reviewPromptLikedApp
       ..ttsEnabled = ttsEnabled ?? this.ttsEnabled
       ..voiceAssistantLanguage =
           voiceAssistantLanguage ?? this.voiceAssistantLanguage
@@ -292,7 +289,6 @@ class Settings {
 }
 
 class RecentMachinePath {
-
   RecentMachinePath({required this.machineId, required this.path});
 
   factory RecentMachinePath.fromJson(Map<String, dynamic> json) {
@@ -310,14 +306,16 @@ class RecentMachinePath {
 }
 
 class DismissedCLIWarnings {
-
   DismissedCLIWarnings();
 
   factory DismissedCLIWarnings.fromJson(Map<String, dynamic> json) {
     return DismissedCLIWarnings()
-      ..perMachine = (json['perMachine'] as Map<String, dynamic>?)?.map(
+      ..perMachine =
+          (json['perMachine'] as Map<String, dynamic>?)?.map(
             (k, v) => MapEntry(
-                k, PerMachineWarnings.fromJson(v as Map<String, dynamic>)),
+              k,
+              PerMachineWarnings.fromJson(v as Map<String, dynamic>),
+            ),
           ) ??
           {}
       ..global = json['global'] != null
@@ -336,7 +334,6 @@ class DismissedCLIWarnings {
 }
 
 class PerMachineWarnings {
-
   PerMachineWarnings({this.claude, this.codex, this.gemini});
 
   factory PerMachineWarnings.fromJson(Map<String, dynamic> json) {
@@ -356,7 +353,6 @@ class PerMachineWarnings {
 }
 
 class GlobalWarnings {
-
   GlobalWarnings({this.claude, this.codex, this.gemini});
 
   factory GlobalWarnings.fromJson(Map<String, dynamic> json) {
@@ -377,7 +373,6 @@ class GlobalWarnings {
 
 /// AI backend profile for environment configuration
 class AIBackendProfile {
-
   AIBackendProfile({
     required this.id,
     required this.name,
@@ -392,8 +387,11 @@ class AIBackendProfile {
     this.defaultSessionType,
     this.defaultPermissionMode,
     this.defaultModelMode,
-    this.compatibility =
-        const ProfileCompatibility(claude: true, codex: true, gemini: true),
+    this.compatibility = const ProfileCompatibility(
+      claude: true,
+      codex: true,
+      gemini: true,
+    ),
     this.isBuiltIn = false,
     this.createdAt = 0,
     this.updatedAt = 0,
@@ -407,26 +405,31 @@ class AIBackendProfile {
       description: json['description'] as String?,
       anthropicConfig: json['anthropicConfig'] != null
           ? AnthropicConfig.fromJson(
-              json['anthropicConfig'] as Map<String, dynamic>)
+              json['anthropicConfig'] as Map<String, dynamic>,
+            )
           : null,
       openaiConfig: json['openaiConfig'] != null
           ? OpenAIConfig.fromJson(json['openaiConfig'] as Map<String, dynamic>)
           : null,
       azureOpenAIConfig: json['azureOpenAIConfig'] != null
           ? AzureOpenAIConfig.fromJson(
-              json['azureOpenAIConfig'] as Map<String, dynamic>)
+              json['azureOpenAIConfig'] as Map<String, dynamic>,
+            )
           : null,
       togetherAIConfig: json['togetherAIConfig'] != null
           ? TogetherAIConfig.fromJson(
-              json['togetherAIConfig'] as Map<String, dynamic>)
+              json['togetherAIConfig'] as Map<String, dynamic>,
+            )
           : null,
       tmuxConfig: json['tmuxConfig'] != null
           ? TmuxConfig.fromJson(json['tmuxConfig'] as Map<String, dynamic>)
           : null,
       startupBashScript: json['startupBashScript'] as String?,
-      environmentVariables: (json['environmentVariables'] as List<dynamic>?)
-              ?.map((e) =>
-                  EnvironmentVariable.fromJson(e as Map<String, dynamic>))
+      environmentVariables:
+          (json['environmentVariables'] as List<dynamic>?)
+              ?.map(
+                (e) => EnvironmentVariable.fromJson(e as Map<String, dynamic>),
+              )
               .toList() ??
           [],
       defaultSessionType: json['defaultSessionType'] as String?,
@@ -434,7 +437,8 @@ class AIBackendProfile {
       defaultModelMode: json['defaultModelMode'] as String?,
       compatibility: json['compatibility'] != null
           ? ProfileCompatibility.fromJson(
-              json['compatibility'] as Map<String, dynamic>)
+              json['compatibility'] as Map<String, dynamic>,
+            )
           : ProfileCompatibility(),
       isBuiltIn: json['isBuiltIn'] as bool? ?? false,
       createdAt: json['createdAt'] as int? ?? 0,
@@ -472,8 +476,9 @@ class AIBackendProfile {
       'togetherAIConfig': togetherAIConfig?.toJson(),
       'tmuxConfig': tmuxConfig?.toJson(),
       'startupBashScript': startupBashScript,
-      'environmentVariables':
-          environmentVariables.map((e) => e.toJson()).toList(),
+      'environmentVariables': environmentVariables
+          .map((e) => e.toJson())
+          .toList(),
       'defaultSessionType': defaultSessionType,
       'defaultPermissionMode': defaultPermissionMode,
       'defaultModelMode': defaultModelMode,
@@ -497,8 +502,9 @@ class AIBackendProfile {
       'togetherAIConfig': togetherAIConfig?.toJsonWithoutApiKey(),
       'tmuxConfig': tmuxConfig?.toJson(),
       'startupBashScript': startupBashScript,
-      'environmentVariables':
-          environmentVariables.map((e) => e.toJson()).toList(),
+      'environmentVariables': environmentVariables
+          .map((e) => e.toJson())
+          .toList(),
       'defaultSessionType': defaultSessionType,
       'defaultPermissionMode': defaultPermissionMode,
       'defaultModelMode': defaultModelMode,
@@ -557,7 +563,6 @@ class AIBackendProfile {
 }
 
 class AnthropicConfig {
-
   AnthropicConfig({this.baseUrl, this.authToken, this.model});
 
   factory AnthropicConfig.fromJson(Map<String, dynamic> json) {
@@ -577,7 +582,6 @@ class AnthropicConfig {
 }
 
 class OpenAIConfig {
-
   OpenAIConfig({this.apiKey, this.baseUrl, this.model});
 
   factory OpenAIConfig.fromJson(Map<String, dynamic> json) {
@@ -602,9 +606,12 @@ class OpenAIConfig {
 }
 
 class AzureOpenAIConfig {
-
-  AzureOpenAIConfig(
-      {this.apiKey, this.endpoint, this.apiVersion, this.deploymentName});
+  AzureOpenAIConfig({
+    this.apiKey,
+    this.endpoint,
+    this.apiVersion,
+    this.deploymentName,
+  });
 
   factory AzureOpenAIConfig.fromJson(Map<String, dynamic> json) {
     return AzureOpenAIConfig(
@@ -639,7 +646,6 @@ class AzureOpenAIConfig {
 }
 
 class TogetherAIConfig {
-
   TogetherAIConfig({this.apiKey, this.model});
 
   factory TogetherAIConfig.fromJson(Map<String, dynamic> json) {
@@ -662,7 +668,6 @@ class TogetherAIConfig {
 }
 
 class TmuxConfig {
-
   TmuxConfig({this.sessionName, this.tmpDir, this.updateEnvironment});
 
   factory TmuxConfig.fromJson(Map<String, dynamic> json) {
@@ -686,7 +691,6 @@ class TmuxConfig {
 }
 
 class EnvironmentVariable {
-
   EnvironmentVariable({required this.name, required this.value});
 
   factory EnvironmentVariable.fromJson(Map<String, dynamic> json) {
@@ -704,9 +708,11 @@ class EnvironmentVariable {
 }
 
 class ProfileCompatibility {
-
-  const ProfileCompatibility(
-      {this.claude = true, this.codex = true, this.gemini = true});
+  const ProfileCompatibility({
+    this.claude = true,
+    this.codex = true,
+    this.gemini = true,
+  });
 
   factory ProfileCompatibility.fromJson(Map<String, dynamic> json) {
     return ProfileCompatibility(

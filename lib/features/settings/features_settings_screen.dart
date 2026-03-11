@@ -5,7 +5,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
 
-/// Features settings screen with experiment toggles.
+/// Features settings screen with feature toggles.
 class FeaturesSettingsScreen extends ConsumerWidget {
   const FeaturesSettingsScreen({super.key});
 
@@ -13,8 +13,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final settings = ref.watch(settingsNotifierProvider);
-    final notifier =
-        ref.read(settingsNotifierProvider.notifier);
+    final notifier = ref.read(settingsNotifierProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.featuresTitle)),
@@ -25,40 +24,34 @@ class FeaturesSettingsScreen extends ConsumerWidget {
             title: 'Experiments',
             children: [
               SettingsToggleRow(
+                icon: Icons.visibility_off_outlined,
+                title: l10n.featuresHideInactiveSessions,
+                subtitle: l10n.featuresHideInactiveSessionsDesc,
+                value: settings.hideInactiveSessions,
+                onChanged: (v) =>
+                    notifier.updateSetting('hideInactiveSessions', v),
+              ),
+              SettingsToggleRow(
                 icon: Icons.content_copy_rounded,
                 title: 'Markdown Copy V2',
-                subtitle:
-                    'Use improved markdown copy format',
+                subtitle: 'Use improved markdown copy format',
                 value: settings.markdownCopyV2,
-                onChanged: (v) =>
-                    notifier.updateSetting(
-                  'markdownCopyV2',
-                  v,
-                ),
+                onChanged: (v) => notifier.updateSetting('markdownCopyV2', v),
               ),
               SettingsToggleRow(
                 icon: Icons.density_small_rounded,
                 title: 'Compact Mode',
-                subtitle:
-                    'Reduce spacing in chat messages',
+                subtitle: 'Reduce spacing in chat messages',
                 value: settings.compactSessionView,
                 onChanged: (v) =>
-                    notifier.updateSetting(
-                  'compactSessionView',
-                  v,
-                ),
+                    notifier.updateSetting('compactSessionView', v),
               ),
               SettingsToggleRow(
                 icon: Icons.science_outlined,
                 title: 'Experiments',
-                subtitle:
-                    'Enable experimental features',
+                subtitle: 'Enable experimental features',
                 value: settings.experiments,
-                onChanged: (v) =>
-                    notifier.updateSetting(
-                  'experiments',
-                  v,
-                ),
+                onChanged: (v) => notifier.updateSetting('experiments', v),
               ),
             ],
           ),
@@ -69,38 +62,24 @@ class FeaturesSettingsScreen extends ConsumerWidget {
               SettingsToggleRow(
                 icon: Icons.numbers_rounded,
                 title: 'Show Line Numbers',
-                subtitle:
-                    'Display line numbers in code blocks',
+                subtitle: 'Display line numbers in code blocks',
                 value: settings.showLineNumbers,
-                onChanged: (v) =>
-                    notifier.updateSetting(
-                  'showLineNumbers',
-                  v,
-                ),
+                onChanged: (v) => notifier.updateSetting('showLineNumbers', v),
               ),
               SettingsToggleRow(
                 icon: Icons.wrap_text_rounded,
                 title: 'Wrap Lines in Diffs',
-                subtitle:
-                    'Wrap long lines in diff views',
+                subtitle: 'Wrap long lines in diff views',
                 value: settings.wrapLinesInDiffs,
-                onChanged: (v) =>
-                    notifier.updateSetting(
-                  'wrapLinesInDiffs',
-                  v,
-                ),
+                onChanged: (v) => notifier.updateSetting('wrapLinesInDiffs', v),
               ),
               SettingsToggleRow(
                 icon: Icons.data_usage_rounded,
                 title: 'Always Show Context Size',
-                subtitle:
-                    'Show context window usage',
+                subtitle: 'Show context window usage',
                 value: settings.alwaysShowContextSize,
                 onChanged: (v) =>
-                    notifier.updateSetting(
-                  'alwaysShowContextSize',
-                  v,
-                ),
+                    notifier.updateSetting('alwaysShowContextSize', v),
               ),
             ],
           ),

@@ -21,15 +21,15 @@ class _StorageFreeSettingsNotifier extends SettingsNotifier {
 ProviderContainer makeContainer() {
   return ProviderContainer(
     overrides: [
-      settingsNotifierProvider
-          .overrideWith(() => _StorageFreeSettingsNotifier()),
+      settingsNotifierProvider.overrideWith(
+        () => _StorageFreeSettingsNotifier(),
+      ),
     ],
   );
 }
 
 void main() {
   group('SettingsNotifier', () {
-
     test('initial state has default Settings values', () {
       final c = makeContainer();
       addTearDown(c.dispose);
@@ -57,7 +57,7 @@ void main() {
       expect(settings.alwaysShowContextSize, isFalse);
       expect(settings.developerModeEnabled, isFalse);
       expect(settings.showFlavorIcons, isFalse);
-      expect(settings.hideInactiveSessions, isTrue);
+      expect(settings.hideInactiveSessions, isFalse);
       expect(settings.reviewPromptAnswered, isFalse);
     });
 
@@ -127,17 +127,19 @@ void main() {
       expect(settings.showLineNumbers, isFalse);
     });
 
-    test('updateSetting agentInputEnterToSend changes state to false',
-        () async {
-      final c = makeContainer();
-      addTearDown(c.dispose);
-      final notifier = c.read(settingsNotifierProvider.notifier);
+    test(
+      'updateSetting agentInputEnterToSend changes state to false',
+      () async {
+        final c = makeContainer();
+        addTearDown(c.dispose);
+        final notifier = c.read(settingsNotifierProvider.notifier);
 
-      await notifier.updateSetting('agentInputEnterToSend', false);
+        await notifier.updateSetting('agentInputEnterToSend', false);
 
-      final settings = c.read(settingsNotifierProvider);
-      expect(settings.agentInputEnterToSend, isFalse);
-    });
+        final settings = c.read(settingsNotifierProvider);
+        expect(settings.agentInputEnterToSend, isFalse);
+      },
+    );
 
     test('updateSetting avatarStyle changes state', () async {
       final c = makeContainer();
@@ -168,7 +170,8 @@ void main() {
     test('settings state does not affect other container instances', () async {
       final c1 = makeContainer();
       addTearDown(c1.dispose);
-      await c1.read(settingsNotifierProvider.notifier)
+      await c1
+          .read(settingsNotifierProvider.notifier)
           .updateSetting('themeMode', 'dark');
 
       // A fresh container should start with defaults.
