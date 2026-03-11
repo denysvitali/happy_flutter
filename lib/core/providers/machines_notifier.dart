@@ -1,0 +1,51 @@
+import 'package:riverpod/riverpod.dart';
+
+import '../models/machine.dart';
+import '../services/logger_service.dart' show logger;
+import '../services/sync_service.dart';
+import '_shared.dart';
+
+class MachinesNotifier extends Notifier<Map<String, Machine>> {
+  int _lastDataChangeCounter = 0;
+
+  @override
+  Map<String, Machine> build() => {};
+
+  void loadFromSync() {
+    if (!sync.isInitialized) return;
+    final counter = sync.dataChangeCounter;
+    if (counter == _lastDataChangeCounter) return;
+    _lastDataChangeCounter = counter;
+    final next = sync.machines;
+    if (mapEquals(state, next)) return;
+    state = Map<String, Machine>.from(next);
+  }
+
+  Future<void> refreshFromSync() async {
+    if (!sync.isInitialized) {
+      return;
+    }
+    try {
+      await sync.refreshMachines();
+    } catch (e) {
+      logger.warning('Failed to refresh machines: $e');
+    }
+    loadFromSync();
+  }
+
+  void remove(String machineId) {
+    if (!state.containsKey(machineId)) {
+      return;
+    }
+    state = Map<String, Machine>.from(state)..remove(machineId);
+  }
+
+  void clear() {
+    state = {};
+  }
+}
+
+final machinesNotifierProvider =
+    NotifierProvider<MachinesNotifier, Map<String, Machine>>(() {
+      return MachinesNotifier();
+    });
