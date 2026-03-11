@@ -110,7 +110,8 @@ class AppLocalizations {
   // Date Groups
   String get dateGroupToday => 'Today';
   String get dateGroupYesterday => 'Yesterday';
-  String get dateGroupLastSevenDays => 'Last 7 Days';
+  String get dateGroupThisWeek => 'This Week';
+  String get dateGroupThisMonth => 'This Month';
   String get dateGroupOlder => 'Older';
 
   // Empty State

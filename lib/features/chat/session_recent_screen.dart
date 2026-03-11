@@ -31,8 +31,12 @@ class SessionRecentScreen extends ConsumerWidget {
     String localizeDateGroup(DateGroup group) {
       return switch (group) {
         DateGroup.today => l10n.dateGroupToday,
-        DateGroup.yesterday => l10n.dateGroupYesterday,
-        DateGroup.lastSevenDays => l10n.dateGroupLastSevenDays,
+        DateGroup.yesterday =>
+          l10n.dateGroupYesterday,
+        DateGroup.thisWeek =>
+          l10n.dateGroupThisWeek,
+        DateGroup.thisMonth =>
+          l10n.dateGroupThisMonth,
         DateGroup.older => l10n.dateGroupOlder,
       };
     }
