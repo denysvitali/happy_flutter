@@ -942,6 +942,12 @@ class AppLocalizations {
   String get artifactsEmpty => 'No artifacts yet';
   String get artifactsEmptySubtitle =>
       'Create your first artifact using the + button.';
+  String get artifactsSearchHint => 'Search artifacts...';
+  String get artifactsNoResults => 'No matching artifacts';
+  String get artifactsNoResultsSubtitle =>
+      'Try a different search term.';
+  String artifactsCount(int count) =>
+      '$count ${count == 1 ? 'artifact' : 'artifacts'}';
 
   // Machine Detail
   String machineRemoveConfirm(String name) =>

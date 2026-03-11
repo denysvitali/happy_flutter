@@ -8,6 +8,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/shimmer/shimmer.dart';
 
@@ -24,6 +25,9 @@ class _ArtifactsListScreenState
     extends ConsumerState<ArtifactsListScreen> {
   StreamSubscription<void>? _syncSubscription;
   bool _isLoading = true;
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -36,30 +40,56 @@ class _ArtifactsListScreenState
     });
     _syncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
-      ref.read(artifactsNotifierProvider.notifier).loadFromSync();
+      ref
+          .read(artifactsNotifierProvider.notifier)
+          .loadFromSync();
     });
   }
 
   @override
   void dispose() {
     _syncSubscription?.cancel();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleRefresh() async {
+    await ref
+        .read(artifactsNotifierProvider.notifier)
+        .refreshFromSync();
+  }
+
+  List<DecryptedArtifact> _filterAndSort(
+    Map<String, DecryptedArtifact> artifacts,
+  ) {
+    var list = artifacts.values.toList();
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      list = list.where((a) {
+        final title = (a.title ?? '').toLowerCase();
+        final id = a.id.toLowerCase();
+        return title.contains(query) || id.contains(query);
+      }).toList();
+    }
+    list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return list;
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final artifacts = ref.watch(artifactsNotifierProvider);
-    final sortedArtifacts = artifacts.values.toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final filtered = _filterAndSort(artifacts);
+    final hasArtifacts = artifacts.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.artifactsTitle)),
       body: _isLoading
           ? const _ArtifactsLoadingShimmer()
-          : sortedArtifacts.isEmpty
+          : !hasArtifacts
               ? _buildEmptyState(l10n)
-              : _buildList(sortedArtifacts),
+              : _buildBody(l10n, filtered, artifacts.length),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/artifacts/new'),
         tooltip: l10n.commonCreate,
@@ -76,24 +106,173 @@ class _ArtifactsListScreenState
     );
   }
 
-  Widget _buildList(List<DecryptedArtifact> artifacts) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      itemCount: artifacts.length,
-      itemBuilder: (context, index) {
-        final artifact = artifacts[index];
-        return Padding(
-          key: ValueKey(artifact.id),
-          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-          child: _ArtifactListCard(artifact: artifact),
-        );
-      },
+  Widget _buildBody(
+    AppLocalizations l10n,
+    List<DecryptedArtifact> filtered,
+    int totalCount,
+  ) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Column(
+      children: [
+        // Search bar.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            AppSpacing.xs,
+          ),
+          child: TextField(
+            controller: _searchController,
+            focusNode: _searchFocusNode,
+            onChanged: (v) => setState(() {
+              _searchQuery = v.trim();
+            }),
+            decoration: InputDecoration(
+              hintText: l10n.artifactsSearchHint,
+              prefixIcon: Icon(
+                Icons.search,
+                size: 20,
+                color: cs.onSurfaceVariant,
+              ),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(
+                        Icons.clear,
+                        size: 18,
+                        color: cs.onSurfaceVariant,
+                      ),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: cs.surfaceContainerLow,
+              contentPadding:
+                  const EdgeInsets.symmetric(
+                vertical: AppSpacing.sm,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(
+                  AppRadius.pill,
+                ),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(
+                  AppRadius.pill,
+                ),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(
+                  AppRadius.pill,
+                ),
+                borderSide: BorderSide(
+                  color: cs.primary,
+                  width: AppBorder.thin,
+                ),
+              ),
+              isDense: true,
+            ),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+        // Count label.
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.xs,
+          ),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              _searchQuery.isNotEmpty
+                  ? l10n.artifactsCount(filtered.length)
+                  : l10n.artifactsCount(totalCount),
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+            ),
+          ),
+        ),
+        // List or no-results.
+        Expanded(
+          child: filtered.isEmpty
+              ? AppEmptyState(
+                  icon: Icons.search_off,
+                  title: l10n.artifactsNoResults,
+                  subtitle: l10n.artifactsNoResultsSubtitle,
+                )
+              : RefreshIndicator(
+                  onRefresh: _handleRefresh,
+                  child: ListView.builder(
+                    physics:
+                        const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.xs,
+                      AppSpacing.lg,
+                      // Extra bottom padding for FAB.
+                      AppSpacing.xxxl * 3,
+                    ),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final artifact = filtered[index];
+                      return Padding(
+                        key: ValueKey(artifact.id),
+                        padding: const EdgeInsets.only(
+                          bottom: AppSpacing.sm,
+                        ),
+                        child: _ArtifactListCard(
+                          artifact: artifact,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+        ),
+      ],
     );
   }
 }
+
+// ── Type indicator helpers ──────────────────────────────────────
+
+/// Returns icon and color based on artifact properties.
+({IconData icon, Color color}) _artifactTypeIndicator(
+  DecryptedArtifact artifact,
+  ColorScheme cs,
+) {
+  final isDraft = artifact.draft ?? false;
+  final hasSessions =
+      artifact.sessions != null && artifact.sessions!.isNotEmpty;
+
+  if (isDraft) {
+    return (icon: Icons.edit_note, color: cs.tertiary);
+  }
+  if (!artifact.isDecrypted) {
+    return (icon: Icons.lock_outlined, color: cs.error);
+  }
+  if (hasSessions) {
+    return (
+      icon: Icons.chat_bubble_outline,
+      color: AppColors.iosBlue,
+    );
+  }
+  return (
+    icon: Icons.description_outlined,
+    color: cs.primary,
+  );
+}
+
+// ── Card ────────────────────────────────────────────────────────
 
 class _ArtifactListCard extends StatelessWidget {
   const _ArtifactListCard({required this.artifact});
@@ -104,55 +283,60 @@ class _ArtifactListCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final indicator = _artifactTypeIndicator(artifact, cs);
 
-    final date = DateTime.fromMillisecondsSinceEpoch(artifact.updatedAt);
-    final dateStr =
-        '${date.year}-${date.month.toString().padLeft(2, '0')}'
-        '-${date.day.toString().padLeft(2, '0')}';
-
-    final title =
-        (artifact.title?.isNotEmpty ?? false)
-            ? artifact.title!
-            : _shortId(artifact.id);
+    final title = (artifact.title?.isNotEmpty ?? false)
+        ? artifact.title!
+        : _shortId(artifact.id);
 
     final isDraft = artifact.draft ?? false;
+    final hasSessions = artifact.sessions != null &&
+        artifact.sessions!.isNotEmpty;
+    final sessionCount = artifact.sessions?.length ?? 0;
 
     return AppCard(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
       ),
-      onTap: () => context.push('/artifacts/${artifact.id}'),
+      onTap: () =>
+          context.push('/artifacts/${artifact.id}'),
       child: Row(
         children: [
-          // Leading icon container.
+          // Leading icon with type-based color.
           Container(
-            width: 48,
-            height: 48,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(AppRadius.md),
+              color: indicator.color.withValues(
+                alpha: AppOpacity.subtle,
+              ),
+              borderRadius: BorderRadius.circular(
+                AppRadius.md,
+              ),
             ),
             child: Center(
               child: Icon(
-                Icons.description_outlined,
-                size: 24,
-                color: cs.onSurfaceVariant,
+                indicator.icon,
+                size: 22,
+                color: indicator.color,
               ),
             ),
           ),
           const SizedBox(width: AppSpacing.md),
-          // Title + metadata.
+          // Title + metadata column.
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Title row with badges.
                 Row(
                   children: [
                     Expanded(
                       child: Text(
                         title,
-                        style: theme.textTheme.bodyMedium?.copyWith(
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(
                           fontWeight: FontWeight.w600,
                           height: AppLineHeight.tight,
                         ),
@@ -169,13 +353,42 @@ class _ArtifactListCard extends StatelessWidget {
                     ],
                   ],
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  dateStr,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    height: AppLineHeight.tight,
-                  ),
+                const SizedBox(height: AppSpacing.xsm),
+                // Metadata row: date + session count.
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      size: 13,
+                      color: cs.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      _relativeDate(artifact.updatedAt),
+                      style:
+                          theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        height: AppLineHeight.tight,
+                      ),
+                    ),
+                    if (hasSessions) ...[
+                      const SizedBox(width: AppSpacing.md),
+                      Icon(
+                        Icons.link,
+                        size: 13,
+                        color: cs.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(
+                        '$sessionCount',
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(
+                          color: cs.onSurfaceVariant,
+                          height: AppLineHeight.tight,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -195,6 +408,24 @@ class _ArtifactListCard extends StatelessWidget {
     if (id.length > 12) return '${id.substring(0, 12)}...';
     return id;
   }
+
+  /// Format timestamp as relative date string.
+  static String _relativeDate(int millis) {
+    final now = DateTime.now();
+    final date = DateTime.fromMillisecondsSinceEpoch(millis);
+    final diff = now.difference(date);
+
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) return '${diff.inHours}h ago';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+
+    final mo = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    if (date.year == now.year) return '$mo-$d';
+    return '${date.year}-$mo-$d';
+  }
 }
 
 /// Small colored pill badge for artifact type / status labels.
@@ -208,15 +439,15 @@ class _TypeBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xxs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        color: color.withValues(alpha: AppOpacity.soft),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(
           color: color.withValues(alpha: 0.25),
-          width: 0.5,
+          width: AppBorder.hairline,
         ),
       ),
       child: Text(
@@ -224,12 +455,14 @@ class _TypeBadge extends StatelessWidget {
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: color,
               fontWeight: FontWeight.w700,
-              fontSize: 11,
+              fontSize: 10,
             ),
       ),
     );
   }
 }
+
+// ── Loading shimmer ─────────────────────────────────────────────
 
 class _ArtifactsLoadingShimmer extends StatelessWidget {
   const _ArtifactsLoadingShimmer();
@@ -249,7 +482,9 @@ class _ArtifactsLoadingShimmer extends StatelessWidget {
         itemCount: 5,
         itemBuilder: (context, index) {
           return Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            padding: const EdgeInsets.only(
+              bottom: AppSpacing.sm,
+            ),
             child: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.lg,
@@ -257,8 +492,9 @@ class _ArtifactsLoadingShimmer extends StatelessWidget {
               ),
               decoration: BoxDecoration(
                 color: cs.surfaceContainerLow,
-                borderRadius:
-                    BorderRadius.circular(AppRadius.md),
+                borderRadius: BorderRadius.circular(
+                  AppRadius.md,
+                ),
                 border: Border.all(
                   color: cs.outlineVariant.withValues(
                     alpha: 0.3,
@@ -268,12 +504,13 @@ class _ArtifactsLoadingShimmer extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       color: color,
-                      borderRadius:
-                          BorderRadius.circular(AppRadius.md),
+                      borderRadius: BorderRadius.circular(
+                        AppRadius.md,
+                      ),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
@@ -288,17 +525,23 @@ class _ArtifactsLoadingShimmer extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: color,
                             borderRadius:
-                                BorderRadius.circular(4),
+                                BorderRadius.circular(
+                              AppRadius.xs,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.xs),
+                        const SizedBox(
+                          height: AppSpacing.xsm,
+                        ),
                         Container(
                           height: 12,
                           width: 80,
                           decoration: BoxDecoration(
                             color: color,
                             borderRadius:
-                                BorderRadius.circular(4),
+                                BorderRadius.circular(
+                              AppRadius.xs,
+                            ),
                           ),
                         ),
                       ],
