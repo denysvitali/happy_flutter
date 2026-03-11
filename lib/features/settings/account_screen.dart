@@ -55,18 +55,72 @@ class AccountScreen extends ConsumerWidget {
     return SettingsSection(
       title: context.l10n.accountProfile,
       children: [
-        ListTile(
-          leading: profile?.avatarUrl != null
-              ? CircleAvatar(
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              if (profile?.avatarUrl != null)
+                CircleAvatar(
+                  radius: 22,
                   backgroundImage: CachedNetworkImageProvider(
                     profile!.avatarUrl!,
-                    maxWidth: (48 * 3).toInt(),
-                    maxHeight: (48 * 3).toInt(),
+                    maxWidth: 132,
+                    maxHeight: 132,
                   ),
                 )
-              : const CircleAvatar(child: Icon(Icons.person)),
-          title: Text(profile?.displayName ?? 'Loading...'),
-          subtitle: Text(profile?.github?.email ?? 'Not loaded'),
+              else
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: Theme.of(context)
+                      .colorScheme
+                      .primaryContainer,
+                  child: Icon(
+                    Icons.person,
+                    size: 20,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onPrimaryContainer,
+                  ),
+                ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile?.displayName ??
+                          'Loading...',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      profile?.github?.email ??
+                          'Not loaded',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -76,16 +130,17 @@ class AccountScreen extends ConsumerWidget {
     return SettingsSection(
       title: context.l10n.accountBackupKey,
       children: [
-        ListTile(
-          leading: const Icon(Icons.key),
-          title: Text(context.l10n.accountShowBackupKey),
-          subtitle: Text(context.l10n.accountShowBackupKeySubtitle),
+        SettingsNavRow(
+          icon: Icons.key,
+          title: context.l10n.accountShowBackupKey,
+          subtitle:
+              context.l10n.accountShowBackupKeySubtitle,
           onTap: () => _showBackupKeyDialog(context),
         ),
-        ListTile(
-          leading: const Icon(Icons.content_copy),
-          title: Text(context.l10n.accountCopyBackupKey),
-          subtitle: Text(context.l10n.accountCopyToClipboard),
+        SettingsNavRow(
+          icon: Icons.content_copy,
+          title: context.l10n.accountCopyBackupKey,
+          subtitle: context.l10n.accountCopyToClipboard,
           onTap: () => _copyBackupKey(context),
         ),
       ],
@@ -96,11 +151,13 @@ class AccountScreen extends ConsumerWidget {
     return SettingsSection(
       title: context.l10n.accountRestore,
       children: [
-        ListTile(
-          leading: const Icon(Icons.restore),
-          title: Text(context.l10n.accountRestoreAccount),
-          subtitle: Text(context.l10n.accountRestoreAccountSubtitle),
-          onTap: () => context.push('/settings/account/restore'),
+        SettingsNavRow(
+          icon: Icons.restore,
+          title: context.l10n.accountRestoreAccount,
+          subtitle:
+              context.l10n.accountRestoreAccountSubtitle,
+          onTap: () =>
+              context.push('/settings/account/restore'),
         ),
       ],
     );
@@ -110,17 +167,21 @@ class AccountScreen extends ConsumerWidget {
     return SettingsSection(
       title: context.l10n.accountDevices,
       children: [
-        ListTile(
-          leading: const Icon(Icons.devices),
-          title: Text(context.l10n.accountLinkedDevices),
-          subtitle: Text(context.l10n.accountLinkedDevicesSubtitle),
-          onTap: () => context.push('/settings/account/devices'),
+        SettingsNavRow(
+          icon: Icons.devices,
+          title: context.l10n.accountLinkedDevices,
+          subtitle:
+              context.l10n.accountLinkedDevicesSubtitle,
+          onTap: () =>
+              context.push('/settings/account/devices'),
         ),
-        ListTile(
-          leading: const Icon(Icons.add_link),
-          title: Text(context.l10n.accountLinkNewDevice),
-          subtitle: Text(context.l10n.accountLinkNewDeviceSubtitle),
-          onTap: () => context.push('/settings/account/link'),
+        SettingsNavRow(
+          icon: Icons.add_link,
+          title: context.l10n.accountLinkNewDevice,
+          subtitle:
+              context.l10n.accountLinkNewDeviceSubtitle,
+          onTap: () =>
+              context.push('/settings/account/link'),
         ),
       ],
     );

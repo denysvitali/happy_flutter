@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/tts_service.dart';
@@ -47,167 +48,171 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.voiceTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
         children: [
-          // TTS toggle
-          Card(
-            child: SwitchListTile(
-              secondary: const Icon(Icons.volume_up_outlined),
-              title: Text(l10n.voiceTtsTitle),
-              subtitle: Text(l10n.voiceTtsSubtitle),
-              value: settings.ttsEnabled,
-              onChanged: (value) => ref
-                  .read(settingsNotifierProvider.notifier)
-                  .updateSetting('ttsEnabled', value),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          // Test TTS button
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.play_arrow),
-              title: Text(l10n.voiceTestTts),
-              subtitle: Text(l10n.voiceTestTtsSubtitle),
-              onTap: () async {
-                final tts = TtsService();
-                await tts.init(
-                  language: settings.voiceAssistantLanguage,
-                  engine: settings.ttsEngine,
-                );
-                await tts.speak('Hello! Text to speech is working.');
-              },
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          // TTS Engine selection
-          if (_enginesLoaded && _engines.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-              child: Text(
-                l10n.voiceSelectEngineHint,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+          SettingsSection(
+            title: l10n.voiceTtsTitle,
+            children: [
+              SettingsToggleRow(
+                icon: Icons.volume_up_outlined,
+                title: l10n.voiceTtsTitle,
+                subtitle: l10n.voiceTtsSubtitle,
+                value: settings.ttsEnabled,
+                onChanged: (value) => ref
+                    .read(settingsNotifierProvider.notifier)
+                    .updateSetting('ttsEnabled', value),
               ),
-            ),
-            // Default engine option
-            Card(
-              child: ListTile(
-                leading: Icon(
-                  Icons.settings_voice,
-                  color: settings.ttsEngine == null
-                      ? Theme.of(context).colorScheme.primary
-                      : null,
-                ),
-                title: Text(l10n.voiceDefaultEngine),
-                subtitle: Text(l10n.voiceDefaultEngineSubtitle),
-                trailing: settings.ttsEngine == null
-                    ? Icon(
-                        Icons.check,
-                        color: Theme.of(context).colorScheme.primary,
-                      )
-                    : null,
-                onTap: () {
-                  ref
-                      .read(settingsNotifierProvider.notifier)
-                      .updateSetting('ttsEngine', null);
+              SettingsNavRow(
+                icon: Icons.play_arrow,
+                title: l10n.voiceTestTts,
+                subtitle: l10n.voiceTestTtsSubtitle,
+                onTap: () async {
+                  final tts = TtsService();
+                  await tts.init(
+                    language:
+                        settings.voiceAssistantLanguage,
+                    engine: settings.ttsEngine,
+                  );
+                  await tts.speak(
+                    'Hello! Text to speech is working.',
+                  );
                 },
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            // Available engines
-            ..._engines.map((engine) {
-              final engineName = engine['name'] ?? 'Unknown';
-              final engineIdentifier = engine['identifier'] ?? '';
-              final isSelected = settings.ttsEngine == engineIdentifier;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Card(
-                  child: ListTile(
-                    leading: Icon(
-                      Icons.settings_voice,
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                    title: Text(engineName),
-                    subtitle: Text(engineIdentifier),
+            ],
+          ),
+          if (_enginesLoaded &&
+              _engines.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            SettingsSection(
+              title: l10n.voiceSelectEngineHint,
+              uppercase: false,
+              children: [
+                SettingsRow(
+                  icon: Icons.settings_voice,
+                  iconColor: settings.ttsEngine == null
+                      ? Theme.of(context)
+                          .colorScheme
+                          .primary
+                      : null,
+                  title: l10n.voiceDefaultEngine,
+                  subtitle:
+                      l10n.voiceDefaultEngineSubtitle,
+                  trailing: settings.ttsEngine == null
+                      ? Icon(
+                          Icons.check_circle,
+                          size: 20,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary,
+                        )
+                      : null,
+                  onTap: () {
+                    ref
+                        .read(
+                          settingsNotifierProvider
+                              .notifier,
+                        )
+                        .updateSetting(
+                          'ttsEngine',
+                          null,
+                        );
+                  },
+                ),
+                ..._engines.map((engine) {
+                  final engineName =
+                      engine['name'] ?? 'Unknown';
+                  final engineId =
+                      engine['identifier'] ?? '';
+                  final isSelected =
+                      settings.ttsEngine == engineId;
+                  return SettingsRow(
+                    icon: Icons.settings_voice,
+                    iconColor: isSelected
+                        ? Theme.of(context)
+                            .colorScheme
+                            .primary
+                        : null,
+                    title: engineName,
+                    subtitle: engineId,
                     trailing: isSelected
                         ? Icon(
-                            Icons.check,
-                            color: Theme.of(context).colorScheme.primary,
+                            Icons.check_circle,
+                            size: 20,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary,
                           )
                         : null,
                     onTap: () {
                       ref
-                          .read(settingsNotifierProvider.notifier)
-                          .updateSetting('ttsEngine', engineIdentifier);
+                          .read(
+                            settingsNotifierProvider
+                                .notifier,
+                          )
+                          .updateSetting(
+                            'ttsEngine',
+                            engineId,
+                          );
                     },
-                  ),
-                ),
-              );
-            }),
-            const SizedBox(height: AppSpacing.lg),
+                  );
+                }),
+              ],
+            ),
           ],
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-            child: Text(
-              l10n.voiceSelectLanguageHint,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+          const SizedBox(height: AppSpacing.lg),
+          SettingsSection(
+            title: l10n.voiceSelectLanguageHint,
+            uppercase: false,
+            children: [
+              SettingsRow(
+                icon: Icons.record_voice_over,
+                iconColor: selectedLanguageCode.isEmpty
+                    ? Theme.of(context)
+                        .colorScheme
+                        .primary
+                    : null,
+                title: voiceLanguages[0].name,
+                subtitle: voiceLanguages[0].region ??
+                    voiceLanguages[0].nativeName,
+                trailing: selectedLanguageCode.isEmpty
+                    ? Icon(
+                        Icons.check_circle,
+                        size: 20,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary,
+                      )
+                    : null,
+                onTap: () {
+                  ref
+                      .read(
+                        settingsNotifierProvider.notifier,
+                      )
+                      .updateSetting(
+                        'voiceAssistantLanguage',
+                        null,
+                      );
+                },
               ),
-            ),
+              SettingsNavRow(
+                icon: Icons.language,
+                title: l10n.voiceLanguageTitle,
+                subtitle: selectedLanguage?.displayName ??
+                    'Auto-detect',
+                onTap: () =>
+                    context.pushNamed('voice-language'),
+              ),
+            ],
           ),
-          // Auto-detect option
-          _buildLanguageTile(
-            context: context,
-            language: voiceLanguages[0],
-            isSelected: selectedLanguageCode.isEmpty,
-            onTap: () {
-              ref
-                  .read(settingsNotifierProvider.notifier)
-                  .updateSetting('voiceAssistantLanguage', null);
-            },
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          // Navigate to language selection
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.language, color: AppColors.iosBlue),
-              title: Text(l10n.voiceLanguageTitle),
-              subtitle: Text(selectedLanguage?.displayName ?? 'Auto-detect'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                context.pushNamed('voice-language');
-              },
-            ),
-          ),
+          const SizedBox(height: AppSpacing.xxxl),
         ],
       ),
     );
   }
 
-  Widget _buildLanguageTile({
-    required BuildContext context,
-    required VoiceLanguage language,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      child: ListTile(
-        leading: Icon(
-          Icons.record_voice_over,
-          color: isSelected ? Theme.of(context).colorScheme.primary : null,
-        ),
-        title: Text(language.name),
-        subtitle: Text(language.region ?? language.nativeName),
-        trailing: isSelected
-            ? Icon(Icons.check, color: Theme.of(context).colorScheme.primary)
-            : null,
-        onTap: onTap,
-      ),
-    );
-  }
 }
 
 /// Voice language selection screen with search functionality
@@ -284,30 +289,38 @@ class _VoiceLanguageSelectionScreenState
           Expanded(
             child: ListView.builder(
               itemCount: filteredLanguages.length,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+              ),
               itemBuilder: (context, index) {
-                final language = filteredLanguages[index];
-                final isSelected = _isLanguageSelected(language);
+                final language =
+                    filteredLanguages[index];
+                final isSelected =
+                    _isLanguageSelected(language);
 
-                return Card(
-                  key: ValueKey(language.code),
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                    vertical: AppSpacing.xs,
+                return Padding(
+                  padding: const EdgeInsets.only(
+                    bottom: AppSpacing.xs,
                   ),
-                  child: ListTile(
-                    leading: const Icon(
-                      Icons.language,
-                      color: AppColors.iosBlue,
+                  child: Card(
+                    key: ValueKey(language.code),
+                    child: SettingsRow(
+                      icon: Icons.language,
+                      iconColor: AppColors.iosBlue,
+                      title: language.displayName,
+                      subtitle: language.subtitle,
+                      trailing: isSelected
+                          ? Icon(
+                              Icons.check_circle,
+                              size: 20,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary,
+                            )
+                          : null,
+                      onTap: () =>
+                          _selectLanguage(language),
                     ),
-                    title: Text(language.displayName),
-                    subtitle: Text(language.subtitle),
-                    trailing: isSelected
-                        ? Icon(
-                            Icons.check_circle,
-                            color: Theme.of(context).colorScheme.primary,
-                          )
-                        : null,
-                    onTap: () => _selectLanguage(language),
                   ),
                 );
               },
