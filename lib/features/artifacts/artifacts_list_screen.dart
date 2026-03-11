@@ -143,6 +143,7 @@ class _ArtifactsListScreenState
                         size: 18,
                         color: cs.onSurfaceVariant,
                       ),
+                      tooltip: l10n.commonClear,
                       onPressed: () {
                         _searchController.clear();
                         setState(() => _searchQuery = '');
