@@ -37,7 +37,7 @@ class PathChip extends StatelessWidget {
             child: Text(
               path,
               style: GoogleFonts.sourceCodePro(
-                fontSize: 10,
+                fontSize: AppFontSize.xxs,
                 fontWeight: FontWeight.w500,
                 color: colorScheme.onSurfaceVariant,
                 letterSpacing: -0.2,

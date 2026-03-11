@@ -54,7 +54,7 @@ Widget? _buildStatusText(
     style: textTheme.labelSmall?.copyWith(
       color: Color(status.statusColor),
       fontWeight: FontWeight.w500,
-      fontSize: 11,
+      fontSize: AppFontSize.xs,
     ),
     overflow: TextOverflow.ellipsis,
     maxLines: 1,
@@ -272,7 +272,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                                         .onSurfaceVariant,
                                     fontFamily:
                                         'monospace',
-                                    fontSize: 11,
+                                    fontSize: AppFontSize.xs,
                                     height: 1.2,
                                   ),
                                   overflow:
@@ -319,7 +319,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                                     ?.copyWith(
                                   color: cs
                                       .onSurfaceVariant,
-                                  fontSize: 11,
+                                  fontSize: AppFontSize.xs,
                                 ),
                               ),
                               if (todoProgress !=
@@ -610,7 +610,7 @@ class _CompactActiveSessionCardState
                                     ?.copyWith(
                                   color: cs
                                       .onSurfaceVariant,
-                                  fontSize: 11,
+                                  fontSize: AppFontSize.xs,
                                 ),
                               ),
                               if (todoProgress !=
@@ -918,7 +918,7 @@ class _SessionCardState extends State<SessionCard> {
                                         .onSurfaceVariant,
                                     fontFamily:
                                         'monospace',
-                                    fontSize: 11,
+                                    fontSize: AppFontSize.xs,
                                     height: 1.2,
                                   ),
                                   overflow:
@@ -959,7 +959,7 @@ class _SessionCardState extends State<SessionCard> {
                                             AppOpacity
                                                 .high,
                                       ),
-                                      fontSize: 12,
+                                      fontSize: AppFontSize.sm,
                                       height: 1.3,
                                     ),
                                     overflow:
@@ -994,7 +994,7 @@ class _SessionCardState extends State<SessionCard> {
                                     ?.copyWith(
                                   color: cs
                                       .onSurfaceVariant,
-                                  fontSize: 11,
+                                  fontSize: AppFontSize.xs,
                                 ),
                               ),
                               if (todoProgress !=

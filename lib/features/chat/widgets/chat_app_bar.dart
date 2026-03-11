@@ -146,7 +146,7 @@ class _StatusRow extends StatelessWidget {
         ?.copyWith(
           color: cs.onSurfaceVariant,
           fontWeight: FontWeight.w400,
-          fontSize: 11,
+          fontSize: AppFontSize.xs,
           height: 1.2,
         );
 
@@ -337,7 +337,7 @@ class _AppBarTypingIndicatorState
                   ?.copyWith(
                     color: cs.primary,
                     fontWeight: FontWeight.w500,
-                    fontSize: 11,
+                    fontSize: AppFontSize.xs,
                     height: 1.2,
                   ),
             ),
