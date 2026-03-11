@@ -258,6 +258,7 @@ class _SessionsScreenState
       return AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: l10n.commonBack,
           onPressed: () {
             setState(() {
               _isSearching = false;
@@ -286,6 +287,7 @@ class _SessionsScreenState
           if (_searchController.text.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.close),
+              tooltip: l10n.commonClear,
               onPressed: () {
                 _searchController.clear();
                 setState(() {});
@@ -301,11 +303,13 @@ class _SessionsScreenState
         ConnectionStatusBadge(status: connectionStatus),
         IconButton(
           icon: const Icon(Icons.search),
+          tooltip: l10n.commonSearch,
           onPressed: () =>
               setState(() => _isSearching = true),
         ),
         IconButton(
           icon: const Icon(Icons.add),
+          tooltip: l10n.sessionsNew,
           onPressed: () =>
               _showNewSessionDialog(context),
         ),
@@ -327,6 +331,7 @@ class _SessionsScreenState
     return AppBar(
       leading: IconButton(
         icon: const Icon(Icons.close),
+        tooltip: l10n.commonCancel,
         onPressed: _exitSelectionMode,
       ),
       title: Text(
@@ -379,6 +384,7 @@ class _SessionsScreenState
                   Icons.delete_outline,
                   color: cs.error,
                 ),
+          tooltip: l10n.commonDelete,
           onPressed: (sel.selectedIds.isEmpty ||
                   sel.isBatchDeleting)
               ? null

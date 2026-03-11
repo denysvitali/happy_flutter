@@ -506,6 +506,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       suffixIcon: controller.text.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear),
+                              tooltip: l10nDialog.commonClear,
                               onPressed: () {
                                 controller.clear();
                                 setDialogState(() {});
