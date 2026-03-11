@@ -65,6 +65,9 @@ abstract final class AppRadius {
   /// 4 px – subtle rounding (chips, tags).
   static const double xs = 4;
 
+  /// 5 px – inline compact rounding.
+  static const double xxs2 = 5;
+
   /// 6 px – grouped message corners, compact elements.
   static const double xsm = 6;
 

@@ -1188,7 +1188,7 @@ class _ToolStatusBadge extends StatelessWidget {
           : const EdgeInsets.symmetric(horizontal: 7),
       decoration: BoxDecoration(
         color: bg.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: bg.withValues(alpha: 0.35), width: 0.5),
       ),
       alignment: Alignment.center,

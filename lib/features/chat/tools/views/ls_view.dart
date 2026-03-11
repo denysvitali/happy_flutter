@@ -461,7 +461,7 @@ class _EntryRow extends StatelessWidget {
               height: 28,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(5),
+                borderRadius: BorderRadius.circular(AppRadius.xxs2),
               ),
               child: Icon(icon, size: 15, color: color),
             ),

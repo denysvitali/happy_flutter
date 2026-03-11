@@ -270,7 +270,7 @@ class _CopyBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest
             .withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(
           color: theme.colorScheme.outline.withValues(alpha: 0.3),
         ),
@@ -593,7 +593,7 @@ class _Badge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(
           color: color.withValues(alpha: 0.35),
         ),
