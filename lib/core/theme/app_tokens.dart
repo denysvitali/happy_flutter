@@ -74,6 +74,9 @@ abstract final class AppRadius {
   /// 8 px – small components (badges, small chips).
   static const double sm = 8;
 
+  /// 10 px – input fields, search boxes.
+  static const double smd = 10;
+
   /// 12 px – medium components (inputs, list tiles).
   static const double md = 12;
 

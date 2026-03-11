@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_color_scheme.dart';
+import '../../theme/app_tokens.dart';
 
 /// Animated shimmer gradient loading effect.
 ///
@@ -161,7 +162,7 @@ class ShimmerStyles {
     required double height,
     double? width,
     BorderRadiusGeometry borderRadius =
-        const BorderRadius.all(Radius.circular(12)),
+        const BorderRadius.all(Radius.circular(AppRadius.md)),
   }) {
     final color = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Shimmer(
@@ -182,7 +183,7 @@ class ShimmerStyles {
     double height = 16,
     double width = double.infinity,
     BorderRadiusGeometry borderRadius =
-        const BorderRadius.all(Radius.circular(4)),
+        const BorderRadius.all(Radius.circular(AppRadius.xs)),
   }) {
     final color = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Shimmer(
@@ -239,7 +240,7 @@ class ShimmerStyles {
               decoration: BoxDecoration(
                 color: color,
                 borderRadius:
-                    const BorderRadius.all(Radius.circular(4)),
+                    BorderRadius.circular(AppRadius.xs),
               ),
             ),
           );
@@ -255,7 +256,7 @@ class ShimmerImagePlaceholder extends StatelessWidget {
   const ShimmerImagePlaceholder({
     required this.width,
     required this.height,
-    this.borderRadius = const BorderRadius.all(Radius.circular(8)),
+    this.borderRadius = const BorderRadius.all(Radius.circular(AppRadius.sm)),
     super.key,
   });
   final double width;

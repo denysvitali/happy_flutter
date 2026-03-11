@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../theme/app_tokens.dart';
 import 'avatar.dart';
 
 /// Pixelated-style avatar with blocky appearance
@@ -23,7 +25,7 @@ class AvatarPixelated extends BaseAvatar {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.2),
         shape: BoxShape.rectangle,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Stack(
         children: List.generate(gridSize * gridSize, (index) {

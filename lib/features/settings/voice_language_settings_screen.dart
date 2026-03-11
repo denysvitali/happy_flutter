@@ -180,7 +180,9 @@ class _VoiceLanguageSettingsScreenState
                 hintText: l10n.searchLanguages,
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                  borderRadius: BorderRadius.all(
+                    Radius.circular(AppRadius.smd),
+                  ),
                 ),
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,
