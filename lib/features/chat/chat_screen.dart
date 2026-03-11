@@ -435,7 +435,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         : _messages.isEmpty
                         ? (_loadFailed
                               ? _buildRetryView()
-                              : EmptyChatView(key: const ValueKey('empty')))
+                              : EmptyChatView(
+                                  key: const ValueKey('empty'),
+                                  onSuggestionTap: _onSuggestionTap,
+                                ))
                         : _buildMessageList(),
                   ),
                   IgnorePointer(
@@ -827,6 +830,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _onSuggestionTap(String suggestion) {
+    _controller.text = suggestion;
+    _controller.selection = TextSelection.collapsed(
+      offset: suggestion.length,
     );
   }
 
