@@ -45,6 +45,10 @@ import 'features/sessions/pick_machine_screen.dart';
 import 'features/sessions/pick_path_screen.dart';
 import 'features/sessions/pick_profile_screen.dart';
 import 'features/sessions/sessions_screen.dart';
+import 'features/sftp/models/sftp_directory.dart';
+import 'features/sftp/screens/sftp_connection_history_screen.dart';
+import 'features/sftp/screens/sftp_directory_manager_screen.dart';
+import 'features/sftp/screens/sftp_log_viewer_screen.dart';
 import 'features/settings/account_screen.dart';
 import 'features/settings/changelog_screen.dart';
 import 'features/settings/claude_connect_screen.dart';
@@ -628,6 +632,47 @@ class _HappyAppState extends ConsumerState<HappyApp>
           name: 'voice-language',
           builder: (context, state) =>
               const AuthGate(child: VoiceLanguageSettingsScreen()),
+        ),
+        GoRoute(
+          path: '/sftp/logs',
+          name: 'sftp-logs',
+          pageBuilder: (context, state) {
+            final deviceId = state.uri.queryParameters['deviceId'];
+            return _slidePage(
+              AuthGate(
+                child: SftpLogViewerScreen(initialDeviceId: deviceId),
+              ),
+              state,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/sftp/directory',
+          name: 'sftp-directory',
+          pageBuilder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>?;
+            final directory = extra?['directory'] as SftpDirectory;
+            return _slidePage(
+              AuthGate(
+                child:
+                    SftpDirectoryManagerScreen(directory: directory),
+              ),
+              state,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/sftp/connections',
+          name: 'sftp-connections',
+          pageBuilder: (context, state) {
+            final deviceId = state.uri.queryParameters['deviceId'];
+            return _slidePage(
+              AuthGate(
+                child: SftpConnectionHistoryScreen(deviceId: deviceId),
+              ),
+              state,
+            );
+          },
         ),
       ],
       redirect: (context, state) {

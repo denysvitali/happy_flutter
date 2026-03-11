@@ -510,20 +510,18 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          ...opCounts.entries.toList()
-            ..sort((a, b) => b.value.compareTo(a.value))
-            ..take(10)
-                .map(
-                  (e) => ListTile(
-                    dense: true,
-                    title: Text(e.key),
-                    trailing: Text(
-                      e.value.toString(),
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    leading: _getOperationIcon(e.key),
-                  ),
-                ),
+          ..._buildSortedEntries(
+            opCounts,
+            (e) => ListTile(
+              dense: true,
+              title: Text(e.key),
+              trailing: Text(
+                e.value.toString(),
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              leading: _getOperationIcon(e.key),
+            ),
+          ),
         ],
 
         // Users breakdown
@@ -534,20 +532,18 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          ...userCounts.entries.toList()
-            ..sort((a, b) => b.value.compareTo(a.value))
-            ..take(10)
-                .map(
-                  (e) => ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.person, size: 20),
-                    title: Text(e.key),
-                    trailing: Text(
-                      e.value.toString(),
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                  ),
-                ),
+          ..._buildSortedEntries(
+            userCounts,
+            (e) => ListTile(
+              dense: true,
+              leading: const Icon(Icons.person, size: 20),
+              title: Text(e.key),
+              trailing: Text(
+                e.value.toString(),
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+          ),
         ],
 
         // Storage info
@@ -617,6 +613,15 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
       default:
         return const Icon(Icons.circle, size: 20, color: Colors.grey);
     }
+  }
+
+  List<Widget> _buildSortedEntries(
+    Map<String, int> counts,
+    Widget Function(MapEntry<String, int>) builder,
+  ) {
+    final entries = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return entries.take(10).map(builder).toList();
   }
 }
 
