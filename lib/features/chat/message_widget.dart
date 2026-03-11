@@ -193,8 +193,8 @@ class _UserBubble extends StatelessWidget {
   final bool isFirstInGroup;
   final bool isLastInGroup;
 
-  static const _full = Radius.circular(20);
-  static const _small = Radius.circular(6);
+  static const _full = Radius.circular(AppRadius.xl);
+  static const _small = Radius.circular(AppRadius.xsm);
 
   @override
   Widget build(BuildContext context) {
@@ -274,7 +274,7 @@ class _SendStatusIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final style = Theme.of(context).textTheme.labelSmall?.copyWith(
-      fontSize: 10,
+      fontSize: AppFontSize.xxs,
       height: 1.2,
     );
 
@@ -360,8 +360,8 @@ class _BotMessage extends StatelessWidget {
   final bool isFirstInGroup;
   final bool isLastInGroup;
 
-  static const _full = Radius.circular(20);
-  static const _small = Radius.circular(6);
+  static const _full = Radius.circular(AppRadius.xl);
+  static const _small = Radius.circular(AppRadius.xsm);
 
   @override
   Widget build(BuildContext context) {
@@ -571,7 +571,7 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
                         child: DefaultTextStyle.merge(
                           style: TextStyle(
                             color: cs.onSurfaceVariant.withValues(alpha: 0.85),
-                            fontSize: 13,
+                            fontSize: AppFontSize.md,
                             height: 1.5,
                           ),
                           child: SimpleMarkdownView(
@@ -834,7 +834,7 @@ void _showRawMarkdownSheet(BuildContext context, String markdown) {
     useSafeArea: true,
     backgroundColor: cs.surface,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
     ),
     builder: (ctx) => DraggableScrollableSheet(
       initialChildSize: 0.55,
@@ -894,7 +894,7 @@ void _showRawMarkdownSheet(BuildContext context, String markdown) {
                   markdown,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontFamily: 'monospace',
-                    fontSize: 13,
+                    fontSize: AppFontSize.md,
                     height: 1.5,
                   ),
                 ),
@@ -1005,7 +1005,7 @@ class _ErrorMessageWidget extends StatelessWidget {
       useSafeArea: true,
       backgroundColor: cs.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
       builder: (ctx) => DraggableScrollableSheet(
         initialChildSize: 0.55,
@@ -1115,7 +1115,7 @@ class _ErrorMessageWidget extends StatelessWidget {
                           : 'No debug data',
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontFamily: 'monospace',
-                        fontSize: 12,
+                        fontSize: AppFontSize.sm,
                         color: const Color(0xFF9CDCFE),
                         height: 1.4,
                       ),

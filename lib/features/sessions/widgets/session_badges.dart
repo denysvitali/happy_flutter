@@ -113,7 +113,7 @@ class TodoProgressBadge extends StatelessWidget {
           Text(
             '$completed/$total',
             style: TextStyle(
-              fontSize: 10,
+              fontSize: AppFontSize.xxs,
               fontWeight: FontWeight.w500,
               color: cs.onSurfaceVariant,
             ),

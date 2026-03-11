@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markdown/markdown.dart' as md;
 
+import '../../../core/theme/app_tokens.dart';
 import '../code_block_widget.dart';
 
 /// Callback type for when an option is pressed in an options block.
@@ -85,12 +86,12 @@ class _MarkdownViewState extends State<MarkdownView> {
       ),
       codeblockDecoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       codeblockPadding: const EdgeInsets.all(12),
       code: TextStyle(
         fontFamily: 'monospace',
-        fontSize: 14,
+        fontSize: AppFontSize.base,
         backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
       ),
     );
@@ -164,12 +165,12 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
       ),
       codeblockDecoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       codeblockPadding: const EdgeInsets.all(12),
       code: TextStyle(
         fontFamily: 'monospace',
-        fontSize: 14,
+        fontSize: AppFontSize.base,
         backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
       ),
     );
@@ -334,12 +335,12 @@ class _OptionsChips extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(100),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
             child: Text(
               item,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: AppFontSize.base,
                 color: textColor ?? theme.colorScheme.onSurface,
                 fontWeight: FontWeight.w500,
               ),
@@ -356,10 +357,10 @@ class _OptionsChips extends StatelessWidget {
             ),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(100),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
             textStyle: const TextStyle(
-              fontSize: 14,
+              fontSize: AppFontSize.base,
               fontWeight: FontWeight.w500,
             ),
           ),

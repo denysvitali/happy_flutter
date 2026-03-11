@@ -184,7 +184,7 @@ class _ScrollToBottomPillState
                             : '${widget.unreadCount}',
                         style: TextStyle(
                           color: cs.onPrimary,
-                          fontSize: 10,
+                          fontSize: AppFontSize.xxs,
                           fontWeight: FontWeight.w600,
                         ),
                         textAlign: TextAlign.center,

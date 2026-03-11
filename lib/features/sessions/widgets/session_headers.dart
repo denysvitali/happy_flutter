@@ -72,7 +72,7 @@ class PathHeader extends StatelessWidget {
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: cs.onSurfaceVariant,
                   fontFamily: 'monospace',
-                  fontSize: 12,
+                  fontSize: AppFontSize.sm,
                   letterSpacing: 0.8,
                 ),
                 overflow: TextOverflow.ellipsis,
@@ -83,7 +83,7 @@ class PathHeader extends StatelessWidget {
               style: theme.textTheme.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant
                     .withValues(alpha: 0.6),
-                fontSize: 11,
+                fontSize: AppFontSize.xs,
               ),
             ),
             const SizedBox(width: 2),
@@ -149,7 +149,7 @@ class CollapsibleDateHeader extends StatelessWidget {
               style: theme.textTheme.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant
                     .withValues(alpha: 0.6),
-                fontSize: 11,
+                fontSize: AppFontSize.xs,
               ),
             ),
             const SizedBox(width: 2),
@@ -214,7 +214,7 @@ class CollapsibleFolderHeader extends StatelessWidget {
                         theme.textTheme.labelSmall?.copyWith(
                       color: cs.onSurfaceVariant,
                       fontFamily: 'monospace',
-                      fontSize: 12,
+                      fontSize: AppFontSize.sm,
                       letterSpacing: 0.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -227,7 +227,7 @@ class CollapsibleFolderHeader extends StatelessWidget {
                         theme.textTheme.labelSmall?.copyWith(
                       color: cs.onSurfaceVariant
                           .withValues(alpha: 0.6),
-                      fontSize: 10,
+                      fontSize: AppFontSize.xxs,
                     ),
                   ),
                 ],
@@ -238,7 +238,7 @@ class CollapsibleFolderHeader extends StatelessWidget {
               style: theme.textTheme.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant
                     .withValues(alpha: 0.6),
-                fontSize: 11,
+                fontSize: AppFontSize.xs,
               ),
             ),
             const SizedBox(width: 2),

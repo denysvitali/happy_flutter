@@ -216,7 +216,7 @@ class _CodeHeader extends StatelessWidget {
               displayName,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 color: labelColor,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 0.3,
@@ -309,7 +309,7 @@ class _CopyButton extends StatelessWidget {
                 Text(
                   copied ? l10n.commonCopied : l10n.commonCopy,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: AppFontSize.xs,
                     color: iconColor,
                     fontWeight: FontWeight.w500,
                   ),

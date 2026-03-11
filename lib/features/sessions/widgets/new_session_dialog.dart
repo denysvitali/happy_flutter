@@ -217,7 +217,7 @@ class _NewSessionDialogState
               _createError!,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.error,
-                fontSize: 13,
+                fontSize: AppFontSize.md,
               ),
             ),
           ],

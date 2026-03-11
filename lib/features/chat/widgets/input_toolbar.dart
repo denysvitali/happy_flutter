@@ -56,7 +56,7 @@ class ModelChip extends StatelessWidget {
             Text(
               model.label,
               style: theme.textTheme.labelSmall?.copyWith(
-                fontSize: 11,
+                fontSize: AppFontSize.xs,
                 color: enabled ? iconColor : iconColor.withValues(alpha: 0.7),
                 fontWeight: FontWeight.w500,
               ),
@@ -116,7 +116,7 @@ class ProfileChip extends StatelessWidget {
               child: Text(
                 label,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: 11,
+                  fontSize: AppFontSize.xs,
                   color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
                   fontWeight: FontWeight.w500,
                 ),
@@ -192,7 +192,7 @@ class ContextSizeIndicator extends StatelessWidget {
           label,
           style: theme.textTheme.labelSmall?.copyWith(
             color: indicatorColor,
-            fontSize: 10,
+            fontSize: AppFontSize.xxs,
             fontWeight: FontWeight.w400,
           ),
         ),

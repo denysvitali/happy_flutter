@@ -44,7 +44,7 @@ class DismissibleActiveSession extends ConsumerWidget {
               context.l10n.sessionsArchive,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -146,7 +146,7 @@ class DismissibleInactiveSession extends ConsumerWidget {
               context.l10n.commonDelete,
               style: TextStyle(
                 color: cs.onError,
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 fontWeight: FontWeight.w600,
               ),
             ),
