@@ -4,6 +4,7 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+import 'package:happy_flutter/features/chat/code_block_widget.dart';
 
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
@@ -359,8 +360,6 @@ class _CodexCommandView extends StatefulWidget {
 
 class _CodexCommandViewState extends State<_CodexCommandView> {
   static const int _maxLines = 20;
-  bool _stdoutExpanded = false;
-  bool _stderrExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -377,30 +376,21 @@ class _CodexCommandViewState extends State<_CodexCommandView> {
             label: 'stdout',
             output: widget.stdout!,
             isError: false,
-            expanded: _stdoutExpanded,
             maxLines: _maxLines,
-            onToggleExpand: () =>
-                setState(() => _stdoutExpanded = !_stdoutExpanded),
           ),
         if (widget.stderr != null && widget.stderr!.isNotEmpty)
           _TerminalOutputSection(
             label: 'stderr',
             output: widget.stderr!,
             isError: true,
-            expanded: _stderrExpanded,
             maxLines: _maxLines,
-            onToggleExpand: () =>
-                setState(() => _stderrExpanded = !_stderrExpanded),
           ),
         if (widget.error != null)
           _TerminalOutputSection(
             label: 'error',
             output: widget.error!,
             isError: true,
-            expanded: _stderrExpanded,
             maxLines: _maxLines,
-            onToggleExpand: () =>
-                setState(() => _stderrExpanded = !_stderrExpanded),
           ),
         if (widget.exitCode != null)
           _ExitCodeBadge(exitCode: widget.exitCode!),
@@ -532,38 +522,40 @@ class _TerminalCommandBar extends StatelessWidget {
   }
 }
 
-class _TerminalOutputSection extends StatelessWidget {
+class _TerminalOutputSection extends StatefulWidget {
 
   const _TerminalOutputSection({
     required this.label,
     required this.output,
     required this.isError,
-    required this.expanded,
     required this.maxLines,
-    required this.onToggleExpand,
   });
   final String label;
   final String output;
   final bool isError;
-  final bool expanded;
   final int maxLines;
-  final VoidCallback onToggleExpand;
+
+  @override
+  State<_TerminalOutputSection> createState() =>
+      _TerminalOutputSectionState();
+}
+
+class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final c = ToolViewColors.of(context);
-    final lines = output.split('\n');
-    final totalLines = lines.length;
-    final needsTruncation = totalLines > maxLines;
-    final visibleLines = expanded || !needsTruncation
-        ? lines
-        : lines.take(maxLines).toList();
-    final visibleText = visibleLines.join('\n');
+    final totalLines = widget.output.split('\n').length;
+    final needsTruncation = totalLines > widget.maxLines;
+    final maxLines = _expanded ? 999 : widget.maxLines;
 
-    final labelColor = isError ? c.red : c.mutedText;
-    final borderColor = isError ? c.errorBorder : c.border;
-    final bgColor = isError ? c.errorBg : c.bg;
+    final labelColor = widget.isError ? c.red : c.mutedText;
+    final borderColor = widget.isError ? c.errorBorder : c.border;
+    final bgColor = widget.isError ? c.errorBg : c.bg;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.only(top: 6),
@@ -591,7 +583,7 @@ class _TerminalOutputSection extends StatelessWidget {
             ),
             child: Row(
               children: [
-                if (isError)
+                if (widget.isError)
                   Padding(
                     padding: const EdgeInsets.only(right: 5),
                     child: Icon(
@@ -601,7 +593,7 @@ class _TerminalOutputSection extends StatelessWidget {
                     ),
                   ),
                 Text(
-                  label,
+                  widget.label,
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: AppFontSize.xs,
@@ -619,31 +611,25 @@ class _TerminalOutputSection extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _CopyButton(text: AnsiParser.strip(output), iconSize: 13),
+                _CopyButton(
+                  text: AnsiParser.strip(widget.output),
+                  iconSize: 13,
+                ),
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.smd),
-            child: SelectableText.rich(
-              TextSpan(
-                children: AnsiParser.parse(
-                  visibleText,
-                  defaultStyle: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: AppFontSize.sm,
-                    color: isError ? c.errorText : c.primaryText,
-                    height: 1.5,
-                  ),
-                ),
-              ),
-            ),
+          CodeBlockWidget(
+            code: widget.output,
+            language: 'bash',
+            isDarkMode: isDark,
+            fontSize: AppFontSize.sm,
+            maxVisibleLines: maxLines,
           ),
           if (needsTruncation)
             _ShowMoreButton(
-              expanded: expanded,
-              hiddenCount: totalLines - maxLines,
-              onToggle: onToggleExpand,
+              expanded: _expanded,
+              hiddenCount: totalLines - widget.maxLines,
+              onToggle: () => setState(() => _expanded = !_expanded),
               borderColor: borderColor,
             ),
         ],
