@@ -621,13 +621,13 @@ class _SortedSessions {
 _SortedSessions _computeSortedSessions(
   Map<String, Session> sessions, {
   required _SortedSessions? previous,
-  required int changeCount,
-  required int? lastChangeCount,
+  required Map<String, Session>? lastSessions,
+  required String? lastSearchQuery,
   String searchQuery = '',
 }) {
-  if (lastChangeCount != null &&
-      changeCount == lastChangeCount &&
-      previous != null) {
+  if (previous != null &&
+      identical(sessions, lastSessions) &&
+      searchQuery == lastSearchQuery) {
     return previous;
   }
 
@@ -688,7 +688,7 @@ class _SessionsListContentState
   ArchivedGrouping _archivedGrouping =
       ArchivedGrouping.date;
   _SortedSessions? _sortedCache;
-  int? _lastSortChangeCount;
+  Map<String, Session>? _lastSessionsMap;
   String? _lastSearchQuery;
 
   ValueNotifier<_SelectionState> get _sel =>
@@ -754,33 +754,18 @@ class _SessionsListContentState
           .select((s) => parseAvatarStyle(s.avatarStyle)),
     );
 
-    // Use the length of the sessions map to detect when it actually changes.
-    // dataChangeCounter is monotonic, but it also increments for other data
-    // types (machines, friends, etc.).  We encode a stable key from sessions
-    // itself so that identical maps skip the sort even if the global counter
-    // moved.
-    final sessionKey = sessions.length;
     final searchQuery = widget.searchQuery;
-    final searchChanged = _lastSearchQuery != searchQuery;
-    final needsSort = _sortedCache == null ||
-        searchChanged ||
-        _lastSortChangeCount != sessionKey;
 
-    _SortedSessions sorted;
-    if (needsSort) {
-      sorted = _computeSortedSessions(
-        sessions,
-        previous: _sortedCache,
-        changeCount: sessionKey,
-        lastChangeCount: _lastSortChangeCount,
-        searchQuery: searchQuery,
-      );
-      _sortedCache = sorted;
-      _lastSortChangeCount = sessionKey;
-      _lastSearchQuery = searchQuery;
-    } else {
-      sorted = _sortedCache!;
-    }
+    final sorted = _computeSortedSessions(
+      sessions,
+      previous: _sortedCache,
+      lastSessions: _lastSessionsMap,
+      lastSearchQuery: _lastSearchQuery,
+      searchQuery: searchQuery,
+    );
+    _sortedCache = sorted;
+    _lastSessionsMap = sessions;
+    _lastSearchQuery = searchQuery;
 
     final activeSessions = sorted.active;
     final inactiveSessions = sorted.inactive;
