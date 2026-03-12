@@ -120,8 +120,10 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       );
     }
 
-    // Build a unified list of all items for lazy loading with ListView.builder
-    final items = _buildUnifiedList(
+    // Build lightweight descriptors — widgets are created lazily in
+    // itemBuilder to avoid allocating hundreds of widget objects for
+    // large friend lists / feed items that may never be scrolled to.
+    final descriptors = _buildDescriptors(
       feedState.items,
       incoming,
       requested,
@@ -137,165 +139,207 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
           AppSpacing.md,
           AppSpacing.xl,
         ),
-        itemCount: items.length + 1, // +1 for header
+        itemCount: descriptors.length + 1, // +1 for header
         itemBuilder: (context, index) {
           if (index == 0) {
             return _InboxHeader(onFindFriends: _showFindFriendsSheet);
           }
-          return items[index - 1];
+          return _buildItem(context, descriptors[index - 1]);
         },
       ),
     );
   }
 
-  /// Builds a unified list of widgets representing all inbox sections
-  /// and items.
-  ///
-  /// This enables lazy loading via ListView.builder instead of building all
-  /// items at once with Column+map, which was O(N) and slow for large
-  /// inboxes.
-  List<Widget> _buildUnifiedList(
+  /// Builds a flat list of lightweight descriptors that describe what
+  /// widget to render at each position without allocating any widgets.
+  List<_InboxItemDescriptor> _buildDescriptors(
     List<FeedItem> feedItems,
     List<FriendRequest> incoming,
     List<UserProfile> requested,
     List<UserProfile> friends,
   ) {
-    final items = <Widget>[];
+    final items = <_InboxItemDescriptor>[];
 
     // Feed section
     if (feedItems.isNotEmpty) {
       items
-        ..add(const SizedBox(height: AppSpacing.md))
-        ..add(
-          _SectionHeader(
-            key: const ValueKey('feed_header'),
-            title: context.l10n.inboxUpdates,
-          ),
-        )
-        ..addAll(
-          feedItems.map(
-            (item) => _FeedCard(
-              key: ValueKey('feed_${item.id}'),
-              item: item,
-              l10n: context.l10n,
-              onTap: () {
-                ref.read(feedNotifierProvider.notifier).markAsRead(item.id);
-                final sid = item.sessionId;
-                if (sid != null) {
-                  context.pushNamed('chat', pathParameters: {'sessionId': sid});
-                }
-              },
-            ),
-          ),
+        ..add(const _InboxItemDescriptor.spacer())
+        ..add(const _InboxItemDescriptor.sectionHeader(
+          titleKey: 'feed',
+        ));
+      for (final item in feedItems) {
+        items.add(
+          _InboxItemDescriptor.feed(feedItem: item),
         );
+      }
     }
 
     // Incoming requests section
     if (incoming.isNotEmpty) {
       items
-        ..add(const SizedBox(height: AppSpacing.md))
-        ..add(
-          _SectionHeader(
-            key: const ValueKey('incoming_header'),
-            title: context.l10n.inboxPendingRequests,
-          ),
-        )
-        ..addAll(
-          incoming.map(
-            (request) => _FriendRequestCard(
-              key: ValueKey('incoming_${request.fromUserId}'),
-              request: request,
-              disabled: _isItemBusy(request.fromUserId),
-              onAccept: () => _runFriendAction(
-                request.fromUserId,
-                () => _socialService.addFriend(request.fromUserId),
-                context.l10n.friendsRequestAccepted,
-              ),
-              onReject: () => _runFriendAction(
-                request.fromUserId,
-                () => _socialService.removeFriend(request.fromUserId),
-                context.l10n.friendsRequestRejected,
-              ),
-            ),
+        ..add(const _InboxItemDescriptor.spacer())
+        ..add(const _InboxItemDescriptor.sectionHeader(
+          titleKey: 'incoming',
+        ));
+      for (final request in incoming) {
+        items.add(
+          _InboxItemDescriptor.incomingRequest(
+            incomingRequest: request,
           ),
         );
+      }
     }
 
     // Sent requests section
     if (requested.isNotEmpty) {
       items
-        ..add(const SizedBox(height: AppSpacing.md))
-        ..add(
-          _SectionHeader(
-            key: const ValueKey('requested_header'),
-            title: context.l10n.inboxSentRequests,
-          ),
-        )
-        ..addAll(
-          requested.map(
-            (friend) => _UserRow(
-              key: ValueKey('requested_${friend.id}'),
-              title: friend.name ?? friend.id,
-              subtitle: context.l10n.inboxRequestPending,
-              userId: friend.id,
-              avatarUrl: friend.avatarUrl,
-              trailing: TextButton(
-                onPressed: _isItemBusy(friend.id)
-                    ? null
-                    : () => _runFriendAction(
-                        friend.id,
-                        () => _socialService.removeFriend(friend.id),
-                        context.l10n.inboxRequestCanceled,
-                      ),
-                child: Text(context.l10n.commonCancel),
-              ),
-            ),
+        ..add(const _InboxItemDescriptor.spacer())
+        ..add(const _InboxItemDescriptor.sectionHeader(
+          titleKey: 'requested',
+        ));
+      for (final friend in requested) {
+        items.add(
+          _InboxItemDescriptor.sentRequest(
+            userProfile: friend,
           ),
         );
+      }
     }
 
     // Friends section
     if (friends.isNotEmpty) {
       items
-        ..add(const SizedBox(height: AppSpacing.md))
-        ..add(
-          _SectionHeader(
-            key: const ValueKey('friends_header'),
-            title: context.l10n.inboxMyFriends,
-          ),
-        )
-        ..addAll(
-          friends.map(
-            (friend) => _UserRow(
-              key: ValueKey('friend_${friend.id}'),
-              title: friend.name ?? friend.id,
-              subtitle:
-                  friend.bio ?? '@${friend.username}',
-              userId: friend.id,
-              avatarUrl: friend.avatarUrl,
-              showStatusDot: true,
-              trailing: IconButton(
-                onPressed: _isItemBusy(friend.id)
-                    ? null
-                    : () => _showRemoveFriendDialog(
-                        friend,
-                      ),
-                icon: Icon(
-                  Icons.person_remove_outlined,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .error,
-                  size: AppSpacing.xl,
-                ),
-                tooltip: context
-                    .l10n.friendsRemoveAction,
-              ),
-            ),
+        ..add(const _InboxItemDescriptor.spacer())
+        ..add(const _InboxItemDescriptor.sectionHeader(
+          titleKey: 'friends',
+        ));
+      for (final friend in friends) {
+        items.add(
+          _InboxItemDescriptor.friend(
+            userProfile: friend,
           ),
         );
+      }
     }
 
     return items;
+  }
+
+  /// Lazily builds a single widget from a descriptor. Called by
+  /// ListView.builder only for visible items.
+  Widget _buildItem(
+    BuildContext context,
+    _InboxItemDescriptor desc,
+  ) {
+    final l10n = context.l10n;
+
+    switch (desc.type) {
+      case _InboxItemType.spacer:
+        return const SizedBox(height: AppSpacing.md);
+
+      case _InboxItemType.sectionHeader:
+        final title = switch (desc.titleKey) {
+          'feed' => l10n.inboxUpdates,
+          'incoming' => l10n.inboxPendingRequests,
+          'requested' => l10n.inboxSentRequests,
+          'friends' => l10n.inboxMyFriends,
+          _ => '',
+        };
+        return _SectionHeader(
+          key: ValueKey('${desc.titleKey}_header'),
+          title: title,
+        );
+
+      case _InboxItemType.feed:
+        final item = desc.feedItem!;
+        return _FeedCard(
+          key: ValueKey('feed_${item.id}'),
+          item: item,
+          l10n: l10n,
+          onTap: () {
+            ref
+                .read(feedNotifierProvider.notifier)
+                .markAsRead(item.id);
+            final sid = item.sessionId;
+            if (sid != null) {
+              context.pushNamed(
+                'chat',
+                pathParameters: {'sessionId': sid},
+              );
+            }
+          },
+        );
+
+      case _InboxItemType.incomingRequest:
+        final request = desc.incomingRequest!;
+        return _FriendRequestCard(
+          key: ValueKey(
+            'incoming_${request.fromUserId}',
+          ),
+          request: request,
+          disabled: _isItemBusy(request.fromUserId),
+          onAccept: () => _runFriendAction(
+            request.fromUserId,
+            () => _socialService.addFriend(
+              request.fromUserId,
+            ),
+            l10n.friendsRequestAccepted,
+          ),
+          onReject: () => _runFriendAction(
+            request.fromUserId,
+            () => _socialService.removeFriend(
+              request.fromUserId,
+            ),
+            l10n.friendsRequestRejected,
+          ),
+        );
+
+      case _InboxItemType.sentRequest:
+        final friend = desc.userProfile!;
+        return _UserRow(
+          key: ValueKey('requested_${friend.id}'),
+          title: friend.name ?? friend.id,
+          subtitle: l10n.inboxRequestPending,
+          userId: friend.id,
+          avatarUrl: friend.avatarUrl,
+          trailing: TextButton(
+            onPressed: _isItemBusy(friend.id)
+                ? null
+                : () => _runFriendAction(
+                    friend.id,
+                    () => _socialService.removeFriend(
+                      friend.id,
+                    ),
+                    l10n.inboxRequestCanceled,
+                  ),
+            child: Text(l10n.commonCancel),
+          ),
+        );
+
+      case _InboxItemType.friend:
+        final friend = desc.userProfile!;
+        return _UserRow(
+          key: ValueKey('friend_${friend.id}'),
+          title: friend.name ?? friend.id,
+          subtitle: friend.bio ?? '@${friend.username}',
+          userId: friend.id,
+          avatarUrl: friend.avatarUrl,
+          showStatusDot: true,
+          trailing: IconButton(
+            onPressed: _isItemBusy(friend.id)
+                ? null
+                : () => _showRemoveFriendDialog(
+                    friend,
+                  ),
+            icon: Icon(
+              Icons.person_remove_outlined,
+              color: Theme.of(context).colorScheme.error,
+              size: AppSpacing.xl,
+            ),
+            tooltip: l10n.friendsRemoveAction,
+          ),
+        );
+    }
   }
 
   Future<void> _showRemoveFriendDialog(UserProfile friend) async {
@@ -333,6 +377,70 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     }
     unawaited(context.push('/friends/search'));
   }
+}
+
+// ── Lazy item descriptors ───────────────────────────────────────────────────
+
+/// Lightweight type tag for each position in the unified inbox list.
+enum _InboxItemType {
+  spacer,
+  sectionHeader,
+  feed,
+  incomingRequest,
+  sentRequest,
+  friend,
+}
+
+/// Describes what widget should be rendered at a given list position
+/// without allocating any widget instances. Widgets are built on-demand
+/// in [_InboxScreenState._buildItem].
+class _InboxItemDescriptor {
+  const _InboxItemDescriptor.spacer()
+    : type = _InboxItemType.spacer,
+      titleKey = null,
+      feedItem = null,
+      incomingRequest = null,
+      userProfile = null;
+
+  const _InboxItemDescriptor.sectionHeader({
+    required this.titleKey,
+  }) : type = _InboxItemType.sectionHeader,
+       feedItem = null,
+       incomingRequest = null,
+       userProfile = null;
+
+  const _InboxItemDescriptor.feed({required this.feedItem})
+    : type = _InboxItemType.feed,
+      titleKey = null,
+      incomingRequest = null,
+      userProfile = null;
+
+  const _InboxItemDescriptor.incomingRequest({
+    required this.incomingRequest,
+  }) : type = _InboxItemType.incomingRequest,
+       titleKey = null,
+       feedItem = null,
+       userProfile = null;
+
+  const _InboxItemDescriptor.sentRequest({
+    required UserProfile this.userProfile,
+  }) : type = _InboxItemType.sentRequest,
+       titleKey = null,
+       feedItem = null,
+       incomingRequest = null;
+
+  const _InboxItemDescriptor.friend({
+    required UserProfile this.userProfile,
+  }) : type = _InboxItemType.friend,
+       titleKey = null,
+       feedItem = null,
+       incomingRequest = null;
+
+  final _InboxItemType type;
+  final String? titleKey;
+  final FeedItem? feedItem;
+  final FriendRequest? incomingRequest;
+  final UserProfile? userProfile;
 }
 
 // ── Header ─────────────────────────────────────────────────────────────────
