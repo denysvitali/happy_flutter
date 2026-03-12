@@ -42,7 +42,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _loadFailed = false;
 
   bool _didStartInitialLoad = false;
+  int _lastDataChangeCounter = 0;
   int _prevMessagesLength = 0;
+  int _prevSeenLength = 0;
   bool _autoScroll = true;
   static const double _autoScrollThreshold = 100;
 
@@ -56,6 +58,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   static const int _pageSize = 50;
   int _visibleCount = _pageSize;
   bool _isLoadingMore = false;
+  int _lastLoadMoreMs = 0;
 
   // Cached slicing / index data for _buildMessageList.
   List<Map<String, dynamic>>? _cachedVisibleMessages;
@@ -65,6 +68,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   bool _initialLoadComplete = false;
   final Set<String> _seenMessageIds = {};
+
+  // Pre-computed neighbor cache for message list items (replacing O(N) scans).
+  final Map<int, (Map<String, dynamic>?, Map<String, dynamic>?)>
+      _neighborCache = {};
+  List<Map<String, dynamic>?>? _neighborCacheSource;
+  int _neighborCacheLength = -1;
+
+  void _rebuildNeighborCache(List<Map<String, dynamic>?> items) {
+    if (identical(items, _neighborCacheSource) &&
+        items.length == _neighborCacheLength) {
+      return;
+    }
+    _neighborCacheSource = items;
+    _neighborCacheLength = items.length;
+    _neighborCache.clear();
+    for (var i = 0; i < items.length; i++) {
+      Map<String, dynamic>? prev;
+      for (var j = i - 1; j >= 0; j--) {
+        if (items[j] != null) {
+          prev = items[j];
+          break;
+        }
+      }
+      Map<String, dynamic>? next;
+      for (var j = i + 1; j < items.length; j++) {
+        if (items[j] != null) {
+          next = items[j];
+          break;
+        }
+      }
+      _neighborCache[i] = (prev, next);
+    }
+  }
 
   @override
   void initState() {
@@ -164,6 +200,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         });
     _dataSyncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
+      final counter = sync.dataChangeCounter;
+      if (counter == _lastDataChangeCounter) return;
+      _lastDataChangeCounter = counter;
       if (!_didStartInitialLoad && sync.isInitialized) {
         _doInitialLoad();
       } else {
@@ -257,10 +296,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         for (final m in latestMessages) {
           _seenMessageIds.add(_messageKey(m));
         }
+        _prevSeenLength = latestMessages.length;
       } else if (_initialLoadComplete) {
-        for (final m in latestMessages) {
-          _seenMessageIds.add(_messageKey(m));
+        final oldLen = _prevSeenLength;
+        final newLen = latestMessages.length;
+        if (newLen > oldLen) {
+          for (var i = oldLen; i < newLen; i++) {
+            _seenMessageIds.add(_messageKey(latestMessages[i]));
+          }
         }
+        _prevSeenLength = newLen;
       }
     });
 
@@ -316,7 +361,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     if (pos.pixels >= pos.maxScrollExtent - 300) {
-      _loadMore();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (now - _lastLoadMoreMs >= 200) {
+        _lastLoadMoreMs = now;
+        _loadMore();
+      }
     }
   }
 
@@ -683,6 +732,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     }
 
+    _rebuildNeighborCache(items);
+
     return ListView.builder(
       controller: _scrollController,
       reverse: true,
@@ -730,13 +781,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
 
         final message = item;
-        Map<String, dynamic>? nextMessage;
-        for (var j = reversedIndex + 1; j < items.length; j++) {
-          if (items[j] != null) {
-            nextMessage = items[j];
-            break;
-          }
-        }
+        final (prevMessage, nextMessage) =
+            _neighborCache[reversedIndex] ?? (null, null);
 
         final currentRole = message['role'] as String?;
         final nextRole = nextMessage?['role'] as String?;
@@ -749,13 +795,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ? AppSpacing.xs
             : AppSpacing.md;
 
-        Map<String, dynamic>? prevMessage;
-        for (var j = reversedIndex - 1; j >= 0; j--) {
-          if (items[j] != null) {
-            prevMessage = items[j];
-            break;
-          }
-        }
         final prevRole = prevMessage?['role'] as String?;
         final isFirstInGroup = nextRole != currentRole;
         final isLastInGroup = prevRole != currentRole;

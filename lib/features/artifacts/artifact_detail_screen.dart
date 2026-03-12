@@ -24,6 +24,7 @@ class ArtifactDetailScreen extends ConsumerStatefulWidget {
 
 class _ArtifactDetailScreenState
     extends ConsumerState<ArtifactDetailScreen> {
+  int _lastDataChangeCounter = 0;
   StreamSubscription<void>? _syncSubscription;
 
   @override
@@ -36,6 +37,9 @@ class _ArtifactDetailScreenState
     });
     _syncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
+      final counter = sync.dataChangeCounter;
+      if (counter == _lastDataChangeCounter) return;
+      _lastDataChangeCounter = counter;
       ref.read(artifactsNotifierProvider.notifier).loadFromSync();
     });
   }

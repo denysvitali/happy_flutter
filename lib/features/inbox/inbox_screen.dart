@@ -29,6 +29,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   final SocialService _socialService = SocialService();
   final Set<String> _busyIds = {};
   bool _isLoading = true;
+  int _lastDataChangeCounter = 0;
   StreamSubscription<void>? _syncSubscription;
 
   @override
@@ -37,6 +38,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     Future<void>.microtask(_refresh);
     _syncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
+      final counter = sync.dataChangeCounter;
+      if (counter == _lastDataChangeCounter) return;
+      _lastDataChangeCounter = counter;
       ref.read(friendsNotifierProvider.notifier).loadFromSync();
       ref.read(feedNotifierProvider.notifier).loadFromSync();
     });
