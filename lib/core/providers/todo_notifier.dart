@@ -134,6 +134,8 @@ class TodoListState {
   TodoListState({this.lists = const {}});
   final Map<String?, TodoList> lists;
 
+  List<TodoItem>? _allTodosCache;
+
   TodoListState copyWith({Map<String?, TodoList>? lists}) {
     return TodoListState(lists: lists ?? this.lists);
   }
@@ -141,7 +143,8 @@ class TodoListState {
   TodoList? getGlobalList() => lists[null];
 
   List<TodoItem> get allTodos {
-    return lists.values.expand((list) => list.items).toList();
+    return _allTodosCache ??=
+        lists.values.expand((list) => list.items).toList();
   }
 
   int get totalCount => allTodos.length;

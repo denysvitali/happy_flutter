@@ -12,9 +12,10 @@ class ConnectionNotifier extends Notifier<socket_io.ConnectionStatus> {
       state = status;
     });
     ref.onDispose(() => _unsubscribe?.call());
-    // Return initial state; onStatusChange callback will update immediately
-    // with current status since it calls listener(_status) on registration
-    return socket_io.ConnectionStatus.disconnected;
+    // Return the actual current status rather than a hardcoded disconnected
+    // state, avoiding a brief flash of "disconnected" before the real status
+    // arrives via the onStatusChange callback.
+    return socket_io.socketIoClient.connectionStatus;
   }
 
   void connect(String serverUrl, String token) {

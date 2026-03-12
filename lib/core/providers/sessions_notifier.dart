@@ -21,6 +21,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.sessions;
+    if (identical(state, next)) return;
     if (mapEquals(state, next)) return;
     state = Map<String, Session>.from(next);
   }
