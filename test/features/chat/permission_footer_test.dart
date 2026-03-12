@@ -190,7 +190,7 @@ void main() {
       expect(find.text('Allow'), findsOneWidget);
     });
 
-    testWidgets('shows disabled clear-context button for claude plan tool', (
+    testWidgets('does not show clear-context button for claude plan tool', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -207,13 +207,8 @@ void main() {
         ),
       );
 
-      final finder = find.widgetWithText(
-        OutlinedButton,
-        'Accept plan + clear context',
-      );
-      expect(finder, findsOneWidget);
-      final button = tester.widget<OutlinedButton>(finder);
-      expect(button.onPressed, isNull);
+      // Clear-context button intentionally omitted (Apple HIG).
+      expect(find.text('Accept plan + clear context'), findsNothing);
     });
 
     testWidgets('does not show clear-context button for non-claude flavors', (
@@ -238,7 +233,7 @@ void main() {
   });
 
   group('PermissionFooter approved state', () {
-    testWidgets('hides action buttons when approved', (tester) async {
+    testWidgets('renders nothing when approved', (tester) async {
       await tester.pumpWidget(
         _wrap(
           PermissionFooter(
@@ -255,7 +250,8 @@ void main() {
       expect(find.text('Allow'), findsNothing);
       expect(find.text('All edits'), findsNothing);
       expect(find.text('Deny'), findsNothing);
-      expect(find.text('Approved'), findsOneWidget);
+      // Auto-approved permissions render nothing (Yolo mode).
+      expect(find.byType(SizedBox), findsWidgets);
     });
   });
 

@@ -508,7 +508,6 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
           borderRadius: BorderRadius.circular(AppRadius.sm),
           child: Container(
             decoration: BoxDecoration(
-              color: cs.surfaceContainerLow,
               border: Border.all(
                 color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
                 width: 0.5,
