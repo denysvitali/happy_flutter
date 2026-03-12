@@ -860,7 +860,7 @@ class _SessionCardState extends State<SessionCard> {
         : cs.onSurfaceVariant;
     _cardColor = widget.isSelected
         ? cs.primary.withValues(alpha: 0.08)
-        : cs.surface;
+        : cs.surfaceContainerHighest;
   }
 
   BorderRadius _resolveBorderRadius() {
@@ -902,7 +902,7 @@ class _SessionCardState extends State<SessionCard> {
         onLongPress: widget.onLongPress,
         borderRadius: _borderRadius,
         titleColor: _titleColor ?? theme.colorScheme.onSurfaceVariant,
-        cardColor: _cardColor ?? theme.colorScheme.surface,
+        cardColor: _cardColor ?? theme.colorScheme.surfaceContainerHighest,
         theme: theme,
         colorScheme: theme.colorScheme,
         onTap: widget.onTap,
