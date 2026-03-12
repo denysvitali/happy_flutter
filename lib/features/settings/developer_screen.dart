@@ -1,6 +1,9 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
@@ -17,6 +20,33 @@ class DeveloperScreen extends ConsumerStatefulWidget {
 }
 
 class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
+  PackageInfo? _packageInfo;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPackageInfo();
+  }
+
+  Future<void> _loadPackageInfo() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() => _packageInfo = info);
+    }
+  }
+
+  /// Flutter SDK version — no runtime API available.
+  static const String _flutterVersion = '3.38.7';
+
+  String get _dartVersion {
+    // Platform.version format:
+    // '3.10.0 (stable) (...) on "linux_x64"'
+    final match = RegExp(
+      r'^(\d+\.\d+\.\d+)',
+    ).firstMatch(Platform.version);
+    return match?.group(1) ?? Platform.version;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -203,22 +233,22 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                 SettingsRow(
                   icon: Icons.info_outline,
                   title: l10n.developerAppVersion,
-                  subtitle: '1.0.0',
+                  subtitle: _packageInfo?.version ?? '—',
                 ),
                 SettingsRow(
                   icon: Icons.numbers,
                   title: l10n.developerBuildNumber,
-                  subtitle: '1',
+                  subtitle: _packageInfo?.buildNumber ?? '—',
                 ),
                 SettingsRow(
                   icon: Icons.flutter_dash,
                   title: l10n.developerFlutterVersion,
-                  subtitle: '3.38.7',
+                  subtitle: _flutterVersion,
                 ),
                 SettingsRow(
                   icon: Icons.code,
                   title: l10n.developerDartVersion,
-                  subtitle: '3.10+',
+                  subtitle: _dartVersion,
                 ),
               ],
             ),

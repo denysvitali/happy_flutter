@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/sftp_directory.dart';
 import '../providers/sftp_provider.dart';
@@ -25,12 +26,15 @@ class _SftpDirectoryManagerScreenState
   bool _isLoading = true;
   String? _error;
   String _sortBy = 'name'; // name, size, modified, type
+  late String _currentPath;
 
   SftpDirectory get _dir => widget.directory;
+  bool get _isSubdirectory => _currentPath != _dir.path;
 
   @override
   void initState() {
     super.initState();
+    _currentPath = _dir.path;
     _loadDirectory();
   }
 
@@ -41,7 +45,7 @@ class _SftpDirectoryManagerScreenState
     });
 
     try {
-      final dir = Directory(_dir.path);
+      final dir = Directory(_currentPath);
       if (!await dir.exists()) {
         setState(() {
           _error = 'Directory no longer exists';
@@ -155,6 +159,25 @@ class _SftpDirectoryManagerScreenState
     }
   }
 
+  void _navigateToSubdirectory(String subPath) {
+    setState(() {
+      _currentPath = subPath;
+    });
+    _loadDirectory();
+  }
+
+  Future<void> _openFile(String filePath) async {
+    final uri = Uri.file(filePath);
+    final launched = await launchUrl(uri);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No app found to open this file'),
+        ),
+      );
+    }
+  }
+
   void _showSortOptions() {
     showModalBottomSheet(
       context: context,
@@ -223,7 +246,25 @@ class _SftpDirectoryManagerScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_dir.name),
+        leading: _isSubdirectory
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  final parent = p.dirname(_currentPath);
+                  if (parent != _dir.path &&
+                      _currentPath.startsWith(_dir.path)) {
+                    _navigateToSubdirectory(parent);
+                  } else {
+                    _navigateToSubdirectory(_dir.path);
+                  }
+                },
+              )
+            : null,
+        title: Text(
+          _isSubdirectory
+              ? p.basename(_currentPath)
+              : _dir.name,
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.link),
@@ -261,7 +302,7 @@ class _SftpDirectoryManagerScreenState
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        _dir.path,
+                        _currentPath,
                         style: Theme.of(context).textTheme.bodySmall,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -384,6 +425,8 @@ class _SftpDirectoryManagerScreenState
                               itemBuilder: (context, index) {
                                 return _FileEntityTile(
                                   entity: _entities[index],
+                                  onDirectoryTap: _navigateToSubdirectory,
+                                  onFileTap: _openFile,
                                 );
                               },
                             ),
@@ -422,9 +465,15 @@ class _SftpDirectoryManagerScreenState
 
 /// A tile for a single file or directory entry
 class _FileEntityTile extends StatelessWidget {
-  const _FileEntityTile({required this.entity});
+  const _FileEntityTile({
+    required this.entity,
+    required this.onDirectoryTap,
+    required this.onFileTap,
+  });
 
   final FileSystemEntity entity;
+  final void Function(String subPath) onDirectoryTap;
+  final void Function(String filePath) onFileTap;
 
   @override
   Widget build(BuildContext context) {
@@ -467,17 +516,9 @@ class _FileEntityTile extends StatelessWidget {
           : null,
       onTap: () {
         if (isDir) {
-          // TODO: Navigate into subdirectory
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Subdirectory navigation coming soon'),
-            ),
-          );
+          onDirectoryTap(entity.path);
         } else {
-          // TODO: Open file with system default app
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Open $name')),
-          );
+          onFileTap(entity.path);
         }
       },
     );
