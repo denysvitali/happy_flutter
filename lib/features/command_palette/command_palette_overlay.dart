@@ -20,7 +20,10 @@ class CommandPaletteOverlay extends StatefulWidget {
   final VoidCallback onClose;
 
   /// Shows the command palette as an overlay
-  static Future<void> show(BuildContext context, List<CommandItem> commands) {
+  static Future<void> show(
+    BuildContext context,
+    List<CommandItem> commands,
+  ) {
     return showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
@@ -188,8 +191,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
 
     return KeyboardListener(
@@ -202,13 +204,11 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
             constraints: const BoxConstraints(maxWidth: 640, maxHeight: 500),
             margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              color: colorScheme.surface,
               borderRadius: BorderRadius.circular(AppRadius.lg),
               boxShadow: AppShadow.modal,
               border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.black.withValues(alpha: 0.08),
+                color: colorScheme.outlineVariant,
               ),
             ),
             child: Column(
@@ -220,9 +220,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
                   decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.08)
-                            : Colors.black.withValues(alpha: 0.08),
+                        color: colorScheme.outlineVariant,
                       ),
                     ),
                   ),
@@ -230,7 +228,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
                     children: [
                       Icon(
                         Icons.search,
-                        color: isDark ? Colors.white54 : Colors.black54,
+                        color: colorScheme.onSurfaceVariant,
                         size: AppSpacing.xl - AppSpacing.sm,
                       ),
                       const SizedBox(width: AppSpacing.md),
@@ -241,15 +239,17 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
                           decoration: InputDecoration(
                             hintText: l10n.commandSearchHint,
                             hintStyle: TextStyle(
-                              color: isDark ? Colors.white38 : Colors.black38,
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.38,
+                              ),
                             ),
                             border: InputBorder.none,
                             isDense: true,
                             contentPadding: EdgeInsets.zero,
                           ),
                           style: TextStyle(
-                            fontSize: 16,
-                            color: isDark ? Colors.white : Colors.black,
+                            fontSize: AppFontSize.lg,
+                            color: colorScheme.onSurface,
                           ),
                           onChanged: (value) {
                             setState(() {
@@ -265,17 +265,17 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
                           vertical: AppSpacing.xxs,
                         ),
                         decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : Colors.black.withValues(alpha: 0.04),
+                          color: colorScheme.onSurface.withValues(
+                            alpha: 0.06,
+                          ),
                           borderRadius: BorderRadius.circular(AppRadius.xs),
                         ),
                         child: Text(
                           'ESC',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: AppFontSize.xs,
                             fontWeight: FontWeight.w500,
-                            color: isDark ? Colors.white54 : Colors.black54,
+                            color: colorScheme.onSurfaceVariant,
                             fontFamily: 'monospace',
                           ),
                         ),
@@ -287,8 +287,8 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
                 // Results
                 Flexible(
                   child: _filteredCategories.isEmpty
-                      ? _buildEmptyState(isDark)
-                      : _buildResultsList(isDark),
+                      ? _buildEmptyState(colorScheme)
+                      : _buildResultsList(colorScheme),
                 ),
               ],
             ),
@@ -298,7 +298,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
     );
   }
 
-  Widget _buildEmptyState(bool isDark) {
+  Widget _buildEmptyState(ColorScheme colorScheme) {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.xxxl),
       child: Column(
@@ -307,22 +307,22 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
           Icon(
             Icons.search_off,
             size: AppSpacing.xxxl + AppSpacing.xxxl,
-            color: isDark ? Colors.white38 : Colors.black38,
+            color: colorScheme.onSurface.withValues(alpha: 0.38),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
             'No commands found',
             style: TextStyle(
-              fontSize: 16,
-              color: isDark ? Colors.white54 : Colors.black54,
+              fontSize: AppFontSize.lg,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             'Try a different search term',
             style: TextStyle(
-              fontSize: 14,
-              color: isDark ? Colors.white38 : Colors.black38,
+              fontSize: AppFontSize.base,
+              color: colorScheme.onSurface.withValues(alpha: 0.38),
             ),
           ),
         ],
@@ -330,7 +330,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
     );
   }
 
-  Widget _buildResultsList(bool isDark) {
+  Widget _buildResultsList(ColorScheme colorScheme) {
     return ListView.builder(
       controller: _scrollController,
       shrinkWrap: true,
@@ -350,9 +350,9 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
               child: Text(
                 category.title,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: AppFontSize.sm,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white54 : Colors.black54,
+                  color: colorScheme.onSurfaceVariant,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -373,7 +373,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
               return _CommandPaletteItem(
                 command: command,
                 isSelected: globalIndex == _selectedIndex,
-                isDark: isDark,
+                colorScheme: colorScheme,
                 onTap: () {
                   widget.onClose();
                   command.action();
@@ -398,14 +398,14 @@ class _CommandPaletteItem extends StatefulWidget {
   const _CommandPaletteItem({
     required this.command,
     required this.isSelected,
-    required this.isDark,
+    required this.colorScheme,
     required this.onTap,
     required this.onHover,
   });
 
   final CommandItem command;
   final bool isSelected;
-  final bool isDark;
+  final ColorScheme colorScheme;
   final VoidCallback onTap;
   final void Function(bool) onHover;
 
@@ -419,6 +419,7 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
   @override
   Widget build(BuildContext context) {
     final isSelected = widget.isSelected || _isHovered;
+    final colorScheme = widget.colorScheme;
 
     return MouseRegion(
       onEnter: (_) {
@@ -442,16 +443,14 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
           ),
           decoration: BoxDecoration(
             color: isSelected
-                ? (widget.isDark
-                      ? const Color(0xFF0A84FF).withValues(alpha: 0.15)
-                      : const Color(0xFFF0F7FF))
+                ? colorScheme.primary.withValues(alpha: 0.12)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadius.sm),
             border: Border.all(
               color: isSelected
-                  ? const Color(0xFF007AFF).withValues(alpha: 0.2)
+                  ? colorScheme.primary.withValues(alpha: 0.2)
                   : Colors.transparent,
-              width: 2,
+              width: AppBorder.thick,
             ),
           ),
           child: Row(
@@ -459,21 +458,21 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
               // Icon
               if (widget.command.icon != null)
                 Container(
-                  width: AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
-                  height: AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
+                  width:
+                      AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
+                  height:
+                      AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
                   margin: const EdgeInsets.only(right: AppSpacing.md),
                   decoration: BoxDecoration(
-                    color: widget.isDark
-                        ? Colors.white.withValues(alpha: 0.04)
-                        : Colors.black.withValues(alpha: 0.04),
+                    color: colorScheme.onSurface.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Icon(
                     widget.command.icon,
                     size: AppSpacing.xl - AppSpacing.sm,
                     color: isSelected
-                        ? const Color(0xFF007AFF)
-                        : (widget.isDark ? Colors.white54 : Colors.black54),
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
                   ),
                 ),
 
@@ -488,7 +487,7 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
-                        color: widget.isDark ? Colors.white : Colors.black,
+                        color: colorScheme.onSurface,
                         letterSpacing: -0.2,
                       ),
                     ),
@@ -497,10 +496,8 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
                       Text(
                         widget.command.subtitle!,
                         style: TextStyle(
-                          fontSize: 13,
-                          color: widget.isDark
-                              ? Colors.white54
-                              : Colors.black54,
+                          fontSize: AppFontSize.md,
+                          color: colorScheme.onSurfaceVariant,
                           letterSpacing: -0.1,
                         ),
                       ),
@@ -517,17 +514,15 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
                     vertical: AppSpacing.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: widget.isDark
-                        ? Colors.white.withValues(alpha: 0.04)
-                        : Colors.black.withValues(alpha: 0.04),
+                    color: colorScheme.onSurface.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(AppRadius.xs),
                   ),
                   child: Text(
                     widget.command.shortcut!,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: AppFontSize.sm,
                       fontWeight: FontWeight.w500,
-                      color: widget.isDark ? Colors.white54 : Colors.black54,
+                      color: colorScheme.onSurfaceVariant,
                       fontFamily: 'monospace',
                     ),
                   ),
