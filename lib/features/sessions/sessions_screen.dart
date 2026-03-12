@@ -88,6 +88,7 @@ class _SessionsScreenState
   final _searchController = TextEditingController();
   bool _isSearching = false;
   Timer? _searchDebounce;
+  int _lastDataChangeCounter = -1;
 
   @override
   void initState() {
@@ -101,6 +102,10 @@ class _SessionsScreenState
     });
     _syncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
+      // Skip redundant calls when the counter hasn't advanced.
+      final counter = sync.dataChangeCounter;
+      if (counter == _lastDataChangeCounter) return;
+      _lastDataChangeCounter = counter;
       ref
           .read(sessionsNotifierProvider.notifier)
           .loadFromSync();
@@ -499,9 +504,9 @@ class _SessionsScreenState
     }
 
     if (mounted) {
-      await ref
+      ref
           .read(sessionsNotifierProvider.notifier)
-          .refreshFromSync();
+          .loadFromSync();
     }
 
     _exitSelectionMode();
@@ -560,9 +565,9 @@ class _SessionsScreenState
         await Future.wait(ids.map(sync.deleteSession));
 
     if (mounted) {
-      await ref
+      ref
           .read(sessionsNotifierProvider.notifier)
-          .refreshFromSync();
+          .loadFromSync();
     }
 
     _exitSelectionMode();
@@ -600,6 +605,64 @@ class _SessionsScreenState
   }
 }
 
+// ─── Sorted session cache ─────────────────────────────────────────────────
+
+/// Memoized result of sorting sessions into active and inactive lists.
+class _SortedSessions {
+  const _SortedSessions({
+    required this.active,
+    required this.inactive,
+  });
+  final List<Session> active;
+  final List<Session> inactive;
+}
+
+/// Compute sorted active/inactive lists, only if [sessions] changed.
+_SortedSessions _computeSortedSessions(
+  Map<String, Session> sessions, {
+  required _SortedSessions? previous,
+  required int changeCount,
+  required int? lastChangeCount,
+  String searchQuery = '',
+}) {
+  if (lastChangeCount != null &&
+      changeCount == lastChangeCount &&
+      previous != null) {
+    return previous;
+  }
+
+  final query = searchQuery.toLowerCase().trim();
+  Iterable<Session> sessionList = sessions.values;
+  if (query.isNotEmpty) {
+    sessionList = sessionList.where((s) {
+      final name = (s.metadata?.name ?? '').toLowerCase();
+      final path = (s.metadata?.path ?? '').toLowerCase();
+      final summary =
+          (s.metadata?.summary?.text ?? '').toLowerCase();
+      return name.contains(query) ||
+          path.contains(query) ||
+          summary.contains(query);
+    });
+  }
+
+  final active = <Session>[];
+  final inactive = <Session>[];
+  for (final s in sessionList) {
+    if (isSessionActive(s)) {
+      active.add(s);
+    } else {
+      inactive.add(s);
+    }
+  }
+  active.sort(
+    (a, b) => b.activeAt.compareTo(a.activeAt),
+  );
+  inactive.sort(
+    (a, b) => b.updatedAt.compareTo(a.updatedAt),
+  );
+  return _SortedSessions(active: active, inactive: inactive);
+}
+
 /// Sessions list content widget.
 class _SessionsListContent extends ConsumerStatefulWidget {
   const _SessionsListContent({
@@ -624,6 +687,9 @@ class _SessionsListContentState
   final Set<String> _collapsedDateKeys = {};
   ArchivedGrouping _archivedGrouping =
       ArchivedGrouping.date;
+  _SortedSessions? _sortedCache;
+  int? _lastSortChangeCount;
+  String? _lastSearchQuery;
 
   ValueNotifier<_SelectionState> get _sel =>
       widget.selectionNotifier;
@@ -687,51 +753,56 @@ class _SessionsListContentState
       settingsNotifierProvider
           .select((s) => parseAvatarStyle(s.avatarStyle)),
     );
-    var sessionList = sessions.values.toList();
+
+    // Use the length of the sessions map to detect when it actually changes.
+    // dataChangeCounter is monotonic, but it also increments for other data
+    // types (machines, friends, etc.).  We encode a stable key from sessions
+    // itself so that identical maps skip the sort even if the global counter
+    // moved.
+    final sessionKey = sessions.length;
+    final searchQuery = widget.searchQuery;
+    final searchChanged = _lastSearchQuery != searchQuery;
+    final needsSort = _sortedCache == null ||
+        searchChanged ||
+        _lastSortChangeCount != sessionKey;
+
+    _SortedSessions sorted;
+    if (needsSort) {
+      sorted = _computeSortedSessions(
+        sessions,
+        previous: _sortedCache,
+        changeCount: sessionKey,
+        lastChangeCount: _lastSortChangeCount,
+        searchQuery: searchQuery,
+      );
+      _sortedCache = sorted;
+      _lastSortChangeCount = sessionKey;
+      _lastSearchQuery = searchQuery;
+    } else {
+      sorted = _sortedCache!;
+    }
+
+    final activeSessions = sorted.active;
+    final inactiveSessions = sorted.inactive;
+    final sessionListCount =
+        activeSessions.length + inactiveSessions.length;
 
     if (!_hasLoaded &&
-        (sessionList.isNotEmpty || sync.isInitialized)) {
+        (sessionListCount > 0 || sync.isInitialized)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _hasLoaded = true);
       });
     }
 
-    final query = widget.searchQuery.toLowerCase().trim();
-    if (query.isNotEmpty) {
-      sessionList = sessionList.where((s) {
-        final name =
-            (s.metadata?.name ?? '').toLowerCase();
-        final path =
-            (s.metadata?.path ?? '').toLowerCase();
-        final summary = (s.metadata?.summary?.text ?? '')
-            .toLowerCase();
-        return name.contains(query) ||
-            path.contains(query) ||
-            summary.contains(query);
-      }).toList();
-    }
-
-    final activeSessions =
-        sessionList.where(isSessionActive).toList()
-          ..sort(
-            (a, b) => b.activeAt.compareTo(a.activeAt),
-          );
-    final inactiveSessions = sessionList
-        .where((s) => !isSessionActive(s))
-        .toList()
-      ..sort(
-        (a, b) => b.updatedAt.compareTo(a.updatedAt),
-      );
-
-    if (sessionList.isEmpty && !_hasLoaded) {
+    if (sessionListCount == 0 && !_hasLoaded) {
       return const SessionListShimmer();
     }
 
-    if (sessionList.isEmpty && query.isNotEmpty) {
+    if (sessionListCount == 0 && searchQuery.isNotEmpty) {
       return _buildSearchEmptyState(context);
     }
 
-    if (sessionList.isEmpty) {
+    if (sessionListCount == 0) {
       return const EmptySessionsView();
     }
 
