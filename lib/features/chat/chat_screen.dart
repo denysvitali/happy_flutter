@@ -106,55 +106,63 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    _loadSavedPermissionMode();
-    _loadSavedModelMode();
-    _loadSavedProfile();
+    _loadInitialSettings();
     _initializeSyncBackedChat();
     final settings = ref.read(settingsNotifierProvider);
-    unawaited(
-      TtsService().init(
-        language: settings.voiceAssistantLanguage,
-        engine: settings.ttsEngine,
-      ),
-    );
-  }
-
-  Future<void> _loadSavedPermissionMode() async {
-    final savedMode = await DraftStorage().getPermissionMode(widget.sessionId);
-    if (!mounted) return;
-    if (savedMode != null) {
-      final parsedMode = PermissionModeExtension.fromString(savedMode);
-      setState(() {
-        _permissionMode = parsedMode ?? PermissionMode.defaultMode;
-      });
-    }
-  }
-
-  Future<void> _loadSavedModelMode() async {
-    final savedMode = await DraftStorage().getModelMode(widget.sessionId);
-    final session = sync.sessions[widget.sessionId];
-    final flavor = session?.metadata?.flavor;
-    if (!mounted) return;
-    if (savedMode != null) {
-      setState(
-        () => _modelMode = ClaudeModel.normalizeForFlavor(
-          ClaudeModel.fromString(savedMode),
-          flavor,
+    if (settings.ttsEnabled) {
+      unawaited(
+        TtsService().init(
+          language: settings.voiceAssistantLanguage,
+          engine: settings.ttsEngine,
         ),
       );
-    } else {
-      if (session?.modelMode != null) {
-        setState(
-          () => _modelMode = ClaudeModel.normalizeForFlavor(
-            ClaudeModel.fromString(session!.modelMode),
-            flavor,
-          ),
-        );
-      }
     }
   }
 
-  Future<void> _loadSavedProfile() async {
+  /// Batches three async storage reads into a single setState call
+  /// to avoid 3 separate rebuilds on screen open.
+  Future<void> _loadInitialSettings() async {
+    final storage = DraftStorage();
+    final sessionId = widget.sessionId;
+
+    // Fire all three reads in parallel.
+    final results = await Future.wait([
+      storage.getPermissionMode(sessionId),
+      storage.getModelMode(sessionId),
+      storage.getProfileId(sessionId),
+    ]);
+
+    if (!mounted) return;
+
+    final savedPermMode = results[0];
+    final savedModelMode = results[1];
+    final savedProfileId = results[2];
+
+    // Permission mode.
+    var permissionMode = PermissionMode.defaultMode;
+    if (savedPermMode != null) {
+      permissionMode =
+          PermissionModeExtension.fromString(savedPermMode) ??
+          PermissionMode.defaultMode;
+    }
+
+    // Model mode.
+    final session = sync.sessions[sessionId];
+    final flavor = session?.metadata?.flavor;
+    var modelMode = ClaudeModel.defaultModel;
+    if (savedModelMode != null) {
+      modelMode = ClaudeModel.normalizeForFlavor(
+        ClaudeModel.fromString(savedModelMode),
+        flavor,
+      );
+    } else if (session?.modelMode != null) {
+      modelMode = ClaudeModel.normalizeForFlavor(
+        ClaudeModel.fromString(session!.modelMode),
+        flavor,
+      );
+    }
+
+    // Profile.
     final settings = ref.read(settingsNotifierProvider);
     final seen = <String>{};
     final deduped = <AIBackendProfile>[];
@@ -162,23 +170,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (seen.add(p.id)) deduped.add(p);
     }
 
-    final savedId =
-        await DraftStorage().getProfileId(widget.sessionId) ??
-        settings.lastUsedProfile;
-    if (!mounted) return;
-
-    AIBackendProfile? found;
-    if (savedId != null) {
+    AIBackendProfile? selectedProfile;
+    final effectiveProfileId = savedProfileId ?? settings.lastUsedProfile;
+    if (effectiveProfileId != null) {
       try {
-        found = deduped.firstWhere((p) => p.id == savedId);
+        selectedProfile =
+            deduped.firstWhere((p) => p.id == effectiveProfileId);
       } catch (_) {
-        found = null;
+        selectedProfile = null;
       }
     }
 
     setState(() {
+      _permissionMode = permissionMode;
+      _modelMode = modelMode;
       _availableProfiles = deduped;
-      _selectedProfile = found;
+      _selectedProfile = selectedProfile;
     });
   }
 
