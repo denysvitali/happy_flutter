@@ -233,11 +233,10 @@ class DevLogsScreen extends ConsumerWidget {
   }
 
   void _showSearchDialog(BuildContext context, WidgetRef ref) {
-    final controller = TextEditingController();
-
     showDialog(
       context: context,
       builder: (context) {
+        final controller = TextEditingController();
         final dialogL10n = AppLocalizations.of(context);
         return AlertDialog(
           title: Text(dialogL10n.devLogsSearchTitle),
@@ -254,17 +253,17 @@ class DevLogsScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () {
-                controller.clear();
+                controller.dispose();
                 Navigator.pop(context);
               },
               child: Text(dialogL10n.devLogsClearAction),
             ),
             FilledButton(
               onPressed: () {
-                // Store search query and apply filter
                 ref.read(
                   loggerNotifierProvider.notifier,
                 ).setSearchQuery(controller.text);
+                controller.dispose();
                 Navigator.pop(context);
               },
               child: Text(dialogL10n.commonSearch),
@@ -272,7 +271,7 @@ class DevLogsScreen extends ConsumerWidget {
           ],
         );
       },
-    ).whenComplete(controller.dispose);
+    );
   }
 }
 

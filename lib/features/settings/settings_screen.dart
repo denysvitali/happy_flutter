@@ -480,14 +480,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     BuildContext context,
     String currentUrl,
   ) async {
-    final controller = TextEditingController(text: currentUrl);
-    final formKey = GlobalKey<FormState>();
-    String? errorText;
-    var isVerifying = false;
-
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
+      builder: (dialogContext) {
+        final controller = TextEditingController(text: currentUrl);
+        final formKey = GlobalKey<FormState>();
+        String? errorText;
+        var isVerifying = false;
+
+        return StatefulBuilder(
         builder: (dialogContext, setDialogState) {
           final l10nDialog = AppLocalizations.of(dialogContext);
           return AlertDialog(
@@ -522,7 +523,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
+                onPressed: () {
+                  controller.dispose();
+                  Navigator.pop(dialogContext);
+                },
                 child: Text(l10nDialog.commonCancel),
               ),
               if (currentUrl != defaultServerUrl)
@@ -531,6 +535,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     setServerUrl(null);
                     ApiClient().refreshServerUrl();
                     socketIoClient.refreshServerUrl(getServerUrl());
+                    controller.dispose();
                     Navigator.pop(dialogContext);
                     ScaffoldMessenger.of(dialogContext).showSnackBar(
                       SnackBar(
@@ -578,6 +583,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         socketIoClient.refreshServerUrl(url);
 
                         if (dialogContext.mounted) {
+                          controller.dispose();
                           Navigator.pop(dialogContext);
                           ScaffoldMessenger.of(dialogContext).showSnackBar(
                             SnackBar(
@@ -598,8 +604,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           );
         },
-      ),
-    ).whenComplete(controller.dispose);
+      );
+    });
   }
 
   Widget _buildAboutSection(BuildContext context) {
