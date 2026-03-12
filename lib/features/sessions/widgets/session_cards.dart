@@ -817,13 +817,19 @@ class _SessionCardState extends State<SessionCard> {
   late String _sessionName;
   late String _sessionSubtitle;
   late BorderRadius _borderRadius;
-  late Color _titleColor;
-  late Color _cardColor;
+  Color? _titleColor;
+  Color? _cardColor;
 
   @override
   void initState() {
     super.initState();
-    _computeDerivedValues();
+    _computeSessionValues();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _computeThemeValues();
   }
 
   @override
@@ -834,16 +840,20 @@ class _SessionCardState extends State<SessionCard> {
         oldWidget.isFirst != widget.isFirst ||
         oldWidget.isLast != widget.isLast ||
         oldWidget.isSelected != widget.isSelected) {
-      _computeDerivedValues();
+      _computeSessionValues();
+      _computeThemeValues();
     }
   }
 
-  void _computeDerivedValues() {
+  void _computeSessionValues() {
     _sessionStatus = getSessionStatus(widget.session);
     _avatarId = getSessionAvatarId(widget.session);
     _sessionName = getSessionName(widget.session);
     _sessionSubtitle = getSessionSubtitle(widget.session);
     _borderRadius = _resolveBorderRadius();
+  }
+
+  void _computeThemeValues() {
     final cs = Theme.of(context).colorScheme;
     _titleColor = _sessionStatus.isConnected
         ? cs.onSurface
@@ -891,8 +901,8 @@ class _SessionCardState extends State<SessionCard> {
         isSelected: widget.isSelected,
         onLongPress: widget.onLongPress,
         borderRadius: _borderRadius,
-        titleColor: _titleColor,
-        cardColor: _cardColor,
+        titleColor: _titleColor ?? theme.colorScheme.onSurfaceVariant,
+        cardColor: _cardColor ?? theme.colorScheme.surface,
         theme: theme,
         colorScheme: theme.colorScheme,
         onTap: widget.onTap,
