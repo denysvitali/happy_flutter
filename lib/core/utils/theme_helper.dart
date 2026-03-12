@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:happy_flutter/core/providers/settings_notifier.dart';
 import 'package:happy_flutter/core/theme/app_color_scheme.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 
@@ -27,9 +29,13 @@ enum AppThemeMode {
 
 /// Extension on BuildContext for theme-aware operations
 extension ThemeContextExtension on BuildContext {
-  /// Get the current app theme mode from settings
-  /// Note: This is a stub - actual theme mode should be read from provider
-  AppThemeMode get appThemeMode => AppThemeMode.adaptive;
+  /// Get the current app theme mode from settings provider
+  AppThemeMode get appThemeMode {
+    final container = ProviderScope.containerOf(this);
+    final themeModeString =
+        container.read(settingsNotifierProvider).themeMode;
+    return AppThemeMode.fromString(themeModeString);
+  }
 
   /// Check if the app should use dark theme
   bool get isDarkMode {
@@ -61,7 +67,7 @@ extension ThemeModeExtension on AppThemeMode {
       AppThemeMode.dark => Brightness.dark,
       AppThemeMode.light => Brightness.light,
       AppThemeMode.adaptive =>
-        MediaQuery.platformBrightnessOf(_getContext()),
+        WidgetsBinding.instance.platformDispatcher.platformBrightness,
     };
 
     SystemChrome.setSystemUIOverlayStyle(
@@ -101,14 +107,6 @@ extension ThemeModeExtension on AppThemeMode {
       systemNavigationBarIconBrightness: brightness == Brightness.dark
           ? Brightness.light
           : Brightness.dark,
-    );
-  }
-
-  static BuildContext _getContext() {
-    // This is a workaround - in practice, the calling code will
-    // pass the context directly
-    throw UnimplementedError(
-      'Use applySystemChromeWithContext(context) instead',
     );
   }
 
@@ -762,10 +760,19 @@ class ThemeHelper {
     return switch (mode) {
       AppThemeMode.dark => buildDarkTheme(seedColor: seedColor),
       AppThemeMode.light => buildLightTheme(seedColor: seedColor),
-      AppThemeMode.adaptive => throw UnimplementedError(
-          'Use buildAdaptiveTheme instead for adaptive mode',
+      AppThemeMode.adaptive => _buildAdaptiveThemeNoContext(
+          seedColor: seedColor,
         ),
     };
+  }
+
+  /// Build adaptive theme without requiring BuildContext
+  static ThemeData _buildAdaptiveThemeNoContext({Color? seedColor}) {
+    final brightness =
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    return brightness == Brightness.dark
+        ? buildDarkTheme(seedColor: seedColor)
+        : buildLightTheme(seedColor: seedColor);
   }
 
   /// Build theme data for adaptive mode using platform brightness

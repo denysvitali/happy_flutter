@@ -324,8 +324,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           const SizedBox(height: AppSpacing.xl),
 
           // Session type selector
-          // TODO(l10n): Add 'Type' to localizations
-          _FieldLabel('Type'),
+          _FieldLabel(l10n.sessionsType),
           const SizedBox(height: AppSpacing.sm),
           SegmentedButton<String>(
             segments: [
@@ -386,8 +385,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           const SizedBox(height: AppSpacing.xl),
 
           // Agent selector
-          // TODO(l10n): Add 'Agent' to localizations
-          _FieldLabel('Agent'),
+          _FieldLabel(l10n.sessionsAgent),
           const SizedBox(height: AppSpacing.sm),
           SegmentedButton<String>(
             segments: [

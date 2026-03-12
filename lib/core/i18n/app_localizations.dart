@@ -138,6 +138,8 @@ class AppLocalizations {
   String get sessionsClaude => 'Claude';
   String get sessionsCodex => 'Codex';
   String get sessionsGemini => 'Gemini';
+  String get sessionsType => 'Type';
+  String get sessionsAgent => 'Agent';
 
   // Multi-select
   String sessionsSelectedCount(int count) =>
@@ -220,6 +222,9 @@ class AppLocalizations {
   String get pickSelectMachine => 'Select Machine';
   String get pickSelectProfile => 'Select Profile';
   String get pickSelectPath => 'Select Path';
+  String get pickNoMachinesAvailable => 'No machines available';
+  String get pickRecent => 'Recent';
+  String get pickAllMachines => 'All Machines';
 
   // Tabs
   String get tabsInbox => 'Inbox';
