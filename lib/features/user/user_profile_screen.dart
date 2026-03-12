@@ -137,6 +137,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 // Profile header card
                 Card(
                   elevation: 0,
+                  color: theme.colorScheme.surfaceContainer,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       vertical: AppSpacing.xxxl,
@@ -218,19 +219,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         return _StatusBadge(
           icon: Icons.check_circle,
           label: l10n.friendsStatusFriends,
-          color: Colors.green,
+          color: theme.colorScheme.primary,
         );
       case RelationshipStatus.requested:
         return _StatusBadge(
           icon: Icons.hourglass_empty,
           label: l10n.friendsStatusRequestSent,
-          color: Colors.orange,
+          color: theme.colorScheme.tertiary,
         );
       case RelationshipStatus.pending:
         return _StatusBadge(
           icon: Icons.person_add_outlined,
           label: l10n.friendsStatusWantsToConnect,
-          color: Colors.blue,
+          color: theme.colorScheme.tertiary,
         );
       case RelationshipStatus.rejected:
       case RelationshipStatus.none:
@@ -250,17 +251,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       case RelationshipStatus.friend:
         return OutlinedButton.icon(
           onPressed: () => _removeFriend(user),
-          icon: const Icon(
+          icon: Icon(
             Icons.person_remove_outlined,
-            color: Colors.red,
+            color: theme.colorScheme.error,
           ),
           label: Text(
             l10n.friendsRemoveAction,
-            style: const TextStyle(color: Colors.red),
+            style: TextStyle(color: theme.colorScheme.error),
           ),
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Colors.red),
-            minimumSize: const Size.fromHeight(48),
+            side: BorderSide(color: theme.colorScheme.error),
+            minimumSize: const Size.fromHeight(
+              AppTouchTarget.comfortable,
+            ),
           ),
         );
 
@@ -270,7 +273,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           icon: const Icon(Icons.close),
           label: Text(l10n.friendsCancelRequest),
           style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
+            minimumSize: const Size.fromHeight(
+              AppTouchTarget.comfortable,
+            ),
           ),
         );
 
@@ -282,23 +287,29 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
               icon: const Icon(Icons.check),
               label: Text(l10n.friendsAcceptRequest),
               style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
+                minimumSize: const Size.fromHeight(
+                  AppTouchTarget.comfortable,
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
               onPressed: () => _removeFriend(user),
-              icon: const Icon(
+              icon: Icon(
                 Icons.close,
-                color: Colors.red,
+                color: theme.colorScheme.error,
               ),
               label: Text(
                 l10n.friendsDenyRequest,
-                style: const TextStyle(color: Colors.red),
+                style: TextStyle(color: theme.colorScheme.error),
               ),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.red),
-                minimumSize: const Size.fromHeight(48),
+                side: BorderSide(
+                  color: theme.colorScheme.error,
+                ),
+                minimumSize: const Size.fromHeight(
+                  AppTouchTarget.comfortable,
+                ),
               ),
             ),
           ],
@@ -311,7 +322,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           icon: const Icon(Icons.person_add_outlined),
           label: Text(l10n.friendsAddFriendAction),
           style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
+            minimumSize: const Size.fromHeight(
+              AppTouchTarget.comfortable,
+            ),
           ),
         );
     }
@@ -335,7 +348,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs + 2,
+        vertical: AppSpacing.xxs2,
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
@@ -349,7 +362,7 @@ class _StatusBadge extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: AppFontSize.md,
               color: color,
               fontWeight: FontWeight.w500,
             ),
