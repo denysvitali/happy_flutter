@@ -362,4 +362,237 @@ void main() {
       expect(rejected.status.isFriend, isFalse);
     });
   });
+
+  group('FriendsState', () {
+    test('friendList returns only friends with friend status', () {
+      final state = FriendsState(
+        friends: [
+          UserProfile(
+            id: '1',
+            firstName: 'Friend',
+            username: 'f1',
+            status: RelationshipStatus.friend,
+          ),
+          UserProfile(
+            id: '2',
+            firstName: 'Pending',
+            username: 'p1',
+            status: RelationshipStatus.pending,
+          ),
+          UserProfile(
+            id: '3',
+            firstName: 'Requested',
+            username: 'r1',
+            status: RelationshipStatus.requested,
+          ),
+          UserProfile(
+            id: '4',
+            firstName: 'Rejected',
+            username: 'rj1',
+            status: RelationshipStatus.rejected,
+          ),
+          UserProfile(
+            id: '5',
+            firstName: 'None',
+            username: 'n1',
+            status: RelationshipStatus.none,
+          ),
+        ],
+      );
+
+      expect(state.friendList, hasLength(1));
+      expect(state.friendList.first.id, '1');
+    });
+
+    test('incomingRequests returns only pending requests', () {
+      final state = FriendsState(
+        pendingRequests: [
+          FriendRequest(
+            id: 'r1',
+            fromUserId: 'u1',
+            fromUserName: 'Pending',
+            toUserId: 'me',
+            createdAt: 0,
+            status: 'pending',
+          ),
+          FriendRequest(
+            id: 'r2',
+            fromUserId: 'u2',
+            fromUserName: 'Accepted',
+            toUserId: 'me',
+            createdAt: 0,
+            status: 'accepted',
+          ),
+          FriendRequest(
+            id: 'r3',
+            fromUserId: 'u3',
+            fromUserName: 'Rejected',
+            toUserId: 'me',
+            createdAt: 0,
+            status: 'rejected',
+          ),
+        ],
+      );
+
+      expect(state.incomingRequests, hasLength(1));
+      expect(state.incomingRequests.first.id, 'r1');
+    });
+
+    test('copyWith resets cached friendList', () {
+      final state = FriendsState(
+        friends: [
+          UserProfile(
+            id: '1',
+            firstName: 'A',
+            username: 'a',
+            status: RelationshipStatus.friend,
+          ),
+          UserProfile(
+            id: '2',
+            firstName: 'B',
+            username: 'b',
+            status: RelationshipStatus.requested,
+          ),
+        ],
+      );
+
+      // Populate cache.
+      expect(state.friendList, hasLength(1));
+
+      final updated = state.copyWith(
+        friends: [
+          UserProfile(
+            id: '1',
+            firstName: 'A',
+            username: 'a',
+            status: RelationshipStatus.friend,
+          ),
+          UserProfile(
+            id: '2',
+            firstName: 'B',
+            username: 'b',
+            status: RelationshipStatus.friend,
+          ),
+        ],
+      );
+
+      expect(updated.friendList, hasLength(2));
+    });
+
+    test('copyWith resets cached incomingRequests', () {
+      final state = FriendsState(
+        pendingRequests: [
+          FriendRequest(
+            id: 'r1',
+            fromUserId: 'u1',
+            fromUserName: 'X',
+            toUserId: 'me',
+            createdAt: 0,
+            status: 'pending',
+          ),
+        ],
+      );
+
+      // Populate cache.
+      expect(state.incomingRequests, hasLength(1));
+
+      final updated = state.copyWith(
+        pendingRequests: [
+          FriendRequest(
+            id: 'r1',
+            fromUserId: 'u1',
+            fromUserName: 'X',
+            toUserId: 'me',
+            createdAt: 0,
+            status: 'pending',
+          ),
+          FriendRequest(
+            id: 'r2',
+            fromUserId: 'u2',
+            fromUserName: 'Y',
+            toUserId: 'me',
+            createdAt: 0,
+            status: 'pending',
+          ),
+        ],
+      );
+
+      expect(updated.incomingRequests, hasLength(2));
+    });
+
+    test('friendList caches result between accesses', () {
+      final state = FriendsState(
+        friends: [
+          UserProfile(
+            id: '1',
+            firstName: 'A',
+            username: 'a',
+            status: RelationshipStatus.friend,
+          ),
+        ],
+      );
+
+      final first = state.friendList;
+      final second = state.friendList;
+      expect(identical(first, second), isTrue);
+    });
+
+    test('incomingRequests caches result between accesses', () {
+      final state = FriendsState(
+        pendingRequests: [
+          FriendRequest(
+            id: 'r1',
+            fromUserId: 'u1',
+            fromUserName: 'X',
+            toUserId: 'me',
+            createdAt: 0,
+            status: 'pending',
+          ),
+        ],
+      );
+
+      final first = state.incomingRequests;
+      final second = state.incomingRequests;
+      expect(identical(first, second), isTrue);
+    });
+
+    test('default state has empty lists', () {
+      final state = FriendsState();
+      expect(state.friends, isEmpty);
+      expect(state.pendingRequests, isEmpty);
+      expect(state.friendList, isEmpty);
+      expect(state.incomingRequests, isEmpty);
+    });
+
+    test('copyWith preserves unmodified fields', () {
+      final friends = [
+        UserProfile(
+          id: '1',
+          firstName: 'A',
+          username: 'a',
+          status: RelationshipStatus.friend,
+        ),
+      ];
+      final requests = [
+        FriendRequest(
+          id: 'r1',
+          fromUserId: 'u1',
+          fromUserName: 'X',
+          toUserId: 'me',
+          createdAt: 0,
+          status: 'pending',
+        ),
+      ];
+
+      final state = FriendsState(
+        friends: friends,
+        pendingRequests: requests,
+      );
+
+      // copyWith with no arguments preserves everything.
+      final copy = state.copyWith();
+      expect(copy.friends, hasLength(1));
+      expect(copy.pendingRequests, hasLength(1));
+    });
+  });
 }
