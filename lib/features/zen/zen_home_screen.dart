@@ -9,6 +9,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Zen home screen — displays all todo items grouped by status.
@@ -226,6 +227,7 @@ class _TodoItemCard extends StatelessWidget {
         opacity: isDone ? 0.6 : 1.0,
         child: ListTile(
           onTap: onTap,
+          enabled: !isDone,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,
@@ -295,7 +297,7 @@ class _PriorityDot extends StatelessWidget {
       case 'critical':
         return cs.error;
       case 'high':
-        return Colors.orange;
+        return AppColors.warning;
       case 'medium':
         return cs.tertiary;
       default:

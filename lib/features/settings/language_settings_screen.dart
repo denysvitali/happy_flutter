@@ -207,6 +207,7 @@ class _LanguageSettingsScreenState
       child: ListTile(
         title: Text(title),
         subtitle: Text(subtitle),
+        selected: isSelected,
         trailing: isSelected
             ? Icon(Icons.check, color: Theme.of(context).colorScheme.primary)
             : null,

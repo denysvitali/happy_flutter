@@ -509,32 +509,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 ))
                         : _buildMessageList(),
                   ),
-                  IgnorePointer(
-                    ignoring: _autoScroll || _isLoadingMessages,
-                    child: AnimatedOpacity(
-                      opacity: (!_autoScroll && !_isLoadingMessages)
-                          ? 1.0
-                          : 0.0,
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeInOut,
-                      child: AnimatedScale(
-                        scale: (!_autoScroll && !_isLoadingMessages)
+                  ExcludeSemantics(
+                    excluding: _autoScroll || _isLoadingMessages,
+                    child: IgnorePointer(
+                      ignoring: _autoScroll || _isLoadingMessages,
+                      child: AnimatedOpacity(
+                        opacity: (!_autoScroll && !_isLoadingMessages)
                             ? 1.0
-                            : 0.8,
+                            : 0.0,
                         duration: const Duration(milliseconds: 200),
                         curve: Curves.easeInOut,
-                        child: Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: AppSpacing.md,
-                            ),
-                            child: ScrollToBottomPill(
-                              onTap: () {
-                                HapticFeedback.lightImpact();
-                                setState(() => _autoScroll = true);
-                                _scrollToBottom();
-                              },
+                        child: AnimatedScale(
+                          scale: (!_autoScroll && !_isLoadingMessages)
+                              ? 1.0
+                              : 0.8,
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeInOut,
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: AppSpacing.md,
+                              ),
+                              child: ScrollToBottomPill(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  setState(() => _autoScroll = true);
+                                  _scrollToBottom();
+                                },
+                              ),
                             ),
                           ),
                         ),
@@ -622,15 +625,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             Center(
               child: Container(
-                width: 36,
-                height: 5,
+                width: 32,
+                height: 4,
                 margin: const EdgeInsets.only(
                   top: AppSpacing.sm,
                   bottom: AppSpacing.md,
                 ),
                 decoration: BoxDecoration(
                   color: cs.onSurface.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(2.5),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),

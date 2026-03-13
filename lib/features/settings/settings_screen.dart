@@ -594,10 +594,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         }
                       },
                 child: isVerifying
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                    ? const Semantics(
+                        label: 'Verifying...',
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        ),
                       )
                     : Text(l10nDialog.settingsServerSaveVerify),
               ),
@@ -877,14 +882,16 @@ class _ProfileHeader extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                cs.primaryContainer.withAlpha(dark ? 80 : 60),
-                cs.surface.withAlpha(150),
+                cs.primaryContainer.withValues(
+                  alpha: dark ? 0.31 : 0.24,
+                ),
+                cs.surface.withValues(alpha: 0.59),
               ],
             ),
             border: Border.all(
               color: dark
-                  ? Colors.white.withAlpha(20)
-                  : Colors.black.withAlpha(10),
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.04),
             ),
           ),
           padding: const EdgeInsets.symmetric(
@@ -962,7 +969,7 @@ class _DangerZone extends StatelessWidget {
           trailing: Icon(
             Icons.chevron_right,
             size: 20,
-            color: cs.error.withAlpha(120),
+            color: cs.error.withValues(alpha: 0.47),
           ),
         ),
       ],

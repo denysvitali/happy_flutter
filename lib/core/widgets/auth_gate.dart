@@ -8,7 +8,7 @@ import '../theme/app_tokens.dart';
 
 /// Authentication gate widget that switches between
 /// the auth screen and the main app content.
-class AuthGate extends ConsumerWidget {
+class AuthGate extends ConsumerStatefulWidget {
   const AuthGate({
     required this.child,
     super.key,
@@ -19,41 +19,46 @@ class AuthGate extends ConsumerWidget {
   final String? initialDeepLink;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final authState =
-        ref.watch(authStateNotifierProvider);
+  ConsumerState<AuthGate> createState() => _AuthGateState();
+}
 
-    if (initialDeepLink != null &&
-        authState == AuthState.authenticated) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) {
+class _AuthGateState extends ConsumerState<AuthGate> {
+  bool _deepLinkHandled = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authStateNotifierProvider);
+
+    if (widget.initialDeepLink != null &&
+        authState == AuthState.authenticated &&
+        !_deepLinkHandled) {
+      _deepLinkHandled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         ref
-            .read(
-              authStateNotifierProvider.notifier,
-            )
-            .handleDeepLink(initialDeepLink!);
+            .read(authStateNotifierProvider.notifier)
+            .handleDeepLink(widget.initialDeepLink!);
       });
     }
 
     return AnimatedSwitcher(
       duration: AppDuration.slow,
       switchInCurve: AppCurve.enter,
+      switchOutCurve: AppCurve.exit,
       child: switch (authState) {
         AuthState.authenticated => KeyedSubtree(
             key: const ValueKey('authenticated'),
-            child: child,
+            child: widget.child,
           ),
         AuthState.unauthenticated => AuthScreen(
             key: const ValueKey('unauth'),
-            initialDeepLink: initialDeepLink,
+            initialDeepLink: widget.initialDeepLink,
           ),
-        AuthState.authenticating =>
-          _AuthenticatingView(
+        AuthState.authenticating => _AuthenticatingView(
             key: const ValueKey('checking'),
           ),
         AuthState.error => AuthScreen(
             key: const ValueKey('auth-error'),
-            initialDeepLink: initialDeepLink,
+            initialDeepLink: widget.initialDeepLink,
             showError: true,
           ),
       },

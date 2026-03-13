@@ -273,7 +273,7 @@ class _AgentConversationScreenState
       key: key,
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: isThinking
-          ? _ThinkingRow(theme: theme)
+          ? const _ThinkingRow()
           : Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.sm + 4,
@@ -411,7 +411,7 @@ class _AgentConversationScreenState
     return Padding(
       key: key,
       padding: const EdgeInsets.symmetric(vertical: 3),
-      child: GestureDetector(
+      child: InkWell(
         onTap: () {
           if (msgId == null) return;
           context.push(
@@ -420,6 +420,7 @@ class _AgentConversationScreenState
             extra: msg,
           );
         },
+        borderRadius: BorderRadius.circular(AppRadius.sm + 2),
         child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.sm + 4,
@@ -516,11 +517,11 @@ class _AgentConversationScreenState
 // ----------------------------------------------------------
 
 class _ThinkingRow extends StatelessWidget {
-  const _ThinkingRow({required this.theme});
-  final ThemeData theme;
+  const _ThinkingRow();
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -563,8 +564,9 @@ class _ErrorRow extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: GestureDetector(
+      child: InkWell(
         onTap: () => _showErrorSheet(context),
+        borderRadius: BorderRadius.circular(AppRadius.xs + 2),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(

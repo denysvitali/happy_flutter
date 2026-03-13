@@ -207,6 +207,7 @@ class _ServerUrlDialogState
                                     icon: const Icon(
                                       Icons.clear,
                                     ),
+                                    tooltip: 'Clear',
                                     onPressed: () {
                                       _controller.clear();
                                       setState(() {});
@@ -288,10 +289,10 @@ class _ServerUrlDialogState
                   onPressed:
                       _isVerifying ? null : _save,
                   child: _isVerifying
-                      ? const AppLoadingIndicator(
+                      ? AppLoadingIndicator(
                           size: 16,
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         )
                       : Text(
                           l10n.settingsServerSaveVerify,
@@ -321,14 +322,17 @@ class _ErrorDetailBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.red[50],
+        color: cs.errorContainer,
         borderRadius:
             BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: Colors.red[200]!),
+        border: Border.all(
+          color: cs.error.withValues(alpha: 0.4),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -337,7 +341,7 @@ class _ErrorDetailBox extends StatelessWidget {
             children: [
               Icon(
                 Icons.error_outline,
-                color: Colors.red[700],
+                color: cs.onErrorContainer,
                 size: 18,
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -346,7 +350,7 @@ class _ErrorDetailBox extends StatelessWidget {
                   l10n.authConnectionFailed,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: Colors.red[700],
+                    color: cs.onErrorContainer,
                     fontSize: 14,
                   ),
                 ),
@@ -358,7 +362,7 @@ class _ErrorDetailBox extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.red[100],
+                    color: cs.error.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(
                       AppRadius.xs,
                     ),
@@ -366,7 +370,7 @@ class _ErrorDetailBox extends StatelessWidget {
                   child: Text(
                     errorType!,
                     style: TextStyle(
-                      color: Colors.red[800],
+                      color: cs.onErrorContainer,
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
@@ -378,7 +382,7 @@ class _ErrorDetailBox extends StatelessWidget {
           SelectableText(
             errorMessage,
             style: TextStyle(
-              color: Colors.red[800],
+              color: cs.onErrorContainer,
               fontSize: 12,
               fontFamily: 'monospace',
             ),
@@ -412,7 +416,7 @@ class _ErrorDetailBox extends StatelessWidget {
                   style: const TextStyle(fontSize: 12),
                 ),
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.red[700],
+                  foregroundColor: cs.onErrorContainer,
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm,
                     vertical: AppSpacing.xs,

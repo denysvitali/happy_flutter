@@ -101,7 +101,7 @@ class AccountScreen extends ConsumerWidget {
                             fontWeight: FontWeight.w500,
                           ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       profile?.github?.email ??
                           'Not loaded',
@@ -213,7 +213,7 @@ class AccountScreen extends ConsumerWidget {
                 children: [
                   Text(
                     l10n.accountBackupKeyDialogContent,
-                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                    style: TextStyle(fontSize: AppFontSize.sm, color: cs.onSurfaceVariant),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Container(
@@ -227,7 +227,7 @@ class AccountScreen extends ConsumerWidget {
                       key,
                       style: const TextStyle(
                         fontFamily: 'monospace',
-                        fontSize: 16,
+                        fontSize: AppFontSize.lg,
                         letterSpacing: 1.0,
                       ),
                     ),
@@ -494,7 +494,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
             ],
             const SizedBox(height: AppSpacing.xxl),
             SizedBox(
-              height: 48,
+              height: AppTouchTarget.comfortable,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _restoreAccount,
                 child: _isLoading
@@ -508,7 +508,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
             ),
             const SizedBox(height: AppSpacing.lg),
             SizedBox(
-              height: 48,
+              height: AppTouchTarget.comfortable,
               child: OutlinedButton(
                 onPressed: _isLoading
                     ? null
@@ -815,14 +815,17 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                           _error!,
                           style: TextStyle(
                             color: cs.onErrorContainer,
-                            fontSize: 12,
+                            fontSize: AppFontSize.sm,
                           ),
                         ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close, size: 18),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+                        constraints: const BoxConstraints(
+                          minWidth: 44,
+                          minHeight: 44,
+                        ),
                         onPressed: () => setState(() => _error = null),
                       ),
                     ],
@@ -878,7 +881,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
           Text(
             l10n.accountScanHint,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+            style: TextStyle(fontSize: AppFontSize.sm, color: cs.onSurfaceVariant),
           ),
         const SizedBox(height: AppSpacing.lg),
       ],
@@ -930,7 +933,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
           const SizedBox(height: AppSpacing.xxxl),
           SizedBox(
             width: 200,
-            height: 44,
+            height: AppTouchTarget.min,
             child: OutlinedButton(
               onPressed: !_isPolling && _error != null
                   ? _startLinking
@@ -971,7 +974,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
         const SizedBox(height: AppSpacing.lg),
         SizedBox(
           width: 200,
-          height: 44,
+          height: AppTouchTarget.min,
           child: FilledButton(
             onPressed: _isLoading ? null : _submitUrl,
             child: _isLoading
@@ -1096,7 +1099,7 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
                       Text(
                         'No linked devices',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: AppFontSize.lg,
                           color: cs.onSurfaceVariant,
                         ),
                       ),
@@ -1141,7 +1144,7 @@ class DeviceTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.sm,
-                  vertical: 2,
+                  vertical: AppSpacing.xxs,
                 ),
                 decoration: BoxDecoration(
                   color: cs.primaryContainer,
@@ -1149,7 +1152,7 @@ class DeviceTile extends StatelessWidget {
                 ),
                 child: Text(
                   l10n.accountThisDevice,
-                  style: TextStyle(fontSize: 11, color: cs.onPrimaryContainer),
+                  style: TextStyle(fontSize: AppFontSize.xs, color: cs.onPrimaryContainer),
                 ),
               ),
           ],

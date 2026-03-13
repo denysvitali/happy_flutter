@@ -25,10 +25,8 @@ class SessionFilesScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () {
-              // File data is not yet available via the sessions provider.
-              // This button is a placeholder for future refresh support.
-            },
+            tooltip: 'Refresh',
+            onPressed: null,
           ),
         ],
       ),
