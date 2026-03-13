@@ -64,7 +64,9 @@ class FeedState {
     return FeedState(
       items: items ?? this.items,
       notifications: notifications ?? this.notifications,
-    );
+    )
+      .._unreadCountCache = null
+      .._unreadNotificationsCache = null;
   }
 
   int get unreadCount =>

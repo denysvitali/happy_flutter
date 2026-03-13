@@ -1633,7 +1633,7 @@ what you have, you must use the options mode.
           final spawnedAt = entry.value;
           if (!newSessions.containsKey(sid) &&
               _sessions.containsKey(sid) &&
-              now - spawnedAt < 30000) {
+              now - spawnedAt < 60000) {
             newSessions[sid] = _sessions[sid]!;
           }
         }
@@ -3467,6 +3467,10 @@ what you have, you must use the options mode.
   }) async {
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
+      logger.info(
+        '[sendMessage] encryption missing for session=$sessionId, '
+        'attempting recovery',
+      );
       // Try fetching just this session before doing a full list re-fetch.
       await fetchSingleSession(sessionId);
       sessionEncryption = encryption.getSessionEncryption(sessionId);

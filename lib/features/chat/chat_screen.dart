@@ -571,8 +571,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _onPermissionModeChanged(PermissionMode mode) {
     setState(() => _permissionMode = mode);
-    DraftStorage().savePermissionMode(widget.sessionId, mode.toModeString());
-    sync.applySettings({'lastUsedPermissionMode': mode.toModeString()});
+    ref
+        .read(chatActionNotifierProvider.notifier)
+        .savePermissionMode(widget.sessionId, mode.toModeString());
   }
 
   void _onModelModeChanged(ClaudeModel model) {
@@ -588,11 +589,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _onProfileChanged(AIBackendProfile? profile) {
     setState(() => _selectedProfile = profile);
-    final profileId = profile?.id;
-    if (profileId != null) {
-      unawaited(DraftStorage().saveProfileId(widget.sessionId, profileId));
-    }
-    sync.applySettings({'lastUsedProfile': profileId});
+    ref
+        .read(chatActionNotifierProvider.notifier)
+        .saveProfile(widget.sessionId, profile?.id);
   }
 
   static const _abortReason =
@@ -603,8 +602,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       'user to tell you how to proceed.';
 
   Future<void> _abortSession() async {
-    if (!sync.isInitialized) return;
-    await sync.abortSession(widget.sessionId, reason: _abortReason);
+    await ref
+        .read(chatActionNotifierProvider.notifier)
+        .abortSession(widget.sessionId, reason: _abortReason);
   }
 
   void _showSessionMenu(BuildContext context) {
@@ -901,16 +901,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _onOptionPress(String option) async {
     if (_isSending) return;
     try {
-      if (!sync.isInitialized) {
-        throw StateError('Sync is not initialized');
-      }
-      final sentSessionId = await sync.sendMessage(
-        widget.sessionId,
-        option,
-        displayText: option,
-        permissionMode: _permissionMode.toModeString(),
-        modelMode: _modelMode.modeString,
-      );
+      final sentSessionId = await ref
+          .read(chatActionNotifierProvider.notifier)
+          .sendMessage(
+            widget.sessionId,
+            option,
+            displayText: option,
+            permissionMode: _permissionMode.toModeString(),
+            modelMode: _modelMode.modeString,
+          );
       if (_followRedirectedSession(sentSessionId)) {
         return;
       }
@@ -939,15 +938,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _autoScroll = true;
       });
       try {
-        if (!sync.isInitialized) {
-          throw StateError('Sync is not initialized');
-        }
-        final sentSessionId = await sync.sendMessage(
-          widget.sessionId,
-          text,
-          permissionMode: _permissionMode.toModeString(),
-          modelMode: _modelMode.modeString,
-        );
+        final sentSessionId = await ref
+            .read(chatActionNotifierProvider.notifier)
+            .sendMessage(
+              widget.sessionId,
+              text,
+              permissionMode: _permissionMode.toModeString(),
+              modelMode: _modelMode.modeString,
+            );
         if (_followRedirectedSession(sentSessionId)) {
           return;
         }
@@ -975,27 +973,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     unawaited(DraftStorage().removeDraft(widget.sessionId));
 
-    if (!sync.isInitialized) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${context.l10n.chatFailedToSend}: '
-            'Sync not initialized',
-          ),
-        ),
-      );
-      setState(() => _controller.text = text);
-      return;
-    }
-
     try {
-      final sentSessionId = await sync.sendMessage(
-        widget.sessionId,
-        text,
-        displayText: text,
-        permissionMode: _permissionMode.toModeString(),
-        modelMode: _modelMode.modeString,
-      );
+      final sentSessionId = await ref
+          .read(chatActionNotifierProvider.notifier)
+          .sendMessage(
+            widget.sessionId,
+            text,
+            displayText: text,
+            permissionMode: _permissionMode.toModeString(),
+            modelMode: _modelMode.modeString,
+          );
       if (_followRedirectedSession(sentSessionId)) {
         return;
       }
@@ -1063,7 +1050,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onPressed: () async {
               Navigator.pop(context);
               final failedL10n = l10n;
-              final deleted = await sync.deleteSession(widget.sessionId);
+              final deleted = await ref
+                  .read(chatActionNotifierProvider.notifier)
+                  .deleteSession(widget.sessionId);
               if (!mounted) return;
               if (deleted) {
                 Navigator.of(this.context).pop();

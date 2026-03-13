@@ -137,7 +137,8 @@ class TodoListState {
   List<TodoItem>? _allTodosCache;
 
   TodoListState copyWith({Map<String?, TodoList>? lists}) {
-    return TodoListState(lists: lists ?? this.lists);
+    return TodoListState(lists: lists ?? this.lists)
+      .._allTodosCache = null;
   }
 
   TodoList? getGlobalList() => lists[null];

@@ -99,10 +99,10 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
         path: sessionPath,
       );
       if (!mounted) return;
-      // Use refreshFromSync to ensure we fetch the latest
-      // session data from server.
-      // This matches React Native's flow which calls sync.refreshSessions()
-      await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
+      // createSession() already called refreshSessions() internally and
+      // added the session to sync._sessions (with optimistic fallback).
+      // Just read the in-memory state — no redundant server fetch needed.
+      ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       if (!mounted) return;
       context.goNamed('chat', pathParameters: {'sessionId': sessionId});
     } catch (e) {
