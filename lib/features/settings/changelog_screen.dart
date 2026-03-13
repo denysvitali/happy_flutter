@@ -76,7 +76,7 @@ class _ReleaseCard extends StatelessWidget {
             Text(
               version,
               style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: AppSpacing.xxs),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/settings.dart';
@@ -7,7 +8,6 @@ import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/shell_script_parser.dart';
-import 'profile_editor_screen.dart';
 
 /// Profiles screen - AI backend profiles management in Settings.
 class ProfilesScreen extends ConsumerStatefulWidget {
@@ -36,11 +36,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ProfileEditorScreen(),
-              ),
-            ),
+            onPressed: () => context.pushNamed('profile-editor'),
           ),
         ],
       ),
@@ -99,7 +95,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                 l10n.profilesCustomTitle,
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w600,
                   color: Theme.of(context)
                       .colorScheme
                       .onSurfaceVariant,
@@ -127,11 +123,9 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                               profile.id,
                             );
                       },
-                      onEdit: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              ProfileEditorScreen(existing: profile),
-                        ),
+                      onEdit: () => context.pushNamed(
+                        'profile-editor',
+                        extra: profile,
                       ),
                       onDelete: () => _confirmDeleteProfile(
                         context,

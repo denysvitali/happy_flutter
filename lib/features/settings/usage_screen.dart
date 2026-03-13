@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/api/usage_api.dart';
 import '../../core/components/app_loading_indicator.dart';
@@ -8,6 +7,7 @@ import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/usage.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Usage screen - token usage, costs, and limits display.
@@ -103,10 +103,6 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.usageTitle),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
       ),
       body: _isLoading
           ? const AppLoadingIndicator()
@@ -260,7 +256,7 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
           icon: Icons.attach_money,
           title: l10n.totalCost,
           value: '\$${totals.totalCost.toStringAsFixed(2)}',
-          iconColor: Colors.green,
+          iconColor: AppColors.success,
         ),
         _buildStatRow(
           cs,
@@ -294,7 +290,7 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
             value:
                 '${_formatNumber(entry.value)} tokens '
                 '(\$${cost.toStringAsFixed(2)})',
-            iconColor: Colors.orange,
+            iconColor: AppColors.warning,
           );
         }),
       ],

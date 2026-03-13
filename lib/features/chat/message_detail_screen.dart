@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/app_localizations.dart';
@@ -91,6 +90,21 @@ class _TextDetailView extends StatelessWidget {
   }
 }
 
+// ── Shared helpers ─────────────────────────────────────────────────────────
+
+ToolState _parseToolState(String? state) {
+  switch (state) {
+    case 'running':
+      return ToolState.running;
+    case 'completed':
+      return ToolState.completed;
+    case 'error':
+      return ToolState.error;
+    default:
+      return ToolState.pending;
+  }
+}
+
 // ── Tool detail view ───────────────────────────────────────────────────────
 
 class _ToolDetailView extends StatelessWidget {
@@ -117,7 +131,7 @@ class _ToolDetailView extends StatelessWidget {
       }
     }
 
-    final state = _parseState(toolState);
+    final state = _parseToolState(toolState);
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -131,7 +145,7 @@ class _ToolDetailView extends StatelessWidget {
           isTask: isTask,
           input: input,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
 
         // Permission info
         if (permission != null) ...[
@@ -153,7 +167,7 @@ class _ToolDetailView extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
         ],
 
         // Input
@@ -163,7 +177,7 @@ class _ToolDetailView extends StatelessWidget {
             icon: Icons.input,
             json: input,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
         ],
 
         // Output/Result
@@ -181,13 +195,13 @@ class _ToolDetailView extends StatelessWidget {
                 : null,
             isError: state == ToolState.error,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
         ],
 
         // Child tools for Task/sub-agent
         if (isTask && messages != null && messages.isNotEmpty) ...[
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: Text(
               context.l10n.messageDetailSubagentTools,
               style: theme.textTheme.titleSmall?.copyWith(
@@ -209,18 +223,6 @@ class _ToolDetailView extends StatelessWidget {
     );
   }
 
-  ToolState _parseState(String state) {
-    switch (state) {
-      case 'running':
-        return ToolState.running;
-      case 'completed':
-        return ToolState.completed;
-      case 'error':
-        return ToolState.error;
-      default:
-        return ToolState.pending;
-    }
-  }
 }
 
 // ── Message header ─────────────────────────────────────────────────────────
@@ -362,7 +364,7 @@ class _ToolResultSectionState extends State<_ToolResultSection> {
                   size: 18,
                   color: widget.isError ? cs.error : cs.primary,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     widget.title,
@@ -376,134 +378,13 @@ class _ToolResultSectionState extends State<_ToolResultSection> {
                 _CopyButton(content: _copyText),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             // Interactive JSON tree or plain code block
             if (_jsonValue != null)
               _JsonTreeBlock(value: _jsonValue)
             else
               _CodeBlock(content: _copyText),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Message actions bar ────────────────────────────────────────────────────
-
-/// Clean bottom action bar with icon buttons and a subtle top border.
-// ignore: unused_element
-class _MessageActions extends StatelessWidget {
-  const _MessageActions({required this.content});
-
-  final String content;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        border: Border(
-          top: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
-          ),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.copy_outlined),
-            tooltip: context.l10n.commonCopy,
-            iconSize: 20,
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: content));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(context.l10n.commonCopiedToClipboard),
-                  duration: const Duration(seconds: 1),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
-            tooltip: context.l10n.messageDetailShare,
-            iconSize: 20,
-            onPressed: null, // placeholder — wire up if needed
-          ),
-          IconButton(
-            icon: const Icon(Icons.bookmark_border_outlined),
-            tooltip: context.l10n.messageDetailBookmark,
-            iconSize: 20,
-            onPressed: null, // placeholder — wire up if needed
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Message bubble ─────────────────────────────────────────────────────────
-
-/// Renders a single chat message bubble with rounded corners (16 px).
-/// User messages are right-aligned with a primary-tinted background;
-/// assistant messages are left-aligned with the surface variant.
-// ignore: unused_element
-class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({
-    required this.text,
-    required this.isUser,
-  });
-
-  final String text;
-  final bool isUser;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    final bgColor = isUser
-        ? cs.primaryContainer
-        : cs.surfaceContainerHighest;
-    final textColor = isUser
-        ? cs.onPrimaryContainer
-        : cs.onSurface;
-    final borderColor = isUser
-        ? cs.primary.withValues(alpha: 0.3)
-        : cs.outlineVariant.withValues(alpha: 0.5);
-
-    final radius = BorderRadius.only(
-      topLeft: const Radius.circular(16),
-      topRight: const Radius.circular(16),
-      bottomLeft: isUser
-          ? const Radius.circular(16)
-          : const Radius.circular(4),
-      bottomRight: isUser
-          ? const Radius.circular(4)
-          : const Radius.circular(16),
-    );
-
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 320),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: radius,
-          border: Border.all(color: borderColor),
-        ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 10,
-        ),
-        child: SelectableText(
-          text,
-          style: theme.textTheme.bodyMedium?.copyWith(color: textColor),
         ),
       ),
     );
@@ -545,26 +426,26 @@ class _ChildToolItem extends StatelessWidget {
         onTap: () => _showToolDetail(context, tool),
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 10,
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.smd,
           ),
           child: Row(
             children: [
               SizedBox(width: 18, height: 18, child: icon),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   title,
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontFamily: 'monospace',
-                    fontSize: 12,
+                    fontSize: AppFontSize.sm,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               ToolStatusIndicator(
-                state: _parseState(state),
+                state: _parseToolState(state),
                 size: 14,
               ),
               const SizedBox(width: 4),
@@ -601,19 +482,6 @@ class _ChildToolItem extends StatelessWidget {
       ),
     );
   }
-
-  ToolState _parseState(String state) {
-    switch (state) {
-      case 'running':
-        return ToolState.running;
-      case 'completed':
-        return ToolState.completed;
-      case 'error':
-        return ToolState.error;
-      default:
-        return ToolState.pending;
-    }
-  }
 }
 
 // ── Tool detail bottom sheet ───────────────────────────────────────────────
@@ -638,16 +506,17 @@ class _ToolDetailBottomSheet extends StatelessWidget {
       children: [
         // Drag handle
         Container(
-          margin: const EdgeInsets.symmetric(vertical: 8),
+          margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
           width: 32,
           height: 4,
           decoration: BoxDecoration(
-            color: theme.colorScheme.onSurfaceVariant.withAlpha(77),
-            borderRadius: BorderRadius.circular(AppRadius.xxs),
+            color: theme.colorScheme.onSurfaceVariant
+                .withValues(alpha: 0.30),
+            borderRadius: BorderRadius.circular(2),
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           child: Row(
             children: [
               KnownTools.iconFor(
@@ -655,7 +524,7 @@ class _ToolDetailBottomSheet extends StatelessWidget {
                 20,
                 theme.colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   toolName,
@@ -665,7 +534,7 @@ class _ToolDetailBottomSheet extends StatelessWidget {
                 ),
               ),
               ToolStatusIndicator(
-                state: _parseState(state),
+                state: _parseToolState(state),
                 size: 18,
               ),
             ],
@@ -683,7 +552,7 @@ class _ToolDetailBottomSheet extends StatelessWidget {
                   icon: Icons.input,
                   json: input,
                 ),
-              if (input != null) const SizedBox(height: 12),
+              if (input != null) const SizedBox(height: AppSpacing.md),
               if (result != null) ...[
                 _ToolResultSection(
                   title: state == 'error'
@@ -706,18 +575,6 @@ class _ToolDetailBottomSheet extends StatelessWidget {
     );
   }
 
-  ToolState _parseState(String state) {
-    switch (state) {
-      case 'running':
-        return ToolState.running;
-      case 'completed':
-        return ToolState.completed;
-      case 'error':
-        return ToolState.error;
-      default:
-        return ToolState.pending;
-    }
-  }
 }
 
 // ── Shared detail widgets ──────────────────────────────────────────────────
@@ -755,7 +612,7 @@ class _DetailCard extends StatelessWidget {
                   size: 18,
                   color: theme.colorScheme.primary,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     title,
@@ -767,7 +624,7 @@ class _DetailCard extends StatelessWidget {
                 ?trailing,
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             child,
           ],
         ),
@@ -862,7 +719,7 @@ class _CodeBlock extends StatelessWidget {
         content,
         style: const TextStyle(
           fontFamily: 'monospace',
-          fontSize: 12,
+          fontSize: AppFontSize.sm,
           color: Color(0xFFD4D4D4),
         ),
       ),

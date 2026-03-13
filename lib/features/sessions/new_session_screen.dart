@@ -431,18 +431,18 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           // Create button
           SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 48,
             child: FilledButton.icon(
               onPressed: _canCreate(connectionStatus)
                   ? _createSession
                   : null,
               icon: _isCreating
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: theme.colorScheme.onPrimary,
                       ),
                     )
                   : const Icon(

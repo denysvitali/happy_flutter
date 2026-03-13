@@ -38,6 +38,7 @@ import '../../features/settings/developer_screen.dart';
 import '../../features/settings/features_settings_screen.dart';
 import '../../features/settings/language_settings_screen.dart';
 import '../../features/settings/machines_screen.dart';
+import '../../features/settings/profile_editor_screen.dart';
 import '../../features/settings/profiles_screen.dart';
 import '../../features/settings/server_settings_screen.dart';
 import '../../features/settings/settings_screen.dart';
@@ -54,6 +55,7 @@ import '../../features/zen/zen_view_screen.dart';
 import '../../sentry_widget.dart'
     if (dart.library.js_interop) '../../sentry_widget_stub.dart';
 import '../models/auth.dart';
+import '../models/settings.dart';
 import '../providers/app_providers.dart';
 import '../widgets/auth_gate.dart';
 
@@ -212,8 +214,8 @@ GoRouter createRouter(String? initialDeepLink) {
       GoRoute(
         path: '/friends/search',
         name: 'friends-search',
-        builder: (context, state) =>
-            const AuthGate(child: FriendsSearchScreen()),
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: FriendsSearchScreen()), state),
       ),
       GoRoute(
         path: '/settings',
@@ -230,20 +232,20 @@ GoRouter createRouter(String? initialDeepLink) {
       GoRoute(
         path: '/settings/account/restore',
         name: 'restore',
-        builder: (context, state) =>
-            const AuthGate(child: RestoreAccountScreen()),
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: RestoreAccountScreen()), state),
       ),
       GoRoute(
         path: '/settings/account/link',
         name: 'link',
-        builder: (context, state) =>
-            const AuthGate(child: LinkDeviceScreen()),
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: LinkDeviceScreen()), state),
       ),
       GoRoute(
         path: '/settings/account/devices',
         name: 'devices',
-        builder: (context, state) =>
-            const AuthGate(child: LinkedDevicesScreen()),
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: LinkedDevicesScreen()), state),
       ),
       GoRoute(
         path: '/settings/machines',
@@ -284,6 +286,17 @@ GoRouter createRouter(String? initialDeepLink) {
         name: 'profiles',
         pageBuilder: (context, state) =>
             _slidePage(const AuthGate(child: ProfilesScreen()), state),
+      ),
+      GoRoute(
+        path: '/settings/profiles/edit',
+        name: 'profile-editor',
+        pageBuilder: (context, state) {
+          final extra = state.extra as AIBackendProfile?;
+          return _slidePage(
+            AuthGate(child: ProfileEditorScreen(existing: extra)),
+            state,
+          );
+        },
       ),
       GoRoute(
         path: '/settings/usage',
@@ -346,8 +359,8 @@ GoRouter createRouter(String? initialDeepLink) {
       GoRoute(
         path: '/session/recent',
         name: 'session-recent',
-        builder: (context, state) =>
-            const AuthGate(child: SessionRecentScreen()),
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: SessionRecentScreen()), state),
       ),
       GoRoute(
         path: '/chat/:sessionId/info',
@@ -472,8 +485,8 @@ GoRouter createRouter(String? initialDeepLink) {
       GoRoute(
         path: '/artifacts',
         name: 'artifacts',
-        builder: (context, state) =>
-            const AuthGate(child: ArtifactsListScreen()),
+        pageBuilder: (context, state) =>
+            _fadePage(const AuthGate(child: ArtifactsListScreen()), state),
       ),
       GoRoute(
         path: '/artifacts/new',
@@ -506,7 +519,8 @@ GoRouter createRouter(String? initialDeepLink) {
       GoRoute(
         path: '/zen',
         name: 'zen',
-        builder: (context, state) => const AuthGate(child: ZenHomeScreen()),
+        pageBuilder: (context, state) =>
+            _fadePage(const AuthGate(child: ZenHomeScreen()), state),
       ),
       GoRoute(
         path: '/zen/new',
@@ -532,36 +546,40 @@ GoRouter createRouter(String? initialDeepLink) {
       GoRoute(
         path: '/friends',
         name: 'friends',
-        builder: (context, state) => const AuthGate(child: FriendsScreen()),
+        pageBuilder: (context, state) =>
+            _fadePage(const AuthGate(child: FriendsScreen()), state),
       ),
       GoRoute(
         path: '/terminal/connect',
         name: 'terminal-connect',
-        builder: (context, state) =>
-            const AuthGate(child: TerminalConnectScreen()),
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: TerminalConnectScreen()), state),
       ),
       GoRoute(
         path: '/terminal',
         name: 'terminal',
-        builder: (context, state) => const AuthGate(child: TerminalScreen()),
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: TerminalScreen()), state),
       ),
       GoRoute(
         path: '/settings/server',
         name: 'server-settings',
-        builder: (context, state) =>
-            const AuthGate(child: ServerSettingsScreen()),
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: ServerSettingsScreen()), state),
       ),
       GoRoute(
         path: '/settings/connect/claude',
         name: 'claude-connect',
-        builder: (context, state) =>
-            const AuthGate(child: ClaudeConnectScreen()),
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: ClaudeConnectScreen()), state),
       ),
       GoRoute(
         path: '/settings/voice/language',
         name: 'voice-language',
-        builder: (context, state) =>
-            const AuthGate(child: VoiceLanguageSettingsScreen()),
+        pageBuilder: (context, state) => _slidePage(
+          const AuthGate(child: VoiceLanguageSettingsScreen()),
+          state,
+        ),
       ),
       GoRoute(
         path: '/sftp/logs',
@@ -581,7 +599,15 @@ GoRouter createRouter(String? initialDeepLink) {
         name: 'sftp-directory',
         pageBuilder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
-          final directory = extra?['directory'] as SftpDirectory;
+          final directory = extra?['directory'] as SftpDirectory?;
+          if (directory == null) {
+            return _slidePage(
+              const Scaffold(
+                body: Center(child: Text('Missing directory parameter')),
+              ),
+              state,
+            );
+          }
           return _slidePage(
             AuthGate(
               child: SftpDirectoryManagerScreen(directory: directory),

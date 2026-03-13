@@ -255,7 +255,7 @@ class SettingsSection extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final borderColor =
-        danger ? cs.error.withAlpha(120) : cs.outlineVariant;
+        danger ? cs.error.withValues(alpha: 0.47) : cs.outlineVariant;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
