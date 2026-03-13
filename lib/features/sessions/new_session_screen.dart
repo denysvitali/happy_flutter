@@ -453,7 +453,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                 l10n.commonCreate,
                 style: const TextStyle(
                   fontWeight: FontWeight.w600,
-                  fontSize: 16,
+                  fontSize: AppFontSize.lg,
                 ),
               ),
             ),

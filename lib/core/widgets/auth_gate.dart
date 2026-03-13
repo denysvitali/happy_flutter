@@ -100,10 +100,10 @@ class _AuthenticatingView extends StatelessWidget {
                   ],
                 ),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.chat_bubble_rounded,
                 size: 32,
-                color: Colors.white,
+                color: scheme.onPrimary,
               ),
             ),
             const SizedBox(

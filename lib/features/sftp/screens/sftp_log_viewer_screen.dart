@@ -523,7 +523,7 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
                 e.value.toString(),
                 style: Theme.of(context).textTheme.titleSmall,
               ),
-              leading: _getOperationIcon(e.key),
+              leading: _getOperationIcon(e.key, context),
             ),
           ),
         ],
@@ -588,27 +588,32 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
     );
   }
 
-  Icon _getOperationIcon(String operation) {
+  Icon _getOperationIcon(String operation, BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     switch (operation.toLowerCase()) {
       case 'connect':
-        return const Icon(Icons.login, size: 20, color: Colors.blue);
+        return Icon(Icons.login, size: 20, color: cs.primary);
       case 'disconnect':
-        return const Icon(Icons.logout, size: 20, color: Colors.grey);
+        return Icon(Icons.logout, size: 20, color: cs.onSurfaceVariant);
       case 'read':
       case 'get':
-        return const Icon(
+        return Icon(
           Icons.file_download,
           size: 20,
-          color: Colors.green,
+          color: AppColors.success,
         );
       case 'write':
       case 'put':
-        return const Icon(Icons.file_upload, size: 20, color: Colors.orange);
+        return Icon(
+          Icons.file_upload,
+          size: 20,
+          color: AppColors.warning,
+        );
       case 'list':
-        return const Icon(Icons.folder_open, size: 20, color: Colors.teal);
+        return Icon(Icons.folder_open, size: 20, color: cs.tertiary);
       case 'delete':
       case 'remove':
-        return const Icon(Icons.delete, size: 20, color: Colors.red);
+        return Icon(Icons.delete, size: 20, color: cs.error);
       case 'rename':
       case 'move':
         return const Icon(Icons.drive_file_rename_outline, size: 20);
@@ -617,7 +622,7 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
       case 'chmod':
         return const Icon(Icons.security, size: 20);
       default:
-        return const Icon(Icons.circle, size: 20, color: Colors.grey);
+        return Icon(Icons.circle, size: 20, color: cs.onSurfaceVariant);
     }
   }
 
@@ -640,7 +645,7 @@ class _LogEntryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final levelColor = _getLevelColor();
+    final levelColor = _getLevelColor(context);
     final levelIcon = _getLevelIcon();
 
     return ExpansionTile(
@@ -740,14 +745,15 @@ class _LogEntryTile extends StatelessWidget {
     );
   }
 
-  Color _getLevelColor() {
+  Color _getLevelColor(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     switch (log.level) {
       case 'error':
-        return Colors.red;
+        return cs.error;
       case 'warning':
-        return Colors.orange;
+        return AppColors.warning;
       default:
-        return Colors.green;
+        return AppColors.success;
     }
   }
 

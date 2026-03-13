@@ -117,7 +117,7 @@ class _TodoViewState extends State<TodoView> {
         children: [
           // Count summary header
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: _CountSummary(
               completed: completed,
               total: total,
@@ -175,7 +175,7 @@ class _CountSummary extends StatelessWidget {
           size: 14,
           color: color,
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: AppSpacing.xs),
         Text(
           '$completed/$total done',
           style: theme.textTheme.labelSmall?.copyWith(
@@ -232,7 +232,7 @@ class _TodoRow extends StatelessWidget {
         : theme.colorScheme.onSurface;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxxs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -240,7 +240,7 @@ class _TodoRow extends StatelessWidget {
             padding: const EdgeInsets.only(top: 1),
             child: statusIcon,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               todo.content,
@@ -248,7 +248,7 @@ class _TodoRow extends StatelessWidget {
                 color: textColor,
                 decoration: decoration,
                 decorationColor: textColor,
-                height: 1.4,
+                height: AppLineHeight.normal,
               ),
             ),
           ),
