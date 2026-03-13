@@ -54,6 +54,9 @@ class FeedState {
   final List<FeedItem> items;
   final List<AppNotification> notifications;
 
+  int? _unreadCountCache;
+  int? _unreadNotificationsCache;
+
   FeedState copyWith({
     List<FeedItem>? items,
     List<AppNotification>? notifications,
@@ -64,9 +67,11 @@ class FeedState {
     );
   }
 
-  int get unreadCount => items.where((i) => !i.read).length;
+  int get unreadCount =>
+      _unreadCountCache ??= items.where((i) => !i.read).length;
   int get unreadNotifications =>
-      notifications.where((n) => !n.dismissed && !n.read).length;
+      _unreadNotificationsCache ??=
+          notifications.where((n) => !n.dismissed && !n.read).length;
 }
 
 final feedNotifierProvider = NotifierProvider<FeedNotifier, FeedState>(() {

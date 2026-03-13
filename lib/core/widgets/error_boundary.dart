@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show FlutterExceptionHandler, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -57,8 +57,49 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
   }
 
   void _captureErrors() {
-    // Set up error tracking for this boundary
-    // This is handled by Flutter's ErrorWidget.builder in main.dart
+    // Capture Flutter framework errors (e.g. layout, rendering errors).
+    // Store the previous handler so we chain to it.
+    _previousOnError = FlutterError.onError;
+    FlutterError.onError = (details) {
+      _handleError(details);
+      // Forward to previous handler (e.g. Sentry).
+      _previousOnError?.call(details);
+    };
+
+    // Replace the default red error widget with our own.
+    _previousErrorWidgetBuilder = ErrorWidget.builder;
+    ErrorWidget.builder = (details) {
+      // Log but don't setState here — build may be in progress.
+      logger.error(
+        'ErrorWidget built for error',
+        details.exception,
+        details.stack,
+      );
+      widget.onError?.call(details.exception, details.stack ?? StackTrace.empty);
+      return _ErrorWidgetFallback(details: details);
+    };
+  }
+
+  FlutterExceptionHandler? _previousOnError;
+  ErrorWidgetBuilder? _previousErrorWidgetBuilder;
+
+  void _handleError(FlutterErrorDetails errorDetails) {
+    if (!mounted) return;
+    setState(() {
+      _error = errorDetails.exception;
+      _stackTrace = errorDetails.stack;
+    });
+
+    logger.error(
+      'ErrorBoundary caught error',
+      errorDetails.exception,
+      errorDetails.stack,
+    );
+
+    widget.onError?.call(
+      errorDetails.exception,
+      errorDetails.stack ?? StackTrace.empty,
+    );
   }
 
   @override
@@ -70,21 +111,20 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
     }
   }
 
+  @override
+  void dispose() {
+    // Restore previous handlers.
+    FlutterError.onError = _previousOnError;
+    ErrorWidget.builder =
+        _previousErrorWidgetBuilder ?? _defaultErrorBuilder;
+    super.dispose();
+  }
+
+  static Widget _defaultErrorBuilder(FlutterErrorDetails details) =>
+      ErrorWidget(details.exception);
+
   void onError(FlutterErrorDetails errorDetails) {
-    setState(() {
-      _error = errorDetails.exception;
-      _stackTrace = errorDetails.stack;
-    });
-
-    // Log the error
-    logger.error(
-      'ErrorBoundary caught error',
-      errorDetails.exception,
-      errorDetails.stack,
-    );
-
-    // Call optional onError callback
-    widget.onError?.call(errorDetails.exception, errorDetails.stack!);
+    _handleError(errorDetails);
   }
 
   @override
@@ -405,5 +445,46 @@ extension ErrorNotificationExtension on BuildContext {
       error: error,
       stackTrace: stackTrace,
     ).dispatch(this);
+  }
+}
+
+/// Fallback widget shown in place of the default red error screen.
+class _ErrorWidgetFallback extends StatelessWidget {
+
+  const _ErrorWidgetFallback({required this.details});
+  final FlutterErrorDetails details;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline,
+            color: theme.colorScheme.onErrorContainer,
+            size: 20,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              kDebugMode
+                  ? details.exceptionAsString()
+                  : 'An error occurred',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onErrorContainer,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
