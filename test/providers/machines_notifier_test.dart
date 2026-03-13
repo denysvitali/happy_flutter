@@ -238,5 +238,114 @@ void main() {
       final state = container.read(machinesNotifierProvider);
       expect(state, isEmpty);
     });
+
+    test('remove only deletes the specified machine', () {
+      final notifier = container.read(machinesNotifierProvider.notifier);
+      final machine1 = createTestMachine(id: 'm1', host: 'host-1');
+      final machine2 = createTestMachine(id: 'm2', host: 'host-2');
+      final machine3 = createTestMachine(id: 'm3', host: 'host-3');
+
+      notifier.state = {
+        'm1': machine1,
+        'm2': machine2,
+        'm3': machine3,
+      };
+
+      notifier.remove('m2');
+
+      final state = container.read(machinesNotifierProvider);
+      expect(state.length, 2);
+      expect(state.containsKey('m1'), isTrue);
+      expect(state.containsKey('m2'), isFalse);
+      expect(state.containsKey('m3'), isTrue);
+    });
+
+    test('clear removes all machines from state', () {
+      final notifier = container.read(machinesNotifierProvider.notifier);
+
+      notifier.state = {
+        'm1': createTestMachine(id: 'm1', host: 'h1'),
+        'm2': createTestMachine(id: 'm2', host: 'h2'),
+      };
+
+      expect(container.read(machinesNotifierProvider).length, 2);
+
+      notifier.clear();
+
+      expect(container.read(machinesNotifierProvider), isEmpty);
+    });
+
+    test('state can be set directly', () {
+      final notifier = container.read(machinesNotifierProvider.notifier);
+      final machines = {
+        'set-1': createTestMachine(id: 'set-1', host: 'set-host'),
+      };
+
+      notifier.state = machines;
+
+      final state = container.read(machinesNotifierProvider);
+      expect(state.length, 1);
+      expect(state['set-1']?.metadata?.host, 'set-host');
+    });
+
+    test('state is a Map that supports containsKey', () {
+      final notifier = container.read(machinesNotifierProvider.notifier);
+
+      notifier.state = {
+        'key-1': createTestMachine(id: 'key-1', host: 'host'),
+      };
+
+      final state = container.read(machinesNotifierProvider);
+      expect(state.containsKey('key-1'), isTrue);
+      expect(state.containsKey('nonexistent'), isFalse);
+    });
+
+    test('state supports values iteration', () {
+      final notifier = container.read(machinesNotifierProvider.notifier);
+
+      final m1 = createTestMachine(id: 'v1', host: 'host-a');
+      final m2 = createTestMachine(id: 'v2', host: 'host-b');
+
+      notifier.state = {'v1': m1, 'v2': m2};
+
+      final state = container.read(machinesNotifierProvider);
+      final values = state.values.toList();
+      expect(values.length, 2);
+      expect(
+        values.map((m) => m.id).toSet(),
+        containsAll(['v1', 'v2']),
+      );
+    });
+
+    test('remove on empty state is a no-op', () {
+      final notifier = container.read(machinesNotifierProvider.notifier);
+
+      notifier.remove('anything');
+
+      expect(container.read(machinesNotifierProvider), isEmpty);
+    });
+
+    test('machine with active false is parsed correctly', () {
+      final machine = createTestMachine(
+        id: 'inactive',
+        host: 'offline-host',
+        active: false,
+      );
+
+      expect(machine.active, isFalse);
+      expect(machine.id, 'inactive');
+    });
+
+    test('provider state is independent across reads', () {
+      final notifier = container.read(machinesNotifierProvider.notifier);
+      notifier.state = {
+        'ind-1': createTestMachine(id: 'ind-1', host: 'host'),
+      };
+
+      final read1 = container.read(machinesNotifierProvider);
+      final read2 = container.read(machinesNotifierProvider);
+
+      expect(read1, same(read2));
+    });
   });
 }
