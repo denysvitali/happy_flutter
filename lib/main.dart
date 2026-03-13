@@ -128,7 +128,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
     WidgetsBinding.instance.addObserver(this);
     _router = createRouter(widget.initialDeepLink);
     _setupDeepLinkListener();
-    Future.delayed(Duration.zero, () {
+    Future<void>.microtask(() {
       ref.read(authStateNotifierProvider.notifier).checkAuth();
       unawaited(_initializeTheme());
       _processInitialDeepLink();

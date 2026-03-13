@@ -85,13 +85,13 @@ class TaskView extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 4),
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm + 4,
+          horizontal: AppSpacing.md,
           vertical: AppSpacing.sm,
         ),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerLow,
           borderRadius:
-              BorderRadius.circular(AppRadius.sm + 2),
+              BorderRadius.circular(AppRadius.smd),
           border: Border.all(
             color: borderColor,
             width: 1,
@@ -169,7 +169,7 @@ class TaskView extends StatelessWidget {
             ],
             // Inline tool call list
             if (shownTools.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.xs + 2),
+              const SizedBox(height: AppSpacing.xsm),
               ...shownTools.map(
                 (t) => _InlineToolRow(
                   key: ValueKey(t['toolUseId'] ?? t['id']),
@@ -366,7 +366,7 @@ class _InlineToolRow extends StatelessWidget {
         children: [
           const SizedBox(width: 24),
           SizedBox(width: 12, height: 12, child: icon),
-          const SizedBox(width: AppSpacing.xs + 2),
+          const SizedBox(width: AppSpacing.xsm),
           Expanded(
             child: Text(
               title,

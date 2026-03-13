@@ -8,6 +8,7 @@ import '../../core/api/socket_io_client.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Debug screen showing session state and sync status.
@@ -89,7 +90,7 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
                 label: 'Sync initialized',
                 value: syncInitialized ? 'Yes' : 'No',
                 valueColor:
-                    syncInitialized ? Colors.green : cs.error,
+                    syncInitialized ? AppColors.success : cs.error,
               ),
               _InfoRow(
                 icon: Icons.check_circle,
@@ -277,7 +278,7 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
                     ? Icons.play_circle
                     : Icons.pause_circle,
                 size: 18,
-                color: session.active ? Colors.green : cs.outline,
+                color: session.active ? AppColors.success : cs.outline,
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
@@ -298,7 +299,7 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
                 ),
                 decoration: BoxDecoration(
                   color: session.presence == 'online'
-                      ? Colors.green.withValues(alpha: 0.2)
+                      ? AppColors.success.withValues(alpha: 0.2)
                       : cs.surfaceContainerHighest,
                   borderRadius:
                       BorderRadius.circular(AppRadius.xs),
@@ -307,7 +308,7 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
                   session.presence,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: session.presence == 'online'
-                        ? Colors.green
+                        ? AppColors.success
                         : cs.onSurfaceVariant,
                   ),
                 ),
@@ -348,9 +349,9 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
   Color _connectionColor(ConnectionStatus status, ColorScheme cs) {
     switch (status) {
       case ConnectionStatus.connected:
-        return Colors.green;
+        return AppColors.success;
       case ConnectionStatus.connecting:
-        return Colors.orange;
+        return AppColors.warning;
       case ConnectionStatus.disconnected:
         return cs.onSurfaceVariant;
       case ConnectionStatus.error:

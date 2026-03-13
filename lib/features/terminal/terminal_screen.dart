@@ -122,7 +122,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
             style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor:
+                  Theme.of(context).colorScheme.error,
             ),
             child: Text(context.l10n.terminalDisconnect),
           ),

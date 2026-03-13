@@ -5,6 +5,7 @@ import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Screen for selecting a machine from the list of available machines.
@@ -170,7 +171,7 @@ class _MachineListTile extends StatelessWidget {
             children: [
               AppStatusDot(
                 color: isOnline
-                    ? Colors.green
+                    ? AppColors.success
                     : theme.colorScheme.outlineVariant,
                 size: 8,
                 pulse: isOnline,
@@ -182,7 +183,7 @@ class _MachineListTile extends StatelessWidget {
                     : context.l10n.settingsOffline,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: isOnline
-                      ? Colors.green
+                      ? AppColors.success
                       : theme.colorScheme.onSurfaceVariant,
                 ),
               ),

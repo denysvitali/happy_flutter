@@ -81,7 +81,7 @@ class _GrepViewState extends State<GrepView> {
             children: [
               _GrepPatternBadge(pattern: pattern),
               if (path != null && path.isNotEmpty) ...[
-                const SizedBox(width: AppSpacing.xs + 2),
+                const SizedBox(width: AppSpacing.xsm),
                 _GrepPathChip(path: path),
               ],
             ],
@@ -90,14 +90,14 @@ class _GrepViewState extends State<GrepView> {
           // Count mode
           if (isCountMode && result != null)
             Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.sm + 2),
+              padding: const EdgeInsets.only(top: AppSpacing.smd),
               child: _buildCountResult(context, result),
             ),
 
           // Content mode — grouped by file
           if (isContentMode && matches.isNotEmpty) ...[
             Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.sm + 2),
+              padding: const EdgeInsets.only(top: AppSpacing.smd),
               child: _MatchCountBadge(
                 count: matches.length,
                 colorScheme: cs,
@@ -121,7 +121,7 @@ class _GrepViewState extends State<GrepView> {
           // Files-with-matches mode
           if (!isContentMode && !isCountMode && result != null)
             Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.sm + 2),
+              padding: const EdgeInsets.only(top: AppSpacing.smd),
               child: _buildFilesList(context, result),
             ),
         ],
@@ -299,12 +299,12 @@ class _GrepPatternBadge extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm + 2,
+        horizontal: AppSpacing.smd,
         vertical: 5,
       ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+        borderRadius: BorderRadius.circular(AppRadius.xsm),
         border: Border.all(
           color: cs.outlineVariant.withValues(alpha: 0.6),
         ),
@@ -317,7 +317,7 @@ class _GrepPatternBadge extends StatelessWidget {
             size: 14,
             color: cs.tertiary,
           ),
-          const SizedBox(width: AppSpacing.xs + 2),
+          const SizedBox(width: AppSpacing.xsm),
           Text(
             'grep',
             style: TextStyle(
@@ -327,13 +327,13 @@ class _GrepPatternBadge extends StatelessWidget {
               letterSpacing: 0.3,
             ),
           ),
-          const SizedBox(width: AppSpacing.xs + 2),
+          const SizedBox(width: AppSpacing.xsm),
           Container(
             width: 1,
             height: 12,
             color: cs.outlineVariant,
           ),
-          const SizedBox(width: AppSpacing.xs + 2),
+          const SizedBox(width: AppSpacing.xsm),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 200),
             child: SelectableText(
@@ -368,7 +368,7 @@ class _GrepPathChip extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+        borderRadius: BorderRadius.circular(AppRadius.xsm),
         border: Border.all(
           color: cs.outlineVariant.withValues(alpha: 0.6),
         ),
@@ -489,7 +489,7 @@ class _GroupedMatchList extends StatelessWidget {
         }),
         if (totalMatches > initialLimit)
           Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xs + 2),
+            padding: const EdgeInsets.only(top: AppSpacing.xsm),
             child: GestureDetector(
               onTap: onToggleShowAll,
               child: Row(
@@ -543,7 +543,7 @@ class _FileMatchGroup extends StatelessWidget {
     final parentDir = _parentDir(filePath);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm + 2),
+      padding: const EdgeInsets.only(bottom: AppSpacing.smd),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -556,7 +556,7 @@ class _FileMatchGroup extends StatelessWidget {
                 size: 13,
                 color: cs.secondary,
               ),
-              const SizedBox(width: AppSpacing.xs + 1),
+              const SizedBox(width: AppSpacing.xxs2),
               Flexible(
                 child: Text(
                   displayFile,
@@ -584,7 +584,7 @@ class _FileMatchGroup extends StatelessWidget {
                   ),
                 ),
               ],
-              const SizedBox(width: AppSpacing.xs + 2),
+              const SizedBox(width: AppSpacing.xsm),
               _MatchCountPill(count: matches.length, cs: cs),
             ],
           ),
@@ -595,11 +595,11 @@ class _FileMatchGroup extends StatelessWidget {
               border: Border.all(
                 color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
-              borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+              borderRadius: BorderRadius.circular(AppRadius.xsm),
             ),
             child: ClipRRect(
               clipBehavior: Clip.hardEdge,
-              borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+              borderRadius: BorderRadius.circular(AppRadius.xsm),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -638,7 +638,7 @@ class _MatchCountPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs + 1,
+        horizontal: AppSpacing.xxs2,
         vertical: 1,
       ),
       decoration: BoxDecoration(
@@ -690,8 +690,8 @@ class _MatchRow extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm + 2,
-          vertical: AppSpacing.xs + 2,
+          horizontal: AppSpacing.smd,
+          vertical: AppSpacing.xsm,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -846,7 +846,7 @@ class _FileMatchRow extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm + 2,
+          horizontal: AppSpacing.smd,
           vertical: AppSpacing.sm,
         ),
         child: Row(

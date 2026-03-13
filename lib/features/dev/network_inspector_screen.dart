@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/http_request_logger.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/datetime_extensions.dart';
 
@@ -360,28 +361,30 @@ class _RequestRow extends StatelessWidget {
   final bool isEven;
 
   Color _methodColor(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     switch (entry.method.toUpperCase()) {
       case 'GET':
-        return Colors.blue;
+        return cs.primary;
       case 'POST':
-        return Colors.green;
+        return AppColors.success;
       case 'PUT':
       case 'PATCH':
-        return Colors.orange;
+        return AppColors.warning;
       case 'DELETE':
-        return Colors.red;
+        return cs.error;
       default:
-        return Theme.of(context).colorScheme.outline;
+        return cs.outline;
     }
   }
 
   Color _statusColor(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final s = entry.statusCode;
-    if (s == null) return Theme.of(context).colorScheme.outline;
-    if (s >= 200 && s < 300) return Colors.green;
-    if (s >= 300 && s < 400) return Colors.blue;
-    if (s >= 400 && s < 500) return Colors.orange;
-    return Colors.red;
+    if (s == null) return cs.outline;
+    if (s >= 200 && s < 300) return AppColors.success;
+    if (s >= 300 && s < 400) return cs.primary;
+    if (s >= 400 && s < 500) return AppColors.warning;
+    return cs.error;
   }
 
   @override

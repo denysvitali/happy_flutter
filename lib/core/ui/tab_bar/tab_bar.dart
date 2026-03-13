@@ -62,7 +62,7 @@ class _TabBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: AppFontSize.xxs,
           color: cs.onError,
           fontWeight: FontWeight.w600,
           height: AppLineHeight.tight,
@@ -403,8 +403,8 @@ class CompactTabBar extends StatelessWidget {
       children: _kAppTabs.map((tab) {
         final isActive = activeTab == tab.key;
         return SizedBox(
-          width: 44,
-          height: 44,
+          width: AppTouchTarget.min,
+          height: AppTouchTarget.min,
           child: IconButton(
             padding: EdgeInsets.zero,
             icon: Icon(
@@ -512,13 +512,13 @@ class SegmentTabBar extends StatelessWidget {
                           style: isSelected
                               ? (selectedTextStyle ??
                                   const TextStyle(
-                                    fontSize: 13,
+                                    fontSize: AppFontSize.md,
                                     fontWeight: FontWeight.w600,
                                     height: AppLineHeight.tight,
                                   ))
                               : (unselectedTextStyle ??
                                   TextStyle(
-                                    fontSize: 13,
+                                    fontSize: AppFontSize.md,
                                     fontWeight: FontWeight.w500,
                                     color: colorScheme.onSurface
                                         .withValues(

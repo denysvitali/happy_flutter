@@ -148,7 +148,7 @@ class _DiffViewState extends State<DiffView> {
         style: theme.textTheme.bodySmall?.copyWith(
           color: colors.hunkHeaderText,
           fontFamily: 'monospace',
-          fontSize: 12,
+          fontSize: AppFontSize.sm,
         ),
       ),
     );
@@ -190,7 +190,7 @@ class _DiffViewState extends State<DiffView> {
         style: TextStyle(
           color: colors.lineNumberText,
           fontFamily: 'monospace',
-          fontSize: 13,
+          fontSize: AppFontSize.md,
         ),
         textAlign: TextAlign.right,
       ),
@@ -211,7 +211,7 @@ class _DiffViewState extends State<DiffView> {
         style: TextStyle(
           color: color,
           fontFamily: 'monospace',
-          fontSize: 13,
+          fontSize: AppFontSize.md,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -236,7 +236,7 @@ class _DiffViewState extends State<DiffView> {
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      color: line.type == DiffLineType.normal ? null : null,
+      color: null,
       child: RichText(
         text: TextSpan(
           children: [
@@ -254,8 +254,8 @@ class _DiffViewState extends State<DiffView> {
                     ? colors.removedText
                     : colors.contextText,
                 fontFamily: 'monospace',
-                fontSize: 13,
-                height: 1.5,
+                fontSize: AppFontSize.md,
+                height: AppLineHeight.relaxed,
               ),
             ),
           ],
@@ -270,8 +270,8 @@ class _DiffViewState extends State<DiffView> {
     for (final token in tokens) {
       final style = TextStyle(
         fontFamily: 'monospace',
-        fontSize: 13,
-        height: 1.5,
+        fontSize: AppFontSize.md,
+        height: AppLineHeight.relaxed,
         backgroundColor: token.added
             ? colors.inlineAddedBg
             : token.removed
@@ -394,7 +394,7 @@ class DiffStatsView extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Text(
             '(${stats.totalChanges} changes)',
-            style: TextStyle(color: theme.hunkHeaderText, fontSize: 12),
+            style: TextStyle(color: theme.hunkHeaderText, fontSize: AppFontSize.sm),
           ),
         ],
       ],

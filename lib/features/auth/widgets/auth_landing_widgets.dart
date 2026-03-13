@@ -130,10 +130,10 @@ class AuthHeader extends StatelessWidget {
               ),
             ],
           ),
-          child: const Icon(
+          child: Icon(
             Icons.chat_bubble_rounded,
             size: 44,
-            color: Colors.white,
+            color: scheme.onPrimary,
           ),
         ),
         const SizedBox(height: AppSpacing.xxl),
@@ -213,10 +213,10 @@ class LandingLogoMark extends StatelessWidget {
           ),
         ],
       ),
-      child: const Icon(
+      child: Icon(
         Icons.chat_bubble_rounded,
         size: 52,
-        color: Colors.white,
+        color: scheme.onPrimary,
       ),
     );
   }

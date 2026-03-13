@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Debug screen showing encryption status and configuration.
@@ -53,7 +54,7 @@ class EncryptionDebugScreen extends ConsumerWidget {
                 label: 'Encryption initialized',
                 value: syncInitialized ? 'Yes' : 'No',
                 valueColor:
-                    syncInitialized ? Colors.green : cs.error,
+                    syncInitialized ? AppColors.success : cs.error,
               ),
               if (syncInitialized) ...[
                 _InfoRow(

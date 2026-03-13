@@ -8,6 +8,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart'
     show AppSpacing, AppRadius, AppLineHeight;
 
@@ -195,7 +196,6 @@ class _ZenViewBodyState extends ConsumerState<_ZenViewBody> {
           const SizedBox(height: AppSpacing.xxxl),
           // Meta card
           Container(
-            padding: EdgeInsets.zero,
             decoration: BoxDecoration(
               color: cs.surfaceContainerLowest,
               borderRadius: BorderRadius.circular(AppRadius.md),
@@ -348,7 +348,7 @@ class _PriorityChip extends StatelessWidget {
       case 'critical':
         return cs.error;
       case 'high':
-        return Colors.orange;
+        return AppColors.warning;
       case 'medium':
         return cs.tertiary;
       default:

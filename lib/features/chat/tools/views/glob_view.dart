@@ -158,7 +158,7 @@ class _GlobViewState extends State<GlobView> {
             children: [
               _PatternBadge(pattern: pattern),
               if (path != null && path.isNotEmpty) ...[
-                const SizedBox(width: AppSpacing.xs + 2),
+                const SizedBox(width: AppSpacing.xsm),
                 _PathChip(path: path),
               ],
             ],
@@ -167,7 +167,7 @@ class _GlobViewState extends State<GlobView> {
           // Summary row
           if (state == 'completed' || files.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.sm + 2),
+              padding: const EdgeInsets.only(top: AppSpacing.smd),
               child: Row(
                 children: [
                   _ResultCountChip(count: files.length, cs: cs),
@@ -208,7 +208,7 @@ class _GlobViewState extends State<GlobView> {
           // Show all / collapse button
           if (files.length > _initialLimit)
             Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xs + 2),
+              padding: const EdgeInsets.only(top: AppSpacing.xsm),
               child: GestureDetector(
                 onTap: () => setState(() => _showAll = !_showAll),
                 child: Row(
@@ -335,12 +335,12 @@ class _PatternBadge extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm + 2,
+        horizontal: AppSpacing.smd,
         vertical: 5,
       ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+        borderRadius: BorderRadius.circular(AppRadius.xsm),
         border: Border.all(
           color: cs.outlineVariant.withValues(alpha: 0.6),
         ),
@@ -353,7 +353,7 @@ class _PatternBadge extends StatelessWidget {
             size: 14,
             color: cs.primary,
           ),
-          const SizedBox(width: AppSpacing.xs + 2),
+          const SizedBox(width: AppSpacing.xsm),
           Text(
             'glob',
             style: TextStyle(
@@ -363,13 +363,13 @@ class _PatternBadge extends StatelessWidget {
               letterSpacing: 0.3,
             ),
           ),
-          const SizedBox(width: AppSpacing.xs + 2),
+          const SizedBox(width: AppSpacing.xsm),
           Container(
             width: 1,
             height: 12,
             color: cs.outlineVariant,
           ),
-          const SizedBox(width: AppSpacing.xs + 2),
+          const SizedBox(width: AppSpacing.xsm),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 200),
             child: SelectableText(
@@ -404,7 +404,7 @@ class _PathChip extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+        borderRadius: BorderRadius.circular(AppRadius.xsm),
         border: Border.all(
           color: cs.outlineVariant.withValues(alpha: 0.6),
         ),
@@ -467,7 +467,7 @@ class _FileRow extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm + 2,
+          horizontal: AppSpacing.smd,
           vertical: 7,
         ),
         child: Row(
@@ -478,11 +478,11 @@ class _FileRow extends StatelessWidget {
               height: 28,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(AppRadius.xs + 1),
+                borderRadius: BorderRadius.circular(AppRadius.xxs2),
               ),
               child: Icon(icon, size: 15, color: color),
             ),
-            const SizedBox(width: AppSpacing.sm + 2),
+            const SizedBox(width: AppSpacing.smd),
             // File info
             Expanded(
               child: Column(
@@ -514,7 +514,7 @@ class _FileRow extends StatelessWidget {
             if (ext.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xs + 1,
+                  horizontal: AppSpacing.xxs2,
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(

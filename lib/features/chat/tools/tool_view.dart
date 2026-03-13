@@ -1071,7 +1071,7 @@ class _ToolHeader extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                           fontFamily: 'monospace',
                           fontFamilyFallback: const ['Courier New', 'Courier'],
-                          fontSize: 13,
+                          fontSize: AppFontSize.md,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),

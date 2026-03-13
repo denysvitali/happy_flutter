@@ -234,8 +234,8 @@ class _TerminalCommandBar extends StatelessWidget {
           // Title bar -- description (or "bash") + copy button
           Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm + 2,
-              vertical: AppSpacing.sm - 2,
+              horizontal: AppSpacing.smd,
+              vertical: AppSpacing.xsm,
             ),
             decoration: BoxDecoration(
               color: c.headerBg,
@@ -254,7 +254,7 @@ class _TerminalCommandBar extends StatelessWidget {
                   size: 14,
                   color: c.mutedText,
                 ),
-                const SizedBox(width: AppSpacing.sm - 2),
+                const SizedBox(width: AppSpacing.xsm),
                 Expanded(
                   child: Text(
                     label,
@@ -281,7 +281,7 @@ class _TerminalCommandBar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm + 2,
+              vertical: AppSpacing.smd,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -306,7 +306,7 @@ class _TerminalCommandBar extends StatelessWidget {
                       fontFamily: 'monospace',
                       fontSize: AppFontSize.md,
                       color: c.primaryText,
-                      height: 1.4,
+                      height: AppLineHeight.normal,
                     ),
                   ),
                 ),
@@ -352,7 +352,7 @@ class _TerminalOutputSection extends StatelessWidget {
     final bgColor = isError ? c.errorBg : c.bg;
 
     return Container(
-      margin: const EdgeInsets.only(top: AppSpacing.sm - 2),
+      margin: const EdgeInsets.only(top: AppSpacing.xsm),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -365,8 +365,8 @@ class _TerminalOutputSection extends StatelessWidget {
           // Section header
           Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm + 2,
-              vertical: AppSpacing.xs + 1,
+              horizontal: AppSpacing.smd,
+              vertical: AppSpacing.xxs2,
             ),
             decoration: BoxDecoration(
               color: c.headerBg,
@@ -381,7 +381,7 @@ class _TerminalOutputSection extends StatelessWidget {
                 if (isError)
                   Padding(
                     padding:
-                        const EdgeInsets.only(right: AppSpacing.xs + 1),
+                        const EdgeInsets.only(right: AppSpacing.xxs2),
                     child: Icon(
                       Icons.error_outline,
                       size: 13,
@@ -413,7 +413,7 @@ class _TerminalOutputSection extends StatelessWidget {
           ),
           // Output text
           Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm + 2),
+            padding: const EdgeInsets.all(AppSpacing.smd),
             child: SelectableText.rich(
               TextSpan(
                 children: AnsiParser.parse(
@@ -422,7 +422,7 @@ class _TerminalOutputSection extends StatelessWidget {
                     fontFamily: 'monospace',
                     fontSize: AppFontSize.sm,
                     color: isError ? c.errorText : c.primaryText,
-                    height: 1.5,
+                    height: AppLineHeight.relaxed,
                   ),
                 ),
               ),
@@ -457,7 +457,7 @@ class _ExitCodeBadge extends StatelessWidget {
         isSuccess ? c.greenBadgeBorder : c.redBadgeBorder;
 
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.sm - 2),
+      padding: const EdgeInsets.only(top: AppSpacing.xsm),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -481,7 +481,7 @@ class _ExitCodeBadge extends StatelessWidget {
                   size: 12,
                   color: color,
                 ),
-                const SizedBox(width: AppSpacing.xs + 1),
+                const SizedBox(width: AppSpacing.xxs2),
                 Text(
                   'exit $exitCode',
                   style: TextStyle(
@@ -521,7 +521,7 @@ class _ShowMoreButton extends StatelessWidget {
       onTap: onToggle,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm - 2),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xsm),
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: borderColor)),
           color: c.headerBg,
@@ -649,10 +649,10 @@ class FilePillChip extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+        borderRadius: BorderRadius.circular(AppRadius.xsm),
         border: Border.all(
           color: cs.outlineVariant.withValues(alpha: 0.6),
-          width: 0.5,
+          width: AppBorder.hairline,
         ),
       ),
       child: Row(
@@ -663,7 +663,7 @@ class FilePillChip extends StatelessWidget {
             size: 13,
             color: cs.onSurfaceVariant,
           ),
-          const SizedBox(width: AppSpacing.xs + 1),
+          const SizedBox(width: AppSpacing.xxs2),
           Flexible(
             child: RichText(
               overflow: TextOverflow.ellipsis,

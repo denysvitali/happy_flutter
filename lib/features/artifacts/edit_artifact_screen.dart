@@ -79,6 +79,8 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final artifacts = ref.watch(artifactsNotifierProvider);
     final artifact = artifacts[widget.artifactId];
 
@@ -122,7 +124,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
                       )
                     : Text(
                         l10n.commonSave,
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        style: theme.textTheme.labelLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -149,35 +151,29 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
                       borderSide: BorderSide(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        color: cs.outlineVariant.withValues(alpha: 0.5),
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
                       borderSide: BorderSide(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        color: cs.outlineVariant.withValues(alpha: 0.5),
                       ),
                     ),
                     filled: true,
-                    fillColor: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerLow,
+                    fillColor: cs.surfaceContainerLow,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.lg,
                       vertical: AppSpacing.md,
                     ),
-                    hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                   textCapitalization: TextCapitalization.sentences,
                   textInputAction: TextInputAction.next,
                   maxLines: 1,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: theme.textTheme.bodyMedium,
                 ),
                 const SizedBox(height: AppSpacing.xxl),
                 _SectionLabel(label: l10n.artifactsContentLabel),
@@ -189,37 +185,31 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
                       borderSide: BorderSide(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        color: cs.outlineVariant.withValues(alpha: 0.5),
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
                       borderSide: BorderSide(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        color: cs.outlineVariant.withValues(alpha: 0.5),
                       ),
                     ),
                     filled: true,
-                    fillColor: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerLow,
+                    fillColor: cs.surfaceContainerLow,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.lg,
                       vertical: AppSpacing.md,
                     ),
                     alignLabelWithHint: true,
-                    hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                   textCapitalization: TextCapitalization.sentences,
                   maxLines: 10,
                   minLines: 6,
                   keyboardType: TextInputType.multiline,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     height: AppLineHeight.normal,
                   ),
                 ),
@@ -235,7 +225,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
                           )
                         : Text(
                             l10n.commonSave,
-                            style: Theme.of(context).textTheme.labelLarge
+                            style: theme.textTheme.labelLarge
                                 ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                   ),

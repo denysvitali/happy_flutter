@@ -117,8 +117,8 @@ class _EditViewState extends State<EditView> {
 
           // ── Diff ────────────────────────────────────────
           AnimatedSize(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
+            duration: AppDuration.normal,
+            curve: AppCurve.standard,
             child: show
                 ? ClipRRect(
                     clipBehavior: Clip.hardEdge,
@@ -158,7 +158,7 @@ class _LineDeltaBadge extends StatelessWidget {
     final label = isAddition ? '+$count' : '-$count';
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs + 2,
+        horizontal: AppSpacing.xsm,
         vertical: 2,
       ),
       decoration: BoxDecoration(
@@ -166,7 +166,7 @@ class _LineDeltaBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(
           color: color.withValues(alpha: 0.35),
-          width: 0.5,
+          width: AppBorder.hairline,
         ),
       ),
       child: Text(

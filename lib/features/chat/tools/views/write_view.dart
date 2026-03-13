@@ -69,7 +69,7 @@ class _WriteViewState extends State<WriteView> {
               borderRadius: BorderRadius.circular(AppRadius.sm),
               border: Border.all(
                 color: cs.outlineVariant,
-                width: 0.5,
+                width: AppBorder.hairline,
               ),
             ),
             clipBehavior: Clip.antiAlias,
@@ -82,7 +82,7 @@ class _WriteViewState extends State<WriteView> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.md,
-                    vertical: AppSpacing.xs + 2,
+                    vertical: AppSpacing.xsm,
                   ),
                   color: cs.surfaceContainerHighest,
                   child: Row(
@@ -92,7 +92,7 @@ class _WriteViewState extends State<WriteView> {
                         size: 13,
                         color: cs.onSurfaceVariant,
                       ),
-                      const SizedBox(width: AppSpacing.xs + 2),
+                      const SizedBox(width: AppSpacing.xsm),
                       Text(
                         _languageHint(filePath),
                         style: theme.textTheme.labelSmall?.copyWith(
@@ -139,7 +139,7 @@ class _WriteViewState extends State<WriteView> {
                         border: Border(
                           top: BorderSide(
                             color: cs.outlineVariant,
-                            width: 0.5,
+                            width: AppBorder.hairline,
                           ),
                         ),
                       ),
@@ -258,7 +258,7 @@ class _InfoPill extends StatelessWidget {
     final cs = colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs + 2,
+        horizontal: AppSpacing.xsm,
         vertical: 2,
       ),
       decoration: BoxDecoration(
@@ -266,7 +266,7 @@ class _InfoPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(
           color: cs.outlineVariant.withValues(alpha: 0.5),
-          width: 0.5,
+          width: AppBorder.hairline,
         ),
       ),
       child: Row(
@@ -345,11 +345,11 @@ class _WritePathHeader extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.sm,
-              vertical: AppSpacing.xs + 2,
+              vertical: AppSpacing.xsm,
             ),
             decoration: BoxDecoration(
               color: cs.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+              borderRadius: BorderRadius.circular(AppRadius.xsm),
               border:
                   Border.all(color: cs.outlineVariant, width: 0.5),
             ),
@@ -361,7 +361,7 @@ class _WritePathHeader extends StatelessWidget {
                   size: 14,
                   color: cs.onSurfaceVariant,
                 ),
-                const SizedBox(width: AppSpacing.xs + 2),
+                const SizedBox(width: AppSpacing.xsm),
                 Flexible(
                   child: RichText(
                     overflow: TextOverflow.ellipsis,
@@ -442,7 +442,7 @@ class _CreatedBadgeState extends State<_CreatedBadge>
       scale: _scale,
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs + 2,
+          horizontal: AppSpacing.xsm,
           vertical: AppSpacing.xs,
         ),
         decoration: BoxDecoration(
@@ -450,7 +450,7 @@ class _CreatedBadgeState extends State<_CreatedBadge>
           borderRadius: BorderRadius.circular(AppRadius.xs),
           border: Border.all(
             color: _green.withValues(alpha: 0.4),
-            width: 0.5,
+            width: AppBorder.hairline,
           ),
         ),
         child: Row(
@@ -508,7 +508,7 @@ class _LineNumberedCode extends StatelessWidget {
                   color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                   fontFamily: 'monospace',
                   fontSize: AppFontSize.sm,
-                  height: 1.5,
+                  height: AppLineHeight.relaxed,
                 ),
               ),
             );
@@ -524,7 +524,7 @@ class _LineNumberedCode extends StatelessWidget {
                 color: cs.onSurface,
                 fontFamily: 'monospace',
                 fontSize: AppFontSize.sm,
-                height: 1.5,
+                height: AppLineHeight.relaxed,
               ),
             );
           }).toList(),

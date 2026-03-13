@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/theme/app_colors.dart';
+
 /// Connection event type
 enum ConnectionEventType {
   connect,
@@ -299,7 +301,10 @@ class _SftpConnectionHistoryScreenState
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor:
+                  Theme.of(ctx).colorScheme.error,
+            ),
             child: const Text('Clear'),
           ),
         ],
@@ -466,7 +471,7 @@ class _SftpConnectionHistoryScreenState
                         child: _EventTypeChip(
                           label: _getEventTypeLabel(type),
                           isSelected: _eventTypeFilter == type,
-                          color: _getEventTypeColor(type),
+                          color: _getEventTypeColor(type, context),
                           onTap: () {
                             setState(() => _eventTypeFilter = type);
                             _loadEvents();
@@ -586,18 +591,22 @@ class _SftpConnectionHistoryScreenState
     }
   }
 
-  Color _getEventTypeColor(ConnectionEventType type) {
+  Color _getEventTypeColor(
+    ConnectionEventType type,
+    BuildContext context,
+  ) {
+    final cs = Theme.of(context).colorScheme;
     switch (type) {
       case ConnectionEventType.connect:
       case ConnectionEventType.sessionStart:
-        return Colors.blue;
+        return cs.primary;
       case ConnectionEventType.disconnect:
       case ConnectionEventType.sessionEnd:
-        return Colors.grey;
+        return cs.onSurfaceVariant;
       case ConnectionEventType.authSuccess:
-        return Colors.green;
+        return AppColors.success;
       case ConnectionEventType.authFailure:
-        return Colors.red;
+        return cs.error;
     }
   }
 }

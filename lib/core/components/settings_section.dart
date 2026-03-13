@@ -93,7 +93,7 @@ class SettingsRow extends StatelessWidget {
                       ),
                     ),
                     if (subtitle != null) ...[
-                      const SizedBox(height: 2),
+                      const SizedBox(height: AppSpacing.xxs),
                       Text(
                         subtitle!,
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -211,7 +211,7 @@ class SettingsNavRow extends StatelessWidget {
       onTap: onTap,
       trailing: Icon(
         Icons.chevron_right,
-        size: 20,
+        size: AppSpacing.xl,
         color: cs.onSurface.withValues(alpha: AppOpacity.medium),
       ),
     );

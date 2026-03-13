@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../models/sftp_log.dart';
 
 /// Log level filter
@@ -136,7 +137,10 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor:
+                  Theme.of(ctx).colorScheme.error,
+            ),
             child: const Text('Clear'),
           ),
         ],
@@ -576,7 +580,9 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
           onPressed: _clearLogs,
           icon: const Icon(Icons.delete_outline, size: 18),
           label: const Text('Clear all logs'),
-          style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+          ),
         ),
       ],
     );

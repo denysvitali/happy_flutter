@@ -58,8 +58,8 @@ TextStyle _mono(BuildContext context) {
   return TextStyle(
     fontFamily: 'monospace',
     fontFamilyFallback: const ['Courier New', 'Courier'],
-    fontSize: 12,
-    height: 1.5,
+    fontSize: AppFontSize.sm,
+    height: AppLineHeight.relaxed,
     color: Theme.of(context).colorScheme.onSurface,
   );
 }
@@ -112,9 +112,9 @@ class _SmartOutputContainerState extends State<SmartOutputContainer> {
                 style: TextStyle(
                   fontFamily: 'monospace',
                   fontFamilyFallback: const ['Courier New', 'Courier'],
-                  fontSize: 12,
+                  fontSize: AppFontSize.sm,
                   color: theme.colorScheme.onSurface,
-                  height: 1.5,
+                  height: AppLineHeight.relaxed,
                 ),
               ),
       ),
@@ -270,7 +270,7 @@ class _JsonNodeState extends State<_JsonNode> {
           child: Text('{', style: mono.copyWith(color: colors.bracket)),
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 16),
+          padding: const EdgeInsets.only(left: AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -344,7 +344,7 @@ class _JsonNodeState extends State<_JsonNode> {
           child: Text('[', style: mono.copyWith(color: colors.bracket)),
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 16),
+          padding: const EdgeInsets.only(left: AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,

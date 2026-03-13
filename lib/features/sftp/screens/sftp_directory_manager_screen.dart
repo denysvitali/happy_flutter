@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -128,7 +129,10 @@ class _SftpDirectoryManagerScreenState
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor:
+                  Theme.of(ctx).colorScheme.error,
+            ),
             child: const Text('Remove'),
           ),
         ],
@@ -358,15 +362,12 @@ class _SftpDirectoryManagerScreenState
                 const Spacer(),
                 TextButton.icon(
                   onPressed: _removeShare,
-                  icon: const Icon(
-                    Icons.link_off,
-                    size: 18,
-                    color: Colors.red,
+                  style: TextButton.styleFrom(
+                    foregroundColor:
+                        Theme.of(context).colorScheme.error,
                   ),
-                  label: const Text(
-                    'Remove Share',
-                    style: TextStyle(color: Colors.red),
-                  ),
+                  icon: const Icon(Icons.link_off, size: 18),
+                  label: const Text('Remove Share'),
                 ),
               ],
             ),

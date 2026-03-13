@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../../../../core/i18n/app_localizations.dart';
 import '../tool_section_view.dart';
@@ -150,7 +151,7 @@ class _UrlChip extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     switch (state) {
       case 'completed':
-        return const Color(0xFF16A34A); // green-600
+        return AppColors.success; // green-600
       case 'error':
       case 'failed':
         return cs.error;
@@ -339,7 +340,7 @@ class _ResultSection extends StatelessWidget {
                 vertical: 6,
               ),
               decoration: BoxDecoration(
-                color: const Color(0xFF16A34A).withAlpha(20),
+                color: AppColors.success.withAlpha(20),
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(AppRadius.sm),
                 ),
@@ -349,7 +350,7 @@ class _ResultSection extends StatelessWidget {
                   const Icon(
                     Icons.article_outlined,
                     size: 13,
-                    color: Color(0xFF16A34A),
+                    color: AppColors.success,
                   ),
                   const SizedBox(width: 6),
                   Text(
@@ -357,7 +358,7 @@ class _ResultSection extends StatelessWidget {
                     style: TextStyle(
                       fontSize: AppFontSize.xs,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF16A34A).withAlpha(204),
+                      color: AppColors.success.withAlpha(204),
                       letterSpacing: 0.3,
                     ),
                   ),

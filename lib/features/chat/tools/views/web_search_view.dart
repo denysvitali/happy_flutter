@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../tool_section_view.dart';
 
@@ -243,7 +244,7 @@ class _SearchBar extends StatelessWidget {
             Icon(
               Icons.check_circle,
               size: 14,
-              color: const Color(0xFF16A34A),
+              color: AppColors.success,
             ),
         ],
       ),

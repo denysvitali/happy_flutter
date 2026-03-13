@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Debug screen for testing and inspecting push notification configuration.
@@ -367,11 +368,11 @@ class _NotificationTestScreenState
     switch (status) {
       case AuthorizationStatus.authorized:
       case AuthorizationStatus.provisional:
-        return Colors.green;
+        return AppColors.success;
       case AuthorizationStatus.denied:
         return cs.error;
       case AuthorizationStatus.notDetermined:
-        return Colors.orange;
+        return AppColors.warning;
       default:
         return cs.onSurfaceVariant;
     }

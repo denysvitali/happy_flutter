@@ -302,10 +302,10 @@ class _RestoreKeyDialogState
             ),
           ),
           child: _isSubmitting
-              ? const AppLoadingIndicator(
+              ? AppLoadingIndicator(
                   size: 16,
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onPrimary,
                 )
               : Text(l10n.authSignIn),
         ),

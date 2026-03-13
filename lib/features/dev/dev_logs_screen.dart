@@ -7,6 +7,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/logger_provider.dart';
 import '../../core/services/logger_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/datetime_extensions.dart';
 
@@ -348,11 +349,11 @@ class LogEntryWidget extends StatelessWidget {
       case LogLevel.debug:
         return Theme.of(context).colorScheme.onSurfaceVariant;
       case LogLevel.info:
-        return Colors.green;
+        return AppColors.success;
       case LogLevel.warning:
-        return Colors.orange;
+        return AppColors.warning;
       case LogLevel.error:
-        return Colors.red;
+        return Theme.of(context).colorScheme.error;
     }
   }
 
