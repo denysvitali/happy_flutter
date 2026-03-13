@@ -594,9 +594,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         }
                       },
                 child: isVerifying
-                    ? const Semantics(
+                    ? Semantics(
                         label: 'Verifying...',
-                        child: SizedBox(
+                        child: const SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
