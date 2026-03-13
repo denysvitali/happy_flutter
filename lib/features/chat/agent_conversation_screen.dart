@@ -156,11 +156,12 @@ class _AgentConversationScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final input = _taskMsg?['input'] as Map<String, dynamic>?;
     final description =
         input?['description'] as String? ??
         input?['prompt'] as String? ??
-        'Agent';
+        l10n.agentFallbackDescription;
     final subagentType = input?['subagent_type'] as String?;
     final state = _taskMsg?['state'] as String? ?? 'pending';
     final isRunning = state == 'running';
@@ -210,7 +211,7 @@ class _AgentConversationScreenState
               child: isRunning
                   ? const CircularProgressIndicator()
                   : Text(
-                      'No messages yet',
+                      l10n.agentNoMessages,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -388,7 +389,7 @@ class _AgentConversationScreenState
     final description =
         input?['description'] as String? ??
         input?['prompt'] as String? ??
-        'Task';
+        AppLocalizations.of(context).agentFallbackTask;
     final subagentType = input?['subagent_type'] as String?;
     final state = msg['state'] as String? ?? 'pending';
     final toolState = _parseToolState(state);
@@ -530,13 +531,15 @@ class _ThinkingRow extends StatelessWidget {
           Icon(
             Icons.auto_awesome_rounded,
             size: 12,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+            color: theme.colorScheme.onSurfaceVariant
+                .withValues(alpha: 0.6),
           ),
           const SizedBox(width: 4),
           Text(
-            'Thinking...',
+            AppLocalizations.of(context).chatThinking,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+              color: theme.colorScheme.onSurfaceVariant
+                  .withValues(alpha: 0.6),
               fontStyle: FontStyle.italic,
             ),
           ),

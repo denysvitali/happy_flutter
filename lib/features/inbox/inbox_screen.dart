@@ -457,7 +457,7 @@ class _InboxHeader extends StatelessWidget {
       children: [
         Expanded(
           child: Text(
-            'Inbox',
+            context.l10n.inboxTitle,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
             ),

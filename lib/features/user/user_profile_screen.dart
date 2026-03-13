@@ -48,7 +48,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
   Future<void> _removeFriend(UserProfile user) async {
     final l10n = context.l10n;
-    final name = user.name ?? 'this user';
+    final name = user.name ?? l10n.userFallbackName;
     final isFriend = user.status == RelationshipStatus.friend;
     final confirmed = await _showConfirmDialog(
       title: isFriend ? l10n.friendsRemoveTitle : l10n.friendsCancelRequest,

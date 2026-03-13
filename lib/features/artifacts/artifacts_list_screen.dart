@@ -364,7 +364,9 @@ class _ArtifactListCard extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      _relativeDate(artifact.updatedAt),
+                      _relativeDate(
+                        context, artifact.updatedAt,
+                      ),
                       style:
                           theme.textTheme.bodySmall?.copyWith(
                         color: cs.onSurfaceVariant,
@@ -410,16 +412,26 @@ class _ArtifactListCard extends StatelessWidget {
   }
 
   /// Format timestamp as relative date string.
-  static String _relativeDate(int millis) {
+  static String _relativeDate(
+    BuildContext context,
+    int millis,
+  ) {
+    final l10n = AppLocalizations.of(context);
     final now = DateTime.now();
     final date = DateTime.fromMillisecondsSinceEpoch(millis);
     final diff = now.difference(date);
 
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
-    if (diff.inDays < 1) return '${diff.inHours}h ago';
-    if (diff.inDays == 1) return 'Yesterday';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    if (diff.inMinutes < 1) return l10n.artifactsJustNow;
+    if (diff.inHours < 1) {
+      return l10n.artifactsMinutesAgo(diff.inMinutes);
+    }
+    if (diff.inDays < 1) {
+      return l10n.artifactsHoursAgo(diff.inHours);
+    }
+    if (diff.inDays == 1) return l10n.artifactsYesterday;
+    if (diff.inDays < 7) {
+      return l10n.artifactsDaysAgo(diff.inDays);
+    }
 
     final mo = date.month.toString().padLeft(2, '0');
     final d = date.day.toString().padLeft(2, '0');

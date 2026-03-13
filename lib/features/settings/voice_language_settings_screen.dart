@@ -202,7 +202,7 @@ class _VoiceLanguageSettingsScreenState
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                '${filtered.length} languages',
+                l10n.voiceLanguagesCount(filtered.length),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

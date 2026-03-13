@@ -32,7 +32,7 @@ class PickProfileScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           Text(
-            'Choose an AI backend profile for your session.',
+            l10n.pickProfileChooseBackend,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -41,8 +41,8 @@ class PickProfileScreen extends ConsumerWidget {
 
           // "None" option
           _ProfileCard(
-            name: 'None',
-            description: 'Use default configuration',
+            name: l10n.pickProfileNone,
+            description: l10n.pickProfileNoneDesc,
             icon: Icons.remove_circle_outline,
             color: theme.colorScheme.onSurfaceVariant,
             isSelected: selectedId == null,
@@ -57,7 +57,7 @@ class PickProfileScreen extends ConsumerWidget {
               bottom: AppSpacing.sm,
             ),
             child: Text(
-              'BUILT-IN',
+              l10n.pickProfileBuiltInSection,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
@@ -85,7 +85,7 @@ class PickProfileScreen extends ConsumerWidget {
                 bottom: AppSpacing.sm,
               ),
               child: Text(
-                'CUSTOM',
+                l10n.pickProfileCustomSection,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w600,
@@ -96,7 +96,8 @@ class PickProfileScreen extends ConsumerWidget {
             ...customProfiles.map(
               (profile) => _ProfileCard(
                 name: profile.name,
-                description: profile.description ?? 'Custom profile',
+                description: profile.description ??
+                    l10n.pickProfileCustomDescription,
                 icon: Icons.person_outline,
                 color: theme.colorScheme.primary,
                 isSelected: selectedId == profile.id,

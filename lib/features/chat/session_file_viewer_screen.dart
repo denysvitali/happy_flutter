@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// Screen that displays the content of a file in a scrollable monospace view.
 ///
@@ -131,14 +132,15 @@ class _EmptyContentView extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'No content available',
+            AppLocalizations.of(context).fileViewerNoContent,
             style: theme.textTheme.titleMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'The file content could not be loaded.',
+            AppLocalizations.of(context)
+                .fileViewerContentError,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),

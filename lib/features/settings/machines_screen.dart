@@ -136,7 +136,7 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen> {
                   SizedBox(height: MediaQuery.sizeOf(context).height * 0.24),
                   Center(
                     child: Text(
-                      'No machines',
+                      context.l10n.machinesNoMachines,
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
                   ),

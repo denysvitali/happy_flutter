@@ -180,7 +180,7 @@ class CommandPaletteController {
           title: sessionName,
           subtitle: session.metadata?.path ?? 'Switch to session',
           icon: Icons.access_time,
-          category: 'Recent Sessions',
+          category: l10n.commandCategoryRecentSessions,
           action: () {
             router.go('/chat/${session.id}');
           },

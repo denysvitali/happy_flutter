@@ -1088,6 +1088,100 @@ class AppLocalizations {
 
   // Developer
   String developerSentToSentry(String eventId) => 'Sent to Sentry: $eventId';
+
+  // Chat empty view
+  String get chatHowCanIHelpToday => 'How can I help you today?';
+  String get chatSuggestionWriteCode => 'Write code';
+  String get chatSuggestionWriteCodeDesc =>
+      'Generate a function or component';
+  String get chatSuggestionDebugIssue => 'Debug an issue';
+  String get chatSuggestionDebugIssueDesc =>
+      'Find and fix a bug in your code';
+  String get chatSuggestionExplainCode => 'Explain code';
+  String get chatSuggestionExplainCodeDesc =>
+      'Understand how something works';
+  String get chatSuggestionReviewPr => 'Review PR';
+  String get chatSuggestionReviewPrDesc =>
+      'Get feedback on your changes';
+
+  // Pick path screen
+  String get pickPathHint =>
+      'Enter path (e.g. /home/user/projects)';
+  String get pickRecentPaths => 'Recent Paths';
+  String get pickSuggestedPaths => 'Suggested Paths';
+
+  // Pick profile screen
+  String get pickProfileChooseBackend =>
+      'Choose an AI backend profile for your session.';
+  String get pickProfileNone => 'None';
+  String get pickProfileNoneDesc => 'Use default configuration';
+  String get pickProfileBuiltInSection => 'BUILT-IN';
+  String get pickProfileCustomSection => 'CUSTOM';
+  String get pickProfileCustomDescription => 'Custom profile';
+
+  // Agent conversation screen
+  String get agentFallbackDescription => 'Agent';
+  String get agentNoMessages => 'No messages yet';
+  String get agentFallbackTask => 'Task';
+
+  // Session file viewer screen
+  String get fileViewerNoContent => 'No content available';
+  String get fileViewerContentError =>
+      'The file content could not be loaded.';
+
+  // Artifact relative date strings
+  String get artifactsJustNow => 'Just now';
+  String get artifactsYesterday => 'Yesterday';
+  String artifactsMinutesAgo(int n) => '${n}m ago';
+  String artifactsHoursAgo(int n) => '${n}h ago';
+  String artifactsDaysAgo(int n) => '${n}d ago';
+
+  // User profile fallback
+  String get userFallbackName => 'this user';
+
+  // Command palette
+  String get commandCategoryRecentSessions => 'Recent Sessions';
+
+  // Features settings sections and display toggles
+  String get featuresSectionExperiments => 'Experiments';
+  String get featuresSectionDisplay => 'Display';
+  String get featuresCompactMode => 'Compact Mode';
+  String get featuresCompactModeDesc =>
+      'Reduce spacing in chat messages';
+  String get featuresShowLineNumbers => 'Show Line Numbers';
+  String get featuresShowLineNumbersDesc =>
+      'Display line numbers in code blocks';
+  String get featuresWrapLinesInDiffs => 'Wrap Lines in Diffs';
+  String get featuresWrapLinesInDiffsDesc =>
+      'Wrap long lines in diff views';
+  String get featuresAlwaysShowContextSize =>
+      'Always Show Context Size';
+  String get featuresAlwaysShowContextSizeDesc =>
+      'Show context window usage';
+
+  // Server settings connection status
+  String get serverCheckingConnection => 'Checking connection...';
+  String get serverConnected => 'Connected';
+  String get serverConnectionFailed => 'Connection failed';
+  String get serverUrlCannotBeEmpty =>
+      'Server URL cannot be empty';
+  String get serverVerifyingServer => 'Verifying server...';
+  String get serverCustomUrlSectionLabel => 'CUSTOM SERVER URL';
+  String get serverCurrentlyUsingCustomUrl =>
+      'Currently using a custom server URL.';
+
+  // Machines screen
+  String get machinesNoMachines => 'No machines';
+
+  // Voice settings auto-detect
+  String get voiceAutoDetect => 'Auto-detect';
+
+  // Inbox title
+  String get inboxTitle => 'Inbox';
+
+  // Friends screen
+  String get friendsNoRequestsSubtitle =>
+      'Friend requests will appear here';
 }
 
 /// Localizations delegate

@@ -12,29 +12,6 @@ class EmptyChatView extends StatefulWidget {
   /// Called when a suggestion card is tapped.
   final void Function(String)? onSuggestionTap;
 
-  static const _suggestions = [
-    _Suggestion(
-      'Write code',
-      'Generate a function or component',
-      Icons.code_rounded,
-    ),
-    _Suggestion(
-      'Debug an issue',
-      'Find and fix a bug in your code',
-      Icons.bug_report_rounded,
-    ),
-    _Suggestion(
-      'Explain code',
-      'Understand how something works',
-      Icons.auto_stories_rounded,
-    ),
-    _Suggestion(
-      'Review PR',
-      'Get feedback on your changes',
-      Icons.rate_review_rounded,
-    ),
-  ];
-
   @override
   State<EmptyChatView> createState() =>
       _EmptyChatViewState();
@@ -75,9 +52,8 @@ class _EmptyChatViewState extends State<EmptyChatView>
       ),
     );
 
-    for (var i = 0;
-        i < EmptyChatView._suggestions.length;
-        i++) {
+    // 4 suggestion cards
+    for (var i = 0; i < 4; i++) {
       final start = 0.2 + i * 0.12;
       final end = (start + 0.35).clamp(0.0, 1.0);
       _cardOpacities.add(
@@ -118,6 +94,29 @@ class _EmptyChatViewState extends State<EmptyChatView>
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final l10n = context.l10n;
+
+    final suggestions = [
+      _Suggestion(
+        l10n.chatSuggestionWriteCode,
+        l10n.chatSuggestionWriteCodeDesc,
+        Icons.code_rounded,
+      ),
+      _Suggestion(
+        l10n.chatSuggestionDebugIssue,
+        l10n.chatSuggestionDebugIssueDesc,
+        Icons.bug_report_rounded,
+      ),
+      _Suggestion(
+        l10n.chatSuggestionExplainCode,
+        l10n.chatSuggestionExplainCodeDesc,
+        Icons.auto_stories_rounded,
+      ),
+      _Suggestion(
+        l10n.chatSuggestionReviewPr,
+        l10n.chatSuggestionReviewPrDesc,
+        Icons.rate_review_rounded,
+      ),
+    ];
 
     return AnimatedBuilder(
       animation: _ctrl,
@@ -187,7 +186,7 @@ class _EmptyChatViewState extends State<EmptyChatView>
                       ),
                       // Subtitle
                       Text(
-                        'How can I help you today?',
+                        l10n.chatHowCanIHelpToday,
                         textAlign: TextAlign.center,
                         style: theme
                             .textTheme.bodyMedium
@@ -206,7 +205,9 @@ class _EmptyChatViewState extends State<EmptyChatView>
                 constraints: const BoxConstraints(
                   maxWidth: 400,
                 ),
-                child: _buildSuggestionGrid(cs),
+                child: _buildSuggestionGrid(
+                  cs, suggestions,
+                ),
               ),
             ],
           ),
@@ -215,8 +216,11 @@ class _EmptyChatViewState extends State<EmptyChatView>
     );
   }
 
-  Widget _buildSuggestionGrid(ColorScheme cs) {
-    final count = EmptyChatView._suggestions.length;
+  Widget _buildSuggestionGrid(
+    ColorScheme cs,
+    List<_Suggestion> suggestions,
+  ) {
+    final count = suggestions.length;
     final rows = <Widget>[];
 
     for (var row = 0; row < (count / 2).ceil(); row++) {
@@ -224,7 +228,7 @@ class _EmptyChatViewState extends State<EmptyChatView>
       for (var col = 0; col < 2; col++) {
         final i = row * 2 + col;
         if (i >= count) break;
-        final s = EmptyChatView._suggestions[i];
+        final s = suggestions[i];
         children.add(
           Expanded(
             child: Opacity(

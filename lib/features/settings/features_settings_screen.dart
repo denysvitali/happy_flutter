@@ -21,7 +21,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           SettingsSection(
-            title: 'Experiments',
+            title: l10n.featuresSectionExperiments,
             children: [
               SettingsToggleRow(
                 icon: Icons.visibility_off_outlined,
@@ -33,50 +33,54 @@ class FeaturesSettingsScreen extends ConsumerWidget {
               ),
               SettingsToggleRow(
                 icon: Icons.content_copy_rounded,
-                title: 'Markdown Copy V2',
-                subtitle: 'Use improved markdown copy format',
+                title: l10n.featuresMarkdownCopyV2,
+                subtitle: l10n.featuresMarkdownCopyV2Desc,
                 value: settings.markdownCopyV2,
-                onChanged: (v) => notifier.updateSetting('markdownCopyV2', v),
+                onChanged: (v) =>
+                    notifier.updateSetting('markdownCopyV2', v),
               ),
               SettingsToggleRow(
                 icon: Icons.density_small_rounded,
-                title: 'Compact Mode',
-                subtitle: 'Reduce spacing in chat messages',
+                title: l10n.featuresCompactMode,
+                subtitle: l10n.featuresCompactModeDesc,
                 value: settings.compactSessionView,
                 onChanged: (v) =>
                     notifier.updateSetting('compactSessionView', v),
               ),
               SettingsToggleRow(
                 icon: Icons.science_outlined,
-                title: 'Experiments',
-                subtitle: 'Enable experimental features',
+                title: l10n.featuresExperiments,
+                subtitle: l10n.featuresExperimentsDesc,
                 value: settings.experiments,
-                onChanged: (v) => notifier.updateSetting('experiments', v),
+                onChanged: (v) =>
+                    notifier.updateSetting('experiments', v),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
           SettingsSection(
-            title: 'Display',
+            title: l10n.featuresSectionDisplay,
             children: [
               SettingsToggleRow(
                 icon: Icons.numbers_rounded,
-                title: 'Show Line Numbers',
-                subtitle: 'Display line numbers in code blocks',
+                title: l10n.featuresShowLineNumbers,
+                subtitle: l10n.featuresShowLineNumbersDesc,
                 value: settings.showLineNumbers,
-                onChanged: (v) => notifier.updateSetting('showLineNumbers', v),
+                onChanged: (v) =>
+                    notifier.updateSetting('showLineNumbers', v),
               ),
               SettingsToggleRow(
                 icon: Icons.wrap_text_rounded,
-                title: 'Wrap Lines in Diffs',
-                subtitle: 'Wrap long lines in diff views',
+                title: l10n.featuresWrapLinesInDiffs,
+                subtitle: l10n.featuresWrapLinesInDiffsDesc,
                 value: settings.wrapLinesInDiffs,
-                onChanged: (v) => notifier.updateSetting('wrapLinesInDiffs', v),
+                onChanged: (v) =>
+                    notifier.updateSetting('wrapLinesInDiffs', v),
               ),
               SettingsToggleRow(
                 icon: Icons.data_usage_rounded,
-                title: 'Always Show Context Size',
-                subtitle: 'Show context window usage',
+                title: l10n.featuresAlwaysShowContextSize,
+                subtitle: l10n.featuresAlwaysShowContextSizeDesc,
                 value: settings.alwaysShowContextSize,
                 onChanged: (v) =>
                     notifier.updateSetting('alwaysShowContextSize', v),

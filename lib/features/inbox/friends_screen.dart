@@ -396,8 +396,7 @@ class _RequestsTab extends StatelessWidget {
             AppEmptyState(
               icon: Icons.mark_email_read_outlined,
               title: context.l10n.friendsNoRequests,
-              subtitle:
-                  'Friend requests will appear here',
+              subtitle: context.l10n.friendsNoRequestsSubtitle,
             ),
           ],
         ),

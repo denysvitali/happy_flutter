@@ -201,7 +201,7 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
                 icon: Icons.language,
                 title: l10n.voiceLanguageTitle,
                 subtitle: selectedLanguage?.displayName ??
-                    'Auto-detect',
+                    l10n.voiceAutoDetect,
                 onTap: () =>
                     context.pushNamed('voice-language'),
               ),

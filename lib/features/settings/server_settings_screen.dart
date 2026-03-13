@@ -44,9 +44,11 @@ class _ServerSettingsScreenState
     if (url.isEmpty) {
       return;
     }
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _isVerifying = true;
-      _statusMessage = 'Checking connection...';
+      _statusMessage = l10n.serverCheckingConnection;
     });
     final result = await verifyServerUrl(url);
     if (!mounted) {
@@ -56,15 +58,18 @@ class _ServerSettingsScreenState
       _isVerifying = false;
       _isConnected = result.isValid;
       _statusMessage = result.isValid
-          ? 'Connected'
-          : (result.errorMessage ?? 'Connection failed');
+          ? l10n.serverConnected
+          : (result.errorMessage ?? l10n.serverConnectionFailed);
     });
   }
 
   Future<void> _handleSave() async {
     final url = _urlController.text.trim();
     if (url.isEmpty) {
-      setState(() => _errorText = 'Server URL cannot be empty');
+      setState(() {
+        _errorText =
+            AppLocalizations.of(context).serverUrlCannotBeEmpty;
+      });
       return;
     }
 
@@ -74,10 +79,11 @@ class _ServerSettingsScreenState
       return;
     }
 
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _errorText = null;
       _isVerifying = true;
-      _statusMessage = 'Verifying server...';
+      _statusMessage = l10n.serverVerifyingServer;
       _isConnected = null;
     });
 
@@ -90,8 +96,8 @@ class _ServerSettingsScreenState
       _isVerifying = false;
       _isConnected = result.isValid;
       _statusMessage = result.isValid
-          ? 'Connected'
-          : (result.errorMessage ?? 'Connection failed');
+          ? l10n.serverConnected
+          : (result.errorMessage ?? l10n.serverConnectionFailed);
     });
 
     if (!result.isValid) {
@@ -218,7 +224,7 @@ class _ServerSettingsScreenState
 
             // URL label
             Text(
-              'CUSTOM SERVER URL',
+              l10n.serverCustomUrlSectionLabel,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 letterSpacing: 0.8,
@@ -254,7 +260,7 @@ class _ServerSettingsScreenState
 
             if (isCustom)
               Text(
-                'Currently using a custom server URL.',
+                l10n.serverCurrentlyUsingCustomUrl,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.primary,
                 ),

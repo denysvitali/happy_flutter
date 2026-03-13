@@ -100,11 +100,12 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
             child: TextField(
               controller: _controller,
               autofocus: true,
-              decoration: const InputDecoration(
-                hintText:
-                    'Enter path (e.g. /home/user/projects)',
+              decoration: InputDecoration(
+                hintText: l10n.pickPathHint,
                 border: InputBorder.none,
-                prefixIcon: Icon(Icons.folder_outlined),
+                prefixIcon: const Icon(
+                  Icons.folder_outlined,
+                ),
               ),
               onChanged: (_) => setState(() {}),
               onSubmitted: (_) => _confirm(),
@@ -114,7 +115,7 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
 
           // Recent paths from sessions
           if (recentPaths.isNotEmpty) ...[
-            const AppSectionHeader(title: 'Recent Paths'),
+            AppSectionHeader(title: l10n.pickRecentPaths),
             AppCard(
               padding: EdgeInsets.zero,
               child: Column(
@@ -147,7 +148,9 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
           // Suggested paths when no recent history
           if (recentPaths.isEmpty &&
               suggestedPaths.isNotEmpty) ...[
-            const AppSectionHeader(title: 'Suggested Paths'),
+            AppSectionHeader(
+              title: l10n.pickSuggestedPaths,
+            ),
             AppCard(
               padding: EdgeInsets.zero,
               child: Column(
