@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 
 import '../../../../core/theme/app_tokens.dart';
+import '../../markdown/markdown_view.dart';
 import '../known_tools.dart';
 import '../tool_status_indicator.dart';
 
@@ -154,16 +155,10 @@ class TaskView extends StatelessWidget {
               Padding(
                 padding:
                     const EdgeInsets.only(left: 24),
-                child: Text(
-                  prompt,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(
-                    color: theme
-                        .colorScheme.onSurfaceVariant,
-                    height: 1.4,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                child: MarkdownView(
+                  markdown: prompt,
+                  textColor:
+                      theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
