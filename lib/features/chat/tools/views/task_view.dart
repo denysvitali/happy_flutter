@@ -40,15 +40,20 @@ class TaskView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final input = tool['input'] as Map<String, dynamic>?;
-    final description =
-        input?['description'] as String? ??
-        input?['prompt'] as String? ??
-        'Task';
+    final description = input?['description'] as String?;
+    final prompt = input?['prompt'] as String?;
+    final headerText = description ?? prompt ?? 'Task';
     final subagentType =
         input?['subagent_type'] as String?;
+    final runInBackground =
+        input?['run_in_background'] as bool? ?? false;
     final toolState =
         tool['state'] as String? ?? 'pending';
     final parsedState = _parseState(toolState);
+
+    // Show prompt detail when description is separate
+    final showPromptDetail =
+        description != null && prompt != null;
 
     final children = tool['children'] as List<dynamic>?;
     final toolCalls = _extractToolCalls(children);
@@ -96,7 +101,7 @@ class TaskView extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header row: status + description + badge
+            // Header row: status + description + badges
             Row(
               children: [
                 SizedBox(
@@ -110,7 +115,7 @@ class TaskView extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    description,
+                    headerText,
                     style: theme.textTheme.bodySmall
                         ?.copyWith(
                       color: theme.colorScheme.onSurface,
@@ -121,8 +126,16 @@ class TaskView extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (runInBackground) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  _InfoBadge(
+                    icon: Icons.run_circle_outlined,
+                    label: 'background',
+                    color: theme.colorScheme.tertiary,
+                  ),
+                ],
                 if (subagentType != null) ...[
-                  const SizedBox(width: AppSpacing.sm),
+                  const SizedBox(width: AppSpacing.xs),
                   _SubAgentBadge(type: subagentType),
                 ],
                 const SizedBox(width: AppSpacing.xs),
@@ -134,6 +147,26 @@ class TaskView extends StatelessWidget {
                 ),
               ],
             ),
+            // Prompt detail (when description is the
+            // short summary and prompt has the full task)
+            if (showPromptDetail) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Padding(
+                padding:
+                    const EdgeInsets.only(left: 24),
+                child: Text(
+                  prompt,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(
+                    color: theme
+                        .colorScheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
             // Inline tool call list
             if (shownTools.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xs + 2),
@@ -240,6 +273,52 @@ class _SubAgentBadge extends StatelessWidget {
       default:
         return Icons.rocket_launch;
     }
+  }
+}
+
+// ----------------------------------------------------------
+// Generic info badge (e.g. "background")
+// ----------------------------------------------------------
+
+class _InfoBadge extends StatelessWidget {
+  const _InfoBadge({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 6,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: color),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: AppFontSize.xxs,
+              fontWeight: FontWeight.w500,
+              color: color,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

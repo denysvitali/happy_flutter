@@ -893,6 +893,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     'CodexPatch',
     'CodexDiff',
     'Task',
+    'Agent',
     'TodoWrite',
     'WebFetch',
     'WebSearch',
