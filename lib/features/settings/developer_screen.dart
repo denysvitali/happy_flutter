@@ -113,14 +113,8 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                   title: l10n.developerEncryptionDebug,
                   subtitle:
                       l10n.developerEncryptionDebugDesc,
-                  onTap: () =>
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        l10n.developerNotYetImplemented,
-                      ),
-                    ),
+                  onTap: () => context.push(
+                    '/settings/developer/encryption',
                   ),
                 ),
                 SettingsNavRow(
@@ -128,14 +122,8 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                   title: l10n.developerSessionDebug,
                   subtitle:
                       l10n.developerSessionDebugDesc,
-                  onTap: () =>
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        l10n.developerNotYetImplemented,
-                      ),
-                    ),
+                  onTap: () => context.push(
+                    '/settings/developer/session',
                   ),
                 ),
               ],
@@ -149,14 +137,8 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                   title: l10n.developerTestNotifications,
                   subtitle:
                       l10n.developerTestNotificationsDesc,
-                  onTap: () =>
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        l10n.developerNotYetImplemented,
-                      ),
-                    ),
+                  onTap: () => context.push(
+                    '/settings/developer/notifications',
                   ),
                 ),
                 SettingsNavRow(

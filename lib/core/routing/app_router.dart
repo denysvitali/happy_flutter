@@ -14,7 +14,10 @@ import '../../features/chat/session_files_screen.dart';
 import '../../features/chat/session_info_screen.dart';
 import '../../features/chat/session_recent_screen.dart';
 import '../../features/dev/dev_logs_screen.dart';
+import '../../features/dev/encryption_debug_screen.dart';
 import '../../features/dev/network_inspector_screen.dart';
+import '../../features/dev/notification_test_screen.dart';
+import '../../features/dev/session_debug_screen.dart';
 import '../../features/inbox/friends_screen.dart';
 import '../../features/inbox/friends_search_screen.dart';
 import '../../features/inbox/inbox_screen.dart';
@@ -311,6 +314,30 @@ GoRouter createRouter(String? initialDeepLink) {
             name: 'dev-network',
             pageBuilder: (context, state) => _slidePage(
               const AuthGate(child: NetworkInspectorScreen()),
+              state,
+            ),
+          ),
+          GoRoute(
+            path: 'encryption',
+            name: 'dev-encryption',
+            pageBuilder: (context, state) => _slidePage(
+              const AuthGate(child: EncryptionDebugScreen()),
+              state,
+            ),
+          ),
+          GoRoute(
+            path: 'session',
+            name: 'dev-session',
+            pageBuilder: (context, state) => _slidePage(
+              const AuthGate(child: SessionDebugScreen()),
+              state,
+            ),
+          ),
+          GoRoute(
+            path: 'notifications',
+            name: 'dev-notifications',
+            pageBuilder: (context, state) => _slidePage(
+              const AuthGate(child: NotificationTestScreen()),
               state,
             ),
           ),
