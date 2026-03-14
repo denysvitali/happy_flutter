@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 
 /// Tool definitions with icons, subtitles, descriptions, and metadata.
@@ -476,11 +477,11 @@ class KnownTools {
         final parsedCmd = tool['input']?['parsed_cmd'] as List?;
         if (parsedCmd != null && parsedCmd.isNotEmpty) {
           final cmd = parsedCmd[0] as Map<String, dynamic>?;
-          return cmd?['cmd'] as String?;
+          return cleanShellCommand(cmd?['cmd'] as String?);
         }
         final command = tool['input']?['command'] as List?;
         if (command != null && command.isNotEmpty) {
-          return command.join(' ');
+          return cleanShellCommand(command.join(' '));
         }
         return null;
       },

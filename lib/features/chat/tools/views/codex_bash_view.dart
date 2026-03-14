@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
+import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/features/chat/code_block_widget.dart';
 
@@ -41,13 +42,13 @@ class CodexBashView extends StatelessWidget {
       if (firstCmd != null) {
         operationType = firstCmd['type'] as String? ?? 'bash';
         fileName = firstCmd['name'] as String?;
-        commandStr = firstCmd['cmd'] as String?;
+        commandStr = cleanShellCommand(firstCmd['cmd'] as String?);
       }
     }
 
     final displayCommand = commandStr ??
         (command != null && command.isNotEmpty
-            ? command.join(' ')
+            ? cleanShellCommand(command.join(' '))
             : '');
 
     switch (operationType) {

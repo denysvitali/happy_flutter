@@ -123,7 +123,7 @@ class _WebSearchViewState extends State<WebSearchView> {
     final remaining = results.length - _maxInline;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.only(top: AppSpacing.smd),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -132,7 +132,7 @@ class _WebSearchViewState extends State<WebSearchView> {
           Row(
             children: [
               const _GoogleDotsIcon(),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Text(
                 '${results.length} result${results.length == 1 ? '' : 's'}',
                 style: TextStyle(
@@ -143,7 +143,7 @@ class _WebSearchViewState extends State<WebSearchView> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           // Result cards
           ...visible.map(
             (r) => _ResultCard(searchResult: r),
@@ -156,8 +156,8 @@ class _WebSearchViewState extends State<WebSearchView> {
                 onTap: () => setState(() => _showAll = !_showAll),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.xsm,
                   ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
@@ -173,7 +173,7 @@ class _WebSearchViewState extends State<WebSearchView> {
                         size: 14,
                         color: theme.colorScheme.primary,
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: AppSpacing.xs),
                       Text(
                         _showAll
                             ? 'Show fewer'
@@ -209,7 +209,7 @@ class _SearchBar extends StatelessWidget {
     final isDone = state == 'completed';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.smd, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.xxl),
@@ -217,7 +217,7 @@ class _SearchBar extends StatelessWidget {
           color: isDone
               ? theme.colorScheme.outlineVariant
               : theme.colorScheme.primary.withAlpha(77),
-          width: isDone ? 0.5 : 1,
+          width: isDone ? AppBorder.hairline : 1,
         ),
       ),
       child: Row(
@@ -317,7 +317,7 @@ class _ResultCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(
             color: theme.colorScheme.outlineVariant,
-            width: 0.5,
+            width: AppBorder.hairline,
           ),
           boxShadow: [
             BoxShadow(
@@ -412,7 +412,7 @@ class _LoadingIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.only(top: AppSpacing.smd),
       child: Row(
         children: [
           SizedBox(
@@ -455,7 +455,7 @@ class _ErrorBanner extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(
             color: theme.colorScheme.error.withAlpha(77),
-            width: 0.5,
+            width: AppBorder.hairline,
           ),
         ),
         child: Row(
