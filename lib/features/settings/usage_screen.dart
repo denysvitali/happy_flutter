@@ -107,12 +107,138 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
       body: _isLoading
           ? const AppLoadingIndicator()
           : _error != null
-              ? _buildErrorState(cs, l10n)
-              : _buildUsageContent(cs, l10n),
+              ? _UsageErrorState(
+                  error: _error ?? l10n.commonUnknown,
+                  onRetry: _loadUsage,
+                )
+              : _UsageContent(
+                  summary: _usageSummary,
+                  selectedPeriod: _selectedPeriod,
+                  onPeriodChanged: _onPeriodChanged,
+                  formatNumber: _formatNumber,
+                ),
     );
   }
 
-  Widget _buildErrorState(ColorScheme cs, AppLocalizations l10n) {
+  String _formatNumber(int value) {
+    if (value >= 1000000) {
+      return '${(value / 1000000).toStringAsFixed(1)}M';
+    } else if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(1)}K';
+    }
+    return value.toString();
+  }
+}
+
+class _UsageContent extends StatelessWidget {
+  const _UsageContent({
+    required this.summary,
+    required this.selectedPeriod,
+    required this.onPeriodChanged,
+    required this.formatNumber,
+  });
+
+  final UsageSummary? summary;
+  final UsagePeriod selectedPeriod;
+  final ValueChanged<UsagePeriod> onPeriodChanged;
+  final String Function(int value) formatNumber;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final cs = Theme.of(context).colorScheme;
+    final summary = this.summary;
+
+    if (summary == null) {
+      return const _UsageEmptyState();
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: [
+        _PeriodSelector(
+          selected: selectedPeriod,
+          onChanged: onPeriodChanged,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        SettingsSection(
+          title: l10n.totals,
+          children: [
+            _UsageStatRow(
+              icon: Icons.token,
+              title: l10n.totalTokens,
+              value: formatNumber(summary.totals.totalTokens),
+              iconColor: cs.primary,
+            ),
+            _UsageStatRow(
+              icon: Icons.attach_money,
+              title: l10n.totalCost,
+              value: '\$${summary.totals.totalCost.toStringAsFixed(2)}',
+              iconColor: AppColors.success,
+            ),
+            _UsageStatRow(
+              icon: Icons.description,
+              title: l10n.reports,
+              value: summary.totalReportCount.toString(),
+              iconColor: cs.primary,
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        if (summary.totals.tokensByModel.isNotEmpty ||
+            summary.totals.costByModel.isNotEmpty)
+          SettingsSection(
+            title: l10n.byModel,
+            children: [
+              ...summary.totals.tokensByModel.entries.map((entry) {
+                final cost = summary.totals.costByModel[entry.key] ?? 0.0;
+                return _UsageStatRow(
+                  icon: Icons.smart_toy,
+                  title: entry.key,
+                  value:
+                      '${formatNumber(entry.value)} tokens '
+                      '(\$${cost.toStringAsFixed(2)})',
+                  iconColor: AppColors.warning,
+                );
+              }),
+            ],
+          ),
+        const SizedBox(height: AppSpacing.lg),
+        SettingsSection(
+          title: l10n.statistics,
+          children: [
+            _UsageStatRow(
+              icon: Icons.trending_up,
+              title: l10n.avgCostPerDay,
+              value: '\$${summary.averageCostPerDay.toStringAsFixed(2)}',
+              iconColor: cs.primary,
+            ),
+            _UsageStatRow(
+              icon: Icons.speed,
+              title: l10n.avgTokensPerDay,
+              value: formatNumber(summary.averageTokensPerDay.round()),
+              iconColor: cs.primary,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _UsageErrorState extends StatelessWidget {
+  const _UsageErrorState({
+    required this.error,
+    required this.onRetry,
+  });
+
+  final String error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final cs = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xxl),
@@ -128,21 +254,21 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
             Text(
               l10n.failedToLoad,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-                color: cs.onSurface,
-              ),
+                    fontWeight: FontWeight.w500,
+                    color: cs.onSurface,
+                  ),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              _error ?? l10n.commonUnknown,
+              error,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+                    color: cs.onSurfaceVariant,
+                  ),
             ),
             const SizedBox(height: AppSpacing.xxl),
             FilledButton.icon(
-              onPressed: _loadUsage,
+              onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: Text(l10n.commonRetry),
             ),
@@ -151,28 +277,15 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
       ),
     );
   }
+}
 
-  Widget _buildUsageContent(ColorScheme cs, AppLocalizations l10n) {
-    final summary = _usageSummary;
-    if (summary == null) {
-      return _buildEmptyState(cs, l10n);
-    }
+class _UsageEmptyState extends StatelessWidget {
+  const _UsageEmptyState();
 
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      children: [
-        _buildPeriodSelector(cs, l10n),
-        const SizedBox(height: AppSpacing.lg),
-        _buildTotalsSection(cs, summary.totals, l10n),
-        const SizedBox(height: AppSpacing.lg),
-        _buildModelsSection(cs, summary.totals, l10n),
-        const SizedBox(height: AppSpacing.lg),
-        _buildStatsSection(cs, summary, l10n),
-      ],
-    );
-  }
-
-  Widget _buildEmptyState(ColorScheme cs, AppLocalizations l10n) {
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final cs = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -186,23 +299,35 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
           Text(
             l10n.noUsageData,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-              color: cs.onSurfaceVariant,
-            ),
+                  fontWeight: FontWeight.w500,
+                  color: cs.onSurfaceVariant,
+                ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             l10n.noUsageDataSubtitle,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: cs.onSurfaceVariant,
-            ),
+                  color: cs.onSurfaceVariant,
+                ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildPeriodSelector(ColorScheme cs, AppLocalizations l10n) {
+class _PeriodSelector extends StatelessWidget {
+  const _PeriodSelector({
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final UsagePeriod selected;
+  final ValueChanged<UsagePeriod> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.timePeriod,
       children: [
@@ -226,110 +351,33 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
                 icon: const Icon(Icons.calendar_month),
               ),
             ],
-            selected: {_selectedPeriod},
+            selected: {selected},
             onSelectionChanged: (selection) {
-              _onPeriodChanged(selection.first);
+              onChanged(selection.first);
             },
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildTotalsSection(
-    ColorScheme cs,
-    UsageTotals totals,
-    AppLocalizations l10n,
-  ) {
-    return SettingsSection(
-      title: l10n.totals,
-      children: [
-        _buildStatRow(
-          cs,
-          icon: Icons.token,
-          title: l10n.totalTokens,
-          value: _formatNumber(totals.totalTokens),
-          iconColor: cs.primary,
-        ),
-        _buildStatRow(
-          cs,
-          icon: Icons.attach_money,
-          title: l10n.totalCost,
-          value: '\$${totals.totalCost.toStringAsFixed(2)}',
-          iconColor: AppColors.success,
-        ),
-        _buildStatRow(
-          cs,
-          icon: Icons.description,
-          title: l10n.reports,
-          value: _usageSummary?.totalReportCount.toString() ?? '0',
-          iconColor: cs.primary,
-        ),
-      ],
-    );
-  }
+class _UsageStatRow extends StatelessWidget {
+  const _UsageStatRow({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.iconColor,
+  });
 
-  Widget _buildModelsSection(
-    ColorScheme cs,
-    UsageTotals totals,
-    AppLocalizations l10n,
-  ) {
-    if (totals.tokensByModel.isEmpty && totals.costByModel.isEmpty) {
-      return const SizedBox.shrink();
-    }
+  final IconData icon;
+  final String title;
+  final String value;
+  final Color iconColor;
 
-    return SettingsSection(
-      title: l10n.byModel,
-      children: [
-        ...totals.tokensByModel.entries.map((entry) {
-          final cost = totals.costByModel[entry.key] ?? 0.0;
-          return _buildStatRow(
-            cs,
-            icon: Icons.smart_toy,
-            title: entry.key,
-            value:
-                '${_formatNumber(entry.value)} tokens '
-                '(\$${cost.toStringAsFixed(2)})',
-            iconColor: AppColors.warning,
-          );
-        }),
-      ],
-    );
-  }
-
-  Widget _buildStatsSection(
-    ColorScheme cs,
-    UsageSummary summary,
-    AppLocalizations l10n,
-  ) {
-    return SettingsSection(
-      title: l10n.statistics,
-      children: [
-        _buildStatRow(
-          cs,
-          icon: Icons.trending_up,
-          title: l10n.avgCostPerDay,
-          value: '\$${summary.averageCostPerDay.toStringAsFixed(2)}',
-          iconColor: cs.primary,
-        ),
-        _buildStatRow(
-          cs,
-          icon: Icons.speed,
-          title: l10n.avgTokensPerDay,
-          value: _formatNumber(summary.averageTokensPerDay.round()),
-          iconColor: cs.primary,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatRow(
-    ColorScheme cs, {
-    required IconData icon,
-    required String title,
-    required String value,
-    required Color iconColor,
-  }) {
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
@@ -359,14 +407,5 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
         ],
       ),
     );
-  }
-
-  String _formatNumber(int value) {
-    if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}M';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(1)}K';
-    }
-    return value.toString();
   }
 }

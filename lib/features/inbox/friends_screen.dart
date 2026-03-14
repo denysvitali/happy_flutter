@@ -278,86 +278,24 @@ class _FriendTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     final name = friend.name ?? friend.id;
 
-    return Padding(
-      padding: const EdgeInsets.only(
-        bottom: AppSpacing.sm,
+    return _FriendListCard(
+      leading: _AvatarWithStatus(
+        userId: friend.id,
+        avatarUrl: friend.avatarUrl,
+        size: 48,
       ),
-      child: AppTappable(
-        borderRadius:
-            BorderRadius.circular(AppRadius.md),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.md,
-          ),
-          decoration: BoxDecoration(
-            color: cs.surface,
-            borderRadius:
-                BorderRadius.circular(AppRadius.md),
-            border: Border.all(
-              color: cs.outlineVariant.withValues(
-                alpha: 0.4,
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              // Avatar with status indicator
-              _AvatarWithStatus(
-                userId: friend.id,
-                avatarUrl: friend.avatarUrl,
-                size: 48,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              // Name + bio/username
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(
-                      height: AppSpacing.xsm,
-                    ),
-                    Text(
-                      friend.bio ??
-                          '@${friend.username}',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              IconButton(
-                onPressed: isBusy ? null : onRemove,
-                icon: Icon(
-                  Icons.person_remove_outlined,
-                  color: cs.error,
-                  size: AppSpacing.xl,
-                ),
-                tooltip:
-                    context.l10n.friendsRemoveAction,
-              ),
-            ],
-          ),
+      title: name,
+      subtitle: friend.bio ?? '@${friend.username}',
+      trailing: IconButton(
+        onPressed: isBusy ? null : onRemove,
+        icon: Icon(
+          Icons.person_remove_outlined,
+          color: Theme.of(context).colorScheme.error,
+          size: AppSpacing.xl,
         ),
+        tooltip: context.l10n.friendsRemoveAction,
       ),
     );
   }
@@ -444,112 +382,129 @@ class _RequestTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     final l10n = context.l10n;
 
-    return Padding(
-      padding: const EdgeInsets.only(
-        bottom: AppSpacing.sm,
+    return _FriendListCard(
+      leading: Avatar(
+        id: request.fromUserId,
+        size: 48,
+        imageUrl: request.fromUserAvatarUrl,
       ),
+      title: request.fromUserName,
+      subtitleWidget: Row(
+        children: [
+          AppStatusDot(
+            color: AppColors.warning,
+            size: AppSpacing.xsm,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            l10n.friendsWantsToConnect,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+        ],
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton.outlined(
+            onPressed: isBusy ? null : onReject,
+            icon: const Icon(
+              Icons.close,
+              size: AppSpacing.xl,
+            ),
+            tooltip: l10n.friendsReject,
+            style: IconButton.styleFrom(
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          IconButton.filled(
+            onPressed: isBusy ? null : onAccept,
+            icon: const Icon(
+              Icons.check,
+              size: AppSpacing.xl,
+            ),
+            tooltip: l10n.friendsAccept,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FriendListCard extends StatelessWidget {
+  const _FriendListCard({
+    required this.leading,
+    required this.title,
+    required this.trailing,
+    this.subtitle,
+    this.subtitleWidget,
+  });
+
+  final Widget leading;
+  final String title;
+  final String? subtitle;
+  final Widget? subtitleWidget;
+  final Widget trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppTappable(
-        borderRadius:
-            BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
           decoration: BoxDecoration(
             color: cs.surface,
-            borderRadius:
-                BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
-              color: cs.outlineVariant.withValues(
-                alpha: 0.4,
-              ),
+              color: cs.outlineVariant.withValues(alpha: 0.4),
             ),
           ),
           child: Row(
             children: [
-              // Avatar
-              Avatar(
-                id: request.fromUserId,
-                size: 48,
-                imageUrl: request.fromUserAvatarUrl,
-              ),
+              leading,
               const SizedBox(width: AppSpacing.md),
-              // Name + status text
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      request.fromUserName,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(
+                      title,
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(
-                      height: AppSpacing.xsm,
-                    ),
-                    Row(
-                      children: [
-                        AppStatusDot(
-                          color: AppColors.warning,
-                          size: AppSpacing.xsm,
+                    const SizedBox(height: AppSpacing.xsm),
+                    if (subtitleWidget != null)
+                      subtitleWidget!
+                    else
+                      Text(
+                        subtitle ?? '',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
                         ),
-                        const SizedBox(
-                          width: AppSpacing.xs,
-                        ),
-                        Text(
-                          l10n.friendsWantsToConnect,
-                          style: theme
-                              .textTheme.bodySmall
-                              ?.copyWith(
-                            color:
-                                cs.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                   ],
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              // Action buttons
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton.outlined(
-                    onPressed:
-                        isBusy ? null : onReject,
-                    icon: const Icon(
-                      Icons.close,
-                      size: AppSpacing.xl,
-                    ),
-                    tooltip: l10n.friendsReject,
-                    style: IconButton.styleFrom(
-                      side: BorderSide(
-                        color: cs.outlineVariant,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(
-                    width: AppSpacing.sm,
-                  ),
-                  IconButton.filled(
-                    onPressed:
-                        isBusy ? null : onAccept,
-                    icon: const Icon(
-                      Icons.check,
-                      size: AppSpacing.xl,
-                    ),
-                    tooltip: l10n.friendsAccept,
-                  ),
-                ],
-              ),
+              trailing,
             ],
           ),
         ),

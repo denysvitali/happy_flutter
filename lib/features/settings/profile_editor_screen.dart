@@ -228,13 +228,13 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       appBar: AppBar(
         title: Text(
           isEditing
-              ? AppLocalizations.of(context).profilesEditProfile
-              : AppLocalizations.of(context).profilesAddProfile,
+              ? l10n.profilesEditProfile
+              : l10n.profilesAddProfile,
         ),
         actions: [
           TextButton(
             onPressed: _save,
-            child: Text(AppLocalizations.of(context).commonSave),
+            child: Text(l10n.commonSave),
           ),
           const SizedBox(width: AppSpacing.sm),
         ],
@@ -272,163 +272,230 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
             ),
             const SizedBox(height: AppSpacing.xl),
 
-            // Environment variables section
-            Row(
-              children: [
-                Text(
-                  l10n.profilesEnvVarsTitle,
-                  style: tt.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: _showImportDialog,
-                  icon: const Icon(Icons.paste, size: 18),
-                  label: Text(l10n.profilesImportLabelShort),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                TextButton.icon(
-                  onPressed: _addEnvRow,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: Text(l10n.commonCreate),
-                ),
-              ],
+            _EnvVarsSection(
+              envRows: _envRows,
+              l10n: l10n,
+              textTheme: tt,
+              colorScheme: cs,
+              onImport: _showImportDialog,
+              onAdd: _addEnvRow,
+              onRemove: _removeEnvRow,
+              onChanged: () => setState(() {}),
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              l10n.profilesEnvVarsHint,
-              style: tt.bodySmall
-                  ?.copyWith(color: cs.onSurfaceVariant),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-
-            if (_envRows.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.md),
-                child: Text(
-                  l10n.profilesEnvVarsEmpty,
-                  style: tt.bodySmall
-                      ?.copyWith(color: cs.onSurfaceVariant),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-
-            ..._envRows.asMap().entries.map((entry) {
-              final i = entry.key;
-              final row = entry.value;
-              return Padding(
-                padding:
-                    const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: TextFormField(
-                        controller: row.nameCtrl,
-                        decoration: InputDecoration(
-                          labelText: l10n.profilesEnvKeyLabel,
-                          hintText: l10n.profilesEnvKeyHint,
-                          border: const OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                        ),
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 13,
-                        ),
-                        textCapitalization:
-                            TextCapitalization.characters,
-                        onChanged: (_) => setState(() {}),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      flex: 3,
-                      child: _ValueField(row: row),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.remove_circle_outline,
-                        color: cs.error,
-                      ),
-                      onPressed: () => _removeEnvRow(i),
-                    ),
-                  ],
-                ),
-              );
-            }),
 
             const SizedBox(height: AppSpacing.lg),
 
-            // Advanced: startup script
-            InkWell(
-              borderRadius:
-                  BorderRadius.circular(AppRadius.sm),
-              onTap: () =>
-                  setState(() => _showScript = !_showScript),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.sm),
-                child: Row(
-                  children: [
-                    Icon(
-                      _showScript
-                          ? Icons.expand_less
-                          : Icons.expand_more,
-                      size: 20,
-                      color: cs.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      l10n.profilesScriptTitle,
-                      style: tt.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      l10n.commonOptional,
-                      style: tt.bodySmall
-                          ?.copyWith(color: cs.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
+            _ScriptSection(
+              show: _showScript,
+              l10n: l10n,
+              textTheme: tt,
+              colorScheme: cs,
+              controller: _scriptCtrl,
+              onToggle: () => setState(() => _showScript = !_showScript),
             ),
-
-            if (_showScript) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                l10n.profilesScriptDescription,
-                style: tt.bodySmall
-                    ?.copyWith(color: cs.onSurfaceVariant),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              TextFormField(
-                controller: _scriptCtrl,
-                decoration: InputDecoration(
-                  labelText: l10n.profilesScriptLabel,
-                  hintText: 'export MY_VAR=value\nsource ~/.env',
-                  border: const OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-                maxLines: 6,
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 13,
-                ),
-              ),
-            ],
 
             const SizedBox(height: AppSpacing.xxxl),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _EnvVarsSection extends StatelessWidget {
+  const _EnvVarsSection({
+    required this.envRows,
+    required this.l10n,
+    required this.textTheme,
+    required this.colorScheme,
+    required this.onImport,
+    required this.onAdd,
+    required this.onRemove,
+    required this.onChanged,
+  });
+
+  final List<_EnvRow> envRows;
+  final AppLocalizations l10n;
+  final TextTheme textTheme;
+  final ColorScheme colorScheme;
+  final VoidCallback onImport;
+  final VoidCallback onAdd;
+  final void Function(int index) onRemove;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              l10n.profilesEnvVarsTitle,
+              style: textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: onImport,
+              icon: const Icon(Icons.paste, size: 18),
+              label: Text(l10n.profilesImportLabelShort),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            TextButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(l10n.commonCreate),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          l10n.profilesEnvVarsHint,
+          style: textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (envRows.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Text(
+              l10n.profilesEnvVarsEmpty,
+              style: textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ...envRows.asMap().entries.map((entry) {
+          final i = entry.key;
+          final row = entry.value;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextFormField(
+                    controller: row.nameCtrl,
+                    decoration: InputDecoration(
+                      labelText: l10n.profilesEnvKeyLabel,
+                      hintText: l10n.profilesEnvKeyHint,
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                    ),
+                    textCapitalization: TextCapitalization.characters,
+                    onChanged: (_) => onChanged(),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  flex: 3,
+                  child: _ValueField(row: row),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.remove_circle_outline,
+                    color: colorScheme.error,
+                  ),
+                  onPressed: () => onRemove(i),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+class _ScriptSection extends StatelessWidget {
+  const _ScriptSection({
+    required this.show,
+    required this.l10n,
+    required this.textTheme,
+    required this.colorScheme,
+    required this.controller,
+    required this.onToggle,
+  });
+
+  final bool show;
+  final AppLocalizations l10n;
+  final TextTheme textTheme;
+  final ColorScheme colorScheme;
+  final TextEditingController controller;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          onTap: onToggle,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: Row(
+              children: [
+                Icon(
+                  show ? Icons.expand_less : Icons.expand_more,
+                  size: 20,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  l10n.profilesScriptTitle,
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  l10n.commonOptional,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (show) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            l10n.profilesScriptDescription,
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          TextFormField(
+            controller: controller,
+            decoration: InputDecoration(
+              labelText: l10n.profilesScriptLabel,
+              hintText: 'export MY_VAR=value\nsource ~/.env',
+              border: const OutlineInputBorder(),
+              alignLabelWithHint: true,
+            ),
+            maxLines: 6,
+            style: const TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

@@ -130,23 +130,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       friends,
     );
 
-    return RefreshIndicator(
+    return _InboxListView(
+      descriptors: descriptors,
       onRefresh: _refresh,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.xl,
-        ),
-        itemCount: descriptors.length + 1, // +1 for header
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return _InboxHeader(onFindFriends: _showFindFriendsSheet);
-          }
-          return _buildItem(context, descriptors[index - 1]);
-        },
-      ),
+      onFindFriends: _showFindFriendsSheet,
+      itemBuilder: _buildItem,
     );
   }
 
@@ -469,6 +457,42 @@ class _InboxHeader extends StatelessWidget {
           label: Text(context.l10n.friendsAddFriend),
         ),
       ],
+    );
+  }
+}
+
+class _InboxListView extends StatelessWidget {
+  const _InboxListView({
+    required this.descriptors,
+    required this.onRefresh,
+    required this.onFindFriends,
+    required this.itemBuilder,
+  });
+
+  final List<_InboxItemDescriptor> descriptors;
+  final Future<void> Function() onRefresh;
+  final VoidCallback onFindFriends;
+  final Widget Function(BuildContext, _InboxItemDescriptor) itemBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.xl,
+        ),
+        itemCount: descriptors.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return _InboxHeader(onFindFriends: onFindFriends);
+          }
+          return itemBuilder(context, descriptors[index - 1]);
+        },
+      ),
     );
   }
 }

@@ -8,9 +8,9 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart'
     show AppSpacing, AppRadius;
+import 'zen_priority.dart';
 
 /// Screen for creating a new Zen todo item.
 class ZenNewScreen extends ConsumerStatefulWidget {
@@ -98,19 +98,6 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
     }
   }
 
-  Color _priorityColor(String p, ColorScheme cs) {
-    switch (p) {
-      case 'critical':
-        return cs.error;
-      case 'high':
-        return AppColors.warning;
-      case 'medium':
-        return cs.tertiary;
-      default:
-        return cs.outline;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -147,37 +134,11 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
+            _TaskContentField(
               controller: _contentController,
-              autofocus: true,
-              maxLines: 5,
-              minLines: 3,
-              textInputAction: TextInputAction.newline,
-              decoration: InputDecoration(
-                hintText: l10n.zenDescriptionHint,
-                hintStyle: TextStyle(
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: BorderSide(
-                    color: cs.outlineVariant,
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: BorderSide(
-                    color: cs.primary,
-                    width: 2,
-                  ),
-                ),
-                alignLabelWithHint: true,
-                contentPadding: const EdgeInsets.all(AppSpacing.md),
-              ),
-              onChanged: (_) => setState(() {}),
+              hintText: l10n.zenDescriptionHint,
+              colorScheme: cs,
+              onChanged: () => setState(() {}),
             ),
             const SizedBox(height: AppSpacing.xxxl),
             Text(
@@ -188,42 +149,117 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.md,
-              runSpacing: AppSpacing.sm,
-              children: _priorities.map((p) {
-                final selected = p == _priority;
-                final color = _priorityColor(p, cs);
-                return ChoiceChip(
-                  label: Text(p),
-                  selected: selected,
-                  selectedColor: color.withValues(alpha: 0.15),
-                  labelStyle: theme.textTheme.labelSmall?.copyWith(
-                    color: selected ? color : cs.onSurfaceVariant,
-                    fontWeight: selected
-                        ? FontWeight.w700
-                        : FontWeight.w500,
-                    fontSize: 12,
-                  ),
-                  side: selected
-                      ? BorderSide(color: color.withValues(alpha: 0.5))
-                      : BorderSide(
-                          color: cs.outlineVariant.withValues(alpha: 0.4),
-                        ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  onSelected: (_) => setState(() => _priority = p),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.xs,
-                  ),
-                );
-              }).toList(growable: false),
+            _PrioritySelector(
+              priorities: _priorities,
+              selected: _priority,
+              colorScheme: cs,
+              textTheme: theme.textTheme,
+              onSelected: (value) => setState(() => _priority = value),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _TaskContentField extends StatelessWidget {
+  const _TaskContentField({
+    required this.controller,
+    required this.hintText,
+    required this.colorScheme,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final String hintText;
+  final ColorScheme colorScheme;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      autofocus: true,
+      maxLines: 5,
+      minLines: 3,
+      textInputAction: TextInputAction.newline,
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: TextStyle(
+          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderSide: BorderSide(
+            color: colorScheme.outlineVariant,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderSide: BorderSide(
+            color: colorScheme.primary,
+            width: 2,
+          ),
+        ),
+        alignLabelWithHint: true,
+        contentPadding: const EdgeInsets.all(AppSpacing.md),
+      ),
+      onChanged: (_) => onChanged(),
+    );
+  }
+}
+
+class _PrioritySelector extends StatelessWidget {
+  const _PrioritySelector({
+    required this.priorities,
+    required this.selected,
+    required this.colorScheme,
+    required this.textTheme,
+    required this.onSelected,
+  });
+
+  final List<String> priorities;
+  final String selected;
+  final ColorScheme colorScheme;
+  final TextTheme textTheme;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: AppSpacing.md,
+      runSpacing: AppSpacing.sm,
+      children: priorities.map((p) {
+        final isSelected = p == selected;
+        final color = ZenPriority.colorFor(p, colorScheme);
+        return ChoiceChip(
+          label: Text(p),
+          selected: isSelected,
+          selectedColor: color.withValues(alpha: 0.15),
+          labelStyle: textTheme.labelSmall?.copyWith(
+            color: isSelected ? color : colorScheme.onSurfaceVariant,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            fontSize: 12,
+          ),
+          side: isSelected
+              ? BorderSide(color: color.withValues(alpha: 0.5))
+              : BorderSide(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+          onSelected: (_) => onSelected(p),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
+          ),
+        );
+      }).toList(growable: false),
     );
   }
 }

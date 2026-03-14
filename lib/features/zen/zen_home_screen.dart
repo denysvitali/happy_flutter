@@ -9,8 +9,8 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import 'zen_priority.dart';
 
 /// Zen home screen — displays all todo items grouped by status.
 class ZenHomeScreen extends ConsumerStatefulWidget {
@@ -83,63 +83,27 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen> {
       body: _isLoading
           ? const _ZenLoadingShimmer()
           : allTodos.isEmpty
-          ? AppEmptyState(
-              icon: Icons.check_circle_outline,
-              title: context.l10n.zenEmptyTitle,
-              subtitle: context.l10n.zenEmptySubtitle,
-              action: FilledButton.icon(
-                onPressed: () => context.push('/zen/new'),
-                icon: const Icon(Icons.add),
-                label: Text(context.l10n.zenNewTask),
-              ),
-            )
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.md,
-                AppSpacing.lg,
-                80,
-              ),
-              children: [
-                if (activeTodos.isNotEmpty) ...[
-                  _SectionHeader(
-                    title: context.l10n.zenSectionActive,
+              ? AppEmptyState(
+                  icon: Icons.check_circle_outline,
+                  title: context.l10n.zenEmptyTitle,
+                  subtitle: context.l10n.zenEmptySubtitle,
+                  action: FilledButton.icon(
+                    onPressed: () => context.push('/zen/new'),
+                    icon: const Icon(Icons.add),
+                    label: Text(context.l10n.zenNewTask),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  ...activeTodos.map(
-                    (item) => _TodoItemCard(
-                      item: item,
-                      onTap: () => context.push(
-                        '/zen/view',
-                        extra: {
-                          'todoId': item.id,
-                          'sessionId': item.sessionId ?? 'global',
-                        },
-                      ),
-                    ),
+                )
+              : _TodoSectionsList(
+                  activeTodos: activeTodos,
+                  completedTodos: completedTodos,
+                  onOpen: (item) => context.push(
+                    '/zen/view',
+                    extra: {
+                      'todoId': item.id,
+                      'sessionId': item.sessionId ?? 'global',
+                    },
                   ),
-                ],
-                if (completedTodos.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.lg),
-                  _SectionHeader(
-                    title: context.l10n.zenSectionCompleted,
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  ...completedTodos.map(
-                    (item) => _TodoItemCard(
-                      item: item,
-                      onTap: () => context.push(
-                        '/zen/view',
-                        extra: {
-                          'todoId': item.id,
-                          'sessionId': item.sessionId ?? 'global',
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+                ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/zen/new'),
         tooltip: context.l10n.zenNewTask,
@@ -292,23 +256,50 @@ class _PriorityDot extends StatelessWidget {
 
   final String priority;
 
-  static Color _color(String p, ColorScheme cs) {
-    switch (p) {
-      case 'critical':
-        return cs.error;
-      case 'high':
-        return AppColors.warning;
-      case 'medium':
-        return cs.tertiary;
-      default:
-        return cs.outline;
-    }
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        ZenPriority.colorFor(priority, Theme.of(context).colorScheme);
+    return AppStatusDot(color: color, size: 10);
   }
+}
+
+class _TodoSectionsList extends StatelessWidget {
+  const _TodoSectionsList({
+    required this.activeTodos,
+    required this.completedTodos,
+    required this.onOpen,
+  });
+
+  final List<TodoItem> activeTodos;
+  final List<TodoItem> completedTodos;
+  final void Function(TodoItem item) onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final color = _color(priority, Theme.of(context).colorScheme);
-    return AppStatusDot(color: color, size: 10);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        80,
+      ),
+      children: [
+        if (activeTodos.isNotEmpty) ...[
+          _SectionHeader(title: context.l10n.zenSectionActive),
+          const SizedBox(height: AppSpacing.xs),
+          for (final item in activeTodos)
+            _TodoItemCard(item: item, onTap: () => onOpen(item)),
+        ],
+        if (completedTodos.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          _SectionHeader(title: context.l10n.zenSectionCompleted),
+          const SizedBox(height: AppSpacing.xs),
+          for (final item in completedTodos)
+            _TodoItemCard(item: item, onTap: () => onOpen(item)),
+        ],
+      ],
+    );
   }
 }
 

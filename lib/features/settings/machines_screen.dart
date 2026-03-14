@@ -43,18 +43,6 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen> {
     super.dispose();
   }
 
-  String _machineTitle(Machine machine) {
-    final metadata = machine.metadata;
-    return metadata?.displayName ?? metadata?.host ?? machine.id;
-  }
-
-  String _machineSubtitle(BuildContext context, Machine machine) {
-    final l10n = AppLocalizations.of(context);
-    final platform = machine.metadata?.platform ?? l10n.commonUnknown;
-    final status = machine.active ? l10n.machineOnline : l10n.machineOffline;
-    return '$platform • $status';
-  }
-
   Future<void> _deleteMachine(Machine machine) async {
     final machineId = machine.id;
     final confirmed = await showDialog<bool>(
@@ -130,62 +118,105 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen> {
         onRefresh: () =>
             ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
         child: machineList.isEmpty
-            ? ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  SizedBox(height: MediaQuery.sizeOf(context).height * 0.24),
-                  Center(
-                    child: Text(
-                      context.l10n.machinesNoMachines,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ),
-                ],
-              )
-            : ListView(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                children: [
-                  SettingsSection(
-                    title: context.l10n.settingsMachines,
-                    children: [
-                      for (final machine in machineList)
-                        SettingsRow(
-                          icon: Icons.computer_outlined,
-                          iconColor: machine.active
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withValues(alpha: 0.4),
-                          title: _machineTitle(machine),
-                          subtitle: _machineSubtitle(context, machine),
-                          onTap: () => context.pushNamed(
-                            'machine-detail',
-                            pathParameters: {'machineId': machine.id},
-                          ),
-                          trailing: _deletingMachineIds.contains(machine.id)
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: Padding(
-                                    padding: EdgeInsets.all(2),
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                )
-                              : IconButton(
-                                  icon: Icon(
-                                    Icons.delete_outline,
-                                    color: Theme.of(context).colorScheme.error,
-                                  ),
-                                  onPressed: () => _deleteMachine(machine),
-                                ),
-                        ),
-                    ],
-                  ),
-                ],
+            ? const _MachinesEmptyState()
+            : _MachinesList(
+                machines: machineList,
+                deletingIds: _deletingMachineIds,
+                onDelete: _deleteMachine,
               ),
       ),
+    );
+  }
+}
+
+class _MachinesList extends StatelessWidget {
+  const _MachinesList({
+    required this.machines,
+    required this.deletingIds,
+    required this.onDelete,
+  });
+
+  final List<Machine> machines;
+  final Set<String> deletingIds;
+  final void Function(Machine machine) onDelete;
+
+  String _machineTitle(Machine machine) {
+    final metadata = machine.metadata;
+    return metadata?.displayName ?? metadata?.host ?? machine.id;
+  }
+
+  String _machineSubtitle(BuildContext context, Machine machine) {
+    final l10n = AppLocalizations.of(context);
+    final platform = machine.metadata?.platform ?? l10n.commonUnknown;
+    final status = machine.active ? l10n.machineOnline : l10n.machineOffline;
+    return '$platform • $status';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: [
+        SettingsSection(
+          title: context.l10n.settingsMachines,
+          children: [
+            for (final machine in machines)
+              SettingsRow(
+                icon: Icons.computer_outlined,
+                iconColor: machine.active
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.4),
+                title: _machineTitle(machine),
+                subtitle: _machineSubtitle(context, machine),
+                onTap: () => context.pushNamed(
+                  'machine-detail',
+                  pathParameters: {'machineId': machine.id},
+                ),
+                trailing: deletingIds.contains(machine.id)
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Padding(
+                          padding: EdgeInsets.all(2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      )
+                    : IconButton(
+                        icon: Icon(
+                          Icons.delete_outline,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        onPressed: () => onDelete(machine),
+                      ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _MachinesEmptyState extends StatelessWidget {
+  const _MachinesEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(height: MediaQuery.sizeOf(context).height * 0.24),
+        Center(
+          child: Text(
+            context.l10n.machinesNoMachines,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+        ),
+      ],
     );
   }
 }
