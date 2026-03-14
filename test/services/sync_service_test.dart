@@ -203,6 +203,57 @@ void main() {
         returnsNormally,
       );
     });
+
+    test('session-alive marks session online without clearing thinking', () {
+      final instance = Sync();
+      instance.testSessions['s1'] = Session(
+        id: 's1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: 0,
+        metadataVersion: 0,
+        agentStateVersion: 0,
+        thinking: true,
+        thinkingAt: 123,
+        presence: 'offline',
+      );
+
+      instance.handleEphemeralUpdate({
+        'type': 'session-alive',
+        'id': 's1',
+      });
+
+      final session = instance.testSessions['s1']!;
+      expect(session.presence, 'online');
+      expect(session.thinking, true);
+      expect(session.thinkingAt, 123);
+    });
+
+    test('session-alive accepts t/sid payloads', () {
+      final instance = Sync();
+      instance.testSessions['s1'] = Session(
+        id: 's1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: 0,
+        metadataVersion: 0,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'offline',
+      );
+
+      instance.handleEphemeralUpdate({
+        't': 'session-alive',
+        'sid': 's1',
+      });
+
+      final session = instance.testSessions['s1']!;
+      expect(session.presence, 'online');
+    });
   });
 
   group('Sync global invalidation', () {
