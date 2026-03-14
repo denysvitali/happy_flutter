@@ -1,8 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/features/auth/widgets/auth_landing_widgets.dart';
+import 'package:happy_flutter/features/auth/widgets/qr_code_display.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -662,8 +665,15 @@ void main() {
 
 /// Minimal fake AppLocalizations for widget tests that accept
 /// [AppLocalizations] directly (no BuildContext needed).
-class _FakeL10n {
+class _FakeL10n extends AppLocalizations {
+  _FakeL10n() : super(const Locale('en'));
+
+  @override
   String get welcomeCreateAccount => 'Create Account';
+
+  @override
   String get welcomeLinkOrRestoreAccount => 'Link Account';
+
+  @override
   String get authSignInWithSecretKey => 'Restore Key';
 }

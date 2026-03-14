@@ -106,7 +106,7 @@ void main() {
     });
 
     test('toJson produces correct structure', () {
-      const response = KvBulkGetResponse(values: [
+      final response = KvBulkGetResponse(values: [
         KvItem(key: 'k', value: 'v', version: 1),
       ]);
 

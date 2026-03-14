@@ -52,7 +52,13 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen> {
         final cs = Theme.of(dialogContext).colorScheme;
         return AlertDialog(
           title: Text(l10n.commonDelete),
-          content: Text(l10n.machineRemoveConfirm(_machineTitle(machine))),
+          content: Text(
+            l10n.machineRemoveConfirm(
+              machine.metadata?.displayName ??
+                  machine.metadata?.host ??
+                  machine.id,
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),

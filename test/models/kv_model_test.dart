@@ -78,7 +78,7 @@ void main() {
       test('serializes items list', () {
         final response = KvListResponse(
           items: [
-            const KvItem(key: 'x', value: 'y', version: 1),
+            KvItem(key: 'x', value: 'y', version: 1),
           ],
         );
 

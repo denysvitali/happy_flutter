@@ -79,7 +79,7 @@ void main() {
     test('handles JWT with non-JSON payload', () {
       final header = base64Url.encode(utf8.encode('{}'));
       final payload = base64Url.encode(utf8.encode('not json'));
-      const token = '$header.$payload.sig';
+      final token = '$header.$payload.sig';
       expect(parseToken(token), isNotNull);
       // Falls back to first 8 chars on decode error
       expect(parseToken(token).length, lessThanOrEqualTo(8));

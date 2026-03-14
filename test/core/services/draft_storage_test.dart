@@ -234,13 +234,13 @@ void main() {
     });
   });
 
-  group('DraftAutoSaveController', () {
+  group('DraftAutoSave', () {
     late List<String> savedDrafts;
-    late DraftAutoSaveController controller;
+    late DraftAutoSave controller;
 
     setUp(() {
       savedDrafts = [];
-      controller = DraftAutoSaveController(
+      controller = DraftAutoSave(
         sessionId: 'ctrl-session',
         onSave: (draft) => savedDrafts.add(draft),
         debounceDuration: const Duration(milliseconds: 50),
@@ -281,20 +281,20 @@ void main() {
     });
   });
 
-  group('DraftUtils', () {
+  group('DraftStateTransition', () {
     test('isStateTransition delegates correctly', () {
-      expect(DraftUtils.isStateTransition('', 'text'), isTrue);
-      expect(DraftUtils.isStateTransition('text', 'more'), isFalse);
+      expect(DraftStateTransition.isStateTransition('', 'text'), isTrue);
+      expect(DraftStateTransition.isStateTransition('text', 'more'), isFalse);
     });
 
     test('becameEmpty delegates correctly', () {
-      expect(DraftUtils.becameEmpty('text', ''), isTrue);
-      expect(DraftUtils.becameEmpty('', 'text'), isFalse);
+      expect(DraftStateTransition.becameEmpty('text', ''), isTrue);
+      expect(DraftStateTransition.becameEmpty('', 'text'), isFalse);
     });
 
     test('becameNonEmpty delegates correctly', () {
-      expect(DraftUtils.becameNonEmpty('', 'text'), isTrue);
-      expect(DraftUtils.becameNonEmpty('text', ''), isFalse);
+      expect(DraftStateTransition.becameNonEmpty('', 'text'), isTrue);
+      expect(DraftStateTransition.becameNonEmpty('text', ''), isFalse);
     });
   });
 }
