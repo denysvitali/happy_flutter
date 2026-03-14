@@ -1311,11 +1311,48 @@ what you have, you must use the options mode.
       return;
     }
 
-    final type = payload['type'] as String?;
+    final type = payload['type'] as String? ?? payload['t'] as String?;
     // Activity events use 'id'; fall back to 'sid' for other shapes.
     final sessionId = payload['id'] as String? ?? payload['sid'] as String?;
     if (sessionId == null) {
       return;
+    }
+
+    void markOnline({
+      bool? thinking,
+      int? activeAt,
+      required bool keepThinking,
+    }) {
+      final session = _sessions[sessionId];
+      if (session == null) return;
+
+      final nextThinking = keepThinking ? session.thinking : thinking ?? false;
+      final nextThinkingAt = keepThinking
+          ? session.thinkingAt
+          : (nextThinking
+                ? (activeAt ??
+                    DateTime.now().millisecondsSinceEpoch)
+                : null);
+
+      _sessions[sessionId] = session.copyWith(
+        thinking: nextThinking,
+        thinkingAt: nextThinkingAt,
+        presence: 'online',
+      );
+      _notifyDataChanged();
+
+      _presenceTimers[sessionId]?.cancel();
+      _presenceTimers[sessionId] = Timer(const Duration(seconds: 60), () {
+        _presenceTimers.remove(sessionId);
+        final current = _sessions[sessionId];
+        if (current != null && current.presence == 'online') {
+          _sessions[sessionId] = current.copyWith(
+            presence: 'offline',
+            thinking: false,
+          );
+          _notifyDataChanged();
+        }
+      });
     }
 
     if (type == 'activity') {
@@ -1329,29 +1366,11 @@ what you have, you must use the options mode.
         final isActive = payload['active'] as bool? ?? true;
 
         if (isActive) {
-          _sessions[sessionId] = session.copyWith(
+          markOnline(
             thinking: thinking,
-            thinkingAt: thinking
-                ? (activeAt ?? DateTime.now().millisecondsSinceEpoch)
-                : null,
-            presence: 'online',
+            activeAt: activeAt,
+            keepThinking: false,
           );
-          _notifyDataChanged();
-          // Reset staleness timer — if no further activity arrives within
-          // 60 s, drop presence back to inactive so the session stops
-          // appearing in the Active section.
-          _presenceTimers[sessionId]?.cancel();
-          _presenceTimers[sessionId] = Timer(const Duration(seconds: 60), () {
-            _presenceTimers.remove(sessionId);
-            final current = _sessions[sessionId];
-            if (current != null && current.presence == 'online') {
-              _sessions[sessionId] = current.copyWith(
-                presence: 'offline',
-                thinking: false,
-              );
-              _notifyDataChanged();
-            }
-          });
         } else {
           // Session explicitly went offline — cancel any timer and
           // immediately mark it inactive.
@@ -1365,6 +1384,11 @@ what you have, you must use the options mode.
           _notifyDataChanged();
         }
       }
+      return;
+    }
+
+    if (type == 'session-alive' || type == 'session_alive') {
+      markOnline(keepThinking: true);
       return;
     }
 
