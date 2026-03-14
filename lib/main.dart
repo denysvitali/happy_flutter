@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert' show base64;
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +15,7 @@ import 'core/i18n/supported_locales.dart';
 import 'core/providers/app_providers.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/logger_service.dart';
+import 'core/services/notification_service.dart';
 import 'core/services/remote_logger.dart';
 import 'core/services/server_config.dart';
 import 'core/services/storage_service.dart' as storage;
@@ -54,6 +56,13 @@ Future<void> _runApp() async {
   // Installed here so Sentry's Zone and error handlers are set up first.
   remoteLoggerAutoInstall();
 
+  // Register background FCM handler before any Firebase calls.
+  if (!kIsWeb) {
+    FirebaseMessaging.onBackgroundMessage(
+      firebaseMessagingBackgroundHandler,
+    );
+  }
+
   if (!kIsWeb && isAndroid) {
     final certs = await FlutterUserCertificatesAndroid().getUserCertificates();
     for (final derBytes in (certs ?? {}).values) {
@@ -91,6 +100,8 @@ Future<void> _initializeOptionalFirebase() async {
 
   try {
     await Firebase.initializeApp();
+    // Firebase succeeded — wire up notification handling.
+    await NotificationService.instance.initialize();
   } catch (e) {
     // Firebase is optional — only needed for push notifications.
     // If google-services.json is absent (e.g. unsigned builds),
@@ -127,6 +138,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _router = createRouter(widget.initialDeepLink);
+    NotificationService.instance.updateRouter(_router);
     _setupDeepLinkListener();
     Future<void>.microtask(() {
       ref.read(authStateNotifierProvider.notifier).checkAuth();

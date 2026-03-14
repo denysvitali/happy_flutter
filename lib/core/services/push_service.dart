@@ -1,3 +1,7 @@
+// DEPRECATED: This class is unused dead code. Token registration is handled
+// by syncPushToken() in sync_service.dart (via PushApi). Foreground
+// notification display and tap routing are handled by NotificationService.
+
 import 'package:dio/dio.dart';
 import '../api/api_client.dart';
 
