@@ -36,6 +36,9 @@ devenv shell -- flutter analyze
 devenv shell -- flutter test
 devenv shell -- flutter test test/services/sync_service_test.dart
 
+# Golden screenshots — update after UI changes
+devenv shell -- flutter test test/golden/golden_test.dart --update-goldens
+
 # Code generation (after changing ApiClient public API)
 devenv shell -- flutter pub run build_runner build
 
@@ -178,6 +181,20 @@ ProviderContainer(overrides: [
 **Sync tests:** `Sync` can be `new`-ed in tests, but set all `InvalidateSync` fields before calling `handleUpdate`.
 
 **Widget tests:** Call `TestWidgetsFlutterBinding.ensureInitialized()` at top of `main()`. Include `requestOptions: RequestOptions(path: '')` in mock `Response` objects.
+
+### Golden Screenshots
+
+Golden screenshots in `test/golden/goldens/` are **showcase images** used in the README and to track visual regressions. They **must always be kept up-to-date** when the UI changes.
+
+**After any UI change that affects visual output**, run:
+
+```bash
+devenv shell -- flutter test test/golden/golden_test.dart --update-goldens
+```
+
+Then commit the updated PNGs. Do not leave stale goldens — they will cause false test failures for other contributors.
+
+**Git LFS:** Golden PNGs are tracked via Git LFS (see `.gitattributes`). Contributors must have `git-lfs` installed (`git lfs install`). The golden test file is `test/golden/golden_test.dart`.
 
 ## Coding Standards
 
