@@ -2,9 +2,21 @@
 
 A Flutter reimplementation of the Happy mobile app, achieving full feature parity with the original React Native implementation.
 
+<p>
+  <img src="assets/icon/app_icon.svg" width="96" alt="Happy Flutter app icon">
+</p>
+
 ## Overview
 
 Happy Flutter is a cross-platform mobile application built with Flutter that provides secure, end-to-end encrypted messaging, session management, and AI-assisted development workflows. This project maintains complete compatibility with the React Native implementation while leveraging Flutter's performance and native capabilities.
+
+## Screenshots
+
+<p>
+  <img src="test/golden/goldens/sessions_light.png" width="240" alt="Sessions list screen">
+  <img src="test/golden/goldens/chat_running_light.png" width="240" alt="Chat running screen">
+  <img src="test/golden/goldens/settings_light.png" width="240" alt="Settings screen">
+</p>
 
 ## Architecture
 
