@@ -1019,6 +1019,8 @@ class _SessionsListContentState
             avatarStyle: avatarStyle,
             lastMessageTimestamp:
                 sync.getLastMessageTimestamp(session.id),
+            lastMessagePreview:
+                sync.getLastMessagePreview(session.id),
             isSelected: sel.selectedIds.contains(session.id),
             selectionMode: sel.isActive,
           ),

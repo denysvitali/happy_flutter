@@ -422,6 +422,7 @@ class CompactActiveSessionCard extends StatefulWidget {
     this.onTap,
     this.avatarStyle,
     this.lastMessageTimestamp,
+    this.lastMessagePreview,
     this.selectionMode = false,
     this.isSelected = false,
   });
@@ -431,6 +432,7 @@ class CompactActiveSessionCard extends StatefulWidget {
   final bool showFlavorIcon;
   final AvatarStyle? avatarStyle;
   final int? lastMessageTimestamp;
+  final String? lastMessagePreview;
   final bool selectionMode;
   final bool isSelected;
 
@@ -484,6 +486,7 @@ class _CompactActiveSessionCardState
         sessionName: _sessionName,
         showFlavorIcon: widget.showFlavorIcon,
         lastMessageTimestamp: widget.lastMessageTimestamp,
+        lastMessagePreview: widget.lastMessagePreview,
         selectionMode: widget.selectionMode,
         isSelected: widget.isSelected,
         theme: theme,
@@ -513,6 +516,7 @@ class _CompactActiveSessionCardContent
     required this.sessionName,
     required this.showFlavorIcon,
     required this.lastMessageTimestamp,
+    required this.lastMessagePreview,
     required this.selectionMode,
     required this.isSelected,
     required this.theme,
@@ -529,6 +533,7 @@ class _CompactActiveSessionCardContent
   final String sessionName;
   final bool showFlavorIcon;
   final int? lastMessageTimestamp;
+  final String? lastMessagePreview;
   final bool selectionMode;
   final bool isSelected;
   final ThemeData theme;
@@ -547,6 +552,9 @@ class _CompactActiveSessionCardContent
     final todoProgress = getTodoProgress(session.todos);
     final statusWidget =
         _buildStatusText(sessionStatus, theme.textTheme);
+    final hasPreview =
+        lastMessagePreview != null &&
+        lastMessagePreview!.isNotEmpty;
 
     final cardColor = isSelected
         ? cs.primary.withValues(alpha: 0.10)
@@ -586,7 +594,7 @@ class _CompactActiveSessionCardContent
           borderRadius:
               BorderRadius.circular(AppRadius.md),
           child: SizedBox(
-            height: 56,
+            height: hasPreview ? 72 : 56,
             child: Row(
               crossAxisAlignment:
                   CrossAxisAlignment.stretch,
@@ -705,6 +713,33 @@ class _CompactActiveSessionCardContent
                                       AppSpacing.xxs,
                                 ),
                                 statusWidget,
+                              ],
+                              if (hasPreview) ...[
+                                const SizedBox(
+                                  height: AppSpacing.xs,
+                                ),
+                                Text(
+                                  lastMessagePreview!,
+                                  style: theme
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                    color: cs
+                                        .onSurfaceVariant
+                                        .withValues(
+                                      alpha:
+                                          AppOpacity
+                                              .high,
+                                    ),
+                                    fontSize:
+                                        AppFontSize.xs,
+                                    height: 1.2,
+                                  ),
+                                  overflow:
+                                      TextOverflow
+                                          .ellipsis,
+                                  maxLines: 1,
+                                ),
                               ],
                             ],
                           ),
