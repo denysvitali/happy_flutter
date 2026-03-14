@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
@@ -401,34 +402,93 @@ class _FileChangeDetail extends StatelessWidget {
   const _FileChangeDetail({required this.changeData});
   final Map<String, dynamic> changeData;
 
+  String? _stringifyContent(dynamic value) {
+    if (value == null) return null;
+    if (value is String) return value;
+    if (value is List) {
+      final buffer = StringBuffer();
+      for (final entry in value) {
+        final line = _stringifyContent(entry);
+        if (line == null) continue;
+        if (buffer.isNotEmpty) buffer.write('\n');
+        buffer.write(line);
+      }
+      return buffer.toString();
+    }
+    if (value is Map) {
+      return const JsonEncoder.withIndent('  ').convert(value);
+    }
+    return value.toString();
+  }
+
+  String? _firstString(Map<String, dynamic> data, List<String> keys) {
+    for (final key in keys) {
+      if (!data.containsKey(key)) continue;
+      final value = _stringifyContent(data[key]);
+      if (value != null && value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = ToolViewColors.of(context);
     final sections = <Widget>[];
 
-    void addSection(
+    void addContentSection(
       String heading,
-      Map<String, dynamic>? data,
+      String? content,
       Color color,
     ) {
-      if (data == null) return;
-      final content = data['content'] as String?;
       if (content == null || content.isEmpty) return;
-      sections.add(
-        _DetailSection(
-          heading: heading,
-          content: content,
-          color: color,
-        ),
+      sections.add(_DetailSection(
+        heading: heading,
+        content: content,
+        color: color,
+      ));
+    }
+
+    final addData = changeData['add'] as Map<String, dynamic>?;
+    if (addData != null) {
+      addContentSection(
+        'added',
+        _firstString(addData, const ['content', 'after', 'new', 'text']),
+        c.green,
       );
     }
 
-    addSection('add', changeData['add'] as Map<String, dynamic>?,
-        c.green);
-    addSection('modify', changeData['modify'] as Map<String, dynamic>?,
-        c.blue);
-    addSection('delete', changeData['delete'] as Map<String, dynamic>?,
-        c.red);
+    final modifyData = changeData['modify'] as Map<String, dynamic>?;
+    if (modifyData != null) {
+      addContentSection(
+        'before',
+        _firstString(modifyData, const ['before', 'old', 'original']),
+        c.red,
+      );
+      addContentSection(
+        'after',
+        _firstString(modifyData, const ['after', 'new', 'content', 'text']),
+        c.green,
+      );
+      addContentSection(
+        'diff',
+        _firstString(modifyData, const ['diff', 'patch', 'unified_diff']),
+        c.blue,
+      );
+      addContentSection(
+        'modify',
+        _firstString(modifyData, const ['content']),
+        c.blue,
+      );
+    }
+
+    final deleteData = changeData['delete'] as Map<String, dynamic>?;
+    if (deleteData != null) {
+      addContentSection(
+        'removed',
+        _firstString(deleteData, const ['content', 'before', 'old', 'text']),
+        c.red,
+      );
+    }
 
     if (sections.isEmpty) return const SizedBox.shrink();
 
