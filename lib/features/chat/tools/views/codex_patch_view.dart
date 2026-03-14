@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import '../../syntax_highlighter.dart';
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
 
@@ -352,7 +353,10 @@ class _FileChangeRow extends StatelessWidget {
             ),
             // Expanded detail
             if (isExpanded)
-              _FileChangeDetail(changeData: change.changeData),
+              _FileChangeDetail(
+                changeData: change.changeData,
+                filePath: change.path,
+              ),
           ],
         ),
       ),
@@ -399,8 +403,12 @@ class _OperationChip extends StatelessWidget {
 
 class _FileChangeDetail extends StatelessWidget {
 
-  const _FileChangeDetail({required this.changeData});
+  const _FileChangeDetail({
+    required this.changeData,
+    required this.filePath,
+  });
   final Map<String, dynamic> changeData;
+  final String filePath;
 
   String? _stringifyContent(dynamic value) {
     if (value == null) return null;
@@ -434,17 +442,20 @@ class _FileChangeDetail extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = ToolViewColors.of(context);
     final sections = <Widget>[];
+    final language = _languageForPath(filePath);
 
     void addContentSection(
       String heading,
       String? content,
       Color color,
+      String? overrideLanguage,
     ) {
       if (content == null || content.isEmpty) return;
       sections.add(_DetailSection(
         heading: heading,
         content: content,
         color: color,
+        language: overrideLanguage ?? language,
       ));
     }
 
@@ -454,6 +465,7 @@ class _FileChangeDetail extends StatelessWidget {
         'added',
         _firstString(addData, const ['content', 'after', 'new', 'text']),
         c.green,
+        null,
       );
     }
 
@@ -463,21 +475,25 @@ class _FileChangeDetail extends StatelessWidget {
         'before',
         _firstString(modifyData, const ['before', 'old', 'original']),
         c.red,
+        null,
       );
       addContentSection(
         'after',
         _firstString(modifyData, const ['after', 'new', 'content', 'text']),
         c.green,
+        null,
       );
       addContentSection(
         'diff',
         _firstString(modifyData, const ['diff', 'patch', 'unified_diff']),
         c.blue,
+        'diff',
       );
       addContentSection(
         'modify',
         _firstString(modifyData, const ['content']),
         c.blue,
+        null,
       );
     }
 
@@ -487,6 +503,7 @@ class _FileChangeDetail extends StatelessWidget {
         'removed',
         _firstString(deleteData, const ['content', 'before', 'old', 'text']),
         c.red,
+        null,
       );
     }
 
@@ -518,10 +535,12 @@ class _DetailSection extends StatelessWidget {
     required this.heading,
     required this.content,
     required this.color,
+    required this.language,
   });
   final String heading;
   final String content;
   final Color color;
+  final String? language;
 
   @override
   Widget build(BuildContext context) {
@@ -567,14 +586,10 @@ class _DetailSection extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.xs),
               border: Border.all(color: c.border),
             ),
-            child: SelectableText(
-              content,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: AppFontSize.xs,
-                color: c.primaryText,
-                height: 1.5,
-              ),
+            child: _ExpandableCodeBlock(
+              content: content,
+              language: language,
+              textColor: c.primaryText,
             ),
           ),
         ],
@@ -625,5 +640,148 @@ class _CopyButtonState extends State<_CopyButton> {
         ),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Expandable, syntax-highlighted code block
+// ---------------------------------------------------------------------------
+
+class _ExpandableCodeBlock extends StatefulWidget {
+  const _ExpandableCodeBlock({
+    required this.content,
+    required this.language,
+    required this.textColor,
+  });
+  final String content;
+  final String? language;
+  final Color textColor;
+
+  @override
+  State<_ExpandableCodeBlock> createState() => _ExpandableCodeBlockState();
+}
+
+class _ExpandableCodeBlockState extends State<_ExpandableCodeBlock> {
+  static const int _collapsedLines = 18;
+  static const double _fontSize = AppFontSize.xs;
+  static const double _lineHeight = 1.5;
+  bool _expanded = false;
+
+  int get _lineCount => '\n'.allMatches(widget.content).length + 1;
+
+  double get _maxHeight =>
+      _collapsedLines * _fontSize * _lineHeight + AppSpacing.sm * 2;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final needsToggle = _lineCount > _collapsedLines;
+    final showExpanded = _expanded || !needsToggle;
+
+    final codeText = SyntaxHighlighter(
+      code: widget.content,
+      language: widget.language,
+      isDarkMode: isDark,
+      fontSize: _fontSize,
+      lineHeight: _fontSize * _lineHeight,
+    );
+
+    Widget body;
+    if (showExpanded) {
+      body = SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: codeText,
+        ),
+      );
+    } else {
+      body = SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          height: _maxHeight,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              child: codeText,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        body,
+        if (needsToggle)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => setState(() => _expanded = !_expanded),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 6,
+                ),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+              child: Text(
+                _expanded
+                    ? 'Show less'
+                    : 'Show all $_lineCount lines',
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: AppFontSize.xs,
+                  color: widget.textColor.withValues(alpha: 0.75),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+String? _languageForPath(String path) {
+  final idx = path.lastIndexOf('.');
+  if (idx == -1 || idx == path.length - 1) return null;
+  final ext = path.substring(idx + 1).toLowerCase();
+  switch (ext) {
+    case 'dart':
+    case 'js':
+    case 'jsx':
+    case 'ts':
+    case 'tsx':
+    case 'json':
+    case 'yml':
+    case 'yaml':
+    case 'xml':
+    case 'html':
+    case 'css':
+    case 'scss':
+    case 'md':
+    case 'sh':
+    case 'bash':
+    case 'zsh':
+    case 'py':
+    case 'go':
+    case 'rs':
+    case 'rb':
+    case 'java':
+    case 'kt':
+    case 'kts':
+    case 'swift':
+    case 'c':
+    case 'h':
+    case 'cpp':
+    case 'hpp':
+    case 'gradle':
+      return ext == 'yml' ? 'yaml' : ext;
+    default:
+      return null;
   }
 }
