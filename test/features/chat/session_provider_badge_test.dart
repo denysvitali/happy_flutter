@@ -44,6 +44,7 @@ void main() {
             isThinking: false,
             onMenuTap: () {},
             onInfoTap: () {},
+            sessionId: 'session-1',
           ),
         ),
       ),
