@@ -355,6 +355,13 @@ jobs:
 
       - name: Build Release APK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        env:
+          APP_ENV: ${{ steps.flavor.outputs.FLAVOR }}
+          KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.jks
+          KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
+          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
+          KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
+          GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx3072m'
         run: |
           devenv shell -- flutter build apk --release --no-pub \
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
@@ -363,12 +370,6 @@ jobs:
             --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }} \
             --split-debug-info=build/debug-info \
             --obfuscate
-        env:
-          APP_ENV: ${{ steps.flavor.outputs.FLAVOR }}
-          KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.jks
-          KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
-          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
-          KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
 
       - name: Upload debug symbols to Sentry
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' && env.SENTRY_AUTH_TOKEN != '' }}
