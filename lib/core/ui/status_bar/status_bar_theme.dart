@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -51,6 +53,8 @@ class StatusBarTheme extends StatefulWidget {
 }
 
 class _StatusBarThemeState extends State<StatusBarTheme> {
+  Timer? _pendingStyleTimer;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -68,11 +72,11 @@ class _StatusBarThemeState extends State<StatusBarTheme> {
   void _updateStatusBarStyle() {
     final style = _computeStyle();
     if (widget.config.animate) {
-      // Small delay to allow for smooth transition
-      Future.delayed(const Duration(milliseconds: 50), () {
-        if (mounted) {
-          SystemChrome.setSystemUIOverlayStyle(style);
-        }
+      // Small delay to allow for smooth transition; cancellable to prevent
+      // stale style races when the widget rebuilds rapidly.
+      _pendingStyleTimer?.cancel();
+      _pendingStyleTimer = Timer(const Duration(milliseconds: 50), () {
+        if (mounted) SystemChrome.setSystemUIOverlayStyle(style);
       });
     } else {
       SystemChrome.setSystemUIOverlayStyle(style);
@@ -100,6 +104,7 @@ class _StatusBarThemeState extends State<StatusBarTheme> {
 
   @override
   void dispose() {
+    _pendingStyleTimer?.cancel();
     // Reset to default when widget is disposed
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
     super.dispose();
