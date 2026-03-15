@@ -11,9 +11,9 @@ void main() {
 
     test('parses basic tool error with type and body', () {
       const error =
-          '<tool_use_error>'
-          '<error_type>file_not_found</error_type>'
-          '<body>File does not exist</body>'
+          '<tool_use_error>\n'
+          '<error_type>file_not_found</error_type>\n'
+          '<body>File does not exist</body>\n'
           '</tool_use_error>';
       final result = ToolErrorParser.parse(error);
       expect(result, isNotNull);
@@ -23,8 +23,9 @@ void main() {
 
     test('parses tool error with only error_type', () {
       const error =
-          '<tool_use_error>'
-          '<error_type>timeout</error_type>'
+          '<tool_use_error>\n'
+          '<error_type>timeout</error_type>\n'
+          '\n'
           '</tool_use_error>';
       final result = ToolErrorParser.parse(error);
       expect(result, isNotNull);
@@ -33,8 +34,9 @@ void main() {
 
     test('parses tool error with only body', () {
       const error =
-          '<tool_use_error>'
-          '<body>Something went wrong</body>'
+          '<tool_use_error>\n'
+          '\n'
+          '<body>Something went wrong</body>\n'
           '</tool_use_error>';
       final result = ToolErrorParser.parse(error);
       expect(result, isNotNull);
@@ -43,7 +45,7 @@ void main() {
     });
 
     test('parses empty tool error tag', () {
-      const error = '<tool_use_error></tool_use_error>';
+      const error = '<tool_use_error>\n\n\n</tool_use_error>';
       final result = ToolErrorParser.parse(error);
       expect(result, isNotNull);
       expect(result!.errorType, 'Unknown');
@@ -51,12 +53,12 @@ void main() {
 
     test('extracts suggestion from body', () {
       const error =
-          '<tool_use_error>'
-          '<error_type>permission_denied</error_type>'
+          '<tool_use_error>\n'
+          '<error_type>permission_denied</error_type>\n'
           '<body>'
           'Access denied'
           '<suggestion>Try running with sudo</suggestion>'
-          '</body>'
+          '</body>\n'
           '</tool_use_error>';
       final result = ToolErrorParser.parse(error);
       expect(result, isNotNull);
@@ -65,12 +67,12 @@ void main() {
 
     test('extracts context from body', () {
       const error =
-          '<tool_use_error>'
-          '<error_type>validation</error_type>'
+          '<tool_use_error>\n'
+          '<error_type>validation</error_type>\n'
           '<body>'
           'Invalid input'
           '<context>Field x must be a string</context>'
-          '</body>'
+          '</body>\n'
           '</tool_use_error>';
       final result = ToolErrorParser.parse(error);
       expect(result, isNotNull);
@@ -79,13 +81,13 @@ void main() {
 
     test('extracts both suggestion and context', () {
       const error =
-          '<tool_use_error>'
-          '<error_type>invalid_input</error_type>'
+          '<tool_use_error>\n'
+          '<error_type>invalid_input</error_type>\n'
           '<body>'
           'Bad request'
           '<context>Missing required field</context>'
           '<suggestion>Add the field to your request</suggestion>'
-          '</body>'
+          '</body>\n'
           '</tool_use_error>';
       final result = ToolErrorParser.parse(error);
       expect(result, isNotNull);
@@ -95,12 +97,12 @@ void main() {
 
     test('extracts error_name from body', () {
       const error =
-          '<tool_use_error>'
-          '<error_type>execution</error_type>'
+          '<tool_use_error>\n'
+          '<error_type>execution</error_type>\n'
           '<body>'
           '<error_name>CommandFailed</error_name>'
           'The command failed with exit code 1'
-          '</body>'
+          '</body>\n'
           '</tool_use_error>';
       final result = ToolErrorParser.parse(error);
       expect(result, isNotNull);
@@ -109,9 +111,9 @@ void main() {
 
     test('uses error_type as error_name when error_name missing', () {
       const error =
-          '<tool_use_error>'
-          '<error_type>network</error_type>'
-          '<body>Connection refused</body>'
+          '<tool_use_error>\n'
+          '<error_type>network</error_type>\n'
+          '<body>Connection refused</body>\n'
           '</tool_use_error>';
       final result = ToolErrorParser.parse(error);
       expect(result, isNotNull);
@@ -120,9 +122,9 @@ void main() {
 
     test('preserves raw message', () {
       const raw =
-          '<tool_use_error>'
-          '<error_type>test</error_type>'
-          '<body>Test error</body>'
+          '<tool_use_error>\n'
+          '<error_type>test</error_type>\n'
+          '<body>Test error</body>\n'
           '</tool_use_error>';
       final result = ToolErrorParser.parse(raw);
       expect(result, isNotNull);
@@ -131,13 +133,13 @@ void main() {
 
     test('handles multiline content in body', () {
       const error =
-          '<tool_use_error>'
-          '<error_type>execution</error_type>'
+          '<tool_use_error>\n'
+          '<error_type>execution</error_type>\n'
           '<body>'
           'Line 1\n'
           'Line 2\n'
           'Line 3'
-          '</body>'
+          '</body>\n'
           '</tool_use_error>';
       final result = ToolErrorParser.parse(error);
       expect(result, isNotNull);
@@ -146,11 +148,11 @@ void main() {
 
     test('handles nested XML-like content', () {
       const error =
-          '<tool_use_error>'
-          '<error_type>parsing</error_type>'
+          '<tool_use_error>\n'
+          '<error_type>parsing</error_type>\n'
           '<body>'
           'Failed to parse <tag>content</tag>'
-          '</body>'
+          '</body>\n'
           '</tool_use_error>';
       final result = ToolErrorParser.parse(error);
       expect(result, isNotNull);
@@ -160,8 +162,9 @@ void main() {
   group('ToolErrorParser.isToolError', () {
     test('returns true for tool error strings', () {
       const error =
-          '<tool_use_error>'
-          '<error_type>test</error_type>'
+          '<tool_use_error>\n'
+          '<error_type>test</error_type>\n'
+          '\n'
           '</tool_use_error>';
       expect(ToolErrorParser.isToolError(error), isTrue);
     });
@@ -233,8 +236,9 @@ void main() {
 
     test('extracts single error', () {
       const error =
-          '<tool_use_error>'
-          '<error_type>test</error_type>'
+          '<tool_use_error>\n'
+          '<error_type>test</error_type>\n'
+          '\n'
           '</tool_use_error>';
       final errors = ToolErrorParser.extractAll(error);
       expect(errors.length, 1);
@@ -244,12 +248,14 @@ void main() {
     test('extracts multiple errors', () {
       const error =
           'Some text '
-          '<tool_use_error>'
-          '<error_type>first</error_type>'
+          '<tool_use_error>\n'
+          '<error_type>first</error_type>\n'
+          '\n'
           '</tool_use_error>'
           ' more text '
-          '<tool_use_error>'
-          '<error_type>second</error_type>'
+          '<tool_use_error>\n'
+          '<error_type>second</error_type>\n'
+          '\n'
           '</tool_use_error>';
       final errors = ToolErrorParser.extractAll(error);
       expect(errors.length, 2);
@@ -347,8 +353,9 @@ void main() {
   group('ToolErrorStringExtension', () {
     test('asToolError returns parsed error for tool error strings', () {
       const error =
-          '<tool_use_error>'
-          '<error_type>test</error_type>'
+          '<tool_use_error>\n'
+          '<error_type>test</error_type>\n'
+          '\n'
           '</tool_use_error>';
       final parsed = error.asToolError;
       expect(parsed, isNotNull);
@@ -361,8 +368,9 @@ void main() {
 
     test('isToolError returns true for tool error strings', () {
       const error =
-          '<tool_use_error>'
-          '<error_type>test</error_type>'
+          '<tool_use_error>\n'
+          '<error_type>test</error_type>\n'
+          '\n'
           '</tool_use_error>';
       expect(error.isToolError, isTrue);
     });
