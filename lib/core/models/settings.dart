@@ -274,21 +274,21 @@ class Settings {
       ..usagePeriod = usagePeriod ?? this.usagePeriod
       ..recentMachinePaths = recentMachinePaths != null
           ? List<RecentMachinePath>.from(recentMachinePaths)
-          : List<RecentMachinePath>.from(this.recentMachinePaths)
+          : this.recentMachinePaths
       ..lastUsedAgent = lastUsedAgent ?? this.lastUsedAgent
       ..lastUsedPermissionMode =
           lastUsedPermissionMode ?? this.lastUsedPermissionMode
       ..lastUsedModelMode = lastUsedModelMode ?? this.lastUsedModelMode
       ..profiles = profiles != null
           ? List<AIBackendProfile>.from(profiles)
-          : List<AIBackendProfile>.from(this.profiles)
+          : this.profiles
       ..lastUsedProfile = lastUsedProfile ?? this.lastUsedProfile
       ..favoriteDirectories = favoriteDirectories != null
           ? List<String>.from(favoriteDirectories)
-          : List<String>.from(this.favoriteDirectories)
+          : this.favoriteDirectories
       ..favoriteMachines = favoriteMachines != null
           ? List<String>.from(favoriteMachines)
-          : List<String>.from(this.favoriteMachines)
+          : this.favoriteMachines
       ..dismissedCLIWarnings =
           dismissedCLIWarnings ?? this.dismissedCLIWarnings;
   }
