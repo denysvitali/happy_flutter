@@ -51,11 +51,16 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v30
 
-      - name: Cache Nix store
-        uses: nix-community/cache-nix-action@v6
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+
+      - name: Cache devenv
+        uses: actions/cache@v4
         with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
+          path: |
+            .devenv
+            .devenv.flake.nix
+          key: devenv-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -66,15 +71,15 @@ jobs:
             ${{ runner.os }}-pub-
 
       - name: Get dependencies
-        run: nix develop --impure --command flutter pub get
+        run: devenv shell -- flutter pub get
 
       - name: Analyze code
-        run: nix develop --impure --command flutter analyze --no-fatal-infos --no-fatal-warnings
+        run: devenv shell -- flutter analyze --no-fatal-infos --no-fatal-warnings
 
   test:
     name: Run Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -84,11 +89,16 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v30
 
-      - name: Cache Nix store
-        uses: nix-community/cache-nix-action@v6
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+
+      - name: Cache devenv
+        uses: actions/cache@v4
         with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
+          path: |
+            .devenv
+            .devenv.flake.nix
+          key: devenv-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -99,10 +109,10 @@ jobs:
             ${{ runner.os }}-pub-
 
       - name: Get dependencies
-        run: nix develop --impure --command flutter pub get
+        run: devenv shell -- flutter pub get
 
       - name: Run tests
-        run: nix develop --impure --command flutter test --coverage
+        run: devenv shell -- flutter test --coverage
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -161,11 +171,16 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v30
 
-      - name: Cache Nix store
-        uses: nix-community/cache-nix-action@v6
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+
+      - name: Cache devenv
+        uses: actions/cache@v4
         with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
+          path: |
+            .devenv
+            .devenv.flake.nix
+          key: devenv-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -193,7 +208,7 @@ jobs:
           cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
 
       - name: Get dependencies
-        run: nix develop --impure --command flutter pub get
+        run: devenv shell -- flutter pub get
 
       - name: Determine flavor
         id: flavor
@@ -206,7 +221,7 @@ jobs:
 
       - name: Build Debug APK
         run: |
-          nix develop --impure --command flutter build apk --debug --no-pub \
+          devenv shell -- flutter build apk --debug --no-pub \
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
@@ -283,12 +298,18 @@ jobs:
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         uses: cachix/install-nix-action@v30
 
-      - name: Cache Nix store
+      - name: Install devenv
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        uses: nix-community/cache-nix-action@v6
+        run: nix profile install nixpkgs#devenv
+
+      - name: Cache devenv
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        uses: actions/cache@v4
         with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
+          path: |
+            .devenv
+            .devenv.flake.nix
+          key: devenv-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
 
       - name: Setup Java
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
@@ -321,7 +342,7 @@ jobs:
 
       - name: Get dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        run: nix develop --impure --command flutter pub get
+        run: devenv shell -- flutter pub get
 
       - name: Determine flavor
         id: flavor
@@ -335,7 +356,7 @@ jobs:
       - name: Build Release APK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: |
-          nix develop --impure --command flutter build apk --release --no-pub \
+          devenv shell -- flutter build apk --release --no-pub \
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
@@ -352,7 +373,7 @@ jobs:
       - name: Upload debug symbols to Sentry
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' && env.SENTRY_AUTH_TOKEN != '' }}
         run: |
-          nix develop --impure --command flutter pub run sentry_dart_plugin
+          devenv shell -- flutter pub run sentry_dart_plugin
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_DIST: ${{ steps.build_meta.outputs.BUILD_NUMBER }}
