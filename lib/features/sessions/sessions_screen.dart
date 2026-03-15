@@ -113,12 +113,6 @@ class _SessionsScreenState
           .read(machinesNotifierProvider.notifier)
           .loadFromSync();
       ref
-          .read(friendsNotifierProvider.notifier)
-          .loadFromSync();
-      ref
-          .read(feedNotifierProvider.notifier)
-          .loadFromSync();
-      ref
           .read(todoStateNotifierProvider.notifier)
           .loadFromSync();
     });
