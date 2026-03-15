@@ -299,6 +299,7 @@ class ShimmerPulse extends StatefulWidget {
 class _ShimmerPulseState extends State<ShimmerPulse>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  late Animation<double> _opacityAnimation;
 
   @override
   void initState() {
@@ -307,6 +308,8 @@ class _ShimmerPulseState extends State<ShimmerPulse>
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     )..repeat(reverse: true);
+    _opacityAnimation =
+        Tween<double>(begin: 0.3, end: 1.0).animate(_controller);
   }
 
   @override
@@ -319,23 +322,23 @@ class _ShimmerPulseState extends State<ShimmerPulse>
   Widget build(BuildContext context) {
     final resolvedColor = widget.color ??
         Theme.of(context).colorScheme.surfaceContainerHighest;
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: 0.8 + 0.4 * _controller.value,
-          child: Opacity(
-            opacity: 0.3 + 0.7 * _controller.value,
+    return FadeTransition(
+      opacity: _opacityAnimation,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: 0.8 + 0.4 * _controller.value,
             child: child,
+          );
+        },
+        child: Container(
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(
+            color: resolvedColor,
+            shape: BoxShape.circle,
           ),
-        );
-      },
-      child: Container(
-        width: widget.size,
-        height: widget.size,
-        decoration: BoxDecoration(
-          color: resolvedColor,
-          shape: BoxShape.circle,
         ),
       ),
     );

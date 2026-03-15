@@ -1342,10 +1342,8 @@ class _PulsingProgressIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (context, child) =>
-          Opacity(opacity: animation.value, child: child),
+    return FadeTransition(
+      opacity: animation,
       child: SizedBox(
         width: size,
         height: size,

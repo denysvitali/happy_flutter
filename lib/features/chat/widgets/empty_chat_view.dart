@@ -118,99 +118,100 @@ class _EmptyChatViewState extends State<EmptyChatView>
       ),
     ];
 
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (context, _) => Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xl,
-            vertical: AppSpacing.xxl,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header section
-              Opacity(
-                opacity: _headerOpacity.value,
-                child: Transform.translate(
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xl,
+          vertical: AppSpacing.xxl,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header section
+            FadeTransition(
+              opacity: _headerOpacity,
+              child: AnimatedBuilder(
+                animation: _headerSlide,
+                builder: (context, child) => Transform.translate(
                   offset: Offset(
                     0, _headerSlide.value,
                   ),
-                  child: Column(
-                    children: [
-                      // Icon with gradient background
-                      Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              cs.primary.withValues(
-                                alpha: 0.12,
-                              ),
-                              cs.tertiary.withValues(
-                                alpha: 0.08,
-                              ),
-                            ],
-                          ),
-                          borderRadius:
-                              BorderRadius.circular(
-                            AppRadius.xl,
-                          ),
+                  child: child,
+                ),
+                child: Column(
+                  children: [
+                    // Icon with gradient background
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            cs.primary.withValues(
+                              alpha: 0.12,
+                            ),
+                            cs.tertiary.withValues(
+                              alpha: 0.08,
+                            ),
+                          ],
                         ),
-                        child: Icon(
-                          Icons
-                              .chat_bubble_outline_rounded,
-                          size: 32,
-                          color: cs.primary,
+                        borderRadius:
+                            BorderRadius.circular(
+                          AppRadius.xl,
                         ),
                       ),
-                      const SizedBox(
-                        height: AppSpacing.lg,
+                      child: Icon(
+                        Icons
+                            .chat_bubble_outline_rounded,
+                        size: 32,
+                        color: cs.primary,
                       ),
-                      // Title
-                      Text(
-                        l10n.chatStartConversation,
-                        textAlign: TextAlign.center,
-                        style: theme
-                            .textTheme.titleLarge
-                            ?.copyWith(
-                          color: cs.onSurface,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    ),
+                    const SizedBox(
+                      height: AppSpacing.lg,
+                    ),
+                    // Title
+                    Text(
+                      l10n.chatStartConversation,
+                      textAlign: TextAlign.center,
+                      style: theme
+                          .textTheme.titleLarge
+                          ?.copyWith(
+                        color: cs.onSurface,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(
-                        height: AppSpacing.xs,
+                    ),
+                    const SizedBox(
+                      height: AppSpacing.xs,
+                    ),
+                    // Subtitle
+                    Text(
+                      l10n.chatHowCanIHelpToday,
+                      textAlign: TextAlign.center,
+                      style: theme
+                          .textTheme.bodyMedium
+                          ?.copyWith(
+                        color: cs.onSurfaceVariant
+                            .withValues(alpha: 0.7),
                       ),
-                      // Subtitle
-                      Text(
-                        l10n.chatHowCanIHelpToday,
-                        textAlign: TextAlign.center,
-                        style: theme
-                            .textTheme.bodyMedium
-                            ?.copyWith(
-                          color: cs.onSurfaceVariant
-                              .withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.xxl),
-              // Suggestion cards in a 2x2 grid
-              ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 400,
-                ),
-                child: _buildSuggestionGrid(
-                  cs, suggestions,
-                ),
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            // Suggestion cards in a 2x2 grid
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: 400,
               ),
-            ],
-          ),
+              child: _buildSuggestionGrid(
+                cs, suggestions,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -231,11 +232,16 @@ class _EmptyChatViewState extends State<EmptyChatView>
         final s = suggestions[i];
         children.add(
           Expanded(
-            child: Opacity(
-              opacity: _cardOpacities[i].value,
-              child: Transform.translate(
-                offset: Offset(
-                  0, _cardSlides[i].value,
+            child: FadeTransition(
+              opacity: _cardOpacities[i],
+              child: AnimatedBuilder(
+                animation: _cardSlides[i],
+                builder: (context, child) =>
+                    Transform.translate(
+                  offset: Offset(
+                    0, _cardSlides[i].value,
+                  ),
+                  child: child,
                 ),
                 child: _SuggestionCard(
                   title: s.title,

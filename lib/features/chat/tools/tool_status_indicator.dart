@@ -105,22 +105,23 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
               builder: (context, child) {
                 return Transform.scale(
                   scale: _pulseScale.value,
-                  child: Opacity(
-                    opacity: _pulseOpacity.value,
-                    child: Container(
-                      width: widget.size,
-                      height: widget.size,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: ringColor,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                  ),
+                  child: child,
                 );
               },
+              child: FadeTransition(
+                opacity: _pulseOpacity,
+                child: Container(
+                  width: widget.size,
+                  height: widget.size,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: ringColor,
+                      width: 2,
+                    ),
+                  ),
+                ),
+              ),
             ),
             // Inner spinner
             SizedBox(
