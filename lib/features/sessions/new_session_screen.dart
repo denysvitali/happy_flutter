@@ -399,24 +399,11 @@ class _NewSessionScreenState
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: (_selectedProfileId != null
-                              ? colorForProfile(_selectedProfileId!)
-                              : cs.onSurfaceVariant)
-                          .withValues(alpha: AppOpacity.subtle),
-                      borderRadius:
-                          BorderRadius.circular(AppRadius.sm),
-                    ),
-                    child: Icon(
-                      Icons.tune_rounded,
-                      size: 18,
-                      color: _selectedProfileId != null
-                          ? colorForProfile(_selectedProfileId!)
-                          : cs.onSurfaceVariant,
-                    ),
+                  SettingsIconContainer(
+                    icon: Icons.tune_rounded,
+                    color: _selectedProfileId != null
+                        ? colorForProfile(_selectedProfileId!)
+                        : cs.onSurfaceVariant,
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
@@ -526,9 +513,8 @@ class _NewSessionScreenState
                   : const Icon(Icons.add_rounded, size: 20),
               label: Text(
                 l10n.commonCreate,
-                style: const TextStyle(
+                style: theme.textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w600,
-                  fontSize: AppFontSize.lg,
                 ),
               ),
             ),
@@ -562,21 +548,11 @@ class _MachinePickerRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: cs.onSurfaceVariant
-                  .withValues(alpha: AppOpacity.faint),
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: Icon(
-              Icons.computer_outlined,
-              size: 18,
-              color: machine != null
-                  ? cs.primary
-                  : cs.onSurfaceVariant,
-            ),
+          SettingsIconContainer(
+            icon: Icons.computer_outlined,
+            color: machine != null
+                ? cs.primary
+                : cs.onSurfaceVariant,
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -634,7 +610,7 @@ class _SectionLabel extends StatelessWidget {
     final theme = Theme.of(context);
     return Text(
       text.toUpperCase(),
-      style: theme.textTheme.labelSmall?.copyWith(
+      style: theme.textTheme.labelMedium?.copyWith(
         color: theme.colorScheme.onSurfaceVariant,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.8,

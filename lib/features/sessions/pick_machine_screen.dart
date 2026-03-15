@@ -197,22 +197,11 @@ class _MachineListTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: cs.onSurfaceVariant
-                    .withValues(alpha: AppOpacity.faint),
-                borderRadius:
-                    BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Icon(
-                showRecentIcon
-                    ? Icons.history_rounded
-                    : Icons.computer_outlined,
-                size: 18,
-                color: cs.onSurfaceVariant,
-              ),
+            SettingsIconContainer(
+              icon: showRecentIcon
+                  ? Icons.history_rounded
+                  : Icons.computer_outlined,
+              color: cs.onSurfaceVariant,
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
