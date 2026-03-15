@@ -21,9 +21,9 @@ class _EmptyChatViewState extends State<EmptyChatView>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _headerOpacity;
-  late final Animation<double> _headerSlide;
+  late final Animation<Offset> _headerSlide;
   final List<Animation<double>> _cardOpacities = [];
-  final List<Animation<double>> _cardSlides = [];
+  final List<Animation<Offset>> _cardSlides = [];
 
   @override
   void initState() {
@@ -42,7 +42,12 @@ class _EmptyChatViewState extends State<EmptyChatView>
         ),
       ),
     );
-    _headerSlide = Tween(begin: 12.0, end: 0.0).animate(
+    // Fractional slide: ~0.05 of the header height ≈ 12 px
+    // SlideTransition uses fractions of the child's own size.
+    _headerSlide = Tween(
+      begin: const Offset(0, 0.05),
+      end: Offset.zero,
+    ).animate(
       CurvedAnimation(
         parent: _ctrl,
         curve: const Interval(
@@ -67,8 +72,12 @@ class _EmptyChatViewState extends State<EmptyChatView>
           ),
         ),
       );
+      // Fractional slide: ~0.12 of the card height ≈ 16 px
       _cardSlides.add(
-        Tween(begin: 16.0, end: 0.0).animate(
+        Tween(
+          begin: const Offset(0, 0.12),
+          end: Offset.zero,
+        ).animate(
           CurvedAnimation(
             parent: _ctrl,
             curve: Interval(
@@ -118,6 +127,11 @@ class _EmptyChatViewState extends State<EmptyChatView>
       ),
     ];
 
+    // Build the static header content once; FadeTransition +
+    // SlideTransition only update their own RenderObject, the
+    // Column subtree is never rebuilt during animation ticks.
+    const headerContent = _HeaderContent();
+
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(
@@ -127,78 +141,13 @@ class _EmptyChatViewState extends State<EmptyChatView>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header section
+            // Header section — scoped to its own opacity+slide,
+            // the static child is hoisted by each transition widget.
             FadeTransition(
               opacity: _headerOpacity,
-              child: AnimatedBuilder(
-                animation: _headerSlide,
-                builder: (context, child) => Transform.translate(
-                  offset: Offset(
-                    0, _headerSlide.value,
-                  ),
-                  child: child,
-                ),
-                child: Column(
-                  children: [
-                    // Icon with gradient background
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            cs.primary.withValues(
-                              alpha: 0.12,
-                            ),
-                            cs.tertiary.withValues(
-                              alpha: 0.08,
-                            ),
-                          ],
-                        ),
-                        borderRadius:
-                            BorderRadius.circular(
-                          AppRadius.xl,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons
-                            .chat_bubble_outline_rounded,
-                        size: 32,
-                        color: cs.primary,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: AppSpacing.lg,
-                    ),
-                    // Title
-                    Text(
-                      l10n.chatStartConversation,
-                      textAlign: TextAlign.center,
-                      style: theme
-                          .textTheme.titleLarge
-                          ?.copyWith(
-                        color: cs.onSurface,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: AppSpacing.xs,
-                    ),
-                    // Subtitle
-                    Text(
-                      l10n.chatHowCanIHelpToday,
-                      textAlign: TextAlign.center,
-                      style: theme
-                          .textTheme.bodyMedium
-                          ?.copyWith(
-                        color: cs.onSurfaceVariant
-                            .withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ],
-                ),
+              child: SlideTransition(
+                position: _headerSlide,
+                child: headerContent,
               ),
             ),
             const SizedBox(height: AppSpacing.xxl),
@@ -230,31 +179,26 @@ class _EmptyChatViewState extends State<EmptyChatView>
         final i = row * 2 + col;
         if (i >= count) break;
         final s = suggestions[i];
+
+        // Build the static card once; FadeTransition +
+        // SlideTransition update only their own RenderObjects
+        // — the _SuggestionCard subtree is never rebuilt on ticks.
+        final card = _SuggestionCard(
+          title: s.title,
+          subtitle: s.subtitle,
+          icon: s.icon,
+          onTap: widget.onSuggestionTap == null
+              ? null
+              : () => widget.onSuggestionTap!(s.title),
+        );
+
         children.add(
           Expanded(
             child: FadeTransition(
               opacity: _cardOpacities[i],
-              child: AnimatedBuilder(
-                animation: _cardSlides[i],
-                builder: (context, child) =>
-                    Transform.translate(
-                  offset: Offset(
-                    0, _cardSlides[i].value,
-                  ),
-                  child: child,
-                ),
-                child: _SuggestionCard(
-                  title: s.title,
-                  subtitle: s.subtitle,
-                  icon: s.icon,
-                  onTap:
-                      widget.onSuggestionTap == null
-                          ? null
-                          : () =>
-                              widget.onSuggestionTap!(
-                                s.title,
-                              ),
-                ),
+              child: SlideTransition(
+                position: _cardSlides[i],
+                child: card,
               ),
             ),
           ),
@@ -274,6 +218,67 @@ class _EmptyChatViewState extends State<EmptyChatView>
     }
 
     return Column(children: rows);
+  }
+}
+
+/// Static header content extracted as a const widget so it can be
+/// hoisted outside the animation tree and never rebuilt on ticks.
+class _HeaderContent extends StatelessWidget {
+  const _HeaderContent();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final l10n = context.l10n;
+
+    return Column(
+      children: [
+        // Icon with gradient background
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                cs.primary.withValues(alpha: 0.12),
+                cs.tertiary.withValues(alpha: 0.08),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(
+              AppRadius.xl,
+            ),
+          ),
+          child: Icon(
+            Icons.chat_bubble_outline_rounded,
+            size: 32,
+            color: cs.primary,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        // Title
+        Text(
+          l10n.chatStartConversation,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: cs.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        // Subtitle
+        Text(
+          l10n.chatHowCanIHelpToday,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: cs.onSurfaceVariant
+                .withValues(alpha: 0.7),
+          ),
+        ),
+      ],
+    );
   }
 }
 
