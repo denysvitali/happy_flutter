@@ -54,14 +54,6 @@ jobs:
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
 
-      - name: Cache devenv
-        uses: actions/cache@v4
-        with:
-          path: |
-            .devenv
-            .devenv.flake.nix
-          key: devenv-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
-
       - name: Cache pub dependencies
         uses: actions/cache@v4
         with:
@@ -91,14 +83,6 @@ jobs:
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
-
-      - name: Cache devenv
-        uses: actions/cache@v4
-        with:
-          path: |
-            .devenv
-            .devenv.flake.nix
-          key: devenv-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -173,14 +157,6 @@ jobs:
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
-
-      - name: Cache devenv
-        uses: actions/cache@v4
-        with:
-          path: |
-            .devenv
-            .devenv.flake.nix
-          key: devenv-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -301,15 +277,6 @@ jobs:
       - name: Install devenv
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: nix profile install nixpkgs#devenv
-
-      - name: Cache devenv
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        uses: actions/cache@v4
-        with:
-          path: |
-            .devenv
-            .devenv.flake.nix
-          key: devenv-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
 
       - name: Setup Java
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
