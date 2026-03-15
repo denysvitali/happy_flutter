@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/components/app_loading_indicator.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Custom round button widget with polished styling.
@@ -120,10 +121,12 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
                       )!,
                     ]
                   : [
-                      scheme.primary
-                          .withValues(alpha: 0.5),
-                      scheme.primary
-                          .withValues(alpha: 0.4),
+                      scheme.primary.withValues(
+                        alpha: AppOpacity.half,
+                      ),
+                      scheme.primary.withValues(
+                        alpha: AppOpacity.medium,
+                      ),
                     ],
             ),
             borderRadius: BorderRadius.circular(
@@ -133,7 +136,9 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
                 ? [
                     BoxShadow(
                       color: scheme.primary
-                          .withValues(alpha: 0.35),
+                          .withValues(
+                        alpha: AppOpacity.medium,
+                      ),
                       blurRadius: AppSpacing.lg,
                       offset: const Offset(
                         0,
@@ -166,7 +171,7 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
                       Text(
                         widget.title,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: AppFontSize.lg,
                           fontWeight: FontWeight.w600,
                           color: scheme.onPrimary,
                           letterSpacing: 0.3,
@@ -213,7 +218,8 @@ class _SecondaryButtonState
   Widget build(BuildContext context) {
     final scheme = widget.theme.colorScheme;
     final scale = _pressed ? 0.97 : 1.0;
-    final bgAlpha = _pressed ? 0.06 : 0.0;
+    final bgAlpha =
+        _pressed ? AppOpacity.faint : 0.0;
 
     return GestureDetector(
       onTapDown: widget.enabled
@@ -239,10 +245,12 @@ class _SecondaryButtonState
                 .withValues(alpha: bgAlpha),
             border: Border.all(
               color: widget.enabled
-                  ? scheme.outline
-                      .withValues(alpha: 0.5)
-                  : scheme.outline
-                      .withValues(alpha: 0.25),
+                  ? scheme.outline.withValues(
+                      alpha: AppOpacity.half,
+                    )
+                  : scheme.outline.withValues(
+                      alpha: AppOpacity.medium,
+                    ),
             ),
             borderRadius: BorderRadius.circular(
               AppRadius.pill,
@@ -266,7 +274,9 @@ class _SecondaryButtonState
                               ? scheme.onSurface
                               : scheme.onSurface
                                   .withValues(
-                                  alpha: 0.4,
+                                  alpha:
+                                      AppOpacity
+                                          .medium,
                                 ),
                         ),
                         const SizedBox(
@@ -276,13 +286,15 @@ class _SecondaryButtonState
                       Text(
                         widget.title,
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: AppFontSize.base,
                           fontWeight: FontWeight.w500,
                           color: widget.enabled
                               ? scheme.onSurface
                               : scheme.onSurface
                                   .withValues(
-                                  alpha: 0.4,
+                                  alpha:
+                                      AppOpacity
+                                          .medium,
                                 ),
                         ),
                       ),
