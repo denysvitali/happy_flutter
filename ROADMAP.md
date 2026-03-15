@@ -2,7 +2,7 @@
 
 This roadmap tracks the work needed to achieve full feature parity between **happy_flutter** (Flutter) and **happy** (React Native).
 
-**Last Updated**: 2026-03-01
+**Last Updated**: 2026-03-15
 
 ## Project Context
 
@@ -21,177 +21,67 @@ This roadmap tracks the work needed to achieve full feature parity between **hap
 
 ---
 
-## P0: Critical Bugs
+## P1: High Priority
 
-### 1. Session Creation Failure
+### 1. Sessions - Remaining Parity
 
-**Status**: 🚨 **BLOCKING** - Sessions cannot be created or used
+| Task | Status | Description |
+|------|--------|-------------|
+| Vibing messages | Not Started | "Accomplishing...", "Actioning..." cycling animations on active session cards. The `thinking` state currently shows no status text (`shouldShowStatus: false`). |
 
-**Issue**: Creating a new session fails to properly initialize the session state. When attempting to send a message, the app throws:
+**References**:
+- React Native: `/../happy/sources/app/(app)/session/recent.tsx`
 
-```
-Failed to send message: Bad state: Session cb28ed0b17eda800a5bcf6b1b not loaded
-```
+### 2. Chat - Input Behavior
 
-**Impact**: Users cannot use the core chat functionality. The app appears to create a session but it is not properly loaded into the sync state, causing all subsequent operations to fail.
-
-**Likely Causes**:
-- Race condition between session creation and sync state update
-- Session not being added to `sessionsNotifierProvider` after creation
-- Missing or failed `refreshFromSync()` call after session creation
-- Sync singleton not properly handling new session events from WebSocket
-
-**Files to Investigate**:
-- `lib/core/services/sync_service.dart` - Session creation and sync logic
-- `lib/core/providers/app_providers.dart` - Sessions notifier
-- `lib/features/sessions/sessions_screen.dart` - Session creation flow
-- `lib/features/chat/chat_screen.dart` - Message sending logic
+| Task | Status | Description |
+|------|--------|-------------|
+| Wire `agentInputEnterToSend` | Not Started | Setting exists end-to-end (model, provider, storage) but `chat_input.dart` ignores it — hard-codes `textInputAction` based on platform instead of reading the setting |
 
 ---
 
 ## P2: Enhanced Features
 
-### 2. Sessions - Feature Parity
+### 3. Offline & Performance
 
-| Task | Description |
-|------|-------------|
-| Date headers | Group sessions by "Today", "Yesterday", etc. |
-| Vibing messages | "Accomplishing...", "Actioning..." animations |
+| Task | Status | Description |
+|------|--------|-------------|
+| Persist messages to MMKV | Not Started | Session messages live only in-memory (`_sessionMessages` map). On cold start, users see a blank screen until HTTP completes. Caching last N messages per session in MMKV would give instant load. |
+| Offline message outbox | Not Started | No retry/queue for message sends. If network drops mid-send, the message is silently lost. The `localId` field on `SendMessageRequest`/`SendMessageResponse` already supports server-side dedup. |
 
-**References**:
-- React Native: `/../happy/sources/app/(app)/session/recent.tsx`, `/../happy/sources/sync/storage.ts`
+### 4. Optimistic Mutations
 
-### 3. Chat - Input Enhancements
+| Task | Status | Description |
+|------|--------|-------------|
+| Optimistic mutation layer | Not Started | All state mutations are pessimistic (wait for server round-trip + WebSocket echo). An `OptimisticMutation<T>` primitive that patches provider state immediately and rolls back on failure would make every action feel instant. |
 
-| Task | Description |
-|------|-------------|
-| Draft auto-save | Persist message drafts automatically |
-| File autocomplete | @file mentions with file picker |
-| Command autocomplete | /commands with suggestions |
-| Permission mode selector | Dropdown for Browse/Read/Edit modes |
-| Profile selector | Switch between AI backends |
+### 5. Sidebar Navigation
 
-**References**:
-- React Native: `/../happy/sources/components/AgentInputAutocomplete.tsx`, `/../happy/sources/components/PermissionModeSelector.tsx`
-
-### 4. Settings - Full Implementation
-
-| Task | Description |
-|------|-------------|
-| Theme settings | Adaptive/light/dark theme selection |
-| Language settings | Preferred language with auto-detection |
-| Voice settings | ElevenLabs voice assistant language |
-| Features toggles | Experiments, markdown copy v2, etc. |
-| Profiles management | AI backend profiles (Claude, Gemini, OpenAI) |
-| Usage statistics | Token usage, costs, limits display |
-| Developer mode | 10x click to enable, debug tools |
-
-**References**:
-- React Native: `/../happy/sources/app/(app)/settings/appearance.tsx`, `/../happy/sources/app/(app)/settings/language.tsx`, `/../happy/sources/app/(app)/settings/features.tsx`, `/../happy/sources/app/(app)/settings/profiles.tsx`, `/../happy/sources/app/(app)/settings/usage.tsx`
-
-### 5. Tool Call Rendering
-
-| Task | Description |
-|------|-------------|
-| Known tools views | 15+ tool-specific UI components |
-| Tool icons | Display tool-specific icons |
-| Elapsed time | Show how long tool has been running |
-| Permission handling | Show permission request UI (PermissionFooter) |
-| Tool error display | Error messages with styling |
-| Expandable sections | Input/Output sections with headers |
-
-**References**:
-- React Native: `/../happy/sources/components/tools/knownTools.tsx`, `/../happy/sources/components/tools/ToolView.tsx`
-
-### 6. UI Components
-
-| Task | Description |
-|------|-------------|
-| Sidebar navigation | Collapsible sidebar with navigation |
-| Shimmer loading | Loading skeleton states |
-| Command palette | Modal command search |
-| Status bar provider | Dynamic status bar theming |
-| Diff view | Git diff rendering |
-| Tab bar | Bottom/app tab navigation |
-
-**References**:
-- React Native: `/../happy/sources/components/Avatar.tsx`, `/../happy/sources/components/SidebarView.tsx`, `/../happy/sources/components/ShimmerView.tsx`, `/../happy/sources/components/CommandPalette/`
-
----
-
-## P2: Error Handling & Diagnostics
-
-### 7. Logging System
-
-| Task | Description |
-|------|-------------|
-| Logger service | Keep last 5000 logs in memory with listeners |
-| Dev logs screen | View, copy, clear logs (debug builds only) |
-| Remote logging | Monkey-patch console.log for AI debugging |
-| Tool error parser | Parse `<tool_use_error>` tags |
-| Error boundary | Centralized error display/snackbar |
-
-**References**:
-- React Native: `/../happy/sources/log.ts`, `/../happy/sources/app/(app)/dev/logs.tsx`, `/../happy/sources/utils/remoteLogger.ts`
+| Task | Status | Description |
+|------|--------|-------------|
+| Collapsible sidebar | Not Started | Tab bar exists but no sidebar for tablet/desktop layouts. Referenced in multiple RN components. |
 
 ---
 
 ## P3: Polish Features
 
-### 8. Native Platform Integrations
+### 6. Native Platform Integrations
 
-| Task | Description |
-|------|-------------|
-| WebRTC/LiveKit | Audio/video calls support |
-| Camera access | QR scanning for device linking |
-| Push notifications | Remote/local notifications |
-| Biometric auth | Face ID, Touch ID, fingerprint |
-| Location services | GPS, background location |
-| Audio recording | Voice input integration |
-| Haptic feedback | Vibration on interactions |
-| Keep awake | Prevent screen sleep |
+| Task | Status | Description |
+|------|--------|-------------|
+| WebRTC/LiveKit | Partial | `video_call_service.dart` exists with stubs |
+| Push notifications | Partial | Service exists, notification test screen in dev tools |
+| Biometric auth | Not Started | Face ID, Touch ID, fingerprint |
+| Audio recording | Not Started | Voice input for chat |
 
 **References**:
 - React Native: `@livekit/react-native-webrtc`, `expo-camera`, `expo-notifications`, `expo-local-authentication`
 
-### 9. Utilities Parity
+### 7. CI/CD Enhancements
 
-| Task | Description |
-|------|-------------|
-| Device utilities | Phone/tablet detection, header height |
-| Advanced debounce | Cancel/reset/flush methods |
-| Path utilities | Resolve ~ paths, relative paths |
-| AsyncLock | Async mutex/locking |
-| Version utilities | Compare semantic versions |
-| Message utilities | Strip markdown, get preview |
-
-**References**:
-- React Native: `/../happy/sources/utils/calculateDeviceDimensions.ts`, `/../happy/sources/utils/path.ts`
-
-### 10. CI/CD Enhancements
-
-| Task | Description |
-|------|-------------|
-| Dependency caching | Cache pub-cache, Gradle builds |
-| Workflow dispatch | Manual trigger with build type selection |
-| Version tags | Auto-build on `v*` tags |
-| Artifact retention | Set retention-days |
-| Concurrent builds | Cancel redundant runs |
-
-**References**:
-- React Native: `/../happy/.github/workflows/`, `/../happy/eas.json`
-
-### 11. Internationalization (i18n)
-
-| Task | Description |
-|------|-------------|
-| i18n framework | Add flutter_localization package |
-| Translation strings | Extract all strings to translation files |
-| Language selector | UI to switch languages (15+ languages) |
-| RTL support | Right-to-left layout support |
-
-**References**:
-- React Native: `/../happy/sources/text/_default.ts`, `expo-localization`
+| Task | Status | Description |
+|------|--------|-------------|
+| Test coverage reporting | Not Started | CI runs `flutter test` pass/fail but no coverage visibility. Add `--coverage` + Codecov upload. |
 
 ---
 
@@ -199,31 +89,35 @@ Failed to send message: Bad state: Session cb28ed0b17eda800a5bcf6b1b not loaded
 
 | Category | Status | Notes |
 |----------|--------|-------|
-| Session Creation | 🚨 **BLOCKING BUG** | Sessions fail to initialize, message sending throws "not loaded" error |
 | Authentication | Done | QR auth, device linking, account restore, backup key |
-| Encryption | Done | AES-256-GCM, libsodium, Web Crypto API |
-| Chat | Done | Full markdown, syntax highlighting, code blocks |
-| Storage | Done | MMKV with migration, drafts, permission modes |
-| State | Done | All providers implemented with 63+ tests |
-| WebSocket | Done | Socket.io protocol with exponential backoff |
-| API | Done | All endpoints implemented with 250+ tests |
-| Sessions | Partial | Date headers, vibing messages pending |
-| Settings | Partial | Account screen done, other settings stub |
-| UI Components | Partial | Needs sidebar, autocomplete, command palette |
-| Tool Rendering | Not Started | 15+ tool views needed |
-| Logging | Not Started | In-memory logger, dev logs screen |
-| Native | Not Started | WebRTC/camera/notifications not started |
-| CI/CD | Partial | Debug/release builds, needs enhancement |
-| i18n | Not Started | Not started |
+| Encryption | Done | AES-256-GCM (new), NaCl/libsodium (legacy), key derivation |
+| Chat | Done | Full markdown, syntax highlighting, code blocks, TTS |
+| Chat Input | Done | Draft auto-save, @file autocomplete, /command autocomplete, permission mode selector, profile selector, abort |
+| Storage | Done | MMKV with migration, drafts, permission modes, FlutterSecureStorage for secrets |
+| State | Done | 16 providers, all notifiers implemented |
+| WebSocket | Done | Socket.IO with reconnect, inline message fast path, 100ms debounce |
+| API | Done | All endpoints with 250+ tests |
+| Sessions | Done | Date headers ("Today", "Yesterday"), session cards, status indicators |
+| Session Creation | Done | Optimistic placeholder, 60s `_sessionSpawnedAt` registry, 3-attempt recovery in `sendMessage` |
+| Settings | Done | Theme, language, voice, features, profiles, usage, developer, server, machines, changelog, Claude Connect (16 screens) |
+| Tool Rendering | Done | 19 tool-specific views, KnownTools registry (30+ variants), PermissionFooter, elapsed time, auto-collapse, tool error display |
+| Logging | Done | `LoggerService` (5000-entry circular buffer), `DevLogsScreen` (filter/search/copy/clear), Sentry forwarding, `RemoteLogger`, `ErrorBoundary`, `ErrorSnackbarManager` |
+| UI Components | Done | Shimmer loading, command palette, diff view, tab bar, avatars, status bar theming |
+| Dev Tools | Done | Dev logs, encryption debug, network inspector, notification test, session debug |
+| i18n | Partial | Framework in place (`flutter: generate: true`), 10 locale ARB files (en, es, fr, de, ca, it, ja, pl, pt, ru, zh, zh_Hans), 4 generated. More languages may need translation coverage. |
+| CI/CD | Done | 4-job pipeline (analyze, test, build-debug, build-release), caching, `v*` tag releases with obfuscation |
+| Native | Partial | TTS, video call stubs, push stubs — WebRTC/biometric/audio not started |
 
 ---
 
 ## Next Steps
 
-1. **URGENT**: Fix session creation bug (P0) - investigate sync state, session initialization
-2. **This sprint**: Settings screens (theme, language, features)
-3. **Next sprint**: Sessions UI - date headers, vibing messages
-4. **This quarter**: Tool call rendering and UI components
+1. **Quick win**: Wire `agentInputEnterToSend` setting to chat input (10-line fix)
+2. **Quick win**: Add vibing status animations for thinking sessions
+3. **This sprint**: Persist session messages to MMKV for instant cold starts
+4. **This sprint**: Optimistic mutation layer for instant UI feedback
+5. **Next sprint**: Offline message outbox with retry queue
+6. **This quarter**: Sidebar navigation for tablet/desktop
 
 ---
 
@@ -231,7 +125,7 @@ Failed to send message: Bad state: Session cb28ed0b17eda800a5bcf6b1b not loaded
 
 | Task | Effort | Impact |
 |------|--------|--------|
-| Copy translation strings | Low | i18n foundation |
-| Add shimmer loading state | Low | Better UX |
-| Add sidebar navigation | Low | Visual parity |
-| Add logging service | Low | Better debugging |
+| Wire `agentInputEnterToSend` | Very Low | Fixes broken setting, improves core input UX |
+| Vibing status animations | Low | Most visible gap vs RN app during agent work |
+| Streaming cursor in assistant bubble | Low | Makes AI response feel continuous vs discrete jumps |
+| Test coverage in CI | Very Low | One-line CI change, surfaces coverage gaps on every PR |
