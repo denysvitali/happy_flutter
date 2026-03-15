@@ -60,15 +60,18 @@ void main() {
         ),
       );
 
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
 
-      // AppBar has a TextButton; body has a FilledButton.
-      final filledButton = find.byType(FilledButton);
-      expect(filledButton, findsOneWidget);
+      // Body confirm button (FilledButton) should be disabled
+      // when text is empty.
+      final confirmButtons = find.widgetWithText(
+        FilledButton,
+        'Confirm',
+      );
+      expect(confirmButtons, findsOneWidget);
 
       final button = tester.widget<FilledButton>(
-        filledButton,
+        confirmButtons,
       );
       expect(button.onPressed, isNull);
     });
@@ -206,8 +209,7 @@ void main() {
         ),
       );
 
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
 
       // Type a path
       await tester.enterText(
@@ -218,7 +220,7 @@ void main() {
 
       // Confirm button should now be enabled
       final filledButton = tester.widget<FilledButton>(
-        find.byType(FilledButton),
+        find.widgetWithText(FilledButton, 'Confirm'),
       );
       expect(filledButton.onPressed, isNotNull);
     });

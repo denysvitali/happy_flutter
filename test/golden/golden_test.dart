@@ -1,6 +1,4 @@
 // ignore_for_file: depend_on_referenced_packages
-@Tags(['golden'])
-library;
 
 import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter_riverpod/flutter_riverpod.dart';

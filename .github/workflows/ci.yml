@@ -32,7 +32,6 @@ on:
           - production
 
 env:
-  FLUTTER_VERSION: '3.38.7'
   JAVA_VERSION: '17'
   DART_VM_OPTIONS: '--max-gen-heap-size=4096'
 
@@ -49,11 +48,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+
+      - name: Cache Nix store
+        uses: nix-community/cache-nix-action@v6
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -64,10 +66,10 @@ jobs:
             ${{ runner.os }}-pub-
 
       - name: Get dependencies
-        run: flutter pub get
+        run: nix develop --impure --command flutter pub get
 
       - name: Analyze code
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        run: nix develop --impure --command flutter analyze --no-fatal-infos --no-fatal-warnings
 
   test:
     name: Run Tests
@@ -76,12 +78,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
+          lfs: true
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+
+      - name: Cache Nix store
+        uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -92,10 +99,10 @@ jobs:
             ${{ runner.os }}-pub-
 
       - name: Get dependencies
-        run: flutter pub get
+        run: nix develop --impure --command flutter pub get
 
       - name: Run tests
-        run: flutter test --coverage --exclude-tags=golden
+        run: nix develop --impure --command flutter test --coverage
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -151,11 +158,14 @@ jobs:
           sudo rm -rf /usr/share/swift
           df -h
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+
+      - name: Cache Nix store
+        uses: nix-community/cache-nix-action@v6
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -183,7 +193,7 @@ jobs:
           cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
 
       - name: Get dependencies
-        run: flutter pub get
+        run: nix develop --impure --command flutter pub get
 
       - name: Determine flavor
         id: flavor
@@ -196,7 +206,7 @@ jobs:
 
       - name: Build Debug APK
         run: |
-          flutter build apk --debug --no-pub \
+          nix develop --impure --command flutter build apk --debug --no-pub \
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
@@ -269,12 +279,16 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      - name: Setup Flutter
+      - name: Install Nix
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        uses: subosito/flutter-action@v2
+        uses: cachix/install-nix-action@v30
+
+      - name: Cache Nix store
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        uses: nix-community/cache-nix-action@v6
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('devenv.nix', 'devenv.yaml', 'devenv.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
 
       - name: Setup Java
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
@@ -307,7 +321,7 @@ jobs:
 
       - name: Get dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        run: flutter pub get
+        run: nix develop --impure --command flutter pub get
 
       - name: Determine flavor
         id: flavor
@@ -321,7 +335,7 @@ jobs:
       - name: Build Release APK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: |
-          flutter build apk --release --no-pub \
+          nix develop --impure --command flutter build apk --release --no-pub \
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
@@ -338,7 +352,7 @@ jobs:
       - name: Upload debug symbols to Sentry
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' && env.SENTRY_AUTH_TOKEN != '' }}
         run: |
-          flutter pub run sentry_dart_plugin
+          nix develop --impure --command flutter pub run sentry_dart_plugin
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_DIST: ${{ steps.build_meta.outputs.BUILD_NUMBER }}
@@ -381,4 +395,3 @@ jobs:
           files: build/app/outputs/flutter-apk/app-${{ steps.flavor.outputs.FLAVOR }}-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
