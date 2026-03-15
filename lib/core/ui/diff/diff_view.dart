@@ -299,7 +299,7 @@ class _DiffViewState extends State<DiffView> {
 }
 
 /// Simplified inline diff viewer
-class InlineDiffView extends StatelessWidget {
+class InlineDiffView extends StatefulWidget {
   const InlineDiffView({
     required this.oldText,
     required this.newText,
@@ -313,40 +313,30 @@ class InlineDiffView extends StatelessWidget {
   final TextStyle? textStyle;
 
   @override
-  Widget build(BuildContext context) {
-    final result = calculateUnifiedDiff(oldText, newText);
-    final tokens = _getAllTokens(result);
+  State<InlineDiffView> createState() => _InlineDiffViewState();
+}
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: RichText(
-        text: TextSpan(
-          children: tokens.map((token) {
-            return TextSpan(
-              text: token.value,
-              style: (textStyle ?? const TextStyle()).copyWith(
-                backgroundColor: token.added
-                    ? theme.inlineAddedBg
-                    : token.removed
-                    ? theme.inlineRemovedBg
-                    : null,
-                color: token.added
-                    ? theme.inlineAddedText
-                    : token.removed
-                    ? theme.inlineRemovedText
-                    : null,
-                fontFamily: 'monospace',
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
+class _InlineDiffViewState extends State<InlineDiffView> {
+  late List<DiffToken> _tokens;
+
+  @override
+  void initState() {
+    super.initState();
+    _tokens = _computeTokens(widget.oldText, widget.newText);
   }
 
-  List<DiffToken> _getAllTokens(DiffResult result) {
-    final tokens = <DiffToken>[];
+  @override
+  void didUpdateWidget(InlineDiffView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.oldText != widget.oldText ||
+        oldWidget.newText != widget.newText) {
+      _tokens = _computeTokens(widget.oldText, widget.newText);
+    }
+  }
 
+  List<DiffToken> _computeTokens(String oldText, String newText) {
+    final result = calculateUnifiedDiff(oldText, newText);
+    final tokens = <DiffToken>[];
     for (final hunk in result.hunks) {
       for (final line in hunk.lines) {
         if (line.tokens != null) {
@@ -356,8 +346,36 @@ class InlineDiffView extends StatelessWidget {
         }
       }
     }
-
     return tokens;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: RichText(
+        text: TextSpan(
+          children: _tokens.map((token) {
+            return TextSpan(
+              text: token.value,
+              style: (widget.textStyle ?? const TextStyle()).copyWith(
+                backgroundColor: token.added
+                    ? widget.theme.inlineAddedBg
+                    : token.removed
+                    ? widget.theme.inlineRemovedBg
+                    : null,
+                color: token.added
+                    ? widget.theme.inlineAddedText
+                    : token.removed
+                    ? widget.theme.inlineRemovedText
+                    : null,
+                fontFamily: 'monospace',
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
   }
 }
 
