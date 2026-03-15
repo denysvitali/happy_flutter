@@ -659,6 +659,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     'gradient' => 'Gradient',
     'pixelated' => 'Pixelated',
     'brutalist' => 'Brutalist',
+    'geometric' => 'Geometric',
+    'rings' => 'Rings',
+    'constellation' => 'Constellation',
+    'wave' => 'Wave',
     _ => style,
   };
 
@@ -683,7 +687,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: ['gradient', 'pixelated', 'brutalist']
+              children: [
+                    'gradient',
+                    'pixelated',
+                    'brutalist',
+                    'geometric',
+                    'rings',
+                    'constellation',
+                    'wave',
+                  ]
                   .map(
                     (style) => RadioListTile(
                       title: Text(_avatarStyleLabel(style)),

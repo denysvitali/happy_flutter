@@ -47,7 +47,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _lastDataChangeCounter = 0;
   int _prevMessagesLength = 0;
   int _prevSeenLength = 0;
-  bool _autoScroll = true;
+  late final ValueNotifier<bool> _autoScrollNotifier =
+      ValueNotifier<bool>(true);
+  bool get _autoScroll => _autoScrollNotifier.value;
+  set _autoScroll(bool value) => _autoScrollNotifier.value = value;
   static const double _autoScrollThreshold = 100;
 
   PermissionMode _permissionMode = PermissionMode.defaultMode;
@@ -61,6 +64,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _visibleCount = _pageSize;
   bool _isLoadingMore = false;
   int _lastLoadMoreMs = 0;
+
+  // Cached avatar style and settings values to avoid ref.watch in build().
+  AvatarStyle? _avatarStyle;
+  bool _enterToSend = true;
 
   // Cached slicing / index data for _buildMessageList.
   List<Map<String, dynamic>>? _cachedVisibleMessages;
@@ -111,6 +118,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _loadInitialSettings();
     _initializeSyncBackedChat();
     final settings = ref.read(settingsNotifierProvider);
+    _avatarStyle = parseAvatarStyle(settings.avatarStyle);
+    _enterToSend = settings.agentInputEnterToSend;
     if (settings.ttsEnabled) {
       unawaited(
         TtsService().init(
@@ -120,6 +129,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
     }
   }
+
 
   /// Batches three async storage reads into a single setState call
   /// to avoid 3 separate rebuilds on screen open.
