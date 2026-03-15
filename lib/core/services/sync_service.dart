@@ -3268,13 +3268,8 @@ what you have, you must use the options mode.
   }
 
   /// Build daemon spawn environment variables with safe defaults.
-  ///
-  /// Remote MCP can cause Claude startup to stall in some daemon-spawned
-  /// sessions. Keep it disabled by default for mobile-created/restored
-  /// sessions unless the profile explicitly overrides it.
   Map<String, String> _spawnEnvironmentVariables(Map<String, String>? base) {
-    return <String, String>{...?base}
-      ..putIfAbsent('HAPPY_DISABLE_REMOTE_MCP', () => '1');
+    return <String, String>{...?base};
   }
 
   Future<
