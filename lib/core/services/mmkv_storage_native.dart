@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:mmkv/mmkv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -26,6 +27,11 @@ class _StorageKeys {
 class MMKVStorage {
   factory MMKVStorage() => _instance;
   MMKVStorage._();
+
+  /// Named constructor for test fakes that need to extend MMKVStorage.
+  @visibleForTesting
+  MMKVStorage.testConstructor();
+
   static final MMKVStorage _instance = MMKVStorage._();
 
   MMKV? _mmkv;

@@ -2,6 +2,7 @@
 // This file must NOT import dart:io.
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/profile.dart' as models;
@@ -33,6 +34,11 @@ class _Keys {
 class MMKVStorage {
   factory MMKVStorage() => _instance;
   MMKVStorage._();
+
+  /// Named constructor for test fakes that need to extend MMKVStorage.
+  @visibleForTesting
+  MMKVStorage.testConstructor();
+
   static final MMKVStorage _instance = MMKVStorage._();
 
   SharedPreferences? _prefs;
