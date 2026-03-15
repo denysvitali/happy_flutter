@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
+import '../../core/components/app_card.dart';
 import '../../core/components/app_section_header.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/components/app_tappable.dart';
@@ -333,18 +334,10 @@ class _StatusBanner extends StatelessWidget {
     final cs = theme.colorScheme;
     final statusColor = isOnline ? AppColors.success : cs.onSurfaceVariant;
 
-    return Container(
+    return AppCard(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
-          width: 0.5,
-        ),
       ),
       child: Row(
         children: [
@@ -382,7 +375,7 @@ class _StatusBanner extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// iOS-style grouped list container
+// Card container for grouped rows
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _GroupedList extends StatelessWidget {
@@ -394,23 +387,15 @@ class _GroupedList extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Container(
-      clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
-          width: 0.5,
-        ),
-      ),
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: Column(
         children: [
           for (int i = 0; i < children.length; i++) ...[
             children[i],
             if (i < children.length - 1)
               Divider(
-                height: 0.5,
+                height: 1,
                 indent: AppSpacing.lg,
                 color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
