@@ -319,7 +319,7 @@ class _TerminalCommandBar extends StatelessWidget {
   }
 }
 
-class _TerminalOutputSection extends StatelessWidget {
+class _TerminalOutputSection extends StatefulWidget {
 
   const _TerminalOutputSection({
     required this.label,
@@ -337,19 +337,82 @@ class _TerminalOutputSection extends StatelessWidget {
   final VoidCallback onToggleExpand;
 
   @override
+  State<_TerminalOutputSection> createState() =>
+      _TerminalOutputSectionState();
+}
+
+class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
+  late int _totalLines;
+  late bool _needsTruncation;
+  late String _visibleText;
+  late List<TextSpan> _parsedSpans;
+  // Track the style used to build _parsedSpans so we can avoid
+  // re-parsing when only unrelated parts of the tree rebuild.
+  TextStyle? _lastDefaultStyle;
+
+  /// Recomputes _totalLines, _needsTruncation, and _visibleText from
+  /// widget fields.  Call whenever output, expanded, or maxLines changes.
+  void _recomputeVisibleText() {
+    final lines = widget.output.split('\n');
+    _totalLines = lines.length;
+    _needsTruncation = _totalLines > widget.maxLines;
+    final visibleLines = widget.expanded || !_needsTruncation
+        ? lines
+        : lines.take(widget.maxLines).toList();
+    _visibleText = visibleLines.join('\n');
+  }
+
+  /// Rebuilds _parsedSpans using [defaultStyle].  Only called when
+  /// _visibleText or defaultStyle actually changes.
+  void _recomputeSpans(TextStyle defaultStyle) {
+    _parsedSpans = AnsiParser.parse(_visibleText, defaultStyle: defaultStyle);
+    _lastDefaultStyle = defaultStyle;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _recomputeVisibleText();
+    // Spans are populated on first build() once we have a BuildContext.
+    _parsedSpans = const [];
+  }
+
+  @override
+  void didUpdateWidget(_TerminalOutputSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.output != widget.output ||
+        oldWidget.expanded != widget.expanded ||
+        oldWidget.maxLines != widget.maxLines) {
+      _recomputeVisibleText();
+      // Force re-parse on next build by clearing the cached style.
+      _lastDefaultStyle = null;
+    } else if (oldWidget.isError != widget.isError) {
+      // visibleText is unchanged but the default text color may differ;
+      // clear the cached style so build() re-parses with the new color.
+      _lastDefaultStyle = null;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final c = ToolViewColors.of(context);
-    final lines = output.split('\n');
-    final totalLines = lines.length;
-    final needsTruncation = totalLines > maxLines;
-    final visibleLines =
-        expanded || !needsTruncation ? lines : lines.take(maxLines).toList();
-    final visibleText = visibleLines.join('\n');
 
-    final labelColor = isError ? c.red : c.mutedText;
-    final borderColor = isError ? c.errorBorder : c.border;
-    final bgColor = isError ? c.errorBg : c.bg;
+    final defaultStyle = TextStyle(
+      fontFamily: 'monospace',
+      fontSize: AppFontSize.sm,
+      color: widget.isError ? c.errorText : c.primaryText,
+      height: AppLineHeight.relaxed,
+    );
+
+    // Re-parse only when _visibleText or defaultStyle actually changed.
+    if (_lastDefaultStyle != defaultStyle) {
+      _recomputeSpans(defaultStyle);
+    }
+
+    final labelColor = widget.isError ? c.red : c.mutedText;
+    final borderColor = widget.isError ? c.errorBorder : c.border;
+    final bgColor = widget.isError ? c.errorBg : c.bg;
 
     return Container(
       margin: const EdgeInsets.only(top: AppSpacing.xsm),
@@ -378,7 +441,7 @@ class _TerminalOutputSection extends StatelessWidget {
             ),
             child: Row(
               children: [
-                if (isError)
+                if (widget.isError)
                   Padding(
                     padding:
                         const EdgeInsets.only(right: AppSpacing.xxs2),
@@ -389,7 +452,7 @@ class _TerminalOutputSection extends StatelessWidget {
                     ),
                   ),
                 Text(
-                  label,
+                  widget.label,
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: AppFontSize.xs,
@@ -400,14 +463,17 @@ class _TerminalOutputSection extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '$totalLines line${totalLines == 1 ? '' : 's'}',
+                  '$_totalLines line${_totalLines == 1 ? '' : 's'}',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: c.lineNumberText,
                     fontSize: AppFontSize.xxs,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                _CopyButton(text: AnsiParser.strip(output), iconSize: 13),
+                _CopyButton(
+                  text: AnsiParser.strip(widget.output),
+                  iconSize: 13,
+                ),
               ],
             ),
           ),
@@ -415,25 +481,15 @@ class _TerminalOutputSection extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(AppSpacing.smd),
             child: SelectableText.rich(
-              TextSpan(
-                children: AnsiParser.parse(
-                  visibleText,
-                  defaultStyle: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: AppFontSize.sm,
-                    color: isError ? c.errorText : c.primaryText,
-                    height: AppLineHeight.relaxed,
-                  ),
-                ),
-              ),
+              TextSpan(children: _parsedSpans),
             ),
           ),
           // Show more / show less button
-          if (needsTruncation)
+          if (_needsTruncation)
             _ShowMoreButton(
-              expanded: expanded,
-              hiddenCount: totalLines - maxLines,
-              onToggle: onToggleExpand,
+              expanded: widget.expanded,
+              hiddenCount: _totalLines - widget.maxLines,
+              onToggle: widget.onToggleExpand,
               borderColor: borderColor,
             ),
         ],
