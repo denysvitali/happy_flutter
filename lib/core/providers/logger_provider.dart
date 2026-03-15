@@ -15,6 +15,9 @@ class LoggerState {
   final int? filterLevel;
   final String searchQuery;
 
+  // Cached computed list — populated lazily on first access.
+  List<LogEntry>? _filteredLogsCache;
+
   LoggerState copyWith({
     List<LogEntry>? logs,
     int? filterLevel,
@@ -26,10 +29,14 @@ class LoggerState {
       filterLevel:
           clearFilterLevel ? null : (filterLevel ?? this.filterLevel),
       searchQuery: searchQuery ?? this.searchQuery,
-    );
+    ).._filteredLogsCache = null;
   }
 
   List<LogEntry> get filteredLogs {
+    return _filteredLogsCache ??= _computeFilteredLogs();
+  }
+
+  List<LogEntry> _computeFilteredLogs() {
     var result = logs;
 
     // Apply level filter
