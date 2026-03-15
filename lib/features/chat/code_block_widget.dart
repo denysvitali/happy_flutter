@@ -65,14 +65,29 @@ class CodeBlockWidget extends StatefulWidget {
 class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   bool _copied = false;
 
+  /// Cached line count — computed once and updated only when [widget.code]
+  /// changes, avoiding repeated `allMatches` scans on every build.
+  late int _lineCount;
+
   /// Estimated line height in logical pixels (font size * line height ratio).
   double get _lineHeight => widget.fontSize * 1.5;
 
-  /// Number of lines in the code.
-  int get _lineCount => '\n'.allMatches(widget.code).length + 1;
-
   /// Whether the code needs vertical scrolling.
   bool get _needsVerticalScroll => _lineCount > widget.maxVisibleLines;
+
+  @override
+  void initState() {
+    super.initState();
+    _lineCount = '\n'.allMatches(widget.code).length + 1;
+  }
+
+  @override
+  void didUpdateWidget(CodeBlockWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.code != widget.code) {
+      _lineCount = '\n'.allMatches(widget.code).length + 1;
+    }
+  }
 
   /// Max height before vertical scrolling kicks in.
   double get _maxHeight =>
@@ -325,10 +340,10 @@ class _CopyButton extends StatelessWidget {
 
 /// Left column displaying line numbers.
 ///
-/// Uses a [StatefulWidget] to cache the generated line-number widgets so
-/// that [List.generate] only runs when [lineCount], [fontSize], [lineHeight]
-/// or [isDark] actually changes — not on every parent rebuild.
-class _LineNumbers extends StatefulWidget {
+/// Uses a single [Text] widget with all line numbers joined by `\n` instead
+/// of one widget per line, reducing the widget count from O(N) to O(1) for
+/// large code blocks.
+class _LineNumbers extends StatelessWidget {
   const _LineNumbers({
     required this.lineCount,
     required this.fontSize,
@@ -341,50 +356,12 @@ class _LineNumbers extends StatefulWidget {
   final bool isDark;
 
   @override
-  State<_LineNumbers> createState() => _LineNumbersState();
-}
-
-class _LineNumbersState extends State<_LineNumbers> {
-  late List<Widget> _lineWidgets;
-
-  @override
-  void initState() {
-    super.initState();
-    _lineWidgets = _buildLineWidgets();
-  }
-
-  @override
-  void didUpdateWidget(_LineNumbers oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.lineCount != widget.lineCount ||
-        oldWidget.fontSize != widget.fontSize ||
-        oldWidget.lineHeight != widget.lineHeight ||
-        oldWidget.isDark != widget.isDark) {
-      _lineWidgets = _buildLineWidgets();
-    }
-  }
-
-  List<Widget> _buildLineWidgets() {
-    final numColor =
-        widget.isDark ? _mocha.surface1 : const Color(0xFF8C959F);
-    final style = TextStyle(
-      fontFamily: 'monospace',
-      fontSize: widget.fontSize,
-      color: numColor,
-      height: 1.0,
-    );
-    return List.generate(widget.lineCount, (i) {
-      return SizedBox(
-        height: widget.lineHeight,
-        child: Text('${i + 1}', style: style),
-      );
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final dividerColor =
-        widget.isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
+    final dividerColor = isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
+    final numColor = isDark ? _mocha.surface1 : const Color(0xFF8C959F);
+
+    final lineNumbers =
+        List.generate(lineCount, (i) => '${i + 1}').join('\n');
 
     return Container(
       padding: const EdgeInsets.only(
@@ -394,9 +371,15 @@ class _LineNumbersState extends State<_LineNumbers> {
       decoration: BoxDecoration(
         border: Border(right: BorderSide(color: dividerColor)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: _lineWidgets,
+      child: Text(
+        lineNumbers,
+        textAlign: TextAlign.end,
+        style: TextStyle(
+          fontFamily: 'monospace',
+          fontSize: fontSize,
+          color: numColor,
+          height: lineHeight / fontSize,
+        ),
       ),
     );
   }
