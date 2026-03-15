@@ -13,7 +13,6 @@ import '../../core/api/services_api.dart';
 import '../../core/api/socket_io_client.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
-import '../../core/models/machine.dart';
 import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/certificate_provider.dart';
@@ -63,7 +62,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       settingsNotifierProvider.select((s) => s.developerModeEnabled),
     );
     final profile = ref.watch(profileNotifierProvider);
-    final machines = ref.watch(machinesNotifierProvider);
+    // Select only the machine count and first machine's display name/host to
+    // avoid rebuilding this screen when unrelated machine fields change.
+    final machineCount = ref.watch(
+      machinesNotifierProvider.select((m) => m.length),
+    );
+    final firstMachineSubtitle = ref.watch(
+      machinesNotifierProvider.select((m) {
+        if (m.isEmpty) return null;
+        final first = m.values.first;
+        return first.metadata?.displayName ?? first.metadata?.host;
+      }),
+    );
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
@@ -106,8 +116,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: AppSpacing.lg),
           _buildSocialSection(context),
           const SizedBox(height: AppSpacing.lg),
-          _buildMachinesSection(context, machines),
-          if (machines.isNotEmpty) const SizedBox(height: AppSpacing.lg),
+          _buildMachinesSection(
+            context,
+            machineCount: machineCount,
+            firstMachineSubtitle: firstMachineSubtitle,
+          ),
+          if (machineCount > 0) const SizedBox(height: AppSpacing.lg),
           _buildAccountSection(context),
           const SizedBox(height: AppSpacing.lg),
           const _CertificatesSection(),
@@ -415,10 +429,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildMachinesSection(
-    BuildContext context,
-    Map<String, Machine> machines,
-  ) {
-    if (machines.isEmpty) return const SizedBox.shrink();
+    BuildContext context, {
+    required int machineCount,
+    required String? firstMachineSubtitle,
+  }) {
+    if (machineCount == 0) return const SizedBox.shrink();
 
     final l10n = AppLocalizations.of(context);
     return SettingsSection(
@@ -427,9 +442,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         SettingsNavRow(
           icon: Icons.computer_outlined,
           title: l10n.settingsMachines,
-          subtitle:
-              machines.values.first.metadata?.displayName ??
-              machines.values.first.metadata?.host,
+          subtitle: firstMachineSubtitle,
           onTap: () => context.pushNamed('machines'),
         ),
       ],

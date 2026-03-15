@@ -20,15 +20,19 @@ class SessionRecentScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final sessions = ref.watch(sessionsNotifierProvider);
+    final sessionList = ref.watch(
+      sessionsNotifierProvider.select((s) {
+        final list = s.values.toList()
+          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+        return list;
+      }),
+    );
     final showFlavorIcons = ref.watch(
       settingsNotifierProvider.select((s) => s.showFlavorIcons),
     );
     final avatarStyle = ref.watch(
       settingsNotifierProvider.select((s) => _parseAvatarStyle(s.avatarStyle)),
     );
-    final sessionList = sessions.values.toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
     String localizeDateGroup(DateGroup group) {
       return switch (group) {

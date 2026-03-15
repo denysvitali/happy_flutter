@@ -54,8 +54,9 @@ class _ArtifactDetailScreenState
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final artifacts = ref.watch(artifactsNotifierProvider);
-    final artifact = artifacts[widget.artifactId];
+    final artifact = ref.watch(
+      artifactsNotifierProvider.select((a) => a[widget.artifactId]),
+    );
 
     if (artifact == null) {
       return Scaffold(

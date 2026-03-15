@@ -52,8 +52,9 @@ class SessionInfoScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sessions = ref.watch(sessionsNotifierProvider);
-    final session = sessions[sessionId];
+    final session = ref.watch(
+      sessionsNotifierProvider.select((s) => s[sessionId]),
+    );
 
     if (session == null) {
       return Scaffold(

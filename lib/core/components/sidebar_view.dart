@@ -416,8 +416,13 @@ class _DefaultSessionContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
-    final sessions = ref.watch(sessionsNotifierProvider);
-    final sessionList = sessions.values.toList();
+    final sessionList = ref.watch(
+      sessionsNotifierProvider.select((s) {
+        final list = s.values.toList()
+          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+        return list;
+      }),
+    );
 
     if (sessionList.isEmpty) {
       return Center(
@@ -436,9 +441,6 @@ class _DefaultSessionContent extends ConsumerWidget {
         ),
       );
     }
-
-    // Sort sessions by updatedAt (newest first)
-    sessionList.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
     return ListView.builder(
       padding: const EdgeInsets.all(AppSpacing.sm),

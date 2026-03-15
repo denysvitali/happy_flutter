@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/app_localizations.dart';
-import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
@@ -38,7 +37,7 @@ class MessageDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final data = messageData ?? _lookupMessage(ref);
+    final data = messageData;
 
     if (data == null) {
       return Scaffold(
@@ -59,13 +58,6 @@ class MessageDetailScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(context.l10n.toolDetailsTitle)),
       body: _ToolDetailView(data: data),
     );
-  }
-
-  Map<String, dynamic>? _lookupMessage(WidgetRef ref) {
-    // Try to find message from sync service session messages
-    final sessions = ref.watch(sessionsNotifierProvider);
-    if (sessions[sessionId] == null) return null;
-    return null; // Messages aren't stored on session model
   }
 }
 
