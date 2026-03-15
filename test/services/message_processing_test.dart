@@ -586,6 +586,103 @@ void main() {
       expect(children!.first['id'], 'child_1');
       expect(children.first['content'], 'Subagent reply');
     });
+
+    test(
+      'groups children arriving incrementally after '
+      'sidechain-root is removed',
+      () {
+        const sid = 'session_incremental';
+
+        // Step 1: Task arrives alone.
+        instance.testSetSessionMessages(sid, [
+          {
+            'id': 'task_1',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'toolUseId': 'task_tool_1',
+            'uuid': 'task_uuid_1',
+            'state': 'running',
+            'input': {'description': 'Investigate'},
+          },
+        ]);
+        instance.testGroupSidechainMessages(sid);
+        expect(instance.messagesForSession(sid), hasLength(1));
+
+        // Step 2: Sidechain-root arrives — gets removed.
+        final msgs1 =
+            List<Map<String, dynamic>>.from(
+              instance.sessionMessages[sid]!,
+            );
+        msgs1.add({
+          'id': 'root_1',
+          'kind': 'sidechain-root',
+          'isSidechain': true,
+          'uuid': 'sidechain_uuid_1',
+          'parentUuid': 'task_uuid_1',
+          'prompt': 'Prompt text',
+        });
+        instance.testSetSessionMessages(sid, msgs1);
+        instance.testGroupSidechainMessages(sid);
+        // Root should be removed; only Task remains.
+        expect(instance.messagesForSession(sid), hasLength(1));
+
+        // Step 3: First child arrives with parentUuid pointing
+        // to the removed sidechain-root's uuid.
+        final msgs2 =
+            List<Map<String, dynamic>>.from(
+              instance.sessionMessages[sid]!.map(
+                (m) => Map<String, dynamic>.from(m),
+              ),
+            );
+        msgs2.add({
+          'id': 'child_1',
+          'kind': 'text',
+          'isSidechain': true,
+          'uuid': 'child_uuid_1',
+          'parentUuid': 'sidechain_uuid_1',
+          'content': 'First reply',
+        });
+        instance.testSetSessionMessages(sid, msgs2);
+        instance.testGroupSidechainMessages(sid);
+
+        var messages = instance.messagesForSession(sid);
+        expect(messages, hasLength(1));
+        var children =
+            messages.first['children'] as List<dynamic>?;
+        expect(children, isNotNull);
+        expect(children, hasLength(1));
+        expect(children!.first['id'], 'child_1');
+
+        // Step 4: Second child arrives — chained through first
+        // child's uuid.
+        final msgs3 =
+            List<Map<String, dynamic>>.from(
+              instance.sessionMessages[sid]!.map(
+                (m) => Map<String, dynamic>.from(m),
+              ),
+            );
+        msgs3.add({
+          'id': 'child_2',
+          'kind': 'tool-call',
+          'name': 'Read',
+          'isSidechain': true,
+          'uuid': 'child_uuid_2',
+          'parentUuid': 'child_uuid_1',
+          'state': 'running',
+          'input': <String, dynamic>{'file_path': '/tmp/f'},
+        });
+        instance.testSetSessionMessages(sid, msgs3);
+        instance.testGroupSidechainMessages(sid);
+
+        messages = instance.messagesForSession(sid);
+        expect(messages, hasLength(1));
+        children = messages.first['children'] as List<dynamic>?;
+        expect(children, isNotNull);
+        expect(children, hasLength(2));
+        expect(children![0]['id'], 'child_1');
+        expect(children[1]['id'], 'child_2');
+      },
+    );
   });
 
   group('tool result application', () {
