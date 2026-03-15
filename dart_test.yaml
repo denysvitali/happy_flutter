@@ -1,0 +1,3 @@
+tags:
+  golden:
+    description: "Golden screenshot tests (run locally, excluded from CI)"

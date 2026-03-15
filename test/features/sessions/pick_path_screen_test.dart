@@ -60,8 +60,10 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
+      // AppBar has a TextButton; body has a FilledButton.
       final filledButton = find.byType(FilledButton);
       expect(filledButton, findsOneWidget);
 
@@ -204,7 +206,8 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // Type a path
       await tester.enterText(

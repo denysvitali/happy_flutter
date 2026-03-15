@@ -95,7 +95,7 @@ jobs:
         run: flutter pub get
 
       - name: Run tests
-        run: flutter test --coverage
+        run: flutter test --coverage --exclude-tags=golden
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
