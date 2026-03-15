@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart'
-    show AppSpacing, AppDuration, AppCurve;
+    show AppFontSize, AppSpacing, AppDuration, AppCurve, AppTouchTarget;
 import '../../core/utils/ansi_parser.dart';
 
 /// Terminal emulator screen — displays terminal output with a dark
@@ -40,7 +40,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
 
   static const _terminalTextStyle = TextStyle(
     fontFamily: 'monospace',
-    fontSize: 13,
+    fontSize: AppFontSize.md,
     color: Color(0xFFD4D4D4),
     height: 1.5,
   );
@@ -153,10 +153,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.power_settings_new),
-            tooltip: context.l10n.terminalDisconnect,
-            onPressed: _confirmDisconnect,
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: IconButton(
+              icon: const Icon(Icons.power_settings_new),
+              tooltip: context.l10n.terminalDisconnect,
+              onPressed: _confirmDisconnect,
+            ),
           ),
         ],
       ),
@@ -178,7 +181,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                 final isCommand = line.startsWith('> ');
                 return Padding(
                   key: ValueKey(index),
-                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSpacing.xxs,
+                  ),
                   child: isCommand
                       ? Text(
                           line,
@@ -222,7 +227,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                   r'$ ',
                   style: TextStyle(
                     fontFamily: 'monospace',
-                    fontSize: 14,
+                    fontSize: AppFontSize.base,
                     color: Color(0xFF4EC94E),
                     fontWeight: FontWeight.bold,
                   ),
@@ -239,7 +244,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                       hintStyle: TextStyle(
                         color: const Color(0xFF6B6B6B),
                         fontFamily: 'monospace',
-                        fontSize: 13,
+                        fontSize: AppFontSize.md,
                         fontStyle: FontStyle.italic,
                       ),
                       contentPadding: const EdgeInsets.symmetric(
@@ -254,10 +259,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                 ),
                 if (_isSending)
                   const SizedBox(
-                    width: 36,
-                    height: 36,
+                    width: AppTouchTarget.min,
+                    height: AppTouchTarget.min,
                     child: Padding(
-                      padding: EdgeInsets.all(AppSpacing.sm),
+                      padding: EdgeInsets.all(AppSpacing.smd),
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         color: Color(0xFF4EC94E),
@@ -266,13 +271,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                   )
                 else
                   SizedBox(
-                    width: 44,
-                    height: 44,
+                    width: AppTouchTarget.min,
+                    height: AppTouchTarget.min,
                     child: IconButton(
                       icon: const Icon(
                         Icons.send,
                         color: Color(0xFF4EC94E),
-                        size: 20,
+                        size: AppSpacing.xl,
                       ),
                       onPressed: () =>
                           _submitCommand(_commandController.text),

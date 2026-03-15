@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/components/app_card.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/theme/app_tokens.dart'
-    show AppSpacing, AppRadius, AppTouchTarget;
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Terminal connect screen — select a machine and enter a terminal ID
 /// to establish a terminal connection.
@@ -46,86 +47,106 @@ class _TerminalConnectScreenState
     final machines = ref.watch(machinesNotifierProvider);
     final machineList = machines.values.toList();
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.terminalConnect)),
+      appBar: AppBar(
+        title: Text(
+          context.l10n.terminalConnect,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg,
+          AppSpacing.sm,
           AppSpacing.lg,
-          AppSpacing.lg,
-          AppSpacing.xxl,
+          AppSpacing.xxxl,
         ),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Info card
-              Card(
-                color: theme.colorScheme.primaryContainer,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+              AppCard(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
                 ),
-                child: Padding(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: cs.primary.withValues(
+                          alpha: AppOpacity.faint,
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          AppRadius.sm,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.terminal,
+                        color: cs.primary,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Text(
+                        context.l10n.terminalConnectInfo,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.xs,
+                  bottom: AppSpacing.xs,
+                ),
+                child: Text(
+                  context.l10n.sessionSelectMachine.toUpperCase(),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+              if (machineList.isEmpty)
+                AppCard(
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Row(
                     children: [
                       Icon(
-                        Icons.terminal,
-                        color: theme.colorScheme.primary,
-                        size: 32,
+                        Icons.computer_outlined,
+                        color: cs.onSurfaceVariant,
+                        size: 18,
                       ),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Text(
-                          context.l10n.terminalConnectInfo,
+                          context.l10n.terminalNoMachines,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer,
+                            color: cs.onSurfaceVariant,
                           ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xxxl),
-
-              // Machine selector
-              Text(
-                context.l10n.sessionSelectMachine.toUpperCase(),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  letterSpacing: 0.5,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              if (machineList.isEmpty)
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    side: BorderSide(
-                      color: theme.colorScheme.outlineVariant
-                          .withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Text(
-                      context.l10n.terminalNoMachines,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
                 )
               else
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
+                AppCard(
+                  padding: EdgeInsets.zero,
                   child: DropdownButtonFormField<String>(
                     initialValue: _selectedMachineId,
                     decoration: InputDecoration(
@@ -134,18 +155,23 @@ class _TerminalConnectScreenState
                         horizontal: AppSpacing.lg,
                         vertical: AppSpacing.sm,
                       ),
-                      prefixIcon: const Icon(Icons.computer_outlined),
+                      prefixIcon: const Icon(
+                        Icons.computer_outlined,
+                      ),
                       prefixIconConstraints: const BoxConstraints(
                         minWidth: AppTouchTarget.min,
                         minHeight: AppTouchTarget.min,
                       ),
                     ),
-                    hint: Text(context.l10n.terminalSelectMachineHint),
+                    hint: Text(
+                      context.l10n.terminalSelectMachineHint,
+                    ),
                     isExpanded: true,
                     items: machineList.map((machine) {
                       final meta = machine.metadata;
-                      final label =
-                          meta?.displayName ?? meta?.host ?? machine.id;
+                      final label = meta?.displayName ??
+                          meta?.host ??
+                          machine.id;
                       return DropdownMenuItem<String>(
                         value: machine.id,
                         child: Text(
@@ -161,30 +187,32 @@ class _TerminalConnectScreenState
                     },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return context.l10n.terminalSelectMachineError;
+                        return context
+                            .l10n.terminalSelectMachineError;
                       }
                       return null;
                     },
                   ),
                 ),
 
-              const SizedBox(height: AppSpacing.xxxl),
+              const SizedBox(height: AppSpacing.xxl),
 
-              // Terminal ID input
-              Text(
-                context.l10n.terminalIdLabel,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  letterSpacing: 0.5,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11,
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.xs,
+                  bottom: AppSpacing.xs,
+                ),
+                child: Text(
+                  context.l10n.terminalIdLabel.toUpperCase(),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
+                  ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
+              AppCard(
+                padding: EdgeInsets.zero,
                 child: TextFormField(
                   controller: _terminalIdController,
                   decoration: InputDecoration(
@@ -200,8 +228,8 @@ class _TerminalConnectScreenState
                     ),
                     hintText: context.l10n.terminalIdHint,
                     hintStyle: TextStyle(
-                      color: theme.colorScheme.onSurfaceVariant
-                          .withValues(alpha: 0.6),
+                      color: cs.onSurfaceVariant
+                          .withValues(alpha: AppOpacity.half),
                     ),
                   ),
                   autocorrect: false,
@@ -218,14 +246,19 @@ class _TerminalConnectScreenState
 
               const SizedBox(height: AppSpacing.xxxl),
 
-              // Connect button
               FilledButton.icon(
-                onPressed: machineList.isEmpty ? null : _handleConnect,
+                onPressed:
+                    machineList.isEmpty ? null : _handleConnect,
                 icon: const Icon(Icons.link),
                 label: Text(context.l10n.commonContinue),
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.sm,
+                  minimumSize: const Size(
+                    double.infinity,
+                    AppTouchTarget.comfortable,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(AppRadius.md),
                   ),
                 ),
               ),
