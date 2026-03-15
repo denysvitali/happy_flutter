@@ -1,11 +1,20 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../ui/avatars/avatar_constellation.dart';
+import '../ui/avatars/avatar_geometric.dart';
+import '../ui/avatars/avatar_rings.dart';
+import '../ui/avatars/avatar_wave.dart';
+
 /// Avatar style options
 enum AvatarStyle {
   brutalist,
   gradient,
   pixelated,
+  geometric,
+  rings,
+  constellation,
+  wave,
 }
 
 /// Flavor icon types for AI assistant avatars
@@ -953,6 +962,22 @@ class Avatar extends StatelessWidget {
           size: size,
           square: square,
           monochrome: monochrome,
+        ),
+      AvatarStyle.geometric => AvatarGeometric(
+          id: id,
+          size: size,
+        ),
+      AvatarStyle.rings => AvatarRings(
+          id: id,
+          size: size,
+        ),
+      AvatarStyle.constellation => AvatarConstellation(
+          id: id,
+          size: size,
+        ),
+      AvatarStyle.wave => AvatarWave(
+          id: id,
+          size: size,
         ),
     };
 

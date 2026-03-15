@@ -2,11 +2,23 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/ui/avatars/avatar_brutalist.dart';
+import '../../core/ui/avatars/avatar_constellation.dart';
+import '../../core/ui/avatars/avatar_geometric.dart';
 import '../../core/ui/avatars/avatar_gradient.dart';
 import '../../core/ui/avatars/avatar_pixelated.dart';
+import '../../core/ui/avatars/avatar_rings.dart';
+import '../../core/ui/avatars/avatar_wave.dart';
 
 /// Avatar style options for session avatars.
-enum AvatarStyle { gradient, pixelated, brutalist }
+enum AvatarStyle {
+  gradient,
+  pixelated,
+  brutalist,
+  geometric,
+  rings,
+  constellation,
+  wave,
+}
 
 /// AI provider flavors for flavor icon display.
 enum AiFlavor { claude, codex, gemini }
@@ -137,6 +149,12 @@ class SessionAvatar extends StatelessWidget {
       AvatarStyle.gradient => AvatarGradient(id: id, size: size),
       AvatarStyle.pixelated => AvatarPixelated(id: id, size: size),
       AvatarStyle.brutalist => AvatarBrutalist(id: id, size: size),
+      AvatarStyle.geometric =>
+        AvatarGeometric(id: id, size: size),
+      AvatarStyle.rings => AvatarRings(id: id, size: size),
+      AvatarStyle.constellation =>
+        AvatarConstellation(id: id, size: size),
+      AvatarStyle.wave => AvatarWave(id: id, size: size),
     };
 
     if (showFlavorIcon && flavor != null) {
@@ -224,6 +242,12 @@ class SessionAvatar extends StatelessWidget {
       AvatarStyle.gradient => AvatarGradient(id: id, size: size),
       AvatarStyle.pixelated => AvatarPixelated(id: id, size: size),
       AvatarStyle.brutalist => AvatarBrutalist(id: id, size: size),
+      AvatarStyle.geometric =>
+        AvatarGeometric(id: id, size: size),
+      AvatarStyle.rings => AvatarRings(id: id, size: size),
+      AvatarStyle.constellation =>
+        AvatarConstellation(id: id, size: size),
+      AvatarStyle.wave => AvatarWave(id: id, size: size),
     };
   }
 
