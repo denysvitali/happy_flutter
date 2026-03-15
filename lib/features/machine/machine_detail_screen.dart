@@ -8,12 +8,14 @@ import '../../core/components/app_card.dart';
 import '../../core/components/app_section_header.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/components/app_tappable.dart';
+import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_tokens.dart';
+import '../../core/theme/app_tokens.dart'
+    show AppFontSize, AppSpacing, AppTouchTarget;
 
 /// Detail screen for a single machine.
 ///
@@ -196,40 +198,48 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
             AppSectionHeader(title: context.l10n.machineInfo),
             const SizedBox(height: AppSpacing.xs),
             _GroupedList(
+              hasIcons: true,
               children: [
                 if (metadata?.host != null)
                   _GroupedRow(
+                    icon: Icons.dns_outlined,
                     label: context.l10n.machineHost,
                     value: metadata!.host!,
                   ),
                 if (metadata?.username != null)
                   _GroupedRow(
+                    icon: Icons.person_outline,
                     label: context.l10n.machineUsername,
                     value: metadata!.username!,
                   ),
                 if (metadata?.platform != null)
                   _GroupedRow(
+                    icon: Icons.computer_outlined,
                     label: context.l10n.machinePlatform,
                     value: metadata!.platform!,
                   ),
                 if (metadata?.arch != null)
                   _GroupedRow(
+                    icon: Icons.memory_outlined,
                     label: context.l10n.machineArchitecture,
                     value: metadata!.arch!,
                   ),
                 if (metadata?.happyCliVersion != null)
                   _GroupedRow(
+                    icon: Icons.code_outlined,
                     label: context.l10n.machineCliVersion,
                     value: metadata!.happyCliVersion!,
                     mono: true,
                   ),
                 if (metadata?.homeDir != null)
                   _GroupedRow(
+                    icon: Icons.folder_outlined,
                     label: context.l10n.machineHomeDir,
                     value: metadata!.homeDir!,
                     mono: true,
                   ),
                 _GroupedRow(
+                  icon: Icons.fingerprint,
                   label: context.l10n.machineMachineId,
                   value: widget.machineId,
                   mono: true,
@@ -242,25 +252,34 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
             AppSectionHeader(title: context.l10n.machineDaemon),
             const SizedBox(height: AppSpacing.xs),
             _GroupedList(
+              hasIcons: true,
               children: [
                 _GroupedRow(
+                  icon: Icons.circle_outlined,
+                  iconColor: isOnline
+                      ? AppColors.success
+                      : cs.onSurfaceVariant,
                   label: context.l10n.machineStatus,
                   value: isOnline
                       ? context.l10n.machineRunning
                       : context.l10n.machineStopped,
                   trailing: AppStatusDot(
-                    color: isOnline ? AppColors.success : cs.onSurfaceVariant,
+                    color: isOnline
+                        ? AppColors.success
+                        : cs.onSurfaceVariant,
                     size: 8,
                     pulse: isOnline,
                   ),
                 ),
                 if (metadata?.daemonLastKnownStatus != null)
                   _GroupedRow(
+                    icon: Icons.info_outline,
                     label: context.l10n.machineLastKnownStatus,
                     value: metadata!.daemonLastKnownStatus!,
                   ),
                 if (metadata?.daemonLastKnownPid != null)
                   _GroupedRow(
+                    icon: Icons.tag,
                     label: context.l10n.machineLastKnownPid,
                     value: metadata!.daemonLastKnownPid.toString(),
                     mono: true,
@@ -298,16 +317,26 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
             // ── Delete button ──
             const SizedBox(height: AppSpacing.xxxl),
             Center(
-              child: TextButton(
-                onPressed: () =>
-                    _confirmDelete(context, widget.machineId, machineName),
-                style: TextButton.styleFrom(foregroundColor: cs.error),
-                child: Text(
+              child: TextButton.icon(
+                onPressed: () => _confirmDelete(
+                  context,
+                  widget.machineId,
+                  machineName,
+                ),
+                icon: Icon(
+                  Icons.delete_outline,
+                  size: 18,
+                  color: cs.error,
+                ),
+                label: Text(
                   context.l10n.machineRemoveMachine,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: cs.error,
                     fontWeight: FontWeight.w500,
                   ),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: cs.error,
                 ),
               ),
             ),
@@ -379,13 +408,20 @@ class _StatusBanner extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _GroupedList extends StatelessWidget {
-  const _GroupedList({required this.children});
+  const _GroupedList({
+    required this.children,
+    this.hasIcons = false,
+  });
 
   final List<Widget> children;
+  final bool hasIcons;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final indent = hasIcons
+        ? AppSpacing.lg + 36 + AppSpacing.md
+        : AppSpacing.lg;
 
     return AppCard(
       padding: EdgeInsets.zero,
@@ -396,8 +432,9 @@ class _GroupedList extends StatelessWidget {
             if (i < children.length - 1)
               Divider(
                 height: 1,
-                indent: AppSpacing.lg,
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                indent: indent,
+                color: cs.outlineVariant
+                    .withValues(alpha: 0.5),
               ),
           ],
         ],
@@ -414,6 +451,8 @@ class _GroupedRow extends StatelessWidget {
   const _GroupedRow({
     required this.label,
     required this.value,
+    this.icon,
+    this.iconColor,
     this.mono = false,
     this.valueColor,
     this.trailing,
@@ -421,6 +460,8 @@ class _GroupedRow extends StatelessWidget {
 
   final String label;
   final String value;
+  final IconData? icon;
+  final Color? iconColor;
   final bool mono;
   final Color? valueColor;
   final Widget? trailing;
@@ -431,7 +472,9 @@ class _GroupedRow extends StatelessWidget {
     final cs = theme.colorScheme;
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+      constraints: const BoxConstraints(
+        minHeight: AppTouchTarget.min,
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
@@ -439,6 +482,13 @@ class _GroupedRow extends StatelessWidget {
         ),
         child: Row(
           children: [
+            if (icon != null) ...[
+              SettingsIconContainer(
+                icon: icon!,
+                color: iconColor,
+              ),
+              const SizedBox(width: AppSpacing.md),
+            ],
             if (label.isNotEmpty)
               SizedBox(
                 width: 100,
@@ -449,13 +499,14 @@ class _GroupedRow extends StatelessWidget {
                   ),
                 ),
               ),
-            if (label.isNotEmpty) const SizedBox(width: AppSpacing.md),
+            if (label.isNotEmpty)
+              const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
                 value,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontFamily: mono ? 'monospace' : null,
-                  fontSize: mono ? 13 : null,
+                  fontSize: mono ? AppFontSize.md : null,
                   color: valueColor,
                   fontWeight: mono ? FontWeight.w500 : null,
                 ),
