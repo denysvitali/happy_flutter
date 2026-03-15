@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'tools/json_viewer.dart';
 import 'tools/known_tools.dart';
@@ -79,12 +80,15 @@ class _TextDetailView extends StatelessWidget {
     final content = data['content'] ?? data['text'] ?? '';
     final text = content is String ? content : content.toString();
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: AppScreenPadding.standard,
       children: [
         _DetailCard(
           title: context.l10n.messageDetailContent,
           icon: Icons.message_outlined,
-          child: SelectableText(text),
+          child: SelectableText(
+            text,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
         ),
       ],
     );
@@ -135,9 +139,8 @@ class _ToolDetailView extends StatelessWidget {
     final state = _parseToolState(toolState);
 
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: AppScreenPadding.standard,
       children: [
-        // Header card
         _MessageHeader(
           toolTitle: toolTitle,
           toolName: toolName,
@@ -351,6 +354,10 @@ class _ToolResultSectionState extends State<_ToolResultSection> {
       color: cs.surfaceContainerHighest,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
+        side: BorderSide(
+          color: cs.outlineVariant,
+          width: AppBorder.hairline,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -421,7 +428,10 @@ class _ChildToolItem extends StatelessWidget {
     return Card(
       elevation: 0,
       color: theme.colorScheme.surfaceContainerHighest,
-      margin: const EdgeInsets.only(bottom: 4),
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.md),
         onTap: () => _showToolDetail(context, tool),
@@ -449,7 +459,7 @@ class _ChildToolItem extends StatelessWidget {
                 state: _parseToolState(state),
                 size: 14,
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.xs),
               Icon(
                 Icons.chevron_right,
                 size: 16,
@@ -508,12 +518,12 @@ class _ToolDetailBottomSheet extends StatelessWidget {
         // Drag handle
         Container(
           margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          width: 32,
-          height: 4,
+          width: AppSpacing.xxxl,
+          height: AppSpacing.xs,
           decoration: BoxDecoration(
             color: theme.colorScheme.onSurfaceVariant
-                .withValues(alpha: 0.30),
-            borderRadius: BorderRadius.circular(2),
+                .withValues(alpha: AppOpacity.medium),
+            borderRadius: BorderRadius.circular(AppRadius.xxs),
           ),
         ),
         Padding(
@@ -595,11 +605,16 @@ class _DetailCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Card(
       elevation: 0,
-      color: theme.colorScheme.surfaceContainerHighest,
+      color: cs.surfaceContainerHighest,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
+        side: BorderSide(
+          color: cs.outlineVariant,
+          width: AppBorder.hairline,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -611,7 +626,7 @@ class _DetailCard extends StatelessWidget {
                 Icon(
                   icon,
                   size: 18,
-                  color: theme.colorScheme.primary,
+                  color: cs.primary,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
@@ -643,7 +658,7 @@ class _LabelValue extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

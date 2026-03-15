@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../core/components/app_empty_state.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Screen that displays the content of a file in a scrollable monospace view.
 ///
@@ -41,11 +44,10 @@ class SessionFileViewerScreen extends StatelessWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // File path header bar
           Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 10,
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.smd,
             ),
             color: theme.colorScheme.surfaceContainerHighest,
             child: Row(
@@ -55,13 +57,13 @@ class SessionFileViewerScreen extends StatelessWidget {
                   size: 16,
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     path,
-                    style: TextStyle(
+                    style: theme.textTheme.bodySmall?.copyWith(
                       fontFamily: 'monospace',
-                      fontSize: 12,
+                      fontSize: AppFontSize.sm,
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -70,7 +72,11 @@ class SessionFileViewerScreen extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(
+            height: 1,
+            thickness: AppBorder.hairline,
+            color: theme.colorScheme.outlineVariant,
+          ),
 
           // File content
           Expanded(
@@ -95,16 +101,16 @@ class _FileContentView extends StatelessWidget {
     final theme = Theme.of(context);
     return Scrollbar(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: AppScreenPadding.standard,
         scrollDirection: Axis.vertical,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: SelectableText(
             content,
-            style: TextStyle(
+            style: theme.textTheme.bodyMedium?.copyWith(
               fontFamily: 'monospace',
-              fontSize: 13,
-              height: 1.5,
+              fontSize: AppFontSize.md,
+              height: AppLineHeight.relaxed,
               color: theme.colorScheme.onSurface,
             ),
           ),
@@ -120,33 +126,11 @@ class _EmptyContentView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.description_outlined,
-            size: 64,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            AppLocalizations.of(context).fileViewerNoContent,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            AppLocalizations.of(context)
-                .fileViewerContentError,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
+    return AppEmptyState(
+      icon: Icons.description_outlined,
+      title: AppLocalizations.of(context).fileViewerNoContent,
+      subtitle:
+          AppLocalizations.of(context).fileViewerContentError,
     );
   }
 }

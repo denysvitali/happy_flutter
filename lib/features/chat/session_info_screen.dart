@@ -5,10 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/components/app_section_header.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/session_utils.dart';
 
@@ -221,14 +223,16 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
         !_isVersionSupported(meta!.version!);
 
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: AppScreenPadding.standard,
       children: [
-        // Header card
         Card(
           elevation: 0,
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
+            side: BorderSide(
+              color: theme.colorScheme.outlineVariant,
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.xl),
@@ -239,7 +243,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   size: 56,
                   color: theme.colorScheme.primary,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   sessionName,
                   style: theme.textTheme.titleLarge?.copyWith(
@@ -247,7 +251,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   sessionSubtitle,
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -255,13 +259,13 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 _StatusChip(isActive: session.isOnline),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
 
         // CLI Version Outdated Warning
         if (isCliOutdated) ...[
@@ -290,7 +294,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                       color: theme.colorScheme.onTertiaryContainer,
                       size: 28,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,7 +307,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: AppSpacing.xxs),
                           Text(
                             'Run: npm install -g happy-coder@latest',
                             style: theme.textTheme.bodySmall?.copyWith(
@@ -324,17 +328,22 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
         ],
 
-        // Session details section
-        _SectionTitle(title: l10n.sessionInfoSectionDetails),
-        const SizedBox(height: 8),
+        AppSectionHeader(
+          title: l10n.sessionInfoSectionDetails,
+          uppercase: true,
+        ),
+        const SizedBox(height: AppSpacing.sm),
         Card(
           elevation: 0,
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
+            side: BorderSide(
+              color: theme.colorScheme.outlineVariant,
+            ),
           ),
           child: Column(
             children: [
@@ -347,19 +356,19 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     : session.id,
                 onTap: () => _copyToClipboard(session.id),
               ),
-              const Divider(height: 1, indent: 52),
+              const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
               _InfoRow(
                 icon: Icons.access_time,
                 label: l10n.sessionInfoLabelCreated,
                 value: _formatDate(session.createdAt),
               ),
-              const Divider(height: 1, indent: 52),
+              const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
               _InfoRow(
                 icon: Icons.update,
                 label: l10n.sessionInfoLabelLastUpdated,
                 value: _formatDate(session.updatedAt),
               ),
-              const Divider(height: 1, indent: 52),
+              const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
               _InfoRow(
                 icon: Icons.tag,
                 label: l10n.sessionInfoLabelSequence,
@@ -369,15 +378,20 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           ),
         ),
 
-        // Quick Actions section
-        const SizedBox(height: 16),
-        _SectionTitle(title: l10n.sessionInfoSectionQuickActions),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.lg),
+        AppSectionHeader(
+          title: l10n.sessionInfoSectionQuickActions,
+          uppercase: true,
+        ),
+        const SizedBox(height: AppSpacing.sm),
         Card(
           elevation: 0,
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
+            side: BorderSide(
+              color: theme.colorScheme.outlineVariant,
+            ),
           ),
           child: Column(
             children: [
@@ -391,7 +405,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 ),
               ],
               if (meta?.machineId != null && (isOnline || !session.active))
-                const Divider(height: 1, indent: 52),
+                const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
               if (isOnline)
                 _ActionRow(
                   icon: Icons.archive_outlined,
@@ -401,7 +415,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   onTap: _isArchiving ? null : _handleArchiveSession,
                 ),
               if (isOnline && !session.active)
-                const Divider(height: 1, indent: 52),
+                const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
               if (!session.active)
                 _ActionRow(
                   icon: Icons.delete_outline,
@@ -414,16 +428,21 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           ),
         ),
 
-        // Metadata section
         if (meta != null) ...[
-          const SizedBox(height: 16),
-          _SectionTitle(title: l10n.sessionInfoSectionMetadata),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.lg),
+          AppSectionHeader(
+            title: l10n.sessionInfoSectionMetadata,
+            uppercase: true,
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Card(
             elevation: 0,
             color: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
+              side: BorderSide(
+                color: theme.colorScheme.outlineVariant,
+              ),
             ),
             child: Column(
               children: [
@@ -433,7 +452,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   value: meta.host,
                 ),
                 if (meta.path != null) ...[
-                  const Divider(height: 1, indent: 52),
+                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
                   _InfoRow(
                     icon: Icons.folder_outlined,
                     label: l10n.sessionInfoLabelPath,
@@ -444,7 +463,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.machineId != null) ...[
-                  const Divider(height: 1, indent: 52),
+                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
                   _InfoRow(
                     icon: Icons.dns_outlined,
                     label: l10n.sessionInfoLabelMachineId,
@@ -454,7 +473,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.os != null) ...[
-                  const Divider(height: 1, indent: 52),
+                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
                   _InfoRow(
                     icon: Icons.memory,
                     label: l10n.sessionInfoLabelOs,
@@ -462,7 +481,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.version != null) ...[
-                  const Divider(height: 1, indent: 52),
+                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
                   _InfoRow(
                     icon: isCliOutdated
                         ? Icons.warning_amber_outlined
@@ -475,7 +494,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.flavor != null) ...[
-                  const Divider(height: 1, indent: 52),
+                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
                   _InfoRow(
                     icon: Icons.auto_awesome,
                     label: l10n.sessionInfoLabelAiProvider,
@@ -483,7 +502,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.claudeSessionId != null) ...[
-                  const Divider(height: 1, indent: 52),
+                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
                   _InfoRow(
                     icon: Icons.code_outlined,
                     label: l10n.sessionInfoLabelClaudeSessionId,
@@ -497,7 +516,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.hostPid != null) ...[
-                  const Divider(height: 1, indent: 52),
+                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
                   _InfoRow(
                     icon: Icons.terminal,
                     label: l10n.sessionInfoLabelProcessId,
@@ -505,7 +524,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.happyHomeDir != null) ...[
-                  const Divider(height: 1, indent: 52),
+                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
                   _InfoRow(
                     icon: Icons.home_outlined,
                     label: l10n.sessionInfoLabelHappyHome,
@@ -515,7 +534,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     ),
                   ),
                 ],
-                const Divider(height: 1, indent: 52),
+                const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
                 _ActionRow(
                   icon: Icons.copy_outlined,
                   label: l10n.sessionInfoActionCopyMetadata,
@@ -532,16 +551,21 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           ),
         ],
 
-        // Agent State section
         if (session.agentState != null) ...[
-          const SizedBox(height: 16),
-          _SectionTitle(title: l10n.sessionInfoSectionAgentState),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.lg),
+          AppSectionHeader(
+            title: l10n.sessionInfoSectionAgentState,
+            uppercase: true,
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Card(
             elevation: 0,
             color: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
+              side: BorderSide(
+                color: theme.colorScheme.outlineVariant,
+              ),
             ),
             child: Column(
               children: [
@@ -554,7 +578,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 ),
                 if (session.agentState!.requests != null &&
                     session.agentState!.requests!.isNotEmpty) ...[
-                  const Divider(height: 1, indent: 52),
+                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
                   _InfoRow(
                     icon: Icons.hourglass_empty_outlined,
                     label: l10n.sessionInfoLabelPendingRequests,
@@ -567,15 +591,20 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           ),
         ],
 
-        // Activity section
-        const SizedBox(height: 16),
-        _SectionTitle(title: l10n.sessionInfoSectionActivity),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.lg),
+        AppSectionHeader(
+          title: l10n.sessionInfoSectionActivity,
+          uppercase: true,
+        ),
+        const SizedBox(height: AppSpacing.sm),
         Card(
           elevation: 0,
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
+            side: BorderSide(
+              color: theme.colorScheme.outlineVariant,
+            ),
           ),
           child: Column(
             children: [
@@ -589,7 +618,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               ),
               if (session.thinking &&
                   session.thinkingAt != null) ...[
-                const Divider(height: 1, indent: 52),
+                const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
                 _InfoRow(
                   icon: Icons.timer_outlined,
                   label: l10n.sessionInfoLabelThinkingSince,
@@ -601,27 +630,35 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           ),
         ),
 
-        // Tools section
         if (meta?.tools != null && meta!.tools!.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _SectionTitle(title: l10n.sessionInfoSectionTools),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.lg),
+          AppSectionHeader(
+            title: l10n.sessionInfoSectionTools,
+            uppercase: true,
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Card(
             elevation: 0,
             color: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
+              side: BorderSide(
+                color: theme.colorScheme.outlineVariant,
+              ),
             ),
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
                 children: meta.tools!.map((tool) {
                   return Chip(
                     label: Text(
                       tool,
-                      style: const TextStyle(fontSize: 12),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(
+                        fontSize: AppFontSize.sm,
+                      ),
                     ),
                     backgroundColor:
                         theme.colorScheme.surfaceContainerHighest,
@@ -635,7 +672,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           ),
         ],
 
-        const SizedBox(height: 32),
+        const SizedBox(height: AppSpacing.xxxl),
       ],
     );
   }
@@ -648,58 +685,43 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final activeColor = cs.primary;
     final inactiveColor = cs.onSurfaceVariant;
     final chipColor = isActive ? activeColor : inactiveColor;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
-        color: chipColor.withValues(alpha: 0.15),
+        color: chipColor.withValues(alpha: AppOpacity.soft),
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 8,
-            height: 8,
+            width: AppSpacing.sm,
+            height: AppSpacing.sm,
             decoration: BoxDecoration(
               color: chipColor,
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xsm),
           Text(
             isActive
                 ? AppLocalizations.of(context).sessionInfoActive
                 : AppLocalizations.of(context).sessionInfoInactive,
-            style: TextStyle(
-              fontSize: 13,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: AppFontSize.md,
               fontWeight: FontWeight.w500,
               color: chipColor,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Text(
-      title.toUpperCase(),
-      style: theme.textTheme.labelSmall?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.8,
       ),
     );
   }
@@ -727,7 +749,10 @@ class _InfoRow extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
         child: Row(
           children: [
             Icon(
@@ -735,7 +760,7 @@ class _InfoRow extends StatelessWidget {
               size: 20,
               color: iconColor ?? theme.colorScheme.primary,
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: AppSpacing.lg),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -791,11 +816,14 @@ class _ActionRow extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
         child: Row(
           children: [
             Icon(icon, size: 20, color: color),
-            const SizedBox(width: 16),
+            const SizedBox(width: AppSpacing.lg),
             Expanded(
               child: Text(
                 label,
@@ -817,8 +845,10 @@ class _ActionRow extends StatelessWidget {
             else
               Icon(
                 Icons.chevron_right,
-                size: 18,
-                color: color.withValues(alpha: 0.6),
+                size: AppSpacing.xl,
+                color: color.withValues(
+                  alpha: AppOpacity.high,
+                ),
               ),
           ],
         ),

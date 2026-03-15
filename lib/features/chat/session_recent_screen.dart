@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/components/app_empty_state.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../core/utils/session_utils.dart';
 import '../sessions/session_avatar.dart';
 import '../sessions/widgets/session_cards.dart';
@@ -93,7 +95,7 @@ class _SessionRecentList extends StatelessWidget {
     );
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       itemCount: groupedItems.length,
       itemBuilder: (context, index) {
         final item = groupedItems[index];
@@ -127,7 +129,9 @@ class _SessionRecentList extends StatelessWidget {
 
     return Padding(
       key: ValueKey(session.id),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+      ),
       child: SessionCard(
         session: session,
         onTap: () => context.push('/chat/${session.id}'),
@@ -150,13 +154,18 @@ class _DateHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        AppSpacing.xl,
+        AppSpacing.xl,
+        AppSpacing.sm,
+      ),
       child: Text(
         date.toUpperCase(),
         style: theme.textTheme.labelMedium?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w600,
-          fontSize: 13,
+          fontSize: AppFontSize.md,
           letterSpacing: 0.5,
         ),
       ),
@@ -169,25 +178,9 @@ class _EmptyRecentView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.history,
-            size: 64,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            context.l10n.sessionsRecentEmpty,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
+    return AppEmptyState(
+      icon: Icons.history,
+      title: context.l10n.sessionsRecentEmpty,
     );
   }
 }
