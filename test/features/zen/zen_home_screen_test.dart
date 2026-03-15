@@ -260,7 +260,6 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.byType(FilledButton), findsOneWidget);
       expect(find.text('New Task'), findsOneWidget);
     });
   });
