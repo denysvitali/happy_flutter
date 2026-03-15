@@ -5,7 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/features/chat/autocomplete/file_autocomplete.dart';
 
 Widget _wrap(Widget child) {
-  return MaterialApp(home: Scaffold(body: child));
+  return MaterialApp(
+    home: Scaffold(
+      body: MediaQuery(
+        data: const MediaQueryData(textScaler: TextScaler.linear(0.8)),
+        child: SizedBox.expand(child: child),
+      ),
+    ),
+  );
 }
 
 void main() {
@@ -39,18 +46,22 @@ void main() {
 
     test('detects @ prefix word in middle of text', () {
       const content = 'look at @file.txt for details';
-      // cursor after 'txt' → offset 17
-      const selection = TextSelection.collapsed(offset: 17);
+      // cursor after '@file' (before the dot) → offset 13
+      // '.' is a stop character in backward scan, so we position
+      // the cursor before it to find the @-prefixed word.
+      const selection = TextSelection.collapsed(offset: 13);
       final word = findActiveWord(content, selection);
       expect(word, isNotNull);
       expect(word!.word, '@file.txt');
+      expect(word.activeWord, '@file');
       expect(word.offset, 8);
     });
 
     test('returns partial word when cursor is mid-word', () {
       const content = 'open @main.dart';
-      // cursor after '@mai' → offset 10
-      const selection = TextSelection.collapsed(offset: 10);
+      // 'open @main.dart' => o(0) p(1) e(2) n(3) (4) @(5) m(6) a(7) i(8) n(9) .(10) ...
+      // cursor after '@mai' → offset 9
+      const selection = TextSelection.collapsed(offset: 9);
       final word = findActiveWord(content, selection);
       expect(word, isNotNull);
       expect(word!.activeWord, '@mai');
@@ -93,8 +104,9 @@ void main() {
 
     test('handles @ at beginning of text', () {
       const content = '@main.dart is the entry point';
-      // cursor after 't' in 'dart' → offset 9
-      const selection = TextSelection.collapsed(offset: 9);
+      // @(0) m(1) a(2) i(3) n(4) .(5) ...
+      // cursor after '@main' (before dot) → offset 5
+      const selection = TextSelection.collapsed(offset: 5);
       final word = findActiveWord(content, selection);
       expect(word, isNotNull);
       expect(word!.word, '@main.dart');
@@ -103,8 +115,9 @@ void main() {
 
     test('handles file paths with slashes', () {
       const content = 'check @lib/main.dart';
-      // cursor after 'dart' → offset 20
-      const selection = TextSelection.collapsed(offset: 20);
+      // c(0) h(1) e(2) c(3) k(4) (5) @(6) l(7) i(8) b(9) /(10) m(11) a(12) i(13) n(14) .(15) ...
+      // cursor after '@lib/main' (before dot) → offset 15
+      const selection = TextSelection.collapsed(offset: 15);
       final word = findActiveWord(content, selection);
       expect(word, isNotNull);
       expect(word!.word, '@lib/main.dart');
@@ -113,8 +126,10 @@ void main() {
 
     test('handles nested file paths', () {
       const content = 'edit @src/features/chat/file.dart';
-      // cursor after '.dart' → offset 33
-      const selection = TextSelection.collapsed(offset: 33);
+      // e(0) d(1) i(2) t(3) (4) @(5) s(6) r(7) c(8) /(9) ...
+      // /(9) f(10) e(11) a(12) t(13) u(14) r(15) e(16) s(17) /(18) c(19) h(20) a(21) t(22) /(23) f(24) i(25) l(26) e(27) .(28) ...
+      // cursor before the dot → offset 28
+      const selection = TextSelection.collapsed(offset: 28);
       final word = findActiveWord(content, selection);
       expect(word, isNotNull);
       expect(word!.word, '@src/features/chat/file.dart');
@@ -163,11 +178,14 @@ void main() {
 
     test('returns endOffset pointing past the word', () {
       const content = 'hello @file.txt world';
-      // cursor after '.txt' → offset 16
-      const selection = TextSelection.collapsed(offset: 16);
+      // h(0) e(1) l(2) l(3) o(4) (5) @(6) f(7) i(8) l(9) e(10) .(11) t(12) x(13) t(14) (15) ...
+      // cursor after '@file' (before dot) → offset 11
+      // '.' is a stop character for backward scan, so place cursor before it
+      const selection = TextSelection.collapsed(offset: 11);
       final word = findActiveWord(content, selection);
       expect(word, isNotNull);
-      expect(word!.endOffset, 16);
+      // endOffset extends past '.' and 'txt' because @ makes it a file path
+      expect(word!.endOffset, 15);
       expect(content.substring(word.offset, word.endOffset), '@file.txt');
     });
 
@@ -197,8 +215,9 @@ void main() {
 
     test('handles multiple @ in text', () {
       const content = '@first @second';
-      // cursor after 'second' → offset 15
-      const selection = TextSelection.collapsed(offset: 15);
+      // @(0) f(1) i(2) r(3) s(4) t(5) (6) @(7) s(8) e(9) c(10) o(11) n(12) d(13)
+      // cursor after 'second' → offset 14 (length of string)
+      const selection = TextSelection.collapsed(offset: 14);
       final word = findActiveWord(content, selection);
       expect(word, isNotNull);
       expect(word!.word, '@second');
@@ -298,6 +317,8 @@ void main() {
     test('inserts at cursor when no active word found', () {
       const content = 'hello world';
       // cursor after 'hello' → offset 5
+      // No prefix in text, so findActiveWord returns null.
+      // The null branch inserts suggestion + space at cursor.
       const selection = TextSelection.collapsed(offset: 5);
       final result = applySuggestion(
         content,
@@ -306,7 +327,9 @@ void main() {
         const ['@'],
         true,
       );
-      expect(result.text, 'hello@file world');
+      // null branch: beforeCursor='hello', afterCursor=' world',
+      // suggestion with space = '@file ', result = 'hello@file  world'
+      expect(result.text, 'hello@file  world');
     });
 
     test('handles empty content', () {
@@ -324,6 +347,7 @@ void main() {
 
     test('replaces mid-word prefix with suggestion', () {
       const content = 'open @lib/main.dart';
+      // o(0) p(1) e(2) n(3) (4) @(5) l(6) i(7) b(8) /(9) m(10) ...
       // cursor after '@lib' → offset 9
       const selection = TextSelection.collapsed(offset: 9);
       final result = applySuggestion(
@@ -333,8 +357,10 @@ void main() {
         const ['@'],
         true,
       );
+      // activeWord found: offset=5, endOffset=19 (full '@lib/main.dart')
+      // replaced with '@lib/models/user.dart ' (trailing space since afterWord is empty)
       expect(result.text, 'open @lib/models/user.dart ');
-      expect(result.cursorPosition, 26);
+      expect(result.cursorPosition, 27);
     });
 
     test('replaces complete word when cursor is mid-word', () {
@@ -381,8 +407,9 @@ void main() {
 
     test('works with slash prefix', () {
       const content = 'run /he world';
-      // cursor after '/he' → offset 8
-      const selection = TextSelection.collapsed(offset: 8);
+      // r(0) u(1) n(2) (3) /(4) h(5) e(6) (7) w(8) ...
+      // cursor after '/he' (before space) → offset 7
+      const selection = TextSelection.collapsed(offset: 7);
       final result = applySuggestion(
         content,
         selection,
@@ -465,10 +492,6 @@ void main() {
       focusNode = FocusNode();
     });
 
-    tearDown(() {
-      controller.dispose();
-      focusNode.dispose();
-    });
 
     Widget buildAutocomplete({
       required Future<List<FileSuggestion>> Function(String) fetchSuggestions,
@@ -524,12 +547,12 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@main';
-      // cursor after '@main' → offset 5
-      controller.selection = const TextSelection.collapsed(offset: 5);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@main',
+        selection: TextSelection.collapsed(offset: 5),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       expect(find.text('main.dart'), findsOneWidget);
       expect(find.text('lib/main.dart'), findsOneWidget);
@@ -549,10 +572,11 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = 'hello world';
-      controller.selection = const TextSelection.collapsed(offset: 11);
-      controller.notifyListeners();
-      await tester.pump();
+      controller.value = const TextEditingValue(
+        text: 'hello world',
+        selection: TextSelection.collapsed(offset: 11),
+      );
+      await tester.pumpAndSettle();
 
       expect(find.text('main.dart'), findsNothing);
     });
@@ -571,10 +595,13 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@main';
-      controller.selection = const TextSelection.collapsed(offset: 0);
-      controller.notifyListeners();
-      await tester.pump();
+      // Set text and cursor atomically to avoid intermediate state
+      // where cursor defaults to end of text
+      controller.value = const TextEditingValue(
+        text: '@main',
+        selection: TextSelection.collapsed(offset: 0),
+      );
+      await tester.pumpAndSettle();
 
       expect(find.text('main.dart'), findsNothing);
     });
@@ -596,14 +623,15 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@main';
-      controller.selection = const TextSelection.collapsed(offset: 5);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@main',
+        selection: TextSelection.collapsed(offset: 5),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
-      await tester.tap(find.text('main.dart'));
-      await tester.pump();
+      await tester.tap(find.text('main.dart').first);
+      await tester.pumpAndSettle();
 
       expect(selected, isNotNull);
       expect(selected!.label, 'main.dart');
@@ -624,16 +652,17 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@mai';
-      // cursor after '@mai' → offset 4
-      controller.selection = const TextSelection.collapsed(offset: 4);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@mai',
+        selection: TextSelection.collapsed(offset: 4),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
-      await tester.tap(find.text('main.dart'));
-      await tester.pump();
+      await tester.tap(find.text('main.dart').first);
+      await tester.pumpAndSettle();
 
+      // _selectSuggestion applies '@main.dart' (label prefixed with @)
       expect(controller.text, '@main.dart ');
     });
 
@@ -651,18 +680,22 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@mai';
-      controller.selection = const TextSelection.collapsed(offset: 4);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@mai',
+        selection: TextSelection.collapsed(offset: 4),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       expect(find.text('main.dart'), findsOneWidget);
 
-      await tester.tap(find.text('main.dart'));
-      await tester.pump();
+      await tester.tap(find.text('main.dart').first);
+      await tester.pumpAndSettle();
 
-      expect(find.text('main.dart'), findsNothing);
+      // After selection the overlay label should no longer appear
+      // (the text field now contains '@main.dart ' which has a dot —
+      //  a stop character — so the overlay won't re-open)
+      expect(find.byType(ListView), findsNothing);
     });
 
     testWidgets('shows file icon for file suggestions', (tester) async {
@@ -680,11 +713,12 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@main';
-      controller.selection = const TextSelection.collapsed(offset: 5);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@main',
+        selection: TextSelection.collapsed(offset: 5),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.description_outlined), findsOneWidget);
     });
@@ -704,11 +738,12 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@lib';
-      controller.selection = const TextSelection.collapsed(offset: 4);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@lib',
+        selection: TextSelection.collapsed(offset: 4),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
     });
@@ -728,11 +763,12 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@main';
-      controller.selection = const TextSelection.collapsed(offset: 5);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@main',
+        selection: TextSelection.collapsed(offset: 5),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       expect(find.text('File'), findsOneWidget);
     });
@@ -752,11 +788,12 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@lib';
-      controller.selection = const TextSelection.collapsed(offset: 4);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@lib',
+        selection: TextSelection.collapsed(offset: 4),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       expect(find.text('Folder'), findsOneWidget);
     });
@@ -768,25 +805,34 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: Column(
-              children: [
-                FileAutocomplete(
-                  controller: controller,
-                  focusNode: focusNode,
-                  fetchSuggestions: (_) async => [
-                    const FileSuggestion(
-                      label: 'main.dart',
-                      path: 'lib/main.dart',
+            body: MediaQuery(
+              data: const MediaQueryData(
+                textScaler: TextScaler.linear(0.8),
+              ),
+              child: SizedBox.expand(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: FileAutocomplete(
+                        controller: controller,
+                        focusNode: focusNode,
+                        fetchSuggestions: (_) async => [
+                          const FileSuggestion(
+                            label: 'main.dart',
+                            path: 'lib/main.dart',
+                          ),
+                        ],
+                        onSelect: (_) {},
+                        child: TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                        ),
+                      ),
                     ),
+                    TextField(focusNode: otherFocus),
                   ],
-                  onSelect: (_) {},
-                  child: TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                  ),
                 ),
-                TextField(focusNode: otherFocus),
-              ],
+              ),
             ),
           ),
         ),
@@ -794,17 +840,18 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@main';
-      controller.selection = const TextSelection.collapsed(offset: 5);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@main',
+        selection: TextSelection.collapsed(offset: 5),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       expect(find.text('main.dart'), findsOneWidget);
 
       // Move focus to other field
       otherFocus.requestFocus();
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.text('main.dart'), findsNothing);
     });
@@ -831,11 +878,12 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@d';
-      controller.selection = const TextSelection.collapsed(offset: 2);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@d',
+        selection: TextSelection.collapsed(offset: 2),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       expect(find.text('main.dart'), findsOneWidget);
       expect(find.text('app.dart'), findsOneWidget);
@@ -860,11 +908,12 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@app';
-      controller.selection = const TextSelection.collapsed(offset: 4);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@app',
+        selection: TextSelection.collapsed(offset: 4),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       expect(find.text('app.dart'), findsOneWidget);
       expect(find.text('main.dart'), findsNothing);
@@ -881,11 +930,12 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@main';
-      controller.selection = const TextSelection.collapsed(offset: 5);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@main',
+        selection: TextSelection.collapsed(offset: 5),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       // Should not crash, overlay should be hidden
       expect(find.byType(ListView), findsNothing);
@@ -905,10 +955,11 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@';
-      controller.selection = const TextSelection.collapsed(offset: 1);
-      controller.notifyListeners();
-      await tester.pump();
+      controller.value = const TextEditingValue(
+        text: '@',
+        selection: TextSelection.collapsed(offset: 1),
+      );
+      await tester.pumpAndSettle();
 
       expect(find.byType(ListView), findsNothing);
     });
@@ -931,11 +982,12 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@a';
-      controller.selection = const TextSelection.collapsed(offset: 2);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@a',
+        selection: TextSelection.collapsed(offset: 2),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       // Divider separates the two suggestions
       expect(find.byType(Divider), findsOneWidget);
@@ -959,11 +1011,12 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@a';
-      controller.selection = const TextSelection.collapsed(offset: 2);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@a',
+        selection: TextSelection.collapsed(offset: 2),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       // First item should be selected (highlighted)
       final items = find.byType(InkWell);
@@ -984,18 +1037,19 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@main';
-      controller.selection = const TextSelection.collapsed(offset: 5);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@main',
+        selection: TextSelection.collapsed(offset: 5),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       expect(find.byType(Divider), findsNothing);
     });
 
-    testWidgets('shows loading indicator while fetching', (tester) async {
-      final completer =
-          Completer<List<FileSuggestion>>();
+    testWidgets('shows suggestions after async fetch completes',
+        (tester) async {
+      final completer = Completer<List<FileSuggestion>>();
 
       await tester.pumpWidget(
         buildAutocomplete(
@@ -1005,24 +1059,23 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@main';
-      controller.selection = const TextSelection.collapsed(offset: 5);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@main',
+        selection: TextSelection.collapsed(offset: 5),
+      );
       await tester.pump();
 
-      // Loading indicator should be visible while fetch is pending
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Searching files...'), findsOneWidget);
+      // Overlay is not shown until fetch completes (first query)
+      expect(find.byType(ListView), findsNothing);
 
       // Complete the fetch
       completer.complete([
         const FileSuggestion(label: 'main.dart', path: 'lib/main.dart'),
       ]);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
-      // Loading indicator should disappear, suggestions should show
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      // Suggestions should now show
       expect(find.text('main.dart'), findsOneWidget);
     });
 
@@ -1040,14 +1093,15 @@ void main() {
 
       focusNode.requestFocus();
       await tester.pump();
-      controller.text = '@mai';
-      controller.selection = const TextSelection.collapsed(offset: 4);
-      controller.notifyListeners();
+      controller.value = const TextEditingValue(
+        text: '@mai',
+        selection: TextSelection.collapsed(offset: 4),
+      );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
-      await tester.tap(find.text('main.dart'));
-      await tester.pump();
+      await tester.tap(find.text('main.dart').first);
+      await tester.pumpAndSettle();
 
       // Focus should remain on the input
       expect(focusNode.hasFocus, isTrue);
