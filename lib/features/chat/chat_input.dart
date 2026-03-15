@@ -51,6 +51,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.isSessionOnline = false,
     this.isAgentThinking = false,
     this.onAbort,
+    this.enterToSend = true,
   });
 
   /// Stable identifier for the current session
@@ -130,6 +131,10 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Called when the user taps the abort button.
   final Future<void> Function()? onAbort;
+
+  /// Whether pressing Enter sends the message
+  /// (vs inserting a newline).
+  final bool enterToSend;
 
   @override
   ConsumerState<ChatInput> createState() => _ChatInputState();
@@ -547,12 +552,12 @@ class _ChatInputState extends ConsumerState<ChatInput>
       autocorrect: true,
       maxLines: 6,
       minLines: 1,
-      textInputAction: defaultTargetPlatform == TargetPlatform.android
-          ? TextInputAction.newline
-          : TextInputAction.send,
-      onSubmitted: defaultTargetPlatform == TargetPlatform.android
-          ? null
-          : (_) => widget.onSend(),
+      textInputAction: widget.enterToSend
+          ? TextInputAction.send
+          : TextInputAction.newline,
+      onSubmitted: widget.enterToSend
+          ? (_) => widget.onSend()
+          : null,
     );
   }
 

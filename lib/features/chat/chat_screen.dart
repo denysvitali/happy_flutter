@@ -585,6 +585,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               isSessionOnline: _session?.isPresenceOnline ?? false,
               isAgentThinking: _session?.thinking ?? false,
               onAbort: _abortSession,
+              enterToSend: ref
+                  .watch(settingsNotifierProvider)
+                  .agentInputEnterToSend,
             ),
           ],
         ),

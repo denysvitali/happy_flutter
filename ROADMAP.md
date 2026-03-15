@@ -23,20 +23,7 @@ This roadmap tracks the work needed to achieve full feature parity between **hap
 
 ## P1: High Priority
 
-### 1. Sessions - Remaining Parity
-
-| Task | Status | Description |
-|------|--------|-------------|
-| Vibing messages | Not Started | "Accomplishing...", "Actioning..." cycling animations on active session cards. The `thinking` state currently shows no status text (`shouldShowStatus: false`). |
-
-**References**:
-- React Native: `/../happy/sources/app/(app)/session/recent.tsx`
-
-### 2. Chat - Input Behavior
-
-| Task | Status | Description |
-|------|--------|-------------|
-| Wire `agentInputEnterToSend` | Not Started | Setting exists end-to-end (model, provider, storage) but `chat_input.dart` ignores it — hard-codes `textInputAction` based on platform instead of reading the setting |
+*All P1 items completed.*
 
 ---
 
@@ -112,12 +99,10 @@ This roadmap tracks the work needed to achieve full feature parity between **hap
 
 ## Next Steps
 
-1. **Quick win**: Wire `agentInputEnterToSend` setting to chat input (10-line fix)
-2. **Quick win**: Add vibing status animations for thinking sessions
-3. **This sprint**: Persist session messages to MMKV for instant cold starts
-4. **This sprint**: Optimistic mutation layer for instant UI feedback
-5. **Next sprint**: Offline message outbox with retry queue
-6. **This quarter**: Sidebar navigation for tablet/desktop
+1. **This sprint**: Persist session messages to MMKV for instant cold starts
+2. **This sprint**: Optimistic mutation layer for instant UI feedback
+3. **Next sprint**: Offline message outbox with retry queue
+4. **This quarter**: Sidebar navigation for tablet/desktop
 
 ---
 
@@ -125,7 +110,5 @@ This roadmap tracks the work needed to achieve full feature parity between **hap
 
 | Task | Effort | Impact |
 |------|--------|--------|
-| Wire `agentInputEnterToSend` | Very Low | Fixes broken setting, improves core input UX |
-| Vibing status animations | Low | Most visible gap vs RN app during agent work |
 | Streaming cursor in assistant bubble | Low | Makes AI response feel continuous vs discrete jumps |
 | Test coverage in CI | Very Low | One-line CI change, surfaces coverage gaps on every PR |

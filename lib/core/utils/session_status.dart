@@ -88,8 +88,8 @@ SessionStatus getSessionStatus(Session session) {
     return SessionStatus(
       state: SessionState.thinking,
       isConnected: true,
-      statusText: '',
-      shouldShowStatus: false,
+      statusText: 'Thinking',
+      shouldShowStatus: true,
       statusColor: AppColors.iosBlue.toARGB32(),
       statusDotColor: AppColors.iosBlue.toARGB32(),
       isPulsing: true,
