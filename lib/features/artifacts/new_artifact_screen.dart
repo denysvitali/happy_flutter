@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/i18n/app_localizations.dart'; // for context.l10n extension
+import '../../core/i18n/app_localizations.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -99,7 +99,7 @@ class _NewArtifactScreenState
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: AppScreenPadding.standard,
           keyboardDismissBehavior:
               ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
@@ -178,7 +178,7 @@ class _NewArtifactScreenState
               ),
               const SizedBox(height: AppSpacing.xxxl),
               SizedBox(
-                height: 48,
+                height: AppTouchTarget.comfortable,
                 child: FilledButton(
                   onPressed: _isBusy ? null : _handleCreate,
                   child: _isBusy
@@ -215,7 +215,7 @@ class _SectionLabel extends StatelessWidget {
             color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
-            fontSize: 12,
+            fontSize: AppFontSize.sm,
           ),
     );
   }

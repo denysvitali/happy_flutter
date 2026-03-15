@@ -303,25 +303,9 @@ class _ArtifactListCard extends StatelessWidget {
           context.push('/artifacts/${artifact.id}'),
       child: Row(
         children: [
-          // Leading icon with type-based color.
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: indicator.color.withValues(
-                alpha: AppOpacity.subtle,
-              ),
-              borderRadius: BorderRadius.circular(
-                AppRadius.md,
-              ),
-            ),
-            child: Center(
-              child: Icon(
-                indicator.icon,
-                size: 22,
-                color: indicator.color,
-              ),
-            ),
+          SettingsIconContainer(
+            icon: indicator.icon,
+            color: indicator.color,
           ),
           const SizedBox(width: AppSpacing.md),
           // Title + metadata column.
@@ -398,8 +382,10 @@ class _ArtifactListCard extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Icon(
             Icons.chevron_right,
-            size: 20,
-            color: cs.onSurfaceVariant,
+            size: AppSpacing.xl,
+            color: cs.onSurface.withValues(
+              alpha: AppOpacity.medium,
+            ),
           ),
         ],
       ),
@@ -467,7 +453,7 @@ class _TypeBadge extends StatelessWidget {
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: color,
               fontWeight: FontWeight.w700,
-              fontSize: 10,
+              fontSize: AppFontSize.xxs,
             ),
       ),
     );
@@ -505,23 +491,23 @@ class _ArtifactsLoadingShimmer extends StatelessWidget {
               decoration: BoxDecoration(
                 color: cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(
-                  AppRadius.md,
+                  AppRadius.lg,
                 ),
                 border: Border.all(
                   color: cs.outlineVariant.withValues(
-                    alpha: 0.3,
+                    alpha: AppOpacity.medium,
                   ),
                 ),
               ),
               child: Row(
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       color: color,
                       borderRadius: BorderRadius.circular(
-                        AppRadius.md,
+                        AppRadius.sm,
                       ),
                     ),
                   ),
