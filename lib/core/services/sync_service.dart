@@ -1111,7 +1111,17 @@ what you have, you must use the options mode.
           u['timestamp'] as int,
         );
       }
-      _groupSidechainMessages(sessionId);
+      // Pass the IDs of messages we just upserted so the grouping
+      // method can skip all four passes when none of them are
+      // sidechain-related (the common case for streaming tokens).
+      final inlineChangedIds = {
+        for (final m in processed.messages)
+          if (m['id'] is String) m['id'] as String,
+      };
+      _groupSidechainMessages(
+        sessionId,
+        changedIds: inlineChangedIds,
+      );
       _applyPermissionRequests(sessionId);
 
       // Advance the seq cursor so future incremental fetches don't

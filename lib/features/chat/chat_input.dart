@@ -144,6 +144,17 @@ class _ChatInputState extends ConsumerState<ChatInput>
     with TickerProviderStateMixin {
   _ChatInputState()
     : _draftAutoSave = DraftAutoSave(sessionId: '', onSave: (_) {});
+
+  static final _blurFilter = ImageFilter.blur(sigmaX: 16, sigmaY: 16);
+  static final _containerRadius = BorderRadius.circular(AppRadius.xl);
+  static final _cardBoxShadow = [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.04),
+      blurRadius: 16,
+      offset: const Offset(0, 4),
+    ),
+  ];
+
   final FocusNode _focusNode = FocusNode();
   final AutocompleteController _autocompleteController =
       AutocompleteController();
@@ -268,7 +279,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
           .where((s) => s.label.toLowerCase().contains(query.toLowerCase()))
           .toList();
       _autocompleteController.setSuggestions(suggestions, query);
-      setState(() => _showAutocomplete = suggestions.isNotEmpty);
+      if (_showAutocomplete != suggestions.isNotEmpty) {
+        setState(() => _showAutocomplete = suggestions.isNotEmpty);
+      }
     } else if (trigger == '/') {
       final suggestions = slashCommands
           .where((c) => c.command.toLowerCase().contains(query.toLowerCase()))
@@ -283,13 +296,16 @@ class _ChatInputState extends ConsumerState<ChatInput>
           )
           .toList();
       _autocompleteController.setSuggestions(suggestions, query);
-      setState(() => _showAutocomplete = suggestions.isNotEmpty);
+      if (_showAutocomplete != suggestions.isNotEmpty) {
+        setState(() => _showAutocomplete = suggestions.isNotEmpty);
+      }
     } else {
       _clearAutocomplete();
     }
   }
 
   void _clearAutocomplete() {
+    if (!_showAutocomplete) return;
     _autocompleteController.clear();
     setState(() => _showAutocomplete = false);
   }
@@ -426,9 +442,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final cs = Theme.of(context).colorScheme;
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.xl),
+      borderRadius: _containerRadius,
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        filter: _blurFilter,
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -498,15 +514,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
+        borderRadius: _containerRadius,
         border: Border.all(color: borderColor, width: 0.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: _cardBoxShadow,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,

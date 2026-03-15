@@ -48,6 +48,43 @@ class _MarkdownViewState extends State<MarkdownView> {
   ThemeData? _lastTheme;
   Color? _lastTextColor;
 
+  /// Cached [OptionsElementBuilder] — recreated only when [widget.onOptionPress]
+  /// or [widget.textColor] changes, not on every build call.
+  late OptionsElementBuilder _optionsBuilder;
+
+  /// Cached builders map — same reference passed to [MarkdownBody] each build
+  /// unless the options builder instance changes.
+  late Map<String, MarkdownElementBuilder> _builders;
+
+  @override
+  void initState() {
+    super.initState();
+    _optionsBuilder = OptionsElementBuilder(
+      onOptionPress: widget.onOptionPress,
+      textColor: widget.textColor,
+    );
+    _builders = {
+      'pre': _sharedCodeBlockBuilder,
+      'options': _optionsBuilder,
+    };
+  }
+
+  @override
+  void didUpdateWidget(MarkdownView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.onOptionPress != oldWidget.onOptionPress ||
+        widget.textColor != oldWidget.textColor) {
+      _optionsBuilder = OptionsElementBuilder(
+        onOptionPress: widget.onOptionPress,
+        textColor: widget.textColor,
+      );
+      _builders = {
+        'pre': _sharedCodeBlockBuilder,
+        'options': _optionsBuilder,
+      };
+    }
+  }
+
   MarkdownStyleSheet _buildStyleSheet(ThemeData theme) {
     final onSurface = theme.colorScheme.onSurface;
     // When a textColor override is set (e.g. white-on-primary user bubble),
@@ -111,13 +148,7 @@ class _MarkdownViewState extends State<MarkdownView> {
     return MarkdownBody(
       data: widget.markdown,
       extensionSet: md.ExtensionSet.gitHubFlavored,
-      builders: {
-        'pre': _sharedCodeBlockBuilder,
-        'options': OptionsElementBuilder(
-          onOptionPress: widget.onOptionPress,
-          textColor: widget.textColor,
-        ),
-      },
+      builders: _builders,
       blockSyntaxes: const [
         OptionsBlockSyntax(),
       ],
@@ -145,6 +176,12 @@ class SimpleMarkdownView extends StatefulWidget {
 class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
   MarkdownStyleSheet? _styleSheet;
   ThemeData? _lastTheme;
+
+  /// Cached builders map — stable reference so [MarkdownBody] sees the same
+  /// map object on every rebuild and does not re-parse unnecessarily.
+  static final Map<String, MarkdownElementBuilder> _builders = {
+    'pre': _sharedCodeBlockBuilder,
+  };
 
   MarkdownStyleSheet _buildStyleSheet(ThemeData theme) {
     final onSurface = theme.colorScheme.onSurface;
@@ -187,9 +224,7 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
     return MarkdownBody(
       data: widget.markdown,
       extensionSet: md.ExtensionSet.gitHubFlavored,
-      builders: {
-        'pre': _sharedCodeBlockBuilder,
-      },
+      builders: _builders,
       styleSheet: _styleSheet!,
     );
   }
