@@ -1111,7 +1111,17 @@ what you have, you must use the options mode.
           u['timestamp'] as int,
         );
       }
-      _groupSidechainMessages(sessionId);
+      // Pass the IDs of messages we just upserted so the grouping
+      // method can skip all four passes when none of them are
+      // sidechain-related (the common case for streaming tokens).
+      final inlineChangedIds = {
+        for (final m in processed.messages)
+          if (m['id'] is String) m['id'] as String,
+      };
+      _groupSidechainMessages(
+        sessionId,
+        changedIds: inlineChangedIds,
+      );
       _applyPermissionRequests(sessionId);
 
       // Advance the seq cursor so future incremental fetches don't
@@ -5894,9 +5904,40 @@ what you have, you must use the options mode.
 
   /// Group sidechain messages as children of their parent Task
   /// tool-call messages and remove them from the main message list.
-  void _groupSidechainMessages(String sessionId) {
+  ///
+  /// [changedIds] — when provided (inline streaming path), contains
+  /// the IDs of messages that were just upserted.  If none of them
+  /// are sidechain-relevant (no `isSidechain`, no `sidechain-root`
+  /// kind, no Task/Agent tool-call) the method returns immediately,
+  /// avoiding O(N²) work for the ~90 % of streaming tokens that are
+  /// plain assistant text.
+  void _groupSidechainMessages(
+    String sessionId, {
+    Set<String>? changedIds,
+  }) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return;
+
+    // Fast path: if the caller told us which messages changed and
+    // none of them are sidechain-related, there is nothing to
+    // regroup — skip all four passes.
+    if (changedIds != null && changedIds.isNotEmpty) {
+      var hasSidechainRelevant = false;
+      for (final msg in messages) {
+        final id = msg['id'] as String?;
+        if (id == null || !changedIds.contains(id)) continue;
+        final kind = msg['kind'] as String?;
+        final name = msg['name'] as String?;
+        if (msg['isSidechain'] == true ||
+            kind == 'sidechain-root' ||
+            (kind == 'tool-call' &&
+                (name == 'Task' || name == 'Agent'))) {
+          hasSidechainRelevant = true;
+          break;
+        }
+      }
+      if (!hasSidechainRelevant) return;
+    }
 
     // Pass 1: Find Task tool calls → map stable identifiers to task message ID.
     // We index by uuid, toolUseId, AND prompt so that sidechain messages
