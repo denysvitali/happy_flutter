@@ -12,7 +12,9 @@ class ThemeSettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(settingsNotifierProvider);
+    final themeMode = ref.watch(
+      settingsNotifierProvider.select((s) => s.themeMode),
+    );
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
@@ -33,7 +35,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                   title: l10n.appearanceThemeAdaptive,
                   subtitle: l10n.appearanceThemeAdaptiveDesc,
                   icon: Icons.brightness_auto,
-                  isSelected: settings.themeMode == 'adaptive',
+                  isSelected: themeMode == 'adaptive',
                   onTap: () =>
                       _changeTheme(context, ref, 'adaptive'),
                 ),
@@ -43,7 +45,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                   title: l10n.appearanceThemeLight,
                   subtitle: l10n.appearanceThemeLightDesc,
                   icon: Icons.light_mode,
-                  isSelected: settings.themeMode == 'light',
+                  isSelected: themeMode == 'light',
                   onTap: () =>
                       _changeTheme(context, ref, 'light'),
                 ),
@@ -53,7 +55,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                   title: l10n.appearanceThemeDark,
                   subtitle: l10n.appearanceThemeDarkDesc,
                   icon: Icons.dark_mode,
-                  isSelected: settings.themeMode == 'dark',
+                  isSelected: themeMode == 'dark',
                   onTap: () =>
                       _changeTheme(context, ref, 'dark'),
                 ),

@@ -50,8 +50,9 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final settings = ref.watch(settingsNotifierProvider);
-    final isDeveloperMode = settings.developerModeEnabled;
+    final isDeveloperMode = ref.watch(
+      settingsNotifierProvider.select((s) => s.developerModeEnabled),
+    );
 
     return Scaffold(
       appBar: AppBar(

@@ -19,9 +19,11 @@ class DevLogsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Allow access when developer mode is enabled
-    final settings = ref.watch(settingsNotifierProvider);
+    final isDeveloperMode = ref.watch(
+      settingsNotifierProvider.select((s) => s.developerModeEnabled),
+    );
     final l10n = AppLocalizations.of(context);
-    if (!settings.developerModeEnabled) {
+    if (!isDeveloperMode) {
       return Scaffold(
         appBar: AppBar(title: Text(l10n.devLogsTitle)),
         body: Center(

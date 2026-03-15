@@ -20,8 +20,10 @@ class LanguageSelector extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(settingsNotifierProvider);
-    final currentLocale = _parseLocale(settings.preferredLanguage ?? '');
+    final preferredLanguage = ref.watch(
+      settingsNotifierProvider.select((s) => s.preferredLanguage),
+    );
+    final currentLocale = _parseLocale(preferredLanguage ?? '');
     final l10n = AppLocalizations.of(context);
 
     if (isFullScreen) {
@@ -37,7 +39,7 @@ class LanguageSelector extends ConsumerWidget {
               title: Text(l10n.settingsLanguageAutomatic),
               subtitle: Text(l10n.settingsLanguageAutomaticSubtitle),
               leading: const Icon(Icons.auto_awesome),
-              selected: settings.preferredLanguage?.isEmpty ?? true,
+              selected: preferredLanguage?.isEmpty ?? true,
               selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
               onTap: () {
                 ref.read(settingsNotifierProvider.notifier).updateSetting(
@@ -95,7 +97,7 @@ class LanguageSelector extends ConsumerWidget {
     return ListTile(
       title: Text(l10n.settingsLanguage),
       subtitle: Text(
-        (settings.preferredLanguage?.isEmpty ?? true)
+        (preferredLanguage?.isEmpty ?? true)
             ? l10n.settingsLanguageAutomatic
             : getLocaleNativeDisplayName(currentLocale),
       ),

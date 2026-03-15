@@ -22,9 +22,12 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final settings = ref.watch(settingsNotifierProvider);
-    final customProfiles = settings.profiles;
-    final selectedProfileId = settings.lastUsedProfile;
+    final customProfiles = ref.watch(
+      settingsNotifierProvider.select((s) => s.profiles),
+    );
+    final selectedProfileId = ref.watch(
+      settingsNotifierProvider.select((s) => s.lastUsedProfile),
+    );
 
     return Scaffold(
       appBar: AppBar(

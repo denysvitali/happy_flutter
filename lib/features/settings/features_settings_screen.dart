@@ -12,8 +12,28 @@ class FeaturesSettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final settings = ref.watch(settingsNotifierProvider);
     final notifier = ref.read(settingsNotifierProvider.notifier);
+    final hideInactiveSessions = ref.watch(
+      settingsNotifierProvider.select((s) => s.hideInactiveSessions),
+    );
+    final markdownCopyV2 = ref.watch(
+      settingsNotifierProvider.select((s) => s.markdownCopyV2),
+    );
+    final compactSessionView = ref.watch(
+      settingsNotifierProvider.select((s) => s.compactSessionView),
+    );
+    final experiments = ref.watch(
+      settingsNotifierProvider.select((s) => s.experiments),
+    );
+    final showLineNumbers = ref.watch(
+      settingsNotifierProvider.select((s) => s.showLineNumbers),
+    );
+    final wrapLinesInDiffs = ref.watch(
+      settingsNotifierProvider.select((s) => s.wrapLinesInDiffs),
+    );
+    final alwaysShowContextSize = ref.watch(
+      settingsNotifierProvider.select((s) => s.alwaysShowContextSize),
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.featuresTitle)),
@@ -27,7 +47,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                 icon: Icons.visibility_off_outlined,
                 title: l10n.featuresHideInactiveSessions,
                 subtitle: l10n.featuresHideInactiveSessionsDesc,
-                value: settings.hideInactiveSessions,
+                value: hideInactiveSessions,
                 onChanged: (v) =>
                     notifier.updateSetting('hideInactiveSessions', v),
               ),
@@ -35,7 +55,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                 icon: Icons.content_copy_rounded,
                 title: l10n.featuresMarkdownCopyV2,
                 subtitle: l10n.featuresMarkdownCopyV2Desc,
-                value: settings.markdownCopyV2,
+                value: markdownCopyV2,
                 onChanged: (v) =>
                     notifier.updateSetting('markdownCopyV2', v),
               ),
@@ -43,7 +63,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                 icon: Icons.density_small_rounded,
                 title: l10n.featuresCompactMode,
                 subtitle: l10n.featuresCompactModeDesc,
-                value: settings.compactSessionView,
+                value: compactSessionView,
                 onChanged: (v) =>
                     notifier.updateSetting('compactSessionView', v),
               ),
@@ -51,7 +71,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                 icon: Icons.science_outlined,
                 title: l10n.featuresExperiments,
                 subtitle: l10n.featuresExperimentsDesc,
-                value: settings.experiments,
+                value: experiments,
                 onChanged: (v) =>
                     notifier.updateSetting('experiments', v),
               ),
@@ -65,7 +85,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                 icon: Icons.numbers_rounded,
                 title: l10n.featuresShowLineNumbers,
                 subtitle: l10n.featuresShowLineNumbersDesc,
-                value: settings.showLineNumbers,
+                value: showLineNumbers,
                 onChanged: (v) =>
                     notifier.updateSetting('showLineNumbers', v),
               ),
@@ -73,7 +93,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                 icon: Icons.wrap_text_rounded,
                 title: l10n.featuresWrapLinesInDiffs,
                 subtitle: l10n.featuresWrapLinesInDiffsDesc,
-                value: settings.wrapLinesInDiffs,
+                value: wrapLinesInDiffs,
                 onChanged: (v) =>
                     notifier.updateSetting('wrapLinesInDiffs', v),
               ),
@@ -81,7 +101,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                 icon: Icons.data_usage_rounded,
                 title: l10n.featuresAlwaysShowContextSize,
                 subtitle: l10n.featuresAlwaysShowContextSizeDesc,
-                value: settings.alwaysShowContextSize,
+                value: alwaysShowContextSize,
                 onChanged: (v) =>
                     notifier.updateSetting('alwaysShowContextSize', v),
               ),

@@ -41,10 +41,17 @@ class _VoiceSettingsScreenState
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final settings = ref.watch(settingsNotifierProvider);
+    final ttsEnabled = ref.watch(
+      settingsNotifierProvider.select((s) => s.ttsEnabled),
+    );
+    final ttsEngine = ref.watch(
+      settingsNotifierProvider.select((s) => s.ttsEngine),
+    );
+    final voiceAssistantLanguage = ref.watch(
+      settingsNotifierProvider.select((s) => s.voiceAssistantLanguage),
+    );
     final cs = Theme.of(context).colorScheme;
-    final selectedLanguageCode =
-        settings.voiceAssistantLanguage ?? '';
+    final selectedLanguageCode = voiceAssistantLanguage ?? '';
     final selectedLanguage =
         findVoiceLanguageByCode(selectedLanguageCode);
 
@@ -60,7 +67,7 @@ class _VoiceSettingsScreenState
                 icon: Icons.volume_up_outlined,
                 title: l10n.voiceTtsTitle,
                 subtitle: l10n.voiceTtsSubtitle,
-                value: settings.ttsEnabled,
+                value: ttsEnabled,
                 onChanged: (value) => ref
                     .read(settingsNotifierProvider.notifier)
                     .updateSetting('ttsEnabled', value),
@@ -72,9 +79,8 @@ class _VoiceSettingsScreenState
                 onTap: () async {
                   final tts = TtsService();
                   await tts.init(
-                    language:
-                        settings.voiceAssistantLanguage,
-                    engine: settings.ttsEngine,
+                    language: voiceAssistantLanguage,
+                    engine: ttsEngine,
                   );
                   await tts.speak(
                     'Hello! Text to speech is working.',
@@ -92,13 +98,13 @@ class _VoiceSettingsScreenState
               children: [
                 SettingsRow(
                   icon: Icons.settings_voice,
-                  iconColor: settings.ttsEngine == null
+                  iconColor: ttsEngine == null
                       ? cs.primary
                       : null,
                   title: l10n.voiceDefaultEngine,
                   subtitle:
                       l10n.voiceDefaultEngineSubtitle,
-                  trailing: settings.ttsEngine == null
+                  trailing: ttsEngine == null
                       ? Icon(
                           Icons.check_circle_rounded,
                           size: AppSpacing.xl,
@@ -123,7 +129,7 @@ class _VoiceSettingsScreenState
                   final engineId =
                       engine['identifier'] ?? '';
                   final isSelected =
-                      settings.ttsEngine == engineId;
+                      ttsEngine == engineId;
                   return SettingsRow(
                     icon: Icons.settings_voice,
                     iconColor:
