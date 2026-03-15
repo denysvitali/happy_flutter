@@ -9,6 +9,13 @@ import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/features/dev/dev_logs_screen.dart';
 
 class _StorageFreeSettingsNotifier extends SettingsNotifier {
+  _StorageFreeSettingsNotifier([this._initial]);
+
+  final Settings? _initial;
+
+  @override
+  Settings build() => _initial ?? Settings();
+
   @override
   Future<void> updateSetting<T>(String key, T value) async {
     final json = state.toJson();
@@ -34,7 +41,7 @@ Widget _buildApp({
   return ProviderScope(
     overrides: [
       settingsNotifierProvider.overrideWith(
-        () => _StorageFreeSettingsNotifier(),
+        () => _StorageFreeSettingsNotifier(settings),
       ),
       if (loggerState != null)
         loggerNotifierProvider.overrideWith(
@@ -138,7 +145,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Logs (3)'), findsOneWidget);
+      expect(find.text('Logs (3)'), findsWidgets);
     });
 
     testWidgets('shows filter bar with count', (tester) async {

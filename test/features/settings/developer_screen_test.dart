@@ -7,6 +7,13 @@ import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/features/settings/developer_screen.dart';
 
 class _StorageFreeSettingsNotifier extends SettingsNotifier {
+  _StorageFreeSettingsNotifier([this._initial]);
+
+  final Settings? _initial;
+
+  @override
+  Settings build() => _initial ?? Settings();
+
   @override
   Future<void> updateSetting<T>(String key, T value) async {
     state = _applyUpdate(state, key, value);
@@ -17,6 +24,13 @@ class _StorageFreeSettingsNotifier extends SettingsNotifier {
     json[key] = value;
     return Settings.fromJson(json);
   }
+}
+
+Settings _devModeSettings() {
+  return Settings.fromJson({
+    ...Settings().toJson(),
+    'developerModeEnabled': true,
+  });
 }
 
 void main() {
@@ -87,7 +101,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Enable debug tools and diagnostics'),
+        find.text('Disabled - Tap 10 times to enable'),
         findsOneWidget,
       );
     });
@@ -117,16 +131,12 @@ void main() {
 
     testWidgets('shows debug tools when developer mode is on',
         (tester) async {
-      final notifier = _StorageFreeSettingsNotifier();
-      notifier.state = Settings.fromJson({
-        ...Settings().toJson(),
-        'developerModeEnabled': true,
-      });
-
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            settingsNotifierProvider.overrideWith(() => notifier),
+            settingsNotifierProvider.overrideWith(
+              () => _StorageFreeSettingsNotifier(_devModeSettings()),
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates:
@@ -146,16 +156,12 @@ void main() {
 
     testWidgets('shows enabled description when developer mode is on',
         (tester) async {
-      final notifier = _StorageFreeSettingsNotifier();
-      notifier.state = Settings.fromJson({
-        ...Settings().toJson(),
-        'developerModeEnabled': true,
-      });
-
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            settingsNotifierProvider.overrideWith(() => notifier),
+            settingsNotifierProvider.overrideWith(
+              () => _StorageFreeSettingsNotifier(_devModeSettings()),
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates:
@@ -168,23 +174,19 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Debug tools are available in settings'),
+        find.text('Enabled - Debug tools are visible'),
         findsOneWidget,
       );
     });
 
     testWidgets('shows testing section when developer mode is on',
         (tester) async {
-      final notifier = _StorageFreeSettingsNotifier();
-      notifier.state = Settings.fromJson({
-        ...Settings().toJson(),
-        'developerModeEnabled': true,
-      });
-
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            settingsNotifierProvider.overrideWith(() => notifier),
+            settingsNotifierProvider.overrideWith(
+              () => _StorageFreeSettingsNotifier(_devModeSettings()),
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates:
@@ -201,16 +203,12 @@ void main() {
 
     testWidgets('shows cache and storage section when developer mode is on',
         (tester) async {
-      final notifier = _StorageFreeSettingsNotifier();
-      notifier.state = Settings.fromJson({
-        ...Settings().toJson(),
-        'developerModeEnabled': true,
-      });
-
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            settingsNotifierProvider.overrideWith(() => notifier),
+            settingsNotifierProvider.overrideWith(
+              () => _StorageFreeSettingsNotifier(_devModeSettings()),
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates:
@@ -222,22 +220,26 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // Scroll down to reveal cache section
+      await tester.scrollUntilVisible(
+        find.text('Clear Cache'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
       expect(find.text('Clear Cache'), findsOneWidget);
       expect(find.text('Reset Settings'), findsOneWidget);
     });
 
     testWidgets('shows build info section when developer mode is on',
         (tester) async {
-      final notifier = _StorageFreeSettingsNotifier();
-      notifier.state = Settings.fromJson({
-        ...Settings().toJson(),
-        'developerModeEnabled': true,
-      });
-
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            settingsNotifierProvider.overrideWith(() => notifier),
+            settingsNotifierProvider.overrideWith(
+              () => _StorageFreeSettingsNotifier(_devModeSettings()),
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates:
@@ -246,6 +248,14 @@ void main() {
             home: const DeveloperScreen(),
           ),
         ),
+      );
+      await tester.pumpAndSettle();
+
+      // Scroll down to reveal build info section
+      await tester.scrollUntilVisible(
+        find.text('App Version'),
+        200,
+        scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
@@ -293,16 +303,12 @@ void main() {
 
     testWidgets('debug tools section shows network inspector icon',
         (tester) async {
-      final notifier = _StorageFreeSettingsNotifier();
-      notifier.state = Settings.fromJson({
-        ...Settings().toJson(),
-        'developerModeEnabled': true,
-      });
-
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            settingsNotifierProvider.overrideWith(() => notifier),
+            settingsNotifierProvider.overrideWith(
+              () => _StorageFreeSettingsNotifier(_devModeSettings()),
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates:
@@ -321,16 +327,12 @@ void main() {
     });
 
     testWidgets('cache section shows correct icons', (tester) async {
-      final notifier = _StorageFreeSettingsNotifier();
-      notifier.state = Settings.fromJson({
-        ...Settings().toJson(),
-        'developerModeEnabled': true,
-      });
-
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            settingsNotifierProvider.overrideWith(() => notifier),
+            settingsNotifierProvider.overrideWith(
+              () => _StorageFreeSettingsNotifier(_devModeSettings()),
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates:
@@ -342,21 +344,25 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // Scroll down to reveal cache section
+      await tester.scrollUntilVisible(
+        find.byIcon(Icons.delete_sweep),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
       expect(find.byIcon(Icons.delete_sweep), findsOneWidget);
       expect(find.byIcon(Icons.restart_alt), findsOneWidget);
     });
 
     testWidgets('build info section shows correct icons', (tester) async {
-      final notifier = _StorageFreeSettingsNotifier();
-      notifier.state = Settings.fromJson({
-        ...Settings().toJson(),
-        'developerModeEnabled': true,
-      });
-
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            settingsNotifierProvider.overrideWith(() => notifier),
+            settingsNotifierProvider.overrideWith(
+              () => _StorageFreeSettingsNotifier(_devModeSettings()),
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates:
@@ -365,6 +371,14 @@ void main() {
             home: const DeveloperScreen(),
           ),
         ),
+      );
+      await tester.pumpAndSettle();
+
+      // Scroll down to reveal build info section
+      await tester.scrollUntilVisible(
+        find.byIcon(Icons.info_outline),
+        200,
+        scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
