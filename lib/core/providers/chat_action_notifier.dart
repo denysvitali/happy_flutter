@@ -61,6 +61,12 @@ class ChatActionNotifier extends Notifier<void> {
     applySettings({'lastUsedPermissionMode': modeString});
   }
 
+  /// Save the model mode for a session and update settings.
+  void saveModelMode(String sessionId, String modeString) {
+    DraftStorage().saveModelMode(sessionId, modeString);
+    applySettings({'lastUsedModelMode': modeString});
+  }
+
   /// Save the profile selection and update settings.
   void saveProfile(String sessionId, String? profileId) {
     if (profileId != null) {

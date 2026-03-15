@@ -2916,12 +2916,16 @@ what you have, you must use the options mode.
     final permMode =
         profile?.defaultPermissionMode ??
         _settingsSnapshot.lastUsedPermissionMode;
+    // Pass the user's last-used model so the daemon writes it into session
+    // metadata and the CLI picks it up via initialModelForAgent().
+    final modelMode = _settingsSnapshot.lastUsedModelMode;
     final req = SpawnSessionRequest(
       type: 'spawn-in-directory',
       directory: path,
       approvedNewDirectoryCreation: true, // Always approve like React Native
       agent: agent,
       permissionMode: permMode,
+      model: modelMode != 'default' ? modelMode : null,
       environmentVariables: envVars,
     );
 

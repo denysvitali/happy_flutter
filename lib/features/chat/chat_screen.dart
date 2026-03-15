@@ -158,6 +158,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
     }
 
+    // Profile & settings (read once, used below for both model and profile).
+    final settings = ref.read(settingsNotifierProvider);
+
     // Model mode.
     final flavor = session?.metadata?.flavor;
     var modelMode = ClaudeModel.defaultModel;
@@ -171,10 +174,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ClaudeModel.fromString(session!.modelMode),
         flavor,
       );
+    } else if (settings.lastUsedModelMode != null) {
+      // Fall back to the user's last-used model preference so new sessions
+      // inherit the model the user most recently picked.
+      modelMode = ClaudeModel.normalizeForFlavor(
+        ClaudeModel.fromString(settings.lastUsedModelMode),
+        flavor,
+      );
     }
 
     // Profile.
-    final settings = ref.read(settingsNotifierProvider);
     final seen = <String>{};
     final deduped = <AIBackendProfile>[];
     for (final p in [...settings.profiles, ...builtInProfiles]) {
@@ -596,9 +605,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _session?.metadata?.flavor,
     );
     setState(() => _modelMode = normalized);
-    unawaited(
-      DraftStorage().saveModelMode(widget.sessionId, normalized.modeString),
-    );
+    ref
+        .read(chatActionNotifierProvider.notifier)
+        .saveModelMode(widget.sessionId, normalized.modeString);
   }
 
   void _onProfileChanged(AIBackendProfile? profile) {
