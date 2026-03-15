@@ -2945,9 +2945,8 @@ what you have, you must use the options mode.
 
     // Derive agent type and environment variables from the active profile.
     final profileId = _settingsSnapshot.lastUsedProfile;
-    final profile = profileId != null
-        ? _resolveProfile(profileId)
-        : _settingsSnapshot.profiles.firstOrNull;
+    final profile =
+        profileId != null ? _resolveProfile(profileId) : null;
     final profileEnvVars =
         profile != null ? _profileEnvironmentVariables(profile) : null;
     final agent = _settingsSnapshot.lastUsedAgent;
