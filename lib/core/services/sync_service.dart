@@ -2744,24 +2744,15 @@ what you have, you must use the options mode.
     }
   }
 
-  /// Sync purchases with RevenueCat
+  /// Sync purchases — delegates to [fetchProfile] which fetches the same
+  /// endpoint and extracts purchases data, avoiding a duplicate HTTP request.
   Future<void> syncPurchases() async {
-    logger.info('Syncing purchases...');
-    try {
-      final apiClient = ApiClient();
-      final response = await apiClient.get('/v1/account/profile');
-      if (!apiClient.isSuccess(response)) {
-        return;
-      }
-
-      final data = response.data as Map<String, dynamic>?;
-      _purchases = Purchases.parse(data?['purchases']);
-    } catch (error, stack) {
-      logger.error('Failed to sync purchases', error, stack);
-    }
+    await fetchProfile();
   }
 
-  /// Fetch profile from server
+  /// Fetch profile from server. Also extracts and stores purchases data from
+  /// the same response to avoid a second identical HTTP call from
+  /// [syncPurchases].
   Future<void> fetchProfile() async {
     logger.info('Fetching profile...');
 
@@ -2774,6 +2765,7 @@ what you have, you must use the options mode.
         final data = response.data;
         if (data is Map<String, dynamic>) {
           _profile = Profile.fromJson(data);
+          _purchases = Purchases.parse(data['purchases']);
         } else {
           logger.warning(
             'Failed to fetch profile: invalid response type '
@@ -6409,8 +6401,17 @@ what you have, you must use the options mode.
       }
     }
 
-    var changed = false;
-    final updated = List<Map<String, dynamic>>.from(existing);
+    // Copy-on-write: start with the original reference and only copy
+    // the list when the first actual mutation is needed.
+    var messages = existing;
+    var copied = false;
+
+    void ensureCopied() {
+      if (!copied) {
+        messages = List<Map<String, dynamic>>.from(existing);
+        copied = true;
+      }
+    }
 
     // Stamp pending permission onto matching tool-call messages.
     if (requests != null) {
@@ -6419,22 +6420,22 @@ what you have, you must use the options mode.
         final idx = toolUseIdToIndex[permId];
         if (idx == null) continue;
 
-        final msg = updated[idx];
+        final msg = messages[idx];
         final existingPerm = msg['permission'] as Map<String, dynamic>?;
         // Add pending permission if absent, or backfill missing id when
         // older payloads provide status but not the request identifier.
         if (existingPerm == null) {
-          updated[idx] = {
+          ensureCopied();
+          messages[idx] = {
             ...msg,
             'permission': {'id': permId, 'status': 'pending'},
           };
-          changed = true;
         } else if (existingPerm['id'] == null) {
-          updated[idx] = {
+          ensureCopied();
+          messages[idx] = {
             ...msg,
             'permission': {...existingPerm, 'id': permId},
           };
-          changed = true;
         }
       }
     }
@@ -6447,7 +6448,7 @@ what you have, you must use the options mode.
         final idx = toolUseIdToIndex[permId];
         if (idx == null) continue;
 
-        final msg = updated[idx];
+        final msg = messages[idx];
         final existingPerm = msg['permission'] as Map<String, dynamic>?;
         // Skip if already resolved — the tool-result `permissions` field
         // (applied in _applyToolResults) is more authoritative.
@@ -6457,7 +6458,8 @@ what you have, you must use the options mode.
           continue;
         }
 
-        updated[idx] = {
+        ensureCopied();
+        messages[idx] = {
           ...msg,
           'permission': {
             'id': permId,
@@ -6468,7 +6470,6 @@ what you have, you must use the options mode.
             if (info.reason != null) 'reason': info.reason,
           },
         };
-        changed = true;
       }
     }
 
@@ -6479,8 +6480,8 @@ what you have, you must use the options mode.
     // Remove the stale permission so the UI stops showing buttons
     // that will always fail with "failed to resolve permission".
     final pendingIds = requests?.keys.toSet() ?? <String>{};
-    for (var i = 0; i < updated.length; i++) {
-      final msg = updated[i];
+    for (var i = 0; i < messages.length; i++) {
+      final msg = messages[i];
       if (msg['kind'] != 'tool-call') continue;
       final perm = msg['permission'] as Map<String, dynamic>?;
       if (perm == null) continue;
@@ -6490,16 +6491,16 @@ what you have, you must use the options mode.
       if (permId != null && !pendingIds.contains(permId)) {
         // Permission was pending locally but is no longer in
         // agentState.requests — treat as expired/canceled.
-        updated[i] = {
+        ensureCopied();
+        messages[i] = {
           ...msg,
           'permission': {...perm, 'status': 'canceled'},
         };
-        changed = true;
       }
     }
 
-    if (changed) {
-      _sessionMessages[sessionId] = updated;
+    if (copied) {
+      _sessionMessages[sessionId] = messages;
       _sessionMessagesCache = null;
       _sessionMessagesViewCache.remove(sessionId);
     }
