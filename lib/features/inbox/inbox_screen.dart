@@ -480,10 +480,10 @@ class _InboxListView extends StatelessWidget {
       onRefresh: onRefresh,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.xl,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.xxxl,
         ),
         itemCount: descriptors.length + 1,
         itemBuilder: (context, index) {
@@ -511,9 +511,9 @@ class _InboxEmptyView extends StatelessWidget {
       onRefresh: onRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xxl,
-          AppSpacing.xxl,
-          AppSpacing.xxl,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
           AppSpacing.xxxl,
         ),
         children: [
@@ -602,23 +602,34 @@ class _FeedCard extends StatelessWidget {
     final cs = theme.colorScheme;
     final isUnread = !item.read;
 
-    return AppTappable(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.sm,
-          AppSpacing.md,
-          AppSpacing.sm,
-        ),
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: AppSpacing.sm,
+      ),
+      child: AppTappable(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius:
+                BorderRadius.circular(AppRadius.md),
+            border: Border.all(
+              color: cs.outlineVariant.withValues(
+                alpha: 0.4,
+              ),
+            ),
+          ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icon avatar
             Container(
-              width: 40,
-              height: 40,
+              width: AppTouchTarget.min,
+              height: AppTouchTarget.min,
               decoration: BoxDecoration(
                 color: cs.primaryContainer,
                 borderRadius: BorderRadius.circular(AppRadius.md),
@@ -667,7 +678,7 @@ class _FeedCard extends StatelessWidget {
                 Text(
                   _timeAgo(item.createdAt),
                   style: theme.textTheme.labelSmall?.copyWith(
-                    fontSize: 12,
+                    fontSize: AppFontSize.sm,
                     color: isUnread ? cs.primary : cs.onSurfaceVariant,
                     fontWeight: isUnread ? FontWeight.w600 : FontWeight.w400,
                   ),
@@ -683,6 +694,7 @@ class _FeedCard extends StatelessWidget {
               ],
             ),
           ],
+        ),
         ),
       ),
     );
@@ -776,18 +788,17 @@ class _InboxItem extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // Avatar with optional status dot
               if (showStatusDot)
                 _InboxAvatarWithStatus(
                   userId: userId,
                   avatarUrl: avatarUrl,
-                  size: 44,
+                  size: AppTouchTarget.min,
                   isOnline: false,
                 )
               else
                 Avatar(
                   id: userId,
-                  size: 44,
+                  size: AppTouchTarget.min,
                   imageUrl: avatarUrl,
                 ),
               const SizedBox(width: AppSpacing.md),
@@ -992,7 +1003,7 @@ class _InboxLoadingShimmer extends StatelessWidget {
           padding: const EdgeInsets.only(
             top: AppSpacing.lg,
             bottom: AppSpacing.sm,
-            left: AppSpacing.lg,
+            left: AppSpacing.xs,
           ),
           child: Container(
             height: 12,
@@ -1008,62 +1019,75 @@ class _InboxLoadingShimmer extends StatelessWidget {
 
     Widget row() => Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
             vertical: AppSpacing.sm,
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: base,
-                  shape: BoxShape.circle,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.md,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(
+                AppRadius.md,
+              ),
+              border: Border.all(
+                color: cs.outlineVariant.withValues(
+                  alpha: 0.3,
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      height: 14,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: base,
-                        borderRadius:
-                            BorderRadius.circular(
-                          AppRadius.xs,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(
-                      height: AppSpacing.xs,
-                    ),
-                    Container(
-                      height: 12,
-                      width: 140,
-                      decoration: BoxDecoration(
-                        color: base,
-                        borderRadius:
-                            BorderRadius.circular(
-                          AppRadius.xs,
-                        ),
-                      ),
-                    ),
-                  ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: AppTouchTarget.min,
+                  height: AppTouchTarget.min,
+                  decoration: BoxDecoration(
+                    color: base,
+                    shape: BoxShape.circle,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        height: 14,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: base,
+                          borderRadius:
+                              BorderRadius.circular(
+                            AppRadius.xs,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(
+                        height: AppSpacing.xs,
+                      ),
+                      Container(
+                        height: 12,
+                        width: 140,
+                        decoration: BoxDecoration(
+                          color: base,
+                          borderRadius:
+                              BorderRadius.circular(
+                            AppRadius.xs,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         );
 
     return Shimmer(
       child: ListView(
-        padding: const EdgeInsets.only(
-          top: AppSpacing.sm,
-        ),
+        padding: AppScreenPadding.standard,
         children: [
           header(),
           row(),
