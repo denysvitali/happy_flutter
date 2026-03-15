@@ -623,6 +623,10 @@ what you have, you must use the options mode.
       ..addAll(MMKVStorage().getSessionFirstLoadedSeq());
     await _restoreSessionsCache();
 
+    // Bulk-restore cached messages for all sessions so that
+    // getLastMessagePreview() works immediately on cold start.
+    _restoreAllCachedMessages();
+
     // Initialize sync managers
     sessionsSync = InvalidateSync(fetchSessions);
     settingsSync = InvalidateSync(syncSettings);
@@ -759,7 +763,8 @@ what you have, you must use the options mode.
   /// Debounced MMKV persist for a single session's message list.
   ///
   /// Batches rapid upserts (e.g. streaming tokens) into one disk write
-  /// per session every 500 ms, keeping only the last 50 messages.
+  /// per session every 500 ms, keeping only the last 100 messages in
+  /// the persisted copy. The in-memory list retains all messages.
   void _scheduleSaveMessages(String sessionId) {
     _saveMsgsDebounceTimers[sessionId]?.cancel();
     _saveMsgsDebounceTimers[sessionId] = Timer(
@@ -768,7 +773,11 @@ what you have, you must use the options mode.
         _saveMsgsDebounceTimers.remove(sessionId);
         final msgs = _sessionMessages[sessionId];
         if (msgs != null) {
-          MMKVStorage().saveSessionMessages(sessionId, msgs);
+          const maxPersisted = 100;
+          final toSave = msgs.length > maxPersisted
+              ? msgs.sublist(msgs.length - maxPersisted)
+              : msgs;
+          MMKVStorage().saveSessionMessages(sessionId, toSave);
         }
       },
     );
@@ -853,6 +862,22 @@ what you have, you must use the options mode.
       'sessions': _sessions.values.map((session) => session.toJson()).toList(),
       'encryptedDataKeys': Map<String, String>.from(_sessionEncryptedDataKeys),
     });
+  }
+
+  /// Restores cached messages for all sessions from MMKV into
+  /// [_sessionMessages].  Called once during [_init] so that
+  /// [getLastMessagePreview] and [messagesForSession] return data
+  /// immediately on cold start, without waiting for any HTTP fetch.
+  void _restoreAllCachedMessages() {
+    for (final sessionId in _sessions.keys) {
+      if (_sessionMessages.containsKey(sessionId)) continue;
+      final cached = MMKVStorage().getSessionMessages(sessionId);
+      if (cached.isNotEmpty) {
+        _sessionMessages[sessionId] = cached;
+        _sessionMessagesViewCache.remove(sessionId);
+      }
+    }
+    _sessionMessagesCache = null;
   }
 
   Future<void> _primeSessionFromSpawnResult({
@@ -1484,13 +1509,16 @@ what you have, you must use the options mode.
         return;
       }
 
-      // Initialize session encryptions — yield between each session
-      // so the Android main looper can service the ANR watchdog.
+      // Initialize session encryptions — decrypt all keys in parallel
+      // for better performance, then assign results back.
       final sessionKeys = <String, Uint8List?>{};
-      for (final session in allSessions) {
-        // Yield to event queue before each crypto operation.
-        await Future<void>.delayed(Duration.zero);
 
+      // Collect valid sessions with their encryption keys.
+      final sessionDecryptTasks = <({
+        String sessionId,
+        String dataEncryptionKey,
+      })>[];
+      for (final session in allSessions) {
         if (session is! Map<String, dynamic>) {
           logger.warning(
             'Skipping session with invalid payload type',
@@ -1499,7 +1527,6 @@ what you have, you must use the options mode.
           continue;
         }
 
-        // Safe cast for session ID - skip session if missing ID
         final sessionId = WireParsers.parseString(session['id']);
         if (sessionId == null || sessionId.isEmpty) {
           logger.warning(
@@ -1508,42 +1535,55 @@ what you have, you must use the options mode.
           );
           continue;
         }
+
         final dataEncryptionKey = WireParsers.parseString(
           session['dataEncryptionKey'],
         );
 
         if (dataEncryptionKey != null) {
           _sessionEncryptedDataKeys[sessionId] = dataEncryptionKey;
-          try {
-            final decryptedKey = await encryption.decryptEncryptionKey(
-              dataEncryptionKey,
-            );
-            if (decryptedKey != null) {
-              sessionKeys[sessionId] = decryptedKey;
-              _sessionDataKeys[sessionId] = decryptedKey;
-            } else {
-              // DEK decryption returned null — key mismatch or wrong format.
-              // Fall back to legacy so the session is still visible in the UI
-              // and "Session encryption not initialized" is avoided.  Messages
-              // will not decrypt until the user re-authenticates.
-              logger.warning(
-                '[Encryption] DEK decryption failed for session $sessionId '
-                '(returned null) — falling back to legacy encryption. '
-                'Run `happy auth debug` and test the printed vector in '
-                'Flutter to confirm key mismatch.',
-              );
-              sessionKeys[sessionId] = null;
-            }
-          } catch (e) {
-            logger.info(
-              '[Encryption] DEK decryption threw for session $sessionId: $e '
-              '— falling back to legacy encryption.',
-            );
-            sessionKeys[sessionId] = null;
-          }
+          sessionDecryptTasks.add((
+            sessionId: sessionId,
+            dataEncryptionKey: dataEncryptionKey,
+          ));
         } else {
           _sessionEncryptedDataKeys.remove(sessionId);
           sessionKeys[sessionId] = null;
+        }
+      }
+
+      // Decrypt all session keys in parallel.
+      if (sessionDecryptTasks.isNotEmpty) {
+        final decryptedKeys = await Future.wait(
+          sessionDecryptTasks.map(
+            (t) => encryption
+                .decryptEncryptionKey(t.dataEncryptionKey)
+                .catchError((Object e) {
+              logger.info(
+                '[Encryption] DEK decryption threw for session '
+                '${t.sessionId}: $e '
+                '— falling back to legacy encryption.',
+              );
+              return null;
+            }),
+          ),
+        );
+
+        for (var i = 0; i < sessionDecryptTasks.length; i++) {
+          final sessionId = sessionDecryptTasks[i].sessionId;
+          final decryptedKey = decryptedKeys[i];
+          if (decryptedKey != null) {
+            sessionKeys[sessionId] = decryptedKey;
+            _sessionDataKeys[sessionId] = decryptedKey;
+          } else {
+            logger.warning(
+              '[Encryption] DEK decryption failed for session $sessionId '
+              '(returned null) — falling back to legacy encryption. '
+              'Run `happy auth debug` and test the printed vector in '
+              'Flutter to confirm key mismatch.',
+            );
+            sessionKeys[sessionId] = null;
+          }
         }
       }
 
@@ -1899,38 +1939,60 @@ what you have, you must use the options mode.
           return;
         }
 
-        // Initialize machine encryptions
+        // Initialize machine encryptions — decrypt all keys in parallel
+        // for better performance, then assign results back.
         final machineKeys = <String, Uint8List?>{};
+
+        // Collect machines with their encryption keys.
+        final machineDecryptTasks = <({
+          String machineId,
+          String dataEncryptionKey,
+        })>[];
         for (final machine in data) {
-          await Future<void>.delayed(Duration.zero); // yield to event queue
           final machineId = machine['id'] as String;
           final dataEncryptionKey = machine['dataEncryptionKey'] as String?;
 
           if (dataEncryptionKey != null) {
-            try {
-              final decryptedKey = await encryption.decryptEncryptionKey(
-                dataEncryptionKey,
-              );
-              if (decryptedKey != null) {
-                machineKeys[machineId] = decryptedKey;
-                _machineDataKeys[machineId] = decryptedKey;
-              } else {
-                logger.warning(
-                  '[Encryption] DEK decryption failed for machine $machineId '
-                  '(returned null) — falling back to legacy encryption. '
-                  'Run `happy auth debug` to diagnose key mismatch.',
+            machineDecryptTasks.add((
+              machineId: machineId,
+              dataEncryptionKey: dataEncryptionKey,
+            ));
+          } else {
+            machineKeys[machineId] = null;
+          }
+        }
+
+        // Decrypt all machine keys in parallel.
+        if (machineDecryptTasks.isNotEmpty) {
+          final decryptedKeys = await Future.wait(
+            machineDecryptTasks.map(
+              (t) => encryption
+                  .decryptEncryptionKey(t.dataEncryptionKey)
+                  .catchError((Object e) {
+                logger.info(
+                  '[Encryption] DEK decryption threw for machine '
+                  '${t.machineId}: $e '
+                  '— falling back to legacy encryption.',
                 );
-                machineKeys[machineId] = null;
-              }
-            } catch (e) {
-              logger.info(
-                '[Encryption] DEK decryption threw for machine $machineId: $e '
-                '— falling back to legacy encryption.',
+                return null;
+              }),
+            ),
+          );
+
+          for (var i = 0; i < machineDecryptTasks.length; i++) {
+            final machineId = machineDecryptTasks[i].machineId;
+            final decryptedKey = decryptedKeys[i];
+            if (decryptedKey != null) {
+              machineKeys[machineId] = decryptedKey;
+              _machineDataKeys[machineId] = decryptedKey;
+            } else {
+              logger.warning(
+                '[Encryption] DEK decryption failed for machine $machineId '
+                '(returned null) — falling back to legacy encryption. '
+                'Run `happy auth debug` to diagnose key mismatch.',
               );
               machineKeys[machineId] = null;
             }
-          } else {
-            machineKeys[machineId] = null;
           }
         }
 
