@@ -379,7 +379,6 @@ class _NotificationTestScreenState
   }
 }
 
-/// A simple row showing a label and value with an icon.
 class _InfoRow extends StatelessWidget {
   const _InfoRow({
     required this.icon,
@@ -398,40 +397,26 @@ class _InfoRow extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: cs.onSurfaceVariant),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium,
-            ),
+    return SettingsRow(
+      icon: icon,
+      title: label,
+      iconColor: valueColor,
+      trailing: Flexible(
+        child: Text(
+          value,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: valueColor ?? cs.onSurfaceVariant,
+            fontFamily: 'monospace',
+            fontSize: AppFontSize.md,
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Flexible(
-            child: Text(
-              value,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: valueColor ?? cs.onSurfaceVariant,
-                fontFamily: 'monospace',
-              ),
-              textAlign: TextAlign.end,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+          textAlign: TextAlign.end,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }
 }
 
-/// An action row with icon, title, subtitle, and onTap handler.
 class _ActionRow extends StatelessWidget {
   const _ActionRow({
     required this.icon,
@@ -447,46 +432,18 @@ class _ActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final cs = Theme.of(context).colorScheme;
 
-    return InkWell(
+    return SettingsRow(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.sm,
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: cs.onSurfaceVariant),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              size: 20,
-              color: cs.onSurfaceVariant,
-            ),
-          ],
-        ),
+      trailing: Icon(
+        Icons.chevron_right,
+        size: AppSpacing.xl,
+        color: cs.onSurface
+            .withValues(alpha: AppOpacity.medium),
       ),
     );
   }
