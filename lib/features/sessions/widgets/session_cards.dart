@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -51,12 +49,6 @@ Widget? _buildStatusText(
   if (!status.shouldShowStatus || !status.isConnected) {
     return null;
   }
-  if (status.state == SessionState.thinking) {
-    return _VibingStatusText(
-      color: Color(status.statusColor),
-      textTheme: textTheme,
-    );
-  }
   return Text(
     status.statusText,
     style: textTheme.labelSmall?.copyWith(
@@ -67,76 +59,6 @@ Widget? _buildStatusText(
     overflow: TextOverflow.ellipsis,
     maxLines: 1,
   );
-}
-
-/// Cycling status labels shown on session cards while the
-/// agent is actively thinking/working.
-const _vibingLabels = <String>[
-  'Thinking\u2026',
-  'Working\u2026',
-  'Accomplishing\u2026',
-  'Actioning\u2026',
-  'Reasoning\u2026',
-  'Computing\u2026',
-];
-
-/// Animated widget that cycles through [_vibingLabels]
-/// with a cross-fade transition.
-class _VibingStatusText extends StatefulWidget {
-  const _VibingStatusText({
-    required this.color,
-    required this.textTheme,
-  });
-
-  final Color color;
-  final TextTheme textTheme;
-
-  @override
-  State<_VibingStatusText> createState() =>
-      _VibingStatusTextState();
-}
-
-class _VibingStatusTextState extends State<_VibingStatusText> {
-  int _index = 0;
-  late Timer _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(
-      const Duration(seconds: 2),
-      (_) {
-        if (!mounted) return;
-        setState(() {
-          _index = (_index + 1) % _vibingLabels.length;
-        });
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _timer.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: AppDuration.normal,
-      child: Text(
-        _vibingLabels[_index],
-        key: ValueKey<int>(_index),
-        style: widget.textTheme.labelSmall?.copyWith(
-          color: widget.color,
-          fontWeight: FontWeight.w500,
-          fontSize: AppFontSize.xs,
-        ),
-        overflow: TextOverflow.ellipsis,
-        maxLines: 1,
-      ),
-    );
-  }
 }
 
 // ────────────────────────────────────────────────────────────

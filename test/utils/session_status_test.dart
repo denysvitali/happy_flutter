@@ -109,8 +109,8 @@ void main() {
       final status = getSessionStatus(session);
       expect(status.state, SessionState.thinking);
       expect(status.isConnected, isTrue);
-      expect(status.statusText, 'Thinking');
-      expect(status.shouldShowStatus, isTrue);
+      expect(status.statusText, '');
+      expect(status.shouldShowStatus, isFalse);
       expect(status.isPulsing, isTrue);
       expect(
         status.statusColor,
