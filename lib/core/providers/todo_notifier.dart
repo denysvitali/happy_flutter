@@ -6,7 +6,7 @@ import '../services/sync_service.dart';
 import '_shared.dart';
 
 class TodoStateNotifier extends Notifier<TodoListState> {
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
 
   @override
   TodoListState build() => TodoListState();

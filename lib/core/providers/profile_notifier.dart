@@ -5,7 +5,7 @@ import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
 
 class ProfileNotifier extends Notifier<Profile?> {
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
 
   @override
   Profile? build() => null;

@@ -5,7 +5,7 @@ import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
 
 class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
 
   @override
   Map<String, DecryptedArtifact> build() => {};

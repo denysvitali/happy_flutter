@@ -6,7 +6,7 @@ import '../services/sync_service.dart';
 import '_shared.dart';
 
 class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
 
   @override
   Map<String, GitStatus> build() => {};

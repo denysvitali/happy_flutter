@@ -8,7 +8,7 @@ import '../services/sync_service.dart';
 
 class SettingsNotifier extends Notifier<Settings> {
   final _storage = SettingsStorage();
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
 
   @override
   Settings build() => Settings();

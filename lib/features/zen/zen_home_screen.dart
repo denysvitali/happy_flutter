@@ -51,7 +51,7 @@ class ZenHomeScreen extends ConsumerStatefulWidget {
 class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen> {
   StreamSubscription<void>? _syncSubscription;
   bool _isLoading = true;
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
 
   @override
   void initState() {

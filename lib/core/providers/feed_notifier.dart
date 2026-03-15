@@ -6,7 +6,7 @@ import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
 
 class FeedNotifier extends Notifier<FeedState> {
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
 
   @override
   FeedState build() => FeedState();

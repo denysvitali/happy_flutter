@@ -39,7 +39,7 @@ class ZenViewScreen extends ConsumerStatefulWidget {
 class _ZenViewScreenState
     extends ConsumerState<ZenViewScreen> {
   StreamSubscription<void>? _syncSubscription;
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
 
   @override
   void initState() {

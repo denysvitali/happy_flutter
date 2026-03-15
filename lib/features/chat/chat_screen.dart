@@ -44,7 +44,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _loadFailed = false;
 
   bool _didStartInitialLoad = false;
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
   int _prevMessagesLength = 0;
   int _prevSeenLength = 0;
   late final ValueNotifier<bool> _autoScrollNotifier =

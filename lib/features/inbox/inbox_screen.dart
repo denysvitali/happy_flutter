@@ -76,7 +76,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   final SocialService _socialService = SocialService();
   final Set<String> _busyIds = {};
   bool _isLoading = true;
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
   StreamSubscription<void>? _syncSubscription;
 
   @override

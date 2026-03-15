@@ -6,7 +6,7 @@ import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
 
 class FriendsNotifier extends Notifier<FriendsState> {
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
 
   @override
   FriendsState build() => FriendsState();

@@ -28,7 +28,7 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
   String _priority = 'medium';
   bool _isSaving = false;
   StreamSubscription<void>? _syncSubscription;
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
 
   static const List<String> _priorities = [
     'low',

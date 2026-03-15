@@ -6,7 +6,7 @@ import '../services/sync_service.dart';
 import '_shared.dart';
 
 class SessionsNotifier extends Notifier<Map<String, Session>> {
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
 
   @override
   Map<String, Session> build() => {};

@@ -25,7 +25,7 @@ class ArtifactDetailScreen extends ConsumerStatefulWidget {
 
 class _ArtifactDetailScreenState
     extends ConsumerState<ArtifactDetailScreen> {
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
   StreamSubscription<void>? _syncSubscription;
 
   @override

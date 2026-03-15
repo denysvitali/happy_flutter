@@ -25,7 +25,7 @@ class MachinesScreen extends ConsumerStatefulWidget {
 class _MachinesScreenState extends ConsumerState<MachinesScreen> {
   StreamSubscription<void>? _syncSubscription;
   final Set<String> _deletingMachineIds = <String>{};
-  int _lastDataChangeCounter = 0;
+  int _lastDataChangeCounter = -1;
 
   @override
   void initState() {
