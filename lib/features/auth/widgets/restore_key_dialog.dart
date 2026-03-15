@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../../core/components/app_loading_indicator.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/logger_service.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/backup_key_utils.dart';
 
@@ -159,14 +160,16 @@ class _RestoreKeyDialogState
           Icon(
             Icons.key_outlined,
             color: scheme.primary,
-            size: 24,
+            size: AppSpacing.xxl,
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
               l10n.authSignInWithSecretKey,
-              style: const TextStyle(
-                fontSize: 18,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -180,10 +183,12 @@ class _RestoreKeyDialogState
         children: [
           Text(
             l10n.authSecretKeyInstruction,
-            style: TextStyle(
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(
               color: scheme.onSurfaceVariant,
-              fontSize: 14,
-              height: 1.4,
+              height: AppLineHeight.normal,
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -202,33 +207,34 @@ class _RestoreKeyDialogState
               border: OutlineInputBorder(
                 borderRadius:
                     BorderRadius.circular(
-                  AppRadius.md,
+                  AppRadius.smd,
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius:
                     BorderRadius.circular(
-                  AppRadius.md,
+                  AppRadius.smd,
                 ),
                 borderSide: BorderSide(
-                  color: scheme.outline
-                      .withValues(alpha: 0.5),
+                  color: scheme.outline.withValues(
+                    alpha: AppOpacity.half,
+                  ),
                 ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius:
                     BorderRadius.circular(
-                  AppRadius.md,
+                  AppRadius.smd,
                 ),
                 borderSide: BorderSide(
                   color: scheme.primary,
-                  width: 2,
+                  width: AppBorder.thick,
                 ),
               ),
               errorBorder: OutlineInputBorder(
                 borderRadius:
                     BorderRadius.circular(
-                  AppRadius.md,
+                  AppRadius.smd,
                 ),
                 borderSide: BorderSide(
                   color: scheme.error,
@@ -238,11 +244,11 @@ class _RestoreKeyDialogState
                   OutlineInputBorder(
                 borderRadius:
                     BorderRadius.circular(
-                  AppRadius.md,
+                  AppRadius.smd,
                 ),
                 borderSide: BorderSide(
                   color: scheme.error,
-                  width: 2,
+                  width: AppBorder.thick,
                 ),
               ),
             ),
@@ -294,18 +300,22 @@ class _RestoreKeyDialogState
           onPressed:
               _isSubmitting ? null : _submit,
           style: FilledButton.styleFrom(
+            minimumSize: const Size(
+              0,
+              AppTouchTarget.comfortable,
+            ),
             shape: RoundedRectangleBorder(
               borderRadius:
                   BorderRadius.circular(
-                AppRadius.sm,
+                AppRadius.smd,
               ),
             ),
           ),
           child: _isSubmitting
               ? AppLoadingIndicator(
-                  size: 16,
+                  size: AppSpacing.lg,
                   strokeWidth: 2,
-                  color: Theme.of(context).colorScheme.onPrimary,
+                  color: scheme.onPrimary,
                 )
               : Text(l10n.authSignIn),
         ),

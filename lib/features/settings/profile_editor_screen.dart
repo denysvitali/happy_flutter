@@ -95,7 +95,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
                 ),
                 style: const TextStyle(
                   fontFamily: 'monospace',
-                  fontSize: 13,
+                  fontSize: AppFontSize.md,
                 ),
               ),
             ],
@@ -242,7 +242,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: AppScreenPadding.settings,
           children: [
             // Name
             TextFormField(
@@ -386,13 +386,13 @@ class _EnvVarsSection extends StatelessWidget {
                       hintText: l10n.profilesEnvKeyHint,
                       border: const OutlineInputBorder(),
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.smd,
                       ),
                     ),
                     style: const TextStyle(
                       fontFamily: 'monospace',
-                      fontSize: 13,
+                      fontSize: AppFontSize.md,
                     ),
                     textCapitalization: TextCapitalization.characters,
                     onChanged: (_) => onChanged(),
@@ -536,8 +536,8 @@ class _ValueFieldState extends State<_ValueField> {
         labelText: AppLocalizations.of(context).profilesEnvValueLabel,
         border: const OutlineInputBorder(),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.smd,
         ),
         suffixIcon: IconButton(
           icon: Icon(
@@ -549,7 +549,7 @@ class _ValueFieldState extends State<_ValueField> {
       ),
       style: const TextStyle(
         fontFamily: 'monospace',
-        fontSize: 13,
+        fontSize: AppFontSize.md,
       ),
     );
   }

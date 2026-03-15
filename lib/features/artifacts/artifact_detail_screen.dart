@@ -9,6 +9,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Screen showing detail view for a single artifact.
@@ -59,30 +60,9 @@ class _ArtifactDetailScreenState
     if (artifact == null) {
       return Scaffold(
         appBar: AppBar(title: Text(l10n.artifactsDetail)),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 56,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                Text(
-                  l10n.errorNotFound,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
+        body: AppEmptyState(
+          icon: Icons.error_outline,
+          title: l10n.errorNotFound,
         ),
       );
     }
@@ -116,7 +96,7 @@ class _ArtifactDetailScreenState
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: AppScreenPadding.standard,
         child: _ArtifactDetailBody(artifact: artifact),
       ),
     );
@@ -213,13 +193,9 @@ class _ArtifactDetailBody extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.xxl),
-        // Content section label.
-        Text(
-          context.l10n.artifactsContentLabel,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                letterSpacing: 1.2,
-              ),
+        AppSectionHeader(
+          title: context.l10n.artifactsContentLabel,
+          padding: EdgeInsets.zero,
         ),
         const SizedBox(height: AppSpacing.sm),
         _ContentBlock(artifact: artifact),
@@ -255,9 +231,11 @@ class _MetadataCard extends StatelessWidget {
             rows[i],
             if (i < rows.length - 1)
               Divider(
-                height: 1,
-                thickness: 1,
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                height: AppBorder.thin,
+                thickness: AppBorder.hairline,
+                color: cs.outlineVariant.withValues(
+                  alpha: AppOpacity.half,
+                ),
               ),
           ],
         ],
@@ -291,7 +269,7 @@ class _MetaRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: AppSpacing.xxxl,
+            width: 80,
             child: Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -353,16 +331,8 @@ class _ContentBlockState extends State<_ContentBlock> {
         ? widget.artifact.body!
         : '[Encrypted content — decryption not yet implemented]';
 
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
-          width: 1,
-        ),
-      ),
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -392,9 +362,11 @@ class _ContentBlockState extends State<_ContentBlock> {
             ),
           ),
           Divider(
-            height: 1,
-            thickness: 1,
-            color: cs.outlineVariant.withValues(alpha: 0.5),
+            height: AppBorder.thin,
+            thickness: AppBorder.hairline,
+            color: cs.outlineVariant.withValues(
+              alpha: AppOpacity.half,
+            ),
           ),
           // Content.
           Padding(

@@ -1,14 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/components/app_card.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
-/// A voice language option displayed in the list.
 class _VoiceLanguageOption {
-
   const _VoiceLanguageOption({
     required this.code,
     required this.name,
@@ -19,9 +18,12 @@ class _VoiceLanguageOption {
   final String nativeName;
 }
 
-/// Hardcoded set of supported voice languages.
 const _voiceLanguages = <_VoiceLanguageOption>[
-  _VoiceLanguageOption(code: '', name: 'Auto-detect', nativeName: ''),
+  _VoiceLanguageOption(
+    code: '',
+    name: 'Auto-detect',
+    nativeName: '',
+  ),
   _VoiceLanguageOption(
     code: 'en',
     name: 'English',
@@ -119,14 +121,14 @@ const _voiceLanguages = <_VoiceLanguageOption>[
   ),
 ];
 
-/// Voice language settings screen — shows available languages and saves
-/// the selected one to settings.
-class VoiceLanguageSettingsScreen extends ConsumerStatefulWidget {
+class VoiceLanguageSettingsScreen
+    extends ConsumerStatefulWidget {
   const VoiceLanguageSettingsScreen({super.key});
 
   @override
-  ConsumerState<VoiceLanguageSettingsScreen> createState() =>
-      _VoiceLanguageSettingsScreenState();
+  ConsumerState<VoiceLanguageSettingsScreen>
+      createState() =>
+          _VoiceLanguageSettingsScreenState();
 }
 
 class _VoiceLanguageSettingsScreenState
@@ -140,12 +142,16 @@ class _VoiceLanguageSettingsScreenState
     final query = _searchQuery.toLowerCase();
     return _voiceLanguages.where((lang) {
       return lang.name.toLowerCase().contains(query) ||
-          lang.nativeName.toLowerCase().contains(query) ||
+          lang.nativeName
+              .toLowerCase()
+              .contains(query) ||
           lang.code.toLowerCase().contains(query);
     }).toList();
   }
 
-  Future<void> _selectLanguage(_VoiceLanguageOption lang) async {
+  Future<void> _selectLanguage(
+    _VoiceLanguageOption lang,
+  ) async {
     await ref
         .read(settingsNotifierProvider.notifier)
         .updateSetting(
@@ -161,8 +167,10 @@ class _VoiceLanguageSettingsScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final settings = ref.watch(settingsNotifierProvider);
-    final selectedCode = settings.voiceAssistantLanguage ?? '';
+    final selectedCode =
+        settings.voiceAssistantLanguage ?? '';
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final filtered = _filtered;
 
     return Scaffold(
@@ -171,76 +179,164 @@ class _VoiceLanguageSettingsScreenState
       ),
       body: Column(
         children: [
-          // Search bar
-          Container(
-            color: theme.colorScheme.surface,
-            padding: const EdgeInsets.all(AppSpacing.lg),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl,
+              vertical: AppSpacing.lg,
+            ),
             child: TextField(
               decoration: InputDecoration(
                 hintText: l10n.searchLanguages,
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: cs.surfaceContainerHighest,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(
-                    Radius.circular(AppRadius.smd),
+                  borderRadius: BorderRadius.circular(
+                    AppRadius.smd,
                   ),
+                  borderSide: BorderSide.none,
                 ),
-                contentPadding: EdgeInsets.symmetric(
+                contentPadding:
+                    const EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.sm,
                 ),
               ),
-              onChanged: (value) => setState(() => _searchQuery = value),
+              onChanged: (value) =>
+                  setState(() => _searchQuery = value),
             ),
           ),
-
-          // Count footer
           Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
+              horizontal: AppSpacing.xl,
               vertical: AppSpacing.xs,
             ),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 l10n.voiceLanguagesCount(filtered.length),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                style:
+                    theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
                 ),
               ),
             ),
           ),
-
-          // Language list
+          const SizedBox(height: AppSpacing.xs),
           Expanded(
-            child: ListView.builder(
-              itemCount: filtered.length,
-              itemBuilder: (context, index) {
-                final lang = filtered[index];
-                final isSelected = selectedCode == lang.code;
-
-                return ListTile(
-                  leading: const Icon(
-                    Icons.language,
-                    color: AppColors.iosBlue,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xl,
+              ),
+              children: [
+                AppCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children:
+                        _buildLanguageList(filtered, selectedCode),
                   ),
-                  title: Text(lang.name),
-                  subtitle: lang.nativeName.isNotEmpty
-                      ? Text(lang.nativeName)
-                      : null,
-                  trailing: isSelected
-                      ? Icon(
-                          Icons.check_circle,
-                          color: theme.colorScheme.primary,
-                        )
-                      : null,
-                  selected: isSelected,
-                  onTap: () => _selectLanguage(lang),
-                );
-              },
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  List<Widget> _buildLanguageList(
+    List<_VoiceLanguageOption> languages,
+    String selectedCode,
+  ) {
+    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final widgets = <Widget>[];
+
+    for (var i = 0; i < languages.length; i++) {
+      final lang = languages[i];
+      final isSelected = selectedCode == lang.code;
+
+      if (i > 0) {
+        widgets.add(
+          Divider(
+            height: 1,
+            thickness: AppBorder.hairline,
+            indent: AppSpacing.lg,
+            endIndent: 0,
+            color: cs.outlineVariant,
+          ),
+        );
+      }
+
+      widgets.add(
+        InkWell(
+          onTap: () => _selectLanguage(lang),
+          child: Container(
+            color: isSelected
+                ? cs.primary.withValues(
+                    alpha: AppOpacity.faint,
+                  )
+                : null,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.language,
+                  color: AppColors.iosBlue,
+                  size: 18,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        lang.name,
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (lang.nativeName.isNotEmpty) ...[
+                        const SizedBox(
+                          height: AppSpacing.xxs,
+                        ),
+                        Text(
+                          lang.nativeName,
+                          style: theme
+                              .textTheme.bodySmall
+                              ?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (isSelected)
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: cs.primary,
+                    size: AppSpacing.xl,
+                  )
+                else
+                  Icon(
+                    Icons.chevron_right,
+                    color: cs.onSurface.withValues(
+                      alpha: AppOpacity.medium,
+                    ),
+                    size: AppSpacing.xl,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return widgets;
   }
 }

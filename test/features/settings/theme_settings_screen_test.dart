@@ -64,7 +64,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Preview'), findsOneWidget);
+      expect(find.text('PREVIEW'), findsOneWidget);
       expect(find.text('Sample content'), findsOneWidget);
       expect(find.text('Primary'), findsOneWidget);
       expect(find.text('Secondary'), findsOneWidget);

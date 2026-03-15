@@ -5,7 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/components/app_card.dart';
+import '../../../core/components/app_empty_state.dart';
+import '../../../core/components/settings_section.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 
 /// Connection event type
 enum ConnectionEventType {
@@ -292,7 +296,8 @@ class _SftpConnectionHistoryScreenState
       builder: (ctx) => AlertDialog(
         title: const Text('Clear History'),
         content: const Text(
-          'Clear all connection history?\n\nThis action cannot be undone.',
+          'Clear all connection history?\n\n'
+          'This action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -328,17 +333,21 @@ class _SftpConnectionHistoryScreenState
         actions: [
           IconButton(
             icon: const Icon(Icons.file_upload),
-            onPressed: _events.isNotEmpty ? _exportHistory : null,
+            onPressed:
+                _events.isNotEmpty ? _exportHistory : null,
             tooltip: 'Export',
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed: _events.isNotEmpty ? _clearHistory : null,
+            onPressed:
+                _events.isNotEmpty ? _clearHistory : null,
             tooltip: 'Clear history',
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
+          preferredSize: const Size.fromHeight(
+            AppTouchTarget.comfortable,
+          ),
           child: Align(
             alignment: Alignment.centerLeft,
             child: TabBar(
@@ -370,8 +379,10 @@ class _SftpConnectionHistoryScreenState
       children: [
         // Filter bar
         Container(
-          padding: const EdgeInsets.all(8),
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest,
           child: Column(
             children: [
               Row(
@@ -381,14 +392,20 @@ class _SftpConnectionHistoryScreenState
                     child: DropdownButtonFormField<String?>(
                       value: _selectedDeviceId,
                       isDense: true,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Device',
                         isDense: true,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                        contentPadding:
+                            const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm,
                         ),
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(
+                            AppRadius.sm,
+                          ),
+                        ),
                       ),
                       items: [
                         const DropdownMenuItem(
@@ -400,7 +417,8 @@ class _SftpConnectionHistoryScreenState
                             value: id,
                             child: Text(
                               id,
-                              overflow: TextOverflow.ellipsis,
+                              overflow:
+                                  TextOverflow.ellipsis,
                             ),
                           ),
                         ),
@@ -413,20 +431,26 @@ class _SftpConnectionHistoryScreenState
                       },
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   // User filter
                   Expanded(
                     child: DropdownButtonFormField<String?>(
                       value: _selectedUsername,
                       isDense: true,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'User',
                         isDense: true,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                        contentPadding:
+                            const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm,
                         ),
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(
+                            AppRadius.sm,
+                          ),
+                        ),
                       ),
                       items: [
                         const DropdownMenuItem(
@@ -450,7 +474,7 @@ class _SftpConnectionHistoryScreenState
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               // Event type filter chips
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -460,20 +484,31 @@ class _SftpConnectionHistoryScreenState
                       label: 'All',
                       isSelected: _eventTypeFilter == null,
                       onTap: () {
-                        setState(() => _eventTypeFilter = null);
+                        setState(
+                          () => _eventTypeFilter = null,
+                        );
                         _loadEvents();
                       },
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AppSpacing.xs),
                     ...ConnectionEventType.values.map(
                       (type) => Padding(
-                        padding: const EdgeInsets.only(left: 4),
+                        padding: const EdgeInsets.only(
+                          left: AppSpacing.xs,
+                        ),
                         child: _EventTypeChip(
                           label: _getEventTypeLabel(type),
-                          isSelected: _eventTypeFilter == type,
-                          color: _getEventTypeColor(type, context),
+                          isSelected:
+                              _eventTypeFilter == type,
+                          color: _getEventTypeColor(
+                            type,
+                            context,
+                          ),
                           onTap: () {
-                            setState(() => _eventTypeFilter = type);
+                            setState(
+                              () =>
+                                  _eventTypeFilter = type,
+                            );
                             _loadEvents();
                           },
                         ),
@@ -488,10 +523,12 @@ class _SftpConnectionHistoryScreenState
         // Event count
         Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 4,
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
           ),
-          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainerLow,
           child: Row(
             children: [
               Text(
@@ -509,29 +546,26 @@ class _SftpConnectionHistoryScreenState
         // Event list
         Expanded(
           child: _events.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.history,
-                        size: 64,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No connection history',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
-                  ),
+              ? AppEmptyState(
+                  icon: Icons.history,
+                  title: 'No connection history',
+                  subtitle: 'Connection events will '
+                      'appear here',
                 )
-              : ListView.builder(
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.sm,
+                  ),
                   itemCount: _events.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(
+                    height: AppSpacing.sm,
+                  ),
                   itemBuilder: (context, index) {
-                    return _ConnectionEventTile(event: _events[index]);
+                    return _ConnectionEventCard(
+                      event: _events[index],
+                    );
                   },
                 ),
         ),
@@ -541,31 +575,23 @@ class _SftpConnectionHistoryScreenState
 
   Widget _buildAnalyticsTab(List<String> allDevices) {
     if (allDevices.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.analytics_outlined,
-              size: 64,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No data available',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ],
-        ),
+      return AppEmptyState(
+        icon: Icons.analytics_outlined,
+        title: 'No data available',
+        subtitle:
+            'Analytics will appear after connections',
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(8),
+    return ListView.separated(
+      padding: AppScreenPadding.standard,
       itemCount: allDevices.length,
+      separatorBuilder: (_, __) =>
+          const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) {
         final deviceId = allDevices[index];
-        final stats = connectionHistoryStore.getDeviceStats(deviceId);
+        final stats =
+            connectionHistoryStore.getDeviceStats(deviceId);
         return _DeviceAnalyticsCard(
           deviceId: deviceId,
           stats: stats,
@@ -611,33 +637,70 @@ class _SftpConnectionHistoryScreenState
   }
 }
 
-/// A connection event tile
-class _ConnectionEventTile extends StatelessWidget {
-  const _ConnectionEventTile({required this.event});
+/// A connection event card
+class _ConnectionEventCard extends StatelessWidget {
+  const _ConnectionEventCard({required this.event});
 
   final ConnectionEvent event;
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final icon = _getEventIcon();
-    final color = _getEventColor();
+    final color = _getEventColor(cs);
 
-    return ListTile(
-      leading: Icon(icon, color: color, size: 20),
-      title: Text(
-        _getEventTitle(),
-        style: Theme.of(context).textTheme.bodyMedium,
+    return AppCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
       ),
-      subtitle: Text(
-        '${event.deviceName}  •  ${event.username}'
-        '${event.ipAddress != null ? '  •  ${event.ipAddress}' : ''}',
-        style: Theme.of(context).textTheme.bodySmall,
+      child: Row(
+        children: [
+          SettingsIconContainer(
+            icon: icon,
+            color: color,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _getEventTitle(),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  '${event.deviceName}  ·  '
+                  '${event.username}'
+                  '${event.ipAddress != null ? '  ·  ${event.ipAddress}' : ''}',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            _formatTime(event.timestamp),
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: cs.onSurfaceVariant),
+          ),
+        ],
       ),
-      trailing: Text(
-        _formatTime(event.timestamp),
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
-      isThreeLine: false,
     );
   }
 
@@ -658,18 +721,18 @@ class _ConnectionEventTile extends StatelessWidget {
     }
   }
 
-  Color _getEventColor() {
+  Color _getEventColor(ColorScheme cs) {
     switch (event.eventType) {
       case ConnectionEventType.connect:
       case ConnectionEventType.sessionStart:
-        return Colors.blue;
+        return cs.primary;
       case ConnectionEventType.disconnect:
       case ConnectionEventType.sessionEnd:
-        return Colors.grey;
+        return cs.onSurfaceVariant;
       case ConnectionEventType.authSuccess:
-        return Colors.green;
+        return AppColors.success;
       case ConnectionEventType.authFailure:
-        return Colors.red;
+        return cs.error;
     }
   }
 
@@ -678,7 +741,8 @@ class _ConnectionEventTile extends StatelessWidget {
       case ConnectionEventType.connect:
         return 'Connected';
       case ConnectionEventType.disconnect:
-        return 'Disconnected${event.reason != null ? ': ${event.reason}' : ''}';
+        return 'Disconnected'
+            '${event.reason != null ? ': ${event.reason}' : ''}';
       case ConnectionEventType.authSuccess:
         return 'Authentication successful';
       case ConnectionEventType.authFailure:
@@ -687,7 +751,8 @@ class _ConnectionEventTile extends StatelessWidget {
         return 'Session started';
       case ConnectionEventType.sessionEnd:
         final dur = event.duration;
-        return 'Session ended${dur != null ? ' (${_formatDuration(dur)})' : ''}';
+        return 'Session ended'
+            '${dur != null ? ' (${_formatDuration(dur)})' : ''}';
     }
   }
 
@@ -731,7 +796,7 @@ class _EventTypeChip extends StatelessWidget {
       label: Text(
         label,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: AppFontSize.sm,
           color: isSelected
               ? Theme.of(context).colorScheme.onPrimary
               : null,
@@ -739,10 +804,14 @@ class _EventTypeChip extends StatelessWidget {
       ),
       selected: isSelected,
       onSelected: (_) => onTap(),
-      selectedColor: color ?? Theme.of(context).colorScheme.primary,
+      selectedColor:
+          color ?? Theme.of(context).colorScheme.primary,
       showCheckmark: false,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+      ),
+      materialTapTargetSize:
+          MaterialTapTargetSize.shrinkWrap,
     );
   }
 }
@@ -759,66 +828,78 @@ class _DeviceAnalyticsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final totalDuration = stats['totalDuration'] as Duration;
     final avgDuration = stats['avgDuration'] as Duration;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              deviceId,
-              style: Theme.of(context).textTheme.titleSmall,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: [
-                _AnalyticsItem(
-                  label: 'Connections',
-                  value: stats['totalConnections'].toString(),
-                  icon: Icons.link,
-                  color: Colors.blue,
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SettingsIconContainer(
+                icon: Icons.dns_outlined,
+                color: cs.primary,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  deviceId,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                _AnalyticsItem(
-                  label: 'Sessions',
-                  value: stats['totalSessions'].toString(),
-                  icon: Icons.terminal,
-                  color: Colors.purple,
-                ),
-                _AnalyticsItem(
-                  label: 'Auth Failures',
-                  value: stats['authFailures'].toString(),
-                  icon: Icons.gpp_bad,
-                  color: Colors.red,
-                ),
-                _AnalyticsItem(
-                  label: 'Unique Users',
-                  value: stats['uniqueUsers'].toString(),
-                  icon: Icons.people,
-                  color: Colors.teal,
-                ),
-                _AnalyticsItem(
-                  label: 'Total Time',
-                  value: _formatDuration(totalDuration),
-                  icon: Icons.timer,
-                  color: Colors.orange,
-                ),
-                _AnalyticsItem(
-                  label: 'Avg Session',
-                  value: _formatDuration(avgDuration),
-                  icon: Icons.av_timer,
-                  color: Colors.green,
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Wrap(
+            spacing: AppSpacing.lg,
+            runSpacing: AppSpacing.sm,
+            children: [
+              _AnalyticsItem(
+                label: 'Connections',
+                value:
+                    stats['totalConnections'].toString(),
+                icon: Icons.link,
+                color: cs.primary,
+              ),
+              _AnalyticsItem(
+                label: 'Sessions',
+                value: stats['totalSessions'].toString(),
+                icon: Icons.terminal,
+                color: cs.tertiary,
+              ),
+              _AnalyticsItem(
+                label: 'Auth Failures',
+                value: stats['authFailures'].toString(),
+                icon: Icons.gpp_bad,
+                color: cs.error,
+              ),
+              _AnalyticsItem(
+                label: 'Unique Users',
+                value: stats['uniqueUsers'].toString(),
+                icon: Icons.people,
+                color: cs.secondary,
+              ),
+              _AnalyticsItem(
+                label: 'Total Time',
+                value: _formatDuration(totalDuration),
+                icon: Icons.timer,
+                color: AppColors.warning,
+              ),
+              _AnalyticsItem(
+                label: 'Avg Session',
+                value: _formatDuration(avgDuration),
+                icon: Icons.av_timer,
+                color: AppColors.success,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -858,10 +939,13 @@ class _AnalyticsItem extends StatelessWidget {
           Row(
             children: [
               Icon(icon, size: 14, color: color),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.xs),
               Text(
                 value,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(
                       color: color,
                       fontWeight: FontWeight.bold,
                     ),

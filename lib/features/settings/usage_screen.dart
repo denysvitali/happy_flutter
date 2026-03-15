@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/usage_api.dart';
+import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_loading_indicator.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
@@ -98,7 +99,6 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -154,7 +154,7 @@ class _UsageContent extends StatelessWidget {
     }
 
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: AppScreenPadding.settings,
       children: [
         _PeriodSelector(
           selected: selectedPeriod,
@@ -238,42 +238,14 @@ class _UsageErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final cs = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xxl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: cs.error,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              l10n.failedToLoad,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: cs.onSurface,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              error,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.xxl),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: Text(l10n.commonRetry),
-            ),
-          ],
-        ),
+    return AppEmptyState(
+      icon: Icons.error_outline,
+      title: l10n.failedToLoad,
+      subtitle: error,
+      action: FilledButton.icon(
+        onPressed: onRetry,
+        icon: const Icon(Icons.refresh),
+        label: Text(l10n.commonRetry),
       ),
     );
   }
@@ -285,33 +257,10 @@ class _UsageEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final cs = Theme.of(context).colorScheme;
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.bar_chart_outlined,
-            size: 64,
-            color: cs.onSurface.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            l10n.noUsageData,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: cs.onSurfaceVariant,
-                ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            l10n.noUsageDataSubtitle,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-          ),
-        ],
-      ),
+    return AppEmptyState(
+      icon: Icons.bar_chart_outlined,
+      title: l10n.noUsageData,
+      subtitle: l10n.noUsageDataSubtitle,
     );
   }
 }
@@ -377,7 +326,8 @@ class _UsageStatRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
@@ -390,16 +340,14 @@ class _UsageStatRow extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: TextStyle(
-                fontSize: 14,
-                color: cs.onSurface,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 14,
+            style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
               color: cs.onSurfaceVariant,
             ),

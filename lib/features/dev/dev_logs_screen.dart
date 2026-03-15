@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/components/app_empty_state.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/logger_provider.dart';
@@ -111,16 +112,22 @@ class DevLogsScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
-          // Filter status bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm,
+            ),
+            color: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   loggerState.filterLevel != null
-                      ? l10n.devLogsCountFiltered(filteredLogs.length)
+                      ? l10n.devLogsCountFiltered(
+                          filteredLogs.length,
+                        )
                       : l10n.devLogsCount(filteredLogs.length),
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
@@ -139,36 +146,10 @@ class DevLogsScreen extends ConsumerWidget {
           // Logs display
           Expanded(
             child: filteredLogs.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.note,
-                          size: 48,
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          l10n.devLogsEmpty,
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodyLarge?.copyWith(
-                                color: Theme.of(context).colorScheme.outline,
-                              ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          l10n.devLogsEmptyDesc,
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context).colorScheme.outline,
-                              ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
+                ? AppEmptyState(
+                    icon: Icons.note_alt_outlined,
+                    title: l10n.devLogsEmpty,
+                    subtitle: l10n.devLogsEmptyDesc,
                   )
                 : LogListView(logs: filteredLogs),
           ),
@@ -375,67 +356,83 @@ class LogEntryWidget extends StatelessWidget {
     final color = _getLevelColor(context);
     final time = entry.timestamp.toIsoTimeString();
 
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     return Material(
       child: InkWell(
         onTap: () => _showEntryDetails(context),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                color: cs.outlineVariant
+                    .withValues(alpha: AppOpacity.medium),
               ),
             ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Time
               SizedBox(
                 width: 80,
                 child: Text(
                   time,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontFamily: 'monospace',
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontFamily: 'monospace',
+                    fontSize: AppFontSize.xs,
+                    color: cs.outline,
+                  ),
                 ),
               ),
-              // Level indicator
               Container(
                 width: 70,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xxs,
+                ),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.xs),
-                  border: Border.all(color: color.withValues(alpha: 0.3)),
+                  color: color.withValues(
+                    alpha: AppOpacity.subtle,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(AppRadius.xs),
+                  border: Border.all(
+                    color: color.withValues(
+                      alpha: AppOpacity.medium,
+                    ),
+                  ),
                 ),
                 child: Text(
                   entry.level.name.toUpperCase(),
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(width: 8),
-              // Message
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   entry.message,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontFamily: 'monospace',
-                      ),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontFamily: 'monospace',
+                    fontSize: AppFontSize.md,
+                  ),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // Error indicator
-              if (entry.error != null || entry.stackTrace != null)
+              if (entry.error != null ||
+                  entry.stackTrace != null)
                 Icon(
                   _getLevelIcon(),
-                  size: 16,
+                  size: AppSpacing.lg,
                   color: color,
                 ),
             ],
@@ -448,103 +445,122 @@ class LogEntryWidget extends StatelessWidget {
   void _showEntryDetails(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        width: double.infinity,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  _getLevelIcon(),
-                  color: _getLevelColor(context),
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        final cs = theme.colorScheme;
+        final color = _getLevelColor(ctx);
+
+        return Container(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          width: double.infinity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(_getLevelIcon(), color: color),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    entry.level.name.toUpperCase(),
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    entry.timestamp.toIso8601String(),
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: cs.outline),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                entry.message,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontFamily: 'monospace',
+                  fontSize: AppFontSize.md,
                 ),
-                const SizedBox(width: 8),
+              ),
+              if (entry.error != null) ...[
+                const SizedBox(height: AppSpacing.lg),
                 Text(
-                  entry.level.name.toUpperCase(),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: _getLevelColor(context),
-                        fontWeight: FontWeight.w600,
-                      ),
+                  'Error:',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600),
                 ),
-                const Spacer(),
-                Text(
-                  entry.timestamp.toIso8601String(),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
+                const SizedBox(height: AppSpacing.xs),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: cs.errorContainer
+                        .withValues(alpha: AppOpacity.medium),
+                    borderRadius:
+                        BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: Text(
+                    entry.error.toString(),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontFamily: 'monospace',
+                      fontSize: AppFontSize.md,
+                      color: cs.error,
+                    ),
+                  ),
                 ),
               ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              entry.message,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontFamily: 'monospace',
-                  ),
-            ),
-            if (entry.error != null) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Error:',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                entry.error.toString(),
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              if (entry.stackTrace != null) ...[
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  'Stack Trace:',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Text(
+                    entry.stackTrace.toString(),
+                    style: theme.textTheme.bodySmall?.copyWith(
                       fontFamily: 'monospace',
-                      color: Theme.of(context).colorScheme.error,
+                      fontSize: AppFontSize.sm,
                     ),
-              ),
-            ],
-            if (entry.stackTrace != null) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Stack Trace:',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Text(
-                  entry.stackTrace.toString(),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.xxl),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(
+                      ClipboardData(
+                        text: entry.toFormattedString(),
                       ),
+                    );
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          AppLocalizations.of(context)
+                              .devLogsLogEntryCopied,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.copy),
+                  label: Text(
+                    AppLocalizations.of(context).devLogsCopyEntry,
+                  ),
                 ),
               ),
             ],
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Clipboard.setData(
-                    ClipboardData(text: entry.toFormattedString()),
-                  );
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        AppLocalizations.of(context).devLogsLogEntryCopied,
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.copy),
-                label: Text(AppLocalizations.of(context).devLogsCopyEntry),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

@@ -18,7 +18,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.featuresTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: AppScreenPadding.settings,
         children: [
           SettingsSection(
             title: l10n.featuresSectionExperiments,

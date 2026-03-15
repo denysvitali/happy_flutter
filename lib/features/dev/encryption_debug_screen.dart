@@ -295,7 +295,6 @@ class EncryptionDebugScreen extends ConsumerWidget {
   }
 }
 
-/// A simple row showing a label and value with an icon.
 class _InfoRow extends StatelessWidget {
   const _InfoRow({
     required this.icon,
@@ -314,34 +313,21 @@ class _InfoRow extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: cs.onSurfaceVariant),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium,
-            ),
+    return SettingsRow(
+      icon: icon,
+      title: label,
+      iconColor: valueColor,
+      trailing: Flexible(
+        child: Text(
+          value,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: valueColor ?? cs.onSurfaceVariant,
+            fontFamily: 'monospace',
+            fontSize: AppFontSize.md,
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Flexible(
-            child: Text(
-              value,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: valueColor ?? cs.onSurfaceVariant,
-                fontFamily: 'monospace',
-              ),
-              textAlign: TextAlign.end,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+          textAlign: TextAlign.end,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }

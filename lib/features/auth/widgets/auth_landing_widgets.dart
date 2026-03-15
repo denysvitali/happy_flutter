@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/components/app_loading_indicator.dart';
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'qr_code_display.dart';
 import 'round_button.dart';
@@ -94,7 +95,6 @@ class AuthHeader extends StatelessWidget {
 
     return Column(
       children: [
-        // --- Logo circle ---
         Container(
           width: logoSize,
           height: logoSize,
@@ -114,8 +114,9 @@ class AuthHeader extends StatelessWidget {
             ),
             boxShadow: [
               BoxShadow(
-                color: scheme.primary
-                    .withValues(alpha: 0.25),
+                color: scheme.primary.withValues(
+                  alpha: AppOpacity.medium,
+                ),
                 blurRadius: AppSpacing.xxxl,
                 offset: const Offset(
                   0,
@@ -123,8 +124,9 @@ class AuthHeader extends StatelessWidget {
                 ),
               ),
               BoxShadow(
-                color: scheme.primary
-                    .withValues(alpha: 0.10),
+                color: scheme.primary.withValues(
+                  alpha: AppOpacity.subtle,
+                ),
                 blurRadius: AppSpacing.xxxl * 2,
                 spreadRadius: AppSpacing.sm,
               ),
@@ -132,13 +134,12 @@ class AuthHeader extends StatelessWidget {
           ),
           child: Icon(
             Icons.chat_bubble_rounded,
-            size: 44,
+            size: AppTouchTarget.min,
             color: scheme.onPrimary,
           ),
         ),
         const SizedBox(height: AppSpacing.xxl),
 
-        // --- Title ---
         Text(
           context.l10n.appTitle,
           style: theme.textTheme.headlineMedium
@@ -149,7 +150,6 @@ class AuthHeader extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
 
-        // --- Subtitle ---
         Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
@@ -159,7 +159,7 @@ class AuthHeader extends StatelessWidget {
             style:
                 theme.textTheme.bodyLarge?.copyWith(
               color: scheme.onSurfaceVariant,
-              height: 1.5,
+              height: AppLineHeight.relaxed,
             ),
             textAlign: TextAlign.center,
           ),
@@ -197,8 +197,9 @@ class LandingLogoMark extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: scheme.primary
-                .withValues(alpha: 0.25),
+            color: scheme.primary.withValues(
+              alpha: AppOpacity.medium,
+            ),
             blurRadius: AppSpacing.xxxl + AppSpacing.xxl,
             offset: const Offset(
               0,
@@ -206,8 +207,9 @@ class LandingLogoMark extends StatelessWidget {
             ),
           ),
           BoxShadow(
-            color: scheme.primary
-                .withValues(alpha: 0.10),
+            color: scheme.primary.withValues(
+              alpha: AppOpacity.subtle,
+            ),
             blurRadius: AppSpacing.xxxl * 2,
             spreadRadius: AppSpacing.md,
           ),
@@ -215,7 +217,7 @@ class LandingLogoMark extends StatelessWidget {
       ),
       child: Icon(
         Icons.chat_bubble_rounded,
-        size: 52,
+        size: AppTouchTarget.comfortable + 4,
         color: scheme.onPrimary,
       ),
     );
@@ -360,11 +362,13 @@ class _StatusBannerState extends State<StatusBanner>
           bottom: AppSpacing.lg,
         ),
         decoration: BoxDecoration(
-          color:
-              widget.color.withValues(alpha: 0.08),
+          color: widget.color.withValues(
+            alpha: AppOpacity.faint,
+          ),
           border: Border.all(
-            color: widget.color
-                .withValues(alpha: 0.25),
+            color: widget.color.withValues(
+              alpha: AppOpacity.medium,
+            ),
           ),
           borderRadius: BorderRadius.circular(
             AppRadius.md,
@@ -383,8 +387,9 @@ class _StatusBannerState extends State<StatusBanner>
                 width: AppSpacing.xxxl,
                 height: AppSpacing.xxxl,
                 decoration: BoxDecoration(
-                  color: widget.color
-                      .withValues(alpha: 0.10),
+                  color: widget.color.withValues(
+                    alpha: AppOpacity.subtle,
+                  ),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -412,7 +417,7 @@ class _StatusBannerState extends State<StatusBanner>
                           fontWeight:
                               FontWeight.w600,
                           color: widget.color,
-                          fontSize: 12,
+                          fontSize: AppFontSize.sm,
                           letterSpacing: 0.3,
                         ),
                       ),
@@ -422,9 +427,11 @@ class _StatusBannerState extends State<StatusBanner>
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
                       color: widget.color
-                          .withValues(alpha: 0.9),
-                      fontSize: 13,
-                      height: 1.4,
+                          .withValues(
+                        alpha: AppOpacity.high,
+                      ),
+                      fontSize: AppFontSize.md,
+                      height: AppLineHeight.normal,
                     ),
                   ),
                 ],
@@ -434,10 +441,11 @@ class _StatusBannerState extends State<StatusBanner>
               IconButton(
                 icon: const Icon(
                   Icons.close_rounded,
-                  size: 16,
+                  size: AppSpacing.lg,
                 ),
-                color: widget.color
-                    .withValues(alpha: 0.6),
+                color: widget.color.withValues(
+                  alpha: AppOpacity.half,
+                ),
                 onPressed: widget.onDismiss,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(
@@ -497,14 +505,16 @@ class QRInstructions extends StatelessWidget {
                   height: AppSpacing.xxl,
                   decoration: BoxDecoration(
                     color: scheme.primary
-                        .withValues(alpha: 0.10),
+                        .withValues(
+                      alpha: AppOpacity.subtle,
+                    ),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
                     child: Text(
                       '${i + 1}',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: AppFontSize.sm,
                         fontWeight: FontWeight.w700,
                         color: scheme.primary,
                       ),
@@ -527,7 +537,8 @@ class QRInstructions extends StatelessWidget {
                           ?.copyWith(
                         color: scheme
                             .onSurfaceVariant,
-                        height: 1.4,
+                        height: AppLineHeight
+                            .normal,
                       ),
                     ),
                   ),
@@ -625,7 +636,9 @@ class _QRLoadingPlaceholder extends StatelessWidget {
         ),
         border: Border.all(
           color: scheme.outlineVariant
-              .withValues(alpha: 0.3),
+              .withValues(
+            alpha: AppOpacity.medium,
+          ),
         ),
         boxShadow: AppShadow.floating,
       ),
@@ -641,10 +654,12 @@ class _QRLoadingPlaceholder extends StatelessWidget {
           Text(
             'Generating secure QR code\u2026',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: AppFontSize.md,
               fontWeight: FontWeight.w500,
               color: scheme.onSurfaceVariant
-                  .withValues(alpha: 0.7),
+                  .withValues(
+                alpha: AppOpacity.high,
+              ),
             ),
           ),
         ],
@@ -685,8 +700,9 @@ class PollingView extends StatelessWidget {
               vertical: AppSpacing.md,
             ),
             decoration: BoxDecoration(
-              color: scheme.primary
-                  .withValues(alpha: 0.06),
+              color: scheme.primary.withValues(
+                alpha: AppOpacity.faint,
+              ),
               borderRadius: BorderRadius.circular(
                 AppRadius.pill,
               ),

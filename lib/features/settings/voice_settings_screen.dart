@@ -9,7 +9,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/voice_languages.dart';
 
-/// Voice settings screen - TTS and voice language selection
 class VoiceSettingsScreen extends ConsumerStatefulWidget {
   const VoiceSettingsScreen({super.key});
 
@@ -18,7 +17,8 @@ class VoiceSettingsScreen extends ConsumerStatefulWidget {
       _VoiceSettingsScreenState();
 }
 
-class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
+class _VoiceSettingsScreenState
+    extends ConsumerState<VoiceSettingsScreen> {
   List<Map<String, String>> _engines = [];
   bool _enginesLoaded = false;
 
@@ -42,16 +42,16 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final settings = ref.watch(settingsNotifierProvider);
-    final selectedLanguageCode = settings.voiceAssistantLanguage ?? '';
-    final selectedLanguage = findVoiceLanguageByCode(selectedLanguageCode);
+    final cs = Theme.of(context).colorScheme;
+    final selectedLanguageCode =
+        settings.voiceAssistantLanguage ?? '';
+    final selectedLanguage =
+        findVoiceLanguageByCode(selectedLanguageCode);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.voiceTitle)),
       body: ListView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
+        padding: AppScreenPadding.settings,
         children: [
           SettingsSection(
             title: l10n.voiceTtsTitle,
@@ -93,20 +93,16 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
                 SettingsRow(
                   icon: Icons.settings_voice,
                   iconColor: settings.ttsEngine == null
-                      ? Theme.of(context)
-                          .colorScheme
-                          .primary
+                      ? cs.primary
                       : null,
                   title: l10n.voiceDefaultEngine,
                   subtitle:
                       l10n.voiceDefaultEngineSubtitle,
                   trailing: settings.ttsEngine == null
                       ? Icon(
-                          Icons.check_circle,
-                          size: 20,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary,
+                          Icons.check_circle_rounded,
+                          size: AppSpacing.xl,
+                          color: cs.primary,
                         )
                       : null,
                   onTap: () {
@@ -130,20 +126,15 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
                       settings.ttsEngine == engineId;
                   return SettingsRow(
                     icon: Icons.settings_voice,
-                    iconColor: isSelected
-                        ? Theme.of(context)
-                            .colorScheme
-                            .primary
-                        : null,
+                    iconColor:
+                        isSelected ? cs.primary : null,
                     title: engineName,
                     subtitle: engineId,
                     trailing: isSelected
                         ? Icon(
-                            Icons.check_circle,
-                            size: 20,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary,
+                            Icons.check_circle_rounded,
+                            size: AppSpacing.xl,
+                            color: cs.primary,
                           )
                         : null,
                     onTap: () {
@@ -170,20 +161,16 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
               SettingsRow(
                 icon: Icons.record_voice_over,
                 iconColor: selectedLanguageCode.isEmpty
-                    ? Theme.of(context)
-                        .colorScheme
-                        .primary
+                    ? cs.primary
                     : null,
                 title: voiceLanguages[0].name,
                 subtitle: voiceLanguages[0].region ??
                     voiceLanguages[0].nativeName,
                 trailing: selectedLanguageCode.isEmpty
                     ? Icon(
-                        Icons.check_circle,
-                        size: 20,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary,
+                        Icons.check_circle_rounded,
+                        size: AppSpacing.xl,
+                        color: cs.primary,
                       )
                     : null,
                 onTap: () {
@@ -212,16 +199,16 @@ class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
       ),
     );
   }
-
 }
 
-/// Voice language selection screen with search functionality
-class VoiceLanguageSelectionScreen extends ConsumerStatefulWidget {
+class VoiceLanguageSelectionScreen
+    extends ConsumerStatefulWidget {
   const VoiceLanguageSelectionScreen({super.key});
 
   @override
-  ConsumerState<VoiceLanguageSelectionScreen> createState() =>
-      _VoiceLanguageSelectionScreenState();
+  ConsumerState<VoiceLanguageSelectionScreen>
+      createState() =>
+          _VoiceLanguageSelectionScreenState();
 }
 
 class _VoiceLanguageSelectionScreenState
@@ -230,11 +217,16 @@ class _VoiceLanguageSelectionScreenState
 
   @override
   Widget build(BuildContext context) {
-    final filteredLanguages = searchVoiceLanguages(_searchQuery);
+    final filteredLanguages =
+        searchVoiceLanguages(_searchQuery);
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context).voiceSelectLanguageTitle),
+        title: Text(
+          AppLocalizations.of(context)
+              .voiceSelectLanguageTitle,
+        ),
         actions: [
           if (_searchQuery.isNotEmpty)
             IconButton(
@@ -249,20 +241,28 @@ class _VoiceLanguageSelectionScreenState
       ),
       body: Column(
         children: [
-          // Search bar
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            color: Theme.of(context).colorScheme.surface,
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl,
+              vertical: AppSpacing.lg,
+            ),
             child: TextField(
               decoration: InputDecoration(
-                hintText: AppLocalizations.of(context).searchLanguages,
-                prefixIcon: Icon(Icons.search),
+                hintText: AppLocalizations.of(context)
+                    .searchLanguages,
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: cs.surfaceContainerHighest,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(
-                    Radius.circular(AppRadius.smd),
+                  borderRadius: BorderRadius.circular(
+                    AppRadius.smd,
                   ),
+                  borderSide: BorderSide.none,
                 ),
-                contentPadding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                contentPadding:
+                    const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                ),
               ),
               onChanged: (value) {
                 setState(() {
@@ -271,32 +271,35 @@ class _VoiceLanguageSelectionScreenState
               },
             ),
           ),
-          // Language count footer
           Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.sm,
+              horizontal: AppSpacing.xl,
+              vertical: AppSpacing.xs,
             ),
-            child: Text(
-              AppLocalizations.of(
-                context,
-              ).voiceLanguagesCount(filteredLanguages.length),
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: 12,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                AppLocalizations.of(context)
+                    .voiceLanguagesCount(
+                  filteredLanguages.length,
+                ),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
               ),
             ),
           ),
-          // Language list
           Expanded(
             child: ListView.builder(
               itemCount: filteredLanguages.length,
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
+                horizontal: AppSpacing.xl,
               ),
               itemBuilder: (context, index) {
-                final language =
-                    filteredLanguages[index];
+                final language = filteredLanguages[index];
                 final isSelected =
                     _isLanguageSelected(language);
 
@@ -306,6 +309,14 @@ class _VoiceLanguageSelectionScreenState
                   ),
                   child: Card(
                     key: ValueKey(language.code),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        AppRadius.md,
+                      ),
+                      side: BorderSide(
+                        color: cs.outlineVariant,
+                      ),
+                    ),
                     child: SettingsRow(
                       icon: Icons.language,
                       iconColor: AppColors.iosBlue,
@@ -313,13 +324,19 @@ class _VoiceLanguageSelectionScreenState
                       subtitle: language.subtitle,
                       trailing: isSelected
                           ? Icon(
-                              Icons.check_circle,
-                              size: 20,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .primary,
+                              Icons
+                                  .check_circle_rounded,
+                              size: AppSpacing.xl,
+                              color: cs.primary,
                             )
-                          : null,
+                          : Icon(
+                              Icons.chevron_right,
+                              size: AppSpacing.xl,
+                              color:
+                                  cs.onSurface.withValues(
+                                alpha: AppOpacity.medium,
+                              ),
+                            ),
                       onTap: () =>
                           _selectLanguage(language),
                     ),
@@ -334,8 +351,10 @@ class _VoiceLanguageSelectionScreenState
   }
 
   bool _isLanguageSelected(VoiceLanguage language) {
-    final currentState = ref.read(settingsNotifierProvider);
-    final currentCode = currentState.voiceAssistantLanguage ?? '';
+    final currentState =
+        ref.read(settingsNotifierProvider);
+    final currentCode =
+        currentState.voiceAssistantLanguage ?? '';
     return currentCode == language.code;
   }
 

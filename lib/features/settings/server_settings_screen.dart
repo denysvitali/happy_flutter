@@ -3,12 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/socket_io_client.dart';
+import '../../core/components/app_card.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/server_config.dart';
 import '../../core/theme/app_tokens.dart';
 
-/// Server settings screen — view and update the server URL
-/// with live connection status indicator.
 class ServerSettingsScreen extends ConsumerStatefulWidget {
   const ServerSettingsScreen({super.key});
 
@@ -30,7 +29,6 @@ class _ServerSettingsScreenState
     super.initState();
     final current = getServerUrl();
     _urlController = TextEditingController(text: current);
-    // Kick off a background connectivity check
     _checkConnectivity(current);
   }
 
@@ -59,7 +57,8 @@ class _ServerSettingsScreenState
       _isConnected = result.isValid;
       _statusMessage = result.isValid
           ? l10n.serverConnected
-          : (result.errorMessage ?? l10n.serverConnectionFailed);
+          : (result.errorMessage ??
+              l10n.serverConnectionFailed);
     });
   }
 
@@ -67,8 +66,8 @@ class _ServerSettingsScreenState
     final url = _urlController.text.trim();
     if (url.isEmpty) {
       setState(() {
-        _errorText =
-            AppLocalizations.of(context).serverUrlCannotBeEmpty;
+        _errorText = AppLocalizations.of(context)
+            .serverUrlCannotBeEmpty;
       });
       return;
     }
@@ -97,7 +96,8 @@ class _ServerSettingsScreenState
       _isConnected = result.isValid;
       _statusMessage = result.isValid
           ? l10n.serverConnected
-          : (result.errorMessage ?? l10n.serverConnectionFailed);
+          : (result.errorMessage ??
+              l10n.serverConnectionFailed);
     });
 
     if (!result.isValid) {
@@ -116,7 +116,10 @@ class _ServerSettingsScreenState
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(AppLocalizations.of(context).settingsServerSaved),
+        content: Text(
+          AppLocalizations.of(context)
+              .settingsServerSaved,
+        ),
       ),
     );
   }
@@ -126,20 +129,28 @@ class _ServerSettingsScreenState
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(
-          AppLocalizations.of(dialogContext).settingsServerResetToDefault,
+          AppLocalizations.of(dialogContext)
+              .settingsServerResetToDefault,
         ),
         content: Text(
-          AppLocalizations.of(dialogContext).settingsServerResetConfirm,
+          AppLocalizations.of(dialogContext)
+              .settingsServerResetConfirm,
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(AppLocalizations.of(dialogContext).commonCancel),
+            onPressed: () =>
+                Navigator.pop(dialogContext, false),
+            child: Text(
+              AppLocalizations.of(dialogContext)
+                  .commonCancel,
+            ),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
+            onPressed: () =>
+                Navigator.pop(dialogContext, true),
             child: Text(
-              AppLocalizations.of(dialogContext).settingsServerResetToDefault,
+              AppLocalizations.of(dialogContext)
+                  .settingsServerResetToDefault,
             ),
           ),
         ],
@@ -164,7 +175,8 @@ class _ServerSettingsScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            AppLocalizations.of(context).settingsServerResetSuccess,
+            AppLocalizations.of(context)
+                .settingsServerResetSuccess,
           ),
         ),
       );
@@ -176,64 +188,69 @@ class _ServerSettingsScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final isCustom = isUsingCustomServer();
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.serverTitle)),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: AppScreenPadding.settings,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment:
+              CrossAxisAlignment.stretch,
           children: [
-            // Connection status card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Row(
-                  children: [
-                    _buildStatusIcon(theme),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+            AppCard(
+              child: Row(
+                children: [
+                  _buildStatusIcon(theme),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.settingsServer,
+                          style:
+                              theme.textTheme.titleSmall,
+                        ),
+                        if (_statusMessage != null)
                           Text(
-                            l10n.settingsServer,
-                            style: theme.textTheme.titleSmall,
-                          ),
-                          if (_statusMessage != null)
-                            Text(
-                              _statusMessage!,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: _isConnected ?? false
-                                    ? theme.colorScheme.primary
-                                    : _isConnected == false
-                                        ? theme.colorScheme.error
-                                        : theme.colorScheme.onSurfaceVariant,
-                              ),
+                            _statusMessage!,
+                            style: theme
+                                .textTheme.bodySmall
+                                ?.copyWith(
+                              color: _isConnected ?? false
+                                  ? cs.primary
+                                  : _isConnected == false
+                                      ? cs.error
+                                      : cs
+                                          .onSurfaceVariant,
                             ),
-                        ],
-                      ),
+                          ),
+                      ],
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            Padding(
+              padding: const EdgeInsets.only(
+                left: AppSpacing.xs,
+                bottom: AppSpacing.sm,
+              ),
+              child: Text(
+                l10n.serverCustomUrlSectionLabel
+                    .toUpperCase(),
+                style:
+                    theme.textTheme.labelMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.8,
                 ),
               ),
             ),
-
-            const SizedBox(height: AppSpacing.xxl),
-
-            // URL label
-            Text(
-              l10n.serverCustomUrlSectionLabel,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                letterSpacing: 0.8,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-
-            // URL TextField
             TextField(
               controller: _urlController,
               keyboardType: TextInputType.url,
@@ -242,67 +259,88 @@ class _ServerSettingsScreenState
                 hintText: defaultServerUrl,
                 errorText: _errorText,
                 border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.dns_outlined),
-                suffixIcon: _urlController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _urlController.clear();
-                          setState(() => _errorText = null);
-                        },
-                      )
-                    : null,
+                prefixIcon:
+                    const Icon(Icons.dns_outlined),
+                suffixIcon:
+                    _urlController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _urlController.clear();
+                              setState(
+                                () => _errorText = null,
+                              );
+                            },
+                          )
+                        : null,
               ),
-              onChanged: (_) => setState(() => _errorText = null),
+              onChanged: (_) =>
+                  setState(() => _errorText = null),
             ),
-
             const SizedBox(height: AppSpacing.sm),
-
             if (isCustom)
-              Text(
-                l10n.serverCurrentlyUsingCustomUrl,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.primary,
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.xs,
+                ),
+                child: Text(
+                  l10n.serverCurrentlyUsingCustomUrl,
+                  style:
+                      theme.textTheme.bodySmall?.copyWith(
+                    color: cs.primary,
+                  ),
                 ),
               ),
-
             const SizedBox(height: AppSpacing.xxl),
-
-            // Action buttons
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: _isVerifying ? null : _handleReset,
-                    child: Text(l10n.settingsServerResetToDefault),
+                    onPressed:
+                        _isVerifying
+                            ? null
+                            : _handleReset,
+                    child: Text(
+                      l10n.settingsServerResetToDefault,
+                    ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: FilledButton(
-                    onPressed: _isVerifying ? null : _handleSave,
+                    onPressed:
+                        _isVerifying
+                            ? null
+                            : _handleSave,
                     child: _isVerifying
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(
+                            child:
+                                CircularProgressIndicator(
                               strokeWidth: 2,
                             ),
                           )
-                        : Text(l10n.settingsServerSaveVerify),
+                        : Text(
+                            l10n.settingsServerSaveVerify,
+                          ),
                   ),
                 ),
               ],
             ),
-
             const SizedBox(height: AppSpacing.xxl),
-
-            // Footer info
-            Text(
-              'This is an advanced feature. Changing the server URL will'
-              ' disconnect you from the current server.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            Padding(
+              padding: const EdgeInsets.only(
+                left: AppSpacing.xs,
+              ),
+              child: Text(
+                'This is an advanced feature. Changing'
+                ' the server URL will disconnect you'
+                ' from the current server.',
+                style:
+                    theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
               ),
             ),
           ],
@@ -312,33 +350,34 @@ class _ServerSettingsScreenState
   }
 
   Widget _buildStatusIcon(ThemeData theme) {
+    final cs = theme.colorScheme;
     if (_isVerifying) {
       return SizedBox(
         width: 24,
         height: 24,
         child: CircularProgressIndicator(
           strokeWidth: 2,
-          color: theme.colorScheme.primary,
+          color: cs.primary,
         ),
       );
     }
     if (_isConnected ?? false) {
       return Icon(
-        Icons.check_circle,
-        color: theme.colorScheme.primary,
+        Icons.check_circle_rounded,
+        color: cs.primary,
         size: 24,
       );
     }
     if (_isConnected == false) {
       return Icon(
         Icons.error_outline,
-        color: theme.colorScheme.error,
+        color: cs.error,
         size: 24,
       );
     }
     return Icon(
       Icons.dns_outlined,
-      color: theme.colorScheme.onSurfaceVariant,
+      color: cs.onSurfaceVariant,
       size: 24,
     );
   }

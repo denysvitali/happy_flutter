@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
@@ -87,7 +88,10 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
     if (artifact == null) {
       return Scaffold(
         appBar: AppBar(title: Text(l10n.artifactsEdit)),
-        body: Center(child: Text(l10n.errorNotFound)),
+        body: AppEmptyState(
+          icon: Icons.error_outline,
+          title: l10n.errorNotFound,
+        ),
       );
     }
 
@@ -135,7 +139,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
         body: Form(
           key: _formKey,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: AppScreenPadding.standard,
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -215,7 +219,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
                 ),
                 const SizedBox(height: AppSpacing.xxxl),
                 SizedBox(
-                  height: 48,
+                  height: AppTouchTarget.comfortable,
                   child: FilledButton(
                     onPressed: _isBusy ? null : _handleSave,
                     child: _isBusy
@@ -283,7 +287,7 @@ class _EncryptionNote extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
           color: cs.secondaryContainer.withValues(alpha: 0.4),
-          width: 1,
+          width: AppBorder.thin,
         ),
       ),
       child: Row(
@@ -320,7 +324,7 @@ class _SectionLabel extends StatelessWidget {
         color: Theme.of(context).colorScheme.onSurfaceVariant,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.5,
-        fontSize: 12,
+        fontSize: AppFontSize.sm,
       ),
     );
   }

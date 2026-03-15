@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/components/app_empty_state.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/http_request_logger.dart';
 import '../../core/theme/app_colors.dart';
@@ -156,8 +157,8 @@ class _NetworkInspectorScreenState
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 10,
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.smd,
             ),
             color: Theme.of(context)
                 .colorScheme
@@ -188,17 +189,28 @@ class _NetworkInspectorScreenState
           // ── Copy box ────────────────────────────────────────────
           if (_entries.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                0,
+              ),
               child: _CopyBox(onCopy: _copyAll),
             ),
           // ── Request list ────────────────────────────────────────
           Expanded(
             child: _entries.isEmpty
-                ? _EmptyState()
+                ? AppEmptyState(
+                    icon: Icons.network_check,
+                    title: AppLocalizations.of(context)
+                        .networkInspectorNoRequests,
+                    subtitle: AppLocalizations.of(context)
+                        .networkInspectorNoRequestsSubtitle,
+                  )
                 : ListView.builder(
                     padding: const EdgeInsets.only(
-                      top: 8,
-                      bottom: 24,
+                      top: AppSpacing.sm,
+                      bottom: AppSpacing.xxl,
                     ),
                     // newest first
                     itemCount: _entries.length,
@@ -234,19 +246,16 @@ class _SummaryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 14,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-        const SizedBox(width: 4),
+        Icon(icon, size: 14, color: cs.onSurfaceVariant),
+        const SizedBox(width: AppSpacing.xs),
         Text(
           '$label: ',
           style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+            color: cs.onSurfaceVariant,
           ),
         ),
         Text(
@@ -267,83 +276,53 @@ class _CopyBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest
-            .withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        color: cs.surfaceContainerHighest
+            .withValues(alpha: AppOpacity.half),
+        borderRadius:
+            BorderRadius.circular(AppRadius.smd),
         border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.3),
+          color: cs.outline
+              .withValues(alpha: AppOpacity.medium),
         ),
       ),
       padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 10,
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.smd,
       ),
       child: Row(
         children: [
           Icon(
             Icons.share,
-            size: 16,
-            color: theme.colorScheme.primary,
+            size: AppSpacing.lg,
+            color: cs.primary,
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: AppSpacing.smd),
           Expanded(
             child: Text(
-              AppLocalizations.of(context).networkInspectorCopyInstruction,
+              AppLocalizations.of(context)
+                  .networkInspectorCopyInstruction,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                color: cs.onSurfaceVariant,
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           FilledButton.icon(
             onPressed: onCopy,
             icon: const Icon(Icons.copy, size: 16),
-            label: Text(AppLocalizations.of(context).commonCopy),
+            label: Text(
+              AppLocalizations.of(context).commonCopy,
+            ),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 8,
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.sm,
               ),
-              textStyle:
-                  theme.textTheme.labelMedium,
+              textStyle: theme.textTheme.labelMedium,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.network_check,
-            size: 56,
-            color: theme.colorScheme.outline,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            AppLocalizations.of(context).networkInspectorNoRequests,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.outline,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            AppLocalizations.of(context)
-                .networkInspectorNoRequestsSubtitle,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.outline,
-            ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -398,8 +377,8 @@ class _RequestRow extends StatelessWidget {
       onTap: () => _showDetails(context),
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
         ),
         color: isEven
             ? theme.colorScheme.surface
@@ -417,22 +396,19 @@ class _RequestRow extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 6),
-            // Method badge
+            const SizedBox(width: AppSpacing.xsm),
             _Badge(
               label: entry.method,
               color: mColor,
               width: 50,
             ),
-            const SizedBox(width: 6),
-            // Status badge
+            const SizedBox(width: AppSpacing.xsm),
             _Badge(
               label: entry.statusCode?.toString() ?? '???',
               color: sColor,
               width: 38,
             ),
-            const SizedBox(width: 8),
-            // Path
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 entry.path,
@@ -442,8 +418,7 @@ class _RequestRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(width: 8),
-            // Response bytes
+            const SizedBox(width: AppSpacing.sm),
             Text(
               HttpRequestEntry.formatBytes(
                 entry.responseBytes,
@@ -453,8 +428,7 @@ class _RequestRow extends StatelessWidget {
                 fontFamily: 'monospace',
               ),
             ),
-            const SizedBox(width: 6),
-            // Duration
+            const SizedBox(width: AppSpacing.xsm),
             if (entry.durationMs != null)
               Text(
                 '${entry.durationMs}ms',
@@ -463,7 +437,7 @@ class _RequestRow extends StatelessWidget {
                   fontFamily: 'monospace',
                 ),
               ),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
           ],
         ),
       ),
@@ -484,7 +458,6 @@ class _RequestRow extends StatelessWidget {
           controller: scroll,
           padding: const EdgeInsets.all(AppSpacing.xl),
           children: [
-            // ── Header ──────────────────────────────────────────
             Row(
               children: [
                 _Badge(
@@ -492,7 +465,7 @@ class _RequestRow extends StatelessWidget {
                   color: _methodColor(context),
                   width: 56,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 _Badge(
                   label:
                       e.statusCode?.toString() ?? '???',
@@ -507,16 +480,16 @@ class _RequestRow extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             SelectableText(
               e.path,
               style:
                   Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontFamily: 'monospace',
+                        fontSize: AppFontSize.md,
                       ),
             ),
-            const Divider(height: 24),
-            // ── Metrics ─────────────────────────────────────────
+            const Divider(height: AppSpacing.xxl),
             _DetailRow(
               label:
                   AppLocalizations.of(ctx).networkInspectorLabelDuration,
@@ -537,8 +510,7 @@ class _RequestRow extends StatelessWidget {
                 e.responseBytes,
               ),
             ),
-            const SizedBox(height: 20),
-            // ── Copy button ──────────────────────────────────────
+            const SizedBox(height: AppSpacing.xl),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
@@ -591,14 +563,14 @@ class _Badge extends StatelessWidget {
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(
-        horizontal: 4,
-        vertical: 2,
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.xxs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: AppOpacity.subtle),
         borderRadius: BorderRadius.circular(AppRadius.xs),
         border: Border.all(
-          color: color.withValues(alpha: 0.35),
+          color: color.withValues(alpha: AppOpacity.medium),
         ),
       ),
       child: Text(
@@ -624,7 +596,9 @@ class _DetailRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpacing.xs,
+      ),
       child: Row(
         children: [
           SizedBox(
