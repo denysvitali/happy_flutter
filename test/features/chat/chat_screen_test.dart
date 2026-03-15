@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:ffi';
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,9 +12,65 @@ import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/services/tts_service.dart';
+import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 import 'package:happy_flutter/features/chat/chat_screen.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_loading_shimmer.dart';
 import 'package:happy_flutter/features/chat/widgets/empty_chat_view.dart';
+import 'package:mmkv_platform_interface/mmkv_platform_interface.dart';
+
+/// Fake MMKV platform that returns no-op stubs so DraftStorage/MMKVStorage
+/// initialisation succeeds in widget tests without native libraries.
+class _FakeMMKVPlatform extends MMKVPluginPlatform {
+  @override
+  Future<String> getApplicationDocumentsPath() async => '/tmp/mmkv_test';
+
+  @override
+  Future<String> initialize(
+    String rootDir, {
+    String? groupDir,
+    int logLevel = 1,
+    Pointer<NativeFunction<LogCallbackWrap>>? logHandler,
+  }) async =>
+      rootDir;
+
+  @override
+  Pointer<Void> Function(int, Pointer<Utf8>, int) getDefaultMMKVFunc() =>
+      (int mode, Pointer<Utf8> cryptKey, int aes256) =>
+          Pointer<Void>.fromAddress(1);
+
+  @override
+  int Function(Pointer<Void>, Pointer<Utf8>, int) decodeBoolFunc() =>
+      (Pointer<Void> h, Pointer<Utf8> k, int d) => 1;
+
+  @override
+  int Function(Pointer<Void>, Pointer<Utf8>, int) encodeBoolFunc() =>
+      (Pointer<Void> h, Pointer<Utf8> k, int v) => 1;
+
+  @override
+  int Function(Pointer<Void>, Pointer<Utf8>, int, int) encodeBoolV2Func() =>
+      (Pointer<Void> h, Pointer<Utf8> k, int v, int e) => 1;
+
+  @override
+  Pointer<Uint8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Uint64>)
+      decodeBytesFunc() =>
+          (Pointer<Void> h, Pointer<Utf8> k, Pointer<Uint64> l) =>
+              Pointer<Uint8>.fromAddress(0);
+
+  @override
+  int Function(Pointer<Void>, Pointer<Utf8>, Pointer<Uint8>, int)
+      encodeBytesFunc() =>
+          (Pointer<Void> h, Pointer<Utf8> k, Pointer<Uint8> v, int l) => 1;
+
+  @override
+  int Function(Pointer<Void>, Pointer<Utf8>, Pointer<Uint8>, int, int)
+      encodeBytesV2Func() =>
+          (Pointer<Void> h, Pointer<Utf8> k, Pointer<Uint8> v, int l, int e) =>
+              1;
+
+  @override
+  void Function(Pointer<Void>, Pointer<Utf8>) removeValueForKeyFunc() =>
+      (Pointer<Void> h, Pointer<Utf8> k) {};
+}
 
 class _StorageFreeSettingsNotifier extends SettingsNotifier {
   @override
@@ -65,6 +123,10 @@ void main() {
   const ttsChannel = MethodChannel('flutter_tts');
 
   setUpAll(() async {
+    // Register a fake MMKV platform so DraftStorage and MMKVStorage can
+    // initialise without the native MMKV library.
+    MMKVPluginPlatform.instance = _FakeMMKVPlatform();
+
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(ttsChannel, (call) async => 1);
   });
@@ -77,6 +139,9 @@ void main() {
 
   tearDown(() async {
     sync.testSetSessionMessages('session_1', const []);
+    sync.testSessions.remove('session_1');
+    sync.messagesSync.remove('session_1')?.dispose();
+    sync.isInitialized = false;
     await TtsService().dispose();
   });
 
@@ -133,6 +198,8 @@ void main() {
     });
 
     testWidgets('renders messages from sync data', (tester) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', [
         {
           'id': 'msg_1',
@@ -160,6 +227,8 @@ void main() {
     testWidgets('updates when session messages change via sync', (
       tester,
     ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', [
         {
           'id': 'msg_1',
@@ -243,6 +312,8 @@ void main() {
     testWidgets('renders multiple messages in correct order', (
       tester,
     ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
       final messages = List.generate(
         5,
         (i) => {
@@ -266,6 +337,8 @@ void main() {
     });
 
     testWidgets('handles tool-call messages', (tester) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', [
         {
           'id': 'msg_1',
@@ -306,6 +379,8 @@ void main() {
     testWidgets('cleared divider shown after /clear message', (
       tester,
     ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', [
         {
           'id': 'msg_1',
@@ -393,6 +468,8 @@ void main() {
     });
 
     testWidgets('handles messages with text content', (tester) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', [
         {
           'id': 'msg_1',
