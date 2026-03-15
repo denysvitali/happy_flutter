@@ -12,9 +12,12 @@ import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
-List<Machine> sortMachinesForSessionCreation(Iterable<Machine> machines) {
+List<Machine> sortMachinesForSessionCreation(
+  Iterable<Machine> machines,
+) {
   final sorted = machines.toList()
     ..sort((a, b) {
       if (a.active != b.active) {
@@ -30,10 +33,12 @@ class NewSessionScreen extends ConsumerStatefulWidget {
   const NewSessionScreen({super.key});
 
   @override
-  ConsumerState<NewSessionScreen> createState() => _NewSessionScreenState();
+  ConsumerState<NewSessionScreen> createState() =>
+      _NewSessionScreenState();
 }
 
-class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
+class _NewSessionScreenState
+    extends ConsumerState<NewSessionScreen> {
   Machine? _selectedMachine;
   final _pathController = TextEditingController();
   bool _isCreating = false;
@@ -49,7 +54,8 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     _selectedProfileId = settings.lastUsedProfile;
     // Refresh machines so encryption keys are up-to-date before spawn.
     Future<void>.microtask(
-      () => ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
+      () =>
+          ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
     );
   }
 
@@ -70,7 +76,8 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   String _profileDisplayName() {
     if (_selectedProfileId == null) return 'None';
     final settings = ref.read(settingsNotifierProvider);
-    final profile = resolveProfile(_selectedProfileId!, settings.profiles);
+    final profile =
+        resolveProfile(_selectedProfileId!, settings.profiles);
     return profile?.name ?? _selectedProfileId!;
   }
 
@@ -105,28 +112,38 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           ? resolveProfile(_selectedProfileId!, settings.profiles)
           : null;
       final permissionMode =
-          profile?.defaultPermissionMode ?? settings.lastUsedPermissionMode;
+          profile?.defaultPermissionMode ??
+          settings.lastUsedPermissionMode;
       if (permissionMode != null) {
         unawaited(
-          DraftStorage().savePermissionMode(sessionId, permissionMode),
+          DraftStorage()
+              .savePermissionMode(sessionId, permissionMode),
         );
       }
       if (_selectedProfileId != null) {
         unawaited(
-          DraftStorage().saveProfileId(sessionId, _selectedProfileId!),
+          DraftStorage()
+              .saveProfileId(sessionId, _selectedProfileId!),
         );
       }
-      // createSession() already called refreshSessions() internally and
-      // added the session to sync._sessions (with optimistic fallback).
-      // Just read the in-memory state — no redundant server fetch needed.
+      // createSession() already called refreshSessions() internally
+      // and added the session to sync._sessions (optimistic fallback).
+      // Just read the in-memory state — no redundant server fetch.
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       if (!mounted) return;
-      context.goNamed('chat', pathParameters: {'sessionId': sessionId});
+      context.goNamed(
+        'chat',
+        pathParameters: {'sessionId': sessionId},
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isCreating = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))),
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst('Bad state: ', ''),
+          ),
+        ),
       );
     }
   }
@@ -144,7 +161,8 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     final machineId = _selectedMachine?.id;
     final result = await context.pushNamed<String>(
       'pick-path',
-      queryParameters: machineId != null ? {'machineId': machineId} : const {},
+      queryParameters:
+          machineId != null ? {'machineId': machineId} : const {},
     );
     if (result != null) {
       setState(() {
@@ -181,7 +199,10 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     }
   }
 
-  bool _isAgentCompatible(String agent, ProfileCompatibility compat) {
+  bool _isAgentCompatible(
+    String agent,
+    ProfileCompatibility compat,
+  ) {
     switch (agent) {
       case 'claude':
         return compat.claude;
@@ -198,7 +219,8 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   ProfileCompatibility? _currentProfileCompatibility() {
     if (_selectedProfileId == null) return null;
     final settings = ref.read(settingsNotifierProvider);
-    final profile = resolveProfile(_selectedProfileId!, settings.profiles);
+    final profile =
+        resolveProfile(_selectedProfileId!, settings.profiles);
     return profile?.compatibility;
   }
 
@@ -210,81 +232,60 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     );
     final connectionStatus = ref.watch(connectionNotifierProvider);
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final compat = _currentProfileCompatibility();
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.newSessionTitle)),
+      appBar: AppBar(
+        title: Text(l10n.newSessionTitle),
+        titleTextStyle: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: AppScreenPadding.standard,
         children: [
-          // Machine selector
-          _FieldLabel(l10n.sessionMachine),
+          // ── Machine ──────────────────────────────────────────────
+          _SectionLabel(l10n.sessionMachine),
           const SizedBox(height: AppSpacing.sm),
           if (machines.isEmpty)
             AppCard(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Text(
-                l10n.newSessionNoMachinesFound,
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              padding: EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.smd,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 16,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      l10n.newSessionNoMachinesFound,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             )
           else
             AppCard(
               padding: EdgeInsets.zero,
               onTap: _pickMachine,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.md,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.computer_outlined,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: _selectedMachine == null
-                          ? Text(
-                              l10n.sessionSelectMachine,
-                              style: TextStyle(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            )
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _selectedMachine!.metadata?.displayName ??
-                                      _selectedMachine!.metadata?.host ??
-                                      _selectedMachine!.id,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                if (_selectedMachine!.metadata?.host != null)
-                                  Text(
-                                    _selectedMachine!.metadata!.host!,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ],
-                ),
+              child: _MachinePickerRow(
+                machine: _selectedMachine,
+                hint: l10n.sessionSelectMachine,
               ),
             ),
           const SizedBox(height: AppSpacing.xl),
 
-          // Path input
-          _FieldLabel(l10n.sessionPath),
+          // ── Path ─────────────────────────────────────────────────
+          _SectionLabel(l10n.sessionPath),
           const SizedBox(height: AppSpacing.sm),
           AppCard(
             padding: EdgeInsets.zero,
@@ -299,13 +300,21 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                     decoration: InputDecoration(
                       hintText: l10n.sessionPathHint,
                       border: InputBorder.none,
-                      prefixIcon: const Icon(Icons.folder_outlined),
+                      prefixIcon: Icon(
+                        Icons.folder_outlined,
+                        color: _pathController.text.isNotEmpty
+                            ? cs.primary
+                            : cs.onSurfaceVariant,
+                      ),
                     ),
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
                 if (_selectedMachine != null) ...[
-                  Divider(height: 1, color: theme.colorScheme.outlineVariant),
+                  Divider(
+                    height: 1,
+                    color: cs.outlineVariant,
+                  ),
                   AppTappable(
                     onTap: _pickPath,
                     borderRadius: const BorderRadius.vertical(
@@ -314,20 +323,31 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.lg,
-                        vertical: AppSpacing.md,
+                        vertical: AppSpacing.smd,
                       ),
                       child: Row(
                         children: [
                           Icon(
                             Icons.folder_open_outlined,
                             size: 18,
-                            color: theme.colorScheme.primary,
+                            color: cs.primary,
                           ),
                           const SizedBox(width: AppSpacing.sm),
                           Text(
                             l10n.pickSelectPath,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.primary,
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(
+                              color: cs.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Spacer(),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 18,
+                            color: cs.primary
+                                .withValues(
+                              alpha: AppOpacity.medium,
                             ),
                           ),
                         ],
@@ -340,31 +360,34 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           ),
           const SizedBox(height: AppSpacing.xl),
 
-          // Session type selector
-          _FieldLabel(l10n.sessionsType),
+          // ── Session type ─────────────────────────────────────────
+          _SectionLabel(l10n.sessionsType),
           const SizedBox(height: AppSpacing.sm),
-          SegmentedButton<String>(
-            segments: [
-              ButtonSegment(
-                value: 'simple',
-                label: Text(l10n.sessionsSimple),
-                icon: const Icon(Icons.folder_outlined),
-              ),
-              ButtonSegment(
-                value: 'worktree',
-                label: Text(l10n.sessionsWorktree),
-                icon: const Icon(Icons.account_tree_outlined),
-              ),
-            ],
-            selected: {_sessionType},
-            onSelectionChanged: (selection) {
-              setState(() => _sessionType = selection.first);
-            },
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<String>(
+              segments: [
+                ButtonSegment(
+                  value: 'simple',
+                  label: Text(l10n.sessionsSimple),
+                  icon: const Icon(Icons.folder_outlined),
+                ),
+                ButtonSegment(
+                  value: 'worktree',
+                  label: Text(l10n.sessionsWorktree),
+                  icon: const Icon(Icons.account_tree_outlined),
+                ),
+              ],
+              selected: {_sessionType},
+              onSelectionChanged: (selection) {
+                setState(() => _sessionType = selection.first);
+              },
+            ),
           ),
           const SizedBox(height: AppSpacing.xl),
 
-          // Profile selector
-          _FieldLabel(l10n.accountProfile),
+          // ── Profile ──────────────────────────────────────────────
+          _SectionLabel(l10n.accountProfile),
           const SizedBox(height: AppSpacing.sm),
           AppCard(
             padding: EdgeInsets.zero,
@@ -372,11 +395,29 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.lg,
-                vertical: AppSpacing.md,
+                vertical: AppSpacing.smd,
               ),
               child: Row(
                 children: [
-                  Icon(Icons.tune, color: theme.colorScheme.onSurfaceVariant),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: (_selectedProfileId != null
+                              ? colorForProfile(_selectedProfileId!)
+                              : cs.onSurfaceVariant)
+                          .withValues(alpha: AppOpacity.subtle),
+                      borderRadius:
+                          BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: Icon(
+                      Icons.tune_rounded,
+                      size: 18,
+                      color: _selectedProfileId != null
+                          ? colorForProfile(_selectedProfileId!)
+                          : cs.onSurfaceVariant,
+                    ),
+                  ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Text(
@@ -386,14 +427,16 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                             ? FontWeight.w600
                             : null,
                         color: _selectedProfileId == null
-                            ? theme.colorScheme.onSurfaceVariant
+                            ? cs.onSurfaceVariant
                             : null,
                       ),
                     ),
                   ),
                   Icon(
                     Icons.chevron_right,
-                    color: theme.colorScheme.onSurfaceVariant,
+                    size: 20,
+                    color: cs.onSurface
+                        .withValues(alpha: AppOpacity.medium),
                   ),
                 ],
               ),
@@ -401,54 +444,72 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           ),
           const SizedBox(height: AppSpacing.xl),
 
-          // Agent selector
-          _FieldLabel(l10n.sessionsAgent),
+          // ── Agent ────────────────────────────────────────────────
+          _SectionLabel(l10n.sessionsAgent),
           const SizedBox(height: AppSpacing.sm),
-          SegmentedButton<String>(
-            segments: [
-              ButtonSegment(
-                value: 'claude',
-                label: Text(l10n.sessionsClaude),
-                enabled: compat == null || compat.claude,
-              ),
-              ButtonSegment(
-                value: 'codex',
-                label: Text(l10n.sessionsCodex),
-                enabled: compat == null || compat.codex,
-              ),
-              ButtonSegment(
-                value: 'gemini',
-                label: Text(l10n.sessionsGemini),
-                enabled: compat == null || compat.gemini,
-              ),
-            ],
-            selected: {_selectedAgent},
-            onSelectionChanged: (selection) {
-              setState(() => _selectedAgent = selection.first);
-            },
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<String>(
+              segments: [
+                ButtonSegment(
+                  value: 'claude',
+                  label: Text(l10n.sessionsClaude),
+                  enabled: compat == null || compat.claude,
+                ),
+                ButtonSegment(
+                  value: 'codex',
+                  label: Text(l10n.sessionsCodex),
+                  enabled: compat == null || compat.codex,
+                ),
+                ButtonSegment(
+                  value: 'gemini',
+                  label: Text(l10n.sessionsGemini),
+                  enabled: compat == null || compat.gemini,
+                ),
+              ],
+              selected: {_selectedAgent},
+              onSelectionChanged: (selection) {
+                setState(() => _selectedAgent = selection.first);
+              },
+            ),
           ),
           const SizedBox(height: AppSpacing.xxxl),
 
-          // Connection status hint when not yet connected
+          // ── Connection status hint ────────────────────────────────
           if (connectionStatus != ConnectionStatus.connected &&
               connectionStatus != ConnectionStatus.error)
             Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: Text(
-                connectionStatus == ConnectionStatus.connecting
-                    ? l10n.authConnecting
-                    : l10n.sidebarStatusDisconnected,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
+              padding: const EdgeInsets.only(
+                bottom: AppSpacing.md,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    connectionStatus == ConnectionStatus.connecting
+                        ? l10n.authConnecting
+                        : l10n.sidebarStatusDisconnected,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             ),
 
-          // Create button
+          // ── Create button ─────────────────────────────────────────
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: AppTouchTarget.comfortable,
             child: FilledButton.icon(
               onPressed: _canCreate(connectionStatus)
                   ? _createSession
@@ -459,13 +520,10 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: theme.colorScheme.onPrimary,
+                        color: cs.onPrimary,
                       ),
                     )
-                  : const Icon(
-                      Icons.add_rounded,
-                      size: 20,
-                    ),
+                  : const Icon(Icons.add_rounded, size: 20),
               label: Text(
                 l10n.commonCreate,
                 style: const TextStyle(
@@ -475,15 +533,99 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
               ),
             ),
           ),
+          const SizedBox(height: AppSpacing.lg),
         ],
       ),
     );
   }
 }
 
-/// Small uppercased label above a form field.
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.text);
+/// Machine picker row — shows placeholder or selected machine info.
+class _MachinePickerRow extends StatelessWidget {
+  const _MachinePickerRow({
+    required this.machine,
+    required this.hint,
+  });
+
+  final Machine? machine;
+  final String hint;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.smd,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: cs.onSurfaceVariant
+                  .withValues(alpha: AppOpacity.faint),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Icon(
+              Icons.computer_outlined,
+              size: 18,
+              color: machine != null
+                  ? cs.primary
+                  : cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: machine == null
+                ? Text(
+                    hint,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        machine!.metadata?.displayName ??
+                            machine!.metadata?.host ??
+                            machine!.id,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (machine!.metadata?.host != null)
+                        Text(
+                          machine!.metadata!.host!,
+                          style:
+                              theme.textTheme.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+          ),
+          Icon(
+            Icons.chevron_right,
+            size: 20,
+            color:
+                cs.onSurface.withValues(alpha: AppOpacity.medium),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Uppercase section label above a form field.
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
 
   final String text;
 
@@ -495,7 +637,7 @@ class _FieldLabel extends StatelessWidget {
       style: theme.textTheme.labelSmall?.copyWith(
         color: theme.colorScheme.onSurfaceVariant,
         fontWeight: FontWeight.w600,
-        letterSpacing: 0.5,
+        letterSpacing: 0.8,
       ),
     );
   }

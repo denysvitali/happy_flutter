@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/providers/app_providers.dart';
@@ -20,6 +21,7 @@ class PickProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final settings = ref.watch(settingsNotifierProvider);
     final selectedId = settings.lastUsedProfile;
     final customProfiles = settings.profiles;
@@ -27,84 +29,117 @@ class PickProfileScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.pickSelectProfile),
+        titleTextStyle: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: AppScreenPadding.standard,
         children: [
+          // Subtitle
           Text(
             l10n.pickProfileChooseBackend,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+              color: cs.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
 
-          // "None" option
+          // ── "None" ────────────────────────────────────────────────
           _ProfileCard(
             name: l10n.pickProfileNone,
             description: l10n.pickProfileNoneDesc,
-            icon: Icons.remove_circle_outline,
-            color: theme.colorScheme.onSurfaceVariant,
+            icon: Icons.remove_circle_outline_rounded,
+            color: cs.onSurfaceVariant,
             isSelected: selectedId == null,
             onTap: () => context.pop<String?>(null),
           ),
+          const SizedBox(height: AppSpacing.xl),
 
-          // Built-in profiles
-          Padding(
-            padding: const EdgeInsets.only(
-              top: AppSpacing.lg,
-              left: AppSpacing.xs,
-              bottom: AppSpacing.sm,
-            ),
-            child: Text(
-              l10n.pickProfileBuiltInSection,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
+          // ── Built-in profiles ─────────────────────────────────────
+          AppSectionHeader(
+            title: l10n.pickProfileBuiltInSection,
+            uppercase: true,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (int i = 0;
+                    i < builtInProfiles.length;
+                    i++) ...[
+                  _ProfileTile(
+                    name: builtInProfiles[i].name,
+                    description:
+                        builtInProfiles[i].description ?? '',
+                    icon: _iconForProfile(builtInProfiles[i].id),
+                    color: colorForProfile(builtInProfiles[i].id),
+                    isSelected:
+                        selectedId == builtInProfiles[i].id,
+                    isFirst: i == 0,
+                    isLast: i == builtInProfiles.length - 1,
+                    onTap: () => context
+                        .pop<String?>(builtInProfiles[i].id),
+                  ),
+                  if (i < builtInProfiles.length - 1)
+                    Divider(
+                      height: 1,
+                      indent: AppSpacing.lg + 44 + AppSpacing.lg,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outlineVariant,
+                    ),
+                ],
+              ],
             ),
           ),
-          ...builtInProfiles.map(
-            (profile) => _ProfileCard(
-              name: profile.name,
-              description: profile.description ?? '',
-              icon: _iconForProfile(profile.id),
-              color: colorForProfile(profile.id),
-              isSelected: selectedId == profile.id,
-              onTap: () => context.pop<String?>(profile.id),
-            ),
-          ),
 
-          // Custom profiles
+          // ── Custom profiles ───────────────────────────────────────
           if (customProfiles.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.only(
-                top: AppSpacing.lg,
-                left: AppSpacing.xs,
-                bottom: AppSpacing.sm,
-              ),
-              child: Text(
-                l10n.pickProfileCustomSection,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
+            const SizedBox(height: AppSpacing.xl),
+            AppSectionHeader(
+              title: l10n.pickProfileCustomSection,
+              uppercase: true,
             ),
-            ...customProfiles.map(
-              (profile) => _ProfileCard(
-                name: profile.name,
-                description: profile.description ??
-                    l10n.pickProfileCustomDescription,
-                icon: Icons.person_outline,
-                color: theme.colorScheme.primary,
-                isSelected: selectedId == profile.id,
-                onTap: () => context.pop<String?>(profile.id),
+            const SizedBox(height: AppSpacing.xs),
+            AppCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  for (int i = 0;
+                      i < customProfiles.length;
+                      i++) ...[
+                    _ProfileTile(
+                      name: customProfiles[i].name,
+                      description: customProfiles[i]
+                              .description ??
+                          l10n.pickProfileCustomDescription,
+                      icon: Icons.person_outline_rounded,
+                      color: cs.primary,
+                      isSelected:
+                          selectedId == customProfiles[i].id,
+                      isFirst: i == 0,
+                      isLast: i == customProfiles.length - 1,
+                      onTap: () => context
+                          .pop<String?>(customProfiles[i].id),
+                    ),
+                    if (i < customProfiles.length - 1)
+                      Divider(
+                        height: 1,
+                        indent:
+                            AppSpacing.lg + 44 + AppSpacing.lg,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outlineVariant,
+                      ),
+                  ],
+                ],
               ),
             ),
           ],
+
+          const SizedBox(height: AppSpacing.xl),
         ],
       ),
     );
@@ -114,22 +149,21 @@ class PickProfileScreen extends ConsumerWidget {
 IconData _iconForProfile(String id) {
   switch (id) {
     case 'anthropic':
-      return Icons.auto_awesome;
+      return Icons.auto_awesome_rounded;
     case 'deepseek':
-      return Icons.psychology;
+      return Icons.psychology_rounded;
     case 'zai':
-      return Icons.bolt;
+      return Icons.bolt_rounded;
     case 'openai':
-      return Icons.smart_toy;
+      return Icons.smart_toy_rounded;
     case 'azure-openai':
-      return Icons.cloud;
+      return Icons.cloud_rounded;
     default:
-      return Icons.computer;
+      return Icons.computer_rounded;
   }
 }
 
-
-
+/// A standalone card for the "None" option — larger, more prominent.
 class _ProfileCard extends StatelessWidget {
   const _ProfileCard({
     required this.name,
@@ -150,62 +184,188 @@ class _ProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius:
-                      BorderRadius.circular(AppRadius.md),
+    return AppCard(
+      padding: EdgeInsets.zero,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: AppDuration.fast,
+        curve: AppCurve.standard,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? cs.primary.withValues(alpha: AppOpacity.faint)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          children: [
+            Container(
+              width: AppTouchTarget.min,
+              height: AppTouchTarget.min,
+              decoration: BoxDecoration(
+                color: color.withValues(
+                  alpha: isSelected
+                      ? AppOpacity.subtle
+                      : AppOpacity.faint,
                 ),
-                child: Icon(icon, color: color, size: 22),
+                borderRadius:
+                    BorderRadius.circular(AppRadius.md),
               ),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style:
-                          theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? cs.primary : null,
                     ),
-                    const SizedBox(height: AppSpacing.xs),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    description,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            if (isSelected)
+              Icon(
+                Icons.check_circle_rounded,
+                color: cs.primary,
+                size: 22,
+              )
+            else
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: cs.onSurface
+                    .withValues(alpha: AppOpacity.medium),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A row inside a grouped card for a built-in / custom profile.
+class _ProfileTile extends StatelessWidget {
+  const _ProfileTile({
+    required this.name,
+    required this.description,
+    required this.icon,
+    required this.color,
+    required this.isSelected,
+    required this.isFirst,
+    required this.isLast,
+    required this.onTap,
+  });
+
+  final String name;
+  final String description;
+  final IconData icon;
+  final Color color;
+  final bool isSelected;
+  final bool isFirst;
+  final bool isLast;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final borderRadius = BorderRadius.vertical(
+      top: isFirst
+          ? const Radius.circular(AppRadius.lg)
+          : Radius.zero,
+      bottom: isLast
+          ? const Radius.circular(AppRadius.lg)
+          : Radius.zero,
+    );
+
+    return AppTappable(
+      onTap: onTap,
+      borderRadius: borderRadius,
+      child: AnimatedContainer(
+        duration: AppDuration.fast,
+        curve: AppCurve.standard,
+        color: isSelected
+            ? cs.primary.withValues(alpha: AppOpacity.faint)
+            : Colors.transparent,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.smd,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: AppTouchTarget.min,
+              height: AppTouchTarget.min,
+              decoration: BoxDecoration(
+                color: color.withValues(
+                  alpha: isSelected
+                      ? AppOpacity.subtle
+                      : AppOpacity.faint,
+                ),
+                borderRadius:
+                    BorderRadius.circular(AppRadius.md),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style:
+                        theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? cs.primary : null,
+                    ),
+                  ),
+                  if (description.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       description,
                       style:
                           theme.textTheme.bodySmall?.copyWith(
-                        color: theme
-                            .colorScheme.onSurfaceVariant,
+                        color: cs.onSurfaceVariant,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
+                ],
               ),
-              if (isSelected)
-                Icon(
-                  Icons.check_circle,
-                  color: theme.colorScheme.primary,
-                )
-              else
-                Icon(
-                  Icons.chevron_right,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-            ],
-          ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            if (isSelected)
+              Icon(
+                Icons.check_circle_rounded,
+                color: cs.primary,
+                size: 20,
+              )
+            else
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: cs.onSurface
+                    .withValues(alpha: AppOpacity.medium),
+              ),
+          ],
         ),
       ),
     );

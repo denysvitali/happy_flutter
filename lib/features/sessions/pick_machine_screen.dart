@@ -22,12 +22,13 @@ class PickMachineScreen extends ConsumerWidget {
     final sessions = ref.watch(sessionsNotifierProvider);
     final theme = Theme.of(context);
 
-    // Compute recent machines from sessions (most recently updated first)
+    // Compute recent machines from sessions (most recently updated)
     final recentMachineIds = <String>[];
     final seen = <String>{};
     final sortedSessions = sessions.values.toList()
-      ..sort((a, b) =>
-          (b.updatedAt).compareTo(a.updatedAt));
+      ..sort(
+        (a, b) => b.updatedAt.compareTo(a.updatedAt),
+      );
     for (final session in sortedSessions) {
       final mid = session.metadata?.machineId;
       if (mid != null && !seen.contains(mid)) {
@@ -45,53 +46,101 @@ class PickMachineScreen extends ConsumerWidget {
         })
         .whereType<Machine>()
         .toList();
-    final otherMachines = machines
-        .where((m) => !seen.contains(m.id))
-        .toList();
+    final otherMachines =
+        machines.where((m) => !seen.contains(m.id)).toList();
 
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.pickSelectMachine),
+        titleTextStyle: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
       ),
       body: machines.isEmpty
-          ? Center(
-              child: Text(
-                l10n.pickNoMachinesAvailable,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
+          ? AppEmptyState(
+              icon: Icons.computer_outlined,
+              title: l10n.pickNoMachinesAvailable,
             )
           : ListView(
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xs,
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.sm,
               ),
               children: [
                 if (recentMachines.isNotEmpty) ...[
                   AppSectionHeader(title: l10n.pickRecent),
-                  ...recentMachines.map(
-                    (machine) => _MachineListTile(
-                      machine: machine,
-                      showRecentIcon: true,
-                      onTap: () => context.pop(machine),
+                  const SizedBox(height: AppSpacing.xs),
+                  AppCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        for (int i = 0;
+                            i < recentMachines.length;
+                            i++) ...[
+                          _MachineListTile(
+                            machine: recentMachines[i],
+                            showRecentIcon: true,
+                            isFirst: i == 0,
+                            isLast:
+                                i == recentMachines.length - 1,
+                            onTap: () => context
+                                .pop(recentMachines[i]),
+                          ),
+                          if (i < recentMachines.length - 1)
+                            Divider(
+                              height: 1,
+                              indent: AppSpacing.lg +
+                                  36 +
+                                  AppSpacing.md,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .outlineVariant,
+                            ),
+                        ],
+                      ],
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.xl),
                 ],
                 if (otherMachines.isNotEmpty) ...[
                   if (recentMachines.isNotEmpty)
                     AppSectionHeader(
                       title: l10n.pickAllMachines,
                     ),
-                  ...otherMachines.map(
-                    (machine) => _MachineListTile(
-                      machine: machine,
-                      showRecentIcon: false,
-                      onTap: () => context.pop(machine),
+                  if (recentMachines.isNotEmpty)
+                    const SizedBox(height: AppSpacing.xs),
+                  AppCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        for (int i = 0;
+                            i < otherMachines.length;
+                            i++) ...[
+                          _MachineListTile(
+                            machine: otherMachines[i],
+                            showRecentIcon: false,
+                            isFirst: i == 0,
+                            isLast:
+                                i == otherMachines.length - 1,
+                            onTap: () =>
+                                context.pop(otherMachines[i]),
+                          ),
+                          if (i < otherMachines.length - 1)
+                            Divider(
+                              height: 1,
+                              indent: AppSpacing.lg +
+                                  36 +
+                                  AppSpacing.md,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .outlineVariant,
+                            ),
+                        ],
+                      ],
                     ),
                   ),
                 ],
+                const SizedBox(height: AppSpacing.xl),
               ],
             ),
     );
@@ -99,14 +148,18 @@ class PickMachineScreen extends ConsumerWidget {
 }
 
 class _MachineListTile extends StatelessWidget {
-
   const _MachineListTile({
     required this.machine,
     required this.showRecentIcon,
+    required this.isFirst,
+    required this.isLast,
     required this.onTap,
   });
+
   final Machine machine;
   final bool showRecentIcon;
+  final bool isFirst;
+  final bool isLast;
   final VoidCallback onTap;
 
   bool get _isOnline {
@@ -118,78 +171,114 @@ class _MachineListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final displayName = machine.metadata?.displayName ??
         machine.metadata?.host ??
         machine.id;
     final host = machine.metadata?.host;
     final isOnline = _isOnline;
 
-    return AppCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
+    final borderRadius = BorderRadius.vertical(
+      top: isFirst
+          ? const Radius.circular(AppRadius.lg)
+          : Radius.zero,
+      bottom: isLast
+          ? const Radius.circular(AppRadius.lg)
+          : Radius.zero,
+    );
+
+    return AppTappable(
       onTap: onTap,
-      child: Row(
-        children: [
-          Icon(
-            showRecentIcon
-                ? Icons.history
-                : Icons.computer_outlined,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  displayName,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (host != null && host != displayName)
+      borderRadius: borderRadius,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.smd,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: cs.onSurfaceVariant
+                    .withValues(alpha: AppOpacity.faint),
+                borderRadius:
+                    BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Icon(
+                showRecentIcon
+                    ? Icons.history_rounded
+                    : Icons.computer_outlined,
+                size: 18,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    host,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                    displayName,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-              ],
+                  if (host != null && host != displayName)
+                    Text(
+                      host,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppStatusDot(
-                color: isOnline
-                    ? AppColors.success
-                    : theme.colorScheme.outlineVariant,
-                size: 8,
-                pulse: isOnline,
+            const SizedBox(width: AppSpacing.sm),
+            // Online badge
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xxs,
               ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                isOnline
-                    ? context.l10n.sidebarStatusConnected
-                    : context.l10n.settingsOffline,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: isOnline
-                      ? AppColors.success
-                      : theme.colorScheme.onSurfaceVariant,
-                ),
+              decoration: BoxDecoration(
+                color: (isOnline
+                        ? AppColors.success
+                        : cs.onSurfaceVariant)
+                    .withValues(alpha: AppOpacity.subtle),
+                borderRadius:
+                    BorderRadius.circular(AppRadius.pill),
               ),
-            ],
-          ),
-        ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppStatusDot(
+                    color: isOnline
+                        ? AppColors.success
+                        : cs.outlineVariant,
+                    size: 6,
+                    pulse: isOnline,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    isOnline
+                        ? context.l10n.sidebarStatusConnected
+                        : context.l10n.settingsOffline,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: isOnline
+                          ? AppColors.success
+                          : cs.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
