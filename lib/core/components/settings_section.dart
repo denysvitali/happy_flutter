@@ -254,8 +254,9 @@ class SettingsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final borderColor =
-        danger ? cs.error.withValues(alpha: 0.47) : cs.outlineVariant;
+    final borderColor = danger
+        ? cs.error.withValues(alpha: AppOpacity.half)
+        : cs.outlineVariant;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
