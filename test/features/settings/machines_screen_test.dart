@@ -58,7 +58,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.byType(AppBar), findsOneWidget);
       expect(find.text('Machines'), findsOneWidget);
@@ -75,7 +76,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('No machines'), findsOneWidget);
     });
@@ -112,7 +114,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('Dev Laptop'), findsOneWidget);
       expect(find.text('Work Desktop'), findsOneWidget);
@@ -144,7 +147,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('my-server'), findsOneWidget);
     });
@@ -175,7 +179,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('linux • Online'), findsOneWidget);
     });
@@ -206,7 +211,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('macos • Offline'), findsOneWidget);
     });
@@ -237,7 +243,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.byIcon(Icons.delete_outline), findsOneWidget);
     });
@@ -267,7 +274,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.byIcon(Icons.computer_outlined), findsOneWidget);
     });
@@ -304,7 +312,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // Active machine should appear before inactive
       final activeFinder = find.text('Active Machine');
@@ -342,7 +351,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // Settings section title should be 'Machines'
       final sectionTitles = find.text('Machines');

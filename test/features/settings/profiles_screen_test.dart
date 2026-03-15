@@ -52,7 +52,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AppBar), findsOneWidget);
-      expect(find.text('Profiles'), findsOneWidget);
+      // 'Profiles' appears in AppBar title and SettingsSection
+      expect(find.text('Profiles'), findsWidgets);
     });
 
     testWidgets('renders None option', (tester) async {
@@ -166,7 +167,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // The check icon should appear for the selected profile
-      expect(find.byIcon(Icons.check), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle), findsOneWidget);
     });
 
     testWidgets('tapping None clears selected profile', (tester) async {

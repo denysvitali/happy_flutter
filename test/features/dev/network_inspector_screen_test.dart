@@ -43,7 +43,8 @@ void main() {
   group('NetworkInspectorScreen', () {
     testWidgets('shows empty state when no entries', (tester) async {
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('No requests yet'), findsOneWidget);
       expect(find.byIcon(Icons.network_check), findsOneWidget);
@@ -54,7 +55,8 @@ void main() {
       httpRequestLogger.record(_makeEntry(id: 2, path: '/api/other'));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(
         find.text('Network Inspector (2)'),
@@ -70,7 +72,8 @@ void main() {
       ));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // Summary chips are present (labels include directional arrows)
       expect(find.text('Requests: '), findsOneWidget);
@@ -88,7 +91,8 @@ void main() {
       ));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('POST'), findsOneWidget);
       expect(find.text('/api/create'), findsOneWidget);
@@ -101,7 +105,8 @@ void main() {
       ));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('201'), findsOneWidget);
     });
@@ -113,7 +118,8 @@ void main() {
       ));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('???'), findsOneWidget);
     });
@@ -125,7 +131,8 @@ void main() {
       ));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('150ms'), findsOneWidget);
     });
@@ -137,7 +144,8 @@ void main() {
       ));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // Should still render without crash
       expect(find.text('GET'), findsOneWidget);
@@ -147,7 +155,8 @@ void main() {
       httpRequestLogger.record(_makeEntry(id: 1));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.byIcon(Icons.copy), findsWidgets);
     });
@@ -156,7 +165,8 @@ void main() {
       httpRequestLogger.record(_makeEntry(id: 1));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.byIcon(Icons.delete_sweep), findsOneWidget);
     });
@@ -165,7 +175,8 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       final copyBtn = tester.widget<IconButton>(
         find.ancestor(
@@ -188,14 +199,16 @@ void main() {
       httpRequestLogger.record(_makeEntry(id: 1));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('Copy'), findsOneWidget);
     });
 
     testWidgets('hides copy box when no entries', (tester) async {
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // No copy box when empty
       expect(find.text('Copy'), findsNothing);
@@ -209,7 +222,8 @@ void main() {
       httpRequestLogger.record(_makeEntry(id: 3, path: '/c'));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // All paths visible
       expect(find.text('/a'), findsOneWidget);
@@ -224,7 +238,8 @@ void main() {
       ));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // 2048 bytes = 2.0KB (appears in row and summary)
       expect(find.text('2.0KB'), findsWidgets);
@@ -238,7 +253,8 @@ void main() {
       ));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // Should show '-' for null bytes
       expect(find.text('-'), findsWidgets);
@@ -256,10 +272,12 @@ void main() {
       ));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       await tester.tap(find.text('/api/item/5'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // Detail sheet shows method badge
       expect(find.text('DELETE'), findsWidgets);
@@ -279,7 +297,8 @@ void main() {
       httpRequestLogger.record(_makeEntry(id: 5, method: 'DELETE'));
 
       await tester.pumpWidget(_buildApp());
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('GET'), findsOneWidget);
       expect(find.text('POST'), findsOneWidget);

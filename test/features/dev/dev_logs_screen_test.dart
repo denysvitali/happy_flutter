@@ -87,7 +87,8 @@ void main() {
           loggerState: LoggerState(),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('Logs'), findsOneWidget);
       expect(
@@ -111,7 +112,8 @@ void main() {
           loggerState: LoggerState(logs: logs),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('First log'), findsOneWidget);
       expect(find.text('Error log'), findsOneWidget);
@@ -124,10 +126,11 @@ void main() {
           loggerState: LoggerState(),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('No logs yet'), findsOneWidget);
-      expect(find.byIcon(Icons.note), findsOneWidget);
+      expect(find.byIcon(Icons.note_alt_outlined), findsOneWidget);
     });
 
     testWidgets('displays log count in app bar', (tester) async {
@@ -143,7 +146,8 @@ void main() {
           loggerState: LoggerState(logs: logs),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('Logs (3)'), findsWidgets);
     });
@@ -157,7 +161,8 @@ void main() {
           loggerState: LoggerState(logs: logs),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // Filter bar shows count
       expect(find.text('Logs (1)'), findsWidgets);
@@ -180,7 +185,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('Logs (1 filtered)'), findsOneWidget);
       expect(find.text('Clear Filter'), findsOneWidget);
@@ -193,7 +199,8 @@ void main() {
           loggerState: LoggerState(),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // Add test log button
       expect(find.byIcon(Icons.add), findsOneWidget);
@@ -219,7 +226,8 @@ void main() {
           loggerState: LoggerState(logs: [entry]),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // Level indicator text
       expect(find.text('WARNING'), findsOneWidget);
@@ -243,7 +251,8 @@ void main() {
           loggerState: LoggerState(logs: [entry]),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // Error icon shown for entries with error
       expect(find.byIcon(Icons.error), findsOneWidget);
@@ -264,7 +273,8 @@ void main() {
           loggerState: LoggerState(logs: logs),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // Most recent at bottom, so last entry appears first
       // in the ListView.builder (reversed index)
@@ -287,10 +297,12 @@ void main() {
           loggerState: LoggerState(logs: [entry]),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       await tester.tap(find.text('Detail test log'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // Bottom sheet should show level name
       expect(find.text('INFO'), findsWidgets);
@@ -312,7 +324,8 @@ void main() {
           loggerState: LoggerState(logs: logs),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('DEBUG'), findsOneWidget);
       expect(find.text('INFO'), findsOneWidget);

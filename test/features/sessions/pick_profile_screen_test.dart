@@ -101,7 +101,7 @@ void main() {
 
       // The selected profile should show a check icon
       expect(
-        find.byIcon(Icons.check_circle),
+        find.byIcon(Icons.check_circle_rounded),
         findsOneWidget,
       );
     });

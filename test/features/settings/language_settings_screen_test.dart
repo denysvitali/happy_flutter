@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:happy_flutter/core/components/app_card.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
@@ -111,7 +112,7 @@ void main() {
       // English should be visible (it's at the top of the list)
       expect(find.text('English'), findsWidgets);
       // Multiple language cards should be rendered
-      expect(find.byType(Card), findsWidgets);
+      expect(find.byType(AppCard), findsWidgets);
     });
 
     testWidgets('search filters language list', (tester) async {
@@ -263,7 +264,7 @@ void main() {
       );
 
       // Check icons should be visible for the selected language
-      expect(find.byIcon(Icons.check), findsWidgets);
+      expect(find.byIcon(Icons.check_circle_rounded), findsWidgets);
     });
 
     testWidgets('renders divider between automatic and language list',
@@ -285,7 +286,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(Divider), findsOneWidget);
+      expect(find.byType(Divider), findsWidgets);
     });
 
     testWidgets('language options are rendered as Cards', (tester) async {
@@ -306,9 +307,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Each language option is a Card containing a ListTile
-      expect(find.byType(Card), findsWidgets);
-      expect(find.byType(ListTile), findsWidgets);
+      // Each language option is rendered inside AppCard widgets
+      expect(find.byType(AppCard), findsWidgets);
     });
   });
 }

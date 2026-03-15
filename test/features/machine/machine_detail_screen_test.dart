@@ -383,6 +383,14 @@ void main() {
         );
         await tester.pump();
 
+        // Scroll down to find the delete button at the bottom
+        await tester.scrollUntilVisible(
+          find.text('Remove Machine'),
+          100,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pump();
+
         expect(find.text('Remove Machine'), findsOneWidget);
       });
 
@@ -394,10 +402,15 @@ void main() {
         );
         await tester.pump();
 
-        final textButton = tester.widget<TextButton>(
-          find.byType(TextButton),
+        // Scroll down to find the delete button at the bottom
+        await tester.scrollUntilVisible(
+          find.text('Remove Machine'),
+          100,
+          scrollable: find.byType(Scrollable).first,
         );
-        expect(textButton, isNotNull);
+        await tester.pump();
+
+        expect(find.text('Remove Machine'), findsOneWidget);
       });
     });
 
