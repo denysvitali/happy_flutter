@@ -145,7 +145,8 @@ class SessionAvatar extends StatelessWidget {
         ? (effectiveSize * 0.28).round()
         : (effectiveSize * 0.35).round();
 
-    final avatarWidget = switch (style ?? _getStyleFromHash()) {
+    final effectiveStyle = style ?? _getStyleFromHash();
+    final rawAvatar = switch (effectiveStyle) {
       AvatarStyle.gradient => AvatarGradient(id: id, size: size),
       AvatarStyle.pixelated => AvatarPixelated(id: id, size: size),
       AvatarStyle.brutalist => AvatarBrutalist(id: id, size: size),
@@ -155,6 +156,16 @@ class SessionAvatar extends StatelessWidget {
       AvatarStyle.constellation =>
         AvatarConstellation(id: id, size: size),
       AvatarStyle.wave => AvatarWave(id: id, size: size),
+    };
+    // Wrap CustomPaint-based avatars in RepaintBoundary so they are not
+    // redrawn when the parent session card repaints (hover, presence, typing).
+    final avatarWidget = switch (effectiveStyle) {
+      AvatarStyle.geometric ||
+      AvatarStyle.rings ||
+      AvatarStyle.constellation ||
+      AvatarStyle.wave =>
+        RepaintBoundary(child: rawAvatar),
+      _ => rawAvatar,
     };
 
     if (showFlavorIcon && flavor != null) {
