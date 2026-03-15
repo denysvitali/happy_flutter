@@ -194,7 +194,9 @@ class _AgentConversationScreenState
         actions: [
           if (isRunning)
             Padding(
-              padding: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.only(
+                right: AppSpacing.lg,
+              ),
               child: SizedBox(
                 width: 16,
                 height: 16,
@@ -277,7 +279,7 @@ class _AgentConversationScreenState
           ? const _ThinkingRow()
           : Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm + 4,
+                horizontal: AppSpacing.md,
                 vertical: AppSpacing.sm,
               ),
               decoration: BoxDecoration(
@@ -326,14 +328,14 @@ class _AgentConversationScreenState
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm + 2,
-          vertical: AppSpacing.xs + 2,
+          horizontal: AppSpacing.smd,
+          vertical: AppSpacing.xsm,
         ),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.5,
+            alpha: AppOpacity.half,
           ),
-          borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+          borderRadius: BorderRadius.circular(AppRadius.xsm),
         ),
         child: Row(
           children: [
@@ -349,7 +351,7 @@ class _AgentConversationScreenState
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                       fontFamily: 'monospace',
-                      fontSize: 12,
+                      fontSize: AppFontSize.sm,
                       fontWeight: FontWeight.w500,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -359,9 +361,9 @@ class _AgentConversationScreenState
                       subtitle,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.6,
+                          alpha: AppOpacity.high,
                         ),
-                        fontSize: 11,
+                        fontSize: AppFontSize.xs,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -411,7 +413,7 @@ class _AgentConversationScreenState
 
     return Padding(
       key: key,
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxxs),
       child: InkWell(
         onTap: () {
           if (msgId == null) return;
@@ -421,15 +423,15 @@ class _AgentConversationScreenState
             extra: msg,
           );
         },
-        borderRadius: BorderRadius.circular(AppRadius.sm + 2),
+        borderRadius: BorderRadius.circular(AppRadius.smd),
         child: Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm + 4,
+            horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,
           ),
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(AppRadius.sm + 2),
+            borderRadius: BorderRadius.circular(AppRadius.smd),
             border: Border.all(color: borderColor, width: 1),
           ),
           child: Row(
@@ -465,9 +467,9 @@ class _AgentConversationScreenState
                         subagentType,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.7,
+                            alpha: AppOpacity.high,
                           ),
-                          fontSize: 10,
+                          fontSize: AppFontSize.xxs,
                         ),
                       ),
                   ],
@@ -480,7 +482,7 @@ class _AgentConversationScreenState
                     '$childCount',
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.5,
+                        alpha: AppOpacity.half,
                       ),
                     ),
                   ),
@@ -489,7 +491,7 @@ class _AgentConversationScreenState
                 Icons.chevron_right_rounded,
                 size: 18,
                 color: theme.colorScheme.onSurfaceVariant.withValues(
-                  alpha: 0.5,
+                  alpha: AppOpacity.half,
                 ),
               ),
             ],
@@ -524,7 +526,7 @@ class _ThinkingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -532,14 +534,14 @@ class _ThinkingRow extends StatelessWidget {
             Icons.auto_awesome_rounded,
             size: 12,
             color: theme.colorScheme.onSurfaceVariant
-                .withValues(alpha: 0.6),
+                .withValues(alpha: AppOpacity.high),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           Text(
             AppLocalizations.of(context).chatThinking,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant
-                  .withValues(alpha: 0.6),
+                  .withValues(alpha: AppOpacity.high),
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -566,27 +568,32 @@ class _ErrorRow extends StatelessWidget {
     final errorMessage = msg['errorMessage'] as String? ?? '';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: InkWell(
         onTap: () => _showErrorSheet(context),
-        borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+        borderRadius: BorderRadius.circular(AppRadius.xsm),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.smd,
+            vertical: AppSpacing.xsm,
+          ),
           decoration: BoxDecoration(
-            color: cs.errorContainer.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(AppRadius.xs + 2),
+            color: cs.errorContainer.withValues(
+              alpha: AppOpacity.half,
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.xsm),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.error_outline, size: 14, color: cs.error),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.xsm),
               Flexible(
                 child: Text(
                   '$errorType: $errorMessage',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: cs.onErrorContainer,
-                    fontSize: 12,
+                    fontSize: AppFontSize.sm,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -611,15 +618,20 @@ class _ErrorRow extends StatelessWidget {
             children: [
               Text(msg['errorMessage'] as String? ?? 'Unknown error'),
               if (debugData != null) ...[
-                const SizedBox(height: 12),
-                const Text(
+                const SizedBox(height: AppSpacing.md),
+                Text(
                   'Debug data:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: Theme.of(ctx).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   debugData.toString(),
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                  style: Theme.of(ctx).textTheme.bodySmall
+                      ?.copyWith(
+                    fontFamily: 'monospace',
+                    fontSize: AppFontSize.sm,
+                  ),
                 ),
               ],
             ],
