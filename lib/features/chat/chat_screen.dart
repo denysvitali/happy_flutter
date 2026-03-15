@@ -1008,10 +1008,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (text == '/clear') {
       _controller.clear();
       unawaited(DraftStorage().removeDraft(widget.sessionId));
+      _autoScrollNotifier.value = true;
       setState(() {
         _isSending = true;
         _visibleCount = _pageSize;
-        _autoScroll = true;
       });
       try {
         final sentSessionId = await ref
@@ -1042,9 +1042,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return;
     }
 
+    _autoScrollNotifier.value = true;
     setState(() {
       _controller.clear();
-      _autoScroll = true;
     });
 
     unawaited(DraftStorage().removeDraft(widget.sessionId));
