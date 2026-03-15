@@ -95,7 +95,6 @@ class _AutocompleteOverlayState extends State<AutocompleteOverlay> {
             controller: _scrollController,
             child: ListView.separated(
               controller: _scrollController,
-              shrinkWrap: true,
               padding: effectivePadding,
               itemCount: widget.suggestions.length,
               separatorBuilder: (context, index) => Divider(

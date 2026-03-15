@@ -333,7 +333,6 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
   Widget _buildResultsList(ColorScheme colorScheme) {
     return ListView.builder(
       controller: _scrollController,
-      shrinkWrap: true,
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       itemCount: _filteredCategories.length,
       itemBuilder: (context, categoryIndex) {

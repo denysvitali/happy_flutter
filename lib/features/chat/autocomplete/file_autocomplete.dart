@@ -532,7 +532,6 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
                             controller: _scrollController,
                             child: ListView.separated(
                               controller: _scrollController,
-                              shrinkWrap: true,
                               padding: EdgeInsets.zero,
                               itemCount: _suggestions.length,
                               separatorBuilder: (context, index) => Divider(
