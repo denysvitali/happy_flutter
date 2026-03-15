@@ -215,9 +215,11 @@ class _NewSessionDialogState
             const SizedBox(height: AppSpacing.md),
             Text(
               _createError!,
-              style: TextStyle(
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(
                 color: Theme.of(context).colorScheme.error,
-                fontSize: AppFontSize.md,
               ),
             ),
           ],

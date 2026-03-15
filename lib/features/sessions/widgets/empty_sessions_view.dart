@@ -34,7 +34,7 @@ class EmptySessionsView extends StatelessWidget {
               l10n.sessionNoSessionsYet,
               style: theme.textTheme.titleSmall?.copyWith(
                 color: cs.onSurfaceVariant
-                    .withValues(alpha: 0.6),
+                    .withValues(alpha: AppOpacity.half),
                 fontWeight: FontWeight.w500,
               ),
               textAlign: TextAlign.center,
@@ -44,7 +44,7 @@ class EmptySessionsView extends StatelessWidget {
               l10n.emptyMainScreenInstallCli,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurfaceVariant
-                    .withValues(alpha: 0.5),
+                    .withValues(alpha: AppOpacity.half),
               ),
               textAlign: TextAlign.center,
             ),
@@ -53,7 +53,7 @@ class EmptySessionsView extends StatelessWidget {
               l10n.emptyMainScreenRunIt,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurfaceVariant
-                    .withValues(alpha: 0.5),
+                    .withValues(alpha: AppOpacity.half),
               ),
               textAlign: TextAlign.center,
             ),
@@ -62,7 +62,7 @@ class EmptySessionsView extends StatelessWidget {
               l10n.emptyMainScreenScanQrCode,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurfaceVariant
-                    .withValues(alpha: 0.5),
+                    .withValues(alpha: AppOpacity.half),
               ),
               textAlign: TextAlign.center,
             ),

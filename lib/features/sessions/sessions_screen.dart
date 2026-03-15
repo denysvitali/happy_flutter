@@ -837,7 +837,7 @@ class _SessionsListContentState
                 .titleSmall
                 ?.copyWith(
                   color: cs.onSurfaceVariant
-                      .withValues(alpha: 0.6),
+                      .withValues(alpha: AppOpacity.half),
                   fontWeight: FontWeight.w500,
                 ),
           ),
@@ -1105,7 +1105,7 @@ class _SessionsListContentState
                 color: Theme.of(context)
                     .colorScheme
                     .outlineVariant
-                    .withValues(alpha: 0.2),
+                    .withValues(alpha: AppOpacity.soft),
               ),
           ],
         );
@@ -1176,7 +1176,7 @@ class _SessionsListContentState
                 color: Theme.of(context)
                     .colorScheme
                     .outlineVariant
-                    .withValues(alpha: 0.2),
+                    .withValues(alpha: AppOpacity.soft),
               ),
           ],
         );
