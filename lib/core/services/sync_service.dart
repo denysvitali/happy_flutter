@@ -2963,18 +2963,12 @@ what you have, you must use the options mode.
         profile?.defaultPermissionMode ??
         _settingsSnapshot.lastUsedPermissionMode;
     // Pass the user's last-used model so the daemon writes it into session
-    // metadata and the CLI picks it up via initialModelForAgent().
+    // metadata.  Profile env vars are always forwarded as-is — the profile
+    // defines the backend (API keys, base URLs, model names) and stripping
+    // model env vars would break profiles that configure a specific model
+    // (e.g. Z.AI's GLM-4.6 via ANTHROPIC_MODEL).
     final modelMode = _settingsSnapshot.lastUsedModelMode;
     final useDefaultModel = modelMode == null || modelMode == 'default';
-    // When the user chose "default" model, strip model env vars from the
-    // profile so the agent uses its own built-in default instead of the
-    // profile's configured model.
-    if (useDefaultModel && profileEnvVars != null) {
-      profileEnvVars
-        ..remove('ANTHROPIC_MODEL')
-        ..remove('OPENAI_MODEL')
-        ..remove('TOGETHER_MODEL');
-    }
     final envVars = _spawnEnvironmentVariables(profileEnvVars);
     final req = SpawnSessionRequest(
       type: 'spawn-in-directory',

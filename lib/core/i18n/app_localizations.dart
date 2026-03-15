@@ -50,6 +50,7 @@ class AppLocalizations {
   String get commonCopy => 'Copy';
   String get commonCreate => 'Create';
   String get commonDelete => 'Delete';
+  String get commonReset => 'Reset';
   String get commonSave => 'Save';
   String get commonVersion => 'Version';
   String get commonBack => 'Back';

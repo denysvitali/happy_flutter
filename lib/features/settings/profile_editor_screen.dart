@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/built_in_profiles.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
@@ -163,6 +164,36 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     });
   }
 
+  /// Reset a built-in profile to its factory defaults by removing
+  /// the user's customisation from [Settings.profiles].
+  Future<void> _resetToDefaults() async {
+    final existing = widget.existing;
+    if (existing == null) return;
+
+    final builtIn = getBuiltInProfile(existing.id);
+    if (builtIn == null) return;
+
+    // Remove the user's stored override so resolveProfile falls
+    // back to the immutable built-in definition.
+    final settings = ref.read(settingsNotifierProvider);
+    final updatedProfiles =
+        settings.profiles.where((p) => p.id != existing.id).toList();
+
+    final failedMsg = context.l10n.profilesFailedToSave;
+    try {
+      await ref
+          .read(settingsNotifierProvider.notifier)
+          .updateSetting('profiles', updatedProfiles);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(failedMsg)),
+        );
+      }
+    }
+  }
+
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -177,8 +208,9 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         .toList();
 
     final now = DateTime.now().millisecondsSinceEpoch;
+    final existing = widget.existing;
     final updated = AIBackendProfile(
-      id: widget.existing?.id ?? 'custom_$now',
+      id: existing?.id ?? 'custom_$now',
       name: _nameCtrl.text.trim(),
       description: _descCtrl.text.trim().isEmpty
           ? null
@@ -187,17 +219,26 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
           ? _scriptCtrl.text.trim()
           : null,
       environmentVariables: envVars,
-      isBuiltIn: false,
-      createdAt: widget.existing?.createdAt ?? now,
+      isBuiltIn: existing?.isBuiltIn ?? false,
+      compatibility: existing?.compatibility ??
+          const ProfileCompatibility(),
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     );
 
     final settings = ref.read(settingsNotifierProvider);
     final List<AIBackendProfile> profiles;
-    if (widget.existing != null) {
-      profiles = settings.profiles
-          .map((p) => p.id == updated.id ? updated : p)
-          .toList();
+    if (existing != null) {
+      final alreadyStored =
+          settings.profiles.any((p) => p.id == updated.id);
+      if (alreadyStored) {
+        profiles = settings.profiles
+            .map((p) => p.id == updated.id ? updated : p)
+            .toList();
+      } else {
+        // First time customising a built-in profile — add to list.
+        profiles = [...settings.profiles, updated];
+      }
     } else {
       profiles = [...settings.profiles, updated];
     }
@@ -223,6 +264,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     final tt = Theme.of(context).textTheme;
     final l10n = AppLocalizations.of(context);
     final isEditing = widget.existing != null;
+    final isBuiltIn = widget.existing?.isBuiltIn ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -232,6 +274,11 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
               : l10n.profilesAddProfile,
         ),
         actions: [
+          if (isBuiltIn)
+            TextButton(
+              onPressed: _resetToDefaults,
+              child: Text(l10n.commonReset),
+            ),
           TextButton(
             onPressed: _save,
             child: Text(l10n.commonSave),

@@ -82,9 +82,9 @@ AIBackendProfile? getBuiltInProfile(String id) {
     case 'zai':
       return AIBackendProfile(
         id: 'zai',
-        name: 'Z.AI (GLM-4.6)',
+        name: 'Z.AI (GLM)',
         description:
-            'Z.AI GLM-4.6 via Anthropic-compatible interface',
+            'Z.AI GLM via Anthropic-compatible interface',
         isBuiltIn: true,
         environmentVariables: [
           EnvironmentVariable(

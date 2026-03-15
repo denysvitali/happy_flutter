@@ -61,11 +61,17 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                 },
               ),
               ...builtInProfiles.map((profile) {
+                // Use customised version if user has configured
+                // this built-in profile.
+                final effective = resolveProfile(
+                  profile.id,
+                  customProfiles,
+                );
                 final isSelected =
                     selectedProfileId == profile.id;
                 return _buildProfileRow(
                   context: context,
-                  profile: profile,
+                  profile: effective ?? profile,
                   isSelected: isSelected,
                   onTap: () {
                     ref
@@ -76,6 +82,10 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                           profile.id,
                         );
                   },
+                  onEdit: () => context.pushNamed(
+                    'profile-editor',
+                    extra: effective ?? profile,
+                  ),
                 );
               }),
             ],
