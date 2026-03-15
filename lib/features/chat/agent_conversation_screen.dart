@@ -11,7 +11,7 @@ import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'markdown/markdown.dart';
-import 'tools/known_tools.dart';
+import 'tools/tool_view.dart';
 import 'tools/tool_status_indicator.dart';
 
 /// Full-screen view for a Task (sub-agent) tool call's
@@ -292,92 +292,24 @@ class _AgentConversationScreenState
   }
 
   Widget _buildToolRow(ThemeData theme, Map<String, dynamic> msg, {Key? key}) {
-    final toolName = msg['name'] as String? ?? 'Unknown';
-    final state = msg['state'] as String? ?? 'pending';
-    final toolState = _parseToolState(state);
-
-    final knownTool = KnownTools.get(toolName);
-    var title = toolName;
-    if (knownTool?.extractDescription != null) {
-      title =
-          knownTool!.extractDescription!(
-            msg,
-            _taskMsg?['metadata'] as Map<String, dynamic>?,
-          ) ??
-          toolName;
-    } else if (knownTool?.title is String) {
-      title = knownTool!.title as String;
-    }
-
-    String? subtitle;
-    if (knownTool?.extractSubtitle != null) {
-      subtitle = knownTool!.extractSubtitle!(
-        msg,
-        _taskMsg?['metadata'] as Map<String, dynamic>?,
-      );
-    }
-
-    final icon = KnownTools.iconFor(
-      toolName,
-      16,
-      theme.colorScheme.onSurfaceVariant,
-    );
-
+    // Use full ToolView for detailed tool call display
     return Padding(
       key: key,
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.smd,
-          vertical: AppSpacing.xsm,
-        ),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: AppOpacity.half,
-          ),
-          borderRadius: BorderRadius.circular(AppRadius.xsm),
-        ),
-        child: Row(
-          children: [
-            SizedBox(width: 16, height: 16, child: icon),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontFamily: 'monospace',
-                      fontSize: AppFontSize.sm,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (subtitle != null)
-                    Text(
-                      subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: AppOpacity.high,
-                        ),
-                        fontSize: AppFontSize.xs,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            SizedBox(
-              width: 14,
-              height: 14,
-              child: ToolStatusIndicator(state: toolState, size: 14),
-            ),
-          ],
-        ),
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: ToolView(
+        tool: msg,
+        metadata: _taskMsg?['metadata'] as Map<String, dynamic>?,
+        messages: sync.sessionMessages[widget.sessionId],
+        sessionId: widget.sessionId,
+        isSessionOnline: sync.sessions[widget.sessionId]?.presence == 'online',
+        onPress: () {
+          final msgId = msg['id'] as String?;
+          if (msgId == null) return;
+          context.push(
+            '/chat/${widget.sessionId}/message/$msgId',
+            extra: msg,
+          );
+        },
       ),
     );
   }

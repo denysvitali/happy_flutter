@@ -1125,6 +1125,10 @@ class AppLocalizations {
   String get agentNoMessages => 'No messages yet';
   String get agentFallbackTask => 'Task';
 
+  // Agents list sheet
+  String get agentsListTitle => 'Agents';
+  String get agentsListEmpty => 'No agents running';
+
   // Session file viewer screen
   String get fileViewerNoContent => 'No content available';
   String get fileViewerContentError =>

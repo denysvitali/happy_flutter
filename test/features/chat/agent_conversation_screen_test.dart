@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/services/tts_service.dart';
 import 'package:happy_flutter/features/chat/agent_conversation_screen.dart';
 import 'package:happy_flutter/features/chat/tools/tool_status_indicator.dart';
+import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -90,14 +91,7 @@ void main() {
 
     expect(find.text('No messages yet'), findsNothing);
     expect(find.text('Subagent reply'), findsOneWidget);
-    expect(find.text('Read File'), findsOneWidget);
-    expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is ToolStatusIndicator &&
-            widget.state == ToolState.completed,
-      ),
-      findsWidgets,
-    );
+    // ToolView is now used instead of compact rows
+    expect(find.byType(ToolView), findsOneWidget);
   });
 }

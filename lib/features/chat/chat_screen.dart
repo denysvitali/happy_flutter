@@ -515,6 +515,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           statusText: _getStatusText(context),
           statusColor: _getStatusColor(context),
           isThinking: isThinking,
+          sessionId: widget.sessionId,
           avatarStyle: avatarStyle,
           modelLabel: _modelMode == ClaudeModel.defaultModel
               ? null

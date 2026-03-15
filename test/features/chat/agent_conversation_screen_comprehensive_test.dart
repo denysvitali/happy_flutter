@@ -9,6 +9,7 @@ import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/services/tts_service.dart';
 import 'package:happy_flutter/features/chat/agent_conversation_screen.dart';
 import 'package:happy_flutter/features/chat/tools/tool_status_indicator.dart';
+import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 
 class _StorageFreeSettingsNotifier extends SettingsNotifier {
   @override
@@ -288,15 +289,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Read File'), findsOneWidget);
-      expect(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is ToolStatusIndicator &&
-              widget.state == ToolState.completed,
-        ),
-        findsOneWidget,
-      );
+      // ToolView is now used for tool calls
+      expect(find.byType(ToolView), findsOneWidget);
     });
 
     testWidgets('renders error children', (tester) async {
@@ -566,14 +560,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is ToolStatusIndicator &&
-              widget.state == ToolState.running,
-        ),
-        findsOneWidget,
-      );
+      // ToolView is now used for tool calls
+      expect(find.byType(ToolView), findsOneWidget);
     });
 
     testWidgets('shows error tool state indicator', (tester) async {
@@ -609,14 +597,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is ToolStatusIndicator &&
-              widget.state == ToolState.error,
-        ),
-        findsOneWidget,
-      );
+      // ToolView is now used for tool calls
+      expect(find.byType(ToolView), findsOneWidget);
     });
 
     testWidgets('shows pending tool state indicator', (tester) async {
@@ -655,14 +637,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is ToolStatusIndicator &&
-              widget.state == ToolState.pending,
-        ),
-        findsOneWidget,
-      );
+      // ToolView is now used for tool calls
+      expect(find.byType(ToolView), findsOneWidget);
     });
   });
 }

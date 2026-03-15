@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
+import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import '../../sessions/session_avatar.dart';
+import 'agents_list_sheet.dart';
 
 /// App bar for the chat screen showing session title,
 /// status, model info, and action buttons.
@@ -20,6 +22,7 @@ class ChatAppBar extends StatelessWidget
     required this.isThinking,
     required this.onMenuTap,
     required this.onInfoTap,
+    required this.sessionId,
     this.modelLabel,
     this.avatarStyle,
     super.key,
@@ -32,6 +35,7 @@ class ChatAppBar extends StatelessWidget
   final bool isThinking;
   final VoidCallback onMenuTap;
   final VoidCallback onInfoTap;
+  final String sessionId;
   final String? modelLabel;
   final AvatarStyle? avatarStyle;
 
@@ -41,11 +45,17 @@ class ChatAppBar extends StatelessWidget
 
   @override
   Widget build(BuildContext context) {
+    final activeAgentCount = AgentsListSheet.countActiveAgents(sessionId);
     return AppBar(
       titleSpacing: 0,
       title: _buildTitle(context),
       scrolledUnderElevation: 0.5,
       actions: [
+        // Agents list button with badge
+        _AgentsListButton(
+          activeCount: activeAgentCount,
+          sessionId: sessionId,
+        ),
         _AppBarAction(
           icon: Icons.info_outline_rounded,
           tooltip: context.l10n.chatSessionSettings,
@@ -250,6 +260,84 @@ class _AppBarAction extends StatelessWidget {
         HapticFeedback.selectionClick();
         onPressed();
       },
+    );
+  }
+}
+
+/// Agents list button with badge showing active agent count.
+class _AgentsListButton extends StatelessWidget {
+  const _AgentsListButton({
+    required this.activeCount,
+    required this.sessionId,
+  });
+
+  final int activeCount;
+  final String sessionId;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.rocket_launch_outlined),
+          iconSize: 20,
+          tooltip: l10n.agentsListTitle,
+          style: IconButton.styleFrom(
+            foregroundColor: cs.onSurfaceVariant,
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            minimumSize: const Size(36, 36),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          onPressed: () {
+            HapticFeedback.selectionClick();
+            showModalBottomSheet<void>(
+              context: context,
+              backgroundColor: cs.surface,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(AppRadius.xl),
+                ),
+              ),
+              builder: (context) => AgentsListSheet(
+                sessionId: sessionId,
+              ),
+            );
+          },
+        ),
+        if (activeCount > 0)
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 4,
+                vertical: 1,
+              ),
+              decoration: BoxDecoration(
+                color: cs.error,
+                borderRadius: BorderRadius.circular(AppRadius.xs),
+              ),
+              constraints: const BoxConstraints(
+                minWidth: 14,
+                minHeight: 14,
+              ),
+              child: Text(
+                activeCount > 9 ? '9+' : '$activeCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  height: 1.0,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
