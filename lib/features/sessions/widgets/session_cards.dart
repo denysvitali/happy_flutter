@@ -18,6 +18,10 @@ AvatarStyle? parseAvatarStyle(String? style) {
     'gradient' => AvatarStyle.gradient,
     'pixelated' => AvatarStyle.pixelated,
     'brutalist' => AvatarStyle.brutalist,
+    'geometric' => AvatarStyle.geometric,
+    'rings' => AvatarStyle.rings,
+    'constellation' => AvatarStyle.constellation,
+    'wave' => AvatarStyle.wave,
     _ => null,
   };
 }
@@ -132,6 +136,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
         sessionName: _sessionName,
         sessionSubtitle: _sessionSubtitle,
         lastMessageTimestamp: widget.lastMessageTimestamp,
+        avatarStyle: widget.avatarStyle,
         theme: theme,
         colorScheme: theme.colorScheme,
         onTap: () {
@@ -162,6 +167,7 @@ class _ActiveSessionCardContent extends StatelessWidget {
     required this.onTapDown,
     required this.onTapUp,
     required this.onTapCancel,
+    this.avatarStyle,
   });
 
   final Session session;
@@ -170,6 +176,7 @@ class _ActiveSessionCardContent extends StatelessWidget {
   final String sessionName;
   final String sessionSubtitle;
   final int? lastMessageTimestamp;
+  final AvatarStyle? avatarStyle;
   final ThemeData theme;
   final ColorScheme colorScheme;
   final VoidCallback onTap;
@@ -263,8 +270,7 @@ class _ActiveSessionCardContent extends StatelessWidget {
                                 size: 44,
                                 showFlavorIcon: true,
                                 square: true,
-                                style: AvatarStyle
-                                    .pixelated,
+                                style: avatarStyle,
                               ),
                               if (hasDraft)
                                 const DraftBadge(),
@@ -489,6 +495,7 @@ class _CompactActiveSessionCardState
         lastMessagePreview: widget.lastMessagePreview,
         selectionMode: widget.selectionMode,
         isSelected: widget.isSelected,
+        avatarStyle: widget.avatarStyle,
         theme: theme,
         colorScheme: theme.colorScheme,
         onTap: () {
@@ -525,11 +532,13 @@ class _CompactActiveSessionCardContent
     required this.onTapDown,
     required this.onTapUp,
     required this.onTapCancel,
+    this.avatarStyle,
   });
 
   final Session session;
   final SessionStatus sessionStatus;
   final String avatarId;
+  final AvatarStyle? avatarStyle;
   final String sessionName;
   final bool showFlavorIcon;
   final int? lastMessageTimestamp;
@@ -649,8 +658,7 @@ class _CompactActiveSessionCardContent
                                 showFlavorIcon:
                                     showFlavorIcon,
                                 square: true,
-                                style: AvatarStyle
-                                    .pixelated,
+                                style: avatarStyle,
                               ),
                               if (hasDraft)
                                 const DraftBadge(),
@@ -934,6 +942,7 @@ class _SessionCardState extends State<SessionCard> {
         compact: widget.compact,
         selectionMode: widget.selectionMode,
         isSelected: widget.isSelected,
+        avatarStyle: widget.avatarStyle,
         onLongPress: widget.onLongPress,
         borderRadius: _borderRadius,
         titleColor: _titleColor ?? theme.colorScheme.onSurfaceVariant,
@@ -974,11 +983,13 @@ class _SessionCardContent extends StatelessWidget {
     required this.onTapDown,
     required this.onTapUp,
     required this.onTapCancel,
+    this.avatarStyle,
   });
 
   final Session session;
   final SessionStatus sessionStatus;
   final String avatarId;
+  final AvatarStyle? avatarStyle;
   final String sessionName;
   final String sessionSubtitle;
   final int? lastMessageTimestamp;
@@ -1090,8 +1101,7 @@ class _SessionCardContent extends StatelessWidget {
                                           .isConnected,
                                   showFlavorIcon: true,
                                   square: true,
-                                  style: AvatarStyle
-                                      .pixelated,
+                                  style: avatarStyle,
                                 ),
                                 if (hasDraft)
                                   const DraftBadge(),

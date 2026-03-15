@@ -70,6 +70,10 @@ AvatarStyle? _parseAvatarStyle(String? style) {
     'gradient' => AvatarStyle.gradient,
     'pixelated' => AvatarStyle.pixelated,
     'brutalist' => AvatarStyle.brutalist,
+    'geometric' => AvatarStyle.geometric,
+    'rings' => AvatarStyle.rings,
+    'constellation' => AvatarStyle.constellation,
+    'wave' => AvatarStyle.wave,
     _ => null,
   };
 }

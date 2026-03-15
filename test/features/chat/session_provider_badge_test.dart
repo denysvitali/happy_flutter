@@ -51,11 +51,11 @@ void main() {
     await tester.pumpAndSettle();
 
     final avatar = tester.widget<SessionAvatar>(find.byType(SessionAvatar));
-    expect(avatar.style, AvatarStyle.pixelated);
+    expect(avatar.style, isNull);
     expect(avatar.showFlavorIcon, isTrue);
   });
 
-  testWidgets('session cards use the same pixelated session avatar', (
+  testWidgets('session cards use hash-based avatar style by default', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -72,7 +72,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final avatar = tester.widget<SessionAvatar>(find.byType(SessionAvatar));
-    expect(avatar.style, AvatarStyle.pixelated);
+    expect(avatar.style, isNull);
     expect(avatar.showFlavorIcon, isTrue);
   });
 }

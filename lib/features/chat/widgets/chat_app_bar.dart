@@ -21,6 +21,7 @@ class ChatAppBar extends StatelessWidget
     required this.onMenuTap,
     required this.onInfoTap,
     this.modelLabel,
+    this.avatarStyle,
     super.key,
   });
 
@@ -32,6 +33,7 @@ class ChatAppBar extends StatelessWidget
   final VoidCallback onMenuTap;
   final VoidCallback onInfoTap;
   final String? modelLabel;
+  final AvatarStyle? avatarStyle;
 
   @override
   Size get preferredSize =>
@@ -86,7 +88,7 @@ class ChatAppBar extends StatelessWidget
               size: 34,
               showFlavorIcon: true,
               square: true,
-              style: AvatarStyle.pixelated,
+              style: avatarStyle,
             ),
           ),
           const SizedBox(width: AppSpacing.sm),

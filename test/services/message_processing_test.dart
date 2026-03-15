@@ -683,6 +683,179 @@ void main() {
         expect(children[1]['id'], 'child_2');
       },
     );
+
+    test(
+      'groups 5 agents sharing same assistant uuid '
+      'by toolUseId',
+      () {
+        const sid = 'session_multi_agent';
+        const sharedUuid = 'assistant_uuid_shared';
+
+        // Build 5 Agent tool-calls that share the same
+        // assistant message UUID (as happens when Claude
+        // batches multiple Agent calls in one response).
+        final messages = <Map<String, dynamic>>[];
+        for (var i = 0; i < 5; i++) {
+          messages.add({
+            'id': 'agent_${i}_u$i',
+            'kind': 'tool-call',
+            'name': 'Agent',
+            'toolUseId': 'tool_use_$i',
+            'uuid': sharedUuid,
+            'state': 'running',
+            'input': <String, dynamic>{
+              'description': 'Agent $i task',
+              'prompt': 'Do agent $i work',
+              'subagent_type': 'generic-assistant',
+            },
+          });
+        }
+
+        // Add sidechain-root + child for each agent.
+        // The first sidechain message's parentUuid is the
+        // tool_use_id (set by Go CLI).
+        for (var i = 0; i < 5; i++) {
+          messages.add({
+            'id': 'root_$i',
+            'kind': 'sidechain-root',
+            'isSidechain': true,
+            'uuid': 'root_uuid_$i',
+            'parentUuid': 'tool_use_$i',
+            'prompt': 'Do agent $i work',
+          });
+          messages.add({
+            'id': 'child_${i}_text',
+            'kind': 'text',
+            'isSidechain': true,
+            'uuid': 'child_uuid_$i',
+            'parentUuid': 'root_uuid_$i',
+            'content': 'Reply from agent $i',
+          });
+        }
+
+        instance.testSetSessionMessages(sid, messages);
+        instance.testGroupSidechainMessages(sid);
+
+        final result = instance.messagesForSession(sid);
+        // Only the 5 Agent tool-calls should remain.
+        expect(result, hasLength(5));
+
+        for (var i = 0; i < 5; i++) {
+          expect(result[i]['id'], 'agent_${i}_u$i');
+          final children =
+              result[i]['children'] as List<dynamic>?;
+          expect(
+            children,
+            isNotNull,
+            reason: 'Agent $i should have children',
+          );
+          expect(
+            children,
+            hasLength(1),
+            reason: 'Agent $i should have exactly 1 child',
+          );
+          expect(
+            (children!.first
+                as Map<String, dynamic>)['content'],
+            'Reply from agent $i',
+          );
+        }
+      },
+    );
+
+    test(
+      'groups agents incrementally with toolUseId-based '
+      'parentUuid across streaming arrivals',
+      () {
+        const sid = 'session_multi_incremental';
+        const sharedUuid = 'assistant_uuid_shared';
+
+        // Step 1: 5 Agent tool-calls arrive.
+        final agents = <Map<String, dynamic>>[];
+        for (var i = 0; i < 5; i++) {
+          agents.add({
+            'id': 'agent_$i',
+            'kind': 'tool-call',
+            'name': 'Agent',
+            'toolUseId': 'tu_$i',
+            'uuid': sharedUuid,
+            'state': 'running',
+            'input': <String, dynamic>{
+              'prompt': 'Task $i',
+              'subagent_type': 'generic-assistant',
+            },
+          });
+        }
+        instance.testSetSessionMessages(sid, agents);
+        instance.testGroupSidechainMessages(sid);
+        expect(instance.messagesForSession(sid), hasLength(5));
+
+        // Step 2: Sidechain roots arrive one at a time.
+        for (var i = 0; i < 5; i++) {
+          final msgs = List<Map<String, dynamic>>.from(
+            instance.sessionMessages[sid]!.map(
+              (m) => Map<String, dynamic>.from(m),
+            ),
+          );
+          msgs.add({
+            'id': 'root_$i',
+            'kind': 'sidechain-root',
+            'isSidechain': true,
+            'uuid': 'root_uuid_$i',
+            'parentUuid': 'tu_$i',
+            'prompt': 'Task $i',
+          });
+          instance.testSetSessionMessages(sid, msgs);
+          instance.testGroupSidechainMessages(sid);
+          // Only agent tool-calls should remain.
+          expect(
+            instance.messagesForSession(sid),
+            hasLength(5),
+          );
+        }
+
+        // Step 3: Children arrive one per agent.
+        for (var i = 0; i < 5; i++) {
+          final msgs = List<Map<String, dynamic>>.from(
+            instance.sessionMessages[sid]!.map(
+              (m) => Map<String, dynamic>.from(m),
+            ),
+          );
+          msgs.add({
+            'id': 'child_$i',
+            'kind': 'text',
+            'isSidechain': true,
+            'uuid': 'child_uuid_$i',
+            'parentUuid': 'root_uuid_$i',
+            'content': 'Agent $i response',
+          });
+          instance.testSetSessionMessages(sid, msgs);
+          instance.testGroupSidechainMessages(sid);
+        }
+
+        final result = instance.messagesForSession(sid);
+        expect(result, hasLength(5));
+        for (var i = 0; i < 5; i++) {
+          final children =
+              result[i]['children'] as List<dynamic>?;
+          expect(
+            children,
+            isNotNull,
+            reason: 'Agent $i should have children',
+          );
+          expect(
+            children,
+            hasLength(1),
+            reason: 'Agent $i should have 1 child',
+          );
+          expect(
+            (children!.first
+                as Map<String, dynamic>)['content'],
+            'Agent $i response',
+          );
+        }
+      },
+    );
   });
 
   group('tool result application', () {

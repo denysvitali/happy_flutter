@@ -5828,19 +5828,31 @@ what you have, you must use the options mode.
     if (messages == null || messages.isEmpty) return;
 
     // Pass 1: Find Task tool calls → map stable identifiers to task message ID.
+    // We index by uuid, toolUseId, AND prompt so that sidechain messages
+    // can be matched even when multiple Agent/Task calls share the same
+    // assistant message uuid (common when Claude batches tool calls).
     final uuidToTaskId = <String, String>{};
     final promptToTaskId = <String, String>{};
     for (final msg in messages) {
       if (msg['kind'] == 'tool-call' &&
           (msg['name'] == 'Task' || msg['name'] == 'Agent')) {
+        final taskId = msg['id'] as String;
         final uuid = msg['uuid'] as String?;
         if (uuid != null && uuid.isNotEmpty) {
-          uuidToTaskId[uuid] = msg['id'] as String;
+          uuidToTaskId[uuid] = taskId;
+        }
+        // Also index by toolUseId — the Go CLI sets
+        // parentUuid = tool_use_id for the first sidechain
+        // message, which is unique per tool call even when
+        // multiple Agent/Task calls share one assistant message.
+        final toolUseId = msg['toolUseId'] as String?;
+        if (toolUseId != null && toolUseId.isNotEmpty) {
+          uuidToTaskId[toolUseId] = taskId;
         }
         final input = msg['input'] as Map<String, dynamic>?;
         final prompt = input?['prompt'] as String?;
         if (prompt != null && prompt.isNotEmpty) {
-          promptToTaskId[prompt] = msg['id'] as String;
+          promptToTaskId[prompt] = taskId;
         }
       }
     }
@@ -5858,6 +5870,12 @@ what you have, you must use the options mode.
         final taskUuid = msg['uuid'] as String?;
         if (taskUuid != null && taskUuid.isNotEmpty) {
           uuidToSidechainId[taskUuid] = taskId;
+        }
+        // Also seed by toolUseId so sidechain messages whose
+        // parentUuid is the tool_use_id can be matched.
+        final toolUseId = msg['toolUseId'] as String?;
+        if (toolUseId != null && toolUseId.isNotEmpty) {
+          uuidToSidechainId[toolUseId] = taskId;
         }
         // Recover sidechain-root uuids persisted by previous
         // grouping runs (the roots themselves are removed from
@@ -6009,6 +6027,10 @@ what you have, you must use the options mode.
         if (uuid != null && uuid.isNotEmpty) {
           uuidToTask[uuid] = child;
         }
+        final toolUseId = child['toolUseId'] as String?;
+        if (toolUseId != null && toolUseId.isNotEmpty) {
+          uuidToTask[toolUseId] = child;
+        }
         final input = child['input'] as Map<String, dynamic>?;
         final prompt = input?['prompt'] as String?;
         if (prompt != null && prompt.isNotEmpty) {
@@ -6019,8 +6041,8 @@ what you have, you must use the options mode.
     if (uuidToTask.isEmpty && promptToTask.isEmpty) return;
 
     // Pre-seed uuidToGroupedTask from inner Tasks' own uuids,
-    // persisted sidechain-root uuids, and existing children's
-    // uuids so new arrivals can be matched even after
+    // toolUseIds, persisted sidechain-root uuids, and existing
+    // children's uuids so new arrivals can be matched even after
     // sidechain-roots were removed.
     final uuidToGroupedTask = <String, Map<String, dynamic>>{};
     for (final child in children) {
@@ -6029,6 +6051,10 @@ what you have, you must use the options mode.
         final taskUuid = child['uuid'] as String?;
         if (taskUuid != null && taskUuid.isNotEmpty) {
           uuidToGroupedTask[taskUuid] = child;
+        }
+        final toolUseId = child['toolUseId'] as String?;
+        if (toolUseId != null && toolUseId.isNotEmpty) {
+          uuidToGroupedTask[toolUseId] = child;
         }
         final rootUuids =
             child['_sidechainRootUuids'] as List<dynamic>?;

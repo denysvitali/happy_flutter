@@ -17,6 +17,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'chat_input.dart';
 import 'message_widget.dart';
+import '../sessions/widgets/session_cards.dart'
+    show parseAvatarStyle;
 import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_loading_shimmer.dart';
 import 'widgets/empty_chat_view.dart';
@@ -497,6 +499,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           statusText: _getStatusText(context),
           statusColor: _getStatusColor(context),
           isThinking: isThinking,
+          avatarStyle: parseAvatarStyle(
+            ref
+                .watch(settingsNotifierProvider)
+                .avatarStyle,
+          ),
           modelLabel: _modelMode == ClaudeModel.defaultModel
               ? null
               : _modelMode.label,
