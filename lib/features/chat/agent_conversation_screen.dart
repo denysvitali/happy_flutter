@@ -248,7 +248,7 @@ class _AgentConversationScreenState
 
     if (kind == 'tool-call') {
       final toolName = msg['name'] as String? ?? '';
-      if (toolName == 'Task') {
+      if (toolName == 'Task' || toolName == 'Agent') {
         return _buildNestedTaskRow(theme, msg, key: key);
       }
       return _buildToolRow(theme, msg, key: key);

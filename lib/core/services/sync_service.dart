@@ -5685,9 +5685,34 @@ what you have, you must use the options mode.
     }
     if (uuidToTaskId.isEmpty && promptToTaskId.isEmpty) return;
 
+    // Pre-seed uuidToSidechainId from Task uuids and already-grouped
+    // children so that new sidechain messages arriving after the
+    // sidechain-root was removed can still be matched.
+    final uuidToSidechainId = <String, String>{};
+    for (final msg in messages) {
+      if (msg['kind'] == 'tool-call' &&
+          (msg['name'] == 'Task' || msg['name'] == 'Agent')) {
+        final taskId = msg['id'] as String;
+        final taskUuid = msg['uuid'] as String?;
+        if (taskUuid != null && taskUuid.isNotEmpty) {
+          uuidToSidechainId[taskUuid] = taskId;
+        }
+        final existing = msg['children'] as List<dynamic>?;
+        if (existing != null) {
+          for (final child in existing) {
+            if (child is Map<String, dynamic>) {
+              final childUuid = child['uuid'] as String?;
+              if (childUuid != null && childUuid.isNotEmpty) {
+                uuidToSidechainId[childUuid] = taskId;
+              }
+            }
+          }
+        }
+      }
+    }
+
     // Pass 2: Combined pass to find sidechain roots and group
     // child messages in a single iteration
-    final uuidToSidechainId = <String, String>{};
     final sidechainChildren = <String, List<Map<String, dynamic>>>{};
     final sidechainMsgIds = <String>{};
 
@@ -5732,7 +5757,25 @@ what you have, you must use the options mode.
       if (sidechainMsgIds.contains(msgId)) continue;
 
       if (sidechainChildren.containsKey(msgId)) {
-        msg['children'] = sidechainChildren[msgId];
+        final existing = msg['children'] as List<dynamic>?;
+        if (existing != null && existing.isNotEmpty) {
+          // Merge: append new children, skip duplicates.
+          final existingIds = <String>{};
+          for (final c in existing) {
+            if (c is Map<String, dynamic>) {
+              final id = c['id'] as String?;
+              if (id != null) existingIds.add(id);
+            }
+          }
+          for (final newChild in sidechainChildren[msgId]!) {
+            final newId = newChild['id'] as String?;
+            if (newId == null || !existingIds.contains(newId)) {
+              existing.add(newChild);
+            }
+          }
+        } else {
+          msg['children'] = sidechainChildren[msgId];
+        }
       }
       filtered.add(msg);
     }
@@ -5777,8 +5820,32 @@ what you have, you must use the options mode.
     }
     if (uuidToTask.isEmpty && promptToTask.isEmpty) return;
 
-    // Find sidechain-root messages matching inner Tasks.
+    // Pre-seed uuidToGroupedTask from inner Tasks' own uuids
+    // and existing children's uuids so new arrivals can be
+    // matched even after sidechain-roots were removed.
     final uuidToGroupedTask = <String, Map<String, dynamic>>{};
+    for (final child in children) {
+      if (child['kind'] == 'tool-call' &&
+          (child['name'] == 'Task' || child['name'] == 'Agent')) {
+        final taskUuid = child['uuid'] as String?;
+        if (taskUuid != null && taskUuid.isNotEmpty) {
+          uuidToGroupedTask[taskUuid] = child;
+        }
+        final existingChildren = child['children'] as List<dynamic>?;
+        if (existingChildren != null) {
+          for (final ec in existingChildren) {
+            if (ec is Map<String, dynamic>) {
+              final ecUuid = ec['uuid'] as String?;
+              if (ecUuid != null && ecUuid.isNotEmpty) {
+                uuidToGroupedTask[ecUuid] = child;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Find sidechain-root messages matching inner Tasks.
     final toRemove = <int>{};
 
     for (var i = 0; i < children.length; i++) {
@@ -5796,8 +5863,6 @@ what you have, you must use the options mode.
         }
       }
     }
-
-    if (uuidToGroupedTask.isEmpty) return;
 
     // Group sidechain children under their inner Tasks.
     final taskChildren = <String, List<Map<String, dynamic>>>{};
@@ -5819,13 +5884,32 @@ what you have, you must use the options mode.
       }
     }
 
-    // Attach children to inner Tasks.
+    // Attach children to inner Tasks (merge with existing).
     for (final entry in taskChildren.entries) {
       for (final child in children) {
         if (child['id'] == entry.key) {
-          child['children'] = entry.value;
-          // Recurse for deeper nesting.
-          _regroupNestedTasks(entry.value);
+          final existing = child['children'] as List<dynamic>?;
+          if (existing != null && existing.isNotEmpty) {
+            final existingIds = <String>{};
+            for (final c in existing) {
+              if (c is Map<String, dynamic>) {
+                final id = c['id'] as String?;
+                if (id != null) existingIds.add(id);
+              }
+            }
+            for (final newChild in entry.value) {
+              final newId = newChild['id'] as String?;
+              if (newId == null || !existingIds.contains(newId)) {
+                existing.add(newChild);
+              }
+            }
+            _regroupNestedTasks(
+              existing.cast<Map<String, dynamic>>(),
+            );
+          } else {
+            child['children'] = entry.value;
+            _regroupNestedTasks(entry.value);
+          }
           break;
         }
       }
