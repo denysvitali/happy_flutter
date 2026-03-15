@@ -439,7 +439,7 @@ what you have, you must use the options mode.
   ) {
     _sessionMessages[sessionId] = List<Map<String, dynamic>>.from(messages);
     _sessionMessagesCache = null;
-    _sessionMessagesViewCache.clear();
+    _sessionMessagesViewCache.remove(sessionId);
   }
 
   @visibleForTesting
@@ -1162,7 +1162,7 @@ what you have, you must use the options mode.
       _loadingOlderMessages.remove(sessionId);
       _sessionMessages.remove(sessionId);
       _sessionMessagesCache = null;
-      _sessionMessagesViewCache.clear();
+      _sessionMessagesViewCache.remove(sessionId);
       _todoLists.remove(sessionId);
       _sessions.remove(sessionId);
       _presenceTimers.remove(sessionId)?.cancel();
@@ -4011,7 +4011,7 @@ what you have, you must use the options mode.
       if (m['localId'] == localId || m['id'] == localId) {
         msgs[i] = {...m, 'sendStatus': status};
         _sessionMessagesCache = null;
-        _sessionMessagesViewCache.clear();
+        _sessionMessagesViewCache.remove(sessionId);
         break;
       }
     }
@@ -4294,7 +4294,7 @@ what you have, you must use the options mode.
       if (changed) {
         _sessionMessages[sessionId] = updated;
         _sessionMessagesCache = null;
-        _sessionMessagesViewCache.clear();
+        _sessionMessagesViewCache.remove(sessionId);
       }
     }
     if (hadRequests || messages != null) {
@@ -4462,7 +4462,7 @@ what you have, you must use the options mode.
       if (cached.isNotEmpty) {
         _sessionMessages[sessionId] = cached;
         _sessionMessagesCache = null;
-        _sessionMessagesViewCache.clear();
+        _sessionMessagesViewCache.remove(sessionId);
         hasMessages = true;
         // Notify UI immediately so it can render the cached messages.
         _notifySessionMessagesChanged(sessionId);
@@ -6107,7 +6107,7 @@ what you have, you must use the options mode.
 
     _sessionMessages[sessionId] = filtered;
     _sessionMessagesCache = null;
-    _sessionMessagesViewCache.clear();
+    _sessionMessagesViewCache.remove(sessionId);
 
     // Pass 4: Recursively group nested Task children.
     // After pass 3, inner Task tool-calls appear in their
@@ -6306,7 +6306,7 @@ what you have, you must use the options mode.
     if (changed) {
       _sessionMessages[sessionId] = updated;
       _sessionMessagesCache = null;
-      _sessionMessagesViewCache.clear();
+      _sessionMessagesViewCache.remove(sessionId);
     }
   }
 
@@ -6501,7 +6501,7 @@ what you have, you must use the options mode.
     if (changed) {
       _sessionMessages[sessionId] = updated;
       _sessionMessagesCache = null;
-      _sessionMessagesViewCache.clear();
+      _sessionMessagesViewCache.remove(sessionId);
     }
   }
 
@@ -6623,7 +6623,7 @@ what you have, you must use the options mode.
         );
       }
       _sessionMessagesCache = null;
-      _sessionMessagesViewCache.clear();
+      _sessionMessagesViewCache.remove(sessionId);
       return;
     }
 
@@ -6712,7 +6712,7 @@ what you have, you must use the options mode.
       );
     }
     _sessionMessagesCache = null;
-    _sessionMessagesViewCache.clear();
+    _sessionMessagesViewCache.remove(sessionId);
   }
 
   /// Suspend the sync engine when the app goes to the background.
