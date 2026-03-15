@@ -33,6 +33,7 @@ import '../models/session.dart';
 import '../models/settings.dart';
 import '../models/todo.dart';
 import '../rpc/rpc_types.dart';
+import '../services/message_outbox.dart';
 import '../services/mmkv_storage.dart';
 import '../services/server_config.dart';
 import '../utils/invalidate_sync.dart';
@@ -366,6 +367,7 @@ what you have, you must use the options mode.
   int _dataChangeCounter = 0;
   Timer? _saveSeqDebounceTimer;
   Timer? _saveSessionsCacheDebounceTimer;
+  final Map<String, Timer> _saveMsgsDebounceTimers = {};
   final Map<String, Timer> _postSendCatchUpTimers = {};
   final Set<String> _sessionsNeedingTailRefresh = <String>{};
 
@@ -661,6 +663,19 @@ what you have, you must use the options mode.
     } catch (error) {
       logger.warning('Failed initial ready sync', error);
     }
+
+    // Configure and restore the message outbox after sync is ready so
+    // the encryption context is available for re-sends.
+    messageOutbox.configure(
+      deliver: _deliverOutboxEntry,
+      onStatusChanged: (sessionId, localId, status) {
+        _updateMessageSendStatus(sessionId, localId, status);
+        if (!_sessionMessageChangeController.isClosed) {
+          _sessionMessageChangeController.add(sessionId);
+        }
+      },
+    );
+    unawaited(messageOutbox.restoreAndFlush());
   }
 
   /// Invalidate all sync managers
@@ -724,6 +739,8 @@ what you have, you must use the options mode.
         }
       },
     );
+    // Persist updated messages to MMKV for instant cold-start load.
+    _scheduleSaveMessages(sessionId);
   }
 
   /// Debounced MMKV persist for session seq cursors.
@@ -737,6 +754,24 @@ what you have, you must use the options mode.
     _saveSeqDebounceTimer = Timer(const Duration(milliseconds: 500), () {
       MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     });
+  }
+
+  /// Debounced MMKV persist for a single session's message list.
+  ///
+  /// Batches rapid upserts (e.g. streaming tokens) into one disk write
+  /// per session every 500 ms, keeping only the last 50 messages.
+  void _scheduleSaveMessages(String sessionId) {
+    _saveMsgsDebounceTimers[sessionId]?.cancel();
+    _saveMsgsDebounceTimers[sessionId] = Timer(
+      const Duration(milliseconds: 500),
+      () {
+        _saveMsgsDebounceTimers.remove(sessionId);
+        final msgs = _sessionMessages[sessionId];
+        if (msgs != null) {
+          MMKVStorage().saveSessionMessages(sessionId, msgs);
+        }
+      },
+    );
   }
 
   void _scheduleSaveSessionsCache() {
@@ -1133,6 +1168,8 @@ what you have, you must use the options mode.
         MMKVStorage().saveSessionFirstLoadedSeq(
           Map.unmodifiable(_sessionFirstLoadedSeq),
         );
+        _saveMsgsDebounceTimers.remove(sessionId)?.cancel();
+        MMKVStorage().clearSessionMessages(sessionId);
         encryption.removeSessionEncryption(sessionId);
       }
     }
@@ -3833,12 +3870,124 @@ what you have, you must use the options mode.
     } catch (e, stack) {
       logger.error('[sendMessage] error sending', e, stack);
       if (!sent) {
-        _updateMessageSendStatus(targetSessionId, localId, 'failed');
+        // Queue in the outbox for automatic retry with backoff.
+        final entry = OutboxEntry(
+          localId: localId,
+          sessionId: targetSessionId,
+          text: text,
+          encryptedContent: encryptedRawRecord,
+          rawRecord: rawRecord,
+          queuedAt: DateTime.now().millisecondsSinceEpoch,
+        );
+        unawaited(messageOutbox.add(entry));
+        // The outbox onStatusChanged callback sets 'pending' status.
       }
     }
-    // Notify so the UI picks up status changes (sent/failed).
+    // Notify so the UI picks up status changes (sent/failed/pending).
     if (!_sessionMessageChangeController.isClosed) {
       _sessionMessageChangeController.add(targetSessionId);
+    }
+  }
+
+  /// Outbox delivery callback: re-attempt a single queued message.
+  ///
+  /// Returns `true` on success, `false` to schedule a retry.
+  Future<bool> _deliverOutboxEntry(OutboxEntry entry) async {
+    if (!isInitialized) return false;
+
+    final apiClient = ApiClient();
+    try {
+      final response = await apiClient.post(
+        '/v3/sessions/${entry.sessionId}/messages',
+        data: {
+          'messages': [
+            {
+              'content': entry.encryptedContent,
+              'localId': entry.localId,
+            },
+          ],
+        },
+      );
+
+      if (!apiClient.isSuccess(response)) {
+        logger.warning(
+          '[MessageOutbox] re-send failed '
+          'status=${response.statusCode} '
+          'localId=${entry.localId}',
+        );
+        return false;
+      }
+
+      final data = response.data as Map<String, dynamic>?;
+      final serverMessages =
+          (data?['messages'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .toList();
+
+      Map<String, dynamic>? ackedMsg;
+      for (final msg in serverMessages) {
+        if (msg['localId'] == entry.localId) {
+          ackedMsg = msg;
+          break;
+        }
+      }
+
+      if (ackedMsg != null) {
+        final serverId = ackedMsg['id'] as String?;
+        final serverSeq = _asInt(ackedMsg['seq']);
+        final serverCreatedAt = _asInt(ackedMsg['createdAt']);
+        if (serverId != null &&
+            serverSeq != null &&
+            serverCreatedAt != null) {
+          _upsertSessionMessages(entry.sessionId, [
+            {
+              'id': serverId,
+              'localId': entry.localId,
+              'seq': serverSeq,
+              'createdAt': serverCreatedAt,
+              'role': 'user',
+              'kind': 'text',
+              'content': entry.text,
+              'raw': entry.rawRecord,
+              'sendStatus': 'sent',
+            },
+          ]);
+        }
+        if (_isSocketConnected()) {
+          _socketSend('message', {
+            'sid': entry.sessionId,
+            'message': entry.encryptedContent,
+            'localId': entry.localId,
+          });
+        }
+        if (messagesSync.containsKey(entry.sessionId)) {
+          _startPostSendCatchUp(
+            entry.sessionId,
+            stopAfterSeq: serverSeq ?? 0,
+          );
+        }
+        logger.info(
+          '[MessageOutbox] delivered localId=${entry.localId} '
+          'session=${entry.sessionId}',
+        );
+        return true;
+      }
+
+      // Server accepted but no localId ack — treat as sent to avoid
+      // duplicate sends.
+      logger.warning(
+        '[MessageOutbox] no localId ack '
+        'localId=${entry.localId} — treating as delivered',
+      );
+      return true;
+    } catch (e, stack) {
+      logger.error(
+        '[MessageOutbox] delivery attempt threw '
+        'localId=${entry.localId}',
+        e,
+        stack,
+      );
+      return false;
     }
   }
 
@@ -4296,10 +4445,22 @@ what you have, you must use the options mode.
     // (first open or after restart).  When messages are already loaded the
     // incremental delta path (afterSeq = _sessionLastSeq) is sufficient and
     // avoids re-downloading the last 200 messages on every navigation.
-    final hasMessages =
+    var hasMessages =
         _sessionMessages.containsKey(sessionId) &&
         (_sessionMessages[sessionId]?.isNotEmpty ?? false);
     if (!hasMessages) {
+      // Restore from MMKV cache so the UI shows messages immediately
+      // while the HTTP fetch is in flight.
+      final cached = MMKVStorage().getSessionMessages(sessionId);
+      if (cached.isNotEmpty) {
+        _sessionMessages[sessionId] = cached;
+        _sessionMessagesCache = null;
+        _sessionMessagesViewCache.clear();
+        hasMessages = true;
+        // Notify UI immediately so it can render the cached messages.
+        _notifySessionMessagesChanged(sessionId);
+        _notifyDataChanged();
+      }
       _requestTailRefresh(sessionId);
     }
     if (!messagesSync.containsKey(sessionId)) {
@@ -5685,9 +5846,10 @@ what you have, you must use the options mode.
     }
     if (uuidToTaskId.isEmpty && promptToTaskId.isEmpty) return;
 
-    // Pre-seed uuidToSidechainId from Task uuids and already-grouped
-    // children so that new sidechain messages arriving after the
-    // sidechain-root was removed can still be matched.
+    // Pre-seed uuidToSidechainId from Task uuids, persisted
+    // sidechain-root uuids, and already-grouped children so that
+    // new sidechain messages arriving after the sidechain-root
+    // was removed can still be matched.
     final uuidToSidechainId = <String, String>{};
     for (final msg in messages) {
       if (msg['kind'] == 'tool-call' &&
@@ -5697,6 +5859,19 @@ what you have, you must use the options mode.
         if (taskUuid != null && taskUuid.isNotEmpty) {
           uuidToSidechainId[taskUuid] = taskId;
         }
+        // Recover sidechain-root uuids persisted by previous
+        // grouping runs (the roots themselves are removed from
+        // the message list, so their uuids would otherwise be
+        // lost on subsequent streaming calls).
+        final rootUuids =
+            msg['_sidechainRootUuids'] as List<dynamic>?;
+        if (rootUuids != null) {
+          for (final ru in rootUuids) {
+            if (ru is String && ru.isNotEmpty) {
+              uuidToSidechainId[ru] = taskId;
+            }
+          }
+        }
         final existing = msg['children'] as List<dynamic>?;
         if (existing != null) {
           for (final child in existing) {
@@ -5704,6 +5879,15 @@ what you have, you must use the options mode.
               final childUuid = child['uuid'] as String?;
               if (childUuid != null && childUuid.isNotEmpty) {
                 uuidToSidechainId[childUuid] = taskId;
+              }
+              // Also seed from child's parentUuid — this
+              // covers intermediate chain links that aren't
+              // the Task uuid or a sibling uuid.
+              final childParentUuid =
+                  child['parentUuid'] as String?;
+              if (childParentUuid != null &&
+                  childParentUuid.isNotEmpty) {
+                uuidToSidechainId[childParentUuid] = taskId;
               }
             }
           }
@@ -5728,6 +5912,20 @@ what you have, you must use the options mode.
         if (sidechainId != null) {
           if (uuid != null) {
             uuidToSidechainId[uuid] = sidechainId;
+            // Persist the root's uuid on the Task so the
+            // pre-seed can recover the chain after this root
+            // is removed from the message list.
+            for (final m in messages) {
+              if (m['id'] == sidechainId) {
+                final roots = (m['_sidechainRootUuids']
+                        as List<dynamic>?) ??
+                    <String>[];
+                if (!roots.contains(uuid)) {
+                  m['_sidechainRootUuids'] = [...roots, uuid];
+                }
+                break;
+              }
+            }
           }
           sidechainMsgIds.add(msg['id'] as String);
         }
@@ -5820,9 +6018,10 @@ what you have, you must use the options mode.
     }
     if (uuidToTask.isEmpty && promptToTask.isEmpty) return;
 
-    // Pre-seed uuidToGroupedTask from inner Tasks' own uuids
-    // and existing children's uuids so new arrivals can be
-    // matched even after sidechain-roots were removed.
+    // Pre-seed uuidToGroupedTask from inner Tasks' own uuids,
+    // persisted sidechain-root uuids, and existing children's
+    // uuids so new arrivals can be matched even after
+    // sidechain-roots were removed.
     final uuidToGroupedTask = <String, Map<String, dynamic>>{};
     for (final child in children) {
       if (child['kind'] == 'tool-call' &&
@@ -5831,13 +6030,29 @@ what you have, you must use the options mode.
         if (taskUuid != null && taskUuid.isNotEmpty) {
           uuidToGroupedTask[taskUuid] = child;
         }
-        final existingChildren = child['children'] as List<dynamic>?;
+        final rootUuids =
+            child['_sidechainRootUuids'] as List<dynamic>?;
+        if (rootUuids != null) {
+          for (final ru in rootUuids) {
+            if (ru is String && ru.isNotEmpty) {
+              uuidToGroupedTask[ru] = child;
+            }
+          }
+        }
+        final existingChildren =
+            child['children'] as List<dynamic>?;
         if (existingChildren != null) {
           for (final ec in existingChildren) {
             if (ec is Map<String, dynamic>) {
               final ecUuid = ec['uuid'] as String?;
               if (ecUuid != null && ecUuid.isNotEmpty) {
                 uuidToGroupedTask[ecUuid] = child;
+              }
+              final ecParentUuid =
+                  ec['parentUuid'] as String?;
+              if (ecParentUuid != null &&
+                  ecParentUuid.isNotEmpty) {
+                uuidToGroupedTask[ecParentUuid] = child;
               }
             }
           }
@@ -5859,6 +6074,14 @@ what you have, you must use the options mode.
             : (prompt != null ? promptToTask[prompt] : null);
         if (task != null && uuid != null) {
           uuidToGroupedTask[uuid] = task;
+          // Persist root uuid on the inner Task so the
+          // pre-seed can recover it after removal.
+          final roots = (task['_sidechainRootUuids']
+                  as List<dynamic>?) ??
+              <String>[];
+          if (!roots.contains(uuid)) {
+            task['_sidechainRootUuids'] = [...roots, uuid];
+          }
           toRemove.add(i);
         }
       }
@@ -6469,6 +6692,10 @@ what you have, you must use the options mode.
     _friendRequests.clear();
     _feedItems.clear();
     _artifacts.clear();
+    for (final timer in _saveMsgsDebounceTimers.values) {
+      timer.cancel();
+    }
+    _saveMsgsDebounceTimers.clear();
     _sessionMessages.clear();
     _sessionMessagesCache = null;
     _sessionMessagesViewCache.clear();
@@ -6487,6 +6714,8 @@ what you have, you must use the options mode.
     _isReady = false;
     _connectionStatus = ConnectionStatus.disconnected;
     isInitialized = false;
+    // Dispose the outbox so retry timers don't fire after logout.
+    messageOutbox.dispose();
   }
 }
 
