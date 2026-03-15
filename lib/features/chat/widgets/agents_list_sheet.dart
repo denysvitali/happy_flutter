@@ -66,16 +66,6 @@ class AgentsListSheet extends StatelessWidget {
       expand: false,
       builder: (context, scrollController) => Column(
         children: [
-          // Drag handle
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(AppRadius.xxs),
-            ),
-          ),
           // Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),

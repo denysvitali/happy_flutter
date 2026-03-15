@@ -507,17 +507,6 @@ class _ToolDetailBottomSheet extends StatelessWidget {
 
     return Column(
       children: [
-        // Drag handle
-        Container(
-          margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          width: AppSpacing.xxxl,
-          height: AppSpacing.xs,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.onSurfaceVariant
-                .withValues(alpha: AppOpacity.medium),
-            borderRadius: BorderRadius.circular(AppRadius.xxs),
-          ),
-        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           child: Row(

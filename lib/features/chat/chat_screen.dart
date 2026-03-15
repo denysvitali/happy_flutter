@@ -331,7 +331,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _seenMessageIds.add(_messageKey(m));
         }
         _prevSeenLength = latestMessages.length;
-      } else if (_initialLoadComplete) {
+      } else if (messagesChanged && latestMessages.isNotEmpty) {
+        // Cached messages arrived from MMKV (via onSessionVisible) — dismiss
+        // the shimmer immediately instead of waiting for the HTTP round-trip.
+        _isLoadingMessages = false;
+        if (!_initialLoadComplete) {
+          // First time we see messages (from cache) — mark them as seen so
+          // they don't animate. Only genuinely new messages should animate.
+          for (final m in latestMessages) {
+            _seenMessageIds.add(_messageKey(m));
+          }
+          _prevSeenLength = latestMessages.length;
+        }
+      }
+      if (_initialLoadComplete) {
         final oldLen = _prevSeenLength;
         final newLen = latestMessages.length;
         if (newLen > oldLen) {
@@ -672,22 +685,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Center(
-              child: Container(
-                width: 32,
-                height: 4,
-                margin: const EdgeInsets.only(
-                  top: AppSpacing.sm,
-                  bottom: AppSpacing.md,
-                ),
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(
-                    alpha: AppOpacity.subtle,
-                  ),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
             ListTile(
               leading: Icon(
                 Icons.settings_outlined,

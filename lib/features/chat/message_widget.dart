@@ -731,17 +731,6 @@ void _showMessageDetailSheet(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 5,
-                margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.xxs),
-                ),
-              ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg,
@@ -893,16 +882,6 @@ void _showRawMarkdownSheet(BuildContext context, String markdown) {
       expand: false,
       builder: (ctx, scrollController) => Column(
         children: [
-          // Drag handle
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            width: 32,
-            height: 4,
-            decoration: BoxDecoration(
-              color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(AppRadius.xxs),
-            ),
-          ),
           // Header row
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -1066,16 +1045,6 @@ class _ErrorMessageWidget extends StatelessWidget {
         expand: false,
         builder: (ctx, scrollController) => Column(
           children: [
-            // Drag handle
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              width: 32,
-              height: 4,
-              decoration: BoxDecoration(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(AppRadius.xxs),
-              ),
-            ),
             // Header row
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),

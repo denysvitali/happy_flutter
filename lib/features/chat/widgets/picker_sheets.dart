@@ -96,17 +96,6 @@ void showModelPickerSheet(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 5,
-                margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(2.5),
-                ),
-              ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg,
@@ -231,17 +220,6 @@ void showProfilePickerSheet(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 5,
-                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: cs.onSurface.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(2.5),
-                  ),
-                ),
-              ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg,
