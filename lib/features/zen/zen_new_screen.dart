@@ -28,6 +28,7 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
   String _priority = 'medium';
   bool _isSaving = false;
   StreamSubscription<void>? _syncSubscription;
+  int _lastDataChangeCounter = 0;
 
   static const List<String> _priorities = [
     'low',
@@ -46,6 +47,9 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
     });
     _syncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
+      final counter = sync.dataChangeCounter;
+      if (counter == _lastDataChangeCounter) return;
+      _lastDataChangeCounter = counter;
       ref.read(todoStateNotifierProvider.notifier).loadFromSync();
     });
   }

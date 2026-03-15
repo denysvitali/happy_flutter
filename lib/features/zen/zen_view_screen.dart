@@ -39,6 +39,7 @@ class ZenViewScreen extends ConsumerStatefulWidget {
 class _ZenViewScreenState
     extends ConsumerState<ZenViewScreen> {
   StreamSubscription<void>? _syncSubscription;
+  int _lastDataChangeCounter = 0;
 
   @override
   void initState() {
@@ -50,6 +51,9 @@ class _ZenViewScreenState
     });
     _syncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
+      final counter = sync.dataChangeCounter;
+      if (counter == _lastDataChangeCounter) return;
+      _lastDataChangeCounter = counter;
       ref
           .read(todoStateNotifierProvider.notifier)
           .loadFromSync();

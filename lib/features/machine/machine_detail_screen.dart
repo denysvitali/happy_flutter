@@ -33,6 +33,7 @@ class MachineDetailScreen extends ConsumerStatefulWidget {
 
 class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
   StreamSubscription<void>? _syncSubscription;
+  int _lastDataChangeCounter = 0;
 
   @override
   void initState() {
@@ -42,6 +43,9 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen> {
     });
     _syncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
+      final counter = sync.dataChangeCounter;
+      if (counter == _lastDataChangeCounter) return;
+      _lastDataChangeCounter = counter;
       ref.read(machinesNotifierProvider.notifier).loadFromSync();
     });
   }

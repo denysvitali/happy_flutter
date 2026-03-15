@@ -25,6 +25,7 @@ class MachinesScreen extends ConsumerStatefulWidget {
 class _MachinesScreenState extends ConsumerState<MachinesScreen> {
   StreamSubscription<void>? _syncSubscription;
   final Set<String> _deletingMachineIds = <String>{};
+  int _lastDataChangeCounter = 0;
 
   @override
   void initState() {
@@ -36,6 +37,9 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen> {
       if (!mounted) {
         return;
       }
+      final counter = sync.dataChangeCounter;
+      if (counter == _lastDataChangeCounter) return;
+      _lastDataChangeCounter = counter;
       ref.read(machinesNotifierProvider.notifier).loadFromSync();
     });
   }

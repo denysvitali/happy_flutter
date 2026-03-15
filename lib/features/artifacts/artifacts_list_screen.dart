@@ -27,6 +27,7 @@ class _ArtifactsListScreenState
   String _searchQuery = '';
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
+  int _lastDataChangeCounter = 0;
 
   @override
   void initState() {
@@ -39,6 +40,9 @@ class _ArtifactsListScreenState
     });
     _syncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
+      final counter = sync.dataChangeCounter;
+      if (counter == _lastDataChangeCounter) return;
+      _lastDataChangeCounter = counter;
       ref
           .read(artifactsNotifierProvider.notifier)
           .loadFromSync();
