@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/settings.dart';
 import '../../core/services/draft_storage.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_input_buttons.dart';
@@ -447,7 +448,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildCardInputArea(context),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: AppSpacing.smd),
                   InputToolbar(
                     permissionMode: widget.permissionMode,
                     onPermissionModeChanged: widget.onPermissionModeChanged,
@@ -482,7 +483,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
     return AnimatedContainer(
       duration: kBorderAnimDuration,
-      curve: Curves.easeInOut,
+      curve: AppCurve.standard,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: cardColor,
@@ -501,7 +502,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
         children: [
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                vertical: AppSpacing.xs,
+              ),
               child: _buildTextField(context),
             ),
           ),
@@ -522,7 +525,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
   Widget _buildTextField(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final hintColor = cs.onSurface.withValues(alpha: 0.3);
+    final hintColor = cs.onSurface.withValues(
+      alpha: AppOpacity.medium,
+    );
     final l10n = AppLocalizations.of(context);
 
     return TextField(

@@ -537,14 +537,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         opacity: (!_autoScroll && !_isLoadingMessages)
                             ? 1.0
                             : 0.0,
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeInOut,
+                        duration: AppDuration.normal,
+                        curve: AppCurve.standard,
                         child: AnimatedScale(
                           scale: (!_autoScroll && !_isLoadingMessages)
                               ? 1.0
                               : 0.8,
-                          duration: const Duration(milliseconds: 200),
-                          curve: Curves.easeInOut,
+                          duration: AppDuration.normal,
+                          curve: AppCurve.standard,
                           child: Align(
                             alignment: Alignment.bottomCenter,
                             child: Padding(
@@ -655,7 +655,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   bottom: AppSpacing.md,
                 ),
                 decoration: BoxDecoration(
-                  color: cs.onSurface.withValues(alpha: 0.12),
+                  color: cs.onSurface.withValues(
+                    alpha: AppOpacity.subtle,
+                  ),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -796,7 +798,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     strokeWidth: 1.5,
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                    ).colorScheme.onSurfaceVariant.withValues(
+                      alpha: AppOpacity.medium,
+                    ),
                   ),
                 ),
               ),
@@ -866,12 +870,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final cs = Theme.of(context).colorScheme;
     return Padding(
       key: const ValueKey('header-beginning'),
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpacing.xl,
+        horizontal: AppSpacing.xxl,
+      ),
       child: Center(
         child: Text(
           context.l10n.chatBeginningOfConversation,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+            color: cs.onSurfaceVariant.withValues(
+              alpha: AppOpacity.half,
+            ),
           ),
         ),
       ),
@@ -880,7 +889,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _buildClearedDivider(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final labelColor = cs.onSurfaceVariant.withValues(alpha: 0.45);
+    final labelColor = cs.onSurfaceVariant.withValues(
+      alpha: AppOpacity.half,
+    );
     return Padding(
       key: const ValueKey('cleared-divider'),
       padding: const EdgeInsets.symmetric(
@@ -891,25 +902,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         children: [
           Expanded(
             child: Container(
-              height: 1,
-              color: labelColor.withValues(alpha: 0.3),
+              height: AppBorder.thin,
+              color: labelColor.withValues(
+                alpha: AppOpacity.medium,
+              ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+            ),
             child: Text(
               context.l10n.chatConversationCleared,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: labelColor,
-                fontSize: 10,
+                fontSize: AppFontSize.xxs,
                 letterSpacing: 0.5,
               ),
             ),
           ),
           Expanded(
             child: Container(
-              height: 1,
-              color: labelColor.withValues(alpha: 0.3),
+              height: AppBorder.thin,
+              color: labelColor.withValues(
+                alpha: AppOpacity.medium,
+              ),
             ),
           ),
         ],
