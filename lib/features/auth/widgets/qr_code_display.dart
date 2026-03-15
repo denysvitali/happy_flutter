@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr/qr.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// QR Code widget with polished container styling.
@@ -33,13 +34,15 @@ class QRCodeDisplay extends StatelessWidget {
           AppRadius.xl,
         ),
         border: Border.all(
-          color: scheme.outlineVariant
-              .withValues(alpha: 0.3),
+          color: scheme.outlineVariant.withValues(
+            alpha: AppOpacity.medium,
+          ),
         ),
         boxShadow: [
           BoxShadow(
-            color: scheme.primary
-                .withValues(alpha: 0.10),
+            color: scheme.primary.withValues(
+              alpha: AppOpacity.subtle,
+            ),
             blurRadius: AppSpacing.xxxl,
             spreadRadius: -AppSpacing.xs,
             offset: const Offset(0, AppSpacing.sm),
@@ -71,18 +74,22 @@ class QRCodeDisplay extends StatelessWidget {
             children: [
               Icon(
                 Icons.lock_outline,
-                size: 12,
+                size: AppFontSize.sm,
                 color: scheme.onSurfaceVariant
-                    .withValues(alpha: 0.6),
+                    .withValues(
+                  alpha: AppOpacity.half,
+                ),
               ),
               const SizedBox(width: AppSpacing.xs),
               Text(
                 'End-to-end encrypted',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: AppFontSize.xs,
                   fontWeight: FontWeight.w500,
                   color: scheme.onSurfaceVariant
-                      .withValues(alpha: 0.6),
+                      .withValues(
+                    alpha: AppOpacity.half,
+                  ),
                   letterSpacing: 0.3,
                 ),
               ),

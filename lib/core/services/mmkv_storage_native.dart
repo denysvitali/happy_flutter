@@ -567,6 +567,45 @@ class MMKVStorage {
     }
     _mmkv?.encodeString(key, value);
   }
+
+  // ─── Session message cache ──────────────────────────────────────────
+
+  List<Map<String, dynamic>> getSessionMessages(String sessionId) {
+    final raw = _mmkv?.decodeString('session-messages-$sessionId');
+    if (raw == null) return [];
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  void saveSessionMessages(
+    String sessionId,
+    List<Map<String, dynamic>> messages,
+  ) {
+    _mmkv?.encodeString(
+      'session-messages-$sessionId',
+      jsonEncode(messages),
+    );
+  }
+
+  void clearSessionMessages(String sessionId) {
+    _mmkv?.removeValue('session-messages-$sessionId');
+  }
+
+  // ─── Outbox persistence ─────────────────────────────────────────────
+
+  Future<String?> getOutboxEntries() async {
+    if (!_initialized) await initialize();
+    return _mmkv?.decodeString('outbox-entries');
+  }
+
+  Future<void> saveOutboxEntries(String jsonStr) async {
+    if (!_initialized) await initialize();
+    _mmkv?.encodeString('outbox-entries', jsonStr);
+  }
 }
 
 /// Server configuration storage using separate MMKV instance

@@ -294,12 +294,14 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xs,
-                  vertical: 2,
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xxs,
                 ),
                 decoration: BoxDecoration(
                   color: session.presence == 'online'
-                      ? AppColors.success.withValues(alpha: 0.2)
+                      ? AppColors.success.withValues(
+                          alpha: AppOpacity.subtle,
+                        )
                       : cs.surfaceContainerHighest,
                   borderRadius:
                       BorderRadius.circular(AppRadius.xs),
@@ -316,7 +318,9 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
             ],
           ),
           Padding(
-            padding: const EdgeInsets.only(left: 30),
+            padding: const EdgeInsets.only(
+              left: AppSpacing.xxxl,
+            ),
             child: Text(
               'ID: ${session.id.substring(0, 16)}...'
               ' | seq: ${session.seq}'
@@ -324,7 +328,7 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurfaceVariant,
                 fontFamily: 'monospace',
-                fontSize: 11,
+                fontSize: AppFontSize.xs,
               ),
             ),
           ),
@@ -405,7 +409,6 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
   }
 }
 
-/// A simple row showing a label and value with an icon.
 class _InfoRow extends StatelessWidget {
   const _InfoRow({
     required this.icon,
@@ -424,34 +427,21 @@ class _InfoRow extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: cs.onSurfaceVariant),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium,
-            ),
+    return SettingsRow(
+      icon: icon,
+      title: label,
+      iconColor: valueColor,
+      trailing: Flexible(
+        child: Text(
+          value,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: valueColor ?? cs.onSurfaceVariant,
+            fontFamily: 'monospace',
+            fontSize: AppFontSize.md,
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Flexible(
-            child: Text(
-              value,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: valueColor ?? cs.onSurfaceVariant,
-                fontFamily: 'monospace',
-              ),
-              textAlign: TextAlign.end,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+          textAlign: TextAlign.end,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }

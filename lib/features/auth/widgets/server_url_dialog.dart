@@ -8,6 +8,7 @@ import '../../../core/api/socket_io_client.dart';
 import '../../../core/components/app_loading_indicator.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/server_config.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Dialog for configuring the server URL.
@@ -115,11 +116,11 @@ class _ServerUrlDialogState
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xxl,
-        vertical: 40,
+        vertical: AppSpacing.xxxl + AppSpacing.sm,
       ),
       shape: RoundedRectangleBorder(
         borderRadius:
-            BorderRadius.circular(AppRadius.lg),
+            BorderRadius.circular(AppRadius.xl),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -127,9 +128,9 @@ class _ServerUrlDialogState
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl,
-              AppSpacing.xl,
-              AppSpacing.xl,
+              AppSpacing.xxl,
+              AppSpacing.xxl,
+              AppSpacing.xxl,
               0,
             ),
             child: Row(
@@ -139,14 +140,16 @@ class _ServerUrlDialogState
                   color: Theme.of(context)
                       .colorScheme
                       .primary,
-                  size: 28,
+                  size: AppSpacing.xxl,
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(
                     l10n.settingsServerUrl,
-                    style: const TextStyle(
-                      fontSize: 20,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -158,7 +161,7 @@ class _ServerUrlDialogState
           Flexible(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xl,
+                horizontal: AppSpacing.xxl,
               ),
               child: Form(
                 key: _formKey,
@@ -180,25 +183,33 @@ class _ServerUrlDialogState
                         border: OutlineInputBorder(
                           borderRadius:
                               BorderRadius.circular(
-                            AppRadius.pill,
+                            AppRadius.smd,
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius:
                               BorderRadius.circular(
-                            AppRadius.pill,
+                            AppRadius.smd,
+                          ),
+                          borderSide: BorderSide(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outline
+                                .withValues(
+                              alpha: AppOpacity.half,
+                            ),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius:
                               BorderRadius.circular(
-                            AppRadius.pill,
+                            AppRadius.smd,
                           ),
                           borderSide: BorderSide(
                             color: Theme.of(context)
                                 .colorScheme
                                 .primary,
-                            width: 2,
+                            width: AppBorder.thick,
                           ),
                         ),
                         suffixIcon:
@@ -240,17 +251,24 @@ class _ServerUrlDialogState
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.xl),
           Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
-              vertical: AppSpacing.md,
+              horizontal: AppSpacing.xxl,
+              vertical: AppSpacing.lg,
             ),
             decoration: BoxDecoration(
               color: Theme.of(context)
                   .colorScheme
                   .surfaceContainerHighest
-                  .withValues(alpha: 0.5),
+                  .withValues(
+                alpha: AppOpacity.half,
+              ),
+              borderRadius: const BorderRadius.only(
+                bottomLeft:
+                    Radius.circular(AppRadius.xl),
+                bottomRight:
+                    Radius.circular(AppRadius.xl),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -288,11 +306,25 @@ class _ServerUrlDialogState
                 FilledButton(
                   onPressed:
                       _isVerifying ? null : _save,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(
+                      0,
+                      AppTouchTarget.comfortable,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(
+                        AppRadius.smd,
+                      ),
+                    ),
+                  ),
                   child: _isVerifying
                       ? AppLoadingIndicator(
-                          size: 16,
+                          size: AppSpacing.lg,
                           strokeWidth: 2,
-                          color: Theme.of(context).colorScheme.onPrimary,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onPrimary,
                         )
                       : Text(
                           l10n.settingsServerSaveVerify,
@@ -323,15 +355,18 @@ class _ErrorDetailBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: cs.errorContainer,
         borderRadius:
-            BorderRadius.circular(AppRadius.sm),
+            BorderRadius.circular(AppRadius.smd),
         border: Border.all(
-          color: cs.error.withValues(alpha: 0.4),
+          color: cs.error.withValues(
+            alpha: AppOpacity.medium,
+          ),
         ),
       ),
       child: Column(
@@ -348,10 +383,9 @@ class _ErrorDetailBox extends StatelessWidget {
               Expanded(
                 child: Text(
                   l10n.authConnectionFailed,
-                  style: TextStyle(
+                  style: textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: cs.onErrorContainer,
-                    fontSize: 14,
                   ),
                 ),
               ),
@@ -359,19 +393,22 @@ class _ErrorDetailBox extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm,
-                    vertical: 2,
+                    vertical: AppSpacing.xxs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.error.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(
+                    color: cs.error.withValues(
+                      alpha: AppOpacity.soft,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(
                       AppRadius.xs,
                     ),
                   ),
                   child: Text(
                     errorType!,
-                    style: TextStyle(
+                    style: textTheme.labelSmall
+                        ?.copyWith(
                       color: cs.onErrorContainer,
-                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -383,7 +420,7 @@ class _ErrorDetailBox extends StatelessWidget {
             errorMessage,
             style: TextStyle(
               color: cs.onErrorContainer,
-              fontSize: 12,
+              fontSize: AppFontSize.sm,
               fontFamily: 'monospace',
             ),
           ),
@@ -409,11 +446,13 @@ class _ErrorDetailBox extends StatelessWidget {
                 },
                 icon: const Icon(
                   Icons.content_copy,
-                  size: 16,
+                  size: AppSpacing.lg,
                 ),
                 label: Text(
                   l10n.commonCopy,
-                  style: const TextStyle(fontSize: 12),
+                  style: TextStyle(
+                    fontSize: AppFontSize.sm,
+                  ),
                 ),
                 style: TextButton.styleFrom(
                   foregroundColor: cs.onErrorContainer,

@@ -441,6 +441,58 @@ class MMKVStorage {
     final prefs = await _getPrefs();
     await prefs.setString(key, value);
   }
+
+  // ─── Session message cache ──────────────────────────────────────────
+
+  List<Map<String, dynamic>> getSessionMessages(String sessionId) {
+    try {
+      if (_prefs == null) return [];
+      final raw = _prefs!.getString('session-messages-$sessionId');
+      if (raw == null) return [];
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  void saveSessionMessages(
+    String sessionId,
+    List<Map<String, dynamic>> messages,
+  ) {
+    _getPrefs().then((prefs) {
+      prefs.setString(
+        'session-messages-$sessionId',
+        jsonEncode(messages),
+      );
+    }).catchError((Object e) {
+      logger.warning(
+        'WebStorage: failed to save session messages: $e',
+      );
+    });
+  }
+
+  void clearSessionMessages(String sessionId) {
+    _getPrefs().then((prefs) {
+      prefs.remove('session-messages-$sessionId');
+    }).catchError((Object e) {
+      logger.warning(
+        'WebStorage: failed to clear session messages: $e',
+      );
+    });
+  }
+
+  // ─── Outbox persistence ─────────────────────────────────────────────
+
+  Future<String?> getOutboxEntries() async {
+    final prefs = await _getPrefs();
+    return prefs.getString('outbox-entries');
+  }
+
+  Future<void> saveOutboxEntries(String jsonStr) async {
+    final prefs = await _getPrefs();
+    await prefs.setString('outbox-entries', jsonStr);
+  }
 }
 
 /// Web implementation of ServerConfigStorage.

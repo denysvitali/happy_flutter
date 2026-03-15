@@ -85,7 +85,7 @@ class PickProfileScreen extends ConsumerWidget {
                   if (i < builtInProfiles.length - 1)
                     Divider(
                       height: 1,
-                      indent: AppSpacing.lg + 44 + AppSpacing.lg,
+                      indent: AppSpacing.lg + 36 + AppSpacing.md,
                       color: Theme.of(context)
                           .colorScheme
                           .outlineVariant,
@@ -128,7 +128,7 @@ class PickProfileScreen extends ConsumerWidget {
                       Divider(
                         height: 1,
                         indent:
-                            AppSpacing.lg + 44 + AppSpacing.lg,
+                            AppSpacing.lg + 36 + AppSpacing.md,
                         color: Theme.of(context)
                             .colorScheme
                             .outlineVariant,
@@ -201,21 +201,11 @@ class _ProfileCard extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Row(
           children: [
-            Container(
-              width: AppTouchTarget.min,
-              height: AppTouchTarget.min,
-              decoration: BoxDecoration(
-                color: color.withValues(
-                  alpha: isSelected
-                      ? AppOpacity.subtle
-                      : AppOpacity.faint,
-                ),
-                borderRadius:
-                    BorderRadius.circular(AppRadius.md),
-              ),
-              child: Icon(icon, color: color, size: 22),
+            SettingsIconContainer(
+              icon: icon,
+              color: color,
             ),
-            const SizedBox(width: AppSpacing.lg),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,21 +299,11 @@ class _ProfileTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: AppTouchTarget.min,
-              height: AppTouchTarget.min,
-              decoration: BoxDecoration(
-                color: color.withValues(
-                  alpha: isSelected
-                      ? AppOpacity.subtle
-                      : AppOpacity.faint,
-                ),
-                borderRadius:
-                    BorderRadius.circular(AppRadius.md),
-              ),
-              child: Icon(icon, color: color, size: 22),
+            SettingsIconContainer(
+              icon: icon,
+              color: color,
             ),
-            const SizedBox(width: AppSpacing.lg),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

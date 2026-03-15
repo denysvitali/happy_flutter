@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/settings.dart';
@@ -41,110 +42,87 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: AppScreenPadding.settings,
         children: [
-          // None option
-          _buildProfileCard(
-            context: context,
-            profile: null,
-            isSelected: selectedProfileId == null,
-            onTap: () {
-              ref
-                  .read(settingsNotifierProvider.notifier)
-                  .updateSetting('lastUsedProfile', null);
-            },
+          SettingsSection(
+            title: l10n.profilesTitle,
+            uppercase: false,
+            children: [
+              _buildProfileRow(
+                context: context,
+                profile: null,
+                isSelected: selectedProfileId == null,
+                onTap: () {
+                  ref
+                      .read(
+                          settingsNotifierProvider.notifier)
+                      .updateSetting(
+                          'lastUsedProfile', null);
+                },
+              ),
+              ...builtInProfiles.map((profile) {
+                final isSelected =
+                    selectedProfileId == profile.id;
+                return _buildProfileRow(
+                  context: context,
+                  profile: profile,
+                  isSelected: isSelected,
+                  onTap: () {
+                    ref
+                        .read(settingsNotifierProvider
+                            .notifier)
+                        .updateSetting(
+                          'lastUsedProfile',
+                          profile.id,
+                        );
+                  },
+                );
+              }),
+            ],
           ),
-          const SizedBox(height: AppSpacing.sm),
 
-          // Built-in profiles
-          ...builtInProfiles.map((profile) {
-            final isSelected =
-                selectedProfileId == profile.id;
-            return KeyedSubtree(
-              key: ValueKey(profile.id),
-              child: Column(
-                children: [
-                  _buildProfileCard(
+          if (customProfiles.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xxl),
+            SettingsSection(
+              title: l10n.profilesCustomTitle,
+              children: [
+                ...customProfiles.map((profile) {
+                  final isSelected =
+                      selectedProfileId == profile.id;
+                  return _buildProfileRow(
                     context: context,
                     profile: profile,
                     isSelected: isSelected,
                     onTap: () {
                       ref
-                          .read(settingsNotifierProvider.notifier)
+                          .read(settingsNotifierProvider
+                              .notifier)
                           .updateSetting(
                             'lastUsedProfile',
                             profile.id,
                           );
                     },
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                ],
-              ),
-            );
-          }),
-
-          // Custom profiles
-          if (customProfiles.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.lg),
-            Padding(
-              padding: const EdgeInsets.only(
-                left: AppSpacing.lg,
-                bottom: AppSpacing.sm,
-              ),
-              child: Text(
-                l10n.profilesCustomTitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurfaceVariant,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            ...customProfiles.map((profile) {
-              final isSelected =
-                  selectedProfileId == profile.id;
-              return KeyedSubtree(
-                key: ValueKey(profile.id),
-                child: Column(
-                  children: [
-                    _buildProfileCard(
-                      context: context,
-                      profile: profile,
-                      isSelected: isSelected,
-                      onTap: () {
-                        ref
-                            .read(
-                                settingsNotifierProvider.notifier)
-                            .updateSetting(
-                              'lastUsedProfile',
-                              profile.id,
-                            );
-                      },
-                      onEdit: () => context.pushNamed(
-                        'profile-editor',
-                        extra: profile,
-                      ),
-                      onDelete: () => _confirmDeleteProfile(
-                        context,
-                        ref,
-                        profile,
-                      ),
+                    onEdit: () => context.pushNamed(
+                      'profile-editor',
+                      extra: profile,
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                  ],
-                ),
-              );
-            }),
+                    onDelete: () =>
+                        _confirmDeleteProfile(
+                      context,
+                      ref,
+                      profile,
+                    ),
+                  );
+                }),
+              ],
+            ),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildProfileCard({
+  Widget _buildProfileRow({
     required BuildContext context,
     required AIBackendProfile? profile,
     required bool isSelected,
@@ -152,59 +130,57 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     VoidCallback? onEdit,
     VoidCallback? onDelete,
   }) {
-    return Card(
-      child: ListTile(
-        leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: profile == null
-                ? Theme.of(context).colorScheme.onSurfaceVariant
-                : profile.isBuiltIn
-                    ? colorForProfile(profile.id)
-                    : Theme.of(context).colorScheme.primary,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: Icon(
-            profile == null
-                ? Icons.remove
-                : profile.isBuiltIn
-                    ? _iconForProfile(profile.id)
-                    : Icons.person_outline,
-            color: Theme.of(context).colorScheme.onPrimary,
-          ),
-        ),
-        title: Text(
-          profile?.name ?? AppLocalizations.of(context).profilesNone,
-        ),
-        subtitle: Text(
-          profile?.description ??
-              AppLocalizations.of(context).profilesDefaultDescription,
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isSelected)
-              Icon(
-                Icons.check,
-                color: Theme.of(context).colorScheme.primary,
+    final cs = Theme.of(context).colorScheme;
+    final iconColor = profile == null
+        ? cs.onSurfaceVariant
+        : profile.isBuiltIn
+            ? colorForProfile(profile.id)
+            : cs.primary;
+    final icon = profile == null
+        ? Icons.remove
+        : profile.isBuiltIn
+            ? _iconForProfile(profile.id)
+            : Icons.person_outline;
+
+    return SettingsRow(
+      icon: icon,
+      iconColor: iconColor,
+      title: profile?.name ??
+          AppLocalizations.of(context).profilesNone,
+      subtitle: profile?.description ??
+          AppLocalizations.of(context)
+              .profilesDefaultDescription,
+      onTap: onTap,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isSelected)
+            Icon(
+              Icons.check_circle,
+              color: cs.primary,
+              size: AppSpacing.xl,
+            ),
+          if (onEdit != null)
+            IconButton(
+              icon: Icon(
+                Icons.edit_outlined,
+                size: AppSpacing.xl,
+                color: cs.onSurfaceVariant,
               ),
-            if (onEdit != null)
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: onEdit,
+              onPressed: onEdit,
+              visualDensity: VisualDensity.compact,
+            ),
+          if (onDelete != null)
+            IconButton(
+              icon: Icon(
+                Icons.delete_outline,
+                size: AppSpacing.xl,
+                color: cs.error,
               ),
-            if (onDelete != null)
-              IconButton(
-                icon: Icon(
-                  Icons.delete,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                onPressed: onDelete,
-              ),
-          ],
-        ),
-        onTap: onTap,
+              onPressed: onDelete,
+              visualDensity: VisualDensity.compact,
+            ),
+        ],
       ),
     );
   }
@@ -240,7 +216,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                 ),
                 style: const TextStyle(
                   fontFamily: 'monospace',
-                  fontSize: 13,
+                  fontSize: AppFontSize.md,
                 ),
               ),
             ],

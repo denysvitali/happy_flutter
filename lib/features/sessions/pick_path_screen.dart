@@ -94,7 +94,7 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
               onPressed: hasText ? _confirm : null,
               child: Text(
                 l10n.commonConfirm,
-                style: TextStyle(
+                style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: hasText
                       ? cs.primary
@@ -240,9 +240,8 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
               icon: const Icon(Icons.check_rounded, size: 20),
               label: Text(
                 l10n.commonConfirm,
-                style: const TextStyle(
+                style: theme.textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w600,
-                  fontSize: AppFontSize.lg,
                 ),
               ),
             ),
@@ -299,28 +298,13 @@ class _PathTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: selected
-                    ? cs.primary.withValues(
-                        alpha: AppOpacity.subtle,
-                      )
-                    : cs.onSurfaceVariant.withValues(
-                        alpha: AppOpacity.faint,
-                      ),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Icon(
-                selected
-                    ? Icons.folder_rounded
-                    : Icons.folder_outlined,
-                size: 18,
-                color: selected
-                    ? cs.primary
-                    : cs.onSurfaceVariant,
-              ),
+            SettingsIconContainer(
+              icon: selected
+                  ? Icons.folder_rounded
+                  : Icons.folder_outlined,
+              color: selected
+                  ? cs.primary
+                  : cs.onSurfaceVariant,
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(

@@ -244,9 +244,9 @@ class _FriendsTab extends StatelessWidget {
       onRefresh: onRefresh,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
+          AppSpacing.lg,
           AppSpacing.sm,
-          AppSpacing.md,
+          AppSpacing.lg,
           AppSpacing.xxxl,
         ),
         itemCount: friends.length,
@@ -284,7 +284,7 @@ class _FriendTile extends StatelessWidget {
       leading: _AvatarWithStatus(
         userId: friend.id,
         avatarUrl: friend.avatarUrl,
-        size: 48,
+        size: AppTouchTarget.comfortable,
       ),
       title: name,
       subtitle: friend.bio ?? '@${friend.username}',
@@ -345,9 +345,9 @@ class _RequestsTab extends StatelessWidget {
       onRefresh: onRefresh,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
+          AppSpacing.lg,
           AppSpacing.sm,
-          AppSpacing.md,
+          AppSpacing.lg,
           AppSpacing.xxxl,
         ),
         itemCount: requests.length,
@@ -387,7 +387,7 @@ class _RequestTile extends StatelessWidget {
     return _FriendListCard(
       leading: Avatar(
         id: request.fromUserId,
-        size: 48,
+        size: AppTouchTarget.comfortable,
         imageUrl: request.fromUserAvatarUrl,
       ),
       title: request.fromUserName,
@@ -582,20 +582,24 @@ class _CountBadge extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xsm,
-        vertical: AppSpacing.xsm,
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xxs,
+      ),
+      constraints: const BoxConstraints(
+        minWidth: AppSpacing.xl,
       ),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary,
         borderRadius:
-            BorderRadius.circular(AppRadius.sm),
+            BorderRadius.circular(AppRadius.pill),
       ),
       child: Text(
         '$count',
+        textAlign: TextAlign.center,
         style: theme.textTheme.labelSmall?.copyWith(
           color: theme.colorScheme.onPrimary,
           fontWeight: FontWeight.w700,
-          fontSize: 11,
+          fontSize: AppFontSize.xs,
         ),
       ),
     );
@@ -614,9 +618,9 @@ class _FriendsLoadingShimmer extends StatelessWidget {
       child: ListView.builder(
         physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
+          AppSpacing.lg,
           AppSpacing.sm,
-          AppSpacing.md,
+          AppSpacing.lg,
           AppSpacing.xxxl,
         ),
         itemCount: 5,
@@ -643,8 +647,8 @@ class _FriendsLoadingShimmer extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: AppTouchTarget.comfortable,
+                    height: AppTouchTarget.comfortable,
                     decoration: BoxDecoration(
                       color: color,
                       shape: BoxShape.circle,
@@ -660,7 +664,7 @@ class _FriendsLoadingShimmer extends StatelessWidget {
                       children: [
                         Container(
                           height: 14,
-                          width: 100 +
+                          width: 100.0 +
                               (index * 20.0) % 60,
                           decoration: BoxDecoration(
                             color: color,
@@ -675,7 +679,7 @@ class _FriendsLoadingShimmer extends StatelessWidget {
                         ),
                         Container(
                           height: 12,
-                          width: 150 +
+                          width: 150.0 +
                               (index * 15.0) % 50,
                           decoration: BoxDecoration(
                             color: color,

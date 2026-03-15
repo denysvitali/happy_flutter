@@ -39,7 +39,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.byType(AppBar), findsOneWidget);
       expect(find.text('Usage'), findsOneWidget);
@@ -65,7 +66,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.byType(AppBar), findsOneWidget);
     });
@@ -108,7 +110,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       // API call will fail in test, so error state should show
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
@@ -130,7 +133,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('Retry'), findsOneWidget);
       expect(find.byIcon(Icons.refresh), findsOneWidget);
@@ -153,7 +157,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('Failed to load usage data'), findsOneWidget);
     });
@@ -175,14 +180,16 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
 
       await tester.tap(find.text('Retry'));
       await tester.pump();
       // Should trigger a reload attempt; the error state will reappear
       // after the API call fails again.
       // Verify the retry button is still present after re-settling.
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
       expect(find.text('Retry'), findsOneWidget);
     });
   });

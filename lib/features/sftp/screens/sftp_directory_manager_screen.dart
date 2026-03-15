@@ -7,12 +7,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/components/app_card.dart';
+import '../../../core/components/app_empty_state.dart';
+import '../../../core/components/settings_section.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../models/sftp_directory.dart';
 import '../providers/sftp_provider.dart';
 
-/// Directory manager screen showing shared folder contents and actions
+/// Directory manager screen showing shared folder contents
+/// and actions
 class SftpDirectoryManagerScreen extends ConsumerStatefulWidget {
-  const SftpDirectoryManagerScreen({super.key, required this.directory});
+  const SftpDirectoryManagerScreen({
+    super.key,
+    required this.directory,
+  });
 
   final SftpDirectory directory;
 
@@ -85,7 +94,9 @@ class _SftpDirectoryManagerScreenState
 
       switch (_sortBy) {
         case 'name':
-          return p.basename(a.path).compareTo(p.basename(b.path));
+          return p
+              .basename(a.path)
+              .compareTo(p.basename(b.path));
         case 'modified':
           try {
             final aStat = a.statSync();
@@ -119,8 +130,8 @@ class _SftpDirectoryManagerScreenState
         title: const Text('Remove Share'),
         content: Text(
           'Stop sharing "${_dir.name}"?\n\n'
-          'The directory will no longer be accessible via SFTP, '
-          'but the files will not be deleted.',
+          'The directory will no longer be accessible '
+          'via SFTP, but the files will not be deleted.',
         ),
         actions: [
           TextButton(
@@ -140,7 +151,9 @@ class _SftpDirectoryManagerScreenState
     );
 
     if (confirmed == true && mounted) {
-      await ref.read(sftpNotifierProvider.notifier).removeDirectory(_dir.id);
+      await ref
+          .read(sftpNotifierProvider.notifier)
+          .removeDirectory(_dir.id);
       if (mounted) {
         Navigator.pop(context);
       }
@@ -156,7 +169,9 @@ class _SftpDirectoryManagerScreenState
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Connection reference copied to clipboard'),
+          content: Text(
+            'Connection reference copied to clipboard',
+          ),
           duration: Duration(seconds: 2),
         ),
       );
@@ -189,10 +204,21 @@ class _SftpDirectoryManagerScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const ListTile(
-              title: Text(
+            Padding(
+              padding: const EdgeInsets.only(
+                top: AppSpacing.lg,
+                left: AppSpacing.lg,
+                right: AppSpacing.lg,
+                bottom: AppSpacing.sm,
+              ),
+              child: Text(
                 'Sort by',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: Theme.of(ctx)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
             ),
             _SortOption(
@@ -231,6 +257,7 @@ class _SftpDirectoryManagerScreenState
                 _setSortBy('type');
               },
             ),
+            const SizedBox(height: AppSpacing.sm),
           ],
         ),
       ),
@@ -246,6 +273,7 @@ class _SftpDirectoryManagerScreenState
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final directorySize = _calculateTotalSize();
 
     return Scaffold(
@@ -254,9 +282,11 @@ class _SftpDirectoryManagerScreenState
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () {
-                  final parent = p.dirname(_currentPath);
+                  final parent =
+                      p.dirname(_currentPath);
                   if (parent != _dir.path &&
-                      _currentPath.startsWith(_dir.path)) {
+                      _currentPath
+                          .startsWith(_dir.path)) {
                     _navigateToSubdirectory(parent);
                   } else {
                     _navigateToSubdirectory(_dir.path);
@@ -290,53 +320,55 @@ class _SftpDirectoryManagerScreenState
       body: Column(
         children: [
           // Share info banner
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            color: Theme.of(context).colorScheme.primaryContainer,
+          AppCard(
+            margin: const EdgeInsets.all(AppSpacing.sm),
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(
-                      Icons.folder_shared,
-                      color: Theme.of(context).colorScheme.primary,
+                    SettingsIconContainer(
+                      icon: Icons.folder_shared,
+                      color: cs.primary,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
                         _currentPath,
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                              fontFamily: 'monospace',
+                            ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Row(
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xs,
                   children: [
                     _InfoChip(
                       icon: Icons.numbers,
                       label: 'Port ${_dir.port}',
                     ),
-                    const SizedBox(width: 8),
                     _InfoChip(
                       icon: Icons.lock,
                       label: _dir.authMethod.name,
                     ),
-                    const SizedBox(width: 8),
                     _InfoChip(
                       icon: Icons.paste,
                       label: _dir.clipboardMode.name,
                     ),
-                    if (directorySize != null) ...[
-                      const SizedBox(width: 8),
+                    if (directorySize != null)
                       _InfoChip(
                         icon: Icons.storage,
                         label: _formatSize(directorySize),
                       ),
-                    ],
                   ],
                 ),
               ],
@@ -344,89 +376,81 @@ class _SftpDirectoryManagerScreenState
           ),
 
           // Action bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: Theme.of(context).dividerColor,
-                ),
-              ),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.xs,
             ),
             child: Row(
               children: [
                 Text(
                   '${_entities.length} items',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style:
+                      Theme.of(context).textTheme.bodySmall,
                 ),
                 const Spacer(),
                 TextButton.icon(
                   onPressed: _removeShare,
                   style: TextButton.styleFrom(
-                    foregroundColor:
-                        Theme.of(context).colorScheme.error,
+                    foregroundColor: cs.error,
                   ),
-                  icon: const Icon(Icons.link_off, size: 18),
+                  icon: const Icon(
+                    Icons.link_off,
+                    size: 18,
+                  ),
                   label: const Text('Remove Share'),
                 ),
               ],
             ),
           ),
 
+          Divider(
+            height: 1,
+            thickness: AppBorder.hairline,
+            color: cs.outlineVariant,
+          ),
+
           // Content
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child: CircularProgressIndicator(),
+                  )
                 : _error != null
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(_error!),
-                            const SizedBox(height: 16),
-                            FilledButton(
-                              onPressed: _loadDirectory,
-                              child: const Text('Retry'),
-                            ),
-                          ],
+                    ? AppEmptyState(
+                        icon: Icons.error_outline,
+                        title: 'Something went wrong',
+                        subtitle: _error,
+                        action: FilledButton(
+                          onPressed: _loadDirectory,
+                          child: const Text('Retry'),
                         ),
                       )
                     : _entities.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.folder_off,
-                                  size: 64,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Empty directory',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
-                                ),
-                              ],
-                            ),
+                        ? AppEmptyState(
+                            icon: Icons.folder_off,
+                            title: 'Empty directory',
+                            subtitle: 'No files or '
+                                'folders here yet',
                           )
                         : RefreshIndicator(
                             onRefresh: _loadDirectory,
-                            child: ListView.builder(
+                            child: ListView.separated(
+                              padding:
+                                  const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm,
+                                vertical: AppSpacing.sm,
+                              ),
                               itemCount: _entities.length,
-                              itemBuilder: (context, index) {
-                                return _FileEntityTile(
-                                  entity: _entities[index],
-                                  onDirectoryTap: _navigateToSubdirectory,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(
+                                height: AppSpacing.xs,
+                              ),
+                              itemBuilder: (context, i) {
+                                return _FileEntityCard(
+                                  entity: _entities[i],
+                                  onDirectoryTap:
+                                      _navigateToSubdirectory,
                                   onFileTap: _openFile,
                                 );
                               },
@@ -464,9 +488,9 @@ class _SftpDirectoryManagerScreenState
   }
 }
 
-/// A tile for a single file or directory entry
-class _FileEntityTile extends StatelessWidget {
-  const _FileEntityTile({
+/// A card for a single file or directory entry
+class _FileEntityCard extends StatelessWidget {
+  const _FileEntityCard({
     required this.entity,
     required this.onDirectoryTap,
     required this.onFileTap,
@@ -478,6 +502,7 @@ class _FileEntityTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final isDir = entity is Directory;
     final name = p.basename(entity.path);
     final ext = p.extension(entity.path).toLowerCase();
@@ -487,9 +512,9 @@ class _FileEntityTile extends StatelessWidget {
 
     if (isDir) {
       icon = Icons.folder;
-      iconColor = Colors.amber;
+      iconColor = cs.tertiary;
     } else {
-      final iconData = _getFileIcon(ext);
+      final iconData = _getFileIcon(ext, cs);
       icon = iconData.$1;
       iconColor = iconData.$2;
     }
@@ -500,21 +525,12 @@ class _FileEntityTile extends StatelessWidget {
       if (!isDir) {
         subtitle = _formatSize(stat.size);
       }
-      subtitle = '${subtitle ?? ''}  •  ${_formatDate(stat.modified)}'
+      subtitle = '${subtitle ?? ''}  ·  '
+              '${_formatDate(stat.modified)}'
           .trim();
     } catch (_) {}
 
-    return ListTile(
-      leading: Icon(icon, color: iconColor),
-      title: Text(
-        name,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: subtitle != null ? Text(subtitle) : null,
-      trailing: isDir
-          ? const Icon(Icons.chevron_right)
-          : null,
+    return AppCard(
       onTap: () {
         if (isDir) {
           onDirectoryTap(entity.path);
@@ -522,62 +538,120 @@ class _FileEntityTile extends StatelessWidget {
           onFileTap(entity.path);
         }
       },
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      child: Row(
+        children: [
+          SettingsIconContainer(
+            icon: icon,
+            color: iconColor,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (isDir)
+            Icon(
+              Icons.chevron_right,
+              size: AppSpacing.xl,
+              color: cs.onSurface.withValues(
+                alpha: AppOpacity.medium,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
-  (IconData, Color) _getFileIcon(String ext) {
+  (IconData, Color) _getFileIcon(
+    String ext,
+    ColorScheme cs,
+  ) {
     switch (ext) {
       case '.dart':
-        return (Icons.code, Colors.blue);
+        return (Icons.code, cs.primary);
       case '.js':
       case '.ts':
       case '.jsx':
       case '.tsx':
-        return (Icons.javascript, Colors.amber);
+        return (Icons.javascript, AppColors.warning);
       case '.py':
-        return (Icons.code, Colors.green);
+        return (Icons.code, AppColors.success);
       case '.html':
       case '.css':
-        return (Icons.web, Colors.orange);
+        return (Icons.web, cs.tertiary);
       case '.json':
       case '.yaml':
       case '.yml':
       case '.toml':
       case '.xml':
-        return (Icons.data_object, Colors.teal);
+        return (Icons.data_object, cs.secondary);
       case '.md':
       case '.txt':
       case '.log':
-        return (Icons.description, Colors.grey);
+        return (Icons.description, cs.onSurfaceVariant);
       case '.png':
       case '.jpg':
       case '.jpeg':
       case '.gif':
       case '.svg':
       case '.webp':
-        return (Icons.image, Colors.purple);
+        return (Icons.image, cs.tertiary);
       case '.mp3':
       case '.wav':
       case '.ogg':
-        return (Icons.audio_file, Colors.pink);
+        return (Icons.audio_file, cs.primary);
       case '.mp4':
       case '.mov':
       case '.avi':
-        return (Icons.video_file, Colors.red);
+        return (Icons.video_file, cs.error);
       case '.zip':
       case '.tar':
       case '.gz':
       case '.7z':
       case '.rar':
-        return (Icons.archive, Colors.brown);
+        return (Icons.archive, cs.onSurfaceVariant);
       case '.pdf':
-        return (Icons.picture_as_pdf, Colors.red);
+        return (Icons.picture_as_pdf, cs.error);
       case '.sh':
       case '.bash':
       case '.zsh':
-        return (Icons.terminal, Colors.green);
+        return (Icons.terminal, AppColors.success);
       default:
-        return (Icons.insert_drive_file, Colors.grey);
+        return (
+          Icons.insert_drive_file,
+          cs.onSurfaceVariant,
+        );
     }
   }
 
@@ -613,18 +687,28 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xxs,
+      ),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12),
-          const SizedBox(width: 4),
-          Text(label, style: Theme.of(context).textTheme.labelSmall),
+          Icon(icon, size: 12, color: cs.onSurfaceVariant),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            label,
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: cs.onSurfaceVariant),
+          ),
         ],
       ),
     );
@@ -647,17 +731,15 @@ class _SortOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return ListTile(
       leading: Icon(
         icon,
-        color: isSelected ? Theme.of(context).colorScheme.primary : null,
+        color: isSelected ? cs.primary : null,
       ),
       title: Text(title),
       trailing: isSelected
-          ? Icon(
-              Icons.check,
-              color: Theme.of(context).colorScheme.primary,
-            )
+          ? Icon(Icons.check, color: cs.primary)
           : null,
       onTap: onTap,
     );

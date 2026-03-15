@@ -112,7 +112,7 @@ class _FriendsSearchScreenState
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
-              AppSpacing.md,
+              AppSpacing.sm,
               AppSpacing.lg,
               AppSpacing.sm,
             ),
@@ -228,9 +228,9 @@ class _FriendsSearchScreenState
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
+        AppSpacing.lg,
         AppSpacing.sm,
-        AppSpacing.md,
+        AppSpacing.lg,
         AppSpacing.xxxl,
       ),
       itemCount: _results.length,
@@ -299,10 +299,9 @@ class _SearchResultTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // Avatar
               Avatar(
                 id: user.id,
-                size: 48,
+                size: AppTouchTarget.comfortable,
                 imageUrl: user.avatarUrl,
               ),
               const SizedBox(width: AppSpacing.md),

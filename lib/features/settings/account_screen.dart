@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../core/components/app_empty_state.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
@@ -34,7 +35,7 @@ class AccountScreen extends ConsumerWidget {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: AppScreenPadding.settings,
         children: [
           buildProfileSection(context, ref),
           const SizedBox(height: AppSpacing.xxl),
@@ -52,19 +53,21 @@ class AccountScreen extends ConsumerWidget {
 
   Widget buildProfileSection(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileNotifierProvider);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return SettingsSection(
       title: context.l10n.accountProfile,
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm,
+            vertical: AppSpacing.md,
           ),
           child: Row(
             children: [
               if (profile?.avatarUrl != null)
                 CircleAvatar(
-                  radius: 22,
+                  radius: 18,
                   backgroundImage: CachedNetworkImageProvider(
                     profile!.avatarUrl!,
                     maxWidth: 132,
@@ -72,18 +75,9 @@ class AccountScreen extends ConsumerWidget {
                   ),
                 )
               else
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: Theme.of(context)
-                      .colorScheme
-                      .primaryContainer,
-                  child: Icon(
-                    Icons.person,
-                    size: 20,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onPrimaryContainer,
-                  ),
+                SettingsIconContainer(
+                  icon: Icons.person,
+                  color: cs.primary,
                 ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -94,25 +88,19 @@ class AccountScreen extends ConsumerWidget {
                     Text(
                       profile?.displayName ??
                           'Loading...',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
+                      style: theme.textTheme.bodyMedium
                           ?.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       profile?.github?.email ??
                           'Not loaded',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
-                          ),
+                      style:
+                          theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -326,19 +314,30 @@ class ServiceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return ListTile(
-      leading: Icon(_getServiceIcon(), color: _getServiceColor(cs)),
-      title: Text(service.service.displayName),
+    return SettingsRow(
+      icon: _getServiceIcon(),
+      iconColor: _getServiceColor(cs),
+      title: service.service.displayName,
       subtitle: service.isConnected
-          ? Text(service.accountName ?? service.accountEmail ?? 'Connected')
-          : Text(context.l10n.accountNotConnected),
+          ? service.accountName ??
+              service.accountEmail ??
+              'Connected'
+          : context.l10n.accountNotConnected,
       trailing: service.isConnected
-          ? Icon(Icons.check_circle, color: cs.primary)
+          ? Icon(
+              Icons.check_circle,
+              color: cs.primary,
+              size: AppSpacing.xl,
+            )
           : Icon(
               Icons.circle_outlined,
-              color: cs.onSurface.withValues(alpha: 0.3),
+              size: AppSpacing.xl,
+              color: cs.onSurface
+                  .withValues(alpha: AppOpacity.medium),
             ),
-      onTap: service.isConnected ? () => _showServiceInfo(context) : null,
+      onTap: service.isConnected
+          ? () => _showServiceInfo(context)
+          : null,
     );
   }
 
@@ -436,7 +435,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xxl),
+        padding: AppScreenPadding.settings,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -762,17 +761,17 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xxl),
+          padding: AppScreenPadding.settings,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
                 'Link a New Device',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: AppSpacing.xxl),
               SegmentedButton<_LinkMode>(
@@ -853,7 +852,10 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
         Text(
           l10n.accountScanInstruction,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: AppFontSize.base,
+            color: cs.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: AppSpacing.xxl),
         Expanded(
@@ -895,7 +897,10 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
           Text(
             l10n.accountShowQRInstructions,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: AppFontSize.base,
+              color: cs.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: AppSpacing.xxxl),
           if (_qrLoading)
@@ -958,7 +963,10 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
           'happy://terminal?...\n\n'
           'Or happy:///account?...',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: AppFontSize.base,
+            color: cs.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: AppSpacing.xxl),
         TextField(
@@ -1083,33 +1091,12 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _devices.isEmpty
-          ? Center(
-              child: Builder(
-                builder: (context) {
-                  final cs = Theme.of(context).colorScheme;
-                  return Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.devices,
-                        size: 64,
-                        color: cs.onSurface.withValues(alpha: 0.3),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      Text(
-                        'No linked devices',
-                        style: TextStyle(
-                          fontSize: AppFontSize.lg,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+          ? const AppEmptyState(
+              icon: Icons.devices,
+              title: 'No linked devices',
             )
           : ListView.builder(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: AppScreenPadding.settings,
               itemCount: _devices.length,
               itemBuilder: (context, index) {
                 final device = _devices[index];
