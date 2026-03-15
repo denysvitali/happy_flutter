@@ -51,43 +51,39 @@ class AuthStateNotifier extends Notifier<AuthState> {
           socket_io.socketIoClient.updateToken(credentials.token);
           await syncRestore(credentials);
 
-          // Load from MMKV cache immediately so the UI renders instantly
-          // without waiting for any HTTP round-trips.
           ref.read(sessionsNotifierProvider.notifier).loadFromSync();
           ref.read(machinesNotifierProvider.notifier).loadFromSync();
           ref.read(settingsNotifierProvider.notifier).loadFromSync();
           ref.read(todoStateNotifierProvider.notifier).loadFromSync();
 
-          // Fire-and-forget: let background syncs complete, then reload
-          // providers with fresh data. This replaces the old blocking
-          // Future.wait so the user sees cached data immediately.
-          unawaited(
-            Future.wait<void>([
-              sync.sessionsSync.awaitQueue(),
-              sync.machinesSync.awaitQueue(),
-              sync.settingsSync.awaitQueue(),
-              sync.profileSync.awaitQueue(),
-              sync.friendsSync.awaitQueue(),
-              sync.feedSync.awaitQueue(),
-              sync.artifactsSync.awaitQueue(),
-              sync.todosSync.awaitQueue(),
-            ], eagerError: false).then((_) {
-              ref.read(sessionsNotifierProvider.notifier).loadFromSync();
-              ref.read(machinesNotifierProvider.notifier).loadFromSync();
-              ref.read(settingsNotifierProvider.notifier).loadFromSync();
-              ref.read(profileNotifierProvider.notifier).loadFromSync();
-              ref.read(friendsNotifierProvider.notifier).loadFromSync();
-              ref.read(feedNotifierProvider.notifier).loadFromSync();
-              ref.read(artifactsNotifierProvider.notifier).loadFromSync();
-              ref.read(todoStateNotifierProvider.notifier).loadFromSync();
-              final profile = ref.read(profileNotifierProvider);
-              if (profile != null) {
-                Sentry.configureScope(
-                  (scope) => scope.setUser(SentryUser(id: profile.id)),
-                );
-              }
-            }),
-          );
+          // syncRestore() already kicks off the initial server sync.
+          // Await those queues here instead of triggering a second
+          // full wave.
+          await Future.wait<void>([
+            sync.sessionsSync.awaitQueue(),
+            sync.machinesSync.awaitQueue(),
+            sync.settingsSync.awaitQueue(),
+            sync.profileSync.awaitQueue(),
+            sync.friendsSync.awaitQueue(),
+            sync.feedSync.awaitQueue(),
+            sync.artifactsSync.awaitQueue(),
+            sync.todosSync.awaitQueue(),
+          ], eagerError: false);
+          ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+          ref.read(machinesNotifierProvider.notifier).loadFromSync();
+          ref.read(settingsNotifierProvider.notifier).loadFromSync();
+          ref.read(profileNotifierProvider.notifier).loadFromSync();
+          ref.read(friendsNotifierProvider.notifier).loadFromSync();
+          ref.read(feedNotifierProvider.notifier).loadFromSync();
+          ref.read(artifactsNotifierProvider.notifier).loadFromSync();
+          ref.read(todoStateNotifierProvider.notifier).loadFromSync();
+          final profile = ref.read(profileNotifierProvider);
+          if (profile != null) {
+            Sentry.configureScope(
+              (scope) =>
+                  scope.setUser(SentryUser(id: profile.id)),
+            );
+          }
         }
         if (_pendingDeepLink != null) {
           await _handleDeepLink(_pendingDeepLink!);

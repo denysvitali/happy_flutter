@@ -620,23 +620,9 @@ _SortedSessions _computeSortedSessions(
   String searchQuery = '',
 }) {
   if (previous != null &&
-      searchQuery == lastSearchQuery &&
-      lastSessions != null &&
-      sessions.length == lastSessions.length) {
-    // Fast path: if map lengths match and keys are identical, reuse sorted cache.
-    // This avoids O(N log N) re-sort when only non-sorting fields changed.
-    bool keysMatch = true;
-    if (sessions.length != lastSessions.length) {
-      keysMatch = false;
-    } else {
-      for (final key in sessions.keys) {
-        if (!lastSessions.containsKey(key)) {
-          keysMatch = false;
-          break;
-        }
-      }
-    }
-    if (keysMatch) return previous;
+      identical(sessions, lastSessions) &&
+      searchQuery == lastSearchQuery) {
+    return previous;
   }
 
   final query = searchQuery.toLowerCase().trim();
