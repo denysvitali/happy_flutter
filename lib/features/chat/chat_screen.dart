@@ -771,6 +771,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final items = <Map<String, dynamic>?>[];
     for (final msg in visibleMessages) {
+      // Sidechain (agent) messages should only appear inside
+      // the AgentConversationScreen, never in the main chat.
+      if (msg['isSidechain'] == true) continue;
       items.add(msg);
       final role = msg['role'] as String?;
       final content = msg['content'] ?? msg['text'];
