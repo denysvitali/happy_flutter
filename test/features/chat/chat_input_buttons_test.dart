@@ -69,7 +69,13 @@ void main() {
         ),
       );
 
-      expect(find.bySemanticsLabel('Stop'), findsOneWidget);
+      // Verify the Semantics widget is present with label 'Stop'
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Semantics && w.properties.label == 'Stop',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('tooltip shows Stop', (tester) async {

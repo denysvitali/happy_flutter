@@ -27,7 +27,13 @@ void main() {
       );
 
       await tester.pumpAndSettle();
-      expect(find.textContaining('new_file.dart'), findsOneWidget);
+      // Path is rendered via RichText with TextSpans
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is RichText && w.text.toPlainText().contains('new_file.dart'),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('renders Created badge', (tester) async {
@@ -64,7 +70,8 @@ void main() {
       );
 
       await tester.pumpAndSettle();
-      expect(find.text('3 lines'), findsOneWidget);
+      // '3 lines' appears in both the info chip and code header
+      expect(find.text('3 lines'), findsNWidgets(2));
     });
 
     testWidgets('renders size info chip', (tester) async {
@@ -197,8 +204,11 @@ void main() {
       );
 
       await tester.pumpAndSettle();
+      // Path is rendered via RichText with TextSpans
       expect(
-        find.textContaining('via/path.txt'),
+        find.byWidgetPredicate(
+          (w) => w is RichText && w.text.toPlainText().contains('via/path.txt'),
+        ),
         findsOneWidget,
       );
     });

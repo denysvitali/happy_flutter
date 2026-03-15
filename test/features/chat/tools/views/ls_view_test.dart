@@ -97,7 +97,8 @@ void main() {
       );
 
       await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.folder_rounded), findsOneWidget);
+      // folder_rounded appears in both the count chip and the entry row
+      expect(find.byIcon(Icons.folder_rounded), findsNWidgets(2));
     });
 
     testWidgets('renders file extension tags', (tester) async {
@@ -189,14 +190,16 @@ void main() {
             if (span != null) {
               return span.toPlainText();
             }
-            return '';
+            return t.data ?? '';
           })
           .where((s) => s.isNotEmpty)
           .toList();
 
       // alpha_dir (directory) should come before zebra.txt (file)
-      final alphaIdx = textContents.indexOf('alpha_dir');
-      final zebraIdx = textContents.indexOf('zebra.txt');
+      final alphaIdx = textContents.indexWhere((s) => s.contains('alpha_dir'));
+      final zebraIdx = textContents.indexWhere((s) => s.contains('zebra.txt'));
+      expect(alphaIdx >= 0, isTrue);
+      expect(zebraIdx >= 0, isTrue);
       expect(alphaIdx, lessThan(zebraIdx));
     });
 

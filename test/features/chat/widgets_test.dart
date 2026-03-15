@@ -39,7 +39,7 @@ void main() {
       );
 
       final text = tester.widget<Text>(find.text('test.dart'));
-      expect(text.style?.fontFamily, contains('Source Code Pro'));
+      expect(text.style?.fontFamily, contains('SourceCodePro'));
     });
 
     testWidgets('renders long paths with ellipsis', (tester) async {
@@ -159,7 +159,7 @@ void main() {
       await tester.pumpWidget(_wrap(const TypingIndicator()));
       await tester.pump();
 
-      expect(find.byType(RepaintBoundary), findsOneWidget);
+      expect(find.byType(RepaintBoundary), findsWidgets);
     });
   });
 

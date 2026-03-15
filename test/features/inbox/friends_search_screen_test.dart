@@ -338,11 +338,11 @@ void main() {
       );
 
       expect(find.text('Friend'), findsOneWidget);
-      expect(find.text('Pending'), findsOneWidget);
+      // 'Pending' appears twice: once as the user name and once as
+      // the status badge text
+      expect(find.text('Pending'), findsNWidgets(2));
       expect(find.text('Stranger'), findsOneWidget);
       expect(find.text('Friends'), findsOneWidget);
-      // Two 'Pending' texts: one status, one subtitle? No, only
-      // one as a status for the second result.
       expect(
         find.text('Add Friend'),
         findsOneWidget,

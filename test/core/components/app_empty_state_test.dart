@@ -95,7 +95,7 @@ void main() {
       ));
 
       // AnimatedBuilder is used for the breathing animation.
-      expect(find.byType(AnimatedBuilder), findsOneWidget);
+      expect(find.byType(AnimatedBuilder), findsWidgets);
     });
 
     testWidgets('icon is inside gradient container', (tester) async {

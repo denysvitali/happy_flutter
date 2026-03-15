@@ -23,7 +23,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Test Section'), findsOneWidget);
+      expect(find.text('TEST SECTION'), findsOneWidget);
       expect(find.text('Child 1'), findsOneWidget);
       expect(find.text('Child 2'), findsOneWidget);
     });

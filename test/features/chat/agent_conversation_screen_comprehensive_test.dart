@@ -120,8 +120,9 @@ void main() {
       );
       await tester.pump();
 
-      // Running task with no children shows a progress indicator
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // Running task with no children shows progress indicators
+      // (one in body, potentially one in app bar)
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
     });
 
     testWidgets('shows task description in app bar', (tester) async {
@@ -476,7 +477,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('No messages yet'), findsOneWidget);
+      // Running task with no children shows a loading indicator
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
 
       // Simulate new children arriving
       sync.testSetSessionMessages(sessionId, [

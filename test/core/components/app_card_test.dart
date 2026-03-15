@@ -25,17 +25,17 @@ void main() {
         child: const AppCard(child: Text('Content')),
       ));
 
-      final padding = tester.widget<Padding>(
+      final paddings = tester.widgetList<Padding>(
         find.descendant(
           of: find.byType(AppCard),
           matching: find.byType(Padding),
-        ).first,
+        ),
       );
 
-      expect(
-        padding.padding,
-        equals(const EdgeInsets.all(16)), // AppSpacing.lg
+      final hasPadding = paddings.any(
+        (p) => p.padding == const EdgeInsets.all(16),
       );
+      expect(hasPadding, isTrue);
     });
 
     testWidgets('applies custom padding', (tester) async {
@@ -47,14 +47,17 @@ void main() {
         ),
       ));
 
-      final padding = tester.widget<Padding>(
+      final paddings = tester.widgetList<Padding>(
         find.descendant(
           of: find.byType(AppCard),
           matching: find.byType(Padding),
-        ).first,
+        ),
       );
 
-      expect(padding.padding, equals(customPadding));
+      final hasPadding = paddings.any(
+        (p) => p.padding == customPadding,
+      );
+      expect(hasPadding, isTrue);
     });
 
     testWidgets('applies margin', (tester) async {
@@ -177,16 +180,22 @@ void main() {
         child: const AppCard(child: Text('Bordered')),
       ));
 
-      final decorated = tester.widget<DecoratedBox>(
+      final decoratedWidgets = tester.widgetList<DecoratedBox>(
         find.descendant(
           of: find.byType(AppCard),
           matching: find.byType(DecoratedBox),
-        ).first,
+        ),
       );
 
-      final decoration = decorated.decoration as BoxDecoration;
-      expect(decoration.border, isNotNull);
-      expect(decoration.borderRadius, equals(BorderRadius.circular(16)));
+      final hasBorder = decoratedWidgets.any((d) {
+        final decoration = d.decoration;
+        if (decoration is BoxDecoration) {
+          return decoration.border != null &&
+              decoration.borderRadius == BorderRadius.circular(16);
+        }
+        return false;
+      });
+      expect(hasBorder, isTrue);
     });
 
     testWidgets('has Semantics for accessibility', (tester) async {

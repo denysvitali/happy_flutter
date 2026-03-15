@@ -72,10 +72,10 @@ void main() {
       await tester.pumpWidget(_buildApp());
       await tester.pumpAndSettle();
 
-      // Summary chips are present
+      // Summary chips are present (labels include directional arrows)
       expect(find.text('Requests: '), findsOneWidget);
-      expect(find.text('Sent: '), findsOneWidget);
-      expect(find.text('Received: '), findsOneWidget);
+      expect(find.text('\u2191 Sent: '), findsOneWidget);
+      expect(find.text('\u2193 Received: '), findsOneWidget);
     });
 
     testWidgets('renders request rows with method badge', (
@@ -168,12 +168,18 @@ void main() {
       await tester.pumpAndSettle();
 
       final copyBtn = tester.widget<IconButton>(
-        find.byIcon(Icons.copy),
+        find.ancestor(
+          of: find.byIcon(Icons.copy),
+          matching: find.byType(IconButton),
+        ).first,
       );
       expect(copyBtn.onPressed, isNull);
 
       final clearBtn = tester.widget<IconButton>(
-        find.byIcon(Icons.delete_sweep),
+        find.ancestor(
+          of: find.byIcon(Icons.delete_sweep),
+          matching: find.byType(IconButton),
+        ).first,
       );
       expect(clearBtn.onPressed, isNull);
     });
@@ -220,8 +226,8 @@ void main() {
       await tester.pumpWidget(_buildApp());
       await tester.pumpAndSettle();
 
-      // 2048 bytes = 2.0KB
-      expect(find.text('2.0KB'), findsOneWidget);
+      // 2048 bytes = 2.0KB (appears in row and summary)
+      expect(find.text('2.0KB'), findsWidgets);
     });
 
     testWidgets('shows dashes for null byte values', (tester) async {

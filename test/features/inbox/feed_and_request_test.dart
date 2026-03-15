@@ -258,7 +258,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Hello world'), findsOneWidget);
+      expect(find.text('Hello world'), findsNWidgets(2));
       expect(find.byIcon(Icons.notifications), findsOneWidget);
     });
 
@@ -353,7 +353,7 @@ void main() {
       );
 
       // No unread dot for read items.
-      expect(find.text('Read message'), findsOneWidget);
+      expect(find.text('Read message'), findsNWidgets(2));
     });
 
     testWidgets('handles tap callback', (tester) async {
@@ -375,7 +375,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('Tappable'));
+      await tester.tap(find.text('Tappable').first);
       expect(tapped, isTrue);
     });
 
@@ -403,7 +403,7 @@ void main() {
 
       expect(
         find.text('Session update'),
-        findsOneWidget,
+        findsNWidgets(2),
       );
     });
 
@@ -481,7 +481,7 @@ void main() {
 
       expect(find.text('Friend Request'), findsOneWidget);
       expect(find.text('Friend Accepted'), findsOneWidget);
-      expect(find.text('Update message'), findsOneWidget);
+      expect(find.text('Update message'), findsNWidgets(2));
     });
   });
 
@@ -652,18 +652,26 @@ void main() {
     });
 
     test('markAsRead updates item', () {
-      final notifier = FeedNotifier();
-      notifier.state = FeedState(
-        items: [
-          _feedItem('1', read: false),
-          _feedItem('2', read: false),
+      final container = ProviderContainer(
+        overrides: [
+          feedNotifierProvider.overrideWith(
+            () => _StubFeedNotifier(FeedState(
+              items: [
+                _feedItem('1', read: false),
+                _feedItem('2', read: false),
+              ],
+            )),
+          ),
         ],
       );
+      addTearDown(container.dispose);
 
+      final notifier = container.read(feedNotifierProvider.notifier);
       notifier.markAsRead('1');
 
-      expect(notifier.state.items[0].read, isTrue);
-      expect(notifier.state.items[1].read, isFalse);
+      final state = container.read(feedNotifierProvider);
+      expect(state.items[0].read, isTrue);
+      expect(state.items[1].read, isFalse);
     });
   });
 }

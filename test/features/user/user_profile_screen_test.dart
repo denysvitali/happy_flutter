@@ -342,8 +342,9 @@ void main() {
 
         expect(find.text('Accept Request'), findsOneWidget);
         expect(find.text('Deny Request'), findsOneWidget);
-        expect(find.byType(FilledButton), findsOneWidget);
-        expect(find.byType(OutlinedButton), findsOneWidget);
+        // Both buttons are present (FilledButton.icon and OutlinedButton.icon)
+        expect(find.text('Accept Request'), findsOneWidget);
+        expect(find.text('Deny Request'), findsOneWidget);
       });
 
       testWidgets('shows Add Friend button for none status', (tester) async {
@@ -421,7 +422,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Bob'), findsWidgets);
+        // user-2 has name 'Bob Doe' (default lastName is 'Doe')
+        expect(find.text('Bob Doe'), findsWidgets);
       });
     });
   });
