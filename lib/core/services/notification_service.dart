@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -23,6 +24,8 @@ class NotificationService {
 
   GoRouter? _router;
   bool _initialized = false;
+  StreamSubscription<RemoteMessage>? _foregroundSub;
+  StreamSubscription<RemoteMessage>? _openedAppSub;
 
   Future<void> initialize({GoRouter? router}) async {
     if (_initialized) return;
@@ -55,8 +58,10 @@ class NotificationService {
           ?.createNotificationChannel(channel);
 
       // Set up FCM message handlers
-      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-      FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+      _foregroundSub =
+          FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+      _openedAppSub =
+          FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
 
       // Check if app was opened from a terminated state via notification
       final initialMessage =
@@ -77,6 +82,15 @@ class NotificationService {
   /// Call this once the [GoRouter] instance is available (after [runApp]).
   void updateRouter(GoRouter router) {
     _router = router;
+  }
+
+  /// Cancel Firebase stream subscriptions. Call on logout or app teardown.
+  Future<void> dispose() async {
+    await _foregroundSub?.cancel();
+    await _openedAppSub?.cancel();
+    _foregroundSub = null;
+    _openedAppSub = null;
+    _initialized = false;
   }
 
   void _handleForegroundMessage(RemoteMessage message) {

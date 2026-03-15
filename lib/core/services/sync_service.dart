@@ -6730,6 +6730,10 @@ what you have, you must use the options mode.
     MMKVStorage().clearSessionsCache();
     _machines.clear();
     _sessionGitStatus.clear();
+    _sessionSpawnedAt.clear();
+    _autoRestoreInFlight.clear();
+    _pendingNewSessionIds.clear();
+    _sessionUsage.clear();
     _profile = null;
     _settingsSnapshot = Settings();
     _settingsVersion = 0;

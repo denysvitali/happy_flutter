@@ -112,7 +112,7 @@ class _MarkdownViewState extends State<MarkdownView> {
       data: widget.markdown,
       extensionSet: md.ExtensionSet.gitHubFlavored,
       builders: {
-        'pre': _CodeBlockBuilder(),
+        'pre': _sharedCodeBlockBuilder,
         'options': OptionsElementBuilder(
           onOptionPress: widget.onOptionPress,
           textColor: widget.textColor,
@@ -188,12 +188,17 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
       data: widget.markdown,
       extensionSet: md.ExtensionSet.gitHubFlavored,
       builders: {
-        'pre': _CodeBlockBuilder(),
+        'pre': _sharedCodeBlockBuilder,
       },
       styleSheet: _styleSheet!,
     );
   }
 }
+
+/// Shared instance of [_CodeBlockBuilder] reused across all [MarkdownView]
+/// and [SimpleMarkdownView] builds to avoid allocating a new object on every
+/// rebuild. [MarkdownElementBuilder] has no mutable state so sharing is safe.
+final _sharedCodeBlockBuilder = _CodeBlockBuilder();
 
 /// Builder that renders fenced code blocks using [CodeBlockWidget].
 ///
@@ -201,6 +206,8 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
 /// (e.g. `language-dart`) and renders a fully styled code block with syntax
 /// highlighting, line numbers, and a copy button.
 class _CodeBlockBuilder extends MarkdownElementBuilder {
+  _CodeBlockBuilder();
+
   @override
   bool isBlockElement() => true;
 
