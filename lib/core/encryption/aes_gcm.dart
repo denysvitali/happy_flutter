@@ -24,6 +24,10 @@ class AesGcmEncryption {
   /// Shared cryptographic random instance
   static final Random _random = Random.secure();
 
+  /// Cached AES-256-GCM cipher instance — holds only algorithm parameters,
+  /// no key material, and is safe to reuse across calls.
+  static final _cipher = AesGcm.with256bits();
+
   /// Auth tag size in bytes (GCM standard = 16 bytes)
   static const int authTagSize = 16;
 
@@ -67,7 +71,7 @@ class AesGcmEncryption {
     final dataBytes = utf8.encode(jsonData);
 
     // Create cipher and SecretKey from bytes
-    final cipher = AesGcm.with256bits();
+    final cipher = _cipher;
     final secretKeyObj = await cipher.newSecretKeyFromBytes(secretKey);
 
     // Encrypt using AES-256-GCM
@@ -133,7 +137,7 @@ class AesGcmEncryption {
       final mac = Mac(authTagBytes);
 
       // Create cipher and SecretKey from bytes
-      final cipher = AesGcm.with256bits();
+      final cipher = _cipher;
       final secretKeyObj = await cipher.newSecretKeyFromBytes(secretKey);
 
       // Decrypt using AES-256-GCM with proper MAC verification
