@@ -212,7 +212,7 @@ class _ActiveSessionCardContent extends StatelessWidget {
         color: Colors.transparent,
         borderRadius:
             BorderRadius.circular(AppRadius.md),
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: Clip.hardEdge,
         child: InkWell(
           onTap: onTap,
           onTapDown: (_) => onTapDown(),
@@ -590,7 +590,7 @@ class _CompactActiveSessionCardContent
         color: Colors.transparent,
         borderRadius:
             BorderRadius.circular(AppRadius.md),
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: Clip.hardEdge,
         child: InkWell(
           onTap: onTap,
           onTapDown: (_) => onTapDown(),
@@ -1034,7 +1034,7 @@ class _SessionCardContent extends StatelessWidget {
         ),
         elevation: 0,
         color: cardColor,
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: Clip.hardEdge,
         child: InkWell(
           onTap: onTap,
           onTapDown: (_) => onTapDown(),
