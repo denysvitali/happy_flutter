@@ -1,18 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/components/app_card.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/theme_helper.dart';
 
-/// Theme settings screen - Adaptive/Light/Dark theme selection
-///
-/// This screen allows users to select their preferred theme mode:
-/// - Adaptive: Follows the system-wide appearance settings
-/// - Light: Always uses light theme
-/// - Dark: Always uses dark theme
-///
-/// The selected theme is persisted to local storage and applied immediately.
 class ThemeSettingsScreen extends ConsumerWidget {
   const ThemeSettingsScreen({super.key});
 
@@ -26,33 +20,45 @@ class ThemeSettingsScreen extends ConsumerWidget {
         title: Text(l10n.appearanceTheme),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: AppScreenPadding.settings,
         children: [
-          _buildThemeOption(
-            context: context,
-            title: l10n.appearanceThemeAdaptive,
-            subtitle: l10n.appearanceThemeAdaptiveDesc,
-            icon: Icons.brightness_auto,
-            isSelected: settings.themeMode == 'adaptive',
-            onTap: () => _changeTheme(context, ref, 'adaptive'),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _buildThemeOption(
-            context: context,
-            title: l10n.appearanceThemeLight,
-            subtitle: l10n.appearanceThemeLightDesc,
-            icon: Icons.light_mode,
-            isSelected: settings.themeMode == 'light',
-            onTap: () => _changeTheme(context, ref, 'light'),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _buildThemeOption(
-            context: context,
-            title: l10n.appearanceThemeDark,
-            subtitle: l10n.appearanceThemeDarkDesc,
-            icon: Icons.dark_mode,
-            isSelected: settings.themeMode == 'dark',
-            onTap: () => _changeTheme(context, ref, 'dark'),
+          AppCard(
+            padding: const EdgeInsets.symmetric(
+              vertical: AppSpacing.xs,
+            ),
+            child: Column(
+              children: [
+                _buildThemeOption(
+                  context: context,
+                  title: l10n.appearanceThemeAdaptive,
+                  subtitle: l10n.appearanceThemeAdaptiveDesc,
+                  icon: Icons.brightness_auto,
+                  isSelected: settings.themeMode == 'adaptive',
+                  onTap: () =>
+                      _changeTheme(context, ref, 'adaptive'),
+                ),
+                _divider(context),
+                _buildThemeOption(
+                  context: context,
+                  title: l10n.appearanceThemeLight,
+                  subtitle: l10n.appearanceThemeLightDesc,
+                  icon: Icons.light_mode,
+                  isSelected: settings.themeMode == 'light',
+                  onTap: () =>
+                      _changeTheme(context, ref, 'light'),
+                ),
+                _divider(context),
+                _buildThemeOption(
+                  context: context,
+                  title: l10n.appearanceThemeDark,
+                  subtitle: l10n.appearanceThemeDarkDesc,
+                  icon: Icons.dark_mode,
+                  isSelected: settings.themeMode == 'dark',
+                  onTap: () =>
+                      _changeTheme(context, ref, 'dark'),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: AppSpacing.xxl),
           _buildCurrentThemePreview(context),
@@ -61,20 +67,28 @@ class ThemeSettingsScreen extends ConsumerWidget {
     );
   }
 
+  Widget _divider(BuildContext context) {
+    return Divider(
+      height: 1,
+      thickness: AppBorder.hairline,
+      indent: AppSpacing.lg + 36 + AppSpacing.md,
+      endIndent: 0,
+      color: Theme.of(context).colorScheme.outlineVariant,
+    );
+  }
+
   void _changeTheme(
     BuildContext context,
     WidgetRef ref,
     String themeMode,
   ) {
-    // Update the setting
     ref
         .read(settingsNotifierProvider.notifier)
         .updateSetting('themeMode', themeMode);
 
-    // Apply system UI chrome style immediately
-    AppThemeMode.fromString(themeMode).applySystemChromeWithContext(context);
+    AppThemeMode.fromString(themeMode)
+        .applySystemChromeWithContext(context);
 
-    // Show feedback
     final l10n = AppLocalizations.of(context);
     final message = switch (themeMode) {
       'light' => l10n.appearanceThemeApplied('Light'),
@@ -95,73 +109,77 @@ class ThemeSettingsScreen extends ConsumerWidget {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
 
-    return Card(
-      child: Semantics(
-        selected: isSelected,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.sm,
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        color: isSelected
+            ? cs.primary.withValues(alpha: AppOpacity.faint)
+            : null,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? cs.primaryContainer
+                    : cs.surfaceContainerHighest,
+                borderRadius:
+                    BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Icon(
+                icon,
+                size: 18,
+                color: isSelected
+                    ? cs.onPrimaryContainer
+                    : cs.onSurfaceVariant,
+              ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? colorScheme.primaryContainer
-                        : colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  child: Icon(
-                    icon,
-                    color: isSelected
-                        ? colorScheme.onPrimaryContainer
-                        : colorScheme.onSurfaceVariant,
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.lg),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: AppSpacing.xxs),
-                      Text(
-                        subtitle,
-                        style:
-                            Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (isSelected)
-                  Icon(
-                    Icons.check_circle,
-                    color: colorScheme.primary,
-                  )
-                else
-                  Icon(
-                    Icons.chevron_right,
-                    color: colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.5),
-                  ),
-                const SizedBox(width: AppSpacing.sm),
-              ],
+                ],
+              ),
             ),
-          ),
+            if (isSelected)
+              Icon(
+                Icons.check_circle_rounded,
+                color: cs.primary,
+                size: AppSpacing.xl,
+              )
+            else
+              Icon(
+                Icons.chevron_right,
+                color: cs.onSurface.withValues(
+                  alpha: AppOpacity.medium,
+                ),
+                size: AppSpacing.xl,
+              ),
+          ],
         ),
       ),
     );
@@ -171,111 +189,125 @@ class ThemeSettingsScreen extends ConsumerWidget {
     final isDark =
         Theme.of(context).brightness == Brightness.dark;
     final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          l10n.appearanceThemePreview,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      isDark ? Icons.dark_mode : Icons.light_mode,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Text(
-                      isDark
-                          ? l10n.appearanceThemeDarkModeActive
-                          : l10n.appearanceThemeLightModeActive,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Container(
-                  height: AppTouchTarget.min,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      l10n.appearanceThemeSampleContent,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        height: AppTouchTarget.min,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                        child: Center(
-                          child: Text(
-                            l10n.appearanceThemeColorPrimary,
-                            style: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onPrimaryContainer,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Container(
-                        height: AppTouchTarget.min,
-                        decoration: BoxDecoration(
-                          color:
-                              Theme.of(context).colorScheme.secondaryContainer,
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                        child: Center(
-                          child: Text(
-                            l10n.appearanceThemeColorSecondary,
-                            style: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSecondaryContainer,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+        Padding(
+          padding: const EdgeInsets.only(
+            left: AppSpacing.xs,
+            bottom: AppSpacing.xs,
+          ),
+          child: Text(
+            l10n.appearanceThemePreview.toUpperCase(),
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.8,
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          l10n.appearanceThemeBasedOnDevice(isDark ? 'dark' : 'light'),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+        AppCard(
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isDark
+                        ? Icons.dark_mode
+                        : Icons.light_mode,
+                    color: cs.primary,
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Text(
+                    isDark
+                        ? l10n.appearanceThemeDarkModeActive
+                        : l10n
+                            .appearanceThemeLightModeActive,
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                ],
               ),
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                height: AppTouchTarget.min,
+                decoration: BoxDecoration(
+                  color: cs.surface,
+                  borderRadius:
+                      BorderRadius.circular(AppRadius.sm),
+                  border: Border.all(
+                    color: cs.outlineVariant,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    l10n.appearanceThemeSampleContent,
+                    style: TextStyle(color: cs.onSurface),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: AppTouchTarget.min,
+                      decoration: BoxDecoration(
+                        color: cs.primaryContainer,
+                        borderRadius: BorderRadius.circular(
+                          AppRadius.sm,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          l10n.appearanceThemeColorPrimary,
+                          style: TextStyle(
+                            color: cs.onPrimaryContainer,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Container(
+                      height: AppTouchTarget.min,
+                      decoration: BoxDecoration(
+                        color: cs.secondaryContainer,
+                        borderRadius: BorderRadius.circular(
+                          AppRadius.sm,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          l10n.appearanceThemeColorSecondary,
+                          style: TextStyle(
+                            color: cs.onSecondaryContainer,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Padding(
+          padding: const EdgeInsets.only(
+            left: AppSpacing.xs,
+          ),
+          child: Text(
+            l10n.appearanceThemeBasedOnDevice(
+              isDark ? 'dark' : 'light',
+            ),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: cs.onSurfaceVariant,
+            ),
+          ),
         ),
       ],
     );
