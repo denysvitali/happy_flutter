@@ -858,6 +858,179 @@ void main() {
     );
   });
 
+  group('sidechain field name variants', () {
+    test(
+      'groups sidechain messages using parent_uuid '
+      '(snake_case) instead of parentUuid',
+      () {
+        instance.testSetSessionMessages('session_snake', [
+          {
+            'id': 'task_1',
+            'kind': 'tool-call',
+            'name': 'Agent',
+            'toolUseId': 'tu_1',
+            'uuid': 'agent_uuid_1',
+            'state': 'running',
+            'input': {'description': 'Do work'},
+          },
+          {
+            'id': 'root_1',
+            'kind': 'sidechain-root',
+            'isSidechain': true,
+            'uuid': 'root_uuid_1',
+            'parentUuid': 'agent_uuid_1',
+            'prompt': 'Prompt',
+          },
+          {
+            'id': 'child_1',
+            'kind': 'text',
+            'isSidechain': true,
+            'uuid': 'child_uuid_1',
+            'parentUuid': 'root_uuid_1',
+            'content': 'Reply from agent',
+          },
+        ]);
+
+        instance.testGroupSidechainMessages('session_snake');
+
+        final messages =
+            instance.messagesForSession('session_snake');
+        expect(messages, hasLength(1));
+        final children =
+            messages.first['children'] as List<dynamic>?;
+        expect(children, isNotNull);
+        expect(children, hasLength(1));
+        expect(children!.first['content'], 'Reply from agent');
+      },
+    );
+
+    test(
+      'output format recognises parent_uuid and subagent '
+      'field names via testProcessDecryptedMessage',
+      () {
+        // Test parent_uuid (snake_case)
+        final result1 = instance.testProcessDecryptedMessage(
+          id: 'msg_sc1',
+          seq: 10,
+          sessionId: 'session_variants',
+          content: {
+            'role': 'agent',
+            'content': {
+              'type': 'output',
+              'data': {
+                'type': 'assistant',
+                'isSidechain': true,
+                'uuid': 'sc_uuid_1',
+                'parent_uuid': 'task_tu_1',
+                'message': {
+                  'content': [
+                    {'type': 'text', 'text': 'Hello from sub'},
+                  ],
+                },
+              },
+            },
+          },
+        );
+        final msgs1 = result1.$1;
+        expect(msgs1, hasLength(1));
+        expect(msgs1.first['isSidechain'], true);
+        expect(msgs1.first['parentUuid'], 'task_tu_1');
+
+        // Test subagent field name
+        final result2 = instance.testProcessDecryptedMessage(
+          id: 'msg_sc2',
+          seq: 11,
+          sessionId: 'session_variants',
+          content: {
+            'role': 'agent',
+            'content': {
+              'type': 'output',
+              'data': {
+                'type': 'assistant',
+                'isSidechain': true,
+                'uuid': 'sc_uuid_2',
+                'subagent': 'task_tu_2',
+                'message': {
+                  'content': [
+                    {'type': 'text', 'text': 'Hello from sub 2'},
+                  ],
+                },
+              },
+            },
+          },
+        );
+        final msgs2 = result2.$1;
+        expect(msgs2, hasLength(1));
+        expect(msgs2.first['isSidechain'], true);
+        expect(msgs2.first['parentUuid'], 'task_tu_2');
+      },
+    );
+
+    test(
+      'sidechain-root created from content-block list format',
+      () {
+        final result = instance.testProcessDecryptedMessage(
+          id: 'msg_list',
+          seq: 20,
+          sessionId: 'session_list',
+          content: {
+            'role': 'agent',
+            'content': {
+              'type': 'output',
+              'data': {
+                'type': 'user',
+                'isSidechain': true,
+                'uuid': 'list_uuid',
+                'parentUuid': 'task_uuid',
+                'message': {
+                  'content': [
+                    {'type': 'text', 'text': 'Sub-agent prompt'},
+                  ],
+                },
+              },
+            },
+          },
+        );
+        final msgs = result.$1;
+        expect(msgs, hasLength(1));
+        expect(msgs.first['kind'], 'sidechain-root');
+        expect(msgs.first['prompt'], 'Sub-agent prompt');
+        expect(msgs.first['parentUuid'], 'task_uuid');
+      },
+    );
+
+    test(
+      'is_sidechain (snake_case) flag is recognised',
+      () {
+        final result = instance.testProcessDecryptedMessage(
+          id: 'msg_snake',
+          seq: 30,
+          sessionId: 'session_flag',
+          content: {
+            'role': 'agent',
+            'content': {
+              'type': 'output',
+              'data': {
+                'type': 'assistant',
+                'is_sidechain': true,
+                'uuid': 'snake_uuid',
+                'parentUuid': 'task_uuid',
+                'message': {
+                  'content': [
+                    {'type': 'text', 'text': 'snake flag'},
+                  ],
+                },
+              },
+            },
+          },
+        );
+        final msgs = result.$1;
+        expect(msgs, hasLength(1));
+        expect(msgs.first['isSidechain'], true);
+      },
+    );
+  });
+
   group('tool result application', () {
     test('applies tool results recursively to grouped subagent children', () {
       instance.testSetSessionMessages('session_results', [

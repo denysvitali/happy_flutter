@@ -381,9 +381,12 @@ void _processOutputContent({
 
   if (data['isMeta'] == true || data['isCompactSummary'] == true) return;
 
-  final isSidechain = data['isSidechain'] == true;
-  final dataUuid = data['uuid'] as String?;
-  final dataParentUuid = data['parentUuid'] as String?;
+  final isSidechain =
+      data['isSidechain'] == true || data['is_sidechain'] == true;
+  final dataUuid = (data['uuid'] ?? data['id']) as String?;
+  final dataParentUuid =
+      (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])
+          as String?;
   final dataType = data['type'] as String?;
 
   if (dataType == 'assistant') {
@@ -473,14 +476,21 @@ void _processOutputContent({
   if (dataType == 'user') {
     if (isSidechain) {
       final msgContent = data['message']?['content'];
-      if (msgContent is String) {
+      // Extract the prompt text — bare string or Claude API
+      // content-block format [{type: 'text', text: '...'}].
+      final promptText = msgContent is String
+          ? msgContent
+          : (msgContent is List
+              ? _extractTextFromContentBlocks(msgContent)
+              : null);
+      if (promptText != null && promptText.isNotEmpty) {
         messages.add({
           'id': '${id}_sc',
           'seq': seq,
           'createdAt': createdAt,
           'kind': 'sidechain-root',
           'isSidechain': true,
-          'prompt': msgContent,
+          'prompt': promptText,
           'uuid': ?dataUuid,
           'parentUuid': ?dataParentUuid,
         });
@@ -567,6 +577,15 @@ void _processCodexContent({
 
   final dataType = data['type'] as String?;
 
+  // Sidechain metadata for sub-agent grouping
+  final isSidechain =
+      data['isSidechain'] == true || data['is_sidechain'] == true;
+  final uuid =
+      (data['uuid'] ?? data['id']) as String?;
+  final parentUuid =
+      (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])
+          as String?;
+
   if (dataType == 'message' || dataType == 'reasoning') {
     messages.add({
       'id': id,
@@ -577,6 +596,9 @@ void _processCodexContent({
       'kind': 'text',
       'content': data['message']?.toString() ?? '',
       'raw': outerContent,
+      if (isSidechain) 'isSidechain': true,
+      'uuid': ?uuid,
+      'parentUuid': ?parentUuid,
     });
     return;
   }
@@ -595,6 +617,9 @@ void _processCodexContent({
       'state': 'running',
       'content': data,
       'raw': outerContent,
+      if (isSidechain) 'isSidechain': true,
+      'uuid': ?uuid,
+      'parentUuid': ?parentUuid,
     });
     return;
   }
@@ -606,6 +631,9 @@ void _processCodexContent({
       'result': result,
       'isError': data['isError'] == true || data['is_error'] == true,
       'createdAt': createdAt,
+      if (isSidechain) 'isSidechain': true,
+      'uuid': ?uuid,
+      'parentUuid': ?parentUuid,
     });
   }
 }
@@ -637,6 +665,15 @@ void _processAcpContent({
 
   final dataType = data['type'] as String?;
 
+  // Sidechain metadata for sub-agent grouping
+  final isSidechain =
+      data['isSidechain'] == true || data['is_sidechain'] == true;
+  final uuid =
+      (data['uuid'] ?? data['id']) as String?;
+  final parentUuid =
+      (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])
+          as String?;
+
   if (dataType == 'message' || dataType == 'reasoning') {
     messages.add({
       'id': id,
@@ -647,6 +684,9 @@ void _processAcpContent({
       'kind': 'text',
       'content': data['message']?.toString() ?? '',
       'raw': outerContent,
+      if (isSidechain) 'isSidechain': true,
+      'uuid': ?uuid,
+      'parentUuid': ?parentUuid,
     });
     return;
   }
@@ -662,6 +702,9 @@ void _processAcpContent({
       'isThinking': true,
       'content': '*Thinking...*\n\n*${data['text']}*',
       'raw': outerContent,
+      if (isSidechain) 'isSidechain': true,
+      'uuid': ?uuid,
+      'parentUuid': ?parentUuid,
     });
     return;
   }
@@ -680,6 +723,9 @@ void _processAcpContent({
       'state': 'running',
       'content': data,
       'raw': outerContent,
+      if (isSidechain) 'isSidechain': true,
+      'uuid': ?uuid,
+      'parentUuid': ?parentUuid,
     });
     return;
   }
@@ -691,6 +737,9 @@ void _processAcpContent({
       'result': result,
       'isError': data['isError'] == true || data['is_error'] == true,
       'createdAt': createdAt,
+      if (isSidechain) 'isSidechain': true,
+      'uuid': ?uuid,
+      'parentUuid': ?parentUuid,
     });
     return;
   }
@@ -715,6 +764,9 @@ void _processAcpContent({
       'state': 'running',
       'content': data,
       'raw': outerContent,
+      if (isSidechain) 'isSidechain': true,
+      'uuid': ?uuid,
+      'parentUuid': ?parentUuid,
     });
   }
 
@@ -912,4 +964,22 @@ void _processSessionContent({
       'parentUuid': ?parentUuid,
     });
   }
+}
+
+/// Extract text from Claude API content blocks format.
+///
+/// Handles `[{type: 'text', text: '...'}, ...]` by concatenating all
+/// text blocks.
+String? _extractTextFromContentBlocks(List<dynamic> blocks) {
+  final buffer = StringBuffer();
+  for (final block in blocks) {
+    if (block is Map<String, dynamic> && block['type'] == 'text') {
+      final text = block['text'];
+      if (text is String && text.isNotEmpty) {
+        if (buffer.isNotEmpty) buffer.write('\n');
+        buffer.write(text);
+      }
+    }
+  }
+  return buffer.isEmpty ? null : buffer.toString();
 }

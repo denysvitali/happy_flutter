@@ -5199,9 +5199,12 @@ what you have, you must use the options mode.
     }
 
     // Sidechain metadata for sub-agent grouping
-    final isSidechain = data['isSidechain'] == true;
-    final dataUuid = data['uuid'] as String?;
-    final dataParentUuid = data['parentUuid'] as String?;
+    final isSidechain =
+        data['isSidechain'] == true || data['is_sidechain'] == true;
+    final dataUuid = (data['uuid'] ?? data['id']) as String?;
+    final dataParentUuid =
+        (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])
+            as String?;
 
     final dataType = data['type'] as String?;
 
@@ -5284,11 +5287,19 @@ what you have, you must use the options mode.
 
     if (dataType == 'user') {
       // Sidechain root: isSidechain=true, message.content is
-      // a string (the prompt sent to the sub-agent). We emit a
-      // hidden marker so _groupSidechainMessages can match it.
+      // a string or content-block list (the prompt sent to the
+      // sub-agent). We emit a hidden marker so
+      // _groupSidechainMessages can match it.
       if (isSidechain) {
         final msgContent = data['message']?['content'];
-        if (msgContent is String) {
+        // Extract the prompt text — bare string or Claude API
+        // content-block format [{type: 'text', text: '...'}].
+        final promptText = msgContent is String
+            ? msgContent
+            : (msgContent is List
+                ? _extractTextFromContentBlocks(msgContent)
+                : null);
+        if (promptText != null && promptText.isNotEmpty) {
           return (
             [
               {
@@ -5297,7 +5308,7 @@ what you have, you must use the options mode.
                 'createdAt': createdAt,
                 'kind': 'sidechain-root',
                 'isSidechain': true,
-                'prompt': msgContent,
+                'prompt': promptText,
                 'uuid': ?dataUuid,
                 'parentUuid': ?dataParentUuid,
               },
@@ -5388,6 +5399,15 @@ what you have, you must use the options mode.
 
     final dataType = data['type'] as String?;
 
+    // Sidechain metadata for sub-agent grouping
+    final isSidechain =
+        data['isSidechain'] == true || data['is_sidechain'] == true;
+    final uuid =
+        (data['uuid'] ?? data['id']) as String?;
+    final parentUuid =
+        (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])
+            as String?;
+
     if (dataType == 'message' || dataType == 'reasoning') {
       return (
         [
@@ -5400,6 +5420,9 @@ what you have, you must use the options mode.
             'kind': 'text',
             'content': data['message']?.toString() ?? '',
             'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': ?uuid,
+            'parentUuid': ?parentUuid,
           },
         ],
         [],
@@ -5422,6 +5445,9 @@ what you have, you must use the options mode.
             'state': 'running',
             'content': data,
             'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': ?uuid,
+            'parentUuid': ?parentUuid,
           },
         ],
         [],
@@ -5439,6 +5465,9 @@ what you have, you must use the options mode.
             'result': result,
             'isError': data['isError'] == true || data['is_error'] == true,
             'createdAt': createdAt,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': ?uuid,
+            'parentUuid': ?parentUuid,
           },
         ],
       );
@@ -5459,6 +5488,24 @@ what you have, you must use the options mode.
     return null;
   }
 
+  /// Extract text from Claude API content blocks format.
+  ///
+  /// Handles `[{type: 'text', text: '...'}, ...]` by concatenating
+  /// all text blocks.
+  String? _extractTextFromContentBlocks(List<dynamic> blocks) {
+    final buffer = StringBuffer();
+    for (final block in blocks) {
+      if (block is Map<String, dynamic> && block['type'] == 'text') {
+        final text = block['text'];
+        if (text is String && text.isNotEmpty) {
+          if (buffer.isNotEmpty) buffer.write('\n');
+          buffer.write(text);
+        }
+      }
+    }
+    return buffer.isEmpty ? null : buffer.toString();
+  }
+
   (List<Map<String, dynamic>>, List<Map<String, dynamic>>) _processAcpContent(
     DecryptedMessage message,
     Map<String, dynamic> nestedContent,
@@ -5469,6 +5516,15 @@ what you have, you must use the options mode.
     if (data is! Map<String, dynamic>) return ([], []);
 
     final dataType = data['type'] as String?;
+
+    // Sidechain metadata for sub-agent grouping
+    final isSidechain =
+        data['isSidechain'] == true || data['is_sidechain'] == true;
+    final uuid =
+        (data['uuid'] ?? data['id']) as String?;
+    final parentUuid =
+        (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])
+            as String?;
 
     if (dataType == 'message' || dataType == 'reasoning') {
       return (
@@ -5482,6 +5538,9 @@ what you have, you must use the options mode.
             'kind': 'text',
             'content': data['message']?.toString() ?? '',
             'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': ?uuid,
+            'parentUuid': ?parentUuid,
           },
         ],
         [],
@@ -5501,6 +5560,9 @@ what you have, you must use the options mode.
             'isThinking': true,
             'content': '*Thinking...*\n\n*${data['text']}*',
             'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': ?uuid,
+            'parentUuid': ?parentUuid,
           },
         ],
         [],
@@ -5523,6 +5585,9 @@ what you have, you must use the options mode.
             'state': 'running',
             'content': data,
             'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': ?uuid,
+            'parentUuid': ?parentUuid,
           },
         ],
         [],
@@ -5540,6 +5605,9 @@ what you have, you must use the options mode.
             'result': result,
             'isError': data['isError'] == true || data['is_error'] == true,
             'createdAt': createdAt,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': ?uuid,
+            'parentUuid': ?parentUuid,
           },
         ],
       );
@@ -5567,6 +5635,9 @@ what you have, you must use the options mode.
             'state': 'running',
             'content': data,
             'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': ?uuid,
+            'parentUuid': ?parentUuid,
           },
         ],
         [],
