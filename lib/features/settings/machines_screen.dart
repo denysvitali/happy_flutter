@@ -5,11 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/components/app_empty_state.dart';
+import '../../core/components/app_status_dot.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 class MachinesScreen extends ConsumerStatefulWidget {
@@ -161,7 +164,7 @@ class _MachinesList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: AppScreenPadding.settings,
       children: [
         SettingsSection(
           title: context.l10n.settingsMachines,
@@ -174,31 +177,54 @@ class _MachinesList extends StatelessWidget {
                     : Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withValues(alpha: 0.4),
+                        .withValues(alpha: AppOpacity.medium),
                 title: _machineTitle(machine),
                 subtitle: _machineSubtitle(context, machine),
                 onTap: () => context.pushNamed(
                   'machine-detail',
                   pathParameters: {'machineId': machine.id},
                 ),
-                trailing: deletingIds.contains(machine.id)
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppStatusDot(
+                      color: machine.active
+                          ? AppColors.success
+                          : Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(
+                                alpha: AppOpacity.medium,
+                              ),
+                      size: AppSpacing.sm,
+                      pulse: machine.active,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    if (deletingIds.contains(machine.id))
+                      const SizedBox(
+                        width: AppSpacing.xl,
+                        height: AppSpacing.xl,
                         child: Padding(
-                          padding: EdgeInsets.all(2),
+                          padding: EdgeInsets.all(
+                            AppSpacing.xxs,
+                          ),
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                           ),
                         ),
                       )
-                    : IconButton(
+                    else
+                      IconButton(
                         icon: Icon(
                           Icons.delete_outline,
-                          color: Theme.of(context).colorScheme.error,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .error,
                         ),
                         onPressed: () => onDelete(machine),
                       ),
+                  ],
+                ),
               ),
           ],
         ),
@@ -215,12 +241,12 @@ class _MachinesEmptyState extends StatelessWidget {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        SizedBox(height: MediaQuery.sizeOf(context).height * 0.24),
-        Center(
-          child: Text(
-            context.l10n.machinesNoMachines,
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
+        SizedBox(
+          height: MediaQuery.sizeOf(context).height * 0.15,
+        ),
+        AppEmptyState(
+          icon: Icons.computer_outlined,
+          title: context.l10n.machinesNoMachines,
         ),
       ],
     );

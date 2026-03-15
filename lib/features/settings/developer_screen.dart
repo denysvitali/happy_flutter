@@ -58,10 +58,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
         title: Text(l10n.developerTitle),
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
+        padding: AppScreenPadding.settings,
         children: [
           SettingsSection(
             title: l10n.developerModeTitle,
