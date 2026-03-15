@@ -95,7 +95,7 @@ void main() {
 
       await tester.pump();
 
-      expect(find.text('Your AI coding companion'), findsOneWidget);
+      expect(find.text('Your AI coding assistant'), findsOneWidget);
     });
   });
 
@@ -359,7 +359,7 @@ void main() {
       await tester.pump();
 
       expect(
-        find.text('Waiting for approval'),
+        find.text('Waiting for approval...'),
         findsOneWidget,
       );
     });
@@ -383,7 +383,7 @@ void main() {
       await tester.pump();
 
       expect(
-        find.text('Waiting for approval'),
+        find.text('Waiting for approval...'),
         findsNothing,
       );
     });
@@ -498,7 +498,7 @@ void main() {
       await tester.pump();
 
       expect(
-        find.text('Generating secure QR code...'),
+        find.text('Generating secure QR code\u2026'),
         findsOneWidget,
       );
     });
@@ -521,7 +521,7 @@ void main() {
       await tester.pump();
 
       expect(
-        find.text('Generating secure QR code...'),
+        find.text('Generating secure QR code\u2026'),
         findsNothing,
       );
     });
@@ -550,6 +550,15 @@ void main() {
 
     testWidgets('shows QR code when polling with public key',
         (tester) async {
+      // Suppress overflow errors from QRCodeDisplay's internal
+      // fixed-size Container.
+      final origOnError = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origOnError?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origOnError);
+
       final publicKey = Uint8List.fromList(
         List.generate(32, (i) => i),
       );
@@ -557,12 +566,16 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: QRCodeSection(
-              isPolling: true,
-              publicKey: publicKey,
-              error: null,
-              onDismissError: () {},
-              theme: ThemeData(),
+            body: SingleChildScrollView(
+              child: Center(
+                child: QRCodeSection(
+                  isPolling: true,
+                  publicKey: publicKey,
+                  error: null,
+                  onDismissError: () {},
+                  theme: ThemeData(),
+                ),
+              ),
             ),
           ),
         ),

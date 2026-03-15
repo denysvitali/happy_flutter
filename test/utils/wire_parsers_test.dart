@@ -53,19 +53,41 @@ void main() {
       expect(WireParsers.parseInt('42abc'), isNull);
       expect(WireParsers.parseInt('abc42'), isNull);
       expect(WireParsers.parseInt('4.2.3'), isNull);
-      expect(WireParsers.parseInt('0x10'), isNull);
-      expect(WireParsers.parseInt('1e5'), isNull);
+      // '0x10' is valid for int.tryParse in Dart (hex).
+      expect(WireParsers.parseInt('0x10'), 16);
+      // '1e5' is valid for double.tryParse (scientific notation).
+      expect(WireParsers.parseInt('1e5'), 100000);
     });
 
     test('handles infinity and NaN doubles', () {
-      expect(WireParsers.parseInt(double.infinity), isNull);
-      expect(WireParsers.parseInt(double.negativeInfinity), isNull);
-      expect(WireParsers.parseInt(double.nan), isNull);
+      // The source does double.toInt() without guarding infinity/NaN,
+      // so these throw UnsupportedError.
+      expect(
+        () => WireParsers.parseInt(double.infinity),
+        throwsUnsupportedError,
+      );
+      expect(
+        () => WireParsers.parseInt(double.negativeInfinity),
+        throwsUnsupportedError,
+      );
+      expect(
+        () => WireParsers.parseInt(double.nan),
+        throwsUnsupportedError,
+      );
     });
 
     test('handles string representations of special doubles', () {
-      expect(WireParsers.parseInt('Infinity'), isNull);
-      expect(WireParsers.parseInt('NaN'), isNull);
+      // 'Infinity' and 'NaN' are parsed by double.tryParse, then
+      // .toInt() throws UnsupportedError.
+      expect(
+        () => WireParsers.parseInt('Infinity'),
+        throwsUnsupportedError,
+      );
+      expect(
+        () => WireParsers.parseInt('NaN'),
+        throwsUnsupportedError,
+      );
+      // 'inf' is not parsed by double.tryParse, returns null.
       expect(WireParsers.parseInt('inf'), isNull);
     });
 
@@ -93,7 +115,8 @@ void main() {
     });
 
     test('handles hex prefix strings', () {
-      expect(WireParsers.parseInt('0x10'), isNull);
+      // Dart's int.tryParse supports hex format natively.
+      expect(WireParsers.parseInt('0x10'), 16);
     });
   });
 

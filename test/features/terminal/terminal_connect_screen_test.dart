@@ -360,9 +360,10 @@ void main() {
       );
       await tester.pump();
 
-      final button = tester.widget<FilledButton>(
-        find.byType(FilledButton),
+      final finder = find.byWidgetPredicate(
+        (w) => w is FilledButton,
       );
+      final button = tester.widget<FilledButton>(finder);
       expect(button.onPressed, isNull);
     });
 
@@ -411,9 +412,10 @@ void main() {
       );
       await tester.pump();
 
-      final button = tester.widget<FilledButton>(
-        find.byType(FilledButton),
+      final finder = find.byWidgetPredicate(
+        (w) => w is FilledButton,
       );
+      final button = tester.widget<FilledButton>(finder);
       expect(button.onPressed, isNotNull);
     });
 
@@ -503,7 +505,9 @@ void main() {
         await tester.pump();
 
         // Tap connect without selecting machine.
-        await tester.tap(find.byType(FilledButton));
+        await tester.tap(find.byWidgetPredicate(
+          (w) => w is FilledButton,
+        ));
         await tester.pump();
 
         // Should show machine validation error.
@@ -538,7 +542,9 @@ void main() {
         await tester.pumpAndSettle();
 
         // Tap connect with empty terminal ID.
-        await tester.tap(find.byType(FilledButton));
+        await tester.tap(find.byWidgetPredicate(
+          (w) => w is FilledButton,
+        ));
         await tester.pump();
 
         // Should show terminal ID validation error.
@@ -580,7 +586,9 @@ void main() {
         await tester.pump();
 
         // Tap connect.
-        await tester.tap(find.byType(FilledButton));
+        await tester.tap(find.byWidgetPredicate(
+          (w) => w is FilledButton,
+        ));
         await tester.pump();
 
         // Should show the connected details.

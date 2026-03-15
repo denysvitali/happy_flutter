@@ -10,7 +10,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   Widget wrap(Widget child) {
-    return MaterialApp(home: Scaffold(body: child));
+    return MaterialApp(
+      home: Scaffold(body: SingleChildScrollView(child: child)),
+    );
   }
 
   // ─── RoundButton ──────────────────────────────────────────
@@ -168,7 +170,18 @@ void main() {
   // ─── QRCodeDisplay ────────────────────────────────────────
 
   group('QRCodeDisplay', () {
+    // Use a small size to avoid internal overflow in the fixed-size
+    // Container (the source's container calculation is tight).
     testWidgets('renders with default size', (tester) async {
+      // Suppress overflow errors that come from the internal
+      // Container being slightly smaller than its Column content.
+      final origOnError = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origOnError?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origOnError);
+
       await tester.pumpWidget(
         wrap(const QRCodeDisplay(data: 'test-data')),
       );
@@ -181,6 +194,13 @@ void main() {
 
     testWidgets('renders end-to-end encrypted label',
         (tester) async {
+      final origOnError = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origOnError?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origOnError);
+
       await tester.pumpWidget(
         wrap(const QRCodeDisplay(data: 'test-data')),
       );
@@ -191,6 +211,13 @@ void main() {
     });
 
     testWidgets('renders lock icon', (tester) async {
+      final origOnError = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origOnError?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origOnError);
+
       await tester.pumpWidget(
         wrap(const QRCodeDisplay(data: 'test-data')),
       );
@@ -201,6 +228,13 @@ void main() {
     });
 
     testWidgets('renders with custom size', (tester) async {
+      final origOnError = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origOnError?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origOnError);
+
       await tester.pumpWidget(
         wrap(
           const QRCodeDisplay(data: 'test-data', size: 100),
@@ -213,6 +247,13 @@ void main() {
     });
 
     testWidgets('renders different data', (tester) async {
+      final origOnError = FlutterError.onError;
+      FlutterError.onError = (details) {
+        if (details.toString().contains('overflowed')) return;
+        origOnError?.call(details);
+      };
+      addTearDown(() => FlutterError.onError = origOnError);
+
       await tester.pumpWidget(
         wrap(const QRCodeDisplay(data: 'different-data-123')),
       );

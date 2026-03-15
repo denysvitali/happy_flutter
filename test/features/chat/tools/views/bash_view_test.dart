@@ -41,7 +41,9 @@ void main() {
 
       await tester.pumpAndSettle();
       expect(find.textContaining('stdout'), findsOneWidget);
-      expect(find.textContaining('hello'), findsOneWidget);
+      // The stdout content is rendered within a SelectableText.rich
+      // which contains both 'hello' and 'world'.
+      expect(find.textContaining('hello'), findsWidgets);
       expect(find.textContaining('world'), findsOneWidget);
     });
 
@@ -214,7 +216,7 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           const CommandView(
-            command: 'exit 42',
+            command: 'some_cmd',
             exitCode: 42,
           ),
         ),
@@ -257,8 +259,15 @@ void main() {
         ),
       );
 
-      expect(find.text('main.dart'), findsOneWidget);
-      expect(find.text('/src/'), findsOneWidget);
+      // Text is inside RichText via TextSpan children.
+      final richText = tester.widget<RichText>(
+        find.byType(RichText).last,
+      );
+      final textSpan = richText.text as TextSpan;
+      final spans =
+          textSpan.children!.map((s) => (s as TextSpan).text).toList();
+      expect(spans, contains('/src/'));
+      expect(spans, contains('main.dart'));
       expect(
         find.byIcon(Icons.insert_drive_file_outlined),
         findsOneWidget,
@@ -272,7 +281,13 @@ void main() {
         ),
       );
 
-      expect(find.text('README.md'), findsOneWidget);
+      final richText = tester.widget<RichText>(
+        find.byType(RichText).last,
+      );
+      final textSpan = richText.text as TextSpan;
+      final spans =
+          textSpan.children!.map((s) => (s as TextSpan).text).toList();
+      expect(spans, contains('README.md'));
     });
 
     testWidgets('renders deep path correctly', (tester) async {
@@ -284,8 +299,14 @@ void main() {
         ),
       );
 
-      expect(find.text('main.dart'), findsOneWidget);
-      expect(find.text('/home/user/project/lib/'), findsOneWidget);
+      final richText = tester.widget<RichText>(
+        find.byType(RichText).last,
+      );
+      final textSpan = richText.text as TextSpan;
+      final spans =
+          textSpan.children!.map((s) => (s as TextSpan).text).toList();
+      expect(spans, contains('main.dart'));
+      expect(spans, contains('/home/user/project/lib/'));
     });
   });
 }

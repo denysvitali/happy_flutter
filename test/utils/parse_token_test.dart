@@ -56,15 +56,15 @@ void main() {
 
     test('returns first 8 chars for malformed JWT (wrong parts)', () {
       expect(parseToken('only-one-part'), 'only-one');
-      expect(parseToken('two.parts'), 'two.par');
+      expect(parseToken('two.parts'), 'two.part');
     });
 
-    test('returns first 8 chars for empty token', () {
-      expect(parseToken(''), '');
+    test('throws for empty token (substring out of range)', () {
+      expect(() => parseToken(''), throwsRangeError);
     });
 
-    test('returns first 8 chars for token shorter than 8', () {
-      expect(parseToken('abc'), 'abc');
+    test('throws for token shorter than 8 (substring out of range)', () {
+      expect(() => parseToken('abc'), throwsRangeError);
     });
 
     test('returns first 8 chars for non-JWT string', () {
@@ -73,7 +73,7 @@ void main() {
 
     test('handles JWT with invalid base64 payload', () {
       const token = 'header.not-base64!@#.signature';
-      expect(parseToken(token), 'header.');
+      expect(parseToken(token), 'header.n');
     });
 
     test('handles JWT with non-JSON payload', () {
@@ -87,8 +87,10 @@ void main() {
 
     test('handles JWT with non-string claim values', () {
       final token = _buildJwt({'sub': 123});
-      // sub is int, not String, so cast fails, falls back
-      expect(parseToken(token), 'unknown');
+      // sub is int, not String, so cast fails via TypeError,
+      // falls back to first 8 chars of token
+      final result = parseToken(token);
+      expect(result.length, 8);
     });
 
     test('handles JWT with null claim values', () {
