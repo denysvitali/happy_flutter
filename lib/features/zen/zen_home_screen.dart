@@ -9,6 +9,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'zen_priority.dart';
 
@@ -145,28 +146,6 @@ class _TaskCountBadge extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Text(
-        title,
-        style: theme.textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.w700,
-          color: theme.colorScheme.onSurfaceVariant,
-          letterSpacing: 0.3,
-        ),
-      ),
-    );
-  }
-}
-
 class _TodoItemCard extends StatelessWidget {
   const _TodoItemCard({required this.item, required this.onTap});
 
@@ -178,39 +157,38 @@ class _TodoItemCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDone = item.status.isTerminal;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      elevation: AppElevation.none,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+    return Opacity(
+      opacity: isDone ? AppOpacity.medium + 0.3 : 1.0,
+      child: AppCard(
+        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+        onTap: isDone ? null : onTap,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
         ),
-      ),
-      child: Opacity(
-        opacity: isDone ? 0.6 : 1.0,
-        child: ListTile(
-          onTap: onTap,
-          enabled: !isDone,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          leading: _StatusIcon(status: item.status),
-          title: Text(
-            item.content,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              decoration: isDone ? TextDecoration.lineThrough : null,
-              decorationColor: theme.colorScheme.onSurface,
-              color: isDone
-                  ? theme.colorScheme.onSurfaceVariant
-                  : theme.colorScheme.onSurface,
+        child: Row(
+          children: [
+            _StatusIcon(status: item.status),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                item.content,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  decoration:
+                      isDone ? TextDecoration.lineThrough : null,
+                  decorationColor:
+                      theme.colorScheme.onSurface,
+                  color: isDone
+                      ? theme.colorScheme.onSurfaceVariant
+                      : theme.colorScheme.onSurface,
+                ),
+              ),
             ),
-          ),
-          trailing: _PriorityDot(priority: item.priority),
-          minVerticalPadding: AppTouchTarget.min / 2,
+            const SizedBox(width: AppSpacing.sm),
+            _PriorityBadge(priority: item.priority),
+          ],
         ),
       ),
     );
@@ -224,43 +202,63 @@ class _StatusIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
     switch (status) {
       case TodoState.completed:
         return Icon(
           Icons.check_circle,
-          color: theme.colorScheme.primary,
+          color: cs.primary,
+          size: AppSpacing.xl,
         );
       case TodoState.canceled:
         return Icon(
           Icons.cancel_outlined,
-          color: theme.colorScheme.error,
+          color: cs.error,
+          size: AppSpacing.xl,
         );
       case TodoState.inProgress:
         return Icon(
           Icons.timelapse,
-          color: theme.colorScheme.tertiary,
+          color: cs.tertiary,
+          size: AppSpacing.xl,
         );
       case TodoState.pending:
         return Icon(
           Icons.radio_button_unchecked,
-          color: theme.colorScheme.onSurfaceVariant,
+          color: cs.onSurfaceVariant,
+          size: AppSpacing.xl,
         );
     }
   }
 }
 
-/// A compact colored dot indicating priority level.
-class _PriorityDot extends StatelessWidget {
-  const _PriorityDot({required this.priority});
+class _PriorityBadge extends StatelessWidget {
+  const _PriorityBadge({required this.priority});
 
   final String priority;
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        ZenPriority.colorFor(priority, Theme.of(context).colorScheme);
-    return AppStatusDot(color: color, size: 10);
+    final cs = Theme.of(context).colorScheme;
+    final color = ZenPriority.colorFor(priority, cs);
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: AppOpacity.subtle),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Text(
+        priority,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+          fontSize: AppFontSize.xxs,
+        ),
+      ),
+    );
   }
 }
 
@@ -278,25 +276,34 @@ class _TodoSectionsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.md,
-        AppSpacing.lg,
-        80,
-      ),
+      padding: AppScreenPadding.standard.copyWith(bottom: 80),
       children: [
         if (activeTodos.isNotEmpty) ...[
-          _SectionHeader(title: context.l10n.zenSectionActive),
-          const SizedBox(height: AppSpacing.xs),
+          AppSectionHeader(
+            title: context.l10n.zenSectionActive,
+            padding: const EdgeInsets.only(
+              bottom: AppSpacing.sm,
+            ),
+          ),
           for (final item in activeTodos)
-            _TodoItemCard(item: item, onTap: () => onOpen(item)),
+            _TodoItemCard(
+              item: item,
+              onTap: () => onOpen(item),
+            ),
         ],
         if (completedTodos.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.lg),
-          _SectionHeader(title: context.l10n.zenSectionCompleted),
-          const SizedBox(height: AppSpacing.xs),
+          AppSectionHeader(
+            title: context.l10n.zenSectionCompleted,
+            padding: const EdgeInsets.only(
+              bottom: AppSpacing.sm,
+            ),
+          ),
           for (final item in completedTodos)
-            _TodoItemCard(item: item, onTap: () => onOpen(item)),
+            _TodoItemCard(
+              item: item,
+              onTap: () => onOpen(item),
+            ),
         ],
       ],
     );
@@ -314,51 +321,35 @@ class _ZenLoadingShimmer extends StatelessWidget {
     return Shimmer(
       child: ListView(
         physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.md,
-          AppSpacing.lg,
-          80,
-        ),
+        padding: AppScreenPadding.standard.copyWith(bottom: 80),
         children: [
-          // Section header placeholder.
           Container(
             height: 14,
             width: 80,
-            margin: const EdgeInsets.symmetric(
-              vertical: AppSpacing.sm,
+            margin: const EdgeInsets.only(
+              bottom: AppSpacing.sm,
             ),
             decoration: BoxDecoration(
               color: color,
-              borderRadius: BorderRadius.circular(AppRadius.xs),
+              borderRadius:
+                  BorderRadius.circular(AppRadius.xs),
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
           for (int i = 0; i < 4; i++)
-            Card(
-              margin: const EdgeInsets.only(
-                bottom: AppSpacing.md,
+            Padding(
+              padding: const EdgeInsets.only(
+                bottom: AppSpacing.sm,
               ),
-              elevation: AppElevation.none,
-              shape: RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(AppRadius.md),
-                side: BorderSide(
-                  color: cs.outlineVariant.withValues(
-                    alpha: 0.3,
-                  ),
-                ),
-              ),
-              child: Padding(
+              child: AppCard(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.lg,
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 24,
-                      height: 24,
+                      width: AppSpacing.xl,
+                      height: AppSpacing.xl,
                       decoration: BoxDecoration(
                         color: color,
                         shape: BoxShape.circle,
@@ -372,17 +363,22 @@ class _ZenLoadingShimmer extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: color,
                           borderRadius:
-                              BorderRadius.circular(AppRadius.xs),
+                              BorderRadius.circular(
+                            AppRadius.xs,
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.md),
+                    const SizedBox(width: AppSpacing.sm),
                     Container(
-                      width: 10,
-                      height: 10,
+                      width: 40,
+                      height: 18,
                       decoration: BoxDecoration(
                         color: color,
-                        shape: BoxShape.circle,
+                        borderRadius:
+                            BorderRadius.circular(
+                          AppRadius.pill,
+                        ),
                       ),
                     ),
                   ],
