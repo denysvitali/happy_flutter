@@ -18,6 +18,7 @@ import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/certificate_provider.dart';
 import '../../core/services/server_config.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 // ─── Settings Screen ─────────────────────────────────────────────────────────
@@ -596,10 +597,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: isVerifying
                     ? Semantics(
                         label: 'Verifying...',
-                        child: const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
+                        child: SizedBox(
+                          width: AppSpacing.lg,
+                          height: AppSpacing.lg,
+                          child: const CircularProgressIndicator(
                             strokeWidth: 2,
                           ),
                         ),
@@ -714,6 +715,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: colorScheme.error,
+                foregroundColor: colorScheme.onError,
               ),
               onPressed: () {
                 Navigator.pop(dialogContext);
@@ -834,9 +836,10 @@ class _ServerSectionState extends State<_ServerSection> {
                 size: 20,
                 color: isCustom
                     ? Theme.of(context).colorScheme.primary
-                    : Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.3),
+                    : Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: AppOpacity.medium),
               ),
               onTap: () => _showServerUrlDialog(context, url),
             );
@@ -890,7 +893,7 @@ class _ProfileHeader extends StatelessWidget {
             ),
             border: Border.all(
               color: dark
-                  ? Colors.white.withValues(alpha: 0.08)
+                  ? Colors.white.withValues(alpha: AppOpacity.faint)
                   : Colors.black.withValues(alpha: 0.04),
             ),
           ),
@@ -920,7 +923,7 @@ class _ProfileHeader extends StatelessWidget {
                       )
                     : null,
               ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 displayName,
                 style: theme.textTheme.headlineSmall,
@@ -969,7 +972,7 @@ class _DangerZone extends StatelessWidget {
           trailing: Icon(
             Icons.chevron_right,
             size: 20,
-            color: cs.error.withValues(alpha: 0.47),
+            color: cs.error.withValues(alpha: AppOpacity.half),
           ),
         ),
       ],
@@ -1013,42 +1016,61 @@ class _InlineThemePicker extends StatelessWidget {
                 final selected = m.$1 == currentMode;
                 return Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                    child: Material(
-                      color: selected
-                          ? cs.primaryContainer
-                          : cs.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      child: InkWell(
-                        onTap: () => onChanged(m.$1),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: AppSpacing.sm,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xxxs,
+                    ),
+                    child: AnimatedContainer(
+                      duration: AppDuration.fast,
+                      curve: AppCurve.standard,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? cs.primaryContainer
+                            : cs.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(
+                          AppRadius.sm,
+                        ),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(
+                          AppRadius.sm,
+                        ),
+                        child: InkWell(
+                          onTap: () => onChanged(m.$1),
+                          borderRadius: BorderRadius.circular(
+                            AppRadius.sm,
                           ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                m.$2,
-                                size: 20,
-                                color: selected
-                                    ? cs.onPrimaryContainer
-                                    : cs.onSurfaceVariant,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                m.$3,
-                                style: theme.textTheme.labelSmall?.copyWith(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: AppSpacing.sm,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  m.$2,
+                                  size: 20,
                                   color: selected
                                       ? cs.onPrimaryContainer
                                       : cs.onSurfaceVariant,
-                                  fontWeight: selected
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(
+                                  height: AppSpacing.xs,
+                                ),
+                                Text(
+                                  m.$3,
+                                  style: theme.textTheme.labelSmall
+                                      ?.copyWith(
+                                    color: selected
+                                        ? cs.onPrimaryContainer
+                                        : cs.onSurfaceVariant,
+                                    fontWeight: selected
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
