@@ -119,6 +119,7 @@ class MessageOutbox {
 
   final Map<String, OutboxEntry> _entries = {};
   final Map<String, Timer> _retryTimers = {};
+  Timer? _persistTimer;
   bool _initialized = false;
 
   static final Random _rng = Random();
@@ -167,7 +168,7 @@ class MessageOutbox {
   /// Queue a failed message for retry.
   Future<void> add(OutboxEntry entry) async {
     _entries[entry.localId] = entry;
-    await _persist();
+    _schedulePersist();
     _onStatusChanged?.call(entry.sessionId, entry.localId, 'pending');
     logger.info(
       '[MessageOutbox] queued localId=${entry.localId} '
@@ -180,7 +181,7 @@ class MessageOutbox {
   Future<void> remove(String localId) async {
     if (_entries.remove(localId) != null) {
       _retryTimers.remove(localId)?.cancel();
-      await _persist();
+      _schedulePersist();
       logger.info('[MessageOutbox] removed localId=$localId');
     }
   }
@@ -193,6 +194,8 @@ class MessageOutbox {
 
   /// Cancel all pending retry timers and clear in-memory state.
   void dispose() {
+    _persistTimer?.cancel();
+    _persistTimer = null;
     for (final t in _retryTimers.values) {
       t.cancel();
     }
@@ -265,7 +268,7 @@ class MessageOutbox {
         '[MessageOutbox] delivered localId=$localId',
       );
       _entries.remove(localId);
-      await _persist();
+      _schedulePersist();
       _onStatusChanged?.call(entry.sessionId, localId, 'sent');
       return;
     }
@@ -273,7 +276,7 @@ class MessageOutbox {
     // Delivery failed — increment retry count.
     final updated = entry.copyWith(retryCount: entry.retryCount + 1);
     _entries[localId] = updated;
-    await _persist();
+    _schedulePersist();
 
     if (updated.retryCount >= _maxRetries) {
       logger.warning(
@@ -281,7 +284,7 @@ class MessageOutbox {
         'localId=$localId — marking as failed',
       );
       _entries.remove(localId);
-      await _persist();
+      _schedulePersist();
       _onStatusChanged?.call(entry.sessionId, localId, 'failed');
       return;
     }
@@ -293,6 +296,13 @@ class MessageOutbox {
     );
     _onStatusChanged?.call(entry.sessionId, localId, 'pending');
     _scheduleRetry(updated);
+  }
+
+  void _schedulePersist() {
+    _persistTimer?.cancel();
+    _persistTimer = Timer(const Duration(milliseconds: 100), () {
+      unawaited(_persist());
+    });
   }
 
   Future<void> _persist() async {

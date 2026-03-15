@@ -213,6 +213,10 @@ class SessionAvatar extends StatelessWidget {
               iconPath,
               width: iconSize.toDouble(),
               height: iconSize.toDouble(),
+              cacheWidth:
+                  (iconSize * MediaQuery.devicePixelRatioOf(context)).round(),
+              cacheHeight:
+                  (iconSize * MediaQuery.devicePixelRatioOf(context)).round(),
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
                 // Fallback to icon if image fails

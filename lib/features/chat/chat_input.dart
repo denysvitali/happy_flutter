@@ -143,9 +143,12 @@ class ChatInput extends ConsumerStatefulWidget {
 class _ChatInputState extends ConsumerState<ChatInput>
     with TickerProviderStateMixin {
   _ChatInputState()
-    : _draftAutoSave = DraftAutoSave(sessionId: '', onSave: (_) {});
+    : _draftAutoSave = DraftAutoSave(sessionId: '', onSave: (_) {}),
+      _draftStorage = DraftStorage();
 
   static final _blurFilter = ImageFilter.blur(sigmaX: 16, sigmaY: 16);
+
+  final DraftStorage _draftStorage;
   static final _containerRadius = BorderRadius.circular(AppRadius.xl);
   static final _cardBoxShadow = [
     BoxShadow(
@@ -221,7 +224,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   Future<void> _loadDraft() async {
     final targetSessionId = widget.sessionId;
     final draft =
-        await DraftStorage().getDraft(targetSessionId);
+        await _draftStorage.getDraft(targetSessionId);
     if (targetSessionId != widget.sessionId) return;
     if (draft != null &&
         draft.isNotEmpty &&
@@ -233,9 +236,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   Future<void> _saveDraft(String draft) async {
     if (draft.trim().isEmpty) {
-      await DraftStorage().removeDraft(widget.sessionId);
+      await _draftStorage.removeDraft(widget.sessionId);
     } else {
-      await DraftStorage().saveDraft(widget.sessionId, draft);
+      await _draftStorage.saveDraft(widget.sessionId, draft);
     }
   }
 

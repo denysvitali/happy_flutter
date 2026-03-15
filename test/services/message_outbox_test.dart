@@ -95,6 +95,9 @@ void main() {
       final entry = _makeEntry();
       await outbox.add(entry);
 
+      // Wait for debounce (100ms) to fire
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
       expect(outbox.contains(entry.localId), isTrue);
       expect(storage._outboxData, isNotNull);
 
@@ -111,6 +114,9 @@ void main() {
       await outbox.add(entry);
 
       await outbox.remove(entry.localId);
+
+      // Wait for debounce (100ms) to fire
+      await Future<void>.delayed(const Duration(milliseconds: 150));
 
       expect(outbox.contains(entry.localId), isFalse);
       final saved =

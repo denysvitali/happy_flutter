@@ -530,6 +530,10 @@ class AvatarBrutalist extends StatelessWidget {
           imagePath,
           width: size * 0.8,
           height: size * 0.8,
+          cacheWidth:
+              (size * 0.8 * MediaQuery.devicePixelRatioOf(context)).round(),
+          cacheHeight:
+              (size * 0.8 * MediaQuery.devicePixelRatioOf(context)).round(),
           color: tintColor,
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) => Icon(
@@ -683,6 +687,10 @@ class AvatarGradient extends StatelessWidget {
         imagePath,
         width: size,
         height: size,
+        cacheWidth:
+            (size * MediaQuery.devicePixelRatioOf(context)).round(),
+        cacheHeight:
+            (size * MediaQuery.devicePixelRatioOf(context)).round(),
         fit: BoxFit.cover,
         color: monochrome
             ? (Theme.of(context).brightness == Brightness.dark
@@ -901,6 +909,10 @@ class FlavorIconOverlay extends StatelessWidget {
         _iconPath,
         width: _iconSize,
         height: _iconSize,
+        cacheWidth:
+            (_iconSize * MediaQuery.devicePixelRatioOf(context)).round(),
+        cacheHeight:
+            (_iconSize * MediaQuery.devicePixelRatioOf(context)).round(),
         fit: BoxFit.contain,
         color: flavor == FlavorIcon.codex
             ? Theme.of(context).colorScheme.onSurface
