@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -337,11 +336,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
       _autocompleteController.moveSelectionUp();
-      setState(() {});
+      // AutocompleteController notifies its listeners — no setState needed.
       return KeyEventResult.handled;
     } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
       _autocompleteController.moveSelectionDown();
-      setState(() {});
+      // AutocompleteController notifies its listeners — no setState needed.
       return KeyEventResult.handled;
     } else if (event.logicalKey == LogicalKeyboardKey.enter ||
         event.logicalKey == LogicalKeyboardKey.tab) {
@@ -398,14 +397,26 @@ class _ChatInputState extends ConsumerState<ChatInput>
       children: [
         if (widget.machineName != null || widget.currentPath != null)
           const SizedBox.shrink(),
-        if (_showAutocomplete)
-          FileAutocomplete(
-            suggestions: _autocompleteController.suggestions,
-            selectedIndex: _autocompleteController.selectedIndex,
-            onSelect: (index) {
-              _applySuggestion(_autocompleteController.suggestions[index]);
-            },
-          ),
+        // ListenableBuilder ensures only the autocomplete list rebuilds when
+        // the selection index changes (arrow keys), not the entire ChatInput.
+        ListenableBuilder(
+          listenable: _autocompleteController,
+          builder: (context, _) {
+            if (!_showAutocomplete ||
+                _autocompleteController.suggestions.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return FileAutocomplete(
+              suggestions: _autocompleteController.suggestions,
+              selectedIndex: _autocompleteController.selectedIndex,
+              onSelect: (index) {
+                _applySuggestion(
+                  _autocompleteController.suggestions[index],
+                );
+              },
+            );
+          },
+        ),
         _buildInputContainer(context),
       ],
     );

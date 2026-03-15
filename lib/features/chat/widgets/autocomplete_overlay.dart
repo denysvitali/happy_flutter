@@ -266,8 +266,11 @@ class _SuggestionItem extends StatelessWidget {
   }
 }
 
-/// Autocomplete controller for managing suggestion state
-class AutocompleteController {
+/// Autocomplete controller for managing suggestion state.
+///
+/// Extends [ChangeNotifier] so that widgets can listen to selection changes
+/// without requiring a full parent [setState] rebuild.
+class AutocompleteController extends ChangeNotifier {
   List<AutocompleteSuggestion> _suggestions = [];
   int _selectedIndex = -1;
   String _currentQuery = '';
@@ -281,23 +284,27 @@ class AutocompleteController {
     _suggestions = suggestions;
     _currentQuery = query;
     _selectedIndex = suggestions.isNotEmpty ? 0 : -1;
+    notifyListeners();
   }
 
   void clear() {
     _suggestions = [];
     _selectedIndex = -1;
     _currentQuery = '';
+    notifyListeners();
   }
 
   void moveSelectionUp() {
     if (_suggestions.isEmpty) return;
     _selectedIndex =
         (_selectedIndex - 1 + _suggestions.length) % _suggestions.length;
+    notifyListeners();
   }
 
   void moveSelectionDown() {
     if (_suggestions.isEmpty) return;
     _selectedIndex = (_selectedIndex + 1) % _suggestions.length;
+    notifyListeners();
   }
 
   AutocompleteSuggestion? selectCurrent() {

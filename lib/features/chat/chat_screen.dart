@@ -15,10 +15,10 @@ import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
-import 'chat_input.dart';
-import 'message_widget.dart';
 import '../sessions/widgets/session_cards.dart'
     show parseAvatarStyle;
+import 'chat_input.dart';
+import 'message_widget.dart';
 import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_loading_shimmer.dart';
 import 'widgets/empty_chat_view.dart';
@@ -64,10 +64,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _visibleCount = _pageSize;
   bool _isLoadingMore = false;
   int _lastLoadMoreMs = 0;
-
-  // Cached avatar style and settings values to avoid ref.watch in build().
-  AvatarStyle? _avatarStyle;
-  bool _enterToSend = true;
 
   // Cached slicing / index data for _buildMessageList.
   List<Map<String, dynamic>>? _cachedVisibleMessages;
@@ -118,8 +114,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _loadInitialSettings();
     _initializeSyncBackedChat();
     final settings = ref.read(settingsNotifierProvider);
-    _avatarStyle = parseAvatarStyle(settings.avatarStyle);
-    _enterToSend = settings.agentInputEnterToSend;
     if (settings.ttsEnabled) {
       unawaited(
         TtsService().init(
@@ -227,6 +221,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _messageSyncSubscription?.cancel();
     _controller.dispose();
     _scrollController.dispose();
+    _autoScrollNotifier.dispose();
     TtsService().stop();
     super.dispose();
   }
@@ -394,9 +389,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final nearBottom = pos.pixels <= _autoScrollThreshold;
     if (nearBottom != _autoScroll) {
-      setState(() {
-        _autoScroll = nearBottom;
-      });
+      // Updating the ValueNotifier directly — no setState needed,
+      // only the pill's ValueListenableBuilder will rebuild.
+      _autoScroll = nearBottom;
     }
 
     if (pos.pixels >= pos.maxScrollExtent - 300) {
@@ -488,6 +483,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _session?.metadata?.flavor,
     );
 
+    // Use select() so this build only re-runs when the specific settings
+    // fields actually change, not on any settings mutation.
+    final avatarStyle = ref.watch(
+      settingsNotifierProvider.select(
+        (s) => parseAvatarStyle(s.avatarStyle),
+      ),
+    );
+    final enterToSend = ref.watch(
+      settingsNotifierProvider.select((s) => s.agentInputEnterToSend),
+    );
+
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: _controller,
       builder: (context, value, child) {
@@ -509,11 +515,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           statusText: _getStatusText(context),
           statusColor: _getStatusColor(context),
           isThinking: isThinking,
-          avatarStyle: parseAvatarStyle(
-            ref
-                .watch(settingsNotifierProvider)
-                .avatarStyle,
-          ),
+          avatarStyle: avatarStyle,
           modelLabel: _modelMode == ClaudeModel.defaultModel
               ? null
               : _modelMode.label,
@@ -546,40 +548,48 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 ))
                         : _buildMessageList(),
                   ),
-                  ExcludeSemantics(
-                    excluding: _autoScroll || _isLoadingMessages,
-                    child: IgnorePointer(
-                      ignoring: _autoScroll || _isLoadingMessages,
-                      child: AnimatedOpacity(
-                        opacity: (!_autoScroll && !_isLoadingMessages)
-                            ? 1.0
-                            : 0.0,
-                        duration: AppDuration.normal,
-                        curve: AppCurve.standard,
-                        child: AnimatedScale(
-                          scale: (!_autoScroll && !_isLoadingMessages)
-                              ? 1.0
-                              : 0.8,
-                          duration: AppDuration.normal,
-                          curve: AppCurve.standard,
-                          child: Align(
-                            alignment: Alignment.bottomCenter,
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: AppSpacing.md,
-                              ),
-                              child: ScrollToBottomPill(
-                                onTap: () {
-                                  HapticFeedback.lightImpact();
-                                  setState(() => _autoScroll = true);
-                                  _scrollToBottom();
-                                },
+                  // The scroll-to-bottom pill listens to _autoScrollNotifier
+                  // directly so that scroll events do NOT trigger a full
+                  // _ChatScreenState rebuild (message list + app bar).
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _autoScrollNotifier,
+                    builder: (context, autoScroll, _) {
+                      return ExcludeSemantics(
+                        excluding: autoScroll || _isLoadingMessages,
+                        child: IgnorePointer(
+                          ignoring: autoScroll || _isLoadingMessages,
+                          child: AnimatedOpacity(
+                            opacity: (!autoScroll && !_isLoadingMessages)
+                                ? 1.0
+                                : 0.0,
+                            duration: AppDuration.normal,
+                            curve: AppCurve.standard,
+                            child: AnimatedScale(
+                              scale: (!autoScroll && !_isLoadingMessages)
+                                  ? 1.0
+                                  : 0.8,
+                              duration: AppDuration.normal,
+                              curve: AppCurve.standard,
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(
+                                    bottom: AppSpacing.md,
+                                  ),
+                                  child: ScrollToBottomPill(
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      _autoScroll = true;
+                                      _scrollToBottom();
+                                    },
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -602,9 +612,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               isSessionOnline: _session?.isPresenceOnline ?? false,
               isAgentThinking: _session?.thinking ?? false,
               onAbort: _abortSession,
-              enterToSend: ref
-                  .watch(settingsNotifierProvider)
-                  .agentInputEnterToSend,
+              enterToSend: enterToSend,
             ),
           ],
         ),
@@ -857,6 +865,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             message['id'] as String? ??
             message['toolUseId'] as String? ??
             'msg-$reversedIndex';
+        // Only pass the full messages list to tool-call items that need it
+        // (Task / Agent sub-conversation rendering). Regular text messages
+        // don't use it and passing _messages to every item causes every
+        // MessageWidget to see a changed prop on each new message arrival.
+        final toolName = isToolCall ? message['name'] as String? : null;
+        final needsMessages =
+            isToolCall &&
+            (toolName == 'Task' || toolName == 'Agent');
         return RepaintBoundary(
           key: ValueKey(messageKey),
           child: Padding(
@@ -865,7 +881,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               messageData: message,
               isFromCurrentUser: message['role'] == 'user',
               metadata: metadataJson,
-              messages: _messages,
+              messages: needsMessages ? _messages : null,
               sessionId: widget.sessionId,
               isSessionOnline:
                   (_session?.isOnline ?? false) ||

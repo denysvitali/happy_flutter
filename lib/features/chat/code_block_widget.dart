@@ -324,7 +324,11 @@ class _CopyButton extends StatelessWidget {
 }
 
 /// Left column displaying line numbers.
-class _LineNumbers extends StatelessWidget {
+///
+/// Uses a [StatefulWidget] to cache the generated line-number widgets so
+/// that [List.generate] only runs when [lineCount], [fontSize], [lineHeight]
+/// or [isDark] actually changes — not on every parent rebuild.
+class _LineNumbers extends StatefulWidget {
   const _LineNumbers({
     required this.lineCount,
     required this.fontSize,
@@ -337,9 +341,50 @@ class _LineNumbers extends StatelessWidget {
   final bool isDark;
 
   @override
+  State<_LineNumbers> createState() => _LineNumbersState();
+}
+
+class _LineNumbersState extends State<_LineNumbers> {
+  late List<Widget> _lineWidgets;
+
+  @override
+  void initState() {
+    super.initState();
+    _lineWidgets = _buildLineWidgets();
+  }
+
+  @override
+  void didUpdateWidget(_LineNumbers oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.lineCount != widget.lineCount ||
+        oldWidget.fontSize != widget.fontSize ||
+        oldWidget.lineHeight != widget.lineHeight ||
+        oldWidget.isDark != widget.isDark) {
+      _lineWidgets = _buildLineWidgets();
+    }
+  }
+
+  List<Widget> _buildLineWidgets() {
+    final numColor =
+        widget.isDark ? _mocha.surface1 : const Color(0xFF8C959F);
+    final style = TextStyle(
+      fontFamily: 'monospace',
+      fontSize: widget.fontSize,
+      color: numColor,
+      height: 1.0,
+    );
+    return List.generate(widget.lineCount, (i) {
+      return SizedBox(
+        height: widget.lineHeight,
+        child: Text('${i + 1}', style: style),
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final numColor = isDark ? _mocha.surface1 : const Color(0xFF8C959F);
-    final dividerColor = isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
+    final dividerColor =
+        widget.isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
 
     return Container(
       padding: const EdgeInsets.only(
@@ -351,20 +396,7 @@ class _LineNumbers extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
-        children: List.generate(lineCount, (i) {
-          return SizedBox(
-            height: lineHeight,
-            child: Text(
-              '${i + 1}',
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: fontSize,
-                color: numColor,
-                height: 1.0,
-              ),
-            ),
-          );
-        }),
+        children: _lineWidgets,
       ),
     );
   }
