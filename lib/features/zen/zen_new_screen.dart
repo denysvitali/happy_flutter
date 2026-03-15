@@ -4,12 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
-import '../../core/theme/app_tokens.dart'
-    show AppSpacing, AppRadius;
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_tokens.dart';
 import 'zen_priority.dart';
 
 /// Screen for creating a new Zen todo item.
@@ -22,7 +23,8 @@ class ZenNewScreen extends ConsumerStatefulWidget {
 }
 
 class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
-  final TextEditingController _contentController = TextEditingController();
+  final TextEditingController _contentController =
+      TextEditingController();
   String _priority = 'medium';
   bool _isSaving = false;
   StreamSubscription<void>? _syncSubscription;
@@ -85,7 +87,9 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
         sessionId: sessionId,
       );
 
-      ref.read(todoStateNotifierProvider.notifier).addTodo(sessionId, item);
+      ref
+          .read(todoStateNotifierProvider.notifier)
+          .addTodo(sessionId, item);
 
       if (!mounted) {
         return;
@@ -111,13 +115,16 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
         title: Text(l10n.zenNewTask),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.sm),
+            padding:
+                const EdgeInsets.only(right: AppSpacing.sm),
             child: FilledButton(
               onPressed: canSubmit ? _addTask : null,
               child: _isSaving
                   ? const SizedBox.square(
                       dimension: AppSpacing.lg,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
                     )
                   : Text(l10n.zenAddTask),
             ),
@@ -125,12 +132,7 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.lg,
-          AppSpacing.lg,
-          AppSpacing.xxl,
-        ),
+        padding: AppScreenPadding.standard,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -141,20 +143,19 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
               onChanged: () => setState(() {}),
             ),
             const SizedBox(height: AppSpacing.xxxl),
-            Text(
-              l10n.zenPriorityLabel,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
+            AppSectionHeader(
+              title: l10n.zenPriorityLabel,
+              padding: const EdgeInsets.only(
+                bottom: AppSpacing.md,
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
             _PrioritySelector(
               priorities: _priorities,
               selected: _priority,
               colorScheme: cs,
               textTheme: theme.textTheme,
-              onSelected: (value) => setState(() => _priority = value),
+              onSelected: (value) =>
+                  setState(() => _priority = value),
             ),
           ],
         ),
@@ -187,26 +188,32 @@ class _TaskContentField extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: TextStyle(
-          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+          color: colorScheme.onSurfaceVariant.withValues(
+            alpha: AppOpacity.half + 0.1,
+          ),
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius:
+              BorderRadius.circular(AppRadius.md),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius:
+              BorderRadius.circular(AppRadius.md),
           borderSide: BorderSide(
             color: colorScheme.outlineVariant,
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius:
+              BorderRadius.circular(AppRadius.md),
           borderSide: BorderSide(
             color: colorScheme.primary,
-            width: 2,
+            width: AppBorder.thick,
           ),
         ),
         alignLabelWithHint: true,
-        contentPadding: const EdgeInsets.all(AppSpacing.md),
+        contentPadding:
+            const EdgeInsets.all(AppSpacing.lg),
       ),
       onChanged: (_) => onChanged(),
     );
@@ -231,27 +238,42 @@ class _PrioritySelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: AppSpacing.md,
+      spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
       children: priorities.map((p) {
         final isSelected = p == selected;
-        final color = ZenPriority.colorFor(p, colorScheme);
+        final color =
+            ZenPriority.colorFor(p, colorScheme);
         return ChoiceChip(
           label: Text(p),
           selected: isSelected,
-          selectedColor: color.withValues(alpha: 0.15),
+          selectedColor: color.withValues(
+            alpha: AppOpacity.soft,
+          ),
           labelStyle: textTheme.labelSmall?.copyWith(
-            color: isSelected ? color : colorScheme.onSurfaceVariant,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            fontSize: 12,
+            color: isSelected
+                ? color
+                : colorScheme.onSurfaceVariant,
+            fontWeight: isSelected
+                ? FontWeight.w700
+                : FontWeight.w500,
+            fontSize: AppFontSize.sm,
           ),
           side: isSelected
-              ? BorderSide(color: color.withValues(alpha: 0.5))
+              ? BorderSide(
+                  color: color.withValues(
+                    alpha: AppOpacity.half,
+                  ),
+                )
               : BorderSide(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                  color:
+                      colorScheme.outlineVariant.withValues(
+                    alpha: 0.4,
+                  ),
                 ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
+            borderRadius:
+                BorderRadius.circular(AppRadius.pill),
           ),
           onSelected: (_) => onSelected(p),
           padding: const EdgeInsets.symmetric(
