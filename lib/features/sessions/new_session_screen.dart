@@ -10,6 +10,7 @@ import '../../core/models/built_in_profiles.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/draft_storage.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -78,6 +79,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     final path = _pathController.text.trim();
     if (machine == null || path.isEmpty) return;
 
+    final settings = ref.read(settingsNotifierProvider);
     setState(() => _isCreating = true);
 
     try {
@@ -99,6 +101,21 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
         path: sessionPath,
       );
       if (!mounted) return;
+      final profile = _selectedProfileId != null
+          ? resolveProfile(_selectedProfileId!, settings.profiles)
+          : null;
+      final permissionMode =
+          profile?.defaultPermissionMode ?? settings.lastUsedPermissionMode;
+      if (permissionMode != null) {
+        unawaited(
+          DraftStorage().savePermissionMode(sessionId, permissionMode),
+        );
+      }
+      if (_selectedProfileId != null) {
+        unawaited(
+          DraftStorage().saveProfileId(sessionId, _selectedProfileId!),
+        );
+      }
       // createSession() already called refreshSessions() internally and
       // added the session to sync._sessions (with optimistic fallback).
       // Just read the in-memory state — no redundant server fetch needed.

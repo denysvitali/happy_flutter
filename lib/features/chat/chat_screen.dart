@@ -138,16 +138,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final savedModelMode = results[1];
     final savedProfileId = results[2];
 
+    final session = sync.sessions[sessionId];
+
     // Permission mode.
     var permissionMode = PermissionMode.defaultMode;
     if (savedPermMode != null) {
       permissionMode =
           PermissionModeExtension.fromString(savedPermMode) ??
           PermissionMode.defaultMode;
+    } else if (session?.permissionMode != null) {
+      permissionMode =
+          PermissionModeExtension.fromString(session!.permissionMode!) ??
+          PermissionMode.defaultMode;
+      unawaited(
+        storage.savePermissionMode(
+          sessionId,
+          permissionMode.toModeString(),
+        ),
+      );
     }
 
     // Model mode.
-    final session = sync.sessions[sessionId];
     final flavor = session?.metadata?.flavor;
     var modelMode = ClaudeModel.defaultModel;
     if (savedModelMode != null) {
