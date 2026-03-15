@@ -2909,9 +2909,8 @@ what you have, you must use the options mode.
     final profile = profileId != null
         ? _resolveProfile(profileId)
         : _settingsSnapshot.profiles.firstOrNull;
-    final envVars = _spawnEnvironmentVariables(
-      profile != null ? _profileEnvironmentVariables(profile) : null,
-    );
+    final profileEnvVars =
+        profile != null ? _profileEnvironmentVariables(profile) : null;
     final agent = _settingsSnapshot.lastUsedAgent;
     final permMode =
         profile?.defaultPermissionMode ??
@@ -2919,13 +2918,24 @@ what you have, you must use the options mode.
     // Pass the user's last-used model so the daemon writes it into session
     // metadata and the CLI picks it up via initialModelForAgent().
     final modelMode = _settingsSnapshot.lastUsedModelMode;
+    final useDefaultModel = modelMode == null || modelMode == 'default';
+    // When the user chose "default" model, strip model env vars from the
+    // profile so the agent uses its own built-in default instead of the
+    // profile's configured model.
+    if (useDefaultModel && profileEnvVars != null) {
+      profileEnvVars
+        ..remove('ANTHROPIC_MODEL')
+        ..remove('OPENAI_MODEL')
+        ..remove('TOGETHER_MODEL');
+    }
+    final envVars = _spawnEnvironmentVariables(profileEnvVars);
     final req = SpawnSessionRequest(
       type: 'spawn-in-directory',
       directory: path,
       approvedNewDirectoryCreation: true, // Always approve like React Native
       agent: agent,
       permissionMode: permMode,
-      model: modelMode != 'default' ? modelMode : null,
+      model: useDefaultModel ? null : modelMode,
       environmentVariables: envVars,
     );
 
