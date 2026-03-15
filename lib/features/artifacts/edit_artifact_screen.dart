@@ -82,8 +82,11 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final artifacts = ref.watch(artifactsNotifierProvider);
-    final artifact = artifacts[widget.artifactId];
+    final artifact = ref.watch(
+      artifactsNotifierProvider.select(
+        (artifacts) => artifacts[widget.artifactId],
+      ),
+    );
 
     if (artifact == null) {
       return Scaffold(

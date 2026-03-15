@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +18,52 @@ import '../../core/services/social_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+
+/// Selector value for friends data used in inbox.
+class _InboxFriendsData {
+  _InboxFriendsData({
+    required this.friendList,
+    required this.incomingRequests,
+    required this.requested,
+  });
+
+  final List<UserProfile> friendList;
+  final List<FriendRequest> incomingRequests;
+  final List<UserProfile> requested;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _InboxFriendsData &&
+          listEquals(friendList, other.friendList) &&
+          listEquals(incomingRequests, other.incomingRequests) &&
+          listEquals(requested, other.requested);
+
+  @override
+  int get hashCode => Object.hash(
+        Object.hashAll(friendList),
+        Object.hashAll(incomingRequests),
+        Object.hashAll(requested),
+      );
+}
+
+/// Selector value for feed data used in inbox.
+class _InboxFeedData {
+  _InboxFeedData({required this.items, required this.unreadCount});
+
+  final List<FeedItem> items;
+  final int unreadCount;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _InboxFeedData &&
+          listEquals(items, other.items) &&
+          unreadCount == other.unreadCount;
+
+  @override
+  int get hashCode => Object.hash(Object.hashAll(items), unreadCount);
+}
 
 class InboxScreen extends ConsumerStatefulWidget {
   const InboxScreen({super.key});
@@ -95,16 +142,29 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final friendsState = ref.watch(friendsNotifierProvider);
-    final feedState = ref.watch(feedNotifierProvider);
-    final friends = friendsState.friendList;
-    final incoming = friendsState.incomingRequests;
-    final requested = friendsState.friends
-        .where((friend) => friend.status == RelationshipStatus.requested)
-        .toList(growable: false);
+    final friendsData = ref.watch(
+      friendsNotifierProvider.select((state) => _InboxFriendsData(
+            friendList: state.friendList,
+            incomingRequests: state.incomingRequests,
+            requested: state.friends
+                .where(
+                  (f) => f.status == RelationshipStatus.requested,
+                )
+                .toList(growable: false),
+          )),
+    );
+    final feedData = ref.watch(
+      feedNotifierProvider.select((state) => _InboxFeedData(
+            items: state.items,
+            unreadCount: state.unreadCount,
+          )),
+    );
+    final friends = friendsData.friendList;
+    final incoming = friendsData.incomingRequests;
+    final requested = friendsData.requested;
 
     final isEmpty =
-        feedState.items.isEmpty &&
+        feedData.items.isEmpty &&
         incoming.isEmpty &&
         requested.isEmpty &&
         friends.isEmpty;
@@ -124,7 +184,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     // itemBuilder to avoid allocating hundreds of widget objects for
     // large friend lists / feed items that may never be scrolled to.
     final descriptors = _buildDescriptors(
-      feedState.items,
+      feedData.items,
       incoming,
       requested,
       friends,

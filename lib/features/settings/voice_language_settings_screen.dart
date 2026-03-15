@@ -166,9 +166,11 @@ class _VoiceLanguageSettingsScreenState
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final settings = ref.watch(settingsNotifierProvider);
     final selectedCode =
-        settings.voiceAssistantLanguage ?? '';
+        ref.watch(settingsNotifierProvider.select(
+              (s) => s.voiceAssistantLanguage,
+            )) ??
+            '';
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final filtered = _filtered;

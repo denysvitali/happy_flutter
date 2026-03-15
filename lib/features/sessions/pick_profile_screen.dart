@@ -22,9 +22,12 @@ class PickProfileScreen extends ConsumerWidget {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final settings = ref.watch(settingsNotifierProvider);
-    final selectedId = settings.lastUsedProfile;
-    final customProfiles = settings.profiles;
+    final selectedId = ref.watch(
+      settingsNotifierProvider.select((s) => s.lastUsedProfile),
+    );
+    final customProfiles = ref.watch(
+      settingsNotifierProvider.select((s) => s.profiles),
+    );
 
     return Scaffold(
       appBar: AppBar(

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,31 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'zen_priority.dart';
+
+/// Selector value for todo data used in zen home.
+class _ZenTodoData {
+  _ZenTodoData({
+    required this.allTodos,
+    required this.totalCount,
+    required this.completedCount,
+  });
+
+  final List<TodoItem> allTodos;
+  final int totalCount;
+  final int completedCount;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _ZenTodoData &&
+          listEquals(allTodos, other.allTodos) &&
+          totalCount == other.totalCount &&
+          completedCount == other.completedCount;
+
+  @override
+  int get hashCode =>
+      Object.hash(Object.hashAll(allTodos), totalCount, completedCount);
+}
 
 /// Zen home screen — displays all todo items grouped by status.
 class ZenHomeScreen extends ConsumerStatefulWidget {
@@ -53,10 +79,16 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final todoState = ref.watch(todoStateNotifierProvider);
-    final allTodos = todoState.allTodos;
-    final totalCount = todoState.totalCount;
-    final completedCount = todoState.completedCount;
+    final todoData = ref.watch(
+      todoStateNotifierProvider.select((state) => _ZenTodoData(
+            allTodos: state.allTodos,
+            totalCount: state.totalCount,
+            completedCount: state.completedCount,
+          )),
+    );
+    final allTodos = todoData.allTodos;
+    final totalCount = todoData.totalCount;
+    final completedCount = todoData.completedCount;
 
     final activeTodos = allTodos
         .where(

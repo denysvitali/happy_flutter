@@ -47,8 +47,9 @@ class _LanguageSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(settingsNotifierProvider);
-    final preferredLanguage = settings.preferredLanguage;
+    final preferredLanguage = ref.watch(
+      settingsNotifierProvider.select((s) => s.preferredLanguage),
+    );
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;

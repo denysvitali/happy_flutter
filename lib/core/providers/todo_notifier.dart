@@ -18,11 +18,7 @@ class TodoStateNotifier extends Notifier<TodoListState> {
     _lastDataChangeCounter = counter;
     final next = sync.todoLists;
     if (mapEquals(state.lists, next)) return;
-    final mapped = <String?, TodoList>{};
-    for (final entry in next.entries) {
-      mapped[entry.key] = entry.value;
-    }
-    state = TodoListState(lists: mapped);
+    state = TodoListState(lists: Map<String?, TodoList>.from(next));
   }
 
   Future<void> refreshFromSync() async {
