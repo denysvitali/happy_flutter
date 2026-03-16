@@ -15,7 +15,6 @@ import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/services/certificate_provider.dart';
 import '../../core/services/server_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
@@ -48,12 +47,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     final expandTodos = ref.watch(
       settingsNotifierProvider.select((s) => s.expandTodos),
-    );
-    final showLineNumbers = ref.watch(
-      settingsNotifierProvider.select((s) => s.showLineNumbers),
-    );
-    final wrapLinesInDiffs = ref.watch(
-      settingsNotifierProvider.select((s) => s.wrapLinesInDiffs),
     );
     final ttsEnabled = ref.watch(
       settingsNotifierProvider.select((s) => s.ttsEnabled),
@@ -99,8 +92,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             context,
             viewInline: viewInline,
             expandTodos: expandTodos,
-            showLineNumbers: showLineNumbers,
-            wrapLinesInDiffs: wrapLinesInDiffs,
             ref: ref,
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -123,8 +114,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           if (machineCount > 0) const SizedBox(height: AppSpacing.lg),
           _buildAccountSection(context),
-          const SizedBox(height: AppSpacing.lg),
-          const _CertificatesSection(),
           const SizedBox(height: AppSpacing.lg),
           const _ServerSection(),
           const SizedBox(height: AppSpacing.lg),
@@ -181,7 +170,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 );
               }
             } else {
-              unawaited(context.pushNamed('claude-connect'));
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    l10n.claudeConnectCliInfo,
+                  ),
+                  duration: const Duration(seconds: 4),
+                ),
+              );
             }
           },
         ),
@@ -289,8 +286,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     BuildContext context, {
     required bool viewInline,
     required bool expandTodos,
-    required bool showLineNumbers,
-    required bool wrapLinesInDiffs,
     required WidgetRef ref,
   }) {
     final l10n = AppLocalizations.of(context);
@@ -313,22 +308,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('expandTodos', value),
-        ),
-        SettingsToggleRow(
-          icon: Icons.format_list_numbered,
-          title: l10n.settingsShowLineNumbers,
-          value: showLineNumbers,
-          onChanged: (value) => ref
-              .read(settingsNotifierProvider.notifier)
-              .updateSetting('showLineNumbers', value),
-        ),
-        SettingsToggleRow(
-          icon: Icons.wrap_text,
-          title: l10n.settingsWrapLinesInDiffs,
-          value: wrapLinesInDiffs,
-          onChanged: (value) => ref
-              .read(settingsNotifierProvider.notifier)
-              .updateSetting('wrapLinesInDiffs', value),
         ),
       ],
     );
@@ -632,17 +611,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return SettingsSection(
       title: l10n.settingsAbout,
       children: [
-        SettingsRow(
-          icon: Icons.info_outline,
-          title: l10n.commonVersion,
-          subtitle: '1.0.0',
-        ),
-        SettingsNavRow(
-          icon: Icons.new_releases_outlined,
-          title: l10n.settingsWhatsNew,
-          subtitle: l10n.settingsWhatsNewSubtitle,
-          onTap: () => context.pushNamed('changelog'),
-        ),
         SettingsNavRow(
           icon: Icons.code,
           title: l10n.settingsGitHub,
@@ -760,50 +728,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 }
 
-class _CertificatesSection extends StatefulWidget {
-  const _CertificatesSection();
-
-  @override
-  State<_CertificatesSection> createState() => _CertificatesSectionState();
-}
-
-class _CertificatesSectionState extends State<_CertificatesSection> {
-  late final Future<bool> _hasCertificatesFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _hasCertificatesFuture = Future.value(
-      CertificateProvider().hasUserCertificates(),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return SettingsSection(
-      title: l10n.settingsCertificates,
-      children: [
-        FutureBuilder<bool>(
-          future: _hasCertificatesFuture,
-          builder: (context, snapshot) {
-            final hasCerts = snapshot.data ?? false;
-            return SettingsRow(
-              icon: hasCerts ? Icons.verified_user : Icons.info_outline,
-              iconColor: hasCerts
-                  ? Theme.of(context).colorScheme.primary
-                  : null,
-              title: l10n.settingsUserCaCertificates,
-              subtitle: hasCerts
-                  ? l10n.settingsUserCertificatesInstalled
-                  : l10n.settingsNoUserCertificates,
-            );
-          },
-        ),
-      ],
-    );
-  }
-}
 
 class _ServerSection extends StatefulWidget {
   const _ServerSection();

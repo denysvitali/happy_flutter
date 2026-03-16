@@ -33,8 +33,6 @@ import '../../features/sftp/screens/sftp_connection_history_screen.dart';
 import '../../features/sftp/screens/sftp_directory_manager_screen.dart';
 import '../../features/sftp/screens/sftp_log_viewer_screen.dart';
 import '../../features/settings/account_screen.dart';
-import '../../features/settings/changelog_screen.dart';
-import '../../features/settings/claude_connect_screen.dart';
 import '../../features/settings/developer_screen.dart';
 import '../../features/settings/features_settings_screen.dart';
 import '../../features/settings/language_settings_screen.dart';
@@ -306,12 +304,6 @@ GoRouter createRouter(String? initialDeepLink) {
             _slidePage(const AuthGate(child: UsageScreen()), state),
       ),
       GoRoute(
-        path: '/settings/changelog',
-        name: 'changelog',
-        pageBuilder: (context, state) =>
-            _slidePage(const AuthGate(child: ChangelogScreen()), state),
-      ),
-      GoRoute(
         path: '/settings/developer',
         name: 'developer',
         pageBuilder: (context, state) =>
@@ -567,12 +559,6 @@ GoRouter createRouter(String? initialDeepLink) {
         name: 'server-settings',
         pageBuilder: (context, state) =>
             _slidePage(const AuthGate(child: ServerSettingsScreen()), state),
-      ),
-      GoRoute(
-        path: '/settings/connect/claude',
-        name: 'claude-connect',
-        pageBuilder: (context, state) =>
-            _slidePage(const AuthGate(child: ClaudeConnectScreen()), state),
       ),
       GoRoute(
         path: '/settings/voice/language',
