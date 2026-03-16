@@ -822,14 +822,44 @@ what you have, you must use the options mode.
         _saveMsgsDebounceTimers.remove(sessionId);
         final msgs = _sessionMessages[sessionId];
         if (msgs != null) {
+          // Strip sidechain messages before persisting — if the deferred
+          // regroup timer hasn't fired yet, orphaned isSidechain entries
+          // can slip into the list.  Persisting them causes "invisible
+          // messages" on cold-start restore because ChatScreen filters
+          // them out in _buildMessageList.
+          final clean = msgs
+              .where((m) => m['isSidechain'] != true)
+              .toList();
           const maxPersisted = 100;
-          final toSave = msgs.length > maxPersisted
-              ? msgs.sublist(msgs.length - maxPersisted)
-              : msgs;
+          final toSave = clean.length > maxPersisted
+              ? clean.sublist(clean.length - maxPersisted)
+              : clean;
           MMKVStorage().saveSessionMessages(sessionId, toSave);
         }
       },
     );
+  }
+
+  /// Immediately flush all pending debounced message saves so the MMKV
+  /// cache is not stale when the app is backgrounded or killed.
+  void _flushPendingMessageSaves() {
+    if (_saveMsgsDebounceTimers.isEmpty) return;
+    final storage = MMKVStorage();
+    const maxPersisted = 100;
+    for (final entry in _saveMsgsDebounceTimers.entries) {
+      entry.value.cancel();
+      final msgs = _sessionMessages[entry.key];
+      if (msgs != null) {
+        final clean = msgs
+            .where((m) => m['isSidechain'] != true)
+            .toList();
+        final toSave = clean.length > maxPersisted
+            ? clean.sublist(clean.length - maxPersisted)
+            : clean;
+        storage.saveSessionMessages(entry.key, toSave);
+      }
+    }
+    _saveMsgsDebounceTimers.clear();
   }
 
   void _scheduleSaveSessionsCache() {
@@ -922,8 +952,19 @@ what you have, you must use the options mode.
       if (_sessionMessages.containsKey(sessionId)) continue;
       final cached = MMKVStorage().getSessionMessages(sessionId);
       if (cached.isNotEmpty) {
-        _sessionMessages[sessionId] = cached;
-        _sessionMessagesViewCache.remove(sessionId);
+        // Strip any orphaned sidechain messages that were persisted
+        // before the deferred regroup timer could clean them up (e.g.
+        // app was killed while the 500ms save debounce was pending).
+        // ChatScreen's _buildMessageList filters isSidechain == true,
+        // so leaving them in the restored list causes "invisible"
+        // messages that occupy space but never render.
+        final clean = cached.any((m) => m['isSidechain'] == true)
+            ? cached.where((m) => m['isSidechain'] != true).toList()
+            : cached;
+        if (clean.isNotEmpty) {
+          _sessionMessages[sessionId] = clean;
+          _sessionMessagesViewCache.remove(sessionId);
+        }
       }
     }
     _sessionMessagesCache = null;
@@ -4615,13 +4656,19 @@ what you have, you must use the options mode.
       // while the HTTP fetch is in flight.
       final cached = MMKVStorage().getSessionMessages(sessionId);
       if (cached.isNotEmpty) {
-        _sessionMessages[sessionId] = cached;
-        _sessionMessagesCache = null;
-        _sessionMessagesViewCache.remove(sessionId);
-        hasMessages = true;
-        // Notify UI immediately so it can render the cached messages.
-        _notifySessionMessagesChanged(sessionId);
-        _notifyDataChanged();
+        // Strip orphaned sidechain messages (see _restoreAllCachedMessages).
+        final clean = cached.any((m) => m['isSidechain'] == true)
+            ? cached.where((m) => m['isSidechain'] != true).toList()
+            : cached;
+        if (clean.isNotEmpty) {
+          _sessionMessages[sessionId] = clean;
+          _sessionMessagesCache = null;
+          _sessionMessagesViewCache.remove(sessionId);
+          hasMessages = true;
+          // Notify UI immediately so it can render the cached messages.
+          _notifySessionMessagesChanged(sessionId);
+          _notifyDataChanged();
+        }
       }
       _requestTailRefresh(sessionId);
     } else if (_sessionsWithPendingUpdates.remove(sessionId)) {
@@ -7007,6 +7054,12 @@ what you have, you must use the options mode.
     _postSendCatchUpTimers.clear();
     _sessionsNeedingTailRefresh.clear();
     _sessionsWithPendingUpdates.clear();
+    // Flush pending message saves so the MMKV cache is up-to-date when the
+    // OS kills the app while backgrounded.  Without this, an in-flight
+    // deferred sidechain regroup can reset the save timer, and the cache
+    // retains stale messages with isSidechain == true that become invisible
+    // on the next cold start.
+    _flushPendingMessageSaves();
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     _persistSessionsCache();
     socketIoClient.disconnect();
