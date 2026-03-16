@@ -752,6 +752,25 @@ what you have, you must use the options mode.
     _scheduleSaveMessages(sessionId);
   }
 
+  /// Advance the message seq cursor for [sessionId] and keep
+  /// [Session.lastSeq] in sync so that gap detection and tail-load
+  /// calculations use a current value (the sessions API may lag behind
+  /// the actual cursor because inline socket messages advance it
+  /// faster than [fetchSessions] runs).
+  void _advanceSeqCursor(String sessionId, int newSeq) {
+    if (newSeq <= (_sessionLastSeq[sessionId] ?? 0)) return;
+    _sessionLastSeq[sessionId] = newSeq;
+    _scheduleSaveSeq();
+
+    // Keep session.lastSeq in sync so _tailAfterSeqForSession and
+    // gapTooLarge use the authoritative cursor, not the stale value
+    // from the last fetchSessions response.
+    final session = _sessions[sessionId];
+    if (session != null && (session.lastSeq ?? 0) < newSeq) {
+      _sessions[sessionId] = session.copyWith(lastSeq: newSeq);
+    }
+  }
+
   /// Debounced MMKV persist for session seq cursors.
   ///
   /// [saveSessionLastSeq] does a synchronous jsonEncode + MMKV disk write on
@@ -1143,10 +1162,7 @@ what you have, you must use the options mode.
         // re-download this message, then schedule a fetch for anything
         // the inline path can't represent (tool results attached to
         // earlier messages, etc.).
-        if (processed.maxSeq > (_sessionLastSeq[sessionId] ?? 0)) {
-          _sessionLastSeq[sessionId] = processed.maxSeq;
-          _scheduleSaveSeq();
-        }
+        _advanceSeqCursor(sessionId, processed.maxSeq);
         messagesSync[sessionId]?.invalidate();
         return;
       }
@@ -1179,10 +1195,7 @@ what you have, you must use the options mode.
 
       // Advance the seq cursor so future incremental fetches don't
       // re-download this message.
-      if (processed.maxSeq > (_sessionLastSeq[sessionId] ?? 0)) {
-        _sessionLastSeq[sessionId] = processed.maxSeq;
-        _scheduleSaveSeq();
-      }
+      _advanceSeqCursor(sessionId, processed.maxSeq);
 
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged();
@@ -4806,11 +4819,7 @@ what you have, you must use the options mode.
         if (processed.maxSeq > afterSeq) {
           afterSeq = processed.maxSeq;
         }
-        _sessionLastSeq[sessionId] = afterSeq;
-        // Debounced: batches rapid page fetches into a single disk write
-        // instead of blocking the main thread with jsonEncode + MMKV I/O
-        // on every pagination page.
-        _scheduleSaveSeq();
+        _advanceSeqCursor(sessionId, afterSeq);
 
         unawaited(
           Sentry.captureMessage(
