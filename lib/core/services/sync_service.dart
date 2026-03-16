@@ -4775,32 +4775,7 @@ what you have, you must use the options mode.
           'group=$groupMs perm=$permMs',
         );
 
-        if (!hasMore) {
-          // If this was the first page of a first-load with a non-zero
-          // afterSeq and the server returned nothing, our persisted seq
-          // cursor is stale (e.g. messages were purged server-side).
-          // Fall back to loading from the beginning so the user doesn't
-          // see an empty/infinite-loading screen.
-          if (page == 0 &&
-              isFirstLoad &&
-              afterSeq > 0 &&
-              processed.messages.isEmpty) {
-            logger.info(
-              '[fetchMessages] $sessionId tail-load returned 0 msgs '
-              'with afterSeq=$afterSeq — retrying from seq 0',
-            );
-            afterSeq = 0;
-            _sessionLastSeq[sessionId] = 0;
-            _sessionFirstLoadedSeq[sessionId] = 0;
-            MMKVStorage().saveSessionFirstLoadedSeq(
-              Map.unmodifiable(_sessionFirstLoadedSeq),
-            );
-            _scheduleSaveSeq();
-            page++;
-            continue;
-          }
-          break;
-        }
+        if (!hasMore) break;
         page++;
 
         // ── Yield between pages ──
