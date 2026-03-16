@@ -314,6 +314,24 @@ what you have, you must use the options mode.
   /// events that the server broadcasts multiple times.
   final Set<String> _recentInlineMessageKeys = {};
   static const int _maxRecentInlineKeys = 200;
+
+  /// Per-session serial queue for inline message processing.
+  ///
+  /// Sidechain messages form a linked list via `parentUuid` — each
+  /// message's `parentUuid` points to the previous message's `uuid`.
+  /// If two sidechain messages decrypt concurrently and the second
+  /// finishes before the first, the grouping logic can't find the
+  /// parent chain and the message stays orphaned.  Serialising
+  /// processing per session guarantees messages are upserted and
+  /// grouped in arrival order.
+  final Map<String, Future<void>> _inlineProcessingQueue = {};
+
+  /// Timer for deferred sidechain re-grouping.  After each inline
+  /// sidechain message is processed, we schedule a short delayed
+  /// sweep to catch any messages that were orphaned due to transient
+  /// chain gaps (e.g. a message arrived before its parent was
+  /// processed on a previous run).
+  final Map<String, Timer> _sidechainRegroupTimers = {};
   late InvalidateSync settingsSync;
   late InvalidateSync profileSync;
   late InvalidateSync purchasesSync;
@@ -1121,10 +1139,15 @@ what you have, you must use the options mode.
         _recentInlineMessageKeys.removeAll(toRemove);
       }
 
-      // Inline processing handles its own fallback to invalidate() on
-      // failure or empty results, so we don't need to schedule one here.
-      // This avoids a redundant HTTP round-trip on every streaming token.
-      unawaited(_processInlineMessage(sessionId, embeddedMessage));
+      // Serialize inline processing per session so sidechain messages
+      // (which form a parentUuid chain) are always upserted and grouped
+      // in arrival order.  Without this, concurrent decryptions can
+      // finish out of order, breaking the chain and leaving messages
+      // orphaned outside their parent Task.
+      final prev = _inlineProcessingQueue[sessionId] ?? Future<void>.value();
+      _inlineProcessingQueue[sessionId] = prev.then(
+        (_) => _processInlineMessage(sessionId, embeddedMessage),
+      );
     } else {
       // No embedded message or session not visible — fall back to HTTP.
       messagesSync[sessionId]?.invalidate();
@@ -1192,6 +1215,18 @@ what you have, you must use the options mode.
         changedIds: inlineChangedIds,
       );
       _applyPermissionRequests(sessionId);
+
+      // Schedule a deferred re-grouping sweep when sidechain
+      // messages were involved.  This catches any messages that
+      // were orphaned on a previous run because their parent
+      // hadn't been upserted yet (a chain gap).  The debounce
+      // timer coalesces rapid arrivals into a single sweep.
+      final hasSidechain = processed.messages.any(
+        (m) => m['isSidechain'] == true,
+      );
+      if (hasSidechain) {
+        _scheduleSidechainRegroup(sessionId);
+      }
 
       // Advance the seq cursor so future incremental fetches don't
       // re-download this message.
@@ -6065,6 +6100,41 @@ what you have, you must use the options mode.
   ///
   /// [changedIds] — when provided (inline streaming path), contains
   /// the IDs of messages that were just upserted.  If none of them
+  /// Schedule a debounced full re-grouping sweep for [sessionId].
+  ///
+  /// Called after each inline sidechain message is processed.
+  /// Coalesces rapid arrivals (e.g. 10 sidechain messages in 200 ms)
+  /// into a single sweep that runs without [changedIds], forcing
+  /// the grouping logic to iterate all messages and catch any that
+  /// were orphaned because their parent hadn't been upserted yet.
+  void _scheduleSidechainRegroup(String sessionId) {
+    _sidechainRegroupTimers[sessionId]?.cancel();
+    _sidechainRegroupTimers[sessionId] = Timer(
+      const Duration(milliseconds: 300),
+      () {
+        _sidechainRegroupTimers.remove(sessionId);
+        final messages = _sessionMessages[sessionId];
+        if (messages == null || messages.isEmpty) return;
+
+        // Only run if there are still ungrouped sidechain messages
+        // sitting in the main list (a normal message list has no
+        // isSidechain entries after successful grouping).
+        final hasOrphans = messages.any(
+          (m) => m['isSidechain'] == true,
+        );
+        if (!hasOrphans) return;
+
+        logger.info(
+          '[sidechain] running deferred re-group sweep '
+          'for session=$sessionId',
+        );
+        _groupSidechainMessages(sessionId);
+        _notifySessionMessagesChanged(sessionId);
+        _notifyDataChanged();
+      },
+    );
+  }
+
   /// are sidechain-relevant (no `isSidechain`, no `sidechain-root`
   /// kind, no Task/Agent tool-call) the method returns immediately,
   /// avoiding O(N²) work for the ~90 % of streaming tokens that are
@@ -6899,6 +6969,11 @@ what you have, you must use the options mode.
       timer.cancel();
     }
     _sessionMessageDebounceTimers.clear();
+    for (final timer in _sidechainRegroupTimers.values) {
+      timer.cancel();
+    }
+    _sidechainRegroupTimers.clear();
+    _inlineProcessingQueue.clear();
     _sessionsRefreshDebounceTimer?.cancel();
     _saveSeqDebounceTimer?.cancel();
     _saveSessionsCacheDebounceTimer?.cancel();
@@ -6948,6 +7023,11 @@ what you have, you must use the options mode.
       timer.cancel();
     }
     _sessionMessageDebounceTimers.clear();
+    for (final timer in _sidechainRegroupTimers.values) {
+      timer.cancel();
+    }
+    _sidechainRegroupTimers.clear();
+    _inlineProcessingQueue.clear();
     // Flush any pending seq write before shutdown so cursors aren't lost.
     _saveSeqDebounceTimer?.cancel();
     _saveSeqDebounceTimer = null;
