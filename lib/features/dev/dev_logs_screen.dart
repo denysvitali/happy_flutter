@@ -364,6 +364,15 @@ class LogEntryWidget extends StatelessWidget {
     return Material(
       child: InkWell(
         onTap: () => _showEntryDetails(context),
+        onLongPress: () {
+          Clipboard.setData(ClipboardData(text: entry.toFormattedString()));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context).devLogsLogEntryCopied),
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
@@ -445,122 +454,181 @@ class LogEntryWidget extends StatelessWidget {
   }
 
   void _showEntryDetails(BuildContext context) {
+    final hasError = entry.error != null || entry.stackTrace != null;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (ctx) {
         final theme = Theme.of(ctx);
         final cs = theme.colorScheme;
         final color = _getLevelColor(ctx);
 
-        return Container(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          width: double.infinity,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
+        return DraggableScrollableSheet(
+          initialChildSize: hasError ? 0.7 : 0.4,
+          minChildSize: 0.3,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(_getLevelIcon(), color: color),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    entry.level.name.toUpperCase(),
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w600,
+                  // Header — fixed
+                  Row(
+                    children: [
+                      Icon(_getLevelIcon(), color: color),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        entry.level.name.toUpperCase(),
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        entry.timestamp.toIso8601String(),
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: cs.outline),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  // Scrollable content
+                  Expanded(
+                    child: ListView(
+                      controller: scrollController,
+                      children: [
+                        SelectableText(
+                          entry.message,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontFamily: 'monospace',
+                            fontSize: AppFontSize.md,
+                          ),
+                        ),
+                        if (entry.error != null) ...[
+                          const SizedBox(height: AppSpacing.lg),
+                          Text(
+                            'Error:',
+                            style: theme.textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(AppSpacing.sm),
+                            decoration: BoxDecoration(
+                              color: cs.errorContainer
+                                  .withValues(alpha: AppOpacity.medium),
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.sm),
+                            ),
+                            child: SelectableText(
+                              entry.error.toString(),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontFamily: 'monospace',
+                                fontSize: AppFontSize.md,
+                                color: cs.error,
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (entry.stackTrace != null) ...[
+                          const SizedBox(height: AppSpacing.lg),
+                          Text(
+                            'Stack Trace:',
+                            style: theme.textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(AppSpacing.sm),
+                            decoration: BoxDecoration(
+                              color: cs.surfaceContainerHighest,
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.sm),
+                            ),
+                            child: SelectableText(
+                              entry.stackTrace.toString(),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontFamily: 'monospace',
+                                fontSize: AppFontSize.sm,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.xl),
+                      ],
                     ),
                   ),
-                  const Spacer(),
-                  Text(
-                    entry.timestamp.toIso8601String(),
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: cs.outline),
+                  // Action buttons — fixed at bottom
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: [
+                      if (hasError)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              final buffer = StringBuffer();
+                              if (entry.error != null) {
+                                buffer.writeln(entry.error.toString());
+                              }
+                              if (entry.stackTrace != null) {
+                                if (buffer.isNotEmpty) buffer.writeln();
+                                buffer.write(entry.stackTrace.toString());
+                              }
+                              Clipboard.setData(
+                                ClipboardData(text: buffer.toString()),
+                              );
+                              Navigator.of(ctx).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    AppLocalizations.of(context)
+                                        .devLogsLogEntryCopied,
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.error_outline, size: 18),
+                            label: const Text('Copy Error'),
+                          ),
+                        ),
+                      if (hasError) const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            Clipboard.setData(
+                              ClipboardData(
+                                text: entry.toFormattedString(),
+                              ),
+                            );
+                            Navigator.of(ctx).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  AppLocalizations.of(context)
+                                      .devLogsLogEntryCopied,
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.copy, size: 18),
+                          label: Text(
+                            AppLocalizations.of(context).devLogsCopyEntry,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                entry.message,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  fontFamily: 'monospace',
-                  fontSize: AppFontSize.md,
-                ),
-              ),
-              if (entry.error != null) ...[
-                const SizedBox(height: AppSpacing.lg),
-                Text(
-                  'Error:',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: cs.errorContainer
-                        .withValues(alpha: AppOpacity.medium),
-                    borderRadius:
-                        BorderRadius.circular(AppRadius.sm),
-                  ),
-                  child: Text(
-                    entry.error.toString(),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontFamily: 'monospace',
-                      fontSize: AppFontSize.md,
-                      color: cs.error,
-                    ),
-                  ),
-                ),
-              ],
-              if (entry.stackTrace != null) ...[
-                const SizedBox(height: AppSpacing.lg),
-                Text(
-                  'Stack Trace:',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Text(
-                    entry.stackTrace.toString(),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontFamily: 'monospace',
-                      fontSize: AppFontSize.sm,
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: AppSpacing.xxl),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () {
-                    Clipboard.setData(
-                      ClipboardData(
-                        text: entry.toFormattedString(),
-                      ),
-                    );
-                    Navigator.of(ctx).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          AppLocalizations.of(context)
-                              .devLogsLogEntryCopied,
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.copy),
-                  label: Text(
-                    AppLocalizations.of(context).devLogsCopyEntry,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
