@@ -4144,6 +4144,15 @@ what you have, you must use the options mode.
           return;
         }
 
+        // Skip polling for non-visible sessions — socket events already
+        // trigger message fetches via _handleNewMessage, so the periodic
+        // poll is redundant and wastes HTTP round-trips (each returning 0
+        // messages).  When the user navigates back, onSessionVisible()
+        // triggers a fresh fetch to pick up anything missed.
+        if (sessionId != _visibleSessionId) {
+          return;
+        }
+
         messagesSync[sessionId]?.invalidate();
       },
     );
@@ -4645,6 +4654,24 @@ what you have, you must use the options mode.
         'cursorSeq=$cursorSeq '
         'serverLastSeq=$serverLastSeq',
       );
+
+      // Skip the HTTP round-trip when the cursor is already at or past
+      // the server's known lastSeq — there is nothing to fetch.  Socket
+      // events (new-message) update _sessionLastSeq via inline processing
+      // for the visible session and via invalidate() for background ones,
+      // so we won't miss messages.  The session's lastSeq is updated by
+      // _scheduleSessionsRefresh() from update-session socket events.
+      if (!isFirstLoad &&
+          !forceTailRefresh &&
+          cursorSeq > 0 &&
+          serverLastSeq > 0 &&
+          cursorSeq >= serverLastSeq) {
+        logger.info(
+          '[fetchMessages] $sessionId already caught up '
+          '(cursor=$cursorSeq server=$serverLastSeq) — skipping',
+        );
+        return;
+      }
 
       if (isFirstLoad || forceTailRefresh || gapTooLarge) {
         // Lazy tail-load: start near the end of the session history so we

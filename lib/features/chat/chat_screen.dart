@@ -260,6 +260,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _didStartInitialLoad = true;
 
     sync.onSessionVisible(widget.sessionId);
+
+    // Show cached messages immediately instead of waiting for the
+    // debounced stream notification (100ms).  onSessionVisible() loads
+    // the MMKV cache synchronously, so sync already has messages in
+    // memory at this point.
+    _refreshFromSync();
+
     var success = true;
     try {
       await sync.messagesSync[widget.sessionId]?.awaitQueue().timeout(
