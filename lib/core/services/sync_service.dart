@@ -308,6 +308,12 @@ what you have, you must use the options mode.
 
   /// Sessions currently being paginated backwards (older-message loads).
   final Set<String> _loadingOlderMessages = {};
+
+  /// Dedup set for inline socket messages.  Keyed by
+  /// `"$sessionId:$messageId:$seq"` to skip duplicate `new-message`
+  /// events that the server broadcasts multiple times.
+  final Set<String> _recentInlineMessageKeys = {};
+  static const int _maxRecentInlineKeys = 200;
   late InvalidateSync settingsSync;
   late InvalidateSync profileSync;
   late InvalidateSync purchasesSync;
@@ -1073,6 +1079,29 @@ what you have, you must use the options mode.
     // message delivery rather than waiting for the round-trip.
     final embeddedMessage = data['message'] as Map<String, dynamic>?;
     if (embeddedMessage != null && isVisible) {
+      // Deduplicate: the server often broadcasts the same new-message
+      // event 7-8 times.  All arrive within the same millisecond, so
+      // without dedup each triggers a full concurrent decrypt cycle
+      // (the cache can't help because none has completed yet).
+      final msgId = embeddedMessage['id'] as String?;
+      final msgSeq = embeddedMessage['seq'];
+      final dedupKey = '$sessionId:$msgId:$msgSeq';
+      if (_recentInlineMessageKeys.contains(dedupKey)) {
+        return;
+      }
+      _recentInlineMessageKeys.add(dedupKey);
+      if (_recentInlineMessageKeys.length > _maxRecentInlineKeys) {
+        // Evict oldest entries.
+        final excess =
+            _recentInlineMessageKeys.length - _maxRecentInlineKeys;
+        final it = _recentInlineMessageKeys.iterator;
+        final toRemove = <String>[];
+        for (var i = 0; i < excess && it.moveNext(); i++) {
+          toRemove.add(it.current);
+        }
+        _recentInlineMessageKeys.removeAll(toRemove);
+      }
+
       // Inline processing handles its own fallback to invalidate() on
       // failure or empty results, so we don't need to schedule one here.
       // This avoids a redundant HTTP round-trip on every streaming token.
@@ -6903,6 +6932,7 @@ what you have, you must use the options mode.
     _sessionFirstLoadedSeq.clear();
     MMKVStorage().clearSessionFirstLoadedSeq();
     _loadingOlderMessages.clear();
+    _recentInlineMessageKeys.clear();
 
     sessionsSync.dispose();
     settingsSync.dispose();
