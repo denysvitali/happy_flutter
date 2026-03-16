@@ -4583,17 +4583,41 @@ what you have, you must use the options mode.
       final forceTailRefresh = _sessionsNeedingTailRefresh.remove(sessionId);
       int afterSeq;
 
-      if (isFirstLoad || forceTailRefresh) {
+      // Detect large gaps: when the cursor is far behind the session's
+      // current lastSeq, forward-crawling page by page is extremely slow
+      // (100 msgs/page × decrypt × O(n) grouping per page).  Fall back
+      // to a tail-load so we only fetch the most recent messages.
+      final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
+      final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
+      final gapTooLarge =
+          !isFirstLoad &&
+          !forceTailRefresh &&
+          serverLastSeq > 0 &&
+          (serverLastSeq - cursorSeq) > initialLoad;
+
+      if (isFirstLoad || forceTailRefresh || gapTooLarge) {
         // Lazy tail-load: start near the end of the session history so we
         // don't download thousands of messages that the UI will never show.
         afterSeq = _tailAfterSeqForSession(sessionId);
-        if (forceTailRefresh && !isFirstLoad) {
+        if (gapTooLarge) {
+          logger.info(
+            '[fetchMessages] $sessionId gap too large '
+            '(cursor=$cursorSeq server=$serverLastSeq) — '
+            'switching to tail-load afterSeq=$afterSeq',
+          );
+          // Clear stale in-memory messages so the tail-load replaces
+          // them cleanly instead of merging with outdated data.
+          _sessionMessages.remove(sessionId);
+          _sessionMessagesCache = null;
+          _sessionMessagesViewCache.remove(sessionId);
+        }
+        if (forceTailRefresh && !isFirstLoad && !gapTooLarge) {
           logger.info(
             '[fetchMessages] $sessionId forcing tail refresh '
             'afterSeq=$afterSeq',
           );
         }
-        if (isFirstLoad) {
+        if (isFirstLoad || gapTooLarge) {
           if (afterSeq > 0) {
             // Record where we started so the UI can offer "load older" later.
             _sessionFirstLoadedSeq[sessionId] = afterSeq + 1;
