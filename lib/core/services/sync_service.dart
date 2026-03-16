@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
@@ -2029,12 +2028,13 @@ what you have, you must use the options mode.
           );
         }
 
-        // Decrypt all machine payloads off the main thread.
-        final machineIsolateResults = kIsWeb
-            ? await _decryptMachinesInIsolate(machineIsolateItems)
-            : await Isolate.run(
-                () => _decryptMachinesInIsolate(machineIsolateItems),
-              );
+        // Decrypt all machine payloads.
+        // Note: cannot use Isolate.run() here because the cryptography
+        // package's AesGcm uses platform channels / native bindings that
+        // create unsendable async objects (_AsyncCompleter) across isolate
+        // boundaries on Android.
+        final machineIsolateResults =
+            await _decryptMachinesInIsolate(machineIsolateItems);
         final machineResultById = {
           for (final r in machineIsolateResults) r.id: r,
         };
@@ -2164,11 +2164,9 @@ what you have, you must use the options mode.
           );
         }).toList();
 
-        final artifactIsolateResults = kIsWeb
-            ? await _decryptArtifactsInIsolate(artifactIsolateItems)
-            : await Isolate.run(
-                () => _decryptArtifactsInIsolate(artifactIsolateItems),
-              );
+        // Note: cannot use Isolate.run() — see machine decryption comment.
+        final artifactIsolateResults =
+            await _decryptArtifactsInIsolate(artifactIsolateItems);
         final artifactResultById = {
           for (final r in artifactIsolateResults) r.id: r,
         };

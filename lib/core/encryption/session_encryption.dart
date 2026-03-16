@@ -1,50 +1,13 @@
 import 'dart:convert' show jsonDecode, jsonEncode;
-import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../services/logger_service.dart' show logger;
 
-import 'aes_gcm.dart';
 import 'base64.dart';
-import 'crypto_secret_box.dart';
 import 'encryption_cache.dart';
 import 'encryptor.dart';
 import 'message_processor.dart';
-
-/// Top-level function for batch decryption in a background isolate.
-///
-/// Must be top-level (not a closure or instance method) so it can be
-/// passed to [Isolate.run].
-Future<List<dynamic>> _batchDecryptInIsolate(
-  ({List<Uint8List> encrypted, Uint8List secretKey, bool isAes}) args,
-) async {
-  final results = <dynamic>[];
-  for (final item in args.encrypted) {
-    if (args.isAes) {
-      // AES256Encryption format: version byte + encrypted payload
-      if (item.isEmpty || item[0] != 0) {
-        results.add(null);
-        continue;
-      }
-      try {
-        final decrypted = await AesGcmEncryption.decrypt(
-          item.sublist(1),
-          args.secretKey,
-        );
-        results.add(decrypted);
-      } catch (e) {
-        results.add(null);
-      }
-    } else {
-      // NaCl SecretBox decryption
-      final decrypted = await CryptoSecretBox.decrypt(item, args.secretKey);
-      results.add(decrypted);
-    }
-  }
-  return results;
-}
 
 /// Extracts the base64 ciphertext from a message content value.
 /// Supports the old JSON-wrapper format `{'t': 'encrypted', 'c': '<b64>'}`
@@ -126,73 +89,6 @@ class _IsolateWireMessage {
   final bool isEncrypted;
 }
 
-/// Top-level function that does base64 decode + decrypt + process
-/// entirely inside a background isolate.
-///
-/// Receives only minimal wire data (not the full API response maps)
-/// to minimise isolate serialization overhead.
-Future<ProcessedMessages> _batchDecryptAndProcessInIsolate(
-  ({
-    List<_IsolateWireMessage> wireData,
-    Uint8List secretKey,
-    bool isAes,
-    String sessionId,
-  })
-  args,
-) async {
-  final decryptedJsonList = List<dynamic>.filled(args.wireData.length, null);
-
-  // Decrypt every encrypted message (base64 decode + crypto).
-  for (var i = 0; i < args.wireData.length; i++) {
-    final wire = args.wireData[i];
-    if (!wire.isEncrypted || wire.base64Content == null) continue;
-
-    final Uint8List encrypted;
-    try {
-      encrypted = Base64Utils.decode(wire.base64Content!, Encoding.base64);
-    } on FormatException {
-      continue;
-    }
-
-    if (args.isAes) {
-      if (encrypted.isEmpty || encrypted[0] != 0) continue;
-      try {
-        decryptedJsonList[i] = await AesGcmEncryption.decrypt(
-          encrypted.sublist(1),
-          args.secretKey,
-        );
-      } catch (_) {
-        // leave null — will show as decryption error
-      }
-    } else {
-      decryptedJsonList[i] = await CryptoSecretBox.decrypt(
-        encrypted,
-        args.secretKey,
-      );
-    }
-  }
-
-  // Rebuild minimal wireMessages maps for processDecryptedMessages.
-  final wireMessages = <Map<String, dynamic>>[];
-  final wasEncryptedList = <bool>[];
-  for (final w in args.wireData) {
-    wireMessages.add({
-      'id': w.id,
-      'seq': w.seq,
-      'localId': w.localId,
-      'createdAt': w.createdAt,
-    });
-    wasEncryptedList.add(w.isEncrypted);
-  }
-
-  return processDecryptedMessages(
-    decryptedJsonList: decryptedJsonList,
-    wireMessages: wireMessages,
-    sessionId: args.sessionId,
-    wasEncrypted: wasEncryptedList,
-  );
-}
-
 /// Session-specific encryption management
 class SessionEncryption {
   SessionEncryption({
@@ -208,9 +104,6 @@ class SessionEncryption {
   final Encryptor _encryptor;
   final Decryptor _decryptor;
   final EncryptionCache _cache;
-
-  /// Minimum batch size to justify isolate overhead.
-  static const int _isolateThreshold = 5;
 
   /// Batch decrypt messages
   Future<List<DecryptedMessage?>> decryptMessages(
@@ -293,18 +186,10 @@ class SessionEncryption {
 
       List<dynamic> decrypted;
 
-      // Offload to background isolate if batch is large enough
-      if (toDecrypt.length >= _isolateThreshold && _canOffloadToIsolate) {
-        decrypted = await Isolate.run(
-          () => _batchDecryptInIsolate((
-            encrypted: encrypted,
-            secretKey: _extractSecretKey()!,
-            isAes: _decryptor is AES256Encryption,
-          )),
-        );
-      } else {
-        decrypted = await _decryptor.decrypt(encrypted);
-      }
+      // Note: Isolate.run() cannot be used here because the cryptography
+      // package's AesGcm uses platform channels that create unsendable
+      // async objects (_AsyncCompleter) across isolate boundaries on Android.
+      decrypted = await _decryptor.decrypt(encrypted);
 
       for (var i = 0; i < toDecrypt.length; i++) {
         final decryptedData = decrypted[i];
@@ -450,23 +335,7 @@ class SessionEncryption {
       'cached=$cachedCount',
     );
 
-    // Offload to isolate if enough messages need decryption
-    if (toDecryptCount >= _isolateThreshold &&
-        _canOffloadToIsolate &&
-        cachedCount == 0) {
-      final result = await Isolate.run(
-        () => _batchDecryptAndProcessInIsolate((
-          wireData: wireData,
-          secretKey: _extractSecretKey()!,
-          isAes: _decryptor is AES256Encryption,
-          sessionId: sessionId,
-        )),
-      );
-
-      return result;
-    }
-
-    // Small batch / unsupported decryptor: main-thread path
+    // Note: Isolate.run() cannot be used here — see decryptMessages comment.
     final decryptedList = await decryptMessages(messages);
     final contentList = <dynamic>[];
     for (final dm in decryptedList) {
@@ -481,19 +350,6 @@ class SessionEncryption {
       sessionId: sessionId,
       wasEncrypted: wasEncryptedList,
     );
-  }
-
-  /// Whether the decryptor type supports isolate offloading.
-  bool get _canOffloadToIsolate =>
-      !kIsWeb &&
-      (_decryptor is SecretBoxEncryption || _decryptor is AES256Encryption);
-
-  /// Extract the secret key from known decryptor types.
-  Uint8List? _extractSecretKey() {
-    final dec = _decryptor;
-    if (dec is SecretBoxEncryption) return dec.secretKey;
-    if (dec is AES256Encryption) return dec.secretKey;
-    return null;
   }
 
   /// Single message convenience method
