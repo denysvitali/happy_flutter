@@ -394,6 +394,13 @@ what you have, you must use the options mode.
   final Map<String, Timer> _postSendCatchUpTimers = {};
   final Set<String> _sessionsNeedingTailRefresh = <String>{};
 
+  /// Sessions that received `new-message` socket events while they were
+  /// not visible. When the user navigates to one of these sessions,
+  /// [onSessionVisible] forces a tail-refresh so [fetchMessages] bypasses
+  /// the `cursorSeq >= serverLastSeq` skip and fetches any messages that
+  /// were dropped while the session was in the background.
+  final Set<String> _sessionsWithPendingUpdates = <String>{};
+
   // sessionId → epoch-ms of last local spawn. Lets _resolveSendTargetSession
   // skip auto-restore while the daemon's lifecycle update propagates (< 5 s).
   final Map<String, int> _sessionSpawnedAt = {};
@@ -1111,15 +1118,13 @@ what you have, you must use the options mode.
       );
     }
 
-    // Try to process the embedded message directly from the socket payload
-    // instead of triggering a full HTTP refetch. This provides near-instant
-    // message delivery rather than waiting for the round-trip.
+    // Deduplicate ALL socket events, not just visible ones.  The server
+    // often broadcasts the same new-message event 7-8 times.  Without
+    // dedup for non-visible sessions, a background session with an
+    // active AI response floods the logger and triggers hundreds of
+    // wasteful fetchMessages calls that immediately skip.
     final embeddedMessage = data['message'] as Map<String, dynamic>?;
-    if (embeddedMessage != null && isVisible) {
-      // Deduplicate: the server often broadcasts the same new-message
-      // event 7-8 times.  All arrive within the same millisecond, so
-      // without dedup each triggers a full concurrent decrypt cycle
-      // (the cache can't help because none has completed yet).
+    if (embeddedMessage != null) {
       final msgId = embeddedMessage['id'] as String?;
       final msgSeq = embeddedMessage['seq'];
       final dedupKey = '$sessionId:$msgId:$msgSeq';
@@ -1138,7 +1143,12 @@ what you have, you must use the options mode.
         }
         _recentInlineMessageKeys.removeAll(toRemove);
       }
+    }
 
+    // Try to process the embedded message directly from the socket payload
+    // instead of triggering a full HTTP refetch. This provides near-instant
+    // message delivery rather than waiting for the round-trip.
+    if (embeddedMessage != null && isVisible) {
       // Serialize inline processing per session so sidechain messages
       // (which form a parentUuid chain) are always upserted and grouped
       // in arrival order.  Without this, concurrent decryptions can
@@ -1148,8 +1158,15 @@ what you have, you must use the options mode.
       _inlineProcessingQueue[sessionId] = prev.then(
         (_) => _processInlineMessage(sessionId, embeddedMessage),
       );
+    } else if (embeddedMessage != null && !isVisible) {
+      // Non-visible session with an embedded message (e.g. streaming
+      // AI response): mark it dirty so onSessionVisible() forces a
+      // tail-refresh when the user navigates to it.  Skip the
+      // invalidate() — fetchMessages would just skip because
+      // cursorSeq matches the stale serverLastSeq.
+      _sessionsWithPendingUpdates.add(sessionId);
     } else {
-      // No embedded message or session not visible — fall back to HTTP.
+      // No embedded message — fall back to HTTP fetch.
       messagesSync[sessionId]?.invalidate();
     }
 
@@ -1270,6 +1287,7 @@ what you have, you must use the options mode.
       _sessionDataKeys.remove(sessionId);
       _sessionEncryptedDataKeys.remove(sessionId);
       _sessionsNeedingTailRefresh.remove(sessionId);
+      _sessionsWithPendingUpdates.remove(sessionId);
       _sessionSpawnedAt.remove(sessionId);
       _autoRestoreInFlight.remove(sessionId);
       if (isInitialized) {
@@ -4606,6 +4624,12 @@ what you have, you must use the options mode.
         _notifyDataChanged();
       }
       _requestTailRefresh(sessionId);
+    } else if (_sessionsWithPendingUpdates.remove(sessionId)) {
+      // This session received socket events while it was in the
+      // background.  Force a tail-refresh so fetchMessages bypasses the
+      // cursorSeq >= serverLastSeq skip and picks up any messages that
+      // were dropped while the session was not visible.
+      _requestTailRefresh(sessionId);
     }
     if (!messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId] = InvalidateSync(
@@ -4693,9 +4717,9 @@ what you have, you must use the options mode.
       // Skip the HTTP round-trip when the cursor is already at or past
       // the server's known lastSeq — there is nothing to fetch.  Socket
       // events (new-message) update _sessionLastSeq via inline processing
-      // for the visible session and via invalidate() for background ones,
-      // so we won't miss messages.  The session's lastSeq is updated by
-      // _scheduleSessionsRefresh() from update-session socket events.
+      // for the visible session.  Background sessions mark themselves
+      // dirty in _sessionsWithPendingUpdates; onSessionVisible() then
+      // forces a tail-refresh that bypasses this skip.
       if (!isFirstLoad &&
           !forceTailRefresh &&
           cursorSeq > 0 &&
@@ -6982,6 +7006,7 @@ what you have, you must use the options mode.
     }
     _postSendCatchUpTimers.clear();
     _sessionsNeedingTailRefresh.clear();
+    _sessionsWithPendingUpdates.clear();
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     _persistSessionsCache();
     socketIoClient.disconnect();
@@ -7011,6 +7036,7 @@ what you have, you must use the options mode.
     }
     _postSendCatchUpTimers.clear();
     _sessionsNeedingTailRefresh.clear();
+    _sessionsWithPendingUpdates.clear();
 
     socketIoClient
       ..offMessage('update')
