@@ -27,6 +27,11 @@ class InvalidateSync {
   void invalidate() {
     _invalidated = true;
 
+    // Always ensure a Completer exists so that awaitQueue() callers
+    // block until the invalidated work actually completes — even if
+    // the run is deferred by a cooldown timer or is already in flight.
+    _currentOperation ??= Completer<void>();
+
     if (_running || _cooldownTimer != null) {
       return;
     }

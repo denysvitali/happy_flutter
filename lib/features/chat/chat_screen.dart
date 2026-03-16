@@ -11,6 +11,7 @@ import '../../core/models/session.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
+import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -290,6 +291,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final sessionChanged = latestSession != _session;
     final messagesChanged = !identical(latestMessages, _messages);
+
+    logger.info(
+      '[ChatScreen] _refreshFromSync '
+      'session=${widget.sessionId} '
+      'markLoaded=$markLoaded '
+      'sessionChanged=$sessionChanged '
+      'messagesChanged=$messagesChanged '
+      'latestMsgs=${latestMessages.length} '
+      'currentMsgs=${_messages.length} '
+      'visibleCount=$_visibleCount',
+    );
+
     if (!sessionChanged && !messagesChanged && !markLoaded) {
       return;
     }
