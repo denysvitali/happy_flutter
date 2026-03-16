@@ -4595,6 +4595,15 @@ what you have, you must use the options mode.
           serverLastSeq > 0 &&
           (serverLastSeq - cursorSeq) > initialLoad;
 
+      logger.info(
+        '[fetchMessages] $sessionId '
+        'isFirstLoad=$isFirstLoad '
+        'forceTailRefresh=$forceTailRefresh '
+        'gapTooLarge=$gapTooLarge '
+        'cursorSeq=$cursorSeq '
+        'serverLastSeq=$serverLastSeq',
+      );
+
       if (isFirstLoad || forceTailRefresh || gapTooLarge) {
         // Lazy tail-load: start near the end of the session history so we
         // don't download thousands of messages that the UI will never show.
@@ -4801,6 +4810,18 @@ what you have, you must use the options mode.
 
         if (!hasMore) break;
         page++;
+
+        // Safety valve: if we've paginated through too many pages,
+        // something is wrong (stale cursor, missing lastSeq, etc.).
+        // Stop crawling to avoid blocking the UI for minutes.
+        const maxPages = 5; // 500 messages max per fetch cycle
+        if (page >= maxPages) {
+          logger.warning(
+            '[fetchMessages] $sessionId hit $maxPages page limit '
+            '— stopping forward crawl at afterSeq=$afterSeq',
+          );
+          break;
+        }
 
         // ── Yield between pages ──
         await Future<void>.delayed(Duration.zero);
