@@ -650,8 +650,7 @@ what you have, you must use the options mode.
     anonID = encryption.anonId;
     serverID = parseToken(credentials.token);
     await _init();
-
-    isInitialized = true;
+    // isInitialized is set early inside _init() after cache restore.
   }
 
   /// Internal initialization
@@ -683,6 +682,13 @@ what you have, you must use the options mode.
     feedSync = InvalidateSync(fetchFeed);
     todosSync = InvalidateSync(fetchTodos);
     sessionGitStatusSync = InvalidateSync(_fetchSessionGitStatus);
+
+    // Mark initialized early so that provider loadFromSync() can serve
+    // cached sessions and messages immediately, before network syncs
+    // complete.  Screens subscribing to onDataChanged will pick up the
+    // cached snapshot within the debounce window (~100ms).
+    isInitialized = true;
+    _notifyDataChanged();
 
     // Setup socket connection
     final serverUrl = getServerUrl();
@@ -1242,12 +1248,21 @@ what you have, you must use the options mode.
       }
       logger.info('New message received: $sessionId');
     } else {
-      // Non-visible session: mark dirty so onSessionVisible() forces a
-      // tail-refresh when the user navigates to it.  This covers both
-      // events with embedded messages (streaming AI responses) AND bare
-      // events without payloads.  Previously, bare events fell through
-      // to messagesSync?.invalidate() which was a no-op for background
-      // sessions (no InvalidateSync entry), silently dropping the event.
+      // Non-visible session: mark dirty so onSessionVisible() triggers
+      // a fetch when the user navigates to it.
+      //
+      // Keep session.lastSeq up-to-date from the embedded message's seq
+      // so that fetchMessages' incremental delta path can compute the
+      // correct gap without a full tail-refresh.
+      if (embeddedMessage != null) {
+        final msgSeq = embeddedMessage['seq'] as int?;
+        if (msgSeq != null) {
+          final session = _sessions[sessionId];
+          if (session != null && (session.lastSeq ?? 0) < msgSeq) {
+            _sessions[sessionId] = session.copyWith(lastSeq: msgSeq);
+          }
+        }
+      }
       if (_sessionsWithPendingUpdates.add(sessionId)) {
         logger.info('Background messages pending: $sessionId');
       }
@@ -2980,10 +2995,11 @@ what you have, you must use the options mode.
     }
   }
 
-  /// Sync purchases — delegates to [fetchProfile] which fetches the same
-  /// endpoint and extracts purchases data, avoiding a duplicate HTTP request.
+  /// Sync purchases — piggybacks on [profileSync] since [fetchProfile]
+  /// already extracts purchases from the same endpoint.  Avoids a
+  /// duplicate HTTP request to `/v1/account/profile`.
   Future<void> syncPurchases() async {
-    await fetchProfile();
+    await profileSync.awaitQueue();
   }
 
   /// Fetch profile from server. Also extracts and stores purchases data from
@@ -4713,10 +4729,25 @@ what you have, you must use the options mode.
       _requestTailRefresh(sessionId);
     } else if (_sessionsWithPendingUpdates.remove(sessionId)) {
       // This session received socket events while it was in the
-      // background.  Force a tail-refresh so fetchMessages bypasses the
-      // cursorSeq >= serverLastSeq skip and picks up any messages that
-      // were dropped while the session was not visible.
-      _requestTailRefresh(sessionId);
+      // background.  Use the incremental delta path when we have a
+      // valid cursor and the gap is small — this avoids re-downloading
+      // ~200 messages when only a few are new.  Fall back to a full
+      // tail-refresh when the cursor is missing or the gap is too
+      // large (the gapTooLarge detection in fetchMessages handles
+      // the latter automatically).
+      final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
+      final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
+      if (cursorSeq <= 0 ||
+          serverLastSeq <= 0 ||
+          serverLastSeq <= cursorSeq) {
+        // No reliable cursor or server says we're caught up but
+        // socket events say otherwise — tail-refresh to be safe.
+        _requestTailRefresh(sessionId);
+      }
+      // Otherwise: cursorSeq < serverLastSeq with a known gap.
+      // The normal incremental path in fetchMessages will pick up
+      // the delta (and gapTooLarge will fall back to tail-load if
+      // the gap exceeds initialLoad).
     }
     if (!messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId] = InvalidateSync(
