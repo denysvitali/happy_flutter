@@ -48,15 +48,17 @@ class _ElapsedTimeWidgetState extends State<ElapsedTimeWidget> {
     if (widget.startTime == null) {
       _timer?.cancel();
       _timer = null;
-      setState(() => _elapsedSeconds = 0);
+      if (mounted) setState(() => _elapsedSeconds = 0);
       return;
     }
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final elapsed = ((now - widget.startTime!) / 1000).floor();
-    setState(
-      () => _elapsedSeconds = elapsed.clamp(0, double.maxFinite).toInt(),
-    );
+    if (mounted) {
+      setState(
+        () => _elapsedSeconds = elapsed.clamp(0, double.maxFinite).toInt(),
+      );
+    }
 
     _timer ??= Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -143,15 +145,17 @@ class _ElapsedTimeBuilderState extends State<_ElapsedTimeBuilder> {
     if (widget.startTime == null) {
       _timer?.cancel();
       _timer = null;
-      setState(() => _elapsedSeconds = 0);
+      if (mounted) setState(() => _elapsedSeconds = 0);
       return;
     }
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final elapsed = ((now - widget.startTime!) / 1000).floor();
-    setState(
-      () => _elapsedSeconds = elapsed.clamp(0, double.maxFinite).toInt(),
-    );
+    if (mounted) {
+      setState(
+        () => _elapsedSeconds = elapsed.clamp(0, double.maxFinite).toInt(),
+      );
+    }
 
     _timer ??= Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
