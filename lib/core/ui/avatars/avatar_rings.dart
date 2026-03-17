@@ -53,6 +53,10 @@ class _RingsPainter extends CustomPainter {
   /// Derive an int in [0, max) from the running hash.
   static int _next(int h, int max) => h.abs() % max;
 
+  /// Linear congruential generator step using constants safe for both
+  /// VM (64-bit int) and web (JavaScript double).
+  static int _lcg(int h) => h * 214013 + 2531011;
+
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
@@ -83,12 +87,12 @@ class _RingsPainter extends CustomPainter {
     // Draw outermost ring first so inner rings paint on top.
     for (var i = 0; i < ringCount; i++) {
       // Stroke width: 2–6 px (scaled).
-      hWidth = hWidth * 6364136223846793005 + 1442695040888963407;
+      hWidth = _lcg(hWidth);
       final rawWidth = 2.0 + _next(hWidth, 5).toDouble(); // 2–6
       final strokeW = rawWidth * scale;
 
       // Gap before this ring (ring sits at outerR - strokeW/2).
-      hGap = hGap * 6364136223846793005 + 1442695040888963407;
+      hGap = _lcg(hGap);
       final rawGap = 1.0 + _next(hGap, 4).toDouble(); // 1–4
       final gap = rawGap * scale;
 
@@ -98,7 +102,7 @@ class _RingsPainter extends CustomPainter {
 
       // Hue: rotate by golden angle per ring, vary lightness slightly.
       final hue = (baseHue + i * _goldenAngle) % 360;
-      hLight = hLight * 6364136223846793005 + 1442695040888963407;
+      hLight = _lcg(hLight);
       final lightness = 0.50 + _next(hLight, 26) * 0.01; // 0.50–0.75
       final saturation = 0.60 + _next(hLight >> 4, 25) * 0.01; // 0.60–0.84
       final color = HSLColor.fromAHSL(
@@ -109,7 +113,7 @@ class _RingsPainter extends CustomPainter {
       ).toColor();
 
       // Decide whether this ring is dashed (≈1 in 3 rings).
-      hDash = hDash * 6364136223846793005 + 1442695040888963407;
+      hDash = _lcg(hDash);
       final isDashed = _next(hDash, 3) == 0;
 
       final paint = Paint()

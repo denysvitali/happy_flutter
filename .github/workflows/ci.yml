@@ -394,3 +394,79 @@ jobs:
           files: build/app/outputs/flutter-apk/app-${{ steps.flavor.outputs.FLAVOR }}-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-web:
+    name: Build Web
+    needs: analyze
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Get dependencies
+        run: devenv shell -- flutter pub get
+
+      - name: Build Web
+        run: |
+          devenv shell -- flutter build web --release \
+            --base-href '/happy_flutter/' \
+            --dart-define=COMMIT_SHA=${{ github.sha }}
+
+      - name: Cache-bust index.html
+        run: |
+          # Inject commit SHA as a query param on main.dart.js to bust CDN caches.
+          # Flutter's index.html references main.dart.js without a hash, so
+          # stale CDN responses would serve the old JS bundle.
+          sed -i "s|main.dart.js|main.dart.js?v=${{ github.sha }}|" build/web/index.html
+
+      - name: Upload Web Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: build/web
+          retention-days: 1
+
+  deploy-web:
+    name: Deploy to GitHub Pages
+    needs: build-web
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Download Web Build
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: build/web
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
