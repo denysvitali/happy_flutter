@@ -960,6 +960,7 @@ what you have, you must use the options mode.
   /// [getLastMessagePreview] and [messagesForSession] return data
   /// immediately on cold start, without waiting for any HTTP fetch.
   void _restoreAllCachedMessages() {
+    var firstLoadedChanged = false;
     for (final sessionId in _sessions.keys) {
       if (_sessionMessages.containsKey(sessionId)) continue;
       final cached = MMKVStorage().getSessionMessages(sessionId);
@@ -976,10 +977,35 @@ what you have, you must use the options mode.
         if (clean.isNotEmpty) {
           _sessionMessages[sessionId] = clean;
           _sessionMessagesViewCache.remove(sessionId);
+
+          // The MMKV cache only stores the most recent ~100 messages.
+          // _sessionFirstLoadedSeq (restored from MMKV earlier) may
+          // still say 0 ("loaded from beginning") or be null, which
+          // tells hasOlderMessages() there is nothing older.  That
+          // was true before the restart when all messages were in
+          // memory, but now we only have ~100.  Recalculate from the
+          // lowest seq actually present so the user can scroll up to
+          // load older history.
+          int? minSeq;
+          for (final m in clean) {
+            final seq = m['seq'] as int?;
+            if (seq != null && (minSeq == null || seq < minSeq)) {
+              minSeq = seq;
+            }
+          }
+          if (minSeq != null && minSeq > 1) {
+            _sessionFirstLoadedSeq[sessionId] = minSeq;
+            firstLoadedChanged = true;
+          }
         }
       }
     }
     _sessionMessagesCache = null;
+    if (firstLoadedChanged) {
+      MMKVStorage().saveSessionFirstLoadedSeq(
+        Map.unmodifiable(_sessionFirstLoadedSeq),
+      );
+    }
   }
 
   Future<void> _primeSessionFromSpawnResult({
