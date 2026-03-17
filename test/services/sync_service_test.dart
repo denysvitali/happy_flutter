@@ -118,9 +118,23 @@ void main() {
     );
 
     test(
-      'new-message invalidates messages sync when only id is present',
+      'new-message marks non-visible session dirty when only id is present',
+      () {
+        instance.handleUpdate({'t': 'new-message', 'id': 'session_1'});
+
+        expect(
+          instance.testSessionsWithPendingUpdates,
+          contains('session_1'),
+        );
+      },
+    );
+
+    test(
+      'new-message invalidates messages sync for visible session '
+      'when only id is present',
       () async {
         var messageInvalidations = 0;
+        instance.testVisibleSessionId = 'session_1';
         instance.messagesSync['session_1'] = InvalidateSync(() async {
           messageInvalidations++;
         });

@@ -401,6 +401,11 @@ what you have, you must use the options mode.
   /// were dropped while the session was in the background.
   final Set<String> _sessionsWithPendingUpdates = <String>{};
 
+  /// Session IDs that triggered `update-session` since the last debounced
+  /// sessions refresh.  Used to suppress duplicate log entries when the
+  /// server broadcasts dozens of identical events per second.
+  final Set<String> _pendingUpdateSessionIds = <String>{};
+
   // sessionId → epoch-ms of last local spawn. Lets _resolveSendTargetSession
   // skip auto-restore while the daemon's lifecycle update propagates (< 5 s).
   final Map<String, int> _sessionSpawnedAt = {};
@@ -497,6 +502,13 @@ what you have, you must use the options mode.
   ) {
     _applyToolResults(sessionId, toolResults);
   }
+
+  @visibleForTesting
+  Set<String> get testSessionsWithPendingUpdates =>
+      _sessionsWithPendingUpdates;
+
+  @visibleForTesting
+  set testVisibleSessionId(String? value) => _visibleSessionId = value;
 
   @visibleForTesting
   void testNotifySessionMessagesChanged(String sessionId) {
@@ -1186,35 +1198,34 @@ what you have, you must use the options mode.
       }
     }
 
-    // Try to process the embedded message directly from the socket payload
-    // instead of triggering a full HTTP refetch. This provides near-instant
-    // message delivery rather than waiting for the round-trip.
-    if (embeddedMessage != null && isVisible) {
-      // Serialize inline processing per session so sidechain messages
-      // (which form a parentUuid chain) are always upserted and grouped
-      // in arrival order.  Without this, concurrent decryptions can
-      // finish out of order, breaking the chain and leaving messages
-      // orphaned outside their parent Task.
-      final prev = _inlineProcessingQueue[sessionId] ?? Future<void>.value();
-      _inlineProcessingQueue[sessionId] = prev.then(
-        (_) => _processInlineMessage(sessionId, embeddedMessage),
-      );
-    } else if (embeddedMessage != null && !isVisible) {
-      // Non-visible session with an embedded message (e.g. streaming
-      // AI response): mark it dirty so onSessionVisible() forces a
-      // tail-refresh when the user navigates to it.  Skip the
-      // invalidate() — fetchMessages would just skip because
-      // cursorSeq matches the stale serverLastSeq.
-      _sessionsWithPendingUpdates.add(sessionId);
+    if (isVisible) {
+      if (embeddedMessage != null) {
+        // Serialize inline processing per session so sidechain messages
+        // (which form a parentUuid chain) are always upserted and grouped
+        // in arrival order.  Without this, concurrent decryptions can
+        // finish out of order, breaking the chain and leaving messages
+        // orphaned outside their parent Task.
+        final prev =
+            _inlineProcessingQueue[sessionId] ?? Future<void>.value();
+        _inlineProcessingQueue[sessionId] = prev.then(
+          (_) => _processInlineMessage(sessionId, embeddedMessage),
+        );
+      } else {
+        // Visible session with no embedded message — HTTP fetch.
+        messagesSync[sessionId]?.invalidate();
+      }
+      logger.info('New message received: $sessionId');
     } else {
-      // No embedded message — fall back to HTTP fetch.
-      messagesSync[sessionId]?.invalidate();
+      // Non-visible session: mark dirty so onSessionVisible() forces a
+      // tail-refresh when the user navigates to it.  This covers both
+      // events with embedded messages (streaming AI responses) AND bare
+      // events without payloads.  Previously, bare events fell through
+      // to messagesSync?.invalidate() which was a no-op for background
+      // sessions (no InvalidateSync entry), silently dropping the event.
+      if (_sessionsWithPendingUpdates.add(sessionId)) {
+        logger.info('Background messages pending: $sessionId');
+      }
     }
-
-    logger.info(
-      'New message received'
-      '${sessionId.isNotEmpty ? ': $sessionId' : ''}',
-    );
   }
 
   /// Decrypt and upsert a single message received inline from the socket
@@ -1361,10 +1372,12 @@ what you have, you must use the options mode.
   void _handleUpdateSession(Map<String, dynamic> data) {
     final sessionId = data['id'] as String?;
     _scheduleSessionsRefresh();
-    logger.info(
-      'Session update received'
-      '${sessionId != null ? ': $sessionId' : ''}',
-    );
+    // Only log the first occurrence per session within a debounce window.
+    // The server broadcasts dozens of identical update-session events per
+    // second during streaming (typing/tool state changes).
+    if (sessionId != null && _pendingUpdateSessionIds.add(sessionId)) {
+      logger.info('Session update received: $sessionId');
+    }
   }
 
   static const Duration _sessionsRefreshDebounce = Duration(milliseconds: 250);
@@ -1385,6 +1398,7 @@ what you have, you must use the options mode.
   Future<void> _flushScheduledSessionsRefresh() async {
     _sessionsRefreshDebounceTimer?.cancel();
     _sessionsRefreshDebounceTimer = null;
+    _pendingUpdateSessionIds.clear();
 
     await sessionsSync.invalidateAndAwait();
 
