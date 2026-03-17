@@ -425,15 +425,21 @@ jobs:
       - name: Build Web
         run: |
           devenv shell -- flutter build web --release \
-            --base-href '/happy_flutter/' \
+            --base-href '/' \
             --dart-define=COMMIT_SHA=${{ github.sha }}
 
-      - name: Cache-bust index.html
+      - name: Cache-bust assets
         run: |
-          # Inject commit SHA as a query param on main.dart.js to bust CDN caches.
-          # Flutter's index.html references main.dart.js without a hash, so
-          # stale CDN responses would serve the old JS bundle.
-          sed -i "s|main.dart.js|main.dart.js?v=${{ github.sha }}|" build/web/index.html
+          # Bust flutter_bootstrap.js so the browser fetches the new bootstrap,
+          # which contains the updated serviceWorkerVersion that triggers a
+          # service-worker update → fresh main.dart.js + all hashed assets.
+          sed -i 's|flutter_bootstrap.js"|flutter_bootstrap.js?v=${{ github.sha }}"|' \
+            build/web/index.html
+          # Prevent browser caching of index.html itself
+          sed -i 's|<head>|<head><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">|' \
+            build/web/index.html
+          # Custom domain for GitHub Pages
+          echo "happy.denv.it" > build/web/CNAME
 
       - name: Upload Web Build
         uses: actions/upload-artifact@v4
