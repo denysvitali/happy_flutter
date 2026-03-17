@@ -47,18 +47,31 @@ String _messageCacheKey(Map<String, dynamic> message) {
   return '$messageId:$signature';
 }
 
+/// Collision-resistant signature for a string.
+///
+/// Dart's `String.hashCode` is not guaranteed to be collision-free.
+/// Instead we combine length + head (first 32 chars) + tail (last 32
+/// chars) which is unique in practice for base64 ciphertext because
+/// the nonce/IV prefix and auth tag suffix differ per encryption.
+String _stableSignature(String s) {
+  final len = s.length;
+  if (len <= 64) return '$len:$s';
+  return '$len:${s.substring(0, 32)}:'
+      '${s.substring(len - 32)}';
+}
+
 String _messageContentSignature(dynamic contentRaw) {
   final base64Payload = _base64FromContent(contentRaw);
   if (base64Payload.isNotEmpty) {
-    return 'enc:${base64Payload.length}:${base64Payload.hashCode}';
+    return 'enc:${_stableSignature(base64Payload)}';
   }
   if (contentRaw is String) {
-    return 'str:${contentRaw.length}:${contentRaw.hashCode}';
+    return 'str:${_stableSignature(contentRaw)}';
   }
   if (contentRaw is Map || contentRaw is List) {
     try {
       final encoded = jsonEncode(contentRaw);
-      return 'json:${encoded.length}:${encoded.hashCode}';
+      return 'json:${_stableSignature(encoded)}';
     } catch (_) {
       // Fall through to raw hash.
     }

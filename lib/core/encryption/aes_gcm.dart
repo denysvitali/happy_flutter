@@ -28,6 +28,10 @@ class AesGcmEncryption {
   /// no key material, and is safe to reuse across calls.
   static final _cipher = AesGcm.with256bits();
 
+  /// Cached SecretKey per raw key bytes to avoid per-message allocation.
+  /// Key: base64-encoded raw key, Value: platform SecretKey object.
+  static final _secretKeyCache = <String, SecretKey>{};
+
   /// Auth tag size in bytes (GCM standard = 16 bytes)
   static const int authTagSize = 16;
 
@@ -70,9 +74,9 @@ class AesGcmEncryption {
     final jsonData = jsonEncode(data);
     final dataBytes = utf8.encode(jsonData);
 
-    // Create cipher and SecretKey from bytes
+    // Create cipher and get cached SecretKey
     final cipher = _cipher;
-    final secretKeyObj = await cipher.newSecretKeyFromBytes(secretKey);
+    final secretKeyObj = await _cachedSecretKey(secretKey);
 
     // Encrypt using AES-256-GCM
     // The SecretBox contains: ciphertext + auth tag (automatically appended)
@@ -136,9 +140,9 @@ class AesGcmEncryption {
       );
       final mac = Mac(authTagBytes);
 
-      // Create cipher and SecretKey from bytes
+      // Create cipher and get cached SecretKey
       final cipher = _cipher;
-      final secretKeyObj = await cipher.newSecretKeyFromBytes(secretKey);
+      final secretKeyObj = await _cachedSecretKey(secretKey);
 
       // Decrypt using AES-256-GCM with proper MAC verification
       final secretBox = SecretBox(ciphertext, nonce: nonce, mac: mac);
@@ -164,6 +168,21 @@ class AesGcmEncryption {
       nonce[i] = _random.nextInt(256);
     }
     return nonce;
+  }
+
+  /// Get or create a cached SecretKey for the given raw key bytes.
+  static Future<SecretKey> _cachedSecretKey(Uint8List secretKey) async {
+    final cacheKey = base64.encode(secretKey);
+    var cached = _secretKeyCache[cacheKey];
+    if (cached != null) return cached;
+    cached = await _cipher.newSecretKeyFromBytes(secretKey);
+    _secretKeyCache[cacheKey] = cached;
+    return cached;
+  }
+
+  /// Evict a cached SecretKey (call when the session is disposed).
+  static void evictCachedKey(Uint8List secretKey) {
+    _secretKeyCache.remove(base64.encode(secretKey));
   }
 
   /// Validate that data is AES-256-GCM encrypted (has correct format).

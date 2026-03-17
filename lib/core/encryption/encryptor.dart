@@ -42,6 +42,11 @@ class SecretBoxEncryption implements Encryptor {
     }
     return results;
   }
+
+  /// Release any cached native resources.
+  void dispose() {
+    CryptoSecretBox.evictCachedKey(_secretKey);
+  }
 }
 
 /// AES-256-GCM encryption using PointyCastle.
@@ -92,5 +97,10 @@ class AES256Encryption implements Encryptor {
       }
     }
     return results;
+  }
+
+  /// Release any cached platform resources.
+  void dispose() {
+    AesGcmEncryption.evictCachedKey(_secretKey);
   }
 }

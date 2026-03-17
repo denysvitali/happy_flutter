@@ -12,18 +12,44 @@ class CryptoSecretBox {
   static const int _nonceSize = 24; // crypto_secretbox_NONCEBYTES (libsodium)
   static const int _keySize = 32; // crypto_secretbox_KEYBYTES
 
+  /// Cached SecureKey per raw key bytes to avoid per-message allocation
+  /// and native memory churn. Key: base64-encoded raw key.
+  static final _secureKeyCache = <String, SecureKey>{};
+
+  /// Get or create a cached SecureKey for the given raw key bytes.
+  static Future<SecureKey> _cachedSecureKey(Uint8List secretKey) async {
+    final key = secretKey.length >= _keySize
+        ? secretKey.sublist(0, _keySize)
+        : Uint8List.fromList(secretKey);
+
+    final cacheKey = base64.encode(key);
+    final cached = _secureKeyCache[cacheKey];
+    if (cached != null) return cached;
+
+    final sodium = await sodiumSingleton;
+    final secureKey = SecureKey.fromList(sodium, key);
+    _secureKeyCache[cacheKey] = secureKey;
+    return secureKey;
+  }
+
+  /// Evict and dispose a cached SecureKey (call when session is
+  /// disposed).
+  static void evictCachedKey(Uint8List secretKey) {
+    final key = secretKey.length >= _keySize
+        ? secretKey.sublist(0, _keySize)
+        : Uint8List.fromList(secretKey);
+    final cacheKey = base64.encode(key);
+    final cached = _secureKeyCache.remove(cacheKey);
+    cached?.dispose();
+  }
+
   static Future<Uint8List> encrypt(dynamic data, Uint8List secretKey) async {
     final sodium = await sodiumSingleton;
     final nonce = sodium.randombytes.buf(_nonceSize);
     final jsonData = jsonEncode(data);
     final dataBytes = utf8.encode(jsonData);
 
-    final key = secretKey.length >= _keySize
-        ? secretKey.sublist(0, _keySize)
-        : Uint8List.fromList(secretKey);
-
-    // Create SecureKey from the key bytes
-    final secureKey = SecureKey.fromList(sodium, key);
+    final secureKey = await _cachedSecureKey(secretKey);
 
     // Encrypt using libsodium crypto_secretbox_easy
     final encrypted = sodium.crypto.secretBox.easy(
@@ -31,9 +57,6 @@ class CryptoSecretBox {
       nonce: nonce,
       key: secureKey,
     );
-
-    // Dispose the secure key
-    secureKey.dispose();
 
     // Bundle format: nonce + encrypted data
     final result = Uint8List(nonce.length + encrypted.length)
@@ -55,14 +78,8 @@ class CryptoSecretBox {
       final nonce = encryptedData.sublist(0, _nonceSize);
       final encrypted = encryptedData.sublist(_nonceSize);
 
-      final key = secretKey.length >= _keySize
-          ? secretKey.sublist(0, _keySize)
-          : Uint8List.fromList(secretKey);
-
       final sodium = await sodiumSingleton;
-
-      // Create SecureKey from the key bytes
-      final secureKey = SecureKey.fromList(sodium, key);
+      final secureKey = await _cachedSecureKey(secretKey);
 
       // Decrypt using libsodium crypto_secretbox.openEasy
       final decrypted = sodium.crypto.secretBox.openEasy(
@@ -70,9 +87,6 @@ class CryptoSecretBox {
         nonce: nonce,
         key: secureKey,
       );
-
-      // Dispose the secure key
-      secureKey.dispose();
 
       final jsonString = utf8.decode(decrypted);
       return jsonDecode(jsonString);

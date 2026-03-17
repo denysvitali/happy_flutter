@@ -1065,6 +1065,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     _autoScrollNotifier.value = true;
     setState(() {
+      _isSending = true;
       _controller.clear();
     });
 
@@ -1091,6 +1092,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         );
         _controller.text = text;
       }
+    } finally {
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
