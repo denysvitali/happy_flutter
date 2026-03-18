@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api/sessions_api.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
@@ -491,7 +492,7 @@ class _SessionsScreenState
     var failCount = 0;
     for (final id in activeIds) {
       try {
-        await sync.killSession(id);
+        await SessionsApi().setSessionArchived(id, true);
       } catch (_) {
         failCount++;
       }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/sessions_api.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
@@ -87,7 +88,7 @@ class DismissibleActiveSession extends ConsumerWidget {
     if (confirmed != true) return false;
 
     try {
-      await sync.killSession(session.id);
+      await SessionsApi().setSessionArchived(session.id, true);
       await ref
           .read(sessionsNotifierProvider.notifier)
           .refreshFromSync();

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api/sessions_api.dart';
 import '../../core/components/app_section_header.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
@@ -156,7 +157,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
     setState(() => _isArchiving = true);
     try {
-      await sync.killSession(widget.session.id);
+      await SessionsApi().setSessionArchived(widget.session.id, true);
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (e) {
