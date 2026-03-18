@@ -400,6 +400,7 @@ what you have, you must use the options mode.
   /// the `cursorSeq >= serverLastSeq` skip and fetches any messages that
   /// were dropped while the session was in the background.
   final Set<String> _sessionsWithPendingUpdates = <String>{};
+  final Map<String, int> _sessionUnreadCounts = <String, int>{};
 
   /// Session IDs that triggered `update-session` since the last debounced
   /// sessions refresh.  Used to suppress duplicate log entries when the
@@ -586,6 +587,10 @@ what you have, you must use the options mode.
   /// [sessionId].
   bool isLoadingOlderMessages(String sessionId) =>
       _loadingOlderMessages.contains(sessionId);
+
+  /// Returns the unread message count for [sessionId].
+  int getUnreadCount(String sessionId) =>
+      _sessionUnreadCounts[sessionId] ?? 0;
 
   /// Stream that emits when session/machine/general data changes.
   Stream<void> get onDataChanged => _dataChangeController.stream;
@@ -1266,6 +1271,8 @@ what you have, you must use the options mode.
       if (_sessionsWithPendingUpdates.add(sessionId)) {
         logger.info('Background messages pending: $sessionId');
       }
+      _sessionUnreadCounts[sessionId] =
+          (_sessionUnreadCounts[sessionId] ?? 0) + 1;
     }
   }
 
@@ -4704,6 +4711,7 @@ what you have, you must use the options mode.
   /// On session visible handler
   void onSessionVisible(String sessionId) {
     _visibleSessionId = sessionId;
+    _sessionUnreadCounts.remove(sessionId);
     // Clear any residual failed Future from the inline queue so that
     // new messages can enter the inline fast path immediately.
     _inlineProcessingQueue.remove(sessionId);
@@ -7132,6 +7140,7 @@ what you have, you must use the options mode.
     _postSendCatchUpTimers.clear();
     _sessionsNeedingTailRefresh.clear();
     _sessionsWithPendingUpdates.clear();
+    _sessionUnreadCounts.clear();
     // Flush pending message saves so the MMKV cache is up-to-date when the
     // OS kills the app while backgrounded.  Without this, an in-flight
     // deferred sidechain regroup can reset the save timer, and the cache
@@ -7168,6 +7177,7 @@ what you have, you must use the options mode.
     _postSendCatchUpTimers.clear();
     _sessionsNeedingTailRefresh.clear();
     _sessionsWithPendingUpdates.clear();
+    _sessionUnreadCounts.clear();
 
     socketIoClient
       ..offMessage('update')

@@ -123,3 +123,37 @@ class TodoProgressBadge extends StatelessWidget {
     );
   }
 }
+
+/// Unread message count badge shown on the trailing edge.
+class UnreadBadge extends StatelessWidget {
+  const UnreadBadge({
+    required this.count,
+    super.key,
+  });
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    if (count <= 0) return const SizedBox.shrink();
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: cs.primary,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        style: TextStyle(
+          fontSize: AppFontSize.xxs,
+          fontWeight: FontWeight.w600,
+          color: cs.onPrimary,
+        ),
+      ),
+    );
+  }
+}

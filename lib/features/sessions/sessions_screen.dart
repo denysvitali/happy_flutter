@@ -1017,6 +1017,7 @@ class _SessionsListContentState
                 sync.getLastMessagePreview(session.id),
             isSelected: sel.selectedIds.contains(session.id),
             selectionMode: sel.isActive,
+            unreadCount: sync.getUnreadCount(session.id),
           ),
         );
         return sel.isActive

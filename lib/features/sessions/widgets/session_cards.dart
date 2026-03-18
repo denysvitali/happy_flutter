@@ -79,6 +79,8 @@ class ActiveSessionCard extends StatefulWidget {
     this.onTap,
     this.avatarStyle,
     this.lastMessageTimestamp,
+    this.lastMessagePreview,
+    this.unreadCount = 0,
   });
 
   final Session session;
@@ -86,6 +88,8 @@ class ActiveSessionCard extends StatefulWidget {
   final bool showFlavorIcon;
   final AvatarStyle? avatarStyle;
   final int? lastMessageTimestamp;
+  final String? lastMessagePreview;
+  final int unreadCount;
 
   @override
   State<ActiveSessionCard> createState() =>
@@ -136,6 +140,8 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
         sessionName: _sessionName,
         sessionSubtitle: _sessionSubtitle,
         lastMessageTimestamp: widget.lastMessageTimestamp,
+        lastMessagePreview: widget.lastMessagePreview,
+        unreadCount: widget.unreadCount,
         avatarStyle: widget.avatarStyle,
         theme: theme,
         colorScheme: theme.colorScheme,
@@ -161,6 +167,8 @@ class _ActiveSessionCardContent extends StatelessWidget {
     required this.sessionName,
     required this.sessionSubtitle,
     required this.lastMessageTimestamp,
+    required this.lastMessagePreview,
+    required this.unreadCount,
     required this.theme,
     required this.colorScheme,
     required this.onTap,
@@ -176,6 +184,8 @@ class _ActiveSessionCardContent extends StatelessWidget {
   final String sessionName;
   final String sessionSubtitle;
   final int? lastMessageTimestamp;
+  final String? lastMessagePreview;
+  final int unreadCount;
   final AvatarStyle? avatarStyle;
   final ThemeData theme;
   final ColorScheme colorScheme;
@@ -193,6 +203,9 @@ class _ActiveSessionCardContent extends StatelessWidget {
     final todoProgress = getTodoProgress(session.todos);
     final statusWidget =
         _buildStatusText(sessionStatus, theme.textTheme);
+    final hasPreview =
+        lastMessagePreview != null &&
+        lastMessagePreview!.isNotEmpty;
 
     return Container(
       margin: const EdgeInsets.symmetric(
@@ -258,7 +271,7 @@ class _ActiveSessionCardContent extends StatelessWidget {
                     const SizedBox(
                       width: AppSpacing.md,
                     ),
-                    // Title / subtitle / status
+                    // Title / subtitle / preview / status
                     Expanded(
                       child: Column(
                         crossAxisAlignment:
@@ -323,6 +336,33 @@ class _ActiveSessionCardContent extends StatelessWidget {
                                 TextOverflow.ellipsis,
                             maxLines: 1,
                           ),
+                          // Message preview
+                          if (hasPreview) ...[
+                            const SizedBox(
+                              height: AppSpacing.xxs,
+                            ),
+                            Text(
+                              lastMessagePreview!,
+                              style: theme
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                color: cs
+                                    .onSurfaceVariant
+                                    .withValues(
+                                  alpha:
+                                      AppOpacity
+                                          .high,
+                                ),
+                                fontSize:
+                                    AppFontSize.xs,
+                                height: 1.2,
+                              ),
+                              overflow: TextOverflow
+                                  .ellipsis,
+                              maxLines: 1,
+                            ),
+                          ],
                           // Status text
                           if (statusWidget !=
                               null) ...[
@@ -360,6 +400,14 @@ class _ActiveSessionCardContent extends StatelessWidget {
                                 AppFontSize.xs,
                           ),
                         ),
+                        if (unreadCount > 0) ...[
+                          const SizedBox(
+                            height: AppSpacing.xxs,
+                          ),
+                          UnreadBadge(
+                            count: unreadCount,
+                          ),
+                        ],
                         if (todoProgress !=
                             null) ...[
                           const SizedBox(
@@ -426,6 +474,7 @@ class CompactActiveSessionCard extends StatefulWidget {
     this.lastMessagePreview,
     this.selectionMode = false,
     this.isSelected = false,
+    this.unreadCount = 0,
   });
 
   final Session session;
@@ -436,6 +485,7 @@ class CompactActiveSessionCard extends StatefulWidget {
   final String? lastMessagePreview;
   final bool selectionMode;
   final bool isSelected;
+  final int unreadCount;
 
   @override
   State<CompactActiveSessionCard> createState() =>
@@ -490,6 +540,7 @@ class _CompactActiveSessionCardState
         lastMessagePreview: widget.lastMessagePreview,
         selectionMode: widget.selectionMode,
         isSelected: widget.isSelected,
+        unreadCount: widget.unreadCount,
         avatarStyle: widget.avatarStyle,
         theme: theme,
         colorScheme: theme.colorScheme,
@@ -521,6 +572,7 @@ class _CompactActiveSessionCardContent
     required this.lastMessagePreview,
     required this.selectionMode,
     required this.isSelected,
+    required this.unreadCount,
     required this.theme,
     required this.colorScheme,
     required this.onTap,
@@ -540,6 +592,7 @@ class _CompactActiveSessionCardContent
   final String? lastMessagePreview;
   final bool selectionMode;
   final bool isSelected;
+  final int unreadCount;
   final ThemeData theme;
   final ColorScheme colorScheme;
   final VoidCallback onTap;
@@ -773,6 +826,15 @@ class _CompactActiveSessionCardContent
                                     AppFontSize.xs,
                               ),
                             ),
+                            if (unreadCount > 0) ...[
+                              const SizedBox(
+                                height:
+                                    AppSpacing.xxs,
+                              ),
+                              UnreadBadge(
+                                count: unreadCount,
+                              ),
+                            ],
                             if (todoProgress !=
                                 null) ...[
                               const SizedBox(
