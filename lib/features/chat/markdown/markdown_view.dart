@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../code_block_widget.dart';
@@ -48,8 +49,9 @@ class _MarkdownViewState extends State<MarkdownView> {
   ThemeData? _lastTheme;
   Color? _lastTextColor;
 
-  /// Cached [OptionsElementBuilder] — recreated only when [widget.onOptionPress]
-  /// or [widget.textColor] changes, not on every build call.
+  /// Cached [OptionsElementBuilder] — recreated only when
+  /// [widget.onOptionPress] or [widget.textColor] changes, not on every
+  /// build call.
   late OptionsElementBuilder _optionsBuilder;
 
   /// Cached builders map — same reference passed to [MarkdownBody] each build
@@ -153,6 +155,14 @@ class _MarkdownViewState extends State<MarkdownView> {
         OptionsBlockSyntax(),
       ],
       styleSheet: _styleSheet!,
+      onTapLink: (text, href, title) async {
+        if (href != null) {
+          final uri = Uri.tryParse(href);
+          if (uri != null && await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        }
+      },
     );
   }
 }
@@ -226,6 +236,14 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
       extensionSet: md.ExtensionSet.gitHubFlavored,
       builders: _builders,
       styleSheet: _styleSheet!,
+      onTapLink: (text, href, title) async {
+        if (href != null) {
+          final uri = Uri.tryParse(href);
+          if (uri != null && await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        }
+      },
     );
   }
 }

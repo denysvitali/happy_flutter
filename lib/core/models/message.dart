@@ -5,6 +5,19 @@ int? _asApiInt(dynamic value) {
   return null;
 }
 
+/// Canonical message role values.
+///
+/// These are the only valid `'role'` values in message maps stored in
+/// [Sync.sessionMessages].  Always reference these constants instead
+/// of raw strings to avoid mismatches (e.g. writing `'human'` when
+/// the actual value is `'user'`).
+abstract final class MessageRole {
+  static const user = 'user';
+  static const agent = 'agent';
+  static const system = 'system';
+  static const session = 'session';
+}
+
 /// API message schema
 class ApiMessage {
   ApiMessage({

@@ -26,6 +26,7 @@ import '../models/built_in_profiles.dart';
 import '../models/feed.dart';
 import '../models/friend.dart';
 import '../models/machine.dart';
+import '../models/message.dart';
 import '../models/profile.dart';
 import '../models/purchases.dart';
 import '../models/session.dart';
@@ -567,7 +568,7 @@ what you have, you must use the options mode.
     for (var i = messages.length - 1; i >= 0; i--) {
       final msg = messages[i];
       final role = msg['role'] as String?;
-      if (role != 'agent' && role != 'user') continue;
+      if (role != MessageRole.agent && role != MessageRole.user) continue;
       final text = msg['text'] as String?;
       if (text != null && text.trim().isNotEmpty) {
         return text.trim();
@@ -4971,10 +4972,10 @@ what you have, you must use the options mode.
         );
         final decryptMs = decryptStart.elapsedMilliseconds;
         final userCount = processed.messages
-            .where((message) => message['role'] == 'user')
+            .where((message) => message['role'] == MessageRole.user)
             .length;
         final agentCount = processed.messages
-            .where((message) => message['role'] == 'agent')
+            .where((message) => message['role'] == MessageRole.agent)
             .length;
         final eventCount = processed.messages
             .where((message) => message['kind'] == 'agent-event')
@@ -5300,7 +5301,7 @@ what you have, you must use the options mode.
     final nestedContent = content['content'];
 
     // User messages: {role: 'user', content: {type: 'text', text: '...'}}
-    if (role == 'user') {
+    if (role == MessageRole.user) {
       if (nestedContent is Map<String, dynamic> &&
           nestedContent['type'] == 'text') {
         return (
@@ -5338,7 +5339,7 @@ what you have, you must use the options mode.
     }
 
     // Agent messages: {role: 'agent', content: {type: ..., data: ...}}
-    if (role == 'agent') {
+    if (role == MessageRole.agent) {
       if (nestedContent is! Map<String, dynamic>) {
         return (
           [
@@ -5479,7 +5480,7 @@ what you have, you must use the options mode.
     }
 
     // Session protocol envelope role.
-    if (role == 'session') {
+    if (role == MessageRole.session) {
       return _processSessionContent(
         message,
         nestedContent ?? content,
@@ -6096,7 +6097,7 @@ what you have, you must use the options mode.
 
     if (eventType == 'text') {
       final text = (event['text'] ?? event['message'])?.toString() ?? '';
-      if (eventRole == 'agent') {
+      if (eventRole == MessageRole.agent) {
         final thinking = event['thinking'] == true;
         return (
           [
@@ -6119,7 +6120,7 @@ what you have, you must use the options mode.
         );
       }
 
-      if (eventRole == 'user') {
+      if (eventRole == MessageRole.user) {
         if (isSidechain && text.isNotEmpty) {
           return (
             [
