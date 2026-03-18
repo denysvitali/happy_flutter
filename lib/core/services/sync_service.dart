@@ -1298,12 +1298,11 @@ what you have, you must use the options mode.
       ], sessionId);
 
       if (processed.messages.isEmpty && processed.toolResults.isEmpty) {
-        // Nothing displayable (e.g. a 'ready' event or system message).
-        // Still advance the seq cursor so the fallback fetch doesn't
-        // re-download this message, then schedule a fetch for anything
-        // the inline path can't represent (tool results attached to
-        // earlier messages, etc.).
-        _advanceSeqCursor(sessionId, processed.maxSeq);
+        // Nothing displayable from inline processing.  Do NOT advance
+        // the seq cursor here — doing so causes the fallback HTTP fetch
+        // (below) to be skipped by fetchMessages' "already caught up"
+        // guard, permanently losing the message.  Keeping the cursor
+        // unchanged lets the fetch retrieve the message from the server.
         messagesSync[sessionId]?.invalidate();
         return;
       }
