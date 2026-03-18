@@ -630,13 +630,31 @@ void main() {
   });
 
   group('Sync.getLastMessagePreview', () {
+    late Sync instance;
+
+    setUp(() {
+      instance = Sync();
+      instance.sessionsSync = InvalidateSync(() async {});
+      instance.settingsSync = InvalidateSync(() async {});
+      instance.profileSync = InvalidateSync(() async {});
+      instance.purchasesSync = InvalidateSync(() async {});
+      instance.machinesSync = InvalidateSync(() async {});
+      instance.pushTokenSync = InvalidateSync(() async {});
+      instance.nativeUpdateSync = InvalidateSync(() async {});
+      instance.artifactsSync = InvalidateSync(() async {});
+      instance.friendsSync = InvalidateSync(() async {});
+      instance.friendRequestsSync = InvalidateSync(() async {});
+      instance.feedSync = InvalidateSync(() async {});
+      instance.todosSync = InvalidateSync(() async {});
+      instance.sessionGitStatusSync = InvalidateSync(() async {});
+      instance.messagesSync.clear();
+    });
+
     test('returns null when no messages', () {
-      final instance = createTestSync();
       expect(instance.getLastMessagePreview('s1'), isNull);
     });
 
     test('finds last user message', () {
-      final instance = createTestSync();
       instance.testSetSessionMessages('s1', [
         {'role': 'agent', 'text': 'hello', 'createdAt': 1},
         {'role': 'user', 'text': 'how are you?', 'createdAt': 2},
@@ -648,7 +666,6 @@ void main() {
     });
 
     test('finds last agent message', () {
-      final instance = createTestSync();
       instance.testSetSessionMessages('s1', [
         {'role': 'user', 'text': 'hi', 'createdAt': 1},
         {'role': 'agent', 'text': 'Hi! How can I help?', 'createdAt': 2},
@@ -660,7 +677,6 @@ void main() {
     });
 
     test('skips system and tool messages', () {
-      final instance = createTestSync();
       instance.testSetSessionMessages('s1', [
         {'role': 'system', 'text': 'system prompt', 'createdAt': 1},
         {'role': 'agent', 'text': 'actual response', 'createdAt': 2},
@@ -673,7 +689,6 @@ void main() {
     });
 
     test('skips messages with empty text', () {
-      final instance = createTestSync();
       instance.testSetSessionMessages('s1', [
         {'role': 'agent', 'text': '', 'createdAt': 1},
         {'role': 'user', 'text': '   ', 'createdAt': 2},
@@ -686,7 +701,6 @@ void main() {
     });
 
     test('skips messages missing text field', () {
-      final instance = createTestSync();
       instance.testSetSessionMessages('s1', [
         {'role': 'agent', 'createdAt': 1},
         {'role': 'user', 'text': 'visible', 'createdAt': 2},
@@ -698,7 +712,6 @@ void main() {
     });
 
     test('does not match wrong role names', () {
-      final instance = createTestSync();
       instance.testSetSessionMessages('s1', [
         {'role': 'human', 'text': 'wrong role name', 'createdAt': 1},
         {'role': 'assistant', 'text': 'also wrong', 'createdAt': 2},
