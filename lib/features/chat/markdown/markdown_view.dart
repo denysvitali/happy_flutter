@@ -131,6 +131,7 @@ class _MarkdownViewState extends State<MarkdownView> {
       code: TextStyle(
         fontFamily: 'monospace',
         fontSize: AppFontSize.base,
+        color: widget.textColor,
         backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
       ),
     );
@@ -218,6 +219,7 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
       code: TextStyle(
         fontFamily: 'monospace',
         fontSize: AppFontSize.base,
+        color: onSurface,
         backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
       ),
     );
