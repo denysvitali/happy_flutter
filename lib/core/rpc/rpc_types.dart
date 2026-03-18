@@ -185,3 +185,32 @@ class AbortResponse {
   final bool success;
   final String? message;
 }
+
+// ---------------------------------------------------------------------------
+// readFile
+// ---------------------------------------------------------------------------
+
+class ReadFileRequest {
+  const ReadFileRequest({required this.filePath});
+  final String filePath;
+
+  Map<String, dynamic> toJson() => {'filePath': filePath};
+}
+
+class ReadFileResponse {
+  const ReadFileResponse({
+    required this.success,
+    this.content = '',
+    this.error,
+  });
+
+  factory ReadFileResponse.fromJson(Map<String, dynamic> json) =>
+      ReadFileResponse(
+        success: json['success'] as bool? ?? false,
+        content: json['content'] as String? ?? '',
+        error: json['error'] as String?,
+      );
+  final bool success;
+  final String content;
+  final String? error;
+}

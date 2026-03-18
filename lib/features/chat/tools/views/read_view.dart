@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+import 'package:go_router/go_router.dart';
 
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
@@ -11,12 +12,20 @@ import 'bash_view.dart' show FilePillChip;
 /// View for displaying Read tool file content preview.
 class ReadView extends StatelessWidget {
 
-  const ReadView({required this.tool, super.key, this.metadata});
+  const ReadView({
+    required this.tool,
+    super.key,
+    this.metadata,
+    this.sessionId,
+  });
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
   /// Optional metadata for path resolution.
   final Map<String, dynamic>? metadata;
+
+  /// Session ID for file viewer navigation.
+  final String? sessionId;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +76,8 @@ class ReadView extends StatelessWidget {
         offset: offset,
         totalLines: totalLines,
         content: state == 'completed' ? content : null,
+        sessionId: sessionId,
+        machineId: metadata?['machineId'] as String?,
       ),
     );
   }
@@ -85,6 +96,8 @@ class _ReadViewContent extends StatefulWidget {
     this.offset,
     this.totalLines,
     this.content,
+    this.sessionId,
+    this.machineId,
   });
   final String resolvedPath;
   final String extension;
@@ -92,6 +105,8 @@ class _ReadViewContent extends StatefulWidget {
   final int? offset;
   final int? totalLines;
   final String? content;
+  final String? sessionId;
+  final String? machineId;
 
   @override
   State<_ReadViewContent> createState() => _ReadViewContentState();
@@ -110,8 +125,19 @@ class _ReadViewContentState extends State<_ReadViewContent> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // File path as pill chip
-        FilePillChip(path: widget.resolvedPath),
+        // File path as pill chip (tappable to open file viewer)
+        FilePillChip(
+          path: widget.resolvedPath,
+          onTap: widget.sessionId != null
+              ? () => context.pushNamed(
+                  'session-file',
+                  pathParameters: {
+                    'sessionId': widget.sessionId!,
+                  },
+                  extra: {'path': widget.resolvedPath},
+                )
+              : null,
+        ),
         const SizedBox(height: AppSpacing.xsm),
         // Styled header (file icon + path + copy button + extension badge)
         _FileHeader(

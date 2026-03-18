@@ -821,7 +821,12 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            specificView(widget.tool, widget.metadata, widget.messages),
+            specificView(
+              widget.tool,
+              widget.metadata,
+              widget.messages,
+              widget.sessionId,
+            ),
             if (state == ToolState.error &&
                 toolResult != null &&
                 permission != null &&
@@ -913,6 +918,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     Map<String, dynamic>,
     Map<String, dynamic>?,
     List<Map<String, dynamic>>?,
+    String?,
   )?
   _getToolViewComponent(String toolName) {
     // Fast path: avoid allocating the map for unknown tool names.
@@ -925,42 +931,68 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
             Map<String, dynamic>,
             Map<String, dynamic>?,
             List<Map<String, dynamic>>?,
+            String?,
           )
         >{
-          'Glob': (t, m, _) => GlobView(tool: t, metadata: m),
-          'Grep': (t, m, _) => GrepView(tool: t, metadata: m),
-          'LS': (t, m, _) => LSView(tool: t, metadata: m),
-          'Read': (t, m, _) => ReadView(tool: t, metadata: m),
-          'read': (t, m, _) => ReadView(tool: t, metadata: m),
-          'Edit': (t, m, _) => EditView(tool: t, metadata: m),
-          'MultiEdit': (t, m, _) => MultiEditView(tool: t, metadata: m),
-          'Write': (t, m, _) => WriteView(tool: t, metadata: m),
-          'edit': (t, m, _) => GeminiEditView(tool: t, metadata: m),
-          'Bash': (t, m, _) => BashView(tool: t, metadata: m),
-          'CodexBash': (t, m, _) => CodexBashView(tool: t, metadata: m),
-          'execute': (t, m, _) => GeminiExecuteView(tool: t, metadata: m),
-          'CodexPatch': (t, m, _) => CodexPatchView(tool: t, metadata: m),
-          'CodexDiff': (t, m, _) => CodexDiffView(tool: t, metadata: m),
-          'Task': (t, m, msgs) => TaskView(
+          'Glob': (t, m, _, s) => GlobView(tool: t, metadata: m),
+          'Grep': (t, m, _, s) => GrepView(tool: t, metadata: m),
+          'LS': (t, m, _, s) => LSView(tool: t, metadata: m),
+          'Read': (t, m, _, s) => ReadView(
+            tool: t,
+            metadata: m,
+            sessionId: s,
+          ),
+          'read': (t, m, _, s) => ReadView(
+            tool: t,
+            metadata: m,
+            sessionId: s,
+          ),
+          'Edit': (t, m, _, s) => EditView(
+            tool: t,
+            metadata: m,
+            sessionId: s,
+          ),
+          'MultiEdit': (t, m, _, s) => MultiEditView(tool: t, metadata: m),
+          'Write': (t, m, _, s) => WriteView(tool: t, metadata: m),
+          'edit': (t, m, _, s) => GeminiEditView(tool: t, metadata: m),
+          'Bash': (t, m, _, s) => BashView(tool: t, metadata: m),
+          'CodexBash': (t, m, _, s) => CodexBashView(tool: t, metadata: m),
+          'execute': (t, m, _, s) =>
+              GeminiExecuteView(tool: t, metadata: m),
+          'CodexPatch': (t, m, _, s) =>
+              CodexPatchView(tool: t, metadata: m),
+          'CodexDiff': (t, m, _, s) =>
+              CodexDiffView(tool: t, metadata: m),
+          'Task': (t, m, msgs, s) => TaskView(
             tool: t,
             metadata: m,
             messages: msgs,
             onNavigate: () => widget.onPress?.call(),
           ),
-          'Agent': (t, m, msgs) => TaskView(
+          'Agent': (t, m, msgs, s) => TaskView(
             tool: t,
             metadata: m,
             messages: msgs,
             onNavigate: () => widget.onPress?.call(),
           ),
-          'TodoWrite': (t, m, _) => TodoView(tool: t, metadata: m),
-          'WebFetch': (t, m, _) => WebFetchView(tool: t, metadata: m),
-          'WebSearch': (t, m, _) => WebSearchView(tool: t, metadata: m),
-          'ExitPlanMode': (t, m, _) => ExitPlanToolView(tool: t, metadata: m),
-          'exit_plan_mode': (t, m, _) => ExitPlanToolView(tool: t, metadata: m),
+          'TodoWrite': (t, m, _, s) => TodoView(tool: t, metadata: m),
+          'WebFetch': (t, m, _, s) => WebFetchView(tool: t, metadata: m),
+          'WebSearch': (t, m, _, s) => WebSearchView(tool: t, metadata: m),
+          'ExitPlanMode': (t, m, _, s) =>
+              ExitPlanToolView(tool: t, metadata: m),
+          'exit_plan_mode': (t, m, _, s) =>
+              ExitPlanToolView(tool: t, metadata: m),
           'AskUserQuestion': _buildAskUserQuestionView,
-          'NotebookRead': (t, m, _) => ReadView(tool: t, metadata: m),
-          'NotebookEdit': (t, m, _) => EditView(tool: t, metadata: m),
+          'NotebookRead': (t, m, _, s) => ReadView(
+            tool: t,
+            metadata: m,
+            sessionId: s,
+          ),
+          'NotebookEdit': (t, m, _, s) => EditView(
+            tool: t,
+            metadata: m,
+            sessionId: s,
+          ),
         };
     return views[toolName];
   }
@@ -969,6 +1001,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     Map<String, dynamic> tool,
     Map<String, dynamic>? metadata,
     List<Map<String, dynamic>>? messages,
+    String? sessionId,
   ) {
     final toolUseId = tool['toolUseId'] as String? ?? tool['id'] as String?;
     return AskUserQuestionView(

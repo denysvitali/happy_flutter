@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:happy_flutter/core/components/diff_view_widget.dart'
     as dw show DiffView;
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
@@ -12,12 +13,20 @@ import 'bash_view.dart' show FilePillChip;
 /// large diffs.
 class EditView extends StatefulWidget {
 
-  const EditView({required this.tool, super.key, this.metadata});
+  const EditView({
+    required this.tool,
+    super.key,
+    this.metadata,
+    this.sessionId,
+  });
   /// The tool call data.
   final Map<String, dynamic> tool;
 
   /// Optional metadata.
   final Map<String, dynamic>? metadata;
+
+  /// Session ID for file viewer navigation.
+  final String? sessionId;
 
   @override
   State<EditView> createState() => _EditViewState();
@@ -58,7 +67,20 @@ class _EditViewState extends State<EditView> {
           if (filePath.isNotEmpty) ...[
             Row(
               children: [
-                Flexible(child: FilePillChip(path: filePath)),
+                Flexible(
+                  child: FilePillChip(
+                    path: filePath,
+                    onTap: widget.sessionId != null
+                        ? () => context.pushNamed(
+                            'session-file',
+                            pathParameters: {
+                              'sessionId': widget.sessionId!,
+                            },
+                            extra: {'path': filePath},
+                          )
+                        : null,
+                  ),
+                ),
                 const SizedBox(width: AppSpacing.sm),
                 if (removedLines > 0)
                   _LineDeltaBadge(

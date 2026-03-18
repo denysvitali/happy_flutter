@@ -684,10 +684,13 @@ class _SectionLabel extends StatelessWidget {
 /// A pill chip that displays a file path with a leading file icon.
 class FilePillChip extends StatelessWidget {
   /// Creates a [FilePillChip].
-  const FilePillChip({required this.path, super.key});
+  const FilePillChip({required this.path, super.key, this.onTap});
 
   /// The file path to display.
   final String path;
+
+  /// Optional tap callback. When provided, the chip becomes tappable.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -698,7 +701,7 @@ class FilePillChip extends StatelessWidget {
     final filename =
         lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
 
-    return Container(
+    final chip = Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xs,
@@ -748,6 +751,17 @@ class FilePillChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+
+    if (onTap == null) return chip;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.xsm),
+        child: chip,
       ),
     );
   }

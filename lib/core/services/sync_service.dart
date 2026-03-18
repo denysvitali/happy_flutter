@@ -3382,6 +3382,27 @@ what you have, you must use the options mode.
     return const BashResponse(success: false, stderr: 'RPC call failed');
   }
 
+  /// Read a file from a machine via encrypted RPC.
+  Future<ReadFileResponse> machineReadFile({
+    required String machineId,
+    required String filePath,
+  }) async {
+    try {
+      return await _typedMachineRPC(
+        machineId,
+        'readFile',
+        ReadFileRequest(filePath: filePath).toJson(),
+        ReadFileResponse.fromJson,
+      );
+    } catch (error) {
+      logger.error('machineReadFile error', error);
+    }
+    return const ReadFileResponse(
+      success: false,
+      error: 'RPC call failed',
+    );
+  }
+
   /// Create a git worktree on a machine under `.dev/worktree/<name>` relative
   /// to [basePath] and return the absolute path to the new worktree.
   ///

@@ -381,11 +381,20 @@ GoRouter createRouter(String? initialDeepLink) {
         path: '/chat/:sessionId/file',
         name: 'session-file',
         pageBuilder: (context, state) {
-          final path2 = state.uri.queryParameters['path'] ?? '';
-          final content = state.uri.queryParameters['content'];
+          final sid = state.pathParameters['sessionId']!;
+          final extra = state.extra as Map<String, dynamic>?;
+          final path2 = extra?['path'] as String? ??
+              state.uri.queryParameters['path'] ??
+              '';
+          final content = extra?['content'] as String? ??
+              state.uri.queryParameters['content'];
           return _slidePage(
             AuthGate(
-              child: SessionFileViewerScreen(path: path2, content: content),
+              child: SessionFileViewerScreen(
+                path: path2,
+                sessionId: sid,
+                content: content,
+              ),
             ),
             state,
           );

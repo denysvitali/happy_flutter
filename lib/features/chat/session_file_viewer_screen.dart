@@ -1,17 +1,21 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/services/sync_service.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 import '../../core/components/app_empty_state.dart';
-import '../../core/i18n/app_localizations.dart';
-import '../../core/theme/app_tokens.dart';
 
-/// Screen that displays the content of a file in a scrollable monospace view.
+/// Screen that displays the content of a file fetched from the
+/// session's remote machine.
 ///
-/// The [path] and optional [content] are passed via the constructor
-/// (provided as extra data from go_router).
-class SessionFileViewerScreen extends StatelessWidget {
+/// When [content] is provided it is shown immediately.  Otherwise the
+/// screen fetches the file from the daemon via [Sync.machineReadFile].
+class SessionFileViewerScreen extends StatefulWidget {
   /// Creates a [SessionFileViewerScreen].
   const SessionFileViewerScreen({
     required this.path,
+    required this.sessionId,
     this.content,
     super.key,
   });
@@ -19,20 +23,100 @@ class SessionFileViewerScreen extends StatelessWidget {
   /// The full file path to display.
   final String path;
 
-  /// Optional file content to display.
+  /// The session whose machine should be used to fetch the file.
+  final String sessionId;
+
+  /// Optional pre-loaded file content.
   final String? content;
+
+  @override
+  State<SessionFileViewerScreen> createState() =>
+      _SessionFileViewerScreenState();
+}
+
+class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
+  String? _content;
+  String? _error;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.content != null && widget.content!.isNotEmpty) {
+      _content = widget.content;
+    } else {
+      _fetchFile();
+    }
+  }
+
+  Future<void> _fetchFile() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final session = sync.sessions[widget.sessionId];
+      final machineId = session?.metadata?.machineId;
+      if (machineId == null || machineId.isEmpty) {
+        setState(() {
+          _error = 'No machine associated with this session';
+          _loading = false;
+        });
+        return;
+      }
+
+      final response = await sync.machineReadFile(
+        machineId: machineId,
+        filePath: widget.path,
+      );
+
+      if (!mounted) return;
+
+      if (response.success) {
+        // The daemon returns base64-encoded content.
+        final decoded = _tryBase64Decode(response.content);
+        setState(() {
+          _content = decoded;
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _error = response.error ?? 'Failed to read file';
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  /// Attempts base64 decoding; returns the original string if it is not
+  /// valid base64 (some tool responses return plain text directly).
+  static String _tryBase64Decode(String input) {
+    try {
+      final decoded = base64Decode(input);
+      return utf8.decode(decoded);
+    } catch (_) {
+      return input;
+    }
+  }
 
   /// Extracts the file name from the full path.
   String get _fileName {
-    if (path.isEmpty) return 'File';
-    final segments = path.split('/').where((s) => s.isNotEmpty).toList();
-    return segments.isNotEmpty ? segments.last : path;
+    if (widget.path.isEmpty) return 'File';
+    final segments =
+        widget.path.split('/').where((s) => s.isNotEmpty).toList();
+    return segments.isNotEmpty ? segments.last : widget.path;
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasContent = content != null && content!.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -44,6 +128,7 @@ class SessionFileViewerScreen extends StatelessWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Path header bar
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,
@@ -60,7 +145,7 @@ class SessionFileViewerScreen extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    path,
+                    widget.path,
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontFamily: 'monospace',
                       fontSize: AppFontSize.sm,
@@ -80,25 +165,34 @@ class SessionFileViewerScreen extends StatelessWidget {
 
           // File content
           Expanded(
-            child: hasContent
-                ? _FileContentView(content: content!)
-                : const _EmptyContentView(),
+            child: _buildContent(theme),
           ),
         ],
       ),
     );
   }
-}
 
-/// Scrollable monospace view for file content.
-class _FileContentView extends StatelessWidget {
-  const _FileContentView({required this.content});
+  Widget _buildContent(ThemeData theme) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-  final String content;
+    if (_error != null) {
+      return AppEmptyState(
+        icon: Icons.error_outline,
+        title: 'Could not load file',
+        subtitle: _error,
+      );
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    if (_content == null || _content!.isEmpty) {
+      return AppEmptyState(
+        icon: Icons.description_outlined,
+        title: 'No content',
+        subtitle: 'The file is empty or could not be read.',
+      );
+    }
+
     return Scrollbar(
       child: SingleChildScrollView(
         padding: AppScreenPadding.standard,
@@ -106,7 +200,7 @@ class _FileContentView extends StatelessWidget {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: SelectableText(
-            content,
+            _content!,
             style: theme.textTheme.bodyMedium?.copyWith(
               fontFamily: 'monospace',
               fontSize: AppFontSize.md,
@@ -116,21 +210,6 @@ class _FileContentView extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// View shown when no file content is available.
-class _EmptyContentView extends StatelessWidget {
-  const _EmptyContentView();
-
-  @override
-  Widget build(BuildContext context) {
-    return AppEmptyState(
-      icon: Icons.description_outlined,
-      title: AppLocalizations.of(context).fileViewerNoContent,
-      subtitle:
-          AppLocalizations.of(context).fileViewerContentError,
     );
   }
 }
