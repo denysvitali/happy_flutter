@@ -1350,6 +1350,10 @@ what you have, you must use the options mode.
         error,
         stack,
       );
+      // Remove the failed Future from the queue so subsequent messages
+      // can re-enter the inline fast path instead of being silently
+      // dropped by chaining onto a rejected Future.
+      _inlineProcessingQueue.remove(sessionId);
       messagesSync[sessionId]?.invalidate();
     }
   }
@@ -4700,6 +4704,9 @@ what you have, you must use the options mode.
   /// On session visible handler
   void onSessionVisible(String sessionId) {
     _visibleSessionId = sessionId;
+    // Clear any residual failed Future from the inline queue so that
+    // new messages can enter the inline fast path immediately.
+    _inlineProcessingQueue.remove(sessionId);
     // Only tail-refresh when we have no messages in memory for this session
     // (first open or after restart).  When messages are already loaded the
     // incremental delta path (afterSeq = _sessionLastSeq) is sufficient and
