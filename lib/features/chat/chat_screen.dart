@@ -297,7 +297,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final latestMessages = sync.messagesForSession(widget.sessionId);
 
     final sessionChanged = latestSession != _session;
-    final messagesChanged = !identical(latestMessages, _messages);
+    var messagesChanged = !identical(latestMessages, _messages);
+
+    // When the session changes, always refresh messages — the session
+    // object replacement may coincide with message updates that the
+    // identical() check can miss (e.g. view cache was rebuilt between
+    // calls with the same list length but different content).
+    if (sessionChanged && !messagesChanged) {
+      messagesChanged = true;
+    }
+
+    // Never silently drop a state where the Sync singleton has messages
+    // but our local list is empty. This catches edge cases where the
+    // view cache was cleared (e.g. gapTooLarge tail refresh) and the
+    // UI got updated with an empty list before the HTTP fetch completed.
+    if (!messagesChanged &&
+        latestMessages.isNotEmpty &&
+        _messages.isEmpty) {
+      messagesChanged = true;
+    }
 
     logger.info(
       '[ChatScreen] _refreshFromSync '
