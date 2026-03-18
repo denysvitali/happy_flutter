@@ -567,7 +567,7 @@ what you have, you must use the options mode.
     for (var i = messages.length - 1; i >= 0; i--) {
       final msg = messages[i];
       final role = msg['role'] as String?;
-      if (role != 'assistant' && role != 'human') continue;
+      if (role != 'agent' && role != 'user') continue;
       final text = msg['text'] as String?;
       if (text != null && text.trim().isNotEmpty) {
         return text.trim();
