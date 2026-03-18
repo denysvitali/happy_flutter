@@ -191,10 +191,10 @@ class AbortResponse {
 // ---------------------------------------------------------------------------
 
 class ReadFileRequest {
-  const ReadFileRequest({required this.filePath});
-  final String filePath;
+  const ReadFileRequest({required this.path});
+  final String path;
 
-  Map<String, dynamic> toJson() => {'filePath': filePath};
+  Map<String, dynamic> toJson() => {'path': path};
 }
 
 class ReadFileResponse {

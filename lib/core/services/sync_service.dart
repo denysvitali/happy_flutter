@@ -3391,7 +3391,7 @@ what you have, you must use the options mode.
       return await _typedMachineRPC(
         machineId,
         'readFile',
-        ReadFileRequest(filePath: filePath).toJson(),
+        ReadFileRequest(path: filePath).toJson(),
         ReadFileResponse.fromJson,
       );
     } catch (error) {
