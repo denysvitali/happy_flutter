@@ -190,6 +190,18 @@ class TaskView extends StatelessWidget {
                   ),
                 ),
             ],
+            // Most recent text message from the sub-agent
+            if (_extractLastTextMessage(children) case final lastText?
+                when lastText.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xsm),
+              Padding(
+                padding: const EdgeInsets.only(left: 24),
+                child: MarkdownView(
+                  markdown: lastText,
+                  textColor: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -204,6 +216,22 @@ class TaskView extends StatelessWidget {
         .whereType<Map<String, dynamic>>()
         .where((c) => c['kind'] == 'tool-call')
         .toList();
+  }
+
+  String? _extractLastTextMessage(List<dynamic>? children) {
+    if (children == null) return null;
+    for (var i = children.length - 1; i >= 0; i--) {
+      final child = children[i];
+      if (child is Map<String, dynamic> &&
+          child['kind'] == 'text' &&
+          child['isThinking'] != true) {
+        final content = child['content'] as String?;
+        if (content != null && content.isNotEmpty) {
+          return content;
+        }
+      }
+    }
+    return null;
   }
 }
 

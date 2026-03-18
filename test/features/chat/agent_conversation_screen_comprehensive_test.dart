@@ -641,4 +641,54 @@ void main() {
       expect(find.byType(ToolView), findsOneWidget);
     });
   });
+
+  group('TaskView - text message preview', () {
+    testWidgets('shows most recent text message from children', (
+      tester,
+    ) async {
+      final taskData = <String, dynamic>{
+        'id': 'task_tv_1',
+        'kind': 'tool-call',
+        'name': 'Task',
+        'state': 'completed',
+        'input': <String, dynamic>{
+          'description': 'Explore codebase',
+          'subagent_type': 'explore',
+        },
+        'children': [
+          {
+            'id': 'c1',
+            'kind': 'text',
+            'content': 'First message from agent',
+          },
+          {
+            'id': 'c2',
+            'kind': 'tool-call',
+            'name': 'Read',
+            'toolUseId': 'read_1',
+            'state': 'completed',
+            'input': <String, dynamic>{'file_path': '/tmp/test.txt'},
+          },
+          {
+            'id': 'c3',
+            'kind': 'text',
+            'content': 'Second message from agent',
+          },
+        ],
+      };
+
+      await tester.pumpWidget(
+        _buildApp(
+          sessionId: 'sess_tv',
+          messageId: 'task_tv_1',
+          taskData: taskData,
+        ),
+      );
+      await tester.pump();
+
+      // TaskView is rendered inside the agent conversation
+      // screen's initial state
+      expect(find.text('Second message from agent'), findsOneWidget);
+    });
+  });
 }
