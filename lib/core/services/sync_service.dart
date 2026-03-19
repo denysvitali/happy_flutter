@@ -462,6 +462,12 @@ what you have, you must use the options mode.
       _lastInvalidateAllSyncsAtMs = value;
 
   @visibleForTesting
+  bool get testIsInitialized => isInitialized;
+
+  @visibleForTesting
+  set testIsInitialized(bool value) => isInitialized = value;
+
+  @visibleForTesting
   void testInvalidateAllSyncs({
     bool force = false,
     bool resetSessionDeltaCursor = false,
@@ -740,9 +746,15 @@ what you have, you must use the options mode.
   /// Invalidate all sync managers
   static const int _invalidateAllSyncsCooldownMs = 5000;
 
+  /// Phases for selective sync invalidation to prevent thundering herd
+  static const _criticalSyncPhase = 0;
+  static const _deferredSyncPhase = 1;
+  Timer? _deferredSyncsTimer;
+
   void _invalidateAllSyncs({
     bool force = false,
     bool resetSessionDeltaCursor = false,
+    @visibleForTesting int? phase,
   }) {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final lastRunMs = _lastInvalidateAllSyncsAtMs;
@@ -757,19 +769,51 @@ what you have, you must use the options mode.
     if (resetSessionDeltaCursor) {
       _lastSessionsFetchedAt = null;
     }
-    sessionsSync.invalidate();
-    settingsSync.invalidate();
-    profileSync.invalidate();
-    purchasesSync.invalidate();
-    machinesSync.invalidate();
-    pushTokenSync.invalidate();
-    nativeUpdateSync.invalidate();
-    friendsSync.invalidate();
-    friendRequestsSync.invalidate();
-    artifactsSync.invalidate();
-    feedSync.invalidate();
-    todosSync.invalidate();
-    sessionGitStatusSync.invalidate();
+
+    // Phase 0: Critical syncs (sessions, machines) - immediate invalidation
+    // These are essential for core app functionality and navigation
+    if (phase == null || phase == _criticalSyncPhase) {
+      sessionsSync.invalidate();
+      machinesSync.invalidate();
+
+      // Settings, profile, and purchases are also critical for UI
+      settingsSync.invalidate();
+      profileSync.invalidate();
+      purchasesSync.invalidate();
+
+      // Push token and native update are low-priority but fast
+      pushTokenSync.invalidate();
+      nativeUpdateSync.invalidate();
+
+      logger.info(
+        'Invalidated critical syncs '
+        '(sessions, machines, settings, profile, purchases)',
+      );
+    }
+
+    // Phase 1: Deferred syncs - invalidate after 2-3 second staggered delay
+    // These are non-critical and can be loaded lazily when accessed
+    if (phase == null || phase == _deferredSyncPhase) {
+      _deferredSyncsTimer?.cancel();
+      _deferredSyncsTimer = Timer(
+        const Duration(milliseconds: 2500),
+        () {
+          // Only invalidate if sync is still initialized to avoid
+          // errors after logout/dispose
+          if (!isInitialized) return;
+          logger.info(
+            'Invalidating deferred syncs '
+            '(friends, feed, todos, artifacts, git status)',
+          );
+          friendsSync.invalidate();
+          friendRequestsSync.invalidate();
+          feedSync.invalidate();
+          todosSync.invalidate();
+          artifactsSync.invalidate();
+          sessionGitStatusSync.invalidate();
+        },
+      );
+    }
   }
 
   /// Debounced data change notification.
