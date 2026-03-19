@@ -10,6 +10,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
@@ -493,7 +494,8 @@ class _SessionsScreenState
     for (final id in activeIds) {
       try {
         await SessionsApi().setSessionArchived(id, true);
-      } catch (_) {
+      } catch (e, st) {
+        logger.error('Failed to archive session in batch: sessionId=$id', e, st);
         failCount++;
       }
     }

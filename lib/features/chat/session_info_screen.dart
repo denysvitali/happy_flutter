@@ -10,6 +10,7 @@ import '../../core/components/app_section_header.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
@@ -160,7 +161,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
       await SessionsApi().setSessionArchived(widget.session.id, true);
       if (!mounted) return;
       Navigator.of(context).pop();
-    } catch (e) {
+    } catch (e, st) {
+      logger.error(
+        'Failed to archive session from info screen: sessionId=${widget.session.id}',
+        e,
+        st,
+      );
       _showError(failedArchiveMsg);
     } finally {
       if (mounted) setState(() => _isArchiving = false);

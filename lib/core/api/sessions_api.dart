@@ -166,12 +166,19 @@ class SessionsApi {
     );
 
     if (!_isSuccess(response)) {
+      logger.warning(
+        'setSessionArchived failed: '
+        'sessionId=$sessionId archived=$archived '
+        'status=${response.statusCode} '
+        'body=${response.data}',
+      );
       throw SessionsApiException(
         'Failed to ${archived ? 'archive' : 'unarchive'} session: '
         '${response.statusCode}',
         statusCode: response.statusCode,
       );
     }
+    logger.debug('setSessionArchived success: sessionId=$sessionId archived=$archived');
   }
 }
 

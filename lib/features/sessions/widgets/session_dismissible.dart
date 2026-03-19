@@ -5,6 +5,7 @@ import '../../../core/api/sessions_api.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
 
@@ -93,7 +94,12 @@ class DismissibleActiveSession extends ConsumerWidget {
           .read(sessionsNotifierProvider.notifier)
           .refreshFromSync();
       return true;
-    } catch (e) {
+    } catch (e, st) {
+      logger.error(
+        'Failed to archive session: sessionId=${session.id}',
+        e,
+        st,
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
