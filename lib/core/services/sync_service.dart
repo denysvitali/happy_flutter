@@ -33,6 +33,7 @@ import '../models/session.dart';
 import '../models/settings.dart';
 import '../models/todo.dart';
 import '../rpc/rpc_types.dart';
+import '../services/message_cache_service.dart';
 import '../services/message_outbox.dart';
 import '../services/mmkv_storage.dart';
 import '../services/server_config.dart';
@@ -836,7 +837,7 @@ what you have, you must use the options mode.
   /// Debounced MMKV persist for a single session's message list.
   ///
   /// Batches rapid upserts (e.g. streaming tokens) into one disk write
-  /// per session every 500 ms, keeping only the last 100 messages in
+  /// per session every 500 ms, keeping only the last ~200 messages in
   /// the persisted copy. The in-memory list retains all messages.
   void _scheduleSaveMessages(String sessionId) {
     _saveMsgsDebounceTimers[sessionId]?.cancel();
@@ -854,11 +855,7 @@ what you have, you must use the options mode.
           final clean = msgs
               .where((m) => m['isSidechain'] != true)
               .toList();
-          const maxPersisted = 100;
-          final toSave = clean.length > maxPersisted
-              ? clean.sublist(clean.length - maxPersisted)
-              : clean;
-          MMKVStorage().saveSessionMessages(sessionId, toSave);
+          MessageCacheService().saveMessages(sessionId, clean);
         }
       },
     );
@@ -868,8 +865,6 @@ what you have, you must use the options mode.
   /// cache is not stale when the app is backgrounded or killed.
   void _flushPendingMessageSaves() {
     if (_saveMsgsDebounceTimers.isEmpty) return;
-    final storage = MMKVStorage();
-    const maxPersisted = 100;
     for (final entry in _saveMsgsDebounceTimers.entries) {
       entry.value.cancel();
       final msgs = _sessionMessages[entry.key];
@@ -877,10 +872,7 @@ what you have, you must use the options mode.
         final clean = msgs
             .where((m) => m['isSidechain'] != true)
             .toList();
-        final toSave = clean.length > maxPersisted
-            ? clean.sublist(clean.length - maxPersisted)
-            : clean;
-        storage.saveSessionMessages(entry.key, toSave);
+        MessageCacheService().saveMessages(entry.key, clean);
       }
     }
     _saveMsgsDebounceTimers.clear();
@@ -975,7 +967,7 @@ what you have, you must use the options mode.
     var firstLoadedChanged = false;
     for (final sessionId in _sessions.keys) {
       if (_sessionMessages.containsKey(sessionId)) continue;
-      final cached = MMKVStorage().getSessionMessages(sessionId);
+      final cached = MessageCacheService().getMessages(sessionId);
       if (cached.isNotEmpty) {
         // Strip any orphaned sidechain messages that were persisted
         // before the deferred regroup timer could clean them up (e.g.
@@ -1402,7 +1394,7 @@ what you have, you must use the options mode.
           Map.unmodifiable(_sessionFirstLoadedSeq),
         );
         _saveMsgsDebounceTimers.remove(sessionId)?.cancel();
-        MMKVStorage().clearSessionMessages(sessionId);
+        MessageCacheService().clearMessages(sessionId);
         encryption.removeSessionEncryption(sessionId);
       }
     }
@@ -4771,7 +4763,7 @@ what you have, you must use the options mode.
     if (!hasMessages) {
       // Restore from MMKV cache so the UI shows messages immediately
       // while the HTTP fetch is in flight.
-      final cached = MMKVStorage().getSessionMessages(sessionId);
+      final cached = MessageCacheService().getMessages(sessionId);
       if (cached.isNotEmpty) {
         // Strip orphaned sidechain messages (see _restoreAllCachedMessages).
         final clean = cached.any((m) => m['isSidechain'] == true)

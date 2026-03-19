@@ -12,6 +12,7 @@ import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/logger_service.dart' show logger;
+import '../../core/services/message_cache_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -113,6 +114,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.initState();
     _scrollController.addListener(_onScroll);
     _loadInitialSettings();
+
+    // ── Local-first: Load cached messages instantly (0ms delay) ──
+    final cached = MessageCacheService().getMessages(widget.sessionId);
+    if (cached.isNotEmpty) {
+      setState(() {
+        _messages = cached;
+        _isLoadingMessages = false;
+        // Mark cached messages as seen so they don't animate
+        for (final m in cached) {
+          _seenMessageIds.add(_messageKey(m));
+        }
+        _prevSeenLength = cached.length;
+        _visibleCount = cached.length.clamp(0, _pageSize);
+      });
+      logger.info(
+        '[ChatScreen] Loaded ${cached.length} cached messages for '
+        'session ${widget.sessionId}',
+      );
+    }
+
     _initializeSyncBackedChat();
     final settings = ref.read(settingsNotifierProvider);
     if (settings.ttsEnabled) {
@@ -1082,10 +1103,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     _autoScrollNotifier.value = true;
+
+    // ── Optimistic UI: Show message immediately ──
+    final optimisticMessage = <String, dynamic>{
+      'id': 'optimistic-${DateTime.now().millisecondsSinceEpoch}',
+      'role': 'user',
+      'content': text,
+      'text': text,
+      'createdAt': DateTime.now().millisecondsSinceEpoch,
+      'seq': -1, // Will be replaced by server
+      'sendStatus': 'sending', // Track for potential rollback
+    };
     setState(() {
+      _messages = [..._messages, optimisticMessage];
       _isSending = true;
       _controller.clear();
+      _visibleCount = (_visibleCount + 1).clamp(0, _messages.length);
     });
+    _scrollToBottom();
 
     unawaited(DraftStorage().removeDraft(widget.sessionId));
 
@@ -1102,13 +1137,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (_followRedirectedSession(sentSessionId)) {
         return;
       }
+      // Optimistic message will be replaced by real message via WebSocket
       _refreshFromSync();
     } catch (e) {
       if (mounted) {
+        // Rollback: remove optimistic message on error
+        setState(() {
+          _messages = _messages.where((m) => m['id'] != optimisticMessage['id']).toList();
+          _controller.text = text;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
         );
-        _controller.text = text;
       }
     } finally {
       if (mounted) setState(() => _isSending = false);
