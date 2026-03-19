@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+import 'package:happy_flutter/features/chat/syntax_highlighter.dart';
 import 'package:go_router/go_router.dart';
 
 import '../tool_section_view.dart';
@@ -169,6 +170,7 @@ class _ReadViewContentState extends State<_ReadViewContent> {
             maxLines: _defaultMaxLines,
             onToggleExpand: () =>
                 setState(() => _expanded = !_expanded),
+            extension: widget.extension,
           ),
         ],
         if (content == null && widget.totalLines != null)
@@ -498,16 +500,19 @@ class _ContentBlock extends StatelessWidget {
     required this.expanded,
     required this.maxLines,
     required this.onToggleExpand,
+    required this.extension,
   });
   final String content;
   final int? offset;
   final bool expanded;
   final int maxLines;
   final VoidCallback onToggleExpand;
+  final String extension;
 
   @override
   Widget build(BuildContext context) {
     final c = ToolViewColors.of(context);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final lines = content.split('\n');
     final totalLines = lines.length;
     final needsTruncation = totalLines > maxLines;
@@ -538,16 +543,16 @@ class _ContentBlock extends StatelessWidget {
                   startLine: startLine,
                 ),
                 const SizedBox(width: AppSpacing.md),
-                // Content column
+                // Content column with syntax highlighting
                 Expanded(
-                  child: SelectableText(
-                    visibleLines.join('\n'),
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: AppFontSize.sm,
-                      color: c.primaryText,
-                      height: AppLineHeight.relaxed,
-                    ),
+                  child: SyntaxHighlighter(
+                    code: visibleLines.join('\n'),
+                    language: extension.isNotEmpty
+                        ? extension.replaceFirst('.', '')
+                        : null,
+                    isDarkMode: isDarkMode,
+                    fontSize: AppFontSize.sm,
+                    lineHeight: AppLineHeight.relaxed * AppFontSize.sm,
                   ),
                 ),
               ],
