@@ -181,6 +181,7 @@ class SettingsStorage {
   }
 
   Future<AIBackendProfile> _profileWithApiKeys(AIBackendProfile profile) async {
+    // Start all API key fetches in parallel
     final openAIKeyFuture = profile.openaiConfig != null
         ? _apiKeyStorage.getOpenAIConfigKey(profile.id)
         : Future<String?>.value(null);
@@ -191,9 +192,16 @@ class SettingsStorage {
         ? _apiKeyStorage.getTogetherAIConfigKey(profile.id)
         : Future<String?>.value(null);
 
-    final openAIKey = await openAIKeyFuture;
-    final azureKey = await azureKeyFuture;
-    final togetherAIKey = await togetherAIKeyFuture;
+    // Wait for all keys in parallel (not sequential)
+    final results = await Future.wait([
+      openAIKeyFuture,
+      azureKeyFuture,
+      togetherAIKeyFuture,
+    ]);
+
+    final openAIKey = results[0];
+    final azureKey = results[1];
+    final togetherAIKey = results[2];
 
     return profile.copyWith(
       openaiConfig: profile.openaiConfig != null && openAIKey != null

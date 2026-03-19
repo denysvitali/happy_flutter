@@ -37,6 +37,10 @@ class MMKVStorage {
   MMKV? _mmkv;
   bool _initialized = false;
 
+  // In-memory caches for frequently accessed session sequence data
+  Map<String, int>? _lastSeqCache;
+  Map<String, int>? _firstLoadedSeqCache;
+
   /// Initialize MMKV and migrate data from SharedPreferences if needed
   static Future<void> initialize() async {
     if (_instance._initialized) return;
@@ -47,6 +51,10 @@ class MMKVStorage {
       // Get default MMKV instance
       _instance._mmkv = MMKV.defaultMMKV();
       _instance._initialized = true;
+
+      // Initialize in-memory caches
+      _instance._lastSeqCache = _instance.getSessionLastSeq();
+      _instance._firstLoadedSeqCache = _instance.getSessionFirstLoadedSeq();
 
       // Check if migration is needed
       final migrationComplete =
@@ -164,6 +172,24 @@ class MMKVStorage {
       }
     } catch (e) {
       logger.warning('MMKV: Failed to get session draft: $e');
+    }
+
+    return null;
+  }
+
+  /// Get draft for a specific session directly (synchronous)
+  /// Returns null if not initialized or draft not found
+  String? getSessionDraftDirect(String sessionId) {
+    if (!_initialized) return null;
+
+    try {
+      final draftsJson = _mmkv?.decodeString(_StorageKeys.sessionDrafts);
+      if (draftsJson != null) {
+        final drafts = jsonDecode(draftsJson) as Map<String, dynamic>;
+        return drafts[sessionId] as String?;
+      }
+    } catch (e) {
+      logger.warning('MMKV: Failed to get session draft direct: $e');
     }
 
     return null;
@@ -441,16 +467,37 @@ class MMKVStorage {
   /// Get all persisted session last-seq cursors (synchronous — MMKV is sync)
   Map<String, int> getSessionLastSeq() {
     if (!_initialized) return {};
+
+    // Return cached copy if available
+    if (_lastSeqCache != null) {
+      return Map<String, int>.from(_lastSeqCache!);
+    }
+
     try {
       final json = _mmkv?.decodeString(_StorageKeys.sessionLastSeq);
       if (json != null) {
         final decoded = jsonDecode(json) as Map<String, dynamic>;
-        return decoded.map((k, v) => MapEntry(k, v as int));
+        _lastSeqCache = decoded.map((k, v) => MapEntry(k, v as int));
+        return Map<String, int>.from(_lastSeqCache!);
       }
     } catch (e) {
       logger.warning('MMKV: Failed to get session last seq: $e');
     }
     return {};
+  }
+
+  /// Get a single session's last-seq cursor (synchronous, cached)
+  int? getSessionLastSeqSingle(String sessionId) {
+    if (!_initialized) return null;
+
+    // Use cache if available
+    if (_lastSeqCache != null) {
+      return _lastSeqCache![sessionId];
+    }
+
+    // Fall back to loading all data
+    final all = getSessionLastSeq();
+    return all[sessionId];
   }
 
   /// Persist all session last-seq cursors (synchronous)
@@ -460,6 +507,28 @@ class MMKVStorage {
       _mmkv?.encodeString(
         _StorageKeys.sessionLastSeq,
         jsonEncode(seqs),
+      );
+      // Update cache
+      _lastSeqCache = Map<String, int>.from(seqs);
+    } catch (e) {
+      logger.warning('MMKV: Failed to save session last seq: $e');
+    }
+  }
+
+  /// Update a single session's last-seq cursor (synchronous, cached)
+  void saveSessionLastSeqSingle(String sessionId, int seq) {
+    if (!_initialized) return;
+
+    // Initialize cache if needed
+    _lastSeqCache ??= getSessionLastSeq();
+
+    // Update cache
+    _lastSeqCache![sessionId] = seq;
+
+    try {
+      _mmkv?.encodeString(
+        _StorageKeys.sessionLastSeq,
+        jsonEncode(_lastSeqCache),
       );
     } catch (e) {
       logger.warning('MMKV: Failed to save session last seq: $e');
@@ -471,6 +540,7 @@ class MMKVStorage {
     if (!_initialized) return;
     try {
       _mmkv?.removeValue(_StorageKeys.sessionLastSeq);
+      _lastSeqCache = null;
     } catch (e) {
       logger.warning('MMKV: Failed to clear session last seq: $e');
     }
@@ -479,17 +549,38 @@ class MMKVStorage {
   /// Get all persisted session first-loaded-seq cursors (synchronous)
   Map<String, int> getSessionFirstLoadedSeq() {
     if (!_initialized) return {};
+
+    // Return cached copy if available
+    if (_firstLoadedSeqCache != null) {
+      return Map<String, int>.from(_firstLoadedSeqCache!);
+    }
+
     try {
       final json =
           _mmkv?.decodeString(_StorageKeys.sessionFirstLoadedSeq);
       if (json != null) {
         final decoded = jsonDecode(json) as Map<String, dynamic>;
-        return decoded.map((k, v) => MapEntry(k, v as int));
+        _firstLoadedSeqCache = decoded.map((k, v) => MapEntry(k, v as int));
+        return Map<String, int>.from(_firstLoadedSeqCache!);
       }
     } catch (e) {
       logger.warning('MMKV: Failed to get session first loaded seq: $e');
     }
     return {};
+  }
+
+  /// Get a single session's first-loaded-seq cursor (synchronous, cached)
+  int? getSessionFirstLoadedSeqSingle(String sessionId) {
+    if (!_initialized) return null;
+
+    // Use cache if available
+    if (_firstLoadedSeqCache != null) {
+      return _firstLoadedSeqCache![sessionId];
+    }
+
+    // Fall back to loading all data
+    final all = getSessionFirstLoadedSeq();
+    return all[sessionId];
   }
 
   /// Persist all session first-loaded-seq cursors (synchronous)
@@ -499,6 +590,28 @@ class MMKVStorage {
       _mmkv?.encodeString(
         _StorageKeys.sessionFirstLoadedSeq,
         jsonEncode(seqs),
+      );
+      // Update cache
+      _firstLoadedSeqCache = Map<String, int>.from(seqs);
+    } catch (e) {
+      logger.warning('MMKV: Failed to save session first loaded seq: $e');
+    }
+  }
+
+  /// Update a single session's first-loaded-seq cursor (synchronous, cached)
+  void saveSessionFirstLoadedSeqSingle(String sessionId, int seq) {
+    if (!_initialized) return;
+
+    // Initialize cache if needed
+    _firstLoadedSeqCache ??= getSessionFirstLoadedSeq();
+
+    // Update cache
+    _firstLoadedSeqCache![sessionId] = seq;
+
+    try {
+      _mmkv?.encodeString(
+        _StorageKeys.sessionFirstLoadedSeq,
+        jsonEncode(_firstLoadedSeqCache),
       );
     } catch (e) {
       logger.warning('MMKV: Failed to save session first loaded seq: $e');
@@ -510,6 +623,7 @@ class MMKVStorage {
     if (!_initialized) return;
     try {
       _mmkv?.removeValue(_StorageKeys.sessionFirstLoadedSeq);
+      _firstLoadedSeqCache = null;
     } catch (e) {
       logger.warning(
         'MMKV: Failed to clear session first loaded seq', e,
