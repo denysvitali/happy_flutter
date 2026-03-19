@@ -87,6 +87,7 @@ class _AgentConversationScreenState
             _prevChildFingerprint = fingerprint;
           });
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
             if (_scroll.hasClients) {
               _scroll.animateTo(
                 _scroll.position.maxScrollExtent,

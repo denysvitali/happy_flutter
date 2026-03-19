@@ -4100,9 +4100,11 @@ what you have, you must use the options mode.
                 'sendStatus': 'sent',
               },
             ]);
+            _notifySessionMessagesChanged(targetSessionId);
           } else {
             // Mark sent even without full server fields.
             _updateMessageSendStatus(targetSessionId, localId, 'sent');
+            _notifySessionMessagesChanged(targetSessionId);
             logger.warning(
               '[sendMessage] server ack missing '
               'id/seq/createdAt '
@@ -4142,6 +4144,7 @@ what you have, you must use the options mode.
             });
             sent = true;
             _updateMessageSendStatus(targetSessionId, localId, 'sent');
+            _notifySessionMessagesChanged(targetSessionId);
           } else {
             throw StateError(
               'Failed to send message: '

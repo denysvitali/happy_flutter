@@ -90,21 +90,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _neighborCacheSource = items;
     _neighborCacheLength = items.length;
     _neighborCache.clear();
+
+    // Collect non-null indices once - O(N)
+    final nonNullIndices = <int>[];
     for (var i = 0; i < items.length; i++) {
-      Map<String, dynamic>? prev;
-      for (var j = i - 1; j >= 0; j--) {
-        if (items[j] != null) {
-          prev = items[j];
-          break;
-        }
-      }
-      Map<String, dynamic>? next;
-      for (var j = i + 1; j < items.length; j++) {
-        if (items[j] != null) {
-          next = items[j];
-          break;
-        }
-      }
+      if (items[i] != null) nonNullIndices.add(i);
+    }
+
+    // For each non-null index, find prev/next from the nonNullIndices list - O(N)
+    for (var k = 0; k < nonNullIndices.length; k++) {
+      final i = nonNullIndices[k];
+      final prev = k > 0 ? items[nonNullIndices[k - 1]] : null;
+      final next = k < nonNullIndices.length - 1
+          ? items[nonNullIndices[k + 1]]
+          : null;
       _neighborCache[i] = (prev, next);
     }
   }
