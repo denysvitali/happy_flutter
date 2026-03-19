@@ -22,6 +22,9 @@ typedef OptionPressedCallback = void Function(String option);
 /// The [MarkdownStyleSheet] is built once and cached; it is only rebuilt
 /// when the theme or [textColor] changes. This prevents [MarkdownBody] from
 /// re-parsing the document on every parent rebuild (e.g. sync events).
+///
+/// [ExtensionSet], [blockSyntaxes], and [builders] are static constants
+/// shared across all instances to avoid allocations.
 class MarkdownView extends StatefulWidget {
   /// Creates a [MarkdownView].
   const MarkdownView({
@@ -49,42 +52,28 @@ class _MarkdownViewState extends State<MarkdownView> {
   ThemeData? _lastTheme;
   Color? _lastTextColor;
 
-  /// Cached [OptionsElementBuilder] — recreated only when
-  /// [widget.onOptionPress] or [widget.textColor] changes, not on every
-  /// build call.
-  late OptionsElementBuilder _optionsBuilder;
-
   /// Cached builders map — same reference passed to [MarkdownBody] each build
   /// unless the options builder instance changes.
-  late Map<String, MarkdownElementBuilder> _builders;
-
-  @override
-  void initState() {
-    super.initState();
-    _optionsBuilder = OptionsElementBuilder(
-      onOptionPress: widget.onOptionPress,
-      textColor: widget.textColor,
-    );
-    _builders = {
-      'pre': _sharedCodeBlockBuilder,
-      'options': _optionsBuilder,
-    };
-  }
+  Map<String, MarkdownElementBuilder>? _builders;
 
   @override
   void didUpdateWidget(MarkdownView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.onOptionPress != oldWidget.onOptionPress ||
         widget.textColor != oldWidget.textColor) {
-      _optionsBuilder = OptionsElementBuilder(
+      _builders = null;
+    }
+  }
+
+  Map<String, MarkdownElementBuilder> get _effectiveBuilders {
+    _builders ??= {
+      'pre': _sharedCodeBlockBuilder,
+      'options': OptionsElementBuilder(
         onOptionPress: widget.onOptionPress,
         textColor: widget.textColor,
-      );
-      _builders = {
-        'pre': _sharedCodeBlockBuilder,
-        'options': _optionsBuilder,
-      };
-    }
+      ),
+    };
+    return _builders!;
   }
 
   MarkdownStyleSheet _buildStyleSheet(ThemeData theme) {
@@ -150,11 +139,9 @@ class _MarkdownViewState extends State<MarkdownView> {
 
     return MarkdownBody(
       data: widget.markdown,
-      extensionSet: md.ExtensionSet.gitHubFlavored,
-      builders: _builders,
-      blockSyntaxes: const [
-        OptionsBlockSyntax(),
-      ],
+      extensionSet: _gitHubFlavoredExtensionSet,
+      builders: _effectiveBuilders,
+      blockSyntaxes: _optionsBlockSyntaxes,
       styleSheet: _styleSheet!,
       onTapLink: (text, href, title) async {
         if (href != null) {
@@ -187,12 +174,6 @@ class SimpleMarkdownView extends StatefulWidget {
 class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
   MarkdownStyleSheet? _styleSheet;
   ThemeData? _lastTheme;
-
-  /// Cached builders map — stable reference so [MarkdownBody] sees the same
-  /// map object on every rebuild and does not re-parse unnecessarily.
-  static final Map<String, MarkdownElementBuilder> _builders = {
-    'pre': _sharedCodeBlockBuilder,
-  };
 
   MarkdownStyleSheet _buildStyleSheet(ThemeData theme) {
     final onSurface = theme.colorScheme.onSurface;
@@ -235,8 +216,8 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
 
     return MarkdownBody(
       data: widget.markdown,
-      extensionSet: md.ExtensionSet.gitHubFlavored,
-      builders: _builders,
+      extensionSet: _gitHubFlavoredExtensionSet,
+      builders: _simpleBuilders,
       styleSheet: _styleSheet!,
       onTapLink: (text, href, title) async {
         if (href != null) {
@@ -249,6 +230,29 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
     );
   }
 }
+
+// Static caches shared across all instances to avoid allocations.
+
+/// Shared GitHub Flavored [ExtensionSet] instance.
+///
+/// [ExtensionSet.gitHubFlavored] creates new objects on each call. Caching
+/// this instance avoids allocating the same extension set repeatedly.
+final _gitHubFlavoredExtensionSet = md.ExtensionSet.gitHubFlavored;
+
+/// Shared block syntaxes for [MarkdownView] with options block support.
+///
+/// The list is const and immutable, safe to share across all instances.
+final _optionsBlockSyntaxes = const [
+  OptionsBlockSyntax(),
+];
+
+/// Shared builders map for [SimpleMarkdownView].
+///
+/// Stable reference so [MarkdownBody] sees the same map object on every
+/// rebuild and does not re-parse unnecessarily.
+final _simpleBuilders = {
+  'pre': _sharedCodeBlockBuilder,
+};
 
 /// Shared instance of [_CodeBlockBuilder] reused across all [MarkdownView]
 /// and [SimpleMarkdownView] builds to avoid allocating a new object on every
