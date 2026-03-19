@@ -3588,6 +3588,27 @@ what you have, you must use the options mode.
     return <String, String>{...?base};
   }
 
+  /// Get environment variables for spawning a session, using the profile
+  /// associated with the session if available, otherwise falling back to
+  /// the last-used profile.
+  Future<Map<String, String>> _getSpawnEnvVarsForSession(
+    String sessionId,
+  ) async {
+    // Try to get the profile ID that was saved for this specific session.
+    final profileId =
+        await MMKVStorage().getSessionProfile(sessionId) ??
+        _settingsSnapshot.lastUsedProfile;
+    if (profileId != null) {
+      final profile = _resolveProfile(profileId);
+      if (profile != null) {
+        return _spawnEnvironmentVariables(
+          _profileEnvironmentVariables(profile),
+        );
+      }
+    }
+    return _spawnEnvironmentVariables(null);
+  }
+
   Future<
     ({String sessionId, Session session, SessionEncryption sessionEncryption})
   >
@@ -3665,13 +3686,15 @@ what you have, you must use the options mode.
     }
     _autoRestoreInFlight.add(sessionId);
     try {
+      // Resolve profile env vars for this session before spawning.
+      final envVars = await _getSpawnEnvVarsForSession(sessionId);
       final req = SpawnSessionRequest(
         type: 'spawn-in-directory',
         directory: path,
         sessionId: sessionId,
         agent: session.metadata?.flavor ?? 'claude',
         permissionMode: effectivePermissionMode,
-        environmentVariables: _spawnEnvironmentVariables(null),
+        environmentVariables: envVars,
       );
       final result = await _typedMachineRPC(
         machineId,
@@ -4505,13 +4528,15 @@ what you have, you must use the options mode.
     );
 
     try {
+      // Resolve profile env vars for this session before spawning.
+      final envVars = await _getSpawnEnvVarsForSession(sessionId);
       final req = SpawnSessionRequest(
         type: 'spawn-in-directory',
         directory: path,
         sessionId: sessionId,
         agent: session.metadata?.flavor ?? 'claude',
         permissionMode: session.permissionMode,
-        environmentVariables: _spawnEnvironmentVariables(null),
+        environmentVariables: envVars,
       );
       final result = await _typedMachineRPC(
         machineId,
