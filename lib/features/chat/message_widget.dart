@@ -55,35 +55,37 @@ class MessageWidget extends StatefulWidget {
 
 class _MessageWidgetState extends State<MessageWidget>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  AnimationController? _controller;
   late final Animation<double> _opacity;
   late final Animation<Offset> _slide;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
-    _slide = Tween<Offset>(
-      begin: const Offset(0, 0.04),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
     if (widget.animate) {
-      _controller.forward();
+      // Only create controller for new messages that need animation.
+      // Bulk-loaded messages (animate=false) skip controller creation
+      // entirely to avoid 50+ controllers competing for frame time.
+      _controller = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 200),
+      );
+      _opacity = CurvedAnimation(parent: _controller!, curve: Curves.easeOut);
+      _slide = Tween<Offset>(
+        begin: const Offset(0, 0.04),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(parent: _controller!, curve: Curves.easeOut));
+      _controller!.forward();
     } else {
-      // Historical message — skip animation entirely so bulk-loaded
-      // messages don't all animate at once (50 AnimationControllers
-      // competing for frame time caused jank on chat open).
-      _controller.value = 1.0;
+      // Historical message — use static animations to avoid controller overhead.
+      _opacity = const AlwaysStoppedAnimation(1.0);
+      _slide = const AlwaysStoppedAnimation(Offset.zero);
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 

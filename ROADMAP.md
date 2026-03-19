@@ -33,8 +33,8 @@ This roadmap tracks the work needed to achieve full feature parity between **hap
 
 | Task | Status | Description |
 |------|--------|-------------|
-| Persist messages to MMKV | Not Started | Session messages live only in-memory (`_sessionMessages` map). On cold start, users see a blank screen until HTTP completes. Caching last N messages per session in MMKV would give instant load. |
-| Offline message outbox | Not Started | No retry/queue for message sends. If network drops mid-send, the message is silently lost. The `localId` field on `SendMessageRequest`/`SendMessageResponse` already supports server-side dedup. |
+| Persist messages to MMKV | Done | `MessageCacheService` caches last 200 messages per session in MMKV. Loaded on app start via `_restoreAllCachedMessages()`. Debounced writes (500ms) via `_scheduleSaveMessages()`. |
+| Offline message outbox | Done | `MessageOutbox` service persists failed sends to MMKV with exponential backoff retry (1s→2s→4s→max 30s, max 3 retries). Restored on startup via `restoreAndFlush()`. |
 
 ### 4. Optimistic Mutations
 

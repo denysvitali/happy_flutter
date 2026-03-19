@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -11,6 +12,272 @@ import '../services/server_config.dart';
 import 'native_adapter_helper.dart'
     if (dart.library.js_interop) 'native_adapter_helper_web.dart';
 
+/// HTTP cache entry with response data and expiration
+class _HttpCacheEntry {
+  _HttpCacheEntry(this.response, this.expiresAt);
+
+  final Response response;
+  final int expiresAt;
+
+  bool get isExpired =>
+      DateTime.now().millisecondsSinceEpoch > expiresAt;
+}
+
+/// In-memory HTTP response cache for GET requests
+class _HttpResponseCache {
+  final _cache = <String, _HttpCacheEntry>{};
+
+  static const int maxEntries = 200;
+  static const int defaultMaxAge = 5 * 60 * 1000; // 5 minutes
+
+  /// Generate cache key from request options
+  String generateKey(RequestOptions options) {
+    final buffer = StringBuffer(options.method)
+      ..write(':')
+      ..write(options.uri.path);
+    if (options.queryParameters.isNotEmpty) {
+      final sortedParams = Map<String, dynamic>.fromEntries(
+        options.queryParameters.entries.toList()
+          ..sort((a, b) => a.key.compareTo(b.key)),
+      );
+      buffer
+        ..write('?')
+        ..write(sortedParams.entries
+            .map((e) => '${e.key}=${e.value}')
+            .join('&'));
+    }
+    return buffer.toString();
+  }
+
+  /// Get cached response if available and not expired
+  Response? get(RequestOptions options) {
+    final key = generateKey(options);
+    final entry = _cache[key];
+    if (entry != null && !entry.isExpired) {
+      logger.debug('HTTP cache hit: $key');
+      return entry.response;
+    }
+    if (entry != null && entry.isExpired) {
+      _cache.remove(key);
+    }
+    return null;
+  }
+
+  /// Cache a response with expiration time
+  void put(RequestOptions options, Response response) {
+    // Only cache successful GET requests
+    if (options.method != 'GET') return;
+    if (response.statusCode != 200) return;
+
+    final maxAge = _parseMaxAge(response.headers);
+    if (maxAge == 0) return; // no-store
+
+    final key = generateKey(options);
+    final expiresAt = DateTime.now().millisecondsSinceEpoch + maxAge;
+    _cache[key] = _HttpCacheEntry(response, expiresAt);
+
+    logger.debug('HTTP cache stored: $key (expires in $maxAge ms)');
+    _evictOldest();
+  }
+
+  /// Invalidate cache entries matching a pattern
+  void invalidate(String pathPattern) {
+    final keysToRemove = _cache.keys
+        .where((key) =>
+            key.contains('GET:') && key.contains(pathPattern))
+        .toList();
+    for (final key in keysToRemove) {
+      _cache.remove(key);
+      logger.debug('HTTP cache invalidated: $key');
+    }
+  }
+
+  /// Clear all cached responses
+  void clear() {
+    _cache.clear();
+    logger.info('HTTP cache cleared');
+  }
+
+  /// Get cache statistics for debugging
+  Map<String, int> getStats() {
+    final expiredCount = _cache.values
+        .where((entry) => entry.isExpired)
+        .length;
+    return {
+      'totalEntries': _cache.length,
+      'activeEntries': _cache.length - expiredCount,
+      'expiredEntries': expiredCount,
+    };
+  }
+
+  /// Parse Cache-Control header to get max-age directive
+  int _parseMaxAge(Headers headers) {
+    final cacheControl =
+        headers.value('cache-control')?.toLowerCase();
+    if (cacheControl == null) return defaultMaxAge;
+
+    // Check for no-store directive
+    if (cacheControl.contains('no-store')) return 0;
+
+    // Extract max-age value
+    final maxAgeMatch =
+        RegExp(r'max-age\s*=\s*(\d+)').firstMatch(cacheControl);
+    if (maxAgeMatch != null) {
+      final seconds = int.tryParse(maxAgeMatch.group(1) ?? '');
+      if (seconds != null) return seconds * 1000;
+    }
+
+    return defaultMaxAge;
+  }
+
+  /// Evict oldest entries when cache exceeds max size
+  void _evictOldest() {
+    if (_cache.length <= maxEntries) return;
+
+    final entries = _cache.entries.toList()
+      ..sort((a, b) =>
+          a.value.expiresAt.compareTo(b.value.expiresAt));
+
+    final toRemove = entries.length - maxEntries;
+    for (var i = 0; i < toRemove; i++) {
+      _cache.remove(entries[i].key);
+    }
+  }
+}
+
+/// Retry interceptor for Dio with exponential backoff
+///
+/// Retries transient failures:
+/// - 5xx server errors (500-599)
+/// - Network timeouts (connection, receive, send)
+/// - Connection errors (SocketException, HttpException)
+///
+/// Does NOT retry:
+/// - 4xx client errors (400-499) except 429 (rate limit)
+/// - 401/403 auth errors (handled by auth layer)
+/// - Cancellation errors
+class _RetryInterceptor extends Interceptor {
+  _RetryInterceptor({
+    int maxRetries = 3,
+    int baseDelayMs = 1000,
+    int maxDelayMs = 10000,
+  })  : _maxRetries = maxRetries,
+        _baseDelayMs = baseDelayMs,
+        _maxDelayMs = maxDelayMs;
+
+  final int _maxRetries;
+  final int _baseDelayMs;
+  final int _maxDelayMs;
+  final Random _jitterRng = Random();
+
+  @override
+  void onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
+    // Don't retry if request was cancelled
+    if (err.type == DioExceptionType.cancel) {
+      return handler.next(err);
+    }
+
+    // Don't retry 4xx client errors except 429 (rate limit)
+    final responseStatusCode = err.response?.statusCode;
+    if (responseStatusCode != null &&
+        responseStatusCode >= 400 &&
+        responseStatusCode < 500 &&
+        responseStatusCode != 429) {
+      return handler.next(err);
+    }
+
+    // Don't retry auth errors (401, 403)
+    if (responseStatusCode == 401 || responseStatusCode == 403) {
+      return handler.next(err);
+    }
+
+    // Check if this error is retryable
+    if (!_isRetryable(err)) {
+      return handler.next(err);
+    }
+
+    // Get current retry count from request options
+    final currentRetry = err.requestOptions.extra['_retryCount'] as int? ?? 0;
+
+    if (currentRetry >= _maxRetries) {
+      logger.warning(
+        'RetryInterceptor: max retries ($_maxRetries) exceeded for '
+        '${err.requestOptions.method} ${err.requestOptions.path}',
+      );
+      return handler.next(err);
+    }
+
+    // Calculate delay with exponential backoff and jitter
+    final delay = (_baseDelayMs * pow(2, currentRetry)).toInt();
+    final jitter = _jitterRng.nextInt(251); // 0–250ms
+    final clampedDelay = min(delay + jitter, _maxDelayMs);
+
+    logger.info(
+      'RetryInterceptor: retry ${currentRetry + 1}/$_maxRetries for '
+      '${err.requestOptions.method} ${err.requestOptions.path} '
+      'after $clampedDelay ms '
+      '(error: ${err.type}, status: $responseStatusCode)',
+    );
+
+    // Wait before retry
+    await Future<void>.delayed(
+      Duration(milliseconds: clampedDelay),
+    );
+
+    // Increment retry count and retry request
+    final retryOptions = err.requestOptions;
+    retryOptions.extra['_retryCount'] = currentRetry + 1;
+
+    try {
+      final response = await Dio().fetch(retryOptions);
+      return handler.resolve(response);
+    } on DioException catch (e) {
+      // If retry fails, pass through onError again for potential retry
+      return handler.next(e);
+    } catch (e) {
+      // Non-Dio errors should not be retried
+      return handler.next(
+        DioException(
+          requestOptions: err.requestOptions,
+          error: e,
+          type: DioExceptionType.unknown,
+        ),
+      );
+    }
+  }
+
+  bool _isRetryable(DioException err) {
+    // Retry on 5xx server errors
+    if (err.response?.statusCode != null &&
+        err.response!.statusCode! >= 500 &&
+        err.response!.statusCode! < 600) {
+      return true;
+    }
+
+    // Retry on 429 (rate limit)
+    if (err.response?.statusCode == 429) {
+      return true;
+    }
+
+    // Retry on network timeouts
+    if (err.type == DioExceptionType.connectionTimeout ||
+        err.type == DioExceptionType.receiveTimeout ||
+        err.type == DioExceptionType.sendTimeout) {
+      return true;
+    }
+
+    // Retry on connection errors
+    if (err.type == DioExceptionType.connectionError) {
+      return true;
+    }
+
+    return false;
+  }
+}
+
 /// Custom Dio client with user CA certificate support and proper error handling
 class ApiClient {
   factory ApiClient() => _instance;
@@ -18,6 +285,7 @@ class ApiClient {
   static final ApiClient _instance = ApiClient._();
 
   Dio? _dio;
+  final _httpCache = _HttpResponseCache();
 
   @visibleForTesting
   Dio? get testDio => _dio;
@@ -46,16 +314,32 @@ class ApiClient {
 
     await _configureHttpClient();
 
+    // Add retry interceptor first (executes last on error)
+    _dio!.interceptors.add(
+      _RetryInterceptor(
+        maxRetries: 4,
+        baseDelayMs: 1000,
+        maxDelayMs: 10000,
+      ),
+    );
+
+    // Add cache interceptor
     _dio!.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          if (_authToken != null) {
-            options.headers['Authorization'] = 'Bearer $_authToken';
+          // Check cache for GET requests
+          if (options.method == 'GET') {
+            final cachedResponse = _httpCache.get(options);
+            if (cachedResponse != null) {
+              return handler.resolve(cachedResponse);
+            }
           }
-          options.headers['User-Agent'] = 'HappyFlutter/1.0';
           return handler.next(options);
         },
         onResponse: (response, handler) {
+          // Cache successful GET responses
+          _httpCache.put(response.requestOptions, response);
+
           if (response.statusCode == 401) {
             logger.warning(
               'Received 401 - Unauthorized: '
@@ -71,6 +355,13 @@ class ApiClient {
           return handler.next(response);
         },
         onError: (DioException error, handler) {
+          // Invalidate cache on POST/PUT/DELETE errors
+          if (error.requestOptions.method == 'POST' ||
+              error.requestOptions.method == 'PUT' ||
+              error.requestOptions.method == 'DELETE') {
+            _httpCache.invalidate(error.requestOptions.path);
+          }
+
           logger.warning(
             'Dio error: ${error.type} - '
             '${error.message}',
@@ -87,6 +378,24 @@ class ApiClient {
               '${error.response?.data}',
             );
           }
+          return handler.next(error);
+        },
+      ),
+    );
+
+    _dio!.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          if (_authToken != null) {
+            options.headers['Authorization'] = 'Bearer $_authToken';
+          }
+          options.headers['User-Agent'] = 'HappyFlutter/1.0';
+          return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          return handler.next(response);
+        },
+        onError: (DioException error, handler) {
           return handler.next(error);
         },
       ),
@@ -262,19 +571,28 @@ class ApiClient {
   /// POST request
   Future<Response> post(String path, {dynamic data}) async {
     _ensureInitialized();
-    return _dio!.post(path, data: data);
+    final response = await _dio!.post(path, data: data);
+    // Invalidate cache entries matching this path
+    _httpCache.invalidate(path);
+    return response;
   }
 
   /// PUT request
   Future<Response> put(String path, {dynamic data}) async {
     _ensureInitialized();
-    return _dio!.put(path, data: data);
+    final response = await _dio!.put(path, data: data);
+    // Invalidate cache entries matching this path
+    _httpCache.invalidate(path);
+    return response;
   }
 
   /// DELETE request
   Future<Response> delete(String path) async {
     _ensureInitialized();
-    return _dio!.delete(path);
+    final response = await _dio!.delete(path);
+    // Invalidate cache entries matching this path
+    _httpCache.invalidate(path);
+    return response;
   }
 
   /// Upload file with progress
@@ -329,6 +647,21 @@ class ApiClient {
         response.statusCode! < 300;
   }
 
+  /// Clear HTTP cache for a specific path pattern
+  void clearCache(String pathPattern) {
+    _httpCache.invalidate(pathPattern);
+  }
+
+  /// Clear all HTTP cache
+  void clearAllCache() {
+    _httpCache.clear();
+  }
+
+  /// Get HTTP cache statistics for debugging
+  Map<String, int> getCacheStats() {
+    return _httpCache.getStats();
+  }
+
   void _ensureInitialized() {
     if (_dio == null) {
       throw StateError('ApiClient not initialized. Call initialize() first.');
@@ -337,6 +670,7 @@ class ApiClient {
 
   /// Dispose resources
   void dispose() {
+    _httpCache.clear();
     _dio?.close(force: true);
     _dio = null;
   }
