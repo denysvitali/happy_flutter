@@ -845,6 +845,26 @@ class AppLocalizations {
   String get profilesImportNoVars =>
       'No environment variables found in the script.';
   String get profilesImportLabelShort => 'Import from script';
+  String get profilesQuickSetup => 'Quick Setup';
+  String get profilesQuickSetupHint =>
+      'Select a provider to pre-fill configuration';
+  String get profilesWizardTitle => 'New AI Profile';
+  String get profilesWizardStep1 => 'Choose Provider';
+  String get profilesWizardStep1Subtitle => 'Select your AI provider';
+  String get profilesWizardStep2 => 'Configure';
+  String get profilesWizardStep2Subtitle => 'Enter API key and settings';
+  String get profilesWizardStep3 => 'Review';
+  String get profilesWizardStep3Subtitle => 'Confirm your settings';
+  String get profilesWizardSelectProvider => 'Select a provider to get started';
+  String get profilesWizardBaseUrl => 'Base URL';
+  String get profilesWizardModel => 'Model';
+  String get profilesWizardSmallFastModel => 'Small Fast Model';
+  String get profilesWizardTimeout => 'Timeout (ms)';
+  String get profilesWizardTimeoutHelp => 'Optional - defaults to 300000ms';
+  String get profilesWizardReviewHint =>
+      'Review your settings and tap Save to create the profile.';
+  String get profilesWizardSubtitle => 'Step-by-step setup with guided configuration';
+  String get profilesAddProfileSubtitle => 'Start from scratch with empty configuration';
   String get commonOptional => '(optional)';
 
   // Changelog

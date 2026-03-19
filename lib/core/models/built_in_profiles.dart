@@ -10,6 +10,7 @@ const _builtInIds = [
   'anthropic',
   'deepseek',
   'zai',
+  'minimax',
   'openai',
   'azure-openai',
 ];
@@ -98,28 +99,64 @@ AIBackendProfile? getBuiltInProfile(String id) {
           ),
           EnvironmentVariable(
             name: 'API_TIMEOUT_MS',
-            value: r'${Z_AI_API_TIMEOUT_MS:-3000000}',
+            value: r'${Z_AI_API_TIMEOUT_MS:-300000}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_MODEL',
-            value: r'${Z_AI_MODEL:-GLM-4.6}',
+            value: r'${Z_AI_MODEL:-GLM-5}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
-            value: r'${Z_AI_OPUS_MODEL:-GLM-4.6}',
+            value: r'${Z_AI_OPUS_MODEL:-GLM-5}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
-            value: r'${Z_AI_SONNET_MODEL:-GLM-4.6}',
+            value: r'${Z_AI_SONNET_MODEL:-GLM-5}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-            value: r'${Z_AI_HAIKU_MODEL:-GLM-4.5-Air}',
+            value: r'${Z_AI_HAIKU_MODEL:-GLM-4.7}',
           ),
         ],
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
+          gemini: false,
+        ),
+      );
+
+    case 'minimax':
+      return AIBackendProfile(
+        id: 'minimax',
+        name: 'MiniMax',
+        description:
+            'MiniMax via OpenAI-compatible interface',
+        isBuiltIn: true,
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'OPENAI_BASE_URL',
+            value: r'${MINIMAX_BASE_URL:-https://api.minimax.io/v1}',
+          ),
+          EnvironmentVariable(
+            name: 'OPENAI_API_KEY',
+            value: r'${MINIMAX_API_KEY}',
+          ),
+          EnvironmentVariable(
+            name: 'OPENAI_MODEL',
+            value: r'${MINIMAX_MODEL:-MiniMax-Text-01}',
+          ),
+          EnvironmentVariable(
+            name: 'OPENAI_SMALL_FAST_MODEL',
+            value: r'${MINIMAX_SMALL_FAST_MODEL:-MiniMax-Text-01}',
+          ),
+          EnvironmentVariable(
+            name: 'API_TIMEOUT_MS',
+            value: r'${MINIMAX_API_TIMEOUT_MS:-300000}',
+          ),
+        ],
+        compatibility: const ProfileCompatibility(
+          claude: false,
+          codex: true,
           gemini: false,
         ),
       );

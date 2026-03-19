@@ -38,6 +38,7 @@ import '../../features/settings/features_settings_screen.dart';
 import '../../features/settings/language_settings_screen.dart';
 import '../../features/settings/machines_screen.dart';
 import '../../features/settings/profile_editor_screen.dart';
+import '../../features/settings/profile_wizard_screen.dart';
 import '../../features/settings/profiles_screen.dart';
 import '../../features/settings/server_settings_screen.dart';
 import '../../features/settings/settings_screen.dart';
@@ -296,6 +297,12 @@ GoRouter createRouter(String? initialDeepLink) {
             state,
           );
         },
+      ),
+      GoRoute(
+        path: '/settings/profiles/wizard',
+        name: 'profile-wizard',
+        pageBuilder: (context, state) =>
+            _slideUpPage(const AuthGate(child: ProfileWizardScreen()), state),
       ),
       GoRoute(
         path: '/settings/usage',

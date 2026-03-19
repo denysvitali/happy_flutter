@@ -40,7 +40,8 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => context.pushNamed('profile-editor'),
+            tooltip: l10n.profilesAddProfile,
+            onPressed: () => _showAddProfileMenu(context),
           ),
         ],
       ),
@@ -358,6 +359,61 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
       },
     );
   }
+
+  void _showAddProfileMenu(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Theme.of(ctx).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: Icon(
+                    Icons.auto_fix_high,
+                    color: Theme.of(ctx).colorScheme.primary,
+                  ),
+                ),
+                title: Text(l10n.profilesWizardTitle),
+                subtitle: Text(l10n.profilesWizardSubtitle),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.pushNamed('profile-wizard');
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: const Icon(Icons.add),
+                ),
+                title: Text(l10n.profilesAddProfile),
+                subtitle: Text(l10n.profilesAddProfileSubtitle),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.pushNamed('profile-editor');
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 IconData _iconForProfile(String id) {
@@ -368,6 +424,8 @@ IconData _iconForProfile(String id) {
       return Icons.psychology;
     case 'zai':
       return Icons.bolt;
+    case 'minimax':
+      return Icons.memory;
     case 'openai':
       return Icons.smart_toy;
     case 'azure-openai':

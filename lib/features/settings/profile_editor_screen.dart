@@ -4,6 +4,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/shell_script_parser.dart';
 
@@ -27,6 +28,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   late final List<_EnvRow> _envRows;
 
   bool _showScript = false;
+  String? _selectedTemplate;
 
   @override
   void initState() {
@@ -258,6 +260,113 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     }
   }
 
+  void _applyTemplate(String templateId) {
+    setState(() {
+      _selectedTemplate = templateId;
+      // Clear existing env rows
+      for (final r in _envRows) {
+        r.dispose();
+      }
+      _envRows.clear();
+
+      switch (templateId) {
+        case 'zai':
+          _nameCtrl.text = 'Z.AI (GLM)';
+          _descCtrl.text = 'Z.AI GLM via Anthropic-compatible interface';
+          _envRows.addAll([
+            _EnvRow(
+              name: 'ANTHROPIC_BASE_URL',
+              value: 'https://api.z.ai/api/anthropic',
+            ),
+            _EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
+            _EnvRow(name: 'API_TIMEOUT_MS', value: '300000'),
+            _EnvRow(name: 'ANTHROPIC_MODEL', value: 'GLM-5'),
+            _EnvRow(
+              name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+              value: 'GLM-5',
+            ),
+            _EnvRow(
+              name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+              value: 'GLM-5',
+            ),
+            _EnvRow(
+              name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+              value: 'GLM-4.7',
+            ),
+          ]);
+          break;
+        case 'minimax':
+          _nameCtrl.text = 'MiniMax';
+          _descCtrl.text = 'MiniMax via OpenAI-compatible interface';
+          _envRows.addAll([
+            _EnvRow(
+              name: 'OPENAI_BASE_URL',
+              value: 'https://api.minimax.io/v1',
+            ),
+            _EnvRow(name: 'OPENAI_API_KEY', value: ''),
+            _EnvRow(name: 'OPENAI_MODEL', value: 'MiniMax-Text-01'),
+            _EnvRow(
+              name: 'OPENAI_SMALL_FAST_MODEL',
+              value: 'MiniMax-Text-01',
+            ),
+            _EnvRow(name: 'API_TIMEOUT_MS', value: '300000'),
+          ]);
+          break;
+        case 'deepseek':
+          _nameCtrl.text = 'DeepSeek (Reasoner)';
+          _descCtrl.text = 'DeepSeek API via Anthropic-compatible interface';
+          _envRows.addAll([
+            _EnvRow(
+              name: 'ANTHROPIC_BASE_URL',
+              value: 'https://api.deepseek.com/anthropic',
+            ),
+            _EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
+            _EnvRow(name: 'API_TIMEOUT_MS', value: '600000'),
+            _EnvRow(
+              name: 'ANTHROPIC_MODEL',
+              value: 'deepseek-reasoner',
+            ),
+            _EnvRow(
+              name: 'ANTHROPIC_SMALL_FAST_MODEL',
+              value: 'deepseek-chat',
+            ),
+          ]);
+          break;
+        case 'openai':
+          _nameCtrl.text = 'OpenAI (GPT-5)';
+          _descCtrl.text = 'OpenAI GPT-5 Codex API';
+          _envRows.addAll([
+            _EnvRow(
+              name: 'OPENAI_BASE_URL',
+              value: 'https://api.openai.com/v1',
+            ),
+            _EnvRow(name: 'OPENAI_API_KEY', value: ''),
+            _EnvRow(name: 'OPENAI_MODEL', value: 'gpt-5-codex-high'),
+            _EnvRow(
+              name: 'OPENAI_SMALL_FAST_MODEL',
+              value: 'gpt-5-codex-low',
+            ),
+            _EnvRow(name: 'API_TIMEOUT_MS', value: '600000'),
+          ]);
+          break;
+        case 'anthropic':
+          _nameCtrl.text = 'Anthropic (Default)';
+          _descCtrl.text = 'Official Anthropic Claude API';
+          _envRows.addAll([
+            _EnvRow(
+              name: 'ANTHROPIC_BASE_URL',
+              value: 'https://api.anthropic.com',
+            ),
+            _EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
+            _EnvRow(name: 'API_TIMEOUT_MS', value: '300000'),
+            _EnvRow(name: 'ANTHROPIC_MODEL', value: 'claude-opus-4-5'),
+          ]);
+          break;
+      }
+      _showScript = _envRows.isNotEmpty;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -319,6 +428,18 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
             ),
             const SizedBox(height: AppSpacing.xl),
 
+            // Template selector for new profiles
+            if (!isEditing) ...[
+              _TemplateSelector(
+                selectedTemplate: _selectedTemplate,
+                onSelect: _applyTemplate,
+                colorScheme: cs,
+                textTheme: tt,
+                l10n: l10n,
+              ),
+              const SizedBox(height: AppSpacing.xl),
+            ],
+
             _EnvVarsSection(
               envRows: _envRows,
               l10n: l10n,
@@ -343,6 +464,142 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
 
             const SizedBox(height: AppSpacing.xxxl),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TemplateSelector extends StatelessWidget {
+  const _TemplateSelector({
+    required this.selectedTemplate,
+    required this.onSelect,
+    required this.colorScheme,
+    required this.textTheme,
+    required this.l10n,
+  });
+
+  final String? selectedTemplate;
+  final void Function(String) onSelect;
+  final ColorScheme colorScheme;
+  final TextTheme textTheme;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.profilesQuickSetup,
+          style: textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          l10n.profilesQuickSetupHint,
+          style: textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            _TemplateChip(
+              label: 'Anthropic',
+              icon: Icons.auto_awesome,
+              color: colorForProfile('anthropic'),
+              isSelected: selectedTemplate == 'anthropic',
+              onTap: () => onSelect('anthropic'),
+            ),
+            _TemplateChip(
+              label: 'Z.AI GLM',
+              icon: Icons.bolt,
+              color: colorForProfile('zai'),
+              isSelected: selectedTemplate == 'zai',
+              onTap: () => onSelect('zai'),
+            ),
+            _TemplateChip(
+              label: 'DeepSeek',
+              icon: Icons.psychology,
+              color: colorForProfile('deepseek'),
+              isSelected: selectedTemplate == 'deepseek',
+              onTap: () => onSelect('deepseek'),
+            ),
+            _TemplateChip(
+              label: 'MiniMax',
+              icon: Icons.memory,
+              color: colorForProfile('minimax'),
+              isSelected: selectedTemplate == 'minimax',
+              onTap: () => onSelect('minimax'),
+            ),
+            _TemplateChip(
+              label: 'OpenAI',
+              icon: Icons.smart_toy,
+              color: colorForProfile('openai'),
+              isSelected: selectedTemplate == 'openai',
+              onTap: () => onSelect('openai'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _TemplateChip extends StatelessWidget {
+  const _TemplateChip({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: isSelected ? color.withAlpha(40) : Colors.transparent,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: isSelected ? color : Colors.grey.shade300,
+              width: isSelected ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: AppFontSize.sm,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? color : null,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
