@@ -162,7 +162,7 @@ class SessionsApi {
   Future<void> setSessionArchived(String sessionId, bool archived) async {
     final response = await _client.post(
       '/v1/sessions/$sessionId/archive',
-      data: {'active': !archived},
+      data: {'archived': archived},
     );
 
     if (!_isSuccess(response)) {
