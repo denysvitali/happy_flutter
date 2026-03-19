@@ -82,6 +82,13 @@ class SocketIoClient {
           .enableReconnection()
           .setReconnectionDelay(1000)
           .setReconnectionDelayMax(5000)
+          .setTransportOptions({
+            'websocket': {
+              'perMessageDeflate': {
+                'threshold': 1024,
+              },
+            },
+          })
           .disableAutoConnect()
           .build(),
     );
