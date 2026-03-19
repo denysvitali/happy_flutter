@@ -76,19 +76,38 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _initialLoadComplete = false;
   final Set<String> _seenMessageIds = {};
 
+  // Track when the actual messages list changes (not just rebuilds)
+  List<Map<String, dynamic>>? _lastMessagesList;
+
   // Pre-computed neighbor cache for message list items (replacing O(N) scans).
   final Map<int, (Map<String, dynamic>?, Map<String, dynamic>?)>
       _neighborCache = {};
   List<Map<String, dynamic>?>? _neighborCacheSource;
   int _neighborCacheLength = -1;
+  int _neighborCacheSourceHash = 0;
 
   void _rebuildNeighborCache(List<Map<String, dynamic>?> items) {
+    // Fast-path: check if we can skip the rebuild entirely
     if (identical(items, _neighborCacheSource) &&
         items.length == _neighborCacheLength) {
       return;
     }
+
+    // Compute a lightweight hash to detect content changes without O(N) scan
+    // We combine length + first/last item identity for a cheap but effective check
+    final newHash = items.length ^
+        (items.isNotEmpty ? items.first.hashCode : 0) ^
+        (items.isNotEmpty ? items.last.hashCode : 0);
+
+    if (items.length == _neighborCacheLength &&
+        newHash == _neighborCacheSourceHash &&
+        identical(items, _neighborCacheSource)) {
+      return;
+    }
+
     _neighborCacheSource = items;
     _neighborCacheLength = items.length;
+    _neighborCacheSourceHash = newHash;
     _neighborCache.clear();
 
     // Collect non-null indices once - O(N)
@@ -353,6 +372,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     if (!mounted) return;
+
+    // Invalidate neighbor cache when messages actually change
+    if (messagesChanged && !identical(latestMessages, _lastMessagesList)) {
+      _neighborCache.clear();
+      _neighborCacheSource = null;
+      _neighborCacheLength = -1;
+      _neighborCacheSourceHash = 0;
+      _lastMessagesList = latestMessages;
+    }
 
     final hadRequests = _session?.agentState?.requests?.isNotEmpty ?? false;
     final hasRequests =
@@ -851,6 +879,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     }
 
+    // Only rebuild neighbor cache if the items list actually changed
+    // The _refreshFromSync method handles cache invalidation when messages
+    // change.
     _rebuildNeighborCache(items);
 
     return ListView.builder(
@@ -1118,6 +1149,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _isSending = true;
       _controller.clear();
       _visibleCount = (_visibleCount + 1).clamp(0, _messages.length);
+      // Invalidate cache since we added an optimistic message
+      _neighborCache.clear();
+      _neighborCacheSource = null;
+      _neighborCacheLength = -1;
+      _neighborCacheSourceHash = 0;
     });
     _scrollToBottom();
 
@@ -1142,8 +1178,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (mounted) {
         // Rollback: remove optimistic message on error
         setState(() {
-          _messages = _messages.where((m) => m['id'] != optimisticMessage['id']).toList();
+          _messages = _messages
+              .where((m) => m['id'] != optimisticMessage['id'])
+              .toList();
           _controller.text = text;
+          // Invalidate cache since we modified the messages list
+          _neighborCache.clear();
+          _neighborCacheSource = null;
+          _neighborCacheLength = -1;
+          _neighborCacheSourceHash = 0;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
