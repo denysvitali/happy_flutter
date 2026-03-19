@@ -121,10 +121,8 @@ class _NewSessionScreenState
         );
       }
       if (_selectedProfileId != null) {
-        unawaited(
-          DraftStorage()
-              .saveProfileId(sessionId, _selectedProfileId!),
-        );
+        await DraftStorage()
+            .saveProfileId(sessionId, _selectedProfileId!);
       }
       // createSession() already called refreshSessions() internally
       // and added the session to sync._sessions (optimistic fallback).

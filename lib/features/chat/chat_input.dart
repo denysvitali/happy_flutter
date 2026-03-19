@@ -490,7 +490,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
                     selectedProfile: widget.selectedProfile,
                     onShowProfilePicker: () => _showProfilePicker(context),
                     contextSize: widget.contextSize,
-                    showAbort: widget.isAgentThinking,
+                    showAbort: widget.isSessionOnline,
                     isAborting: _isAborting,
                     onAbort: _onAbortTap,
                   ),
