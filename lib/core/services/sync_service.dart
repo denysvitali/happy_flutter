@@ -3041,11 +3041,13 @@ what you have, you must use the options mode.
             _settingsSnapshot = Settings.fromJson(decrypted);
             _settingsVersion =
                 _asInt(data['settingsVersion']) ?? _settingsVersion;
+            _notifyDataChanged();
           }
         } else {
           _settingsSnapshot = Settings();
           _settingsVersion =
               _asInt(data['settingsVersion']) ?? _settingsVersion;
+          _notifyDataChanged();
         }
       } else {
         logger.warning('Failed to fetch settings: ${response.statusCode}');
