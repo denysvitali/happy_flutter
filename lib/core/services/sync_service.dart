@@ -6568,7 +6568,11 @@ what you have, you must use the options mode.
           }
           sidechainMsgIds.add(msg['id'] as String);
         }
-      } else if (msg['isSidechain'] == true) {
+      } else if (msg['isSidechain'] == true ||
+          (msg['parentUuid'] as String?)?.isNotEmpty == true) {
+        // Also check parentUuid even if isSidechain is false — the Go backend
+        // may send parentUuid without isSidechain=true, and such messages
+        // need to be grouped as sidechain children.
         final uuid = msg['uuid'] as String?;
         final parentUuid = msg['parentUuid'] as String?;
 
