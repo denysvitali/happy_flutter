@@ -5038,6 +5038,7 @@ what you have, you must use the options mode.
           !isFirstLoad &&
           !forceTailRefresh &&
           serverLastSeq > 0 &&
+          cursorSeq <= serverLastSeq &&
           (serverLastSeq - cursorSeq) > initialLoad;
 
       logger.info(
