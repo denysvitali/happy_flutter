@@ -5052,17 +5052,21 @@ what you have, you must use the options mode.
         'serverLastSeq=$serverLastSeq',
       );
 
-      // Skip the HTTP round-trip when the cursor is already at or past
-      // the server's known lastSeq — there is nothing to fetch.  Socket
+      // Skip the HTTP round-trip when the cursor exactly matches the
+      // server's known lastSeq — there is nothing to fetch.  Socket
       // events (new-message) update _sessionLastSeq via inline processing
-      // for the visible session.  Background sessions mark themselves
-      // dirty in _sessionsWithPendingUpdates; onSessionVisible() then
-      // forces a tail-refresh that bypasses this skip.
+      // for the visible session and can push cursor PAST the server's
+      // lastSeq (since session.lastSeq lags behind socket events).
+      // We guard with cursorSeq <= serverLastSeq (same as gapTooLarge)
+      // so we don't skip when cursor > serverLastSeq — that indicates
+      // socket events may have outpaced the server and we should fetch
+      // to ensure no messages were missed.
       if (!isFirstLoad &&
           !forceTailRefresh &&
           cursorSeq > 0 &&
           serverLastSeq > 0 &&
-          cursorSeq >= serverLastSeq) {
+          cursorSeq >= serverLastSeq &&
+          cursorSeq <= serverLastSeq) {
         logger.info(
           '[fetchMessages] $sessionId already caught up '
           '(cursor=$cursorSeq server=$serverLastSeq) — skipping',
