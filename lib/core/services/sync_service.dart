@@ -884,6 +884,20 @@ what you have, you must use the options mode.
   /// per session every 500 ms, keeping only the last ~200 messages in
   /// the persisted copy. The in-memory list retains all messages.
   void _scheduleSaveMessages(String sessionId) {
+    final msgs = _sessionMessages[sessionId];
+    if (msgs != null) {
+      // Immediately persist if there are messages with 'sending' status —
+      // these are user-sent messages that must not be lost if the app
+      // crashes or gets backgrounded before the debounce timer fires.
+      final hasSending = msgs.any((m) => m['sendStatus'] == 'sending');
+      if (hasSending) {
+        final clean = msgs
+            .where((m) => m['isSidechain'] != true)
+            .toList();
+        MessageCacheService().saveMessages(sessionId, clean);
+        return;
+      }
+    }
     _saveMsgsDebounceTimers[sessionId]?.cancel();
     _saveMsgsDebounceTimers[sessionId] = Timer(
       const Duration(milliseconds: 500),
@@ -4957,23 +4971,21 @@ what you have, you must use the options mode.
         return;
       }
 
+      // Track that we're doing a tail-load gap recovery. We'll clear
+      // stale messages AFTER the first page succeeds to avoid losing
+      // messages if the network request fails. Declared early so it's
+      // accessible in the while loop below.
+      final isGapRecovery = gapTooLarge;
       if (isFirstLoad || forceTailRefresh || gapTooLarge) {
         // Lazy tail-load: start near the end of the session history so we
         // don't download thousands of messages that the UI will never show.
         afterSeq = _tailAfterSeqForSession(sessionId);
-        if (gapTooLarge) {
+        if (isGapRecovery) {
           logger.info(
             '[fetchMessages] $sessionId gap too large '
             '(cursor=$cursorSeq server=$serverLastSeq) — '
             'switching to tail-load afterSeq=$afterSeq',
           );
-          // Clear stale in-memory messages so the tail-load replaces
-          // them cleanly instead of merging with outdated data.
-          _sessionMessages.remove(sessionId);
-          _sessionMessagesCache = null;
-          _sessionMessagesViewCache.remove(sessionId);
-          // Also clear MMKV cache so stale messages aren't restored on restart.
-          MessageCacheService().clearMessages(sessionId);
         }
         if (forceTailRefresh && !isFirstLoad && !gapTooLarge) {
           logger.info(
@@ -5087,6 +5099,20 @@ what you have, you must use the options mode.
         await Future<void>.delayed(Duration.zero);
 
         // ── Upsert messages ──
+        // For gap recovery, clear stale in-memory messages right before
+        // the first successful upsert so we don't lose messages if the
+        // network request fails. We defer clearing until we know the fetch
+        // succeeded.
+        if (isGapRecovery && page == 0 && processed.messages.isNotEmpty) {
+          _sessionMessages.remove(sessionId);
+          _sessionMessagesCache = null;
+          _sessionMessagesViewCache.remove(sessionId);
+          MessageCacheService().clearMessages(sessionId);
+          logger.info(
+            '[fetchMessages] $sessionId gap recovery: cleared stale messages '
+            'before upserting ${processed.messages.length} new ones',
+          );
+        }
         final existingCount = _sessionMessages[sessionId]?.length ?? 0;
         final upsertStart = Stopwatch()..start();
         if (processed.messages.isNotEmpty) {
@@ -7123,7 +7149,8 @@ what you have, you must use the options mode.
     }
 
     final merged = <String, Map<String, dynamic>>{
-      for (final message in existing) message['id'] as String: message,
+      for (final message in existing)
+        if (message['id'] != null) message['id'] as String: message,
     };
     // Build a reverse index from localId → assigned id, so incoming server
     // messages replace the matching optimistic placeholder.
@@ -7140,7 +7167,12 @@ what you have, you must use the options mode.
       }
     }
     for (final message in messages) {
-      final messageId = message['id'] as String;
+      final messageId = message['id'] as String?;
+      if (messageId == null || messageId.isEmpty) {
+        // Defensive: skip messages without valid ids to prevent crashes.
+        // The fast path already filters these at line 7070-7072.
+        continue;
+      }
       final localId = message['localId'] as String?;
       final hasLocalId = localId != null && localId.isNotEmpty;
       // If this is an incoming server message whose localId matches an
