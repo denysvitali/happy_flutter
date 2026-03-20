@@ -681,45 +681,47 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   // The scroll-to-bottom pill listens to _autoScrollNotifier
                   // directly so that scroll events do NOT trigger a full
                   // _ChatScreenState rebuild (message list + app bar).
-                  ValueListenableBuilder<bool>(
-                    valueListenable: _autoScrollNotifier,
-                    builder: (context, autoScroll, _) {
-                      return ExcludeSemantics(
-                        excluding: autoScroll || _isLoadingMessages,
-                        child: IgnorePointer(
-                          ignoring: autoScroll || _isLoadingMessages,
-                          child: AnimatedOpacity(
-                            opacity: (!autoScroll && !_isLoadingMessages)
-                                ? 1.0
-                                : 0.0,
-                            duration: AppDuration.normal,
-                            curve: AppCurve.standard,
-                            child: AnimatedScale(
-                              scale: (!autoScroll && !_isLoadingMessages)
+                  RepaintBoundary(
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: _autoScrollNotifier,
+                      builder: (context, autoScroll, _) {
+                        return ExcludeSemantics(
+                          excluding: autoScroll || _isLoadingMessages,
+                          child: IgnorePointer(
+                            ignoring: autoScroll || _isLoadingMessages,
+                            child: AnimatedOpacity(
+                              opacity: (!autoScroll && !_isLoadingMessages)
                                   ? 1.0
-                                  : 0.8,
+                                  : 0.0,
                               duration: AppDuration.normal,
                               curve: AppCurve.standard,
-                              child: Align(
-                                alignment: Alignment.bottomCenter,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(
-                                    bottom: AppSpacing.md,
-                                  ),
-                                  child: ScrollToBottomPill(
-                                    onTap: () {
-                                      HapticFeedback.lightImpact();
-                                      _autoScroll = true;
-                                      _scrollToBottom();
-                                    },
+                              child: AnimatedScale(
+                                scale: (!autoScroll && !_isLoadingMessages)
+                                    ? 1.0
+                                    : 0.8,
+                                duration: AppDuration.normal,
+                                curve: AppCurve.standard,
+                                child: Align(
+                                  alignment: Alignment.bottomCenter,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(
+                                      bottom: AppSpacing.md,
+                                    ),
+                                    child: ScrollToBottomPill(
+                                      onTap: () {
+                                        HapticFeedback.lightImpact();
+                                        _autoScroll = true;
+                                        _scrollToBottom();
+                                      },
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
