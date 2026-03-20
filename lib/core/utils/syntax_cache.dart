@@ -56,7 +56,7 @@ class MarkdownAstCache {
   /// Generate cache key from markdown content.
   String _generateKey(String markdown) {
     // Short hash for compact keys.
-    final hash = Object.hash(markdown);
+    final hash = Object.hash(markdown, markdown.length);
     return hash.toString();
   }
 
