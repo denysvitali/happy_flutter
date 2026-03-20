@@ -4486,13 +4486,13 @@ what you have, you must use the options mode.
 
   void _startPostSendCatchUp(String sessionId, {required int stopAfterSeq}) {
     _postSendCatchUpTimers.remove(sessionId)?.cancel();
-    final deadline = DateTime.now().add(const Duration(seconds: 60));
+    final deadline = DateTime.now().add(const Duration(seconds: 30));
 
     // Immediate fetch so we do not wait for the first timer tick.
     messagesSync[sessionId]?.invalidate();
 
     _postSendCatchUpTimers[sessionId] = Timer.periodic(
-      const Duration(seconds: 2),
+      const Duration(seconds: 10),
       (timer) {
         if (!isInitialized ||
             !messagesSync.containsKey(sessionId) ||

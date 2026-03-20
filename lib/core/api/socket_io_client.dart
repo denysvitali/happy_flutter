@@ -80,8 +80,8 @@ class SocketIoClient {
           .setAuth({'token': token, 'clientType': clientType})
           .setTransports(['websocket'])
           .enableReconnection()
-          .setReconnectionDelay(1000)
-          .setReconnectionDelayMax(5000)
+          .setReconnectionDelay(2000) // 2s initial for better battery
+          .setReconnectionDelayMax(30000) // 30s max for unstable networks
           .setTransportOptions({
             'websocket': {
               'perMessageDeflate': {

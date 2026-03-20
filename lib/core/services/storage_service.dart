@@ -83,6 +83,10 @@ class SettingsStorage {
   bool _migrationChecked = false;
   Settings? _cachedSettings;
 
+  // Debounce timer for settings updates to reduce MMKV writes
+  Timer? _debounceTimer;
+  static const Duration _debounceDelay = Duration(milliseconds: 500);
+
   /// Get settings from storage
   /// This loads API keys from secure storage and injects them into the settings
   Future<Settings> getSettings() async {
@@ -377,7 +381,16 @@ class SettingsStorage {
     }
 
     final updated = _updateSetting(current, key, value) as Settings;
-    await saveSettings(updated);
+
+    // Cancel existing debounce timer and start a new one
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(_debounceDelay, () async {
+      await saveSettings(updated);
+      _debounceTimer = null;
+    });
+
+    // Update cache immediately so in-memory reads are consistent
+    _cacheSettings(updated);
   }
 
   dynamic _updateSetting(dynamic settings, String key, dynamic value) {
@@ -450,7 +463,15 @@ class SettingsStorage {
 
   /// Clear all settings
   Future<void> clearSettings() async {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
     await _storage.clearSettings();
+  }
+
+  /// Dispose of the debounce timer
+  void dispose() {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
   }
 }
 

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 /// A single recorded HTTP request/response pair.
 class HttpRequestEntry {
   HttpRequestEntry({
@@ -65,6 +67,10 @@ class HttpRequestLogger {
   int takeNextId() => _nextId++;
 
   void record(HttpRequestEntry entry) {
+    // Only record HTTP requests in debug builds to avoid battery drain
+    // in production from the circular buffer operations and stream updates.
+    if (kReleaseMode) return;
+
     _entries.add(entry);
     if (_entries.length > _maxEntries) {
       _entries.removeAt(0);

@@ -1,7 +1,7 @@
 import 'dart:collection';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
+import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode, debugPrint;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Log levels in increasing order of severity
@@ -95,6 +95,11 @@ class LoggerService {
       return;
     }
 
+    // In release mode, only process errors (skip debug/info/warning overhead)
+    if (kReleaseMode && level != LogLevel.error) {
+      return;
+    }
+
     final entry = LogEntry(
       timestamp: DateTime.now(),
       level: level,
@@ -103,27 +108,34 @@ class LoggerService {
       stackTrace: stackTrace,
     );
 
-    _logs.add(entry);
+    // In release mode, skip circular buffer for non-errors
+    if (!kReleaseMode || level == LogLevel.error) {
+      _logs.add(entry);
 
-    // Maintain circular buffer limit
-    if (_logs.length > _maxLogs) {
-      _logs.removeFirst();
+      // Maintain circular buffer limit
+      if (_logs.length > _maxLogs) {
+        _logs.removeFirst();
+      }
     }
 
-    // Forward warnings and errors to Sentry
-    _forwardToSentry(entry);
+    // Forward warnings and errors to Sentry (errors only in release mode)
+    if (!kReleaseMode || level == LogLevel.error) {
+      _forwardToSentry(entry);
+    }
 
     // Write to console in debug mode
     if (kDebugMode) {
       _writeToConsole(entry);
     }
 
-    // Notify listeners
-    for (final listener in _listeners) {
-      try {
-        listener();
-      } catch (e) {
-        // Prevent listener errors from crashing the logger
+    // Notify listeners (errors only in release mode)
+    if (!kReleaseMode || level == LogLevel.error) {
+      for (final listener in _listeners) {
+        try {
+          listener();
+        } catch (e) {
+          // Prevent listener errors from crashing the logger
+        }
       }
     }
   }
