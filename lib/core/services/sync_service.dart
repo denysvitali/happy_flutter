@@ -311,6 +311,11 @@ what you have, you must use the options mode.
   /// Sessions currently being paginated backwards (older-message loads).
   final Set<String> _loadingOlderMessages = {};
 
+  /// Sessions that received socket messages while non-visible.
+  /// Used to force a server fetch (instead of stale cache restore) when
+  /// the user opens a session that had pending socket messages.
+  final Set<String> _sessionsWithPendingSocketMessages = {};
+
   /// Dedup set for inline socket messages.  Keyed by
   /// `"$sessionId:$messageId:$seq"` to skip duplicate `new-message`
   /// events that the server broadcasts multiple times.
@@ -1323,6 +1328,12 @@ what you have, you must use the options mode.
       if (_sessionsWithPendingUpdates.add(sessionId)) {
         logger.info('Background messages pending: $sessionId');
       }
+      // Track that this session received socket messages while non-visible
+      // so onSessionVisible() knows to force a server fetch instead of
+      // restoring stale cache.
+      if (embeddedMessage != null) {
+        _sessionsWithPendingSocketMessages.add(sessionId);
+      }
       _sessionUnreadCounts[sessionId] =
           (_sessionUnreadCounts[sessionId] ?? 0) + 1;
     }
@@ -1446,6 +1457,7 @@ what you have, you must use the options mode.
       _sessionEncryptedDataKeys.remove(sessionId);
       _sessionsNeedingTailRefresh.remove(sessionId);
       _sessionsWithPendingUpdates.remove(sessionId);
+      _sessionsWithPendingSocketMessages.remove(sessionId);
       _sessionSpawnedAt.remove(sessionId);
       _autoRestoreInFlight.remove(sessionId);
       if (isInitialized) {
@@ -4919,6 +4931,14 @@ what you have, you must use the options mode.
     // Clear any residual failed Future from the inline queue so that
     // new messages can enter the inline fast path immediately.
     _inlineProcessingQueue.remove(sessionId);
+
+    // If this session received socket messages while non-visible, we MUST
+    // fetch from the server to get those messages.  Socket messages are NOT
+    // stored in _sessionMessages for non-visible sessions (only the seq
+    // cursor is advanced), so the cache may be stale even if it has data.
+    final hasPendingSocketMessages =
+        _sessionsWithPendingSocketMessages.remove(sessionId);
+
     // Only tail-refresh when we have no messages in memory for this session
     // (first open or after restart).  When messages are already loaded the
     // incremental delta path (afterSeq = _sessionLastSeq) is sufficient and
@@ -4926,6 +4946,13 @@ what you have, you must use the options mode.
     var hasMessages =
         _sessionMessages.containsKey(sessionId) &&
         (_sessionMessages[sessionId]?.isNotEmpty ?? false);
+
+    // If we have pending socket messages, skip cache restore and force a fetch
+    // to ensure those messages are retrieved from the server.
+    if (hasPendingSocketMessages) {
+      hasMessages = false;
+    }
+
     if (!hasMessages) {
       // Restore from MMKV cache so the UI shows messages immediately
       // while the HTTP fetch is in flight.
@@ -7389,6 +7416,7 @@ what you have, you must use the options mode.
     _postSendCatchUpTimers.clear();
     _sessionsNeedingTailRefresh.clear();
     _sessionsWithPendingUpdates.clear();
+    _sessionsWithPendingSocketMessages.clear();
     _sessionUnreadCounts.clear();
     // Flush pending message saves so the MMKV cache is up-to-date when the
     // OS kills the app while backgrounded.  Without this, an in-flight
@@ -7426,6 +7454,7 @@ what you have, you must use the options mode.
     _postSendCatchUpTimers.clear();
     _sessionsNeedingTailRefresh.clear();
     _sessionsWithPendingUpdates.clear();
+    _sessionsWithPendingSocketMessages.clear();
     _sessionUnreadCounts.clear();
 
     socketIoClient
@@ -7465,6 +7494,7 @@ what you have, you must use the options mode.
     MMKVStorage().clearSessionFirstLoadedSeq();
     _loadingOlderMessages.clear();
     _recentInlineMessageKeys.clear();
+    _sessionsWithPendingSocketMessages.clear();
 
     sessionsSync.dispose();
     settingsSync.dispose();
