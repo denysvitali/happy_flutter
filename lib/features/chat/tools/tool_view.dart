@@ -763,42 +763,44 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       ],
     );
 
-    return AnimatedBuilder(
-      animation: _pulseAnim,
-      child: invariantChild,
-      builder: (context, child) {
-        final borderOpacity = state == ToolState.running
-            ? _pulseAnim.value
-            : 1.0;
-        final accentBorder = BorderSide(
-          color: accentColor.withValues(alpha: borderOpacity),
-          width: 4,
-        );
-        final sideBorder = BorderSide(
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-          width: 1,
-        );
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _pulseAnim,
+        child: invariantChild,
+        builder: (context, child) {
+          final borderOpacity = state == ToolState.running
+              ? _pulseAnim.value
+              : 1.0;
+          final accentBorder = BorderSide(
+            color: accentColor.withValues(alpha: borderOpacity),
+            width: 4,
+          );
+          final sideBorder = BorderSide(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+            width: 1,
+          );
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs / 2),
-          child: ClipRRect(
-            clipBehavior: Clip.hardEdge,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: Container(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                border: Border(
-                  left: accentBorder,
-                  top: sideBorder,
-                  right: sideBorder,
-                  bottom: sideBorder,
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs / 2),
+            child: ClipRRect(
+              clipBehavior: Clip.hardEdge,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  border: Border(
+                    left: accentBorder,
+                    top: sideBorder,
+                    right: sideBorder,
+                    bottom: sideBorder,
+                  ),
                 ),
+                child: child,
               ),
-              child: child,
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -1375,12 +1377,14 @@ class _PulsingProgressIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: animation,
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: const CircularProgressIndicator(strokeWidth: 2),
+    return RepaintBoundary(
+      child: FadeTransition(
+        opacity: animation,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: const CircularProgressIndicator(strokeWidth: 2),
+        ),
       ),
     );
   }

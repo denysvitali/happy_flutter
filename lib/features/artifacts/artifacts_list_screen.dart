@@ -7,7 +7,7 @@ import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/services/sync_service.dart';
+import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -21,13 +21,12 @@ class ArtifactsListScreen extends ConsumerStatefulWidget {
 }
 
 class _ArtifactsListScreenState
-    extends ConsumerState<ArtifactsListScreen> {
-  StreamSubscription<void>? _syncSubscription;
+    extends ConsumerState<ArtifactsListScreen>
+    with SyncSubscriptionMixin {
   bool _isLoading = true;
   String _searchQuery = '';
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
-  int _lastDataChangeCounter = -1;
 
   @override
   void initState() {
@@ -38,11 +37,7 @@ class _ArtifactsListScreenState
           .refreshFromSync();
       if (mounted) setState(() => _isLoading = false);
     });
-    _syncSubscription = sync.onDataChanged.listen((_) {
-      if (!mounted) return;
-      final counter = sync.dataChangeCounter;
-      if (counter == _lastDataChangeCounter) return;
-      _lastDataChangeCounter = counter;
+    subscribeToDataChanged(ref, () {
       ref
           .read(artifactsNotifierProvider.notifier)
           .loadFromSync();
@@ -51,7 +46,6 @@ class _ArtifactsListScreenState
 
   @override
   void dispose() {
-    _syncSubscription?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();

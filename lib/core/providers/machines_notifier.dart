@@ -17,7 +17,16 @@ class MachinesNotifier extends Notifier<Map<String, Machine>> {
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.machines;
-    if (mapEquals(state, next)) return;
+    // Fast path: check length first, then use identical() for each value
+    if (state.length == next.length) {
+      bool changed = false;
+      next.forEach((key, value) {
+        if (!identical(state[key], value)) {
+          changed = true;
+        }
+      });
+      if (!changed) return;
+    }
     state = Map<String, Machine>.from(next);
   }
 

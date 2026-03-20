@@ -52,15 +52,17 @@ class _StreamingCursorState extends State<StreamingCursor>
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.primary;
-    return FadeTransition(
-      opacity: _opacity,
-      child: Container(
-        width: 2,
-        height: 14,
-        margin: const EdgeInsets.only(left: AppSpacing.xxs),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(AppRadius.xxs),
+    return RepaintBoundary(
+      child: FadeTransition(
+        opacity: _opacity,
+        child: Container(
+          width: 2,
+          height: 14,
+          margin: const EdgeInsets.only(left: AppSpacing.xxs),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(AppRadius.xxs),
+          ),
         ),
       ),
     );

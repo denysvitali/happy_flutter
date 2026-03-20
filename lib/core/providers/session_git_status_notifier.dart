@@ -17,7 +17,16 @@ class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.sessionGitStatus;
-    if (mapEquals(state, next)) return;
+    // Fast path: check length first, then use identical() for each value
+    if (state.length == next.length) {
+      bool changed = false;
+      next.forEach((key, value) {
+        if (!identical(state[key], value)) {
+          changed = true;
+        }
+      });
+      if (!changed) return;
+    }
     state = Map<String, GitStatus>.from(next);
   }
 

@@ -137,20 +137,22 @@ class _MarkdownViewState extends State<MarkdownView> {
       _lastTextColor = widget.textColor;
     }
 
-    return MarkdownBody(
-      data: widget.markdown,
-      extensionSet: _gitHubFlavoredExtensionSet,
-      builders: _effectiveBuilders,
-      blockSyntaxes: _optionsBlockSyntaxes,
-      styleSheet: _styleSheet!,
-      onTapLink: (text, href, title) async {
-        if (href != null) {
-          final uri = Uri.tryParse(href);
-          if (uri != null && await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
+    return RepaintBoundary(
+      child: MarkdownBody(
+        data: widget.markdown,
+        extensionSet: _gitHubFlavoredExtensionSet,
+        builders: _effectiveBuilders,
+        blockSyntaxes: _optionsBlockSyntaxes,
+        styleSheet: _styleSheet!,
+        onTapLink: (text, href, title) async {
+          if (href != null) {
+            final uri = Uri.tryParse(href);
+            if (uri != null && await canLaunchUrl(uri)) {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            }
           }
-        }
-      },
+        },
+      ),
     );
   }
 }
@@ -214,19 +216,21 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
       _lastTheme = theme;
     }
 
-    return MarkdownBody(
-      data: widget.markdown,
-      extensionSet: _gitHubFlavoredExtensionSet,
-      builders: _simpleBuilders,
-      styleSheet: _styleSheet!,
-      onTapLink: (text, href, title) async {
-        if (href != null) {
-          final uri = Uri.tryParse(href);
-          if (uri != null && await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
+    return RepaintBoundary(
+      child: MarkdownBody(
+        data: widget.markdown,
+        extensionSet: _gitHubFlavoredExtensionSet,
+        builders: _simpleBuilders,
+        styleSheet: _styleSheet!,
+        onTapLink: (text, href, title) async {
+          if (href != null) {
+            final uri = Uri.tryParse(href);
+            if (uri != null && await canLaunchUrl(uri)) {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            }
           }
-        }
-      },
+        },
+      ),
     );
   }
 }

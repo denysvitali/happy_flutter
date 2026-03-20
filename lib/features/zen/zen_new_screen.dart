@@ -8,7 +8,7 @@ import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/services/sync_service.dart';
+import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'zen_priority.dart';
@@ -22,13 +22,12 @@ class ZenNewScreen extends ConsumerStatefulWidget {
   ConsumerState<ZenNewScreen> createState() => _ZenNewScreenState();
 }
 
-class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
+class _ZenNewScreenState extends ConsumerState<ZenNewScreen>
+    with SyncSubscriptionMixin {
   final TextEditingController _contentController =
       TextEditingController();
   String _priority = 'medium';
   bool _isSaving = false;
-  StreamSubscription<void>? _syncSubscription;
-  int _lastDataChangeCounter = -1;
 
   static const List<String> _priorities = [
     'low',
@@ -45,18 +44,13 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen> {
           .read(todoStateNotifierProvider.notifier)
           .refreshFromSync();
     });
-    _syncSubscription = sync.onDataChanged.listen((_) {
-      if (!mounted) return;
-      final counter = sync.dataChangeCounter;
-      if (counter == _lastDataChangeCounter) return;
-      _lastDataChangeCounter = counter;
+    subscribeToDataChanged(ref, () {
       ref.read(todoStateNotifierProvider.notifier).loadFromSync();
     });
   }
 
   @override
   void dispose() {
-    _syncSubscription?.cancel();
     _contentController.dispose();
     super.dispose();
   }

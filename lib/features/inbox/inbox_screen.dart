@@ -15,7 +15,7 @@ import '../../core/models/feed.dart';
 import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/social_service.dart';
-import '../../core/services/sync_service.dart';
+import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -72,36 +72,28 @@ class InboxScreen extends ConsumerStatefulWidget {
   ConsumerState<InboxScreen> createState() => _InboxScreenState();
 }
 
-class _InboxScreenState extends ConsumerState<InboxScreen> {
+class _InboxScreenState extends ConsumerState<InboxScreen>
+    with SyncSubscriptionMixin {
   final SocialService _socialService = SocialService();
   final Set<String> _busyIds = {};
   bool _isLoading = true;
-  int _lastDataChangeCounter = -1;
-  StreamSubscription<void>? _syncSubscription;
 
   @override
   void initState() {
     super.initState();
     Future<void>.microtask(_refresh);
-    _syncSubscription = sync.onDataChanged.listen((_) {
-      if (!mounted) return;
-      final counter = sync.dataChangeCounter;
-      if (counter == _lastDataChangeCounter) return;
-      _lastDataChangeCounter = counter;
+    subscribeToDataChanged(ref, () {
       ref.read(friendsNotifierProvider.notifier).loadFromSync();
       ref.read(feedNotifierProvider.notifier).loadFromSync();
     });
   }
 
-  @override
-  void dispose() {
-    _syncSubscription?.cancel();
-    super.dispose();
-  }
-
   Future<void> _refresh() async {
-    await ref.read(friendsNotifierProvider.notifier).refreshFromSync();
-    await ref.read(feedNotifierProvider.notifier).refreshFromSync();
+    // Parallelize independent refresh operations for faster loading
+    await Future.wait([
+      ref.read(friendsNotifierProvider.notifier).refreshFromSync(),
+      ref.read(feedNotifierProvider.notifier).refreshFromSync(),
+    ]);
     if (mounted && _isLoading) {
       setState(() => _isLoading = false);
     }

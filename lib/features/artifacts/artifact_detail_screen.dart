@@ -11,6 +11,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/sync_subscription_mixin.dart';
 
 /// Screen showing detail view for a single artifact.
 class ArtifactDetailScreen extends ConsumerStatefulWidget {
@@ -24,10 +25,8 @@ class ArtifactDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ArtifactDetailScreenState
-    extends ConsumerState<ArtifactDetailScreen> {
-  int _lastDataChangeCounter = -1;
-  StreamSubscription<void>? _syncSubscription;
-
+    extends ConsumerState<ArtifactDetailScreen>
+    with SyncSubscriptionMixin {
   @override
   void initState() {
     super.initState();
@@ -36,19 +35,9 @@ class _ArtifactDetailScreenState
           .read(artifactsNotifierProvider.notifier)
           .refreshFromSync();
     });
-    _syncSubscription = sync.onDataChanged.listen((_) {
-      if (!mounted) return;
-      final counter = sync.dataChangeCounter;
-      if (counter == _lastDataChangeCounter) return;
-      _lastDataChangeCounter = counter;
+    subscribeToDataChanged(ref, () {
       ref.read(artifactsNotifierProvider.notifier).loadFromSync();
     });
-  }
-
-  @override
-  void dispose() {
-    _syncSubscription?.cancel();
-    super.dispose();
   }
 
   @override

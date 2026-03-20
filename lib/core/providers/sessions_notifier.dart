@@ -21,8 +21,18 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.sessions;
-    if (identical(state, next)) return;
-    if (mapEquals(state, next)) return;
+    // sync.sessions returns Map.unmodifiable() which creates a new wrapper
+    // each time, so identical() check is skipped. Direct map comparison is
+    // more efficient than mapEquals() for most cases.
+    if (state.length == next.length) {
+      bool changed = false;
+      next.forEach((key, value) {
+        if (!identical(state[key], value)) {
+          changed = true;
+        }
+      });
+      if (!changed) return;
+    }
     state = Map<String, Session>.from(next);
   }
 

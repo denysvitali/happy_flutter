@@ -9,7 +9,7 @@ import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/services/sync_service.dart';
+import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'zen_priority.dart';
@@ -48,10 +48,9 @@ class ZenHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<ZenHomeScreen> createState() => _ZenHomeScreenState();
 }
 
-class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen> {
-  StreamSubscription<void>? _syncSubscription;
+class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
+    with SyncSubscriptionMixin {
   bool _isLoading = true;
-  int _lastDataChangeCounter = -1;
 
   @override
   void initState() {
@@ -62,19 +61,9 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen> {
           .refreshFromSync();
       if (mounted) setState(() => _isLoading = false);
     });
-    _syncSubscription = sync.onDataChanged.listen((_) {
-      if (!mounted) return;
-      final counter = sync.dataChangeCounter;
-      if (counter == _lastDataChangeCounter) return;
-      _lastDataChangeCounter = counter;
+    subscribeToDataChanged(ref, () {
       ref.read(todoStateNotifierProvider.notifier).loadFromSync();
     });
-  }
-
-  @override
-  void dispose() {
-    _syncSubscription?.cancel();
-    super.dispose();
   }
 
   @override

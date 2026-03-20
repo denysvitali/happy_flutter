@@ -315,10 +315,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       success = false;
     }
     if (!mounted) return;
-    _refreshFromSync(markLoaded: true);
-    if (!success && _messages.isEmpty) {
-      setState(() => _loadFailed = true);
-    }
+    _refreshFromSync(markLoaded: true, loadFailed: !success && _messages.isEmpty);
   }
 
   Future<void> _retry() async {
@@ -331,7 +328,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     await _doInitialLoad();
   }
 
-  void _refreshFromSync({bool markLoaded = false}) {
+  void _refreshFromSync({bool markLoaded = false, bool loadFailed = false}) {
     final latestSession = sync.sessions[widget.sessionId];
     final latestMessages = sync.messagesForSession(widget.sessionId);
 
@@ -360,6 +357,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       '[ChatScreen] _refreshFromSync '
       'session=${widget.sessionId} '
       'markLoaded=$markLoaded '
+      'loadFailed=$loadFailed '
       'sessionChanged=$sessionChanged '
       'messagesChanged=$messagesChanged '
       'latestMsgs=${latestMessages.length} '
@@ -367,7 +365,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       'visibleCount=$_visibleCount',
     );
 
-    if (!sessionChanged && !messagesChanged && !markLoaded) {
+    if (!sessionChanged && !messagesChanged && !markLoaded && !loadFailed) {
       return;
     }
 
@@ -375,10 +373,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     // Invalidate neighbor cache when messages actually change
     if (messagesChanged && !identical(latestMessages, _lastMessagesList)) {
-      _neighborCache.clear();
-      _neighborCacheSource = null;
-      _neighborCacheLength = -1;
-      _neighborCacheSourceHash = 0;
+      _invalidateNeighborCache();
       _lastMessagesList = latestMessages;
     }
 
@@ -387,61 +382,75 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         latestSession?.agentState?.requests?.isNotEmpty ?? false;
     final newPermission = !hadRequests && hasRequests;
 
+    // Batch all state updates into a single setState
     setState(() {
-      _session = latestSession;
+      // Update session and metadata
+      if (sessionChanged) {
+        _session = latestSession;
+        _metadataJson = latestSession?.metadata?.toJson();
+      }
+
+      // Update model mode
       _modelMode = ClaudeModel.normalizeForFlavor(
         _modelMode,
         latestSession?.metadata?.flavor,
       );
 
-      if (messagesChanged && latestMessages.length > _prevMessagesLength) {
-        final prepended = latestMessages.length - _prevMessagesLength;
-        if (_visibleCount >= _prevMessagesLength && _prevMessagesLength > 0) {
-          _visibleCount = (_visibleCount + prepended).clamp(
-            0,
-            latestMessages.length,
-          );
+      // Update messages and visible count
+      if (messagesChanged) {
+        if (latestMessages.length > _prevMessagesLength) {
+          final prepended = latestMessages.length - _prevMessagesLength;
+          if (_visibleCount >= _prevMessagesLength && _prevMessagesLength > 0) {
+            _visibleCount = (_visibleCount + prepended).clamp(
+              0,
+              latestMessages.length,
+            );
+          }
         }
-      }
 
-      _messages = latestMessages;
-      _prevMessagesLength = latestMessages.length;
+        _messages = latestMessages;
+        _prevMessagesLength = latestMessages.length;
 
-      if (sessionChanged) {
-        _metadataJson = latestSession?.metadata?.toJson();
-      }
-      if (markLoaded) {
-        _isLoadingMessages = false;
-        _initialLoadComplete = true;
-        for (final m in latestMessages) {
-          _seenMessageIds.add(_messageKey(m));
-        }
-        _prevSeenLength = latestMessages.length;
-      } else if (messagesChanged && latestMessages.isNotEmpty) {
-        // Cached messages arrived from MMKV (via onSessionVisible) — dismiss
-        // the shimmer immediately instead of waiting for the HTTP round-trip.
-        _isLoadingMessages = false;
-        if (!_initialLoadComplete) {
-          // First time we see messages (from cache) — mark them as seen so
-          // they don't animate. Only genuinely new messages should animate.
-          for (final m in latestMessages) {
-            _seenMessageIds.add(_messageKey(m));
+        // Handle message visibility and seen tracking
+        if (markLoaded) {
+          _isLoadingMessages = false;
+          _initialLoadComplete = true;
+          _markMessagesAsSeen(latestMessages, 0, latestMessages.length);
+        } else if (latestMessages.isNotEmpty) {
+          // Cached messages arrived from MMKV (via onSessionVisible) — dismiss
+          // the shimmer immediately instead of waiting for the HTTP round-trip.
+          _isLoadingMessages = false;
+          if (!_initialLoadComplete) {
+            // First time we see messages (from cache) — mark them as seen so
+            // they don't animate. Only genuinely new messages should animate.
+            _markMessagesAsSeen(latestMessages, 0, latestMessages.length);
+          } else {
+            // Mark only new messages as seen
+            final oldLen = _prevSeenLength;
+            final newLen = latestMessages.length;
+            if (newLen > oldLen) {
+              _markMessagesAsSeen(latestMessages, oldLen, newLen);
+            }
           }
           _prevSeenLength = latestMessages.length;
         }
-      }
-      if (_initialLoadComplete) {
+      } else if (_initialLoadComplete && latestMessages.isNotEmpty) {
+        // Only mark new messages as seen when list didn't change reference
         final oldLen = _prevSeenLength;
         final newLen = latestMessages.length;
         if (newLen > oldLen) {
-          for (var i = oldLen; i < newLen; i++) {
-            _seenMessageIds.add(_messageKey(latestMessages[i]));
-          }
+          _markMessagesAsSeen(latestMessages, oldLen, newLen);
+          _prevSeenLength = newLen;
         }
-        _prevSeenLength = newLen;
+      }
+
+      // Update load failed state
+      if (loadFailed) {
+        _loadFailed = true;
       }
     });
 
+    // Post-state-update side effects
     if (messagesChanged && _autoScroll) {
       _scrollToBottom();
     }
@@ -464,6 +473,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
       }
     }
+  }
+
+  /// Marks messages in the range [start, end) as seen to prevent animations.
+  void _markMessagesAsSeen(
+    List<Map<String, dynamic>> messages,
+    int start,
+    int end,
+  ) {
+    for (var i = start; i < end; i++) {
+      _seenMessageIds.add(_messageKey(messages[i]));
+    }
+  }
+
+  /// Invalidates the neighbor cache. Call this when the messages list changes.
+  void _invalidateNeighborCache() {
+    _neighborCache.clear();
+    _neighborCacheSource = null;
+    _neighborCacheLength = -1;
+    _neighborCacheSourceHash = 0;
   }
 
   String _messageKey(Map<String, dynamic> m) =>
@@ -1119,7 +1147,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _scrollToBottom();
       } catch (e) {
         if (mounted) {
-          setState(() => _controller.text = text);
+          setState(() {
+            _controller.text = text;
+            _isSending = false;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(context.l10n.chatFailedToClear(e.toString())),
@@ -1127,7 +1158,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           );
         }
       } finally {
-        if (mounted) setState(() => _isSending = false);
+        if (mounted && _isSending) {
+          setState(() => _isSending = false);
+        }
       }
       return;
     }
@@ -1149,11 +1182,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _isSending = true;
       _controller.clear();
       _visibleCount = (_visibleCount + 1).clamp(0, _messages.length);
-      // Invalidate cache since we added an optimistic message
-      _neighborCache.clear();
-      _neighborCacheSource = null;
-      _neighborCacheLength = -1;
-      _neighborCacheSourceHash = 0;
+      _invalidateNeighborCache();
     });
     _scrollToBottom();
 
@@ -1182,18 +1211,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               .where((m) => m['id'] != optimisticMessage['id'])
               .toList();
           _controller.text = text;
-          // Invalidate cache since we modified the messages list
-          _neighborCache.clear();
-          _neighborCacheSource = null;
-          _neighborCacheLength = -1;
-          _neighborCacheSourceHash = 0;
+          _isSending = false;
+          _invalidateNeighborCache();
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
         );
       }
     } finally {
-      if (mounted) setState(() => _isSending = false);
+      if (mounted && _isSending) {
+        setState(() => _isSending = false);
+      }
     }
   }
 

@@ -76,9 +76,11 @@ class _ElapsedTimeWidgetState extends State<ElapsedTimeWidget> {
           fontFamily: 'monospace',
         );
 
-    return Text(
-      '${_elapsedSeconds.toStringAsFixed(1)}s',
-      style: effectiveStyle,
+    return RepaintBoundary(
+      child: Text(
+        '${_elapsedSeconds.toStringAsFixed(1)}s',
+        style: effectiveStyle,
+      ),
     );
   }
 }

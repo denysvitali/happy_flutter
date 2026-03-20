@@ -17,7 +17,17 @@ class TodoStateNotifier extends Notifier<TodoListState> {
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.todoLists;
-    if (mapEquals(state.lists, next)) return;
+    // Fast path: check length first, then use identical() for each value
+    final currentLists = state.lists;
+    if (currentLists.length == next.length) {
+      bool changed = false;
+      next.forEach((key, value) {
+        if (!identical(currentLists[key], value)) {
+          changed = true;
+        }
+      });
+      if (!changed) return;
+    }
     state = TodoListState(lists: Map<String?, TodoList>.from(next));
   }
 

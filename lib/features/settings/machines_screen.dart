@@ -11,7 +11,7 @@ import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/services/sync_service.dart';
+import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -22,10 +22,9 @@ class MachinesScreen extends ConsumerStatefulWidget {
   ConsumerState<MachinesScreen> createState() => _MachinesScreenState();
 }
 
-class _MachinesScreenState extends ConsumerState<MachinesScreen> {
-  StreamSubscription<void>? _syncSubscription;
+class _MachinesScreenState extends ConsumerState<MachinesScreen>
+    with SyncSubscriptionMixin {
   final Set<String> _deletingMachineIds = <String>{};
-  int _lastDataChangeCounter = -1;
 
   @override
   void initState() {
@@ -33,21 +32,9 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen> {
     Future<void>.microtask(
       () => ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
     );
-    _syncSubscription = sync.onDataChanged.listen((_) {
-      if (!mounted) {
-        return;
-      }
-      final counter = sync.dataChangeCounter;
-      if (counter == _lastDataChangeCounter) return;
-      _lastDataChangeCounter = counter;
+    subscribeToDataChanged(ref, () {
       ref.read(machinesNotifierProvider.notifier).loadFromSync();
     });
-  }
-
-  @override
-  void dispose() {
-    _syncSubscription?.cancel();
-    super.dispose();
   }
 
   Future<void> _deleteMachine(Machine machine) async {
