@@ -531,6 +531,24 @@ what you have, you must use the options mode.
     }
   }
 
+  /// Overrides the HTTP fetch path in [fetchMessages] for integration tests.
+  /// When set, [fetchMessages] calls this instead of making a real HTTP request.
+  /// The callback receives (sessionId, afterSeq, limit) and returns the
+  /// parsed response map.
+  @visibleForTesting
+  Future<Map<String, dynamic>>? Function(
+    String sessionId,
+    int afterSeq,
+    int limit,
+  )? testFetchMessagesOverride;
+
+  /// Sets the in-memory seq cursor for a session (bypasses the normal
+  /// inline-processing path that normally updates this from socket events).
+  @visibleForTesting
+  void testSetSessionLastSeq(String sessionId, int seq) {
+    _sessionLastSeq[sessionId] = seq;
+  }
+
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
   Profile? get profile => _profile;
   bool get isReady => _isReady;
@@ -3291,8 +3309,6 @@ what you have, you must use the options mode.
     // defines the backend (API keys, base URLs, model names) and stripping
     // model env vars would break profiles that configure a specific model
     // (e.g. Z.AI's GLM-4.6 via ANTHROPIC_MODEL).
-    final modelMode = _settingsSnapshot.lastUsedModelMode;
-    final useDefaultModel = modelMode == null || modelMode == 'default';
     final envVars = _spawnEnvironmentVariables(profileEnvVars);
     final req = SpawnSessionRequest(
       type: 'spawn-in-directory',
@@ -3300,7 +3316,7 @@ what you have, you must use the options mode.
       approvedNewDirectoryCreation: true, // Always approve like React Native
       agent: agent,
       permissionMode: permMode,
-      model: useDefaultModel ? null : modelMode,
+      model: _getModelOverride(),
       environmentVariables: envVars,
     );
 
@@ -3658,6 +3674,17 @@ what you have, you must use the options mode.
     return <String, String>{...?base};
   }
 
+  /// Get the model override to pass when spawning a session.
+  ///
+  /// Returns `null` to use the daemon's default model, or a model string
+  /// to override the default. This is derived from the user's last-used
+  /// model mode setting.
+  String? _getModelOverride() {
+    final modelMode = _settingsSnapshot.lastUsedModelMode;
+    final useDefaultModel = modelMode == null || modelMode == 'default';
+    return useDefaultModel ? null : modelMode;
+  }
+
   /// Get environment variables for spawning a session, using the profile
   /// associated with the session if available, otherwise falling back to
   /// the last-used profile.
@@ -3764,6 +3791,7 @@ what you have, you must use the options mode.
         sessionId: sessionId,
         agent: session.metadata?.flavor ?? 'claude',
         permissionMode: effectivePermissionMode,
+        model: _getModelOverride(),
         environmentVariables: envVars,
       );
       final result = await _typedMachineRPC(
@@ -4706,6 +4734,7 @@ what you have, you must use the options mode.
         sessionId: sessionId,
         agent: session.metadata?.flavor ?? 'claude',
         permissionMode: session.permissionMode,
+        model: _getModelOverride(),
         environmentVariables: envVars,
       );
       final result = await _typedMachineRPC(
