@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/encryption_cache.dart';
+import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
@@ -22,13 +24,19 @@ void main() {
   group('fetchMessages skip logic', () {
     late Sync sync;
     late _FakeEncryption encryption;
-    late _MockHttpInterceptor http;
-    late List<Map<String, dynamic>> capturedRequests;
 
     setUp(() async {
       sync = Sync();
       encryption = _FakeEncryption();
-      capturedRequests = [];
+
+      // Clear all session messages to ensure test isolation
+      for (final id in sync.sessionMessages.keys.toList()) {
+        sync.testSetSessionMessages(id, []);
+      }
+      // Clear seq cursors
+      for (final id in sync.testSessions.keys.toList()) {
+        sync.testSetSessionLastSeq(id, 0);
+      }
 
       // Stub all sync fields
       sync.sessionsSync = InvalidateSync(() async {});
@@ -56,6 +64,7 @@ void main() {
     tearDown(() async {
       sync.testSocketConnectedOverride = null;
       sync.testSocketSendOverride = null;
+      sync.testFetchMessagesOverride = null;
     });
 
     test('does NOT skip fetch when cursorSeq > serverLastSeq (socket outpaced)', () async {
@@ -71,24 +80,14 @@ void main() {
       );
       sync.testSetSessionLastSeq(sessionId, 15); // socket advanced to 15
 
-      // HTTP mock: capture requests and return messages
-      final fetchedRequests = <Map<String, dynamic>>[];
-      http = _MockHttpInterceptor((options) async {
-        if (options.uri.path == '/v3/sessions/$sessionId/messages') {
-          fetchedRequests.add({
-            'after_seq': options.queryParameters['after_seq'],
-            'limit': options.queryParameters['limit'],
-          });
-          return _buildMessagesResponse([
-            _makeAgentMessage('msg-16', seq: 16, content: 'Hello'),
-          ]);
-        }
-        if (options.uri.path == '/v2/sessions') {
-          return _buildSessionsResponse([sync.testSessions[sessionId]!]);
-        }
-        return _build404(options);
-      });
-      sync.testHttpInterceptor = http;
+      // HTTP mock: capture afterSeq and return messages
+      final capturedAfterSeq = <int>[];
+      sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
+        capturedAfterSeq.add(afterSeq);
+        return _buildMessagesResponse([
+          _makeAgentMessage('msg-16', seq: 16, content: 'Hello'),
+        ]);
+      };
 
       // Act: trigger fetchMessages
       await sync.fetchMessages(sessionId);
@@ -96,7 +95,7 @@ void main() {
       // Assert: HTTP fetch should have been called (not skipped)
       // because cursorSeq(15) > serverLastSeq(10)
       expect(
-        fetchedRequests.any((r) => r['after_seq'] == 15),
+        capturedAfterSeq.contains(15),
         isTrue,
         reason: 'Should fetch from cursor 15 (socket advanced), not skip',
       );
@@ -109,26 +108,17 @@ void main() {
       sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
       sync.testSetSessionLastSeq(sessionId, 10);
 
-      final fetchedRequests = <Map<String, dynamic>>[];
-      http = _MockHttpInterceptor((options) async {
-        if (options.uri.path == '/v3/sessions/$sessionId/messages') {
-          fetchedRequests.add({
-            'after_seq': options.queryParameters['after_seq'],
-          });
-          return _buildMessagesResponse([]);
-        }
-        if (options.uri.path == '/v2/sessions') {
-          return _buildSessionsResponse([sync.testSessions[sessionId]!]);
-        }
-        return _build404(options);
-      });
-      sync.testHttpInterceptor = http;
+      final capturedAfterSeq = <int>[];
+      sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
+        capturedAfterSeq.add(afterSeq);
+        return _buildMessagesResponse([]);
+      };
 
       // Act
       await sync.fetchMessages(sessionId);
 
       // Assert: no HTTP fetch for messages (already caught up)
-      expect(fetchedRequests, isEmpty, reason: 'Should skip when cursor == server');
+      expect(capturedAfterSeq, isEmpty, reason: 'Should skip when cursor == server');
     });
 
     test('fetches from cursor when cursorSeq < serverLastSeq (normal delta)', () async {
@@ -138,26 +128,19 @@ void main() {
       sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
       sync.testSetSessionLastSeq(sessionId, 5);
 
-      final fetchedRequests = <Map<String, dynamic>>[];
-      http = _MockHttpInterceptor((options) async {
-        if (options.uri.path == '/v3/sessions/$sessionId/messages') {
-          fetchedRequests.add({'after_seq': options.queryParameters['after_seq']});
-          return _buildMessagesResponse([
-            _makeAgentMessage('msg-6', seq: 6, content: 'Reply'),
-            _makeAgentMessage('msg-7', seq: 7, content: 'Reply 2'),
-          ]);
-        }
-        if (options.uri.path == '/v2/sessions') {
-          return _buildSessionsResponse([sync.testSessions[sessionId]!]);
-        }
-        return _build404(options);
-      });
-      sync.testHttpInterceptor = http;
+      final capturedAfterSeq = <int>[];
+      sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
+        capturedAfterSeq.add(afterSeq);
+        return _buildMessagesResponse([
+          _makeAgentMessage('msg-6', seq: 6, content: 'Reply'),
+          _makeAgentMessage('msg-7', seq: 7, content: 'Reply 2'),
+        ]);
+      };
 
       await sync.fetchMessages(sessionId);
 
       // Assert: fetched from cursor 5
-      expect(fetchedRequests.first['after_seq'], 5);
+      expect(capturedAfterSeq.first, 5);
     });
 
     test('uses tail refresh on first load (isFirstLoad=true)', () async {
@@ -167,27 +150,20 @@ void main() {
       sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 250);
       // No _sessionLastSeq set (simulates first open)
 
-      final fetchedRequests = <Map<String, dynamic>>[];
-      http = _MockHttpInterceptor((options) async {
-        if (options.uri.path == '/v3/sessions/$sessionId/messages') {
-          fetchedRequests.add({'after_seq': options.queryParameters['after_seq']});
-          // Return messages from seq 51-200
-          return _buildMessagesResponse([
-            for (var i = 51; i <= 100; i++)
-              _makeAgentMessage('msg-$i', seq: i, content: 'Msg $i'),
-          ], hasMore: true);
-        }
-        if (options.uri.path == '/v2/sessions') {
-          return _buildSessionsResponse([sync.testSessions[sessionId]!]);
-        }
-        return _build404(options);
-      });
-      sync.testHttpInterceptor = http;
+      final capturedAfterSeq = <int>[];
+      sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
+        capturedAfterSeq.add(afterSeq);
+        // Return messages from seq 51-200
+        return _buildMessagesResponse([
+          for (var i = 51; i <= 100; i++)
+            _makeAgentMessage('msg-$i', seq: i, content: 'Msg $i'),
+        ], hasMore: true);
+      };
 
       await sync.fetchMessages(sessionId);
 
       // Assert: tail load starts at lastSeq - initialLoad = 250 - 200 = 50
-      expect(fetchedRequests.first['after_seq'], 50);
+      expect(capturedAfterSeq.first, 50);
     });
 
     test('gapTooLarge falls back to tail refresh', () async {
@@ -197,36 +173,37 @@ void main() {
       sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 300);
       sync.testSetSessionLastSeq(sessionId, 10); // far behind
 
-      final fetchedRequests = <Map<String, dynamic>>[];
-      http = _MockHttpInterceptor((options) async {
-        if (options.uri.path == '/v3/sessions/$sessionId/messages') {
-          fetchedRequests.add({'after_seq': options.queryParameters['after_seq']});
-          return _buildMessagesResponse([
-            _makeAgentMessage('msg-101', seq: 101, content: 'Recent'),
-          ]);
-        }
-        if (options.uri.path == '/v2/sessions') {
-          return _buildSessionsResponse([sync.testSessions[sessionId]!]);
-        }
-        return _build404(options);
-      });
-      sync.testHttpInterceptor = http;
+      final capturedAfterSeq = <int>[];
+      sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
+        capturedAfterSeq.add(afterSeq);
+        return _buildMessagesResponse([
+          _makeAgentMessage('msg-101', seq: 101, content: 'Recent'),
+        ]);
+      };
 
       await sync.fetchMessages(sessionId);
 
       // Assert: tail refresh starts at lastSeq - initialLoad = 300 - 200 = 100
-      expect(fetchedRequests.first['after_seq'], 100);
+      expect(capturedAfterSeq.first, 100);
     });
   });
 
   group('fetchMessages with socket inline processing', () {
     late Sync sync;
     late _FakeEncryption encryption;
-    late _MockHttpInterceptor http;
 
     setUp(() async {
       sync = Sync();
       encryption = _FakeEncryption();
+
+      // Clear all session messages to ensure test isolation
+      for (final id in sync.sessionMessages.keys.toList()) {
+        sync.testSetSessionMessages(id, []);
+      }
+      // Clear seq cursors
+      for (final id in sync.testSessions.keys.toList()) {
+        sync.testSetSessionLastSeq(id, 0);
+      }
 
       sync.sessionsSync = InvalidateSync(() async {});
       sync.settingsSync = InvalidateSync(() async {});
@@ -252,6 +229,7 @@ void main() {
     tearDown(() {
       sync.testSocketConnectedOverride = null;
       sync.testSocketSendOverride = null;
+      sync.testFetchMessagesOverride = null;
     });
 
     test('socket event advances cursor before fetchMessages runs', () async {
@@ -265,25 +243,18 @@ void main() {
       // This advances _sessionLastSeq to 15 before fetchMessages checks
       sync.testSetSessionLastSeq(sessionId, 15);
 
-      final fetchedRequests = <Map<String, dynamic>>[];
-      http = _MockHttpInterceptor((options) async {
-        if (options.uri.path == '/v3/sessions/$sessionId/messages') {
-          fetchedRequests.add({'after_seq': options.queryParameters['after_seq']});
-          return _buildMessagesResponse([]);
-        }
-        if (options.uri.path == '/v2/sessions') {
-          return _buildSessionsResponse([sync.testSessions[sessionId]!]);
-        }
-        return _build404(options);
-      });
-      sync.testHttpInterceptor = http;
+      final capturedAfterSeq = <int>[];
+      sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
+        capturedAfterSeq.add(afterSeq);
+        return _buildMessagesResponse([]);
+      };
 
       // fetchMessages sees cursorSeq=15, serverLastSeq=10
       // With the fix: 15 > 10, so should NOT skip
       await sync.fetchMessages(sessionId);
 
       // With the fix: cursor > server, should fetch from 15
-      expect(fetchedRequests.first['after_seq'], 15);
+      expect(capturedAfterSeq.first, 15);
     });
   });
 }
@@ -378,15 +349,11 @@ Map<String, dynamic> _buildMessagesResponse(
   };
 }
 
-Map<String, dynamic> _build404(dynamic options) {
-  return {'error': 'Not mocked: ${options.uri.path}'};
-}
-
 // ---------------------------------------------------------------------------
 // Fake encryption for tests
 // ---------------------------------------------------------------------------
 
-class _FakeEncryption implements TestEncryption {
+class _FakeEncryption implements Encryption {
   final Map<String, _FakeSessionEncryption> _sessions = {};
 
   @override
@@ -396,6 +363,9 @@ class _FakeEncryption implements TestEncryption {
       () => _FakeSessionEncryption(sessionId: sessionId),
     );
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeSessionEncryption extends SessionEncryption {
@@ -446,17 +416,3 @@ class _FakeEncryptor implements Encryptor {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Mock HTTP interceptor
-// ---------------------------------------------------------------------------
-
-typedef MockHttpHandler = Future<Map<String, dynamic>> Function(
-    dynamic options);
-
-class _MockHttpInterceptor {
-  _MockHttpInterceptor(this.handler);
-
-  final MockHttpHandler handler;
-
-  Future<Map<String, dynamic>> handle(dynamic options) => handler(options);
-}

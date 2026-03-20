@@ -533,8 +533,8 @@ what you have, you must use the options mode.
 
   /// Overrides the HTTP fetch path in [fetchMessages] for integration tests.
   /// When set, [fetchMessages] calls this instead of making a real HTTP request.
-  /// The callback receives (sessionId, afterSeq, limit) and returns the
-  /// parsed response map.
+  /// The callback receives (sessionId, afterSeq, limit) and returns the parsed
+  /// response map.
   @visibleForTesting
   Future<Map<String, dynamic>>? Function(
     String sessionId,
@@ -5197,10 +5197,25 @@ what you have, you must use the options mode.
         }
 
         final fetchStart = Stopwatch()..start();
-        final response = await apiClient.get(
-          '/v3/sessions/$sessionId/messages',
-          queryParameters: {'after_seq': afterSeq, 'limit': 100},
-        );
+        final Response<dynamic> response;
+        if (testFetchMessagesOverride != null) {
+          final overrideResult = await testFetchMessagesOverride!(
+            sessionId,
+            afterSeq,
+            100,
+          );
+          // Synthesize a minimal Response to satisfy the rest of the logic.
+          response = Response(
+            requestOptions: RequestOptions(path: ''),
+            statusCode: 200,
+            data: overrideResult,
+          );
+        } else {
+          response = await apiClient.get(
+            '/v3/sessions/$sessionId/messages',
+            queryParameters: {'after_seq': afterSeq, 'limit': 100},
+          );
+        }
         final fetchMs = fetchStart.elapsedMilliseconds;
 
         if (!apiClient.isSuccess(response)) {
