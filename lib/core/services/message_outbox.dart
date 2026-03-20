@@ -195,6 +195,26 @@ class MessageOutbox {
   /// All pending entries (unmodifiable view).
   List<OutboxEntry> get entries => List.unmodifiable(_entries.values);
 
+  /// Suspend retry timers when app goes to background.
+  /// Entries are preserved for retry on resume.
+  void suspend() {
+    _persistTimer?.cancel();
+    _persistTimer = null;
+    for (final t in _retryTimers.values) {
+      t.cancel();
+    }
+    _retryTimers.clear();
+  }
+
+  /// Resume retry timers when app returns to foreground.
+  void resume() {
+    if (!_initialized) return;
+    // Re-schedule retries for all pending entries
+    for (final entry in _entries.values) {
+      _scheduleRetry(entry, initialDelay: const Duration(seconds: 1));
+    }
+  }
+
   /// Cancel all pending retry timers and clear in-memory state.
   void dispose() {
     _persistTimer?.cancel();

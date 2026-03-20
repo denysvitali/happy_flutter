@@ -468,6 +468,14 @@ class SettingsStorage {
     await _storage.clearSettings();
   }
 
+  /// Suspend the debounce timer when app goes to background.
+  /// Cancels any pending settings write without saving (settings remain
+  /// in-memory and will be saved on next change or app exit).
+  void suspend() {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+  }
+
   /// Dispose of the debounce timer
   void dispose() {
     _debounceTimer?.cancel();

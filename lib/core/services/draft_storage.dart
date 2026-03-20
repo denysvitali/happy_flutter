@@ -103,6 +103,13 @@ class DraftAutoSave {
     _debounceTimer = null;
     _pendingDraft = '';
   }
+
+  /// Suspend pending saves when app goes to background.
+  /// Cancel the debounce timer without saving (draft remains in memory).
+  void suspend() {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+  }
 }
 
 /// Utility class for detecting state transitions in draft text

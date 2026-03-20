@@ -206,10 +206,10 @@ class _HappyAppState extends ConsumerState<HappyApp>
     super.didChangeAppLifecycleState(state);
     switch (state) {
       case AppLifecycleState.paused:
-        // App is fully backgrounded — disconnect the socket so the OS
-        // does not keep firing reconnect callbacks (which saturate the
-        // main thread and cause ANRs when Tailscale / VPN drops).
+        // App is fully backgrounded — disconnect the socket and cancel
+        // all timers to ensure zero network traffic and battery drain.
         sync.suspend();
+        storage.SettingsStorage().suspend();
       case AppLifecycleState.resumed:
         // App is foregrounded — reconnect and catch up on missed events.
         sync.resume();

@@ -7400,6 +7400,9 @@ what you have, you must use the options mode.
   /// errors while the app is backgrounded (which previously caused a
   /// reconnect loop that saturated the main thread on resume). Pending
   /// debounce writes are flushed to MMKV so no cursor data is lost.
+  ///
+  /// ALL timers are cancelled to ensure zero network traffic and battery
+  /// drain while the app is backgrounded.
   void suspend() {
     if (!isInitialized) return;
     logger.info('[Sync] suspending — disconnecting socket');
@@ -7424,6 +7427,26 @@ what you have, you must use the options mode.
     _sessionsWithPendingUpdates.clear();
     _sessionsWithPendingSocketMessages.clear();
     _sessionUnreadCounts.clear();
+
+    // Cancel deferred syncs timer (non-critical data syncs)
+    _deferredSyncsTimer?.cancel();
+    _deferredSyncsTimer = null;
+
+    // Cancel all presence timers (per-session 60s timers)
+    for (final timer in _presenceTimers.values) {
+      timer.cancel();
+    }
+    _presenceTimers.clear();
+
+    // Cancel all message save debounce timers
+    for (final timer in _saveMsgsDebounceTimers.values) {
+      timer.cancel();
+    }
+    _saveMsgsDebounceTimers.clear();
+
+    // Suspend message outbox to stop retry timers
+    messageOutbox.suspend();
+
     // Flush pending message saves so the MMKV cache is up-to-date when the
     // OS kills the app while backgrounded.  Without this, an in-flight
     // deferred sidechain regroup can reset the save timer, and the cache
@@ -7448,6 +7471,8 @@ what you have, you must use the options mode.
     if (_visibleSessionId != null) {
       messagesSync[_visibleSessionId]?.invalidate();
     }
+    // Resume message outbox retry timers
+    messageOutbox.resume();
   }
 
   /// Shutdown sync engine and clear volatile state.
