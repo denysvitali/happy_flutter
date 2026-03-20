@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import '../utils/lru_cache.dart';
-import '../features/chat/syntax_highlighter.dart';
+import '../../features/chat/syntax_highlighter.dart';
 
 /// Global cache for syntax-highlighted code tokenization results.
 ///

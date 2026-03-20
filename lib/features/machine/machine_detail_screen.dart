@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
 import '../../core/components/app_card.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/components/app_section_header.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/components/app_tappable.dart';

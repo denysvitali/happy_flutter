@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/components/app_empty_state.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
