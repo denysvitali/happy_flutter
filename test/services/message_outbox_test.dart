@@ -213,6 +213,57 @@ void main() {
       // No exception thrown.
     });
 
+    test('restoreAndFlush delivers entries in queuedAt order', () async {
+      // Pre-populate storage with multiple entries with different queuedAt.
+      final entry1 = OutboxEntry(
+        localId: 'msg-1',
+        sessionId: 'session-a',
+        text: 'first',
+        encryptedContent: 'enc-1',
+        rawRecord: const {},
+        queuedAt: 1000,
+      );
+      final entry2 = OutboxEntry(
+        localId: 'msg-2',
+        sessionId: 'session-a',
+        text: 'second',
+        encryptedContent: 'enc-2',
+        rawRecord: const {},
+        queuedAt: 2000,
+      );
+      final entry3 = OutboxEntry(
+        localId: 'msg-3',
+        sessionId: 'session-a',
+        text: 'third',
+        encryptedContent: 'enc-3',
+        rawRecord: const {},
+        queuedAt: 1500,
+      );
+      storage._outboxData = jsonEncode([
+        entry1.toJson(),
+        entry2.toJson(),
+        entry3.toJson(),
+      ]);
+
+      final delivered = <String>[];
+      final outbox2 = MessageOutbox(storage: storage);
+      outbox2.configure(
+        deliver: (e) async {
+          delivered.add(e.localId);
+          return true;
+        },
+      );
+
+      await outbox2.restoreAndFlush();
+
+      // Wait for initial flush delay (2s) plus backoff for all three.
+      await Future<void>.delayed(const Duration(milliseconds: 5000));
+
+      // Entries should be delivered in queuedAt order: msg-1, msg-3, msg-2.
+      expect(delivered, ['msg-1', 'msg-3', 'msg-2']);
+      outbox2.dispose();
+    }, timeout: const Timeout(Duration(seconds: 15)));
+
     // ── Status callbacks ────────────────────────────────────────────────────
 
     test('add fires pending status immediately', () async {

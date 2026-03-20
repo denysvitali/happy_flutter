@@ -4322,11 +4322,11 @@ what you have, you must use the options mode.
         return true;
       }
 
-      // Server accepted but no localId ack — treat as sent to avoid
-      // duplicate sends.
+      // Server accepted but no localId ack. Trust the HTTP 200 since the
+      // server uses idempotent storage (ON CONFLICT DO NOTHING).
       logger.warning(
         '[MessageOutbox] no localId ack '
-        'localId=${entry.localId} — treating as delivered',
+        'localId=${entry.localId} — HTTP 200 accepted, treating as delivered',
       );
       return true;
     } catch (e, stack) {
@@ -4972,6 +4972,8 @@ what you have, you must use the options mode.
           _sessionMessages.remove(sessionId);
           _sessionMessagesCache = null;
           _sessionMessagesViewCache.remove(sessionId);
+          // Also clear MMKV cache so stale messages aren't restored on restart.
+          MessageCacheService().clearMessages(sessionId);
         }
         if (forceTailRefresh && !isFirstLoad && !gapTooLarge) {
           logger.info(
@@ -5185,6 +5187,10 @@ what you have, you must use the options mode.
         error,
         stack,
       );
+      // Notify listeners so the UI can handle the error state rather than
+      // remaining in a stale loading state.
+      _notifySessionMessagesChanged(sessionId);
+      _notifyDataChanged();
     }
   }
 

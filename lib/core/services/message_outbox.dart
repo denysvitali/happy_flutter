@@ -157,7 +157,10 @@ class MessageOutbox {
       }
       // Flush all restored entries (with a brief initial delay so sync can
       // finish initializing before we start making network calls).
-      for (final entry in List.of(_entries.values)) {
+      // Sort by queuedAt to maintain message ordering on restore.
+      final sortedEntries = List.of(_entries.values)
+        ..sort((a, b) => a.queuedAt.compareTo(b.queuedAt));
+      for (final entry in sortedEntries) {
         _scheduleRetry(entry, initialDelay: const Duration(seconds: 2));
       }
     } catch (e) {
