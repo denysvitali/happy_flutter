@@ -23,6 +23,7 @@ class MessageWidget extends StatefulWidget {
     this.sessionId,
     this.isSessionOnline = true,
     this.onOptionPress,
+    this.onRetry,
     this.animate = true,
     this.isFirstInGroup = true,
     this.isLastInGroup = true,
@@ -35,6 +36,7 @@ class MessageWidget extends StatefulWidget {
   final String? sessionId;
   final bool isSessionOnline;
   final void Function(String)? onOptionPress;
+  final VoidCallback? onRetry;
 
   /// Whether to play the entrance fade+slide animation.
   ///
@@ -158,6 +160,7 @@ class _MessageWidgetState extends State<MessageWidget>
                 text: text,
                 onOptionPress: widget.onOptionPress,
                 sendStatus: sendStatus,
+                onRetry: widget.onRetry,
                 isFirstInGroup: widget.isFirstInGroup,
                 isLastInGroup: widget.isLastInGroup,
               )
@@ -182,6 +185,7 @@ class _UserBubble extends StatelessWidget {
     required this.text,
     this.onOptionPress,
     this.sendStatus,
+    this.onRetry,
     this.isFirstInGroup = true,
     this.isLastInGroup = true,
   });
@@ -192,6 +196,7 @@ class _UserBubble extends StatelessWidget {
   /// `null` = confirmed (server-origin), `'sending'`, `'sent'`,
   /// `'failed'`.
   final String? sendStatus;
+  final VoidCallback? onRetry;
   final bool isFirstInGroup;
   final bool isLastInGroup;
 
@@ -258,7 +263,10 @@ class _UserBubble extends StatelessWidget {
               ),
             ),
             if (sendStatus != null)
-              _SendStatusIndicator(status: sendStatus!),
+              _SendStatusIndicator(
+                status: sendStatus!,
+                onRetry: onRetry,
+              ),
           ],
         ),
       ),
@@ -268,9 +276,13 @@ class _UserBubble extends StatelessWidget {
 
 /// Tiny status label shown below user bubbles for optimistic messages.
 class _SendStatusIndicator extends StatelessWidget {
-  const _SendStatusIndicator({required this.status});
+  const _SendStatusIndicator({
+    required this.status,
+    this.onRetry,
+  });
 
   final String status;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -319,22 +331,34 @@ class _SendStatusIndicator extends StatelessWidget {
             top: 3,
             right: 2,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: 10,
-                color: cs.error.withValues(alpha: 0.8),
-              ),
-              const SizedBox(width: 3),
-              Text(
-                'Failed to send',
-                style: style?.copyWith(
+          child: InkWell(
+            onTap: onRetry,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 10,
                   color: cs.error.withValues(alpha: 0.8),
                 ),
-              ),
-            ],
+                const SizedBox(width: 3),
+                Text(
+                  'Failed to send',
+                  style: style?.copyWith(
+                    color: cs.error.withValues(alpha: 0.8),
+                  ),
+                ),
+                if (onRetry != null) ...[
+                  const SizedBox(width: 3),
+                  Icon(
+                    Icons.refresh,
+                    size: 10,
+                    color: cs.error.withValues(alpha: 0.8),
+                  ),
+                ],
+              ],
+            ),
           ),
         );
       default:

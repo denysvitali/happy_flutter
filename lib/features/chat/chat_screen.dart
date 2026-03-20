@@ -1037,6 +1037,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ((_session?.metadata?.machineId?.isNotEmpty ?? false) &&
                       (_session?.metadata?.path?.isNotEmpty ?? false)),
               onOptionPress: _onOptionPress,
+              onRetry: message['role'] == 'user' &&
+                      message['sendStatus'] == 'failed'
+                  ? () => _retryMessage(message)
+                  : null,
               animate:
                   _initialLoadComplete && !_seenMessageIds.contains(messageKey),
               isFirstInGroup: isFirstInGroup,
@@ -1143,6 +1147,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _retryMessage(Map<String, dynamic> message) async {
+    final localId = message['localId'] as String? ?? message['id'] as String?;
+    if (localId == null) return;
+
+    try {
+      await sync.retryFailedMessage(widget.sessionId, localId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to retry message: $e')),
         );
       }
     }
