@@ -4379,6 +4379,96 @@ what you have, you must use the options mode.
     }
   }
 
+  /// Retry a failed message send.
+  ///
+  /// Re-queues the message in the outbox with reset retry count.
+  /// The message must have a 'raw' field containing the original
+  /// unencrypted message record.
+  Future<void> retryFailedMessage(
+    String sessionId,
+    String localId,
+  ) async {
+    final msgs = _sessionMessages[sessionId];
+    if (msgs == null) {
+      logger.warning(
+        '[retryFailedMessage] session not found: $sessionId',
+      );
+      return;
+    }
+
+    // Find the failed message
+    Map<String, dynamic>? failedMessage;
+    for (final m in msgs) {
+      if (m['localId'] == localId || m['id'] == localId) {
+        failedMessage = m;
+        break;
+      }
+    }
+
+    if (failedMessage == null) {
+      logger.warning(
+        '[retryFailedMessage] message not found: sessionId=$sessionId localId=$localId',
+      );
+      return;
+    }
+
+    // Get the raw record from the message
+    final raw = failedMessage['raw'];
+    if (raw == null || raw is! Map<String, dynamic>) {
+      logger.warning(
+        '[retryFailedMessage] message missing raw data: localId=$localId',
+      );
+      return;
+    }
+
+    final text = failedMessage['text'] as String? ??
+        failedMessage['content'] as String? ?? '';
+
+    // Get session encryption
+    var sessionEncryption = encryption.getSessionEncryption(sessionId);
+    if (sessionEncryption == null) {
+      logger.info(
+        '[retryFailedMessage] encryption missing for session=$sessionId, '
+        'attempting recovery',
+      );
+      await fetchSingleSession(sessionId);
+      sessionEncryption = encryption.getSessionEncryption(sessionId);
+    }
+    if (sessionEncryption == null) {
+      logger.warning(
+        '[retryFailedMessage] cannot get encryption for session=$sessionId',
+      );
+      return;
+    }
+
+    // Re-encrypt the raw record
+    final encryptedRawRecord = await sessionEncryption.encryptRawRecord(raw);
+
+    // Create and queue the outbox entry
+    final entry = OutboxEntry(
+      localId: localId,
+      sessionId: sessionId,
+      text: text,
+      encryptedContent: encryptedRawRecord,
+      rawRecord: raw,
+      queuedAt: DateTime.now().millisecondsSinceEpoch,
+      retryCount: 0, // Reset retry count
+    );
+
+    // Update status to 'sending' before queuing
+    _updateMessageSendStatus(sessionId, localId, 'sending');
+
+    // Add to outbox
+    await messageOutbox.add(entry);
+
+    logger.info(
+      '[retryFailedMessage] queued for retry: sessionId=$sessionId localId=$localId',
+    );
+
+    // Notify listeners
+    _notifySessionMessagesChanged(sessionId);
+  }
+
   void _startPostSendCatchUp(String sessionId, {required int stopAfterSeq}) {
     _postSendCatchUpTimers.remove(sessionId)?.cancel();
     final deadline = DateTime.now().add(const Duration(seconds: 60));
@@ -6451,7 +6541,19 @@ what you have, you must use the options mode.
           break;
         }
       }
-      if (!hasSidechainRelevant) return;
+      if (!hasSidechainRelevant) {
+        // Fast path: the changed messages aren't sidechain-relevant, but
+        // there may still be orphans in the list from previous sidechain
+        // batches (e.g., child arrived before parent). Check and schedule
+        // a deferred regroup if needed.
+        final hasOrphans = messages.any(
+          (m) => m['isSidechain'] == true,
+        );
+        if (hasOrphans) {
+          _scheduleSidechainRegroup(sessionId);
+        }
+        return;
+      }
     }
 
     // Pass 1: Find Task tool calls → map stable identifiers to task message ID.
