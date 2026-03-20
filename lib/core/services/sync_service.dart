@@ -820,7 +820,7 @@ what you have, you must use the options mode.
   /// Batches rapid successive emissions within 16ms window.
   void _notifyDataChanged() {
     _dataChangeDebounceTimer?.cancel();
-    _dataChangeDebounceTimer = Timer(const Duration(milliseconds: 100), () {
+    _dataChangeDebounceTimer = Timer(const Duration(milliseconds: 250), () {
       if (!_dataChangeController.isClosed) {
         _dataChangeCounter++;
         _dataChangeController.add(null);
@@ -829,12 +829,12 @@ what you have, you must use the options mode.
   }
 
   /// Debounced session-message change notification.
-  /// Coalesces rapid token-level updates into one emission per 100ms window
+  /// Coalesces rapid token-level updates into one emission per 200ms window
   /// per session, preventing the chat screen from rebuilding on every token.
   void _notifySessionMessagesChanged(String sessionId) {
     _sessionMessageDebounceTimers[sessionId]?.cancel();
     _sessionMessageDebounceTimers[sessionId] = Timer(
-      const Duration(milliseconds: 100),
+      const Duration(milliseconds: 200),
       () {
         _sessionMessageDebounceTimers.remove(sessionId);
         if (!_sessionMessageChangeController.isClosed) {
@@ -1025,6 +1025,10 @@ what you have, you must use the options mode.
         if (clean.isNotEmpty) {
           _sessionMessages[sessionId] = clean;
           _sessionMessagesViewCache.remove(sessionId);
+          // Notify UI so ChatScreen refreshes with cached messages.
+          // The 100ms debounce in _notifySessionMessagesChanged coalesces
+          // rapid restores into a single notification.
+          _notifySessionMessagesChanged(sessionId);
 
           // The MMKV cache only stores the most recent ~100 messages.
           // _sessionFirstLoadedSeq (restored from MMKV earlier) may
@@ -1293,16 +1297,13 @@ what you have, you must use the options mode.
       // Non-visible session: mark dirty so onSessionVisible() triggers
       // a fetch when the user navigates to it.
       //
-      // Keep session.lastSeq up-to-date from the embedded message's seq
-      // so that fetchMessages' incremental delta path can compute the
-      // correct gap without a full tail-refresh.
+      // Keep session.lastSeq and _sessionLastSeq up-to-date from the
+      // embedded message's seq so that fetchMessages' incremental delta
+      // path can compute the correct gap without a full tail-refresh.
       if (embeddedMessage != null) {
         final msgSeq = embeddedMessage['seq'] as int?;
         if (msgSeq != null) {
-          final session = _sessions[sessionId];
-          if (session != null && (session.lastSeq ?? 0) < msgSeq) {
-            _sessions[sessionId] = session.copyWith(lastSeq: msgSeq);
-          }
+          _advanceSeqCursor(sessionId, msgSeq);
         }
       }
       if (_sessionsWithPendingUpdates.add(sessionId)) {
@@ -1325,6 +1326,7 @@ what you have, you must use the options mode.
     final sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
       messagesSync[sessionId]?.invalidate();
+      _notifySessionMessagesChanged(sessionId);
       return;
     }
 
@@ -1340,6 +1342,7 @@ what you have, you must use the options mode.
         // guard, permanently losing the message.  Keeping the cursor
         // unchanged lets the fetch retrieve the message from the server.
         messagesSync[sessionId]?.invalidate();
+        _notifySessionMessagesChanged(sessionId);
         return;
       }
 
@@ -1398,6 +1401,7 @@ what you have, you must use the options mode.
       // dropped by chaining onto a rejected Future.
       _inlineProcessingQueue.remove(sessionId);
       messagesSync[sessionId]?.invalidate();
+      _notifySessionMessagesChanged(sessionId);
     }
   }
 
@@ -2020,6 +2024,7 @@ what you have, you must use the options mode.
       for (final session in decryptedSessions) {
         if (_sessionMessages.containsKey(session.id)) {
           _applyPermissionRequests(session.id);
+          _notifySessionMessagesChanged(session.id);
         }
       }
 
@@ -4393,11 +4398,12 @@ what you have, you must use the options mode.
         // poll is redundant and wastes HTTP round-trips (each returning 0
         // messages).  When the user navigates back, onSessionVisible()
         // triggers a fresh fetch to pick up anything missed.
+        // However, if socket events were missed (connection drop), the
+        // invalidation below ensures catch-up via HTTP on next poll.
+        messagesSync[sessionId]?.invalidate();
         if (sessionId != _visibleSessionId) {
           return;
         }
-
-        messagesSync[sessionId]?.invalidate();
       },
     );
   }
@@ -4643,6 +4649,7 @@ what you have, you must use the options mode.
         _sessionMessages[sessionId] = updated;
         _sessionMessagesCache = null;
         _sessionMessagesViewCache.remove(sessionId);
+        _notifySessionMessagesChanged(sessionId);
       }
     }
     if (hadRequests || messages != null) {

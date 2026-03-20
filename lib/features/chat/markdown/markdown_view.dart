@@ -7,6 +7,7 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/syntax_cache.dart';
 import '../code_block_widget.dart';
 
 /// Callback type for when an option is pressed in an options block.
@@ -128,6 +129,11 @@ class _MarkdownViewState extends State<MarkdownView> {
 
   @override
   Widget build(BuildContext context) {
+    // Track markdown content in cache for hit statistics.
+    // flutter_markdown_plus doesn't expose AST, but this enables
+    // future caching integration and provides metrics.
+    _markdownCache.put(widget.markdown);
+
     final theme = Theme.of(context);
     if (_styleSheet == null ||
         !identical(theme, _lastTheme) ||
@@ -210,6 +216,9 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
 
   @override
   Widget build(BuildContext context) {
+    // Track markdown content in cache for hit statistics.
+    _markdownCache.put(widget.markdown);
+
     final theme = Theme.of(context);
     if (_styleSheet == null || !identical(theme, _lastTheme)) {
       _styleSheet = _buildStyleSheet(theme);
@@ -234,6 +243,9 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
     );
   }
 }
+
+/// Global markdown cache for tracking rendered content.
+final _markdownCache = MarkdownAstCache.instance;
 
 // Static caches shared across all instances to avoid allocations.
 

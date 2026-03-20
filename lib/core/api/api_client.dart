@@ -287,6 +287,9 @@ class ApiClient {
   Dio? _dio;
   final _httpCache = _HttpResponseCache();
 
+  // Request deduplication: tracks active in-flight requests
+  final Map<String, Future<Response>> _activeRequests = {};
+
   @visibleForTesting
   Dio? get testDio => _dio;
 
@@ -565,34 +568,104 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
   }) async {
     _ensureInitialized();
-    return _dio!.get(path, queryParameters: queryParameters);
+    // Generate deduplication key
+    final key = _generateRequestKey('GET', path, queryParameters);
+
+    // Check if there's an active request for this key
+    final activeRequest = _activeRequests[key];
+    if (activeRequest != null) {
+      return activeRequest;
+    }
+
+    // Start the request and store it
+    final requestFuture = _dio!.get(path, queryParameters: queryParameters);
+    _activeRequests[key] = requestFuture;
+
+    try {
+      final response = await requestFuture;
+      return response;
+    } finally {
+      // Clean up after request completes (whether successful or not)
+      _activeRequests.remove(key);
+    }
   }
 
   /// POST request
   Future<Response> post(String path, {dynamic data}) async {
     _ensureInitialized();
-    final response = await _dio!.post(path, data: data);
-    // Invalidate cache entries matching this path
-    _httpCache.invalidate(path);
-    return response;
+    // Generate deduplication key (includes data hash for mutations)
+    final key = _generateRequestKey('POST', path, null, data);
+
+    // Check if there's an active request for this key
+    final activeRequest = _activeRequests[key];
+    if (activeRequest != null) {
+      return activeRequest;
+    }
+
+    // Start the request and store it
+    final requestFuture = _dio!.post(path, data: data);
+    _activeRequests[key] = requestFuture;
+
+    try {
+      final response = await requestFuture;
+      // Invalidate cache entries matching this path
+      _httpCache.invalidate(path);
+      return response;
+    } finally {
+      _activeRequests.remove(key);
+    }
   }
 
   /// PUT request
   Future<Response> put(String path, {dynamic data}) async {
     _ensureInitialized();
-    final response = await _dio!.put(path, data: data);
-    // Invalidate cache entries matching this path
-    _httpCache.invalidate(path);
-    return response;
+    // Generate deduplication key (includes data hash for mutations)
+    final key = _generateRequestKey('PUT', path, null, data);
+
+    // Check if there's an active request for this key
+    final activeRequest = _activeRequests[key];
+    if (activeRequest != null) {
+      return activeRequest;
+    }
+
+    // Start the request and store it
+    final requestFuture = _dio!.put(path, data: data);
+    _activeRequests[key] = requestFuture;
+
+    try {
+      final response = await requestFuture;
+      // Invalidate cache entries matching this path
+      _httpCache.invalidate(path);
+      return response;
+    } finally {
+      _activeRequests.remove(key);
+    }
   }
 
   /// DELETE request
   Future<Response> delete(String path) async {
     _ensureInitialized();
-    final response = await _dio!.delete(path);
-    // Invalidate cache entries matching this path
-    _httpCache.invalidate(path);
-    return response;
+    // Generate deduplication key for DELETE
+    final key = _generateRequestKey('DELETE', path);
+
+    // Check if there's an active request for this key
+    final activeRequest = _activeRequests[key];
+    if (activeRequest != null) {
+      return activeRequest;
+    }
+
+    // Start the request and store it
+    final requestFuture = _dio!.delete(path);
+    _activeRequests[key] = requestFuture;
+
+    try {
+      final response = await requestFuture;
+      // Invalidate cache entries matching this path
+      _httpCache.invalidate(path);
+      return response;
+    } finally {
+      _activeRequests.remove(key);
+    }
   }
 
   /// Upload file with progress
@@ -666,6 +739,32 @@ class ApiClient {
     if (_dio == null) {
       throw StateError('ApiClient not initialized. Call initialize() first.');
     }
+  }
+
+  /// Generate a unique key for request deduplication
+  String _generateRequestKey(
+    String method,
+    String path, [
+    Map<String, dynamic>? queryParameters,
+    dynamic data,
+  ]) {
+    final buffer = StringBuffer('$method:$path');
+    if (queryParameters != null && queryParameters.isNotEmpty) {
+      final sortedParams = Map<String, dynamic>.fromEntries(
+        queryParameters.entries.toList()
+          ..sort((a, b) => a.key.compareTo(b.key)),
+      );
+      buffer.write('?');
+      buffer.write(sortedParams.entries
+          .map((e) => '${e.key}=${e.value}')
+          .join('&'));
+    }
+    if (data != null && (method == 'POST' || method == 'PUT')) {
+      // For POST/PUT, include a hash of the data to differentiate requests
+      buffer.write(':');
+      buffer.write(data.hashCode);
+    }
+    return buffer.toString();
   }
 
   /// Dispose resources

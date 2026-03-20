@@ -37,9 +37,11 @@ class MMKVStorage {
   MMKV? _mmkv;
   bool _initialized = false;
 
-  // In-memory caches for frequently accessed session sequence data
+  // In-memory caches for frequently accessed session data
   Map<String, int>? _lastSeqCache;
   Map<String, int>? _firstLoadedSeqCache;
+  Map<String, String>? _permissionModesCache;
+  Map<String, String>? _modelModesCache;
 
   /// Initialize MMKV and migrate data from SharedPreferences if needed
   static Future<void> initialize() async {
@@ -55,6 +57,8 @@ class MMKVStorage {
       // Initialize in-memory caches
       _instance._lastSeqCache = _instance.getSessionLastSeq();
       _instance._firstLoadedSeqCache = _instance.getSessionFirstLoadedSeq();
+      _instance._permissionModesCache = await _instance._loadPermissionModes();
+      _instance._modelModesCache = await _instance._loadModelModes();
 
       // Check if migration is needed
       final migrationComplete =
@@ -366,8 +370,51 @@ class MMKVStorage {
 
     try {
       _mmkv?.removeValue(_StorageKeys.sessionPermissionModes);
+      _permissionModesCache = null;
     } catch (e) {
       logger.warning('MMKV: Failed to clear session permission modes: $e');
+    }
+  }
+
+  /// Load permission modes into memory cache (private helper)
+  Future<Map<String, String>> _loadPermissionModes() async {
+    if (!_initialized) return {};
+    try {
+      final modesJson = _mmkv?.decodeString(
+        _StorageKeys.sessionPermissionModes,
+      );
+      if (modesJson != null) {
+        final modes = jsonDecode(modesJson) as Map<String, dynamic>;
+        return modes.map<String, String>(
+            (key, value) => MapEntry(key, value as String));
+      }
+    } catch (e) {
+      logger.warning('MMKV: Failed to load permission modes cache: $e');
+    }
+    return {};
+  }
+
+  /// Get permission mode directly from cache (synchronous)
+  String? getSessionPermissionModeDirect(String sessionId) {
+    if (!_initialized) return null;
+    _permissionModesCache ??= {};
+    return _permissionModesCache![sessionId];
+  }
+
+  /// Save permission mode to cache and persist (synchronous)
+  void saveSessionPermissionModeDirect(String sessionId, String mode) {
+    if (!_initialized) return;
+
+    _permissionModesCache ??= {};
+    _permissionModesCache![sessionId] = mode;
+
+    try {
+      _mmkv?.encodeString(
+        _StorageKeys.sessionPermissionModes,
+        jsonEncode(_permissionModesCache),
+      );
+    } catch (e) {
+      logger.warning('MMKV: Failed to save session permission mode: $e');
     }
   }
 
@@ -403,9 +450,52 @@ class MMKVStorage {
           : <String, dynamic>{};
       map[sessionId] = mode;
       _mmkv?.encodeString(_StorageKeys.sessionModelModes, jsonEncode(map));
+      // Update cache
+      _modelModesCache ??= {};
+      _modelModesCache![sessionId] = mode;
     } catch (e) {
       logger.warning('MMKV: Failed to save session model mode: $e');
       rethrow;
+    }
+  }
+
+  /// Load model modes into memory cache (private helper)
+  Future<Map<String, String>> _loadModelModes() async {
+    if (!_initialized) return {};
+    try {
+      final json = _mmkv?.decodeString(_StorageKeys.sessionModelModes);
+      if (json != null) {
+        final map = jsonDecode(json) as Map<String, dynamic>;
+        return map.map<String, String>(
+            (key, value) => MapEntry(key, value as String));
+      }
+    } catch (e) {
+      logger.warning('MMKV: Failed to load model modes cache: $e');
+    }
+    return {};
+  }
+
+  /// Get model mode directly from cache (synchronous)
+  String? getSessionModelModeDirect(String sessionId) {
+    if (!_initialized) return null;
+    _modelModesCache ??= {};
+    return _modelModesCache![sessionId];
+  }
+
+  /// Save model mode to cache and persist (synchronous)
+  void saveSessionModelModeDirect(String sessionId, String mode) {
+    if (!_initialized) return;
+
+    _modelModesCache ??= {};
+    _modelModesCache![sessionId] = mode;
+
+    try {
+      _mmkv?.encodeString(
+        _StorageKeys.sessionModelModes,
+        jsonEncode(_modelModesCache),
+      );
+    } catch (e) {
+      logger.warning('MMKV: Failed to save session model mode: $e');
     }
   }
 

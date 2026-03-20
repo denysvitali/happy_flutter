@@ -1,19 +1,21 @@
+import '../utils/lru_cache.dart';
 
-/// Cache entry with access time tracking
+/// LRU cache entry with access time tracking for legacy compatibility
 class CacheEntry<T> {
-
-  CacheEntry(this.data, this.accessTime);
+  CacheEntry(this.data, [int? accessTime]) : accessTime = accessTime ?? DateTime.now().millisecondsSinceEpoch;
   final T data;
-  int accessTime;
+  final int accessTime;
 }
 
 /// In-memory cache for decrypted data to avoid expensive re-decryption
+///
+/// Uses O(1) LRU eviction instead of O(n) scan for better performance.
 class EncryptionCache {
-  final _agentStateCache = <String, CacheEntry<Map<String, dynamic>>>{};
-  final _metadataCache = <String, CacheEntry<Map<String, dynamic>>>{};
-  final _messageCache = <String, CacheEntry<DecryptedMessage>>{};
-  final _machineMetadataCache = <String, CacheEntry<Map<String, dynamic>>>{};
-  final _daemonStateCache = <String, CacheEntry<dynamic>>{};
+  late final LRUCache<String, Map<String, dynamic>> _agentStateCache;
+  late final LRUCache<String, Map<String, dynamic>> _metadataCache;
+  late final LRUCache<String, DecryptedMessage> _messageCache;
+  late final LRUCache<String, Map<String, dynamic>> _machineMetadataCache;
+  late final LRUCache<String, dynamic> _daemonStateCache;
 
   // Configuration
   static const int maxAgentStates = 1000;
@@ -22,15 +24,18 @@ class EncryptionCache {
   static const int maxMachineMetadata = 500;
   static const int maxDaemonStates = 500;
 
+  EncryptionCache() {
+    _agentStateCache = LRUCache(maxAgentStates);
+    _metadataCache = LRUCache(maxMetadata);
+    _messageCache = LRUCache(maxMessages);
+    _machineMetadataCache = LRUCache(maxMachineMetadata);
+    _daemonStateCache = LRUCache(maxDaemonStates);
+  }
+
   /// Get cached agent state for a session
   Map<String, dynamic>? getCachedAgentState(String sessionId, int version) {
     final key = '$sessionId:$version';
-    final entry = _agentStateCache[key];
-    if (entry != null) {
-      entry.accessTime = DateTime.now().millisecondsSinceEpoch;
-      return entry.data;
-    }
-    return null;
+    return _agentStateCache.get(key);
   }
 
   /// Cache agent state for a session
@@ -40,22 +45,13 @@ class EncryptionCache {
     Map<String, dynamic> data,
   ) {
     final key = '$sessionId:$version';
-    _agentStateCache[key] = CacheEntry(
-      data,
-      DateTime.now().millisecondsSinceEpoch,
-    );
-    _evictOldest(_agentStateCache, maxAgentStates);
+    _agentStateCache.put(key, data);
   }
 
   /// Get cached metadata for a session
   Map<String, dynamic>? getCachedMetadata(String sessionId, int version) {
     final key = '$sessionId:$version';
-    final entry = _metadataCache[key];
-    if (entry != null) {
-      entry.accessTime = DateTime.now().millisecondsSinceEpoch;
-      return entry.data;
-    }
-    return null;
+    return _metadataCache.get(key);
   }
 
   /// Cache metadata for a session
@@ -65,30 +61,17 @@ class EncryptionCache {
     Map<String, dynamic> data,
   ) {
     final key = '$sessionId:$version';
-    _metadataCache[key] = CacheEntry(
-      data,
-      DateTime.now().millisecondsSinceEpoch,
-    );
-    _evictOldest(_metadataCache, maxMetadata);
+    _metadataCache.put(key, data);
   }
 
   /// Get cached decrypted message
   DecryptedMessage? getCachedMessage(String messageId) {
-    final entry = _messageCache[messageId];
-    if (entry != null) {
-      entry.accessTime = DateTime.now().millisecondsSinceEpoch;
-      return entry.data;
-    }
-    return null;
+    return _messageCache.get(messageId);
   }
 
   /// Cache decrypted message
   void setCachedMessage(String messageId, DecryptedMessage data) {
-    _messageCache[messageId] = CacheEntry(
-      data,
-      DateTime.now().millisecondsSinceEpoch,
-    );
-    _evictOldest(_messageCache, maxMessages);
+    _messageCache.put(messageId, data);
   }
 
   /// Get cached machine metadata
@@ -97,12 +80,7 @@ class EncryptionCache {
     int version,
   ) {
     final key = '$machineId:$version';
-    final entry = _machineMetadataCache[key];
-    if (entry != null) {
-      entry.accessTime = DateTime.now().millisecondsSinceEpoch;
-      return entry.data;
-    }
-    return null;
+    return _machineMetadataCache.get(key);
   }
 
   /// Cache machine metadata
@@ -112,66 +90,41 @@ class EncryptionCache {
     Map<String, dynamic> data,
   ) {
     final key = '$machineId:$version';
-    _machineMetadataCache[key] = CacheEntry(
-      data,
-      DateTime.now().millisecondsSinceEpoch,
-    );
-    _evictOldest(_machineMetadataCache, maxMachineMetadata);
+    _machineMetadataCache.put(key, data);
   }
 
   /// Get cached daemon state
   dynamic getCachedDaemonState(String machineId, int version) {
     final key = '$machineId:$version';
-    final entry = _daemonStateCache[key];
-    if (entry != null) {
-      entry.accessTime = DateTime.now().millisecondsSinceEpoch;
-      return entry.data;
-    }
-    return null;
+    return _daemonStateCache.get(key);
   }
 
   /// Cache daemon state (including null values)
   void setCachedDaemonState(String machineId, int version, dynamic data) {
     final key = '$machineId:$version';
-    _daemonStateCache[key] = CacheEntry(
-      data,
-      DateTime.now().millisecondsSinceEpoch,
-    );
-    _evictOldest(_daemonStateCache, maxDaemonStates);
+    _daemonStateCache.put(key, data);
   }
 
   /// Clear all cache entries for a specific machine
   void clearMachineCache(String machineId) {
-    final metadataKeys = _machineMetadataCache.keys
+    // Remove all entries matching the machineId prefix
+    _machineMetadataCache.keys
         .where((key) => key.startsWith('$machineId:'))
-        .toList();
-    for (final key in metadataKeys) {
-      _machineMetadataCache.remove(key);
-    }
-
-    final daemonKeys = _daemonStateCache.keys
+        .forEach(_machineMetadataCache.remove);
+    _daemonStateCache.keys
         .where((key) => key.startsWith('$machineId:'))
-        .toList();
-    for (final key in daemonKeys) {
-      _daemonStateCache.remove(key);
-    }
+        .forEach(_daemonStateCache.remove);
   }
 
   /// Clear all cache entries for a specific session
   void clearSessionCache(String sessionId) {
-    final agentKeys = _agentStateCache.keys
+    // Remove all entries matching the sessionId prefix
+    _agentStateCache.keys
         .where((key) => key.startsWith('$sessionId:'))
-        .toList();
-    for (final key in agentKeys) {
-      _agentStateCache.remove(key);
-    }
-
-    final metaKeys = _metadataCache.keys
+        .forEach(_agentStateCache.remove);
+    _metadataCache.keys
         .where((key) => key.startsWith('$sessionId:'))
-        .toList();
-    for (final key in metaKeys) {
-      _metadataCache.remove(key);
-    }
+        .forEach(_metadataCache.remove);
   }
 
   /// Clear all cached data
@@ -197,26 +150,6 @@ class EncryptionCache {
           _machineMetadataCache.length +
           _daemonStateCache.length,
     };
-  }
-
-  /// Evict oldest entry (LRU eviction)
-  void _evictOldest<T>(Map<String, CacheEntry<T>> cache, int maxSize) {
-    if (cache.length <= maxSize) return;
-
-    String? oldestKey;
-    // JavaScript-compatible MAX_SAFE_INTEGER (2^53 - 1)
-    var oldestTime = 9007199254740991;
-
-    for (final entry in cache.entries) {
-      if (entry.value.accessTime < oldestTime) {
-        oldestTime = entry.value.accessTime;
-        oldestKey = entry.key;
-      }
-    }
-
-    if (oldestKey != null) {
-      cache.remove(oldestKey);
-    }
   }
 }
 

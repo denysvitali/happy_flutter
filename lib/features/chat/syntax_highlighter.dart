@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../core/utils/syntax_cache.dart';
+
+/// Global tokenization cache shared across all SyntaxHighlighter instances.
+final _tokenCache = SyntaxTokenCache.instance;
+
 /// Represents a syntax token with its text, type, and nesting level.
 class SyntaxToken {
 
@@ -750,7 +755,8 @@ class _SyntaxHighlighterState extends State<SyntaxHighlighter> {
   }
 
   List<TextSpan> _computeSpans() {
-    final tokens = SyntaxTokenizer.tokenize(widget.code, widget.language);
+    // Use global tokenization cache for instant re-renders of identical code.
+    final tokens = _tokenCache.get(widget.code, widget.language);
     return tokens.map((token) {
       final color = SyntaxColors.getColor(
         token.type,
