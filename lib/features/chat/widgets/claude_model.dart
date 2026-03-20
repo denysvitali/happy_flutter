@@ -38,6 +38,20 @@ enum ClaudeModel {
     };
   }
 
+  /// Returns model options filtered by profile compatibility.
+  /// When a profile is Claude-compatible, all Claude models are available.
+  /// For non-Claude profiles (Codex/Gemini only), only default is safe.
+  static List<ClaudeModel> availableForProfile({
+    required String? flavor,
+    required bool claudeCompatible,
+  }) {
+    final baseModels = availableForFlavor(flavor);
+    if (claudeCompatible) return baseModels;
+    // Non-Claude profiles (Codex, Gemini) only support defaultModel
+    // since the provider handles model selection internally.
+    return const [ClaudeModel.defaultModel];
+  }
+
   /// Normalizes a model selection so it is valid for the session flavor.
   static ClaudeModel normalizeForFlavor(ClaudeModel model, String? flavor) {
     final available = availableForFlavor(flavor);

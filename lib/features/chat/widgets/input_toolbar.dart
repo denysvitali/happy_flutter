@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/settings.dart';
 import '../../../core/theme/app_tokens.dart';
-import 'chat_input_buttons.dart';
 import 'claude_model.dart';
 import 'permission_mode_selector.dart' as perm;
 
@@ -213,9 +212,6 @@ class InputToolbar extends StatelessWidget {
     this.availableModels = ClaudeModel.values,
     this.selectedProfile,
     this.contextSize,
-    this.showAbort = false,
-    this.isAborting = false,
-    this.onAbort,
   });
 
   final perm.PermissionMode? permissionMode;
@@ -226,9 +222,6 @@ class InputToolbar extends StatelessWidget {
   final AIBackendProfile? selectedProfile;
   final VoidCallback onShowProfilePicker;
   final int? contextSize;
-  final bool showAbort;
-  final bool isAborting;
-  final VoidCallback? onAbort;
 
   @override
   Widget build(BuildContext context) {
@@ -255,11 +248,6 @@ class InputToolbar extends StatelessWidget {
           const SizedBox(width: 6),
           ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
           const SizedBox(width: AppSpacing.sm),
-          if (showAbort) ...[
-            AbortButton(isAborting: isAborting, onTap: onAbort),
-            if (contextSize != null && contextSize! > 0)
-              const SizedBox(width: 6),
-          ],
           if (contextSize != null && contextSize! > 0)
             ContextSizeIndicator(contextSize: contextSize!),
         ],

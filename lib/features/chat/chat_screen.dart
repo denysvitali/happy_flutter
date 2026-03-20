@@ -42,6 +42,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   StreamSubscription<void>? _dataSyncSubscription;
   StreamSubscription<String>? _messageSyncSubscription;
   bool _isSending = false;
+  bool _isAborting = false;
   bool _isLoadingMessages = true;
   bool _loadFailed = false;
 
@@ -606,8 +607,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final isThinking = _session?.thinking ?? false;
-    final availableModels = ClaudeModel.availableForFlavor(
-      _session?.metadata?.flavor,
+    final availableModels = ClaudeModel.availableForProfile(
+      flavor: _session?.metadata?.flavor,
+      claudeCompatible: _selectedProfile?.compatibility.claude ?? true,
     );
 
     // Use select() so this build only re-runs when the specific settings
@@ -739,7 +741,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
               isSessionOnline: _session?.isPresenceOnline ?? false,
               isAgentThinking: _session?.thinking ?? false,
-              onAbort: _abortSession,
               enterToSend: enterToSend,
             ),
           ],
@@ -767,10 +768,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _onProfileChanged(AIBackendProfile? profile) {
-    setState(() => _selectedProfile = profile);
+    // Reset model to default when switching providers to avoid
+    // incompatible model errors (e.g., Sonnet with MiniMax).
+    final newModel = ClaudeModel.defaultModel;
+    setState(() {
+      _selectedProfile = profile;
+      _modelMode = newModel;
+    });
     ref
         .read(chatActionNotifierProvider.notifier)
         .saveProfile(widget.sessionId, profile?.id);
+    ref
+        .read(chatActionNotifierProvider.notifier)
+        .saveModelMode(widget.sessionId, newModel.modeString);
   }
 
   static const _abortReason =
@@ -781,9 +791,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       'user to tell you how to proceed.';
 
   Future<void> _abortSession() async {
-    await ref
-        .read(chatActionNotifierProvider.notifier)
-        .abortSession(widget.sessionId, reason: _abortReason);
+    if (_isAborting) return;
+    setState(() => _isAborting = true);
+    try {
+      await ref
+          .read(chatActionNotifierProvider.notifier)
+          .abortSession(widget.sessionId, reason: _abortReason);
+    } finally {
+      if (mounted) setState(() => _isAborting = false);
+    }
   }
 
   void _showSessionMenu(BuildContext context) {
@@ -814,6 +830,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 );
               },
             ),
+            if (_session?.thinking ?? false)
+              ListTile(
+                leading: Icon(Icons.stop_rounded, color: cs.error),
+                title: Text(
+                  'Stop',
+                  style: TextStyle(color: cs.error),
+                ),
+                onTap: () {
+                  HapticFeedback.heavyImpact();
+                  Navigator.pop(context);
+                  _abortSession();
+                },
+              ),
             ListTile(
               leading: Icon(Icons.delete_outline, color: cs.error),
               title: Text(

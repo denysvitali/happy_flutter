@@ -50,7 +50,6 @@ class ChatInput extends ConsumerStatefulWidget {
     this.contextSize,
     this.isSessionOnline = false,
     this.isAgentThinking = false,
-    this.onAbort,
     this.enterToSend = true,
   });
 
@@ -129,9 +128,6 @@ class ChatInput extends ConsumerStatefulWidget {
   /// processing a request.
   final bool isAgentThinking;
 
-  /// Called when the user taps the abort button.
-  final Future<void> Function()? onAbort;
-
   /// Whether pressing Enter sends the message
   /// (vs inserting a newline).
   final bool enterToSend;
@@ -166,7 +162,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
   String _previousText = '';
   bool _showAutocomplete = false;
   bool _isFocused = false;
-  bool _isAborting = false;
 
   late final AnimationController _sendScaleController;
   late final Animation<double> _sendScale;
@@ -386,25 +381,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
     widget.onSend();
   }
 
-  Future<void> _onAbortTap() async {
-    if (_isAborting || widget.onAbort == null) return;
-    unawaited(HapticFeedback.heavyImpact());
-    setState(() => _isAborting = true);
-    final start = DateTime.now();
-    try {
-      await widget.onAbort!();
-    } catch (_) {
-      // Ignore — the caller logs errors.
-    } finally {
-      final elapsed = DateTime.now().difference(start);
-      const minDuration = Duration(milliseconds: 300);
-      if (elapsed < minDuration) {
-        await Future<void>.delayed(minDuration - elapsed);
-      }
-      if (mounted) setState(() => _isAborting = false);
-    }
-  }
-
   // -----------------------------------------------------------
   // Build
   // -----------------------------------------------------------
@@ -490,9 +466,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
                     selectedProfile: widget.selectedProfile,
                     onShowProfilePicker: () => _showProfilePicker(context),
                     contextSize: widget.contextSize,
-                    showAbort: widget.isSessionOnline,
-                    isAborting: _isAborting,
-                    onAbort: _onAbortTap,
                   ),
                 ],
               ),
