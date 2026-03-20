@@ -365,9 +365,14 @@ class ApiClient {
             _httpCache.invalidate(error.requestOptions.path);
           }
 
+          // Build error message with fallback to error.error for
+          // better debugging
+          final errorMessage =
+              error.message ?? error.error?.toString() ?? 'no message';
           logger.warning(
-            'Dio error: ${error.type} - '
-            '${error.message}',
+            'Dio error: ${error.type} - $errorMessage\n'
+            '  Request: ${error.requestOptions.method} '
+            '${error.requestOptions.uri}',
           );
           if (error.response?.statusCode == 401) {
             logger.warning(

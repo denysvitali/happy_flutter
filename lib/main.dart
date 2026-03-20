@@ -102,11 +102,19 @@ Future<void> _initializeOptionalFirebase() async {
     await Firebase.initializeApp();
     // Firebase succeeded — wire up notification handling.
     await NotificationService.instance.initialize();
-  } catch (e) {
+  } on FirebaseException catch (e) {
     // Firebase is optional — only needed for push notifications.
     // If google-services.json is absent (e.g. unsigned builds),
     // the app still works; background push notifications won't fire.
-    logger.warning('Firebase.initializeApp() failed: $e');
+    logger.warning(
+      'Firebase initialization failed (push notifications unavailable): '
+      '${e.message} '
+      'This is expected if Firebase is not configured.',
+    );
+  } catch (e) {
+    logger.warning(
+      'Firebase initialization failed (push notifications unavailable): $e',
+    );
   }
 }
 
