@@ -4344,13 +4344,19 @@ what you have, you must use the options mode.
       );
       return true;
     } catch (e, stack) {
+      // Exceptions during local processing (after HTTP 200 was received)
+      // do NOT count as delivery failures — the server has already stored
+      // the message. Only non-2xx responses count as real failures.
+      // Counting exceptions as failures risks permanently losing a message
+      // that the server already has (e.g., after 3 retries the client marks
+      // it as failed even though the server stored it).
       logger.error(
-        '[MessageOutbox] delivery attempt threw '
-        'localId=${entry.localId}',
+        '[MessageOutbox] local processing threw after HTTP 200 '
+        'localId=${entry.localId} — server has message, treating as delivered',
         e,
         stack,
       );
-      return false;
+      return true;
     }
   }
 
