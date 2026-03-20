@@ -119,6 +119,7 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
     // Only treat as completed if the user actually submitted locally.
     // In Yolo mode the server auto-approves the permission, which
     // moves the tool to 'completed' before the user can interact.
+    // Keep showing the interactive view until the user explicitly submits.
     if (_isSubmitted) {
       return _buildSubmittedView(context, parsedQuestions);
     }
