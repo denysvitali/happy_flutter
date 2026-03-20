@@ -1319,21 +1319,22 @@ what you have, you must use the options mode.
       // Keep session.lastSeq and _sessionLastSeq up-to-date from the
       // embedded message's seq so that fetchMessages' incremental delta
       // path can compute the correct gap without a full tail-refresh.
-      if (embeddedMessage != null) {
-        final msgSeq = embeddedMessage['seq'] as int?;
-        if (msgSeq != null) {
-          _advanceSeqCursor(sessionId, msgSeq);
-        }
+      final msgSeq = embeddedMessage?['seq'] as int?;
+      if (msgSeq != null) {
+        _advanceSeqCursor(sessionId, msgSeq);
       }
-      if (_sessionsWithPendingUpdates.add(sessionId)) {
-        logger.info('Background messages pending: $sessionId');
+      final isNew = _sessionsWithPendingUpdates.add(sessionId);
+      if (isNew) {
+        logger.info(
+          '[handleNewMessage] NON-VISIBLE session=$sessionId '
+          'msgSeq=$msgSeq embedded=${embeddedMessage != null} '
+          '— pendingUpdates added',
+        );
       }
       // Track that this session received socket messages while non-visible
       // so onSessionVisible() knows to force a server fetch instead of
       // restoring stale cache.
-      if (embeddedMessage != null) {
-        _sessionsWithPendingSocketMessages.add(sessionId);
-      }
+      _sessionsWithPendingSocketMessages.add(sessionId);
       _sessionUnreadCounts[sessionId] =
           (_sessionUnreadCounts[sessionId] ?? 0) + 1;
     }
@@ -4956,20 +4957,25 @@ what you have, you must use the options mode.
     if (!hasMessages) {
       // Restore from MMKV cache so the UI shows messages immediately
       // while the HTTP fetch is in flight.
-      final cached = MessageCacheService().getMessages(sessionId);
-      if (cached.isNotEmpty) {
-        // Strip orphaned sidechain messages (see _restoreAllCachedMessages).
-        final clean = cached.any((m) => m['isSidechain'] == true)
-            ? cached.where((m) => m['isSidechain'] != true).toList()
-            : cached;
-        if (clean.isNotEmpty) {
-          _sessionMessages[sessionId] = clean;
-          _sessionMessagesCache = null;
-          _sessionMessagesViewCache.remove(sessionId);
-          hasMessages = true;
-          // Notify UI immediately so it can render the cached messages.
-          _notifySessionMessagesChanged(sessionId);
-          _notifyDataChanged();
+      // BUT: when hasPendingSocketMessages is true, the cache is potentially
+      // stale (socket messages arrived after the cache was saved) and we MUST
+      // skip it to force a server fetch that picks up those messages.
+      if (!hasPendingSocketMessages) {
+        final cached = MessageCacheService().getMessages(sessionId);
+        if (cached.isNotEmpty) {
+          // Strip orphaned sidechain messages (see _restoreAllCachedMessages).
+          final clean = cached.any((m) => m['isSidechain'] == true)
+              ? cached.where((m) => m['isSidechain'] != true).toList()
+              : cached;
+          if (clean.isNotEmpty) {
+            _sessionMessages[sessionId] = clean;
+            _sessionMessagesCache = null;
+            _sessionMessagesViewCache.remove(sessionId);
+            hasMessages = true;
+            // Notify UI immediately so it can render the cached messages.
+            _notifySessionMessagesChanged(sessionId);
+            _notifyDataChanged();
+          }
         }
       }
       _requestTailRefresh(sessionId);
