@@ -378,6 +378,11 @@ what you have, you must use the options mode.
   int? _lastSessionsFetchedAt;
   bool _forceFullFetchNext = false;
   int? _lastInvalidateAllSyncsAtMs;
+  /// Timestamp of last resume() call for debouncing rapid pause/resume cycles.
+  int? _lastResumeAtMs;
+  /// Minimum interval between resume() calls — prevents socket reconnect loops
+  /// when the app cycles between paused and resumed states repeatedly.
+  static const int _resumeDebounceWindowMs = 2000;
   Timer? _sessionsRefreshDebounceTimer;
   final Set<String> _pendingNewSessionIds = <String>{};
   final Map<String, Machine> _machines = <String, Machine>{};
@@ -7450,6 +7455,32 @@ what you have, you must use the options mode.
   void suspend() {
     if (!isInitialized) return;
     logger.info('[Sync] suspending — disconnecting socket');
+
+    // Set backgrounded flag FIRST — this prevents any in-flight InvalidateSync
+    // operations from performing network I/O while backgrounded.  Checked in
+    // InvalidateSync._run() before the await _action() call.
+    InvalidateSync.isBackgrounded = true;
+
+    // Cancel all InvalidateSync retry/cooldown timers.  This stops any
+    // exponential-backoff network retries that would otherwise fire while
+    // backgrounded (e.g. a settings fetch retry scheduled 1-5s out).
+    sessionsSync.dispose();
+    settingsSync.dispose();
+    profileSync.dispose();
+    purchasesSync.dispose();
+    machinesSync.dispose();
+    pushTokenSync.dispose();
+    nativeUpdateSync.dispose();
+    artifactsSync.dispose();
+    friendsSync.dispose();
+    friendRequestsSync.dispose();
+    feedSync.dispose();
+    todosSync.dispose();
+    sessionGitStatusSync.dispose();
+    for (final sync in messagesSync.values) {
+      sync.dispose();
+    }
+
     _dataChangeDebounceTimer?.cancel();
     for (final timer in _sessionMessageDebounceTimers.values) {
       timer.cancel();
@@ -7508,6 +7539,28 @@ what you have, you must use the options mode.
   /// changes that happened while the app was backgrounded are fetched.
   void resume() {
     if (!isInitialized) return;
+
+    // Debounce: if the app is fluttering between paused/resumed states (e.g.
+    // rapid screen lock/unlock), skip redundant resume calls.  Each resume
+    // reconnects the socket and kicks off a full sync invalidation — we don't
+    // want to do that more than once per _resumeDebounceWindowMs.
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (_lastResumeAtMs != null &&
+        nowMs - _lastResumeAtMs! < _resumeDebounceWindowMs) {
+      logger.debug(
+        '[Sync] resume debounced — last resume ${nowMs - _lastResumeAtMs!}ms ago',
+      );
+      // Still clear the backgrounded flag so any pending operations can run.
+      InvalidateSync.isBackgrounded = false;
+      return;
+    }
+    _lastResumeAtMs = nowMs;
+
+    // Clear backgrounded flag BEFORE reconnecting so that any InvalidateSync
+    // operations kicked off by the invalidations below are allowed to run.
+    // The isBackgrounded check is in InvalidateSync._run() before await _action().
+    InvalidateSync.isBackgrounded = false;
+
     logger.info('[Sync] resuming — reconnecting socket');
     socketIoClient.reconnect();
     _invalidateAllSyncs();

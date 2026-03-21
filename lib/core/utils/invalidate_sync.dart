@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import '../services/logger_service.dart';
 
 /// A utility class for managing async operations with invalidation
@@ -23,6 +25,19 @@ class InvalidateSync {
   static const int maxDelayMs = 5000;
   static const int maxRetries = 5;
 
+  /// Whether the app is currently backgrounded. When true, all InvalidateSync
+  /// instances skip running actions and cancel pending retry/cooldown timers.
+  /// This is a static/shared flag so that any instance can check it without
+  /// needing a reference to the Sync singleton.
+  static bool isBackgrounded = false;
+
+  /// Diagnostic counter — incremented every time an operation is skipped in
+  /// _run() because isBackgrounded is true.  If this grows quickly, it means
+  /// the app is cycling between foreground and background repeatedly, which is
+  /// a battery drain indicator.
+  @visibleForTesting
+  static int backgroundedSkipCount = 0;
+
   /// Invalidate the current operation and schedule a retry
   void invalidate() {
     _invalidated = true;
@@ -42,9 +57,12 @@ class InvalidateSync {
       final elapsed = DateTime.now().difference(_lastRunEnd!);
       if (elapsed < _minInterval) {
         final remaining = _minInterval - elapsed;
+        _cooldownTimer?.cancel();
         _cooldownTimer = Timer(remaining, () {
           _cooldownTimer = null;
-          if (_invalidated) {
+          // Don't re-trigger if backgrounded — let the next resume cycle
+          // handle it so we don't wake the app from background.
+          if (_invalidated && !isBackgrounded) {
             _invalidated = false;
             invalidate();
           }
@@ -89,6 +107,15 @@ class InvalidateSync {
   }
 
   Future<void> _run() async {
+    // Skip if backgrounded — don't perform any network I/O while the app is
+    // not visible.  This guards against the case where resume() triggers a sync
+    // but the OS immediately backgrounds the app again before the action runs.
+    if (isBackgrounded) {
+      backgroundedSkipCount++;
+      _running = false;
+      return;
+    }
+
     _running = true;
     _retryTimer?.cancel();
     _retryTimer = null;
@@ -128,6 +155,10 @@ class InvalidateSync {
   static final Random _jitterRng = Random();
 
   void _scheduleRetry() {
+    // Don't schedule retries if backgrounded — they will be re-triggered on
+    // resume via invalidate() if still needed.
+    if (isBackgrounded) return;
+
     final delay = (baseDelayMs * pow(2, _retryCount - 1)).toInt();
     final jitter = _jitterRng.nextInt(251); // 0–250ms
     final clampedDelay = min(delay + jitter, maxDelayMs);

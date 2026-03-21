@@ -141,6 +141,12 @@ class _HappyAppState extends ConsumerState<HappyApp>
   late final GoRouter _router;
   AppThemeMode? _lastAppliedThemeMode;
 
+  // Battery diagnostics — track lifecycle state cycling frequency
+  int _lifecycleChangeCount = 0;
+  DateTime? _lastLifecycleChangeAt;
+  /// Warn if lifecycle state changes more than this many times per minute.
+  static const int _lifecycleCyclingWarningThreshold = 10;
+
   @override
   void initState() {
     super.initState();
@@ -204,6 +210,29 @@ class _HappyAppState extends ConsumerState<HappyApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
+
+    // Battery diagnostics: detect rapid lifecycle cycling (e.g. screen lock
+    // causing repeated paused/resumed transitions).  If cycling more than
+    // _lifecycleCyclingWarningThreshold times per minute, log a warning.
+    _lifecycleChangeCount++;
+    final now = DateTime.now();
+    if (_lastLifecycleChangeAt != null) {
+      final elapsed = now.difference(_lastLifecycleChangeAt!).inSeconds;
+      if (elapsed < 60) {
+        if (_lifecycleChangeCount > _lifecycleCyclingWarningThreshold) {
+          logger.warning(
+            '[Battery] Rapid lifecycle cycling detected: '
+            '$_lifecycleChangeCount changes in ${elapsed}s — '
+            'this indicates the app is not staying backgrounded, '
+            'possibly due to timers, streams, or platform behaviour',
+          );
+        }
+      } else {
+        _lifecycleChangeCount = 1;
+      }
+    }
+    _lastLifecycleChangeAt = now;
+
     switch (state) {
       case AppLifecycleState.paused:
         // App is fully backgrounded — disconnect the socket and cancel
