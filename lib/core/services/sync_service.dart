@@ -619,6 +619,48 @@ what you have, you must use the options mode.
   List<Map<String, dynamic>>? testSessionMessages(String sessionId) =>
       _sessionMessages[sessionId];
 
+  /// Test helper: get _sessionSpawnedAt map.
+  @visibleForTesting
+  Map<String, int> get testSessionSpawnedAt => _sessionSpawnedAt;
+
+  /// Test helper: set a spawn timestamp for a session.
+  @visibleForTesting
+  void testSetSessionSpawnedAt(String sessionId, int epochMs) {
+    _sessionSpawnedAt[sessionId] = epochMs;
+  }
+
+  /// Test helper: clear all spawn timestamps.
+  @visibleForTesting
+  void testClearSessionSpawnedAt() => _sessionSpawnedAt.clear();
+
+  /// Test helper: get _autoRestoreInFlight set.
+  @visibleForTesting
+  Set<String> get testAutoRestoreInFlight => _autoRestoreInFlight;
+
+  /// Test helper: override _typedMachineRPC for testing createSession
+  /// and auto-restore without a real socket connection.
+  @visibleForTesting
+  Future<dynamic> Function(
+    String machineId,
+    String method,
+    Map<String, dynamic> params,
+  )? testMachineRPCOverride;
+
+  /// Test helper: set the _isReady flag.
+  @visibleForTesting
+  set testIsReady(bool value) => _isReady = value;
+
+  /// Test helper: override fetchSingleSession for testing sendMessage
+  /// encryption recovery without a real API call.
+  @visibleForTesting
+  Future<Session?> Function(String sessionId)? testFetchSingleSessionOverride;
+
+  /// Test helper: override _getSpawnEnvVarsForSession to avoid MMKV
+  /// dependency in tests that exercise auto-restore / createSession.
+  @visibleForTesting
+  Future<({Map<String, String> envVars, AIBackendProfile? profile})>
+      Function(String sessionId)? testGetSpawnEnvVarsOverride;
+
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
   Profile? get profile => _profile;
   bool get isReady => _isReady;
@@ -2212,6 +2254,8 @@ what you have, you must use the options mode.
   /// the local cache. Returns the session if found, or null otherwise.
   /// This avoids a full session list re-fetch when only one session is needed.
   Future<Session?> fetchSingleSession(String sessionId) async {
+    final override = testFetchSingleSessionOverride;
+    if (override != null) return override(sessionId);
     try {
       final apiClient = ApiClient();
       final raw = await SessionsApi(client: apiClient).fetchSessionById(
@@ -3453,7 +3497,7 @@ what you have, you must use the options mode.
     if (!isInitialized) {
       throw StateError('Sync is not initialized');
     }
-    if (socketIoClient.connectionStatus != ConnectionStatus.connected) {
+    if (!_isSocketConnected()) {
       throw StateError('Not connected to server');
     }
 
@@ -3911,6 +3955,8 @@ what you have, you must use the options mode.
   /// profile switches.
   Future<({Map<String, String> envVars, AIBackendProfile? profile})>
       _getSpawnEnvVarsForSession(String sessionId) async {
+    final override = testGetSpawnEnvVarsOverride;
+    if (override != null) return override(sessionId);
     // Get the profile ID that was saved for this specific session.
     final profileId = await MMKVStorage().getSessionProfile(sessionId);
     if (profileId != null) {
@@ -4866,7 +4912,10 @@ what you have, you must use the options mode.
     Resp Function(Map<String, dynamic>) fromJson, {
     Duration timeout = const Duration(seconds: 30),
   }) async {
-    final raw = await machineRPC(machineId, method, params, timeout: timeout);
+    final override = testMachineRPCOverride;
+    final raw = override != null
+        ? await override(machineId, method, params)
+        : await machineRPC(machineId, method, params, timeout: timeout);
     // Handle null or non-Map responses gracefully
     if (raw == null) {
       throw StateError(
