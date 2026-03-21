@@ -1083,11 +1083,17 @@ what you have, you must use the options mode.
         }
       }
 
-      _lastSessionsFetchedAt = _asInt(lastFetchedAt);
+      // Intentionally NOT restoring _lastSessionsFetchedAt from cache.
+      // On cold start, we need a FULL session fetch (not delta) to get
+      // accurate lastSeq values. The server's changedSince filter may only
+      // track metadata changes, not new messages, so a delta fetch would
+      // miss sessions that only received messages while the app was closed.
+      // _lastSessionsFetchedAt = _asInt(lastFetchedAt);
+      _lastSessionsFetchedAt = null;
       if (_sessions.isNotEmpty) {
         logger.info(
           'Restored ${_sessions.length} cached sessions '
-          '(lastFetchedAt=$_lastSessionsFetchedAt)',
+          '(forcing full fetch on startup)',
         );
       }
     } catch (error, stack) {
@@ -3843,6 +3849,9 @@ what you have, you must use the options mode.
     // For custom profiles, check openaiConfig/anthropicConfig first
     // (they contain the user's configured model). For built-in profiles,
     // defaultModelMode is the only source of truth.
+    // NOTE: Do NOT return 'default' (the literal string) as a model name -
+    // the daemon interprets this as an actual model named 'default', which
+    // doesn't exist. Return null to let the daemon use its own default.
     if (profile != null) {
       // Check openaiConfig.model (custom OpenAI-compatible profiles).
       if (profile.openaiConfig?.model != null) {
@@ -3853,7 +3862,10 @@ what you have, you must use the options mode.
         return profile.anthropicConfig!.model;
       }
       // Check defaultModelMode (built-in profiles with hardcoded defaults).
-      if (profile.defaultModelMode != null) {
+      // Only return it if it's NOT the literal 'default' string, which
+      // would be misinterpreted by the daemon as a model name.
+      if (profile.defaultModelMode != null &&
+          profile.defaultModelMode != 'default') {
         return profile.defaultModelMode;
       }
     }
@@ -5201,32 +5213,36 @@ what you have, you must use the options mode.
       }
       _requestTailRefresh(sessionId);
       logger.info('[onSessionVisible] tailRefresh requested');
-    } else if (_sessionsWithPendingUpdates.remove(sessionId)) {
-      // This session received socket events while it was in the
-      // background.  Use the incremental delta path when we have a
-      // valid cursor and the gap is small — this avoids re-downloading
-      // ~200 messages when only a few are new.  Fall back to a full
-      // tail-refresh when the cursor is missing or the gap is too
-      // large (the gapTooLarge detection in fetchMessages handles
-      // the latter automatically).
+    } else {
+      // Messages are in memory (from cache or previous load). Check if the
+      // server has newer messages that we're missing. This handles the case
+      // where the app was closed and new messages arrived — delta sync may
+      // not update session.lastSeq if only messages changed (no metadata).
       final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
       final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
+      final hadPendingUpdates = _sessionsWithPendingUpdates.remove(sessionId);
+
       logger.info(
-        '[onSessionVisible] pendingUpdates: cursorSeq=$cursorSeq '
-        'serverLastSeq=$serverLastSeq',
+        '[onSessionVisible] hasMessages path: cursorSeq=$cursorSeq '
+        'serverLastSeq=$serverLastSeq hadPendingUpdates=$hadPendingUpdates',
       );
-      if (cursorSeq <= 0 ||
-          serverLastSeq <= 0 ||
-          serverLastSeq <= cursorSeq) {
-        // No reliable cursor or server says we're caught up but
-        // socket events say otherwise — tail-refresh to be safe.
-        _requestTailRefresh(sessionId);
-        logger.info('[onSessionVisible] tailRefresh (invalid cursor)');
+
+      // Check for gap: server is ahead of our cursor
+      if (cursorSeq > 0 && serverLastSeq > cursorSeq) {
+        // Server has messages we haven't seen. Let fetchMessages handle it
+        // via the normal incremental delta path (or gapTooLarge tail-load).
+        logger.info(
+          '[onSessionVisible] gap detected: server($serverLastSeq) > cursor($cursorSeq) '
+          '— will fetch delta',
+        );
+      } else if (hadPendingUpdates) {
+        // Socket events arrived while session was non-visible, but cursor
+        // appears caught up or ahead. Tail-refresh to be safe.
+        if (cursorSeq <= 0 || serverLastSeq <= 0 || serverLastSeq <= cursorSeq) {
+          _requestTailRefresh(sessionId);
+          logger.info('[onSessionVisible] tailRefresh (pending updates, invalid cursor)');
+        }
       }
-      // Otherwise: cursorSeq < serverLastSeq with a known gap.
-      // The normal incremental path in fetchMessages will pick up
-      // the delta (and gapTooLarge will fall back to tail-load if
-      // the gap exceeds initialLoad).
     }
     if (!messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId] = InvalidateSync(

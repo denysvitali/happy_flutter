@@ -284,10 +284,11 @@ class _NewSessionDialogState
         machineId: machineId,
         path: sessionPath,
       );
+      // createSession() already called refreshSessions() internally
+      // and added the session to sync._sessions (optimistic fallback).
+      // Just read the in-memory state — no redundant server fetch.
       if (!mounted) return;
-      await ref
-          .read(sessionsNotifierProvider.notifier)
-          .refreshFromSync();
+      ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       if (!mounted) return;
       navigator.pop(sessionId);
     } catch (e) {
