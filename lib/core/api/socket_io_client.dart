@@ -66,8 +66,15 @@ class SocketIoClient {
     required String token,
     String clientType = 'user-scoped',
   }) {
-    if (_socket != null) return;
+    if (_socket != null) {
+      logger.info(
+        'Socket.IO connect() skipped — socket already exists '
+        '(status=$_status)',
+      );
+      return;
+    }
 
+    logger.info('Socket.IO connecting to $serverUrl');
     _serverUrl = serverUrl;
     _authToken = token;
     _clientType = clientType;
@@ -99,6 +106,7 @@ class SocketIoClient {
 
   void _setupEventHandlers() {
     _socket!.onConnect((_) {
+      logger.info('Socket.IO connected');
       _updateStatus(ConnectionStatus.connected);
       if (_hasConnectedOnce && !(_socket?.recovered ?? false)) {
         _notifyReconnected();
@@ -107,6 +115,7 @@ class SocketIoClient {
     });
 
     _socket!.onDisconnect((_) {
+      logger.info('Socket.IO disconnected');
       _updateStatus(ConnectionStatus.disconnected);
     });
 
