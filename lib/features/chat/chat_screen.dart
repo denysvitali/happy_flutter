@@ -814,6 +814,48 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           widget.sessionId,
           rawModelString,
         );
+
+    // If the session is currently running, show a warning that the
+    // profile change will only take effect after the session is restarted.
+    final isRunning = _session?.isPresenceOnline ?? false;
+    if (isRunning && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Profile changed. Restart the session to apply new environment variables.',
+          ),
+          action: SnackBarAction(
+            label: 'Restart',
+            textColor: Theme.of(context).colorScheme.onPrimary,
+            onPressed: () async {
+              try {
+                await sync.killSession(widget.sessionId);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Session restarted. Send a message to resume.'),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }
+                // Trigger a refresh to update the session state
+                _refreshFromSync();
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to restart session: $e'),
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
   }
 
   static const _abortReason =
