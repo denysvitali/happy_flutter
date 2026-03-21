@@ -367,6 +367,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           subtitle: l10n.settingsUsageSubtitle,
           onTap: () => context.pushNamed('usage'),
         ),
+        SettingsNavRow(
+          icon: Icons.speed,
+          title: l10n.claudeCodeLimits,
+          subtitle: l10n.claudeCodeLimitsSubtitle,
+          onTap: () => context.pushNamed('claude-limits'),
+        ),
       ],
     );
   }

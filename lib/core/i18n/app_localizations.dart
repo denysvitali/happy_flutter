@@ -310,6 +310,26 @@ class AppLocalizations {
   String get noUsageDataSubtitle => 'Start using Happy to see your usage stats';
   String get failedToLoad => 'Failed to load usage data';
 
+  // Claude Code Limits
+  String get claudeCodeLimits => 'Claude Code Limits';
+  String get claudeCodeLimitsSubtitle =>
+      'Rate limits for Claude Code on your machines';
+  String get claudeLimitsTitle => 'Claude Code Limits';
+  String get claudeLimitsUsage => 'Usage';
+  String get claudeLimitsResetsAt => 'Resets';
+  String get claudeLimitsExtraUsage => 'Extra Usage';
+  String get claudeLimitsMonthlyLimit => 'Monthly Limit';
+  String get claudeLimitsUsedCredits => 'Used Credits';
+  String get claudeLimitsNotAvailable =>
+      'Claude Code limits not available';
+  String get claudeLimitsNotAvailableSubtitle =>
+      'Make sure Claude Code is installed and authenticated'
+      ' on the selected machine';
+  String get claudeLimitsNoMachines => 'No machines available';
+  String get claudeLimitsNoMachinesSubtitle =>
+      'Connect a machine to check Claude Code limits';
+  String get claudeLimitsSelectMachine => 'Machine';
+
   String get settingsFeatures => 'Features';
   String get featuresExperiments => 'Experiments';
   String get featuresExperimentsDesc => 'Try experimental features';

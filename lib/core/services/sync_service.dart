@@ -1500,12 +1500,18 @@ what you have, you must use the options mode.
       // Non-visible session: mark dirty so onSessionVisible() triggers
       // a fetch when the user navigates to it.
       //
-      // Keep session.lastSeq and _sessionLastSeq up-to-date from the
-      // embedded message's seq so that fetchMessages' incremental delta
-      // path can compute the correct gap without a full tail-refresh.
+      // Update session.lastSeq so the delta-fetch path in fetchMessages
+      // can detect the gap (serverLastSeq > cursorSeq).  Do NOT advance
+      // _sessionLastSeq — the messages aren't stored in _sessionMessages,
+      // so the cursor must stay at its pre-navigation position.  Advancing
+      // the cursor would make cursor == server, hiding the gap and forcing
+      // a destructive full tail-refresh on every navigation.
       final msgSeq = embeddedMessage?['seq'] as int?;
       if (msgSeq != null) {
-        _advanceSeqCursor(sessionId, msgSeq);
+        final session = _sessions[sessionId];
+        if (session != null && (session.lastSeq ?? 0) < msgSeq) {
+          _sessions[sessionId] = session.copyWith(lastSeq: msgSeq);
+        }
       }
       final isNew = _sessionsWithPendingUpdates.add(sessionId);
       if (isNew) {
@@ -3768,6 +3774,29 @@ what you have, you must use the options mode.
     );
   }
 
+  /// Fetch Claude Code usage limits from a machine via encrypted RPC.
+  ///
+  /// The machine daemon reads `~/.claude/.credentials.json` and calls the
+  /// Anthropic OAuth usage API, returning the raw JSON payload.
+  Future<ClaudeUsageLimitsResponse> machineGetClaudeUsageLimits({
+    required String machineId,
+  }) async {
+    try {
+      return await _typedMachineRPC(
+        machineId,
+        'get-claude-usage-limits',
+        <String, dynamic>{},
+        ClaudeUsageLimitsResponse.fromJson,
+      );
+    } catch (error) {
+      logger.error('machineGetClaudeUsageLimits error', error);
+    }
+    return const ClaudeUsageLimitsResponse(
+      success: false,
+      error: 'RPC call failed',
+    );
+  }
+
   /// Create a git worktree on a machine under `.dev/worktree/<name>` relative
   /// to [basePath] and return the absolute path to the new worktree.
   ///
@@ -5356,12 +5385,6 @@ what you have, you must use the options mode.
       'serverLastSeq=${_sessions[sessionId]?.lastSeq ?? 0}',
     );
 
-    // If we have pending socket messages, skip cache restore and force a fetch
-    // to ensure those messages are retrieved from the server.
-    if (hasPendingSocketMessages) {
-      hasMessages = false;
-    }
-
     if (!hasMessages) {
       // Restore from MMKV cache so the UI shows messages immediately
       // while the HTTP fetch is in flight.
@@ -5544,10 +5567,6 @@ what you have, you must use the options mode.
         //
         // For first load and tail refresh, compute the
         // window from the known max seq, ignoring the cursor.
-        // The cursor may have been advanced by socket events
-        // for non-visible sessions without storing the actual
-        // messages in memory — using it would fetch from the
-        // already-advanced position and get nothing back.
         if (isFirstLoad || forceTailRefresh) {
           final knownMax = max(cursorSeq, serverLastSeq);
           afterSeq = knownMax <= initialLoad
@@ -5556,14 +5575,13 @@ what you have, you must use the options mode.
         } else {
           afterSeq = _tailAfterSeqForSession(sessionId);
         }
-        if (isGapRecovery) {
+        if (gapTooLarge) {
           logger.info(
             '[fetchMessages] $sessionId gap too large '
             '(cursor=$cursorSeq server=$serverLastSeq) — '
             'switching to tail-load afterSeq=$afterSeq',
           );
-        }
-        if (forceTailRefresh && !isFirstLoad && !gapTooLarge) {
+        } else if (forceTailRefresh && !isFirstLoad) {
           logger.info(
             '[fetchMessages] $sessionId forcing tail refresh '
             'afterSeq=$afterSeq',

@@ -43,6 +43,7 @@ import '../../features/settings/profiles_screen.dart';
 import '../../features/settings/server_settings_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/settings/theme_settings_screen.dart';
+import '../../features/settings/claude_limits_screen.dart';
 import '../../features/settings/usage_screen.dart';
 import '../../features/settings/voice_language_settings_screen.dart';
 import '../../features/settings/voice_settings_screen.dart';
@@ -309,6 +310,14 @@ GoRouter createRouter(String? initialDeepLink) {
         name: 'usage',
         pageBuilder: (context, state) =>
             _slidePage(const AuthGate(child: UsageScreen()), state),
+      ),
+      GoRoute(
+        path: '/settings/claude-limits',
+        name: 'claude-limits',
+        pageBuilder: (context, state) => _slidePage(
+          const AuthGate(child: ClaudeLimitsScreen()),
+          state,
+        ),
       ),
       GoRoute(
         path: '/settings/developer',

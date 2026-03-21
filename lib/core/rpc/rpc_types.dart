@@ -214,3 +214,27 @@ class ReadFileResponse {
   final String content;
   final String? error;
 }
+
+// ---------------------------------------------------------------------------
+// getClaudeUsageLimits
+// ---------------------------------------------------------------------------
+
+class ClaudeUsageLimitsResponse {
+  const ClaudeUsageLimitsResponse({
+    required this.success,
+    this.data,
+    this.error,
+  });
+
+  factory ClaudeUsageLimitsResponse.fromJson(Map<String, dynamic> json) =>
+      ClaudeUsageLimitsResponse(
+        success: json['success'] as bool? ?? false,
+        data: json['data'] as String?,
+        error: json['error'] as String?,
+      );
+  final bool success;
+
+  /// JSON-encoded usage limits payload from Anthropic.
+  final String? data;
+  final String? error;
+}
