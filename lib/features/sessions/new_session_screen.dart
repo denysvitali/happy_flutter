@@ -106,6 +106,7 @@ class _NewSessionScreenState
       final sessionId = await sync.createSession(
         machineId: machine.id,
         path: sessionPath,
+        profileId: _selectedProfileId,
       );
       if (!mounted) return;
       final profile = _selectedProfileId != null
