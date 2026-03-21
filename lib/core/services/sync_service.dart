@@ -7823,11 +7823,18 @@ what you have, you must use the options mode.
     // this, fetchMessages may see stale serverLastSeq and skip fetching via
     // the "already caught up" early exit, causing message loss.
     if (_sessionsWithPendingSocketMessages.isNotEmpty) {
+      final pendingSessionIds =
+          _sessionsWithPendingSocketMessages.toList();
+      // Mark these sessions as needing tail refresh so fetchMessages forces a
+      // fresh fetch even if hasPendingSocketMessages set was already cleared.
+      for (final sessionId in pendingSessionIds) {
+        _sessionsNeedingTailRefresh.add(sessionId);
+      }
       logger.info(
-        '[Sync] resuming — invalidating ${_sessionsWithPendingSocketMessages.length} '
+        '[Sync] resuming — invalidating ${pendingSessionIds.length} '
         'sessions with pending socket messages',
       );
-      for (final sessionId in _sessionsWithPendingSocketMessages.toList()) {
+      for (final sessionId in pendingSessionIds) {
         // Recreate InvalidateSync if needed — non-visible sessions never had
         // one created, so ?.invalidate() would be a no-op without this.
         if (!messagesSync.containsKey(sessionId)) {
