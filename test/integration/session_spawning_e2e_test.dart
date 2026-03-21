@@ -8,6 +8,7 @@ import 'package:happy_flutter/core/api/api_client.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/encryption_cache.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
+import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
@@ -1504,19 +1505,34 @@ class _FakeSessionEncryption extends SessionEncryption {
         );
 }
 
-class _CapturingSessionEncryption implements SessionEncryption {
+class _CapturingSessionEncryption
+    implements SessionEncryption {
   Map<String, dynamic>? lastRawRecord;
 
   @override
-  Future<String> encryptRawRecord(Map<String, dynamic> record) async {
+  Future<String> encryptRawRecord(
+    Map<String, dynamic> record,
+  ) async {
     lastRawRecord = Map<String, dynamic>.from(record);
     return 'encrypted-content';
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(
-    invocation,
-  );
+  Future<ProcessedMessages> decryptAndProcessMessages(
+    List<Map<String, dynamic>> messages,
+    String sessionId,
+  ) async {
+    return const ProcessedMessages(
+      messages: [],
+      toolResults: [],
+      usageUpdates: [],
+      maxSeq: 0,
+    );
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      super.noSuchMethod(invocation);
 }
 
 class _FakeEncryptor implements Encryptor {
