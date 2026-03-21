@@ -11,38 +11,40 @@ class ChatLoadingShimmer extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final base = cs.onSurface.withValues(alpha: 0.08);
-    return ListView.builder(
-      reverse: true,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.md,
-      ),
-      itemCount: 5,
-      itemBuilder: (_, i) {
-        final isUser = i.isEven;
-        return Padding(
-          padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.xs,
-          ),
-          child: Shimmer(
-            child: Align(
-              alignment: isUser
-                  ? Alignment.centerRight
-                  : Alignment.centerLeft,
-              child: Container(
-                height: isUser ? 40 : 60,
-                width: isUser ? 200 : 260,
-                decoration: BoxDecoration(
-                  color: base,
-                  borderRadius: BorderRadius.circular(
-                    AppRadius.lg,
+    return ShimmerScope(
+      child: ListView.builder(
+        reverse: true,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.md,
+        ),
+        itemCount: 5,
+        itemBuilder: (_, i) {
+          final isUser = i.isEven;
+          return Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: AppSpacing.xs,
+            ),
+            child: Shimmer(
+              child: Align(
+                alignment: isUser
+                    ? Alignment.centerRight
+                    : Alignment.centerLeft,
+                child: Container(
+                  height: isUser ? 40 : 60,
+                  width: isUser ? 200 : 260,
+                  decoration: BoxDecoration(
+                    color: base,
+                    borderRadius: BorderRadius.circular(
+                      AppRadius.lg,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

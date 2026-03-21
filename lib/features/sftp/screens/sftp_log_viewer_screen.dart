@@ -31,7 +31,7 @@ class SftpLogViewerScreen extends StatefulWidget {
 
 class _SftpLogViewerScreenState
     extends State<SftpLogViewerScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   String? _selectedDeviceId;
   LogLevelFilter _levelFilter = LogLevelFilter.all;
   String _searchQuery = '';
@@ -46,24 +46,41 @@ class _SftpLogViewerScreenState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 2, vsync: this);
     _selectedDeviceId = widget.initialDeviceId;
     _loadLogs();
-
-    // Auto-refresh every 5 seconds
-    _refreshTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _loadLogs(),
-    );
+    _startRefreshTimer();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
     _tabController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _refreshTimer?.cancel();
+      _refreshTimer = null;
+    } else if (state == AppLifecycleState.resumed) {
+      _loadLogs();
+      _startRefreshTimer();
+    }
+  }
+
+  void _startRefreshTimer() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _loadLogs(),
+    );
   }
 
   void _loadLogs() {

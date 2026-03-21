@@ -3,11 +3,98 @@ import 'package:flutter/material.dart';
 import '../../theme/app_color_scheme.dart';
 import '../../theme/app_tokens.dart';
 
+/// Provides a shared [AnimationController] to descendant [Shimmer]
+/// widgets so multiple shimmers on screen share a single ticker
+/// instead of each creating its own.
+///
+/// Wrap a group of [Shimmer] widgets (e.g. a loading skeleton list)
+/// in a [ShimmerScope] to avoid N independent animation controllers.
+class ShimmerScope extends StatefulWidget {
+
+  const ShimmerScope({
+    required this.child,
+    this.duration = const Duration(milliseconds: 1500),
+    this.enabled = true,
+    super.key,
+  });
+  final Widget child;
+  final Duration duration;
+  final bool enabled;
+
+  @override
+  State<ShimmerScope> createState() => _ShimmerScopeState();
+}
+
+class _ShimmerScopeState extends State<ShimmerScope>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: widget.duration,
+      vsync: this,
+    );
+    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    if (widget.enabled) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(ShimmerScope oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.enabled && widget.enabled) {
+      _controller.repeat(reverse: true);
+    } else if (oldWidget.enabled && !widget.enabled) {
+      _controller.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ShimmerScopeData(
+      animation: _animation,
+      child: widget.child,
+    );
+  }
+}
+
+class _ShimmerScopeData extends InheritedWidget {
+  const _ShimmerScopeData({
+    required this.animation,
+    required super.child,
+  });
+
+  final Animation<double> animation;
+
+  static _ShimmerScopeData? maybeOf(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<_ShimmerScopeData>();
+  }
+
+  @override
+  bool updateShouldNotify(_ShimmerScopeData oldWidget) =>
+      animation != oldWidget.animation;
+}
+
 /// Animated shimmer gradient loading effect.
 ///
 /// When [colors] is omitted, the shimmer automatically adapts to the
 /// current theme using [AppColorScheme.shimmerBase] and
 /// [AppColorScheme.shimmerHighlight].
+///
+/// When placed inside a [ShimmerScope], reuses the scope's shared
+/// animation controller instead of creating its own.
 class Shimmer extends StatefulWidget {
 
   const Shimmer({
@@ -28,35 +115,51 @@ class Shimmer extends StatefulWidget {
   State<Shimmer> createState() => _ShimmerState();
 }
 
-class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
+class _ShimmerState extends State<Shimmer>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _ownController;
+  Animation<double>? _ownAnimation;
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
+  Animation<double> _resolveAnimation(BuildContext context) {
+    final scope = _ShimmerScopeData.maybeOf(context);
+    if (scope != null) {
+      // Reuse scope animation — dispose any local controller we
+      // might have created before a scope appeared.
+      _disposeOwnController();
+      return scope.animation;
+    }
+    // No scope — create our own controller lazily.
+    _ownController ??= AnimationController(
       duration: widget.duration,
       vsync: this,
     )..repeat(reverse: true);
-    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    _ownAnimation ??= Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _ownController!, curve: Curves.easeInOut),
     );
+    return _ownAnimation!;
+  }
+
+  void _disposeOwnController() {
+    _ownController?.dispose();
+    _ownController = null;
+    _ownAnimation = null;
   }
 
   @override
   void didUpdateWidget(Shimmer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!oldWidget.enabled && widget.enabled) {
-      _controller.repeat(reverse: true);
-    } else if (oldWidget.enabled && !widget.enabled) {
-      _controller.stop();
+    if (_ownController != null) {
+      if (!oldWidget.enabled && widget.enabled) {
+        _ownController!.repeat(reverse: true);
+      } else if (oldWidget.enabled && !widget.enabled) {
+        _ownController!.stop();
+      }
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _disposeOwnController();
     super.dispose();
   }
 
@@ -65,6 +168,8 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
     if (!widget.enabled) {
       return widget.child;
     }
+
+    final animation = _resolveAnimation(context);
 
     final appColors =
         Theme.of(context).extension<AppColorScheme>();
@@ -87,7 +192,7 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
         : const [0.0, 0.35, 0.65, 1.0];
 
     return AnimatedBuilder(
-      animation: _animation,
+      animation: animation,
       builder: (context, child) {
         return RepaintBoundary(
           child: ShaderMask(
@@ -98,7 +203,7 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
                 begin: Alignment.topLeft,
                 end: Alignment.topRight,
                 transform: _ShimmerGradientTransform(
-                  animation: _animation,
+                  animation: animation,
                   widthPercent: widget.shimmerWidthPercent,
                   boundsWidth: bounds.width,
                 ),

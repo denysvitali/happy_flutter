@@ -109,20 +109,22 @@ class SessionListShimmer extends StatelessWidget {
       );
     }
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
+    return ShimmerScope(
+      child: ListView(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        children: [
+          sectionHeader(80),
+          row(),
+          row(),
+          row(),
+          sectionHeader(100),
+          row(avatarSize: 40, height: 68),
+          row(avatarSize: 40, height: 68),
+        ],
       ),
-      children: [
-        sectionHeader(80),
-        row(),
-        row(),
-        row(),
-        sectionHeader(100),
-        row(avatarSize: 40, height: 68),
-        row(avatarSize: 40, height: 68),
-      ],
     );
   }
 }
