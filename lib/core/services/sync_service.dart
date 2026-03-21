@@ -5490,10 +5490,54 @@ what you have, you must use the options mode.
         final fetchMs = fetchStart.elapsedMilliseconds;
 
         if (!apiClient.isSuccess(response)) {
-          logger.warning('Failed to fetch messages: ${response.statusCode}');
-          // Notify UI so it stops the loading spinner and can show
-          // an error/empty state instead of spinning forever.
-          _notifySessionMessagesChanged(sessionId);
+          final statusCode = response.statusCode;
+          logger.warning('Failed to fetch messages: $statusCode');
+          // 404 means the session doesn't exist on the server. Clean up
+          // the local session and stop retries to prevent repeated 404s.
+          if (statusCode == 404) {
+            logger.warning(
+              '[fetchMessages] Session $sessionId not found (404) '
+              '— cleaning up local state',
+            );
+            messagesSync.remove(sessionId)?.dispose();
+            _postSendCatchUpTimers.remove(sessionId)?.cancel();
+            _loadingOlderMessages.remove(sessionId);
+            _sessionMessages.remove(sessionId);
+            _sessionMessagesCache = null;
+            _sessionMessagesViewCache.remove(sessionId);
+            _todoLists.remove(sessionId);
+            if (sessionId == _visibleSessionId) {
+              _visibleSessionId = null;
+            }
+            _sessions.remove(sessionId);
+            _presenceTimers.remove(sessionId)?.cancel();
+            _sessionDataKeys.remove(sessionId);
+            _sessionEncryptedDataKeys.remove(sessionId);
+            _sessionsNeedingTailRefresh.remove(sessionId);
+            _sessionsWithPendingUpdates.remove(sessionId);
+            _sessionsWithPendingSocketMessages.remove(sessionId);
+            _sessionSpawnedAt.remove(sessionId);
+            _autoRestoreInFlight.remove(sessionId);
+            _pendingToolResults.remove(sessionId);
+            if (isInitialized) {
+              _sessionLastSeq.remove(sessionId);
+              MMKVStorage().saveSessionLastSeq(
+                Map.unmodifiable(_sessionLastSeq),
+              );
+              _sessionFirstLoadedSeq.remove(sessionId);
+              MMKVStorage().saveSessionFirstLoadedSeq(
+                Map.unmodifiable(_sessionFirstLoadedSeq),
+              );
+              _saveMsgsDebounceTimers.remove(sessionId)?.cancel();
+              MessageCacheService().clearMessages(sessionId);
+              encryption.removeSessionEncryption(sessionId);
+            }
+            _scheduleSessionsRefresh();
+          } else {
+            // For other errors, notify UI so it stops the loading spinner
+            // and can show an error/empty state instead of spinning forever.
+            _notifySessionMessagesChanged(sessionId);
+          }
           _notifyDataChanged();
           break;
         }
