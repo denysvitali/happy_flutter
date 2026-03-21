@@ -31,6 +31,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         name: 'Anthropic (Default)',
         description: 'Official Anthropic Claude API',
         isBuiltIn: true,
+        defaultModelMode: 'default',
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
@@ -45,6 +46,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         description:
             'DeepSeek API via Anthropic-compatible interface',
         isBuiltIn: true,
+        defaultModelMode: 'deepseek-reasoner',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
@@ -87,6 +89,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         description:
             'Z.AI GLM via Anthropic-compatible interface',
         isBuiltIn: true,
+        defaultModelMode: 'GLM-5',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
@@ -132,6 +135,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         description:
             'MiniMax via OpenAI-compatible interface',
         isBuiltIn: true,
+        defaultModelMode: 'MiniMax-Text-01',
         environmentVariables: [
           EnvironmentVariable(
             name: 'OPENAI_BASE_URL',
@@ -167,6 +171,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         name: 'OpenAI (GPT-5)',
         description: 'OpenAI GPT-5 Codex API',
         isBuiltIn: true,
+        defaultModelMode: 'gpt-5-codex-high',
         environmentVariables: [
           EnvironmentVariable(
             name: 'OPENAI_BASE_URL',
@@ -207,6 +212,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         description:
             'Azure OpenAI Service for enterprise deployments',
         isBuiltIn: true,
+        defaultModelMode: 'gpt-5-codex',
         environmentVariables: [
           EnvironmentVariable(
             name: 'AZURE_OPENAI_API_VERSION',

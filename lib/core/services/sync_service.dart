@@ -3469,7 +3469,7 @@ what you have, you must use the options mode.
       approvedNewDirectoryCreation: true, // Always approve like React Native
       agent: agent,
       permissionMode: permMode,
-      model: _getModelOverride(),
+      model: _getModelOverride(profile: profile),
       environmentVariables: envVars,
     );
 
@@ -3830,34 +3830,57 @@ what you have, you must use the options mode.
   /// Get the model override to pass when spawning a session.
   ///
   /// Returns `null` to use the daemon's default model, or a model string
-  /// to override the default. This is derived from the user's last-used
-  /// model mode setting.
-  String? _getModelOverride() {
+  /// to override the default. When [profile] is provided and
+  /// [lastUsedModelMode] is 'default', uses the profile's configured model
+  /// instead of returning null (which would cause the daemon to fall back
+  /// to its stale session metadata).
+  String? _getModelOverride({AIBackendProfile? profile}) {
     final modelMode = _settingsSnapshot.lastUsedModelMode;
-    final useDefaultModel = modelMode == null || modelMode == 'default';
-    return useDefaultModel ? null : modelMode;
+    if (modelMode != null && modelMode != 'default') {
+      return modelMode;
+    }
+    // lastUsedModelMode is 'default' or null: use profile's model if
+    // available, to avoid daemon falling back to stale session metadata.
+    if (profile != null) {
+      // Check profile.defaultModelMode first (set for built-in profiles).
+      if (profile.defaultModelMode != null) {
+        return profile.defaultModelMode;
+      }
+      // Check openaiConfig.model (for custom OpenAI-compatible profiles).
+      if (profile.openaiConfig?.model != null) {
+        return profile.openaiConfig!.model;
+      }
+      // Check anthropicConfig.model (for custom Anthropic-compatible profiles).
+      if (profile.anthropicConfig?.model != null) {
+        return profile.anthropicConfig!.model;
+      }
+    }
+    return null;
   }
 
-  /// Get environment variables for spawning a session, using the profile
-  /// associated with the session if available. Does NOT fall back to
+  /// Get environment variables and profile for spawning a session, using the
+  /// profile associated with the session if available. Does NOT fall back to
   /// [lastUsedProfile] — if no profile is saved for the session, returns
-  /// empty env vars to avoid using a wrong profile after profile switches.
-  Future<Map<String, String>> _getSpawnEnvVarsForSession(
-    String sessionId,
-  ) async {
+  /// empty env vars and null profile to avoid using a wrong profile after
+  /// profile switches.
+  Future<({Map<String, String> envVars, AIBackendProfile? profile})>
+      _getSpawnEnvVarsForSession(String sessionId) async {
     // Get the profile ID that was saved for this specific session.
     final profileId = await MMKVStorage().getSessionProfile(sessionId);
     if (profileId != null) {
       final profile = _resolveProfile(profileId);
       if (profile != null) {
-        return _spawnEnvironmentVariables(
-          _profileEnvironmentVariables(profile),
+        return (
+          envVars: _spawnEnvironmentVariables(
+            _profileEnvironmentVariables(profile),
+          ),
+          profile: profile,
         );
       }
     }
     // No profile saved for this session — return empty env vars rather than
     // falling back to lastUsedProfile which may have changed since creation.
-    return _spawnEnvironmentVariables(null);
+    return (envVars: _spawnEnvironmentVariables(null), profile: null);
   }
 
   Future<
@@ -3938,15 +3961,16 @@ what you have, you must use the options mode.
     _autoRestoreInFlight.add(sessionId);
     try {
       // Resolve profile env vars for this session before spawning.
-      final envVars = await _getSpawnEnvVarsForSession(sessionId);
+      final spawnResult =
+          await _getSpawnEnvVarsForSession(sessionId);
       final req = SpawnSessionRequest(
         type: 'spawn-in-directory',
         directory: path,
         sessionId: sessionId,
         agent: session.metadata?.flavor ?? 'claude',
         permissionMode: effectivePermissionMode,
-        model: _getModelOverride(),
-        environmentVariables: envVars,
+        model: _getModelOverride(profile: spawnResult.profile),
+        environmentVariables: spawnResult.envVars,
       );
       final result = await _typedMachineRPC(
         machineId,
@@ -4881,15 +4905,16 @@ what you have, you must use the options mode.
 
     try {
       // Resolve profile env vars for this session before spawning.
-      final envVars = await _getSpawnEnvVarsForSession(sessionId);
+      final spawnResult =
+          await _getSpawnEnvVarsForSession(sessionId);
       final req = SpawnSessionRequest(
         type: 'spawn-in-directory',
         directory: path,
         sessionId: sessionId,
         agent: session.metadata?.flavor ?? 'claude',
         permissionMode: session.permissionMode,
-        model: _getModelOverride(),
-        environmentVariables: envVars,
+        model: _getModelOverride(profile: spawnResult.profile),
+        environmentVariables: spawnResult.envVars,
       );
       final result = await _typedMachineRPC(
         machineId,
