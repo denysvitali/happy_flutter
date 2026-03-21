@@ -58,6 +58,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   PermissionMode _permissionMode = PermissionMode.defaultMode;
   ClaudeModel _modelMode = ClaudeModel.defaultModel;
+  /// Raw model mode string from storage, used for non-Claude profiles.
+  /// For Claude profiles, this matches _modelMode.modeString.
+  /// For other profiles (GLM, MiniMax, etc.), this contains the actual
+  /// model string (e.g., 'GLM-5', 'MiniMax-Text-01') while _modelMode
+  /// remains ClaudeModel.defaultModel for UI purposes.
+  String? _rawModelModeString;
   AIBackendProfile? _selectedProfile;
   List<AIBackendProfile> _availableProfiles = const [];
   Session? _session;
@@ -208,28 +214,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // Profile & settings (read once, used below for both model and profile).
     final settings = ref.read(settingsNotifierProvider);
 
-    // Model mode.
-    final flavor = session?.metadata?.flavor;
-    var modelMode = ClaudeModel.defaultModel;
-    if (savedModelMode != null) {
-      modelMode = ClaudeModel.normalizeForFlavor(
-        ClaudeModel.fromString(savedModelMode),
-        flavor,
-      );
-    } else if (session?.modelMode != null) {
-      modelMode = ClaudeModel.normalizeForFlavor(
-        ClaudeModel.fromString(session!.modelMode),
-        flavor,
-      );
-    } else if (settings.lastUsedModelMode != null) {
-      // Fall back to the user's last-used model preference so new sessions
-      // inherit the model the user most recently picked.
-      modelMode = ClaudeModel.normalizeForFlavor(
-        ClaudeModel.fromString(settings.lastUsedModelMode),
-        flavor,
-      );
-    }
-
+    // First, determine the selected profile so we can use its defaultModelMode.
     // Profile.
     final seen = <String>{};
     final deduped = <AIBackendProfile>[];
@@ -248,9 +233,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     }
 
+    // Model mode.
+    final flavor = session?.metadata?.flavor;
+    String? rawModelModeString;
+    var modelMode = ClaudeModel.defaultModel;
+
+    // Priority: saved draft > session model > profile default > settings default
+    if (savedModelMode != null) {
+      rawModelModeString = savedModelMode;
+      modelMode = ClaudeModel.normalizeForFlavor(
+        ClaudeModel.fromString(savedModelMode),
+        flavor,
+      );
+    } else if (session?.modelMode != null) {
+      rawModelModeString = session!.modelMode;
+      modelMode = ClaudeModel.normalizeForFlavor(
+        ClaudeModel.fromString(session.modelMode),
+        flavor,
+      );
+    } else if (selectedProfile?.defaultModelMode != null) {
+      // Use the profile's default model mode
+      rawModelModeString = selectedProfile!.defaultModelMode;
+      modelMode = ClaudeModel.normalizeForFlavor(
+        ClaudeModel.fromString(selectedProfile.defaultModelMode),
+        flavor,
+      );
+    } else if (settings.lastUsedModelMode != null) {
+      // Fall back to the user's last-used model preference so new sessions
+      // inherit the model the user most recently picked.
+      rawModelModeString = settings.lastUsedModelMode;
+      modelMode = ClaudeModel.normalizeForFlavor(
+        ClaudeModel.fromString(settings.lastUsedModelMode),
+        flavor,
+      );
+    }
+
     setState(() {
       _permissionMode = permissionMode;
       _modelMode = modelMode;
+      _rawModelModeString = rawModelModeString;
       _availableProfiles = deduped;
       _selectedProfile = selectedProfile;
     });
@@ -763,26 +784,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       model,
       _session?.metadata?.flavor,
     );
-    setState(() => _modelMode = normalized);
+    setState(() {
+      _modelMode = normalized;
+      _rawModelModeString = normalized.modeString;
+    });
     ref
         .read(chatActionNotifierProvider.notifier)
         .saveModelMode(widget.sessionId, normalized.modeString);
   }
 
   void _onProfileChanged(AIBackendProfile? profile) {
-    // Reset model to default when switching providers to avoid
-    // incompatible model errors (e.g., Sonnet with MiniMax).
-    final newModel = ClaudeModel.defaultModel;
+    // Use the profile's default model mode when switching providers.
+    // If no profile is selected, fall back to ClaudeModel.defaultModel.
+    final profileDefaultModelMode = profile?.defaultModelMode;
+    final newModel = ClaudeModel.defaultModel; // Always default for UI
+    final rawModelString = profileDefaultModelMode ?? newModel.modeString;
     setState(() {
       _selectedProfile = profile;
       _modelMode = newModel;
+      _rawModelModeString = rawModelString;
     });
     ref
         .read(chatActionNotifierProvider.notifier)
         .saveProfile(widget.sessionId, profile?.id);
+    // Save the profile's defaultModelMode, not 'default'
     ref
         .read(chatActionNotifierProvider.notifier)
-        .saveModelMode(widget.sessionId, newModel.modeString);
+        .saveModelMode(
+          widget.sessionId,
+          rawModelString,
+        );
   }
 
   static const _abortReason =
@@ -1137,7 +1168,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             option,
             displayText: option,
             permissionMode: _permissionMode.toModeString(),
-            modelMode: _modelMode.modeString,
+            modelMode: _rawModelModeString ?? _modelMode.modeString,
           );
       if (_followRedirectedSession(sentSessionId)) {
         return;
@@ -1188,7 +1219,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               widget.sessionId,
               text,
               permissionMode: _permissionMode.toModeString(),
-              modelMode: _modelMode.modeString,
+              modelMode: _rawModelModeString ?? _modelMode.modeString,
             );
         if (_followRedirectedSession(sentSessionId)) {
           return;
@@ -1246,7 +1277,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             text,
             displayText: text,
             permissionMode: _permissionMode.toModeString(),
-            modelMode: _modelMode.modeString,
+            modelMode: _rawModelModeString ?? _modelMode.modeString,
           );
       if (_followRedirectedSession(sentSessionId)) {
         return;
