@@ -5538,9 +5538,24 @@ what you have, you must use the options mode.
       // explicit tail-refresh requests AND large-gap detections.
       final isGapRecovery = gapTooLarge || forceTailRefresh;
       if (isFirstLoad || forceTailRefresh || gapTooLarge) {
-        // Lazy tail-load: start near the end of the session history so we
-        // don't download thousands of messages that the UI will never show.
-        afterSeq = _tailAfterSeqForSession(sessionId);
+        // Lazy tail-load: start near the end of the session
+        // history so we don't download thousands of messages
+        // that the UI will never show.
+        //
+        // For first load and tail refresh, compute the
+        // window from the known max seq, ignoring the cursor.
+        // The cursor may have been advanced by socket events
+        // for non-visible sessions without storing the actual
+        // messages in memory — using it would fetch from the
+        // already-advanced position and get nothing back.
+        if (isFirstLoad || forceTailRefresh) {
+          final knownMax = max(cursorSeq, serverLastSeq);
+          afterSeq = knownMax <= initialLoad
+              ? 0
+              : knownMax - initialLoad;
+        } else {
+          afterSeq = _tailAfterSeqForSession(sessionId);
+        }
         if (isGapRecovery) {
           logger.info(
             '[fetchMessages] $sessionId gap too large '

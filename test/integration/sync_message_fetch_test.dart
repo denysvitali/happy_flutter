@@ -178,6 +178,51 @@ void main() {
       expect(capturedAfterSeq.first, 50);
     });
 
+    test('first load with cursor advanced by socket '
+        'events fetches full window', () async {
+      // This is the critical scenario: a non-visible
+      // session receives socket messages that advance
+      // the cursor, but no messages are in memory. When
+      // the user opens the session (first load), we must
+      // fetch a full window instead of fetching from the
+      // already-advanced cursor (which returns nothing).
+      final sessionId = 'sess-1';
+
+      sync.testSessions[sessionId] = _makeSession(
+        sessionId,
+        lastSeq: 50,
+      );
+      // Socket advanced cursor to 50 while non-visible
+      sync.testSetSessionLastSeq(sessionId, 50);
+      // No messages in memory (first load)
+
+      final capturedAfterSeq = <int>[];
+      sync.testFetchMessagesOverride =
+          (sessionId, afterSeq, limit) async {
+        capturedAfterSeq.add(afterSeq);
+        return _buildMessagesResponse([
+          _makeAgentMessage(
+            'msg-1',
+            seq: 1,
+            content: 'Hello',
+          ),
+        ]);
+      };
+
+      await sync.fetchMessages(sessionId);
+
+      // Should fetch from 0 (full window since
+      // max(50,50)=50 <= initialLoad=200), NOT from
+      // cursor 50 which would return nothing.
+      expect(
+        capturedAfterSeq.first,
+        0,
+        reason:
+            'First load should ignore cursor and fetch '
+            'full window',
+      );
+    });
+
     test('gapTooLarge falls back to tail refresh', () async {
       final sessionId = 'sess-1';
 

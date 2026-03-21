@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'mmkv_storage.dart';
 import 'logger_service.dart' show logger;
 
@@ -70,14 +68,10 @@ class MessageCacheService {
     return cached.isNotEmpty;
   }
 
-  /// Get the approximate cache size in bytes for a session.
+  /// Get the approximate cache size as message count for a session.
   int? getCacheSize(String sessionId) {
     final cached = MMKVStorage().getSessionMessages(sessionId);
     if (cached.isEmpty) return null;
-    try {
-      return jsonEncode(cached).length;
-    } catch (_) {
-      return null;
-    }
+    return cached.length;
   }
 }
