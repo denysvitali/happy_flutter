@@ -2125,6 +2125,7 @@ what you have, you must use the options mode.
         // "Session not loaded" errors when the user tries to send a
         // message immediately after creating a session.
         final now = DateTime.now().millisecondsSinceEpoch;
+        final preservedSessions = <String>[];
         for (final entry in _sessionSpawnedAt.entries) {
           final sid = entry.key;
           final spawnedAt = entry.value;
@@ -2132,7 +2133,14 @@ what you have, you must use the options mode.
               _sessions.containsKey(sid) &&
               now - spawnedAt < 60000) {
             newSessions[sid] = _sessions[sid]!;
+            preservedSessions.add(sid);
           }
+        }
+        if (preservedSessions.isNotEmpty) {
+          logger.info(
+            '[fetchSessions] Preserved ${preservedSessions.length} '
+            'optimistic sessions from full fetch: $preservedSessions',
+          );
         }
         _sessions = newSessions;
       } else {
@@ -3504,6 +3512,9 @@ what you have, you must use the options mode.
         }
       }
       _sessionSpawnedAt[sessionId] = DateTime.now().millisecondsSinceEpoch;
+      logger.info(
+        '[createSession] Registered session $sessionId in _sessionSpawnedAt',
+      );
 
       // Force a full fetch (not delta) to ensure the newly created session
       // is included in the results. This prevents a race condition where
