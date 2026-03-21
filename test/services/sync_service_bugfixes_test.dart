@@ -268,27 +268,69 @@ void main() {
     });
 
     test(
-      'onSessionVisible with pending socket messages sets hasMessages=false '
-      'to force server fetch (not cache restore)',
+      'onSessionVisible with pending socket messages and no messages '
+      'in memory requests tail refresh (skips stale cache)',
       () async {
         final sessionId = 'pending-socket-session';
         sync.testSetPendingSocketMessages({sessionId});
 
-        // Verify hasPendingSocketMessages is true
         expect(
           sync.testHasPendingSocketMessage(sessionId),
           isTrue,
           reason: 'Session should have pending socket messages',
         );
 
-        // onSessionVisible should be called — it will see hasPendingSocketMessages
-        // and set hasMessages=false to force a server fetch
+        // No messages in memory — onSessionVisible should request a
+        // tail refresh (and skip cache restore since it may be stale).
         sync.onSessionVisible(sessionId);
 
-        // The tail refresh should be requested
         expect(
           sync.testSessionsNeedingTailRefresh().contains(sessionId),
           isTrue,
+        );
+      },
+    );
+
+    test(
+      'onSessionVisible with pending socket messages and messages '
+      'already in memory uses delta fetch (no tail refresh)',
+      () async {
+        final sessionId = 'pending-socket-delta';
+
+        // Pre-populate messages and cursor (simulates user was
+        // viewing this session before navigating away).
+        sync.testSetSessionMessages(sessionId, [
+          {'id': 'msg-1', 'role': 'agent', 'seq': 10},
+        ]);
+        sync.testSetSessionLastSeq(sessionId, 10);
+        // Server has newer messages (seq advanced by socket
+        // event updating session.lastSeq without advancing
+        // the cursor).
+        sync.testSessions[sessionId] = Session(
+          id: sessionId,
+          seq: 1,
+          createdAt: 1700000000000,
+          updatedAt: 1700000000000,
+          active: true,
+          activeAt: 1700000000000,
+          metadataVersion: 1,
+          agentStateVersion: 1,
+          thinking: false,
+          presence: 'offline',
+          lastSeq: 15,
+        );
+        sync.testSetPendingSocketMessages({sessionId});
+
+        sync.onSessionVisible(sessionId);
+
+        // Should NOT request tail refresh — the delta path
+        // (serverLastSeq > cursorSeq) handles missing messages
+        // without wiping existing ones.
+        expect(
+          sync.testSessionsNeedingTailRefresh().contains(sessionId),
+          isFalse,
+          reason:
+              'Should use delta fetch, not destructive tail refresh',
         );
       },
     );

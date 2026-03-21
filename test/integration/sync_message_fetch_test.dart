@@ -289,6 +289,69 @@ void main() {
       sync.testFetchMessagesOverride = null;
     });
 
+    test(
+      'non-visible session delta fetch preserves existing '
+      'messages (no destructive tail refresh)',
+      () async {
+        // Regression test: when socket messages arrive for a
+        // non-visible session, the cursor should NOT be advanced
+        // (messages aren't stored in memory). When the user
+        // navigates back, fetchMessages should use the
+        // incremental delta path (afterSeq = cursor) to fetch
+        // only the missing messages, NOT wipe and re-download
+        // the last 200 messages via tail refresh.
+        final sessionId = 'sess-delta';
+
+        // User was viewing this session — has messages + cursor.
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 15, // server updated by socket events
+        );
+        sync.testSetSessionLastSeq(sessionId, 10); // cursor
+        sync.testSetSessionMessages(sessionId, [
+          {'id': 'msg-1', 'seq': 5, 'role': 'agent'},
+          {'id': 'msg-2', 'seq': 10, 'role': 'agent'},
+        ]);
+
+        final capturedAfterSeq = <int>[];
+        sync.testFetchMessagesOverride =
+            (sid, afterSeq, limit) async {
+          capturedAfterSeq.add(afterSeq);
+          return _buildMessagesResponse([
+            _makeAgentMessage(
+              'msg-3',
+              seq: 15,
+              content: 'New',
+            ),
+          ]);
+        };
+
+        // fetchMessages should see cursor=10 < server=15 and
+        // fetch delta from cursor (not tail-load from 0).
+        await sync.fetchMessages(sessionId);
+
+        expect(
+          capturedAfterSeq.first,
+          10,
+          reason:
+              'Should fetch from cursor=10, not tail-load',
+        );
+        // Existing messages should be preserved (not wiped).
+        final msgs = sync.testSessionMessages(sessionId);
+        expect(
+          msgs,
+          isNotNull,
+          reason: 'Messages should still exist',
+        );
+        expect(
+          msgs!.length,
+          greaterThanOrEqualTo(2),
+          reason:
+              'Existing messages should be preserved',
+        );
+      },
+    );
+
     test('socket event advances cursor before fetchMessages runs', () async {
       final sessionId = 'sess-1';
 
