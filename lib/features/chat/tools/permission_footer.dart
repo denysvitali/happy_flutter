@@ -4,6 +4,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/permission_description.dart';
 
 /// Permission request UI with Allow, Allow All, and Deny buttons.
 class PermissionFooter extends StatefulWidget {
@@ -115,45 +116,8 @@ class _PermissionFooterState extends State<PermissionFooter> {
     }
   }
 
-  String _actionDescription() {
-    if (widget.toolInput == null) return 'run ${widget.toolName}';
-    final input = widget.toolInput!;
-
-    switch (widget.toolName) {
-      case 'Edit':
-      case 'MultiEdit':
-      case 'NotebookEdit':
-        final path = input['path'] as String?;
-        if (path != null) {
-          final short = path.length > 36
-              ? '...${path.substring(path.length - 36)}'
-              : path;
-          return 'edit $short';
-        }
-        return 'edit file';
-      case 'Write':
-        final path = input['path'] as String?;
-        if (path != null) {
-          final short = path.length > 36
-              ? '...${path.substring(path.length - 36)}'
-              : path;
-          return 'write $short';
-        }
-        return 'write file';
-      case 'Bash':
-        final cmd = input['command'] as String?;
-        if (cmd != null) {
-          final short = cmd.length > 42 ? '${cmd.substring(0, 42)}…' : cmd;
-          return 'run: $short';
-        }
-        return 'run bash command';
-      case 'ExitPlanMode':
-      case 'exit_plan_mode':
-        return 'accept plan and continue';
-      default:
-        return 'run ${widget.toolName}';
-    }
-  }
+  String _actionDescription() =>
+      describePermissionAction(widget.toolName, widget.toolInput);
 
   @override
   Widget build(BuildContext context) {

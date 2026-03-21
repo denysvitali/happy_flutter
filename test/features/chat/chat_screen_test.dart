@@ -34,11 +34,9 @@ class _FakeMMKVPlatform extends MMKVPluginPlatform {
       rootDir;
 
   @override
-  Pointer<Void> Function(int, Pointer<Utf8>, int, int, int, int, int, int, int)
+  Pointer<Void> Function(int, Pointer<Utf8>, int)
       getDefaultMMKVFunc() =>
-          (int mode, Pointer<Utf8> cryptKey, int aes256, int expectedCapacity,
-                  int rootDir, int groupDir, int isMultiProcess, int isReadOnly,
-                  int isReadOnlyBeforeSet) =>
+          (int mode, Pointer<Utf8> cryptKey, int aes256) =>
               Pointer<Void>.fromAddress(1);
 
   @override

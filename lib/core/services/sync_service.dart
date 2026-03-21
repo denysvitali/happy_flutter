@@ -41,6 +41,7 @@ import '../utils/invalidate_sync.dart';
 import '../utils/parse_token.dart';
 import '../utils/wire_parsers.dart';
 import 'logger_service.dart';
+import 'notification_service.dart';
 
 // ── Isolate helpers: machine payload decryption ──────────────────────────
 
@@ -315,6 +316,11 @@ what you have, you must use the options mode.
   /// Used to force a server fetch (instead of stale cache restore) when
   /// the user opens a session that had pending socket messages.
   final Set<String> _sessionsWithPendingSocketMessages = {};
+
+  /// Permission IDs for which a local notification has already been
+  /// fired.  Prevents duplicate notifications across repeated
+  /// [fetchSessions] calls.
+  final Set<String> _notifiedPermissionIds = {};
 
   /// Dedup set for inline socket messages.  Keyed by
   /// `"$sessionId:$messageId:$seq"` to skip duplicate `new-message`
@@ -632,6 +638,15 @@ what you have, you must use the options mode.
   /// Test helper: clear all spawn timestamps.
   @visibleForTesting
   void testClearSessionSpawnedAt() => _sessionSpawnedAt.clear();
+
+  /// Test helper: invoke [_checkForNewPermissionRequests].
+  @visibleForTesting
+  void testCheckForNewPermissionRequests(Iterable<Session> sessions) =>
+      _checkForNewPermissionRequests(sessions);
+
+  /// Test helper: read [_notifiedPermissionIds].
+  @visibleForTesting
+  Set<String> get testNotifiedPermissionIds => _notifiedPermissionIds;
 
   /// Test helper: get _autoRestoreInFlight set.
   @visibleForTesting
@@ -2238,6 +2253,9 @@ what you have, you must use the options mode.
           _notifySessionMessagesChanged(session.id);
         }
       }
+
+      // Fire local notifications for any new permission requests.
+      _checkForNewPermissionRequests(decryptedSessions);
 
       logger.info('Fetched and decrypted ${decryptedSessions.length} sessions');
       _lastSessionsFetchedAt = fetchStartMs;
@@ -5039,6 +5057,51 @@ what you have, you must use the options mode.
     return false;
   }
 
+  /// Fire local notifications for any newly-detected pending
+  /// permission requests that the user hasn't seen yet.
+  ///
+  /// Called after [fetchSessions] merges updated sessions and
+  /// after inline socket updates apply new agent state.
+  void _checkForNewPermissionRequests(
+    Iterable<Session> sessions,
+  ) {
+    for (final session in sessions) {
+      // Don't notify for the session the user is viewing — they
+      // can see the permission footer already.
+      if (session.id == _visibleSessionId) continue;
+
+      final requests = session.agentState?.requests;
+      if (requests == null || requests.isEmpty) continue;
+
+      for (final entry in requests.entries) {
+        final permId = entry.key;
+        if (_notifiedPermissionIds.contains(permId)) continue;
+        _notifiedPermissionIds.add(permId);
+
+        final request = entry.value;
+        Map<String, dynamic>? toolInput;
+        if (request.arguments is Map) {
+          toolInput =
+              Map<String, dynamic>.from(request.arguments as Map);
+        }
+
+        final sessionName =
+            session.metadata?.summary?.text ??
+            session.metadata?.path?.split('/').last;
+
+        unawaited(
+          NotificationService.instance.showPermissionNotification(
+            sessionId: session.id,
+            permissionId: permId,
+            toolName: request.tool,
+            toolInput: toolInput,
+            sessionName: sessionName,
+          ),
+        );
+      }
+    }
+  }
+
   /// Locally clear stale permission requests from a session's
   /// [AgentState] so the UI immediately unlocks the input box
   /// and hides the "permission required" banner.
@@ -5049,6 +5112,14 @@ what you have, you must use the options mode.
         session.agentState?.requests != null &&
         session.agentState!.requests!.isNotEmpty;
     if (hadRequests) {
+      // Cancel any pending permission notifications for this session.
+      for (final permId in session.agentState!.requests!.keys) {
+        _notifiedPermissionIds.remove(permId);
+        unawaited(
+          NotificationService.instance
+              .cancelPermissionNotification(permId),
+        );
+      }
       _sessions[sessionId] = session.copyWith(
         agentState: AgentState(
           controlledByUser: session.agentState?.controlledByUser,
@@ -7553,6 +7624,15 @@ what you have, you must use the options mode.
       for (final entry in completedRequests.entries) {
         final permId = entry.key;
         final info = entry.value;
+
+        // Cancel the notification for this resolved permission.
+        if (_notifiedPermissionIds.remove(permId)) {
+          unawaited(
+            NotificationService.instance
+                .cancelPermissionNotification(permId),
+          );
+        }
+
         final idx = toolUseIdToIndex[permId];
         if (idx == null) continue;
 
@@ -8017,6 +8097,7 @@ what you have, you must use the options mode.
     _sessionsNeedingTailRefresh.clear();
     _sessionsWithPendingUpdates.clear();
     _sessionsWithPendingSocketMessages.clear();
+    _notifiedPermissionIds.clear();
     _pendingUpdateSessionIds.clear();
     _pendingToolResults.clear();
     _sessionUnreadCounts.clear();
@@ -8059,6 +8140,7 @@ what you have, you must use the options mode.
     _loadingOlderMessages.clear();
     _recentInlineMessageKeys.clear();
     _sessionsWithPendingSocketMessages.clear();
+    _notifiedPermissionIds.clear();
 
     sessionsSync.dispose();
     settingsSync.dispose();
