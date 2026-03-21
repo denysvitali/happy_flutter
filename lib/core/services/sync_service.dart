@@ -5438,8 +5438,12 @@ what you have, you must use the options mode.
         );
       } else if (hadPendingUpdates) {
         // Socket events arrived while session was non-visible, but cursor
-        // appears caught up or ahead. Tail-refresh to be safe.
-        if (cursorSeq <= 0 || serverLastSeq <= 0 || serverLastSeq <= cursorSeq) {
+        // appears caught up or ahead.  Only tail-refresh when cursor data
+        // is truly invalid (zero/negative).  When cursor >= server, the
+        // incremental delta fetch is either a no-op (caught up) or will
+        // pick up any remaining messages — a destructive tail-refresh
+        // would unnecessarily wipe and re-download messages.
+        if (cursorSeq <= 0 || serverLastSeq <= 0) {
           _requestTailRefresh(sessionId);
           logger.info('[onSessionVisible] tailRefresh (pending updates, invalid cursor)');
         }
@@ -5539,8 +5543,7 @@ what you have, you must use the options mode.
       // should fetch to ensure no messages were missed.
       final hasGap = serverLastSeq > 0 && cursorSeq <= serverLastSeq &&
           (serverLastSeq - cursorSeq) > initialLoad;
-      if (!forceTailRefresh &&
-          !isFirstLoad &&
+      if (!isFirstLoad &&
           cursorSeq > 0 &&
           serverLastSeq > 0 &&
           cursorSeq == serverLastSeq &&

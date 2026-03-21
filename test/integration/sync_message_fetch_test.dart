@@ -129,6 +129,37 @@ void main() {
       expect(capturedAfterSeq, isEmpty, reason: 'Should skip when cursor == server');
     });
 
+    test('skips fetch when forceTailRefresh but cursor == server', () async {
+      // Regression: when onSessionVisible requests a tail refresh but
+      // cursor is already caught up (e.g. duplicate socket events),
+      // fetchMessages should skip instead of wiping and re-downloading
+      // the last 200 messages.
+      final sessionId = 'sess-1';
+
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
+      sync.testSetSessionLastSeq(sessionId, 10);
+      sync.testSetSessionMessages(sessionId, [
+        {'id': 'msg-1', 'seq': 1, 'role': 'user'},
+      ]);
+      // Simulate onSessionVisible requesting a tail refresh
+      sync.testAddSessionsNeedingTailRefresh(sessionId);
+
+      final capturedAfterSeq = <int>[];
+      sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
+        capturedAfterSeq.add(afterSeq);
+        return _buildMessagesResponse([]);
+      };
+
+      await sync.fetchMessages(sessionId);
+
+      // Assert: no HTTP fetch — cursor is caught up, tail refresh is a no-op
+      expect(
+        capturedAfterSeq,
+        isEmpty,
+        reason: 'Should skip when forceTailRefresh but cursor == server',
+      );
+    });
+
     test('fetches from cursor when cursorSeq < serverLastSeq (normal delta)', () async {
       final sessionId = 'sess-1';
 

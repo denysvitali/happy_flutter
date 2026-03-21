@@ -336,6 +336,50 @@ void main() {
     );
 
     test(
+      'onSessionVisible with pending updates and cursor == server '
+      'does NOT request tail refresh',
+      () async {
+        // Regression: when socket events arrive for a non-visible
+        // session but don't advance session.lastSeq (duplicates or
+        // re-deliveries), cursor == server and there's nothing to
+        // fetch.  The old code checked `serverLastSeq <= cursorSeq`
+        // which was true for equality, triggering a destructive
+        // tail refresh that wiped and re-downloaded messages.
+        final sessionId = 'pending-update-caught-up';
+
+        sync.testSetSessionMessages(sessionId, [
+          {'id': 'msg-1', 'role': 'agent', 'seq': 50},
+        ]);
+        sync.testSetSessionLastSeq(sessionId, 50);
+        sync.testSessions[sessionId] = Session(
+          id: sessionId,
+          seq: 1,
+          createdAt: 1700000000000,
+          updatedAt: 1700000000000,
+          active: true,
+          activeAt: 1700000000000,
+          metadataVersion: 1,
+          agentStateVersion: 1,
+          thinking: false,
+          presence: 'offline',
+          lastSeq: 50, // same as cursor — no gap
+        );
+        // Simulate: socket events arrived but didn't advance lastSeq
+        sync.testSessionsWithPendingUpdates.add(sessionId);
+
+        sync.onSessionVisible(sessionId);
+
+        expect(
+          sync.testSessionsNeedingTailRefresh().contains(sessionId),
+          isFalse,
+          reason:
+              'Should NOT tail-refresh when cursor == server '
+              '(nothing to fetch)',
+        );
+      },
+    );
+
+    test(
       'suspend() clears _sessionsNeedingTailRefresh '
       '(presence timers and syncs are cancelled)',
       () {
