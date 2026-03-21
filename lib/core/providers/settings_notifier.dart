@@ -32,7 +32,13 @@ class SettingsNotifier extends Notifier<Settings> {
     _lastDataChangeCounter = counter;
     final next = sync.settingsSnapshot;
     if (state == next) return;
-    state = next;
+    // Preserve local-only settings that the server doesn't
+    // know about — sync.settingsSnapshot defaults them to
+    // false, which overwrites the user's local choice.
+    final preserved = next.copyWith(
+      developerModeEnabled: state.developerModeEnabled,
+    );
+    state = preserved;
   }
 
   Future<void> refreshFromSync() async {
