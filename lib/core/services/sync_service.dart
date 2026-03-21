@@ -7572,7 +7572,10 @@ what you have, you must use the options mode.
     _postSendCatchUpTimers.clear();
     _sessionsNeedingTailRefresh.clear();
     _sessionsWithPendingUpdates.clear();
-    _sessionsWithPendingSocketMessages.clear();
+    // DON'T clear _sessionsWithPendingSocketMessages — preserve it so resume()
+    // can invalidate those sessions and fetch any messages that arrived while
+    // backgrounded. Clearing this set causes message loss for non-visible sessions.
+    // _sessionsWithPendingSocketMessages.clear();
     _sessionUnreadCounts.clear();
 
     // Cancel deferred syncs timer (non-critical data syncs)
@@ -7636,7 +7639,31 @@ what you have, you must use the options mode.
     logger.info('[Sync] resuming — reconnecting socket');
     socketIoClient.reconnect();
     _invalidateAllSyncs();
-    // Only re-fetch the visible session's messages; all others are lazy.
+
+    // Invalidate all sessions that had pending socket messages before suspend.
+    // These sessions received messages while non-visible and need to fetch
+    // from the server to get those messages (socket messages are not stored
+    // in _sessionMessages for non-visible sessions).
+    if (_sessionsWithPendingSocketMessages.isNotEmpty) {
+      logger.info(
+        '[Sync] resuming — invalidating ${_sessionsWithPendingSocketMessages.length} '
+        'sessions with pending socket messages',
+      );
+      for (final sessionId in _sessionsWithPendingSocketMessages.toList()) {
+        // Recreate InvalidateSync if needed — non-visible sessions never had
+        // one created, so ?.invalidate() would be a no-op without this.
+        if (!messagesSync.containsKey(sessionId)) {
+          messagesSync[sessionId] = InvalidateSync(
+            () => fetchMessages(sessionId),
+            minInterval: _messagesSyncMinInterval,
+          );
+        }
+        messagesSync[sessionId]?.invalidate();
+      }
+      _sessionsWithPendingSocketMessages.clear();
+    }
+
+    // Always invalidate the visible session to ensure it's caught up.
     if (_visibleSessionId != null) {
       messagesSync[_visibleSessionId]?.invalidate();
     }
