@@ -425,6 +425,11 @@ what you have, you must use the options mode.
   // Track sessions currently undergoing auto-restore to prevent concurrent
   // RPCs.
   final Set<String> _autoRestoreInFlight = {};
+
+  /// Sessions that have been archived locally but the server hasn't confirmed
+  /// yet (replication lag). These are filtered from the active sessions list
+  /// to prevent the "archive then reappear" bug.
+  final Set<String> _optimisticallyArchivedSessions = {};
   @visibleForTesting
   bool? testSocketConnectedOverride;
   @visibleForTesting
@@ -2048,6 +2053,22 @@ what you have, you must use the options mode.
         }
       }
 
+      // Clear optimistic archive flags for sessions that the server has
+      // confirmed as inactive (active: false) or that are no longer in the
+      // list. This prevents the "archive then reappear" bug.
+      for (final session in decryptedSessions) {
+        if (!session.active) {
+          _optimisticallyArchivedSessions.remove(session.id);
+        }
+      }
+      // On full fetch, clear any optimistic archives for sessions not in
+      // the response (deleted or truly archived on server).
+      if (changedSince == null) {
+        _optimisticallyArchivedSessions.removeWhere(
+          (sessionId) => !_sessions.containsKey(sessionId),
+        );
+      }
+
       // Start 60 s staleness timers for every session that came back
       // 'online' from the server. If no real-time activity event arrives
       // to confirm the session is still running, the timer will drop it
@@ -3245,6 +3266,40 @@ what you have, you must use the options mode.
   /// Refresh sessions from server
   Future<void> refreshSessions() async {
     await sessionsSync.invalidateAndAwait();
+  }
+
+  /// Mark a session as optimistically archived.
+  ///
+  /// Call this after a successful archive API call. The session will be
+  /// filtered from the active list until the server confirms with
+  /// `active: false`. This prevents the "archive then reappear" bug caused
+  /// by server replication lag.
+  void markSessionArchived(String sessionId) {
+    _optimisticallyArchivedSessions.add(sessionId);
+    _notifyDataChanged();
+  }
+
+  /// Mark a session as optimistically unarchived.
+  ///
+  /// Call this after a successful unarchive API call. Removes the session
+  /// from the optimistic archive filter so it can appear in the active list.
+  void markSessionUnarchived(String sessionId) {
+    _optimisticallyArchivedSessions.remove(sessionId);
+    _notifyDataChanged();
+  }
+
+  /// Returns whether a session is optimistically archived.
+  ///
+  /// Use this to filter sessions from the active list.
+  bool isSessionOptimisticallyArchived(String sessionId) {
+    return _optimisticallyArchivedSessions.contains(sessionId);
+  }
+
+  /// Returns a copy of all optimistically archived session IDs.
+  ///
+  /// Use this for filtering in widget build methods.
+  Set<String> getOptimisticallyArchivedIds() {
+    return Set<String>.from(_optimisticallyArchivedSessions);
   }
 
   /// Refresh friends and pending requests from server.
@@ -7676,6 +7731,7 @@ what you have, you must use the options mode.
     _sessionMessages.clear();
     _sessionMessagesCache = null;
     _sessionMessagesViewCache.clear();
+    _optimisticallyArchivedSessions.clear();
     _sessions.clear();
     _lastSessionsFetchedAt = null;
     MMKVStorage().clearSessionsCache();

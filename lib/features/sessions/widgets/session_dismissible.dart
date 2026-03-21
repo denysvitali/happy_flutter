@@ -90,6 +90,8 @@ class DismissibleActiveSession extends ConsumerWidget {
 
     try {
       await SessionsApi().setSessionArchived(session.id, true);
+      // Mark optimistically archived to prevent reappear during server lag.
+      sync.markSessionArchived(session.id);
       await ref
           .read(sessionsNotifierProvider.notifier)
           .refreshFromSync();

@@ -494,6 +494,8 @@ class _SessionsScreenState
     for (final id in activeIds) {
       try {
         await SessionsApi().setSessionArchived(id, true);
+        // Mark optimistically archived to prevent reappear during server lag.
+        sync.markSessionArchived(id);
       } catch (e, st) {
         logger.error('Failed to archive session in batch: sessionId=$id', e, st);
         failCount++;
@@ -615,11 +617,14 @@ class _SortedSessions {
 }
 
 /// Compute sorted active/inactive lists, only if [sessions] changed.
+/// Sessions in [optimisticallyArchivedIds] are excluded from the active list
+/// to prevent them from reappearing during server replication lag.
 _SortedSessions _computeSortedSessions(
   Map<String, Session> sessions, {
   required _SortedSessions? previous,
   required Map<String, Session>? lastSessions,
   required String? lastSearchQuery,
+  required Set<String> optimisticallyArchivedIds,
   String searchQuery = '',
 }) {
   if (previous != null &&
@@ -645,6 +650,11 @@ _SortedSessions _computeSortedSessions(
   final active = <Session>[];
   final inactive = <Session>[];
   for (final s in sessionList) {
+    // Skip optimistically archived sessions from the active list.
+    // They'll appear in inactive once the server confirms.
+    if (optimisticallyArchivedIds.contains(s.id)) {
+      continue;
+    }
     if (isSessionActive(s)) {
       active.add(s);
     } else {
@@ -753,11 +763,15 @@ class _SessionsListContentState
 
     final searchQuery = widget.searchQuery;
 
+    // Get optimistically archived session IDs to filter from active list.
+    final optimisticallyArchivedIds = sync.getOptimisticallyArchivedIds();
+
     final sorted = _computeSortedSessions(
       sessions,
       previous: _sortedCache,
       lastSessions: _lastSessionsMap,
       lastSearchQuery: _lastSearchQuery,
+      optimisticallyArchivedIds: optimisticallyArchivedIds,
       searchQuery: searchQuery,
     );
     _sortedCache = sorted;
