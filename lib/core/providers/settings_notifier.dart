@@ -16,6 +16,9 @@ class SettingsNotifier extends Notifier<Settings> {
   Future<void> loadSettings() async {
     final settings = await _storage.getSettings();
     state = settings;
+    // Sync developer mode to logger so DevLogsScreen captures all logs
+    // even in release builds when developer mode was enabled previously.
+    logger.setDeveloperMode(settings.developerModeEnabled);
   }
 
   void clear() {
@@ -47,6 +50,13 @@ class SettingsNotifier extends Notifier<Settings> {
   Future<void> updateSetting<T>(String key, T value) async {
     await _storage.updateSetting(key, value);
     state = _updateSetting(state, key, value);
+
+    // Sync developer mode to logger so DevLogsScreen can capture all logs
+    // even in release builds when developer mode is enabled.
+    if (key == 'developerModeEnabled') {
+      logger.setDeveloperMode(value as bool);
+    }
+
     if (sync.isInitialized) {
       // Profiles must be serialized to JSON maps for applySettings.
       final syncValue = key == 'profiles'

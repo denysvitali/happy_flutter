@@ -62,6 +62,9 @@ class LogEntry {
 ///
 /// Maintains an in-memory buffer of log entries and notifies listeners when new
 /// entries are added. All logs are also written to the console in debug builds.
+///
+/// When [developerModeEnabled] is true, all log levels are captured even in
+/// release builds, allowing developers to see operational logs in the DevLogsScreen.
 class LoggerService {
   factory LoggerService() => _instance;
   LoggerService._();
@@ -75,12 +78,22 @@ class LoggerService {
   /// Current minimum log level (logs below this level are discarded)
   LogLevel _minLevel = LogLevel.debug;
 
+  /// When true, capture all log levels even in release mode.
+  /// This is set when developer mode is enabled in settings.
+  bool _developerModeEnabled = false;
+
   /// Get the current minimum log level
   LogLevel get minLevel => _minLevel;
 
   /// Set the minimum log level
   void setMinLevel(LogLevel level) {
     _minLevel = level;
+  }
+
+  /// Enable or disable developer mode.
+  /// When enabled, all log levels are captured even in release builds.
+  void setDeveloperMode(bool enabled) {
+    _developerModeEnabled = enabled;
   }
 
   /// Add a log entry
@@ -95,8 +108,9 @@ class LoggerService {
       return;
     }
 
-    // In release mode, only process errors (skip debug/info/warning overhead)
-    if (kReleaseMode && level != LogLevel.error) {
+    // In release mode, only process errors unless developer mode is enabled
+    // (developer mode allows seeing all logs in DevLogsScreen for debugging)
+    if (kReleaseMode && !_developerModeEnabled && level != LogLevel.error) {
       return;
     }
 
@@ -108,8 +122,9 @@ class LoggerService {
       stackTrace: stackTrace,
     );
 
-    // In release mode, skip circular buffer for non-errors
-    if (!kReleaseMode || level == LogLevel.error) {
+    // Add to circular buffer (in release mode without dev mode, only errors)
+    final shouldBuffer = !kReleaseMode || _developerModeEnabled || level == LogLevel.error;
+    if (shouldBuffer) {
       _logs.add(entry);
 
       // Maintain circular buffer limit
@@ -118,18 +133,20 @@ class LoggerService {
       }
     }
 
-    // Forward warnings and errors to Sentry (errors only in release mode)
-    if (!kReleaseMode || level == LogLevel.error) {
+    // Forward warnings and errors to Sentry (errors only in release mode without dev mode)
+    final shouldForwardToSentry = !kReleaseMode || _developerModeEnabled || level == LogLevel.error;
+    if (shouldForwardToSentry) {
       _forwardToSentry(entry);
     }
 
-    // Write to console in debug mode
-    if (kDebugMode) {
+    // Write to console in debug mode (or in release with dev mode for visibility)
+    if (kDebugMode || (kReleaseMode && _developerModeEnabled)) {
       _writeToConsole(entry);
     }
 
-    // Notify listeners (errors only in release mode)
-    if (!kReleaseMode || level == LogLevel.error) {
+    // Notify listeners
+    final shouldNotify = !kReleaseMode || _developerModeEnabled || level == LogLevel.error;
+    if (shouldNotify) {
       for (final listener in _listeners) {
         try {
           listener();

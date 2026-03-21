@@ -4982,6 +4982,14 @@ what you have, you must use the options mode.
         _sessionMessages.containsKey(sessionId) &&
         (_sessionMessages[sessionId]?.isNotEmpty ?? false);
 
+    logger.info(
+      '[onSessionVisible] sessionId=$sessionId '
+      'hasPendingSocketMessages=$hasPendingSocketMessages '
+      'hasMessagesInMemory=$hasMessages '
+      'cursorSeq=${_sessionLastSeq[sessionId] ?? 0} '
+      'serverLastSeq=${_sessions[sessionId]?.lastSeq ?? 0}',
+    );
+
     // If we have pending socket messages, skip cache restore and force a fetch
     // to ensure those messages are retrieved from the server.
     if (hasPendingSocketMessages) {
@@ -4996,6 +5004,9 @@ what you have, you must use the options mode.
       // skip it to force a server fetch that picks up those messages.
       if (!hasPendingSocketMessages) {
         final cached = MessageCacheService().getMessages(sessionId);
+        logger.info(
+          '[onSessionVisible] cacheRestore: ${cached.length} cached messages',
+        );
         if (cached.isNotEmpty) {
           // Strip orphaned sidechain messages (see _restoreAllCachedMessages).
           final clean = cached.any((m) => m['isSidechain'] == true)
@@ -5013,6 +5024,7 @@ what you have, you must use the options mode.
         }
       }
       _requestTailRefresh(sessionId);
+      logger.info('[onSessionVisible] tailRefresh requested');
     } else if (_sessionsWithPendingUpdates.remove(sessionId)) {
       // This session received socket events while it was in the
       // background.  Use the incremental delta path when we have a
@@ -5023,12 +5035,17 @@ what you have, you must use the options mode.
       // the latter automatically).
       final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
       final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
+      logger.info(
+        '[onSessionVisible] pendingUpdates: cursorSeq=$cursorSeq '
+        'serverLastSeq=$serverLastSeq',
+      );
       if (cursorSeq <= 0 ||
           serverLastSeq <= 0 ||
           serverLastSeq <= cursorSeq) {
         // No reliable cursor or server says we're caught up but
         // socket events say otherwise — tail-refresh to be safe.
         _requestTailRefresh(sessionId);
+        logger.info('[onSessionVisible] tailRefresh (invalid cursor)');
       }
       // Otherwise: cursorSeq < serverLastSeq with a known gap.
       // The normal incremental path in fetchMessages will pick up
