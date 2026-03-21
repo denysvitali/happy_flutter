@@ -3830,10 +3830,9 @@ what you have, you must use the options mode.
   /// Get the model override to pass when spawning a session.
   ///
   /// Returns `null` to use the daemon's default model, or a model string
-  /// to override the default. When [profile] is provided and
-  /// [lastUsedModelMode] is 'default', uses the profile's configured model
-  /// instead of returning null (which would cause the daemon to fall back
-  /// to its stale session metadata).
+  /// to override the default. When [lastUsedModelMode] is 'default', uses
+  /// the profile's configured model instead of returning null (which would
+  /// cause the daemon to fall back to its stale session metadata).
   String? _getModelOverride({AIBackendProfile? profile}) {
     final modelMode = _settingsSnapshot.lastUsedModelMode;
     if (modelMode != null && modelMode != 'default') {
@@ -3841,18 +3840,21 @@ what you have, you must use the options mode.
     }
     // lastUsedModelMode is 'default' or null: use profile's model if
     // available, to avoid daemon falling back to stale session metadata.
+    // For custom profiles, check openaiConfig/anthropicConfig first
+    // (they contain the user's configured model). For built-in profiles,
+    // defaultModelMode is the only source of truth.
     if (profile != null) {
-      // Check profile.defaultModelMode first (set for built-in profiles).
-      if (profile.defaultModelMode != null) {
-        return profile.defaultModelMode;
-      }
-      // Check openaiConfig.model (for custom OpenAI-compatible profiles).
+      // Check openaiConfig.model (custom OpenAI-compatible profiles).
       if (profile.openaiConfig?.model != null) {
         return profile.openaiConfig!.model;
       }
-      // Check anthropicConfig.model (for custom Anthropic-compatible profiles).
+      // Check anthropicConfig.model (custom Anthropic-compatible profiles).
       if (profile.anthropicConfig?.model != null) {
         return profile.anthropicConfig!.model;
+      }
+      // Check defaultModelMode (built-in profiles with hardcoded defaults).
+      if (profile.defaultModelMode != null) {
+        return profile.defaultModelMode;
       }
     }
     return null;
