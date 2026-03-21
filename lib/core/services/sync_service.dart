@@ -42,6 +42,10 @@ import '../utils/parse_token.dart';
 import '../utils/wire_parsers.dart';
 import 'logger_service.dart';
 import 'notification_service.dart';
+import 'inline_message_processor.dart';
+import 'message_cursor_manager.dart';
+import 'sidechain_grouper.dart';
+import 'tool_result_processor.dart';
 
 // ── Isolate helpers: machine payload decryption ──────────────────────────
 
@@ -288,6 +292,11 @@ what you have, you must use the options mode.
   late String anonID;
   late AuthCredentials credentials;
   final EncryptionCache encryptionCache = EncryptionCache();
+  final SidechainGrouper _sidechainGrouper = SidechainGrouper();
+  final ToolResultProcessor _toolResultProcessor =
+      ToolResultProcessor();
+  final MessageCursorManager _cursorManager =
+      MessageCursorManager();
 
   // Data key storage
   final Map<String, Uint8List> _sessionDataKeys = {};
@@ -298,11 +307,12 @@ what you have, you must use the options mode.
   // Sync managers
   late InvalidateSync sessionsSync;
   final Map<String, InvalidateSync> messagesSync = {};
-  final Map<String, int> _sessionLastSeq = {};
-
-  /// Tracks the lowest seq loaded for each session. A value of 0 means
-  /// we have loaded from the very beginning (no older messages exist).
-  final Map<String, int> _sessionFirstLoadedSeq = {};
+  // _sessionLastSeq and _sessionFirstLoadedSeq are managed
+  // by _cursorManager. Aliases kept for internal access.
+  Map<String, int> get _sessionLastSeq =>
+      _cursorManager.lastSeq;
+  Map<String, int> get _sessionFirstLoadedSeq =>
+      _cursorManager.firstLoadedSeq;
 
   /// The session the user is currently viewing.  Updated by
   /// [onSessionVisible].  Used by [fetchMessages] to bail out
@@ -329,15 +339,8 @@ what you have, you must use the options mode.
   static const int _maxRecentInlineKeys = 200;
 
   /// Per-session serial queue for inline message processing.
-  ///
-  /// Sidechain messages form a linked list via `parentUuid` — each
-  /// message's `parentUuid` points to the previous message's `uuid`.
-  /// If two sidechain messages decrypt concurrently and the second
-  /// finishes before the first, the grouping logic can't find the
-  /// parent chain and the message stays orphaned.  Serialising
-  /// processing per session guarantees messages are upserted and
-  /// grouped in arrival order.
-  final Map<String, Future<void>> _inlineProcessingQueue = {};
+  final InlineMessageProcessor _inlineProcessor =
+      InlineMessageProcessor();
 
   /// Timer for deferred sidechain re-grouping.  After each inline
   /// sidechain message is processed, we schedule a short delayed
@@ -461,6 +464,10 @@ what you have, you must use the options mode.
   int get settingsVersion => _settingsVersion;
   Purchases get purchases => _purchases;
   Map<String, Session> get sessions => Map.unmodifiable(_sessions);
+
+  /// Per-session message seq cursors. Exposed for debug UI.
+  Map<String, int> get sessionMessageCursors =>
+      Map.unmodifiable(_sessionLastSeq);
 
   @visibleForTesting
   Map<String, Session> get testSessions => _sessions;
@@ -599,10 +606,10 @@ what you have, you must use the options mode.
   @visibleForTesting
   String? testGetVisibleSessionId() => _visibleSessionId;
 
-  /// Test helper: check if _inlineProcessingQueue contains a session.
+  /// Test helper: check if inline queue contains a session.
   @visibleForTesting
   bool testInlineQueueContains(String sessionId) =>
-      _inlineProcessingQueue.containsKey(sessionId);
+      _inlineProcessor.contains(sessionId);
 
   /// Test helper: get pending tool results for a session.
   @visibleForTesting
@@ -675,6 +682,16 @@ what you have, you must use the options mode.
   @visibleForTesting
   Future<({Map<String, String> envVars, AIBackendProfile? profile})>
       Function(String sessionId)? testGetSpawnEnvVarsOverride;
+
+  /// Test helper: invoke [_getModelOverride] which is private.
+  @visibleForTesting
+  String? testGetModelOverride({AIBackendProfile? profile}) =>
+      _getModelOverride(profile: profile);
+
+  /// Test helper: set [_settingsSnapshot] for model override tests.
+  @visibleForTesting
+  set testSettingsSnapshot(Settings value) =>
+      _settingsSnapshot = value;
 
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
   Profile? get profile => _profile;
@@ -1002,16 +1019,23 @@ what you have, you must use the options mode.
   /// the actual cursor because inline socket messages advance it
   /// faster than [fetchSessions] runs).
   void _advanceSeqCursor(String sessionId, int newSeq) {
-    if (newSeq <= (_sessionLastSeq[sessionId] ?? 0)) return;
-    _sessionLastSeq[sessionId] = newSeq;
+    if (!_cursorManager.advanceSeqCursor(
+      sessionId,
+      newSeq,
+    )) {
+      return;
+    }
     _scheduleSaveSeq();
 
-    // Keep session.lastSeq in sync so _tailAfterSeqForSession and
-    // gapTooLarge use the authoritative cursor, not the stale value
-    // from the last fetchSessions response.
+    // Keep session.lastSeq in sync so
+    // _tailAfterSeqForSession and gapTooLarge use the
+    // authoritative cursor, not the stale value from the
+    // last fetchSessions response.
     final session = _sessions[sessionId];
-    if (session != null && (session.lastSeq ?? 0) < newSeq) {
-      _sessions[sessionId] = session.copyWith(lastSeq: newSeq);
+    if (session != null &&
+        (session.lastSeq ?? 0) < newSeq) {
+      _sessions[sessionId] =
+          session.copyWith(lastSeq: newSeq);
     }
   }
 
@@ -1460,10 +1484,12 @@ what you have, you must use the options mode.
         // in arrival order.  Without this, concurrent decryptions can
         // finish out of order, breaking the chain and leaving messages
         // orphaned outside their parent Task.
-        final prev =
-            _inlineProcessingQueue[sessionId] ?? Future<void>.value();
-        _inlineProcessingQueue[sessionId] = prev.then(
-          (_) => _processInlineMessage(sessionId, embeddedMessage),
+        _inlineProcessor.enqueue(
+          sessionId,
+          () => _processInlineMessage(
+            sessionId,
+            embeddedMessage,
+          ),
         );
       } else {
         // Visible session with no embedded message — HTTP fetch.
@@ -1584,7 +1610,7 @@ what you have, you must use the options mode.
       // Remove the completed Future from the queue so new messages can
       // start fresh processing without chaining onto a resolved Future.
       // The queue entry is also removed on error (below) for symmetry.
-      _inlineProcessingQueue.remove(sessionId);
+      _inlineProcessor.clearSession(sessionId);
     } catch (error, stack) {
       logger.warning(
         'Inline message processing failed — HTTP fetch will retry',
@@ -1594,7 +1620,7 @@ what you have, you must use the options mode.
       // Remove the failed Future from the queue so subsequent messages
       // can re-enter the inline fast path instead of being silently
       // dropped by chaining onto a rejected Future.
-      _inlineProcessingQueue.remove(sessionId);
+      _inlineProcessor.clearSession(sessionId);
       messagesSync[sessionId]?.invalidate();
       _notifySessionMessagesChanged(sessionId);
     }
@@ -5305,7 +5331,7 @@ what you have, you must use the options mode.
     _sessionUnreadCounts.remove(sessionId);
     // Clear any residual failed Future from the inline queue so that
     // new messages can enter the inline fast path immediately.
-    _inlineProcessingQueue.remove(sessionId);
+    _inlineProcessor.clearSession(sessionId);
 
     // If this session received socket messages while non-visible, we MUST
     // fetch from the server to get those messages.  Socket messages are NOT
@@ -5410,26 +5436,12 @@ what you have, you must use the options mode.
   }
 
   int _tailAfterSeqForSession(String sessionId) {
-    final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
-    final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
-
-    // Socket events can push cursorSeq past serverLastSeq (inline processing
-    // of messages the server hasn't committed yet). In this case, fetch
-    // from cursorSeq directly so we don't restart from a lower position.
-    if (cursorSeq > serverLastSeq) {
-      return cursorSeq;
-    }
-
-    // If cursorSeq is behind serverLastSeq but the gap is small, the normal
-    // delta path will handle it. Only use tail refresh for large gaps.
-    final gap = serverLastSeq - cursorSeq;
-    if (gap <= initialLoad) {
-      return cursorSeq;
-    }
-
-    final knownLastSeq = max(cursorSeq, serverLastSeq);
-    if (knownLastSeq <= initialLoad) return 0;
-    return knownLastSeq - initialLoad;
+    return _cursorManager.tailAfterSeq(
+      sessionId,
+      serverLastSeq:
+          _sessions[sessionId]?.lastSeq ?? 0,
+      initialLoad: initialLoad,
+    );
   }
 
   /// Fetch messages for a session.
@@ -5505,6 +5517,7 @@ what you have, you must use the options mode.
       final hasGap = serverLastSeq > 0 && cursorSeq <= serverLastSeq &&
           (serverLastSeq - cursorSeq) > initialLoad;
       if (!forceTailRefresh &&
+          !isFirstLoad &&
           cursorSeq > 0 &&
           serverLastSeq > 0 &&
           cursorSeq == serverLastSeq &&
@@ -7052,10 +7065,8 @@ what you have, you must use the options mode.
     );
   }
 
-  /// are sidechain-relevant (no `isSidechain`, no `sidechain-root`
-  /// kind, no Task/Agent tool-call) the method returns immediately,
-  /// avoiding O(N²) work for the ~90 % of streaming tokens that are
-  /// plain assistant text.
+  /// Delegates to [SidechainGrouper] and updates session message
+  /// state when grouping modifies the list.
   void _groupSidechainMessages(
     String sessionId, {
     Set<String>? changedIds,
@@ -7063,384 +7074,25 @@ what you have, you must use the options mode.
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return;
 
-    // Fast path: if the caller told us which messages changed and
-    // none of them are sidechain-related, there is nothing to
-    // regroup — skip all four passes.
-    if (changedIds != null && changedIds.isNotEmpty) {
-      var hasSidechainRelevant = false;
-      for (final msg in messages) {
-        final id = msg['id'] as String?;
-        if (id == null || !changedIds.contains(id)) continue;
-        final kind = msg['kind'] as String?;
-        final name = msg['name'] as String?;
-        if (msg['isSidechain'] == true ||
-            kind == 'sidechain-root' ||
-            (kind == 'tool-call' &&
-                (name == 'Task' || name == 'Agent'))) {
-          hasSidechainRelevant = true;
-          break;
-        }
-      }
-      if (!hasSidechainRelevant) {
-        // Fast path: the changed messages aren't sidechain-relevant, but
-        // there may still be orphans in the list from previous sidechain
-        // batches (e.g., child arrived before parent). Check and schedule
-        // a deferred regroup if needed.
-        final hasOrphans = messages.any(
-          (m) => m['isSidechain'] == true,
-        );
-        if (hasOrphans) {
-          _scheduleSidechainRegroup(sessionId);
-        }
-        return;
-      }
+    final result = _sidechainGrouper.groupMessages(
+      messages,
+      changedIds: changedIds,
+    );
+
+    if (result == null) return;
+
+    if (result.hasOrphans &&
+        !identical(result.messages, messages)) {
+      _scheduleSidechainRegroup(sessionId);
+    } else if (result.hasOrphans) {
+      _scheduleSidechainRegroup(sessionId);
+      return;
     }
 
-    // Pass 1: Find Task tool calls → map stable identifiers to task message ID.
-    // We index by uuid, toolUseId, AND prompt so that sidechain messages
-    // can be matched even when multiple Agent/Task calls share the same
-    // assistant message uuid (common when Claude batches tool calls).
-    final uuidToTaskId = <String, String>{};
-    final promptToTaskId = <String, String>{};
-    for (final msg in messages) {
-      if (msg['kind'] == 'tool-call' &&
-          (msg['name'] == 'Task' || msg['name'] == 'Agent')) {
-        final taskId = msg['id'] as String;
-        final uuid = msg['uuid'] as String?;
-        if (uuid != null && uuid.isNotEmpty) {
-          uuidToTaskId[uuid] = taskId;
-        }
-        // Also index by toolUseId — the Go CLI sets
-        // parentUuid = tool_use_id for the first sidechain
-        // message, which is unique per tool call even when
-        // multiple Agent/Task calls share one assistant message.
-        final toolUseId = msg['toolUseId'] as String?;
-        if (toolUseId != null && toolUseId.isNotEmpty) {
-          uuidToTaskId[toolUseId] = taskId;
-        }
-        final input = msg['input'] as Map<String, dynamic>?;
-        final prompt = input?['prompt'] as String?;
-        if (prompt != null && prompt.isNotEmpty) {
-          promptToTaskId[prompt] = taskId;
-        }
-      }
-    }
-    if (uuidToTaskId.isEmpty && promptToTaskId.isEmpty) return;
-
-    // Pre-seed uuidToSidechainId from Task uuids, persisted
-    // sidechain-root uuids, and already-grouped children so that
-    // new sidechain messages arriving after the sidechain-root
-    // was removed can still be matched.
-    final uuidToSidechainId = <String, String>{};
-    for (final msg in messages) {
-      if (msg['kind'] == 'tool-call' &&
-          (msg['name'] == 'Task' || msg['name'] == 'Agent')) {
-        final taskId = msg['id'] as String;
-        final taskUuid = msg['uuid'] as String?;
-        if (taskUuid != null && taskUuid.isNotEmpty) {
-          uuidToSidechainId[taskUuid] = taskId;
-        }
-        // Also seed by toolUseId so sidechain messages whose
-        // parentUuid is the tool_use_id can be matched.
-        final toolUseId = msg['toolUseId'] as String?;
-        if (toolUseId != null && toolUseId.isNotEmpty) {
-          uuidToSidechainId[toolUseId] = taskId;
-        }
-        // Recover sidechain-root uuids persisted by previous
-        // grouping runs (the roots themselves are removed from
-        // the message list, so their uuids would otherwise be
-        // lost on subsequent streaming calls).
-        final rootUuids =
-            msg['_sidechainRootUuids'] as List<dynamic>?;
-        if (rootUuids != null) {
-          for (final ru in rootUuids) {
-            if (ru is String && ru.isNotEmpty) {
-              uuidToSidechainId[ru] = taskId;
-            }
-          }
-        }
-        final existing = msg['children'] as List<dynamic>?;
-        if (existing != null) {
-          for (final child in existing) {
-            if (child is Map<String, dynamic>) {
-              final childUuid = child['uuid'] as String?;
-              if (childUuid != null && childUuid.isNotEmpty) {
-                uuidToSidechainId[childUuid] = taskId;
-              }
-              // Also seed from child's parentUuid — this
-              // covers intermediate chain links that aren't
-              // the Task uuid or a sibling uuid.
-              final childParentUuid =
-                  child['parentUuid'] as String?;
-              if (childParentUuid != null &&
-                  childParentUuid.isNotEmpty) {
-                uuidToSidechainId[childParentUuid] = taskId;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Pass 2: Combined pass to find sidechain roots and group
-    // child messages in a single iteration
-    final sidechainChildren = <String, List<Map<String, dynamic>>>{};
-    final sidechainMsgIds = <String>{};
-
-    for (final msg in messages) {
-      if (msg['kind'] == 'sidechain-root') {
-        final prompt = msg['prompt'] as String?;
-        final uuid = msg['uuid'] as String?;
-        final parentUuid = msg['parentUuid'] as String?;
-        final sidechainId =
-            (parentUuid != null && uuidToTaskId.containsKey(parentUuid))
-            ? uuidToTaskId[parentUuid]
-            : (prompt != null ? promptToTaskId[prompt] : null);
-        if (sidechainId != null) {
-          if (uuid != null) {
-            uuidToSidechainId[uuid] = sidechainId;
-            // Persist the root's uuid on the Task so the
-            // pre-seed can recover the chain after this root
-            // is removed from the message list.
-            for (final m in messages) {
-              if (m['id'] == sidechainId) {
-                final roots = (m['_sidechainRootUuids']
-                        as List<dynamic>?) ??
-                    <String>[];
-                if (!roots.contains(uuid)) {
-                  m['_sidechainRootUuids'] = [...roots, uuid];
-                }
-                break;
-              }
-            }
-          }
-          sidechainMsgIds.add(msg['id'] as String);
-        }
-      } else if (msg['isSidechain'] == true ||
-          (msg['parentUuid'] as String?)?.isNotEmpty == true) {
-        // Also check parentUuid even if isSidechain is false — the Go backend
-        // may send parentUuid without isSidechain=true, and such messages
-        // need to be grouped as sidechain children.
-        final uuid = msg['uuid'] as String?;
-        final parentUuid = msg['parentUuid'] as String?;
-
-        if (parentUuid != null && uuidToSidechainId.containsKey(parentUuid)) {
-          final sidechainId = uuidToSidechainId[parentUuid]!;
-          if (uuid != null) {
-            uuidToSidechainId[uuid] = sidechainId;
-          }
-          sidechainChildren.putIfAbsent(sidechainId, () => []).add(msg);
-          sidechainMsgIds.add(msg['id'] as String);
-        }
-      }
-    }
-
-    if (sidechainMsgIds.isEmpty) return;
-
-    // Pass 3: Remove sidechain messages from main list, attach
-    // children to Task tool-call messages (mutate in-place to
-    // avoid spread copy overhead)
-    final filtered = <Map<String, dynamic>>[];
-    for (final msg in messages) {
-      final msgId = msg['id'] as String;
-      if (sidechainMsgIds.contains(msgId)) continue;
-
-      if (sidechainChildren.containsKey(msgId)) {
-        final existing = msg['children'] as List<dynamic>?;
-        if (existing != null && existing.isNotEmpty) {
-          // Merge: append new children, skip duplicates.
-          final existingIds = <String>{};
-          for (final c in existing) {
-            if (c is Map<String, dynamic>) {
-              final id = c['id'] as String?;
-              if (id != null) existingIds.add(id);
-            }
-          }
-          for (final newChild in sidechainChildren[msgId]!) {
-            final newId = newChild['id'] as String?;
-            if (newId == null || !existingIds.contains(newId)) {
-              existing.add(newChild);
-            }
-          }
-        } else {
-          msg['children'] = sidechainChildren[msgId];
-        }
-      }
-      filtered.add(msg);
-    }
-
-    _sessionMessages[sessionId] = filtered;
-    _sessionMessagesCache = null;
-    _sessionMessagesViewCache.remove(sessionId);
-
-    // Pass 4: Recursively group nested Task children.
-    // After pass 3, inner Task tool-calls appear in their
-    // parent Task's children array but their own sidechain
-    // children are also flattened there. Re-group them so
-    // each nested Task gets its own children array.
-    for (final msg in filtered) {
-      final children = msg['children'] as List<dynamic>?;
-      if (children != null && children.isNotEmpty) {
-        _regroupNestedTasks(children.cast<Map<String, dynamic>>());
-      }
-    }
-  }
-
-  /// Recursively regroup sidechain children so nested
-  /// Task tool-calls within a children array get their
-  /// own children sub-arrays.
-  void _regroupNestedTasks(List<Map<String, dynamic>> children) {
-    // Find inner Task tool-calls and their stable identifiers.
-    final uuidToTask = <String, Map<String, dynamic>>{};
-    final promptToTask = <String, Map<String, dynamic>>{};
-    for (final child in children) {
-      if (child['kind'] == 'tool-call' &&
-          (child['name'] == 'Task' || child['name'] == 'Agent')) {
-        final uuid = child['uuid'] as String?;
-        if (uuid != null && uuid.isNotEmpty) {
-          uuidToTask[uuid] = child;
-        }
-        final toolUseId = child['toolUseId'] as String?;
-        if (toolUseId != null && toolUseId.isNotEmpty) {
-          uuidToTask[toolUseId] = child;
-        }
-        final input = child['input'] as Map<String, dynamic>?;
-        final prompt = input?['prompt'] as String?;
-        if (prompt != null && prompt.isNotEmpty) {
-          promptToTask[prompt] = child;
-        }
-      }
-    }
-    if (uuidToTask.isEmpty && promptToTask.isEmpty) return;
-
-    // Pre-seed uuidToGroupedTask from inner Tasks' own uuids,
-    // toolUseIds, persisted sidechain-root uuids, and existing
-    // children's uuids so new arrivals can be matched even after
-    // sidechain-roots were removed.
-    final uuidToGroupedTask = <String, Map<String, dynamic>>{};
-    for (final child in children) {
-      if (child['kind'] == 'tool-call' &&
-          (child['name'] == 'Task' || child['name'] == 'Agent')) {
-        final taskUuid = child['uuid'] as String?;
-        if (taskUuid != null && taskUuid.isNotEmpty) {
-          uuidToGroupedTask[taskUuid] = child;
-        }
-        final toolUseId = child['toolUseId'] as String?;
-        if (toolUseId != null && toolUseId.isNotEmpty) {
-          uuidToGroupedTask[toolUseId] = child;
-        }
-        final rootUuids =
-            child['_sidechainRootUuids'] as List<dynamic>?;
-        if (rootUuids != null) {
-          for (final ru in rootUuids) {
-            if (ru is String && ru.isNotEmpty) {
-              uuidToGroupedTask[ru] = child;
-            }
-          }
-        }
-        final existingChildren =
-            child['children'] as List<dynamic>?;
-        if (existingChildren != null) {
-          for (final ec in existingChildren) {
-            if (ec is Map<String, dynamic>) {
-              final ecUuid = ec['uuid'] as String?;
-              if (ecUuid != null && ecUuid.isNotEmpty) {
-                uuidToGroupedTask[ecUuid] = child;
-              }
-              final ecParentUuid =
-                  ec['parentUuid'] as String?;
-              if (ecParentUuid != null &&
-                  ecParentUuid.isNotEmpty) {
-                uuidToGroupedTask[ecParentUuid] = child;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Find sidechain-root messages matching inner Tasks.
-    final toRemove = <int>{};
-
-    for (var i = 0; i < children.length; i++) {
-      final child = children[i];
-      if (child['kind'] == 'sidechain-root') {
-        final prompt = child['prompt'] as String?;
-        final uuid = child['uuid'] as String?;
-        final parentUuid = child['parentUuid'] as String?;
-        final task = (parentUuid != null && uuidToTask.containsKey(parentUuid))
-            ? uuidToTask[parentUuid]
-            : (prompt != null ? promptToTask[prompt] : null);
-        if (task != null && uuid != null) {
-          uuidToGroupedTask[uuid] = task;
-          // Persist root uuid on the inner Task so the
-          // pre-seed can recover it after removal.
-          final roots = (task['_sidechainRootUuids']
-                  as List<dynamic>?) ??
-              <String>[];
-          if (!roots.contains(uuid)) {
-            task['_sidechainRootUuids'] = [...roots, uuid];
-          }
-          toRemove.add(i);
-        }
-      }
-    }
-
-    // Group sidechain children under their inner Tasks.
-    final taskChildren = <String, List<Map<String, dynamic>>>{};
-    for (var i = 0; i < children.length; i++) {
-      if (toRemove.contains(i)) continue;
-      final child = children[i];
-      if (child['isSidechain'] == true) {
-        final parentUuid = child['parentUuid'] as String?;
-        final uuid = child['uuid'] as String?;
-        if (parentUuid != null && uuidToGroupedTask.containsKey(parentUuid)) {
-          final task = uuidToGroupedTask[parentUuid]!;
-          final taskId = task['id'] as String;
-          taskChildren.putIfAbsent(taskId, () => []).add(child);
-          if (uuid != null) {
-            uuidToGroupedTask[uuid] = task;
-          }
-          toRemove.add(i);
-        }
-      }
-    }
-
-    // Attach children to inner Tasks (merge with existing).
-    for (final entry in taskChildren.entries) {
-      for (final child in children) {
-        if (child['id'] == entry.key) {
-          final existing = child['children'] as List<dynamic>?;
-          if (existing != null && existing.isNotEmpty) {
-            final existingIds = <String>{};
-            for (final c in existing) {
-              if (c is Map<String, dynamic>) {
-                final id = c['id'] as String?;
-                if (id != null) existingIds.add(id);
-              }
-            }
-            for (final newChild in entry.value) {
-              final newId = newChild['id'] as String?;
-              if (newId == null || !existingIds.contains(newId)) {
-                existing.add(newChild);
-              }
-            }
-            _regroupNestedTasks(
-              existing.cast<Map<String, dynamic>>(),
-            );
-          } else {
-            child['children'] = entry.value;
-            _regroupNestedTasks(entry.value);
-          }
-          break;
-        }
-      }
-    }
-
-    // Remove regrouped messages (reverse order).
-    final indices = toRemove.toList()..sort((a, b) => b.compareTo(a));
-    for (final i in indices) {
-      children.removeAt(i);
+    if (!identical(result.messages, messages)) {
+      _sessionMessages[sessionId] = result.messages;
+      _sessionMessagesCache = null;
+      _sessionMessagesViewCache.remove(sessionId);
     }
   }
 
@@ -7461,17 +7113,10 @@ what you have, you must use the options mode.
       return;
     }
 
-    final toolResultsById = <String, Map<String, dynamic>>{};
-    for (final result in toolResults) {
-      final toolUseId = result['toolUseId'] as String?;
-      if (toolUseId == null || toolUseId.isEmpty) continue;
-      toolResultsById[toolUseId] = result;
-    }
-    if (toolResultsById.isEmpty) return;
-
-    final (updated, changed) = _applyToolResultsRecursive(
+    final (updated, changed) =
+        _toolResultProcessor.applyToolResults(
       existing,
-      toolResultsById,
+      toolResults,
     );
 
     if (changed) {
@@ -7481,77 +7126,8 @@ what you have, you must use the options mode.
     }
   }
 
-  (List<Map<String, dynamic>>, bool) _applyToolResultsRecursive(
-    List<Map<String, dynamic>> messages,
-    Map<String, Map<String, dynamic>> toolResultsById,
-  ) {
-    var changed = false;
-    final updated = <Map<String, dynamic>>[];
-
-    for (final msg in messages) {
-      var next = msg;
-
-      final children = msg['children'];
-      if (children is List<dynamic>) {
-        final typedChildren = children
-            .whereType<Map<String, dynamic>>()
-            .toList();
-        final (updatedChildren, childChanged) = _applyToolResultsRecursive(
-          typedChildren,
-          toolResultsById,
-        );
-        if (childChanged) {
-          next = {...next, 'children': updatedChildren};
-          changed = true;
-        }
-      }
-
-      if (msg['kind'] == 'tool-call') {
-        final toolUseId = msg['toolUseId'] as String?;
-        final result = toolUseId != null ? toolResultsById[toolUseId] : null;
-        if (result != null) {
-          final isError = result['isError'] == true;
-
-          Map<String, dynamic>? permissionUpdate;
-          final perms = result['permissions'];
-          if (perms is Map<String, dynamic>) {
-            final permResult = perms['result'] as String?;
-            final status = permResult == 'approved' ? 'approved' : 'denied';
-            permissionUpdate = {
-              'id': toolUseId,
-              'status': status,
-              if (perms['date'] != null) 'date': perms['date'],
-              if (perms['mode'] != null) 'mode': perms['mode'],
-              if (perms['allowedTools'] != null)
-                'allowedTools': perms['allowedTools'],
-              if (perms['decision'] != null) 'decision': perms['decision'],
-            };
-          }
-
-          next = {
-            ...next,
-            'state': isError ? 'error' : 'completed',
-            'result': result['result'],
-            'completedAt': result['createdAt'],
-            'permission': ?permissionUpdate,
-          };
-          changed = true;
-        }
-      }
-
-      updated.add(next);
-    }
-
-    return (updated, changed);
-  }
-
-  /// Enrich tool-call messages with permission data from [AgentState].
-  ///
-  /// The server stores pending permissions in [AgentState.requests] and
-  /// completed ones in [AgentState.completedRequests], both keyed by the
-  /// tool-use ID.  This mirrors Phase 0 of the React Native reducer which
-  /// stamps `permission` onto each matching tool-call message so the UI can
-  /// render the Allow / Deny buttons.
+  /// Enrich tool-call messages with permission data from
+  /// [AgentState]. Delegates to [ToolResultProcessor].
   void _applyPermissionRequests(String sessionId) {
     final session = _sessions[sessionId];
     if (session == null) return;
@@ -7559,136 +7135,27 @@ what you have, you must use the options mode.
     final agentState = session.agentState;
     if (agentState == null) return;
 
-    final requests = agentState.requests;
-    final completedRequests = agentState.completedRequests;
-
-    if ((requests == null || requests.isEmpty) &&
-        (completedRequests == null || completedRequests.isEmpty)) {
-      return;
-    }
-
     final existing = _sessionMessages[sessionId];
     if (existing == null || existing.isEmpty) return;
 
-    // Build a lookup: toolUseId → index in existing list (O(n)).
-    final toolUseIdToIndex = <String, int>{};
-    for (var i = 0; i < existing.length; i++) {
-      final msg = existing[i];
-      if (msg['kind'] == 'tool-call') {
-        final id = msg['toolUseId'] as String?;
-        if (id != null) toolUseIdToIndex[id] = i;
-      }
+    final result =
+        _toolResultProcessor.applyPermissionRequests(
+      existing,
+      agentState,
+      _notifiedPermissionIds,
+    );
+
+    // Cancel notifications for resolved permissions.
+    for (final permId in result.resolvedPermIds) {
+      _notifiedPermissionIds.remove(permId);
+      unawaited(
+        NotificationService.instance
+            .cancelPermissionNotification(permId),
+      );
     }
 
-    // Copy-on-write: start with the original reference and only copy
-    // the list when the first actual mutation is needed.
-    var messages = existing;
-    var copied = false;
-
-    void ensureCopied() {
-      if (!copied) {
-        messages = List<Map<String, dynamic>>.from(existing);
-        copied = true;
-      }
-    }
-
-    // Stamp pending permission onto matching tool-call messages.
-    if (requests != null) {
-      for (final entry in requests.entries) {
-        final permId = entry.key;
-        final idx = toolUseIdToIndex[permId];
-        if (idx == null) continue;
-
-        final msg = messages[idx];
-        final existingPerm = msg['permission'] as Map<String, dynamic>?;
-        // Add pending permission if absent, or backfill missing id when
-        // older payloads provide status but not the request identifier.
-        if (existingPerm == null) {
-          ensureCopied();
-          messages[idx] = {
-            ...msg,
-            'permission': {'id': permId, 'status': 'pending'},
-          };
-        } else if (existingPerm['id'] == null) {
-          ensureCopied();
-          messages[idx] = {
-            ...msg,
-            'permission': {...existingPerm, 'id': permId},
-          };
-        }
-      }
-    }
-
-    // Stamp completed permission data onto matching tool-call messages.
-    if (completedRequests != null) {
-      for (final entry in completedRequests.entries) {
-        final permId = entry.key;
-        final info = entry.value;
-
-        // Cancel the notification for this resolved permission.
-        if (_notifiedPermissionIds.remove(permId)) {
-          unawaited(
-            NotificationService.instance
-                .cancelPermissionNotification(permId),
-          );
-        }
-
-        final idx = toolUseIdToIndex[permId];
-        if (idx == null) continue;
-
-        final msg = messages[idx];
-        final existingPerm = msg['permission'] as Map<String, dynamic>?;
-        // Skip if already resolved — the tool-result `permissions` field
-        // (applied in _applyToolResults) is more authoritative.
-        if (existingPerm != null &&
-            existingPerm['status'] != 'pending' &&
-            existingPerm['id'] != null) {
-          continue;
-        }
-
-        ensureCopied();
-        messages[idx] = {
-          ...msg,
-          'permission': {
-            'id': permId,
-            'status': info.status,
-            if (info.mode != null) 'mode': info.mode,
-            if (info.allowedTools != null) 'allowedTools': info.allowedTools,
-            if (info.decision != null) 'decision': info.decision,
-            if (info.reason != null) 'reason': info.reason,
-          },
-        };
-      }
-    }
-
-    // Clear stale pending permissions: if a tool-call message has
-    // status 'pending' but its permission ID is no longer in
-    // agentState.requests, the CLI already resolved it (the server-
-    // side agentState update may have failed or been cleaned up).
-    // Remove the stale permission so the UI stops showing buttons
-    // that will always fail with "failed to resolve permission".
-    final pendingIds = requests?.keys.toSet() ?? <String>{};
-    for (var i = 0; i < messages.length; i++) {
-      final msg = messages[i];
-      if (msg['kind'] != 'tool-call') continue;
-      final perm = msg['permission'] as Map<String, dynamic>?;
-      if (perm == null) continue;
-      final status = perm['status'] as String?;
-      if (status != 'pending') continue;
-      final permId = perm['id'] as String?;
-      if (permId != null && !pendingIds.contains(permId)) {
-        // Permission was pending locally but is no longer in
-        // agentState.requests — treat as expired/canceled.
-        ensureCopied();
-        messages[i] = {
-          ...msg,
-          'permission': {...perm, 'status': 'canceled'},
-        };
-      }
-    }
-
-    if (copied) {
-      _sessionMessages[sessionId] = messages;
+    if (result.changed) {
+      _sessionMessages[sessionId] = result.messages;
       _sessionMessagesCache = null;
       _sessionMessagesViewCache.remove(sessionId);
     }
@@ -7957,7 +7424,7 @@ what you have, you must use the options mode.
       timer.cancel();
     }
     _sidechainRegroupTimers.clear();
-    _inlineProcessingQueue.clear();
+    _inlineProcessor.clear();
     _sessionsRefreshDebounceTimer?.cancel();
     _saveSeqDebounceTimer?.cancel();
     _saveSessionsCacheDebounceTimer?.cancel();
@@ -8117,7 +7584,7 @@ what you have, you must use the options mode.
       timer.cancel();
     }
     _sidechainRegroupTimers.clear();
-    _inlineProcessingQueue.clear();
+    _inlineProcessor.clear();
     // Flush any pending seq write before shutdown so cursors aren't lost.
     _saveSeqDebounceTimer?.cancel();
     _saveSeqDebounceTimer = null;

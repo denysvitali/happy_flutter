@@ -79,6 +79,10 @@ void main() {
         lastSeq: 10, // server thinks last seq is 10
       );
       sync.testSetSessionLastSeq(sessionId, 15); // socket advanced to 15
+      // Put messages in memory so isFirstLoad=false (tests delta path)
+      sync.testSetSessionMessages(sessionId, [
+        {'id': 'msg-1', 'seq': 1, 'role': 'user'},
+      ]);
 
       // HTTP mock: capture afterSeq and return messages
       final capturedAfterSeq = <int>[];
@@ -107,6 +111,10 @@ void main() {
       // Session with cursor and server in sync at seq 10
       sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
       sync.testSetSessionLastSeq(sessionId, 10);
+      // Put messages in memory so isFirstLoad=false (tests skip path)
+      sync.testSetSessionMessages(sessionId, [
+        {'id': 'msg-1', 'seq': 1, 'role': 'user'},
+      ]);
 
       final capturedAfterSeq = <int>[];
       sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
@@ -127,6 +135,10 @@ void main() {
       // Session with cursor at 5, server at 10
       sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
       sync.testSetSessionLastSeq(sessionId, 5);
+      // Put messages in memory so isFirstLoad=false (tests delta path)
+      sync.testSetSessionMessages(sessionId, [
+        {'id': 'msg-1', 'seq': 1, 'role': 'user'},
+      ]);
 
       final capturedAfterSeq = <int>[];
       sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
@@ -238,6 +250,10 @@ void main() {
       // Initial session state
       sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
       sync.testSetSessionLastSeq(sessionId, 10);
+      // Put messages in memory so isFirstLoad=false (tests delta path)
+      sync.testSetSessionMessages(sessionId, [
+        {'id': 'msg-1', 'seq': 1, 'role': 'user'},
+      ]);
 
       // Simulate socket delivers a new message (inline processing)
       // This advances _sessionLastSeq to 15 before fetchMessages checks

@@ -323,8 +323,8 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
             ),
             child: Text(
               'ID: ${session.id.substring(0, 16)}...'
-              ' | seq: ${session.seq}'
-              ' | msgs: ${session.lastSeq ?? 0}',
+              ' | cursor: ${sync.sessionMessageCursors[session.id] ?? 0}'
+              ' | lastSeq: ${session.lastSeq ?? 0}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurfaceVariant,
                 fontFamily: 'monospace',
@@ -384,12 +384,14 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
       ..writeln('Session list:');
 
     for (final s in sessions.values) {
+      final cursor = sync.sessionMessageCursors[s.id] ?? 0;
+      final lastSeq = s.lastSeq ?? 0;
       buffer
         ..writeln('  ${s.id}:')
         ..writeln('    active: ${s.active}')
         ..writeln('    presence: ${s.presence}')
-        ..writeln('    seq: ${s.seq}')
-        ..writeln('    lastSeq: ${s.lastSeq ?? 0}');
+        ..writeln('    cursor: $cursor')
+        ..writeln('    lastSeq: $lastSeq');
     }
 
     buffer
