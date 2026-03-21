@@ -1545,8 +1545,8 @@ what you have, you must use the options mode.
 
   /// Handle new session update
   void _handleNewSession(Map<String, dynamic> data) {
-    logger.info('New session received');
     final sessionId = data['id'] as String? ?? data['sid'] as String?;
+    logger.info('New session received: $sessionId');
     if (sessionId != null && sessionId.isNotEmpty) {
       _pendingNewSessionIds.add(sessionId);
     }
@@ -3580,13 +3580,34 @@ what you have, you must use the options mode.
       final candidates =
           _sessions.values
               .where(
-                (s) =>
-                    s.metadata?.machineId == machineId &&
-                    s.metadata?.path == path &&
-                    (now - s.createdAt) < 90000,
+                (s) {
+                  final ageMs = now - s.createdAt;
+                  final matchesMachineId = s.metadata?.machineId == machineId;
+                  final matchesPath = s.metadata?.path == path;
+                  final recent = ageMs < 90000;
+                  final isMatch = matchesMachineId && matchesPath && recent;
+                  if (matchesPath && ageMs < 120000) {
+                    logger.info(
+                      '[createSession] checking session ${s.id}: '
+                      'machineId=${s.metadata?.machineId} '
+                      '(matches=$matchesMachineId) '
+                      'path=${s.metadata?.path} '
+                      '(matches=$matchesPath) '
+                      'age=${(ageMs / 1000).toStringAsFixed(1)}s '
+                      '(recent=$recent) '
+                      'isMatch=$isMatch',
+                    );
+                  }
+                  return isMatch;
+                },
               )
               .toList()
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      logger.info(
+        '[createSession] found ${candidates.length} candidate sessions '
+        'matching machine=$machineId path=$path',
+      );
 
       if (candidates.isNotEmpty) {
         final found = candidates.first;
