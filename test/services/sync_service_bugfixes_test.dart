@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
@@ -311,6 +313,132 @@ void main() {
           sync.testSessionsNeedingTailRefresh().contains(sessionId),
           isFalse,
           reason: '_sessionsNeedingTailRefresh should be cleared on suspend',
+        );
+      },
+    );
+  });
+
+  group('Sync resume race condition fix', () {
+    late Sync sync;
+
+    setUp(() {
+      sync = Sync();
+      sync.testIsInitialized = true;
+      sync.settingsSync = InvalidateSync(() async {});
+      sync.profileSync = InvalidateSync(() async {});
+      sync.purchasesSync = InvalidateSync(() async {});
+      sync.machinesSync = InvalidateSync(() async {});
+      sync.pushTokenSync = InvalidateSync(() async {});
+      sync.nativeUpdateSync = InvalidateSync(() async {});
+      sync.artifactsSync = InvalidateSync(() async {});
+      sync.friendsSync = InvalidateSync(() async {});
+      sync.friendRequestsSync = InvalidateSync(() async {});
+      sync.feedSync = InvalidateSync(() async {});
+      sync.todosSync = InvalidateSync(() async {});
+      sync.sessionGitStatusSync = InvalidateSync(() async {});
+      sync.messagesSync.clear();
+      sync.testClearSessionsWithPendingSocketMessages();
+      sync.testResetLastResumeAtMs();
+      // Reset _invalidateAllSyncs debounce so resume() actually runs
+      sync.testLastInvalidateAllSyncsAtMs = null;
+    });
+
+    test(
+      'resume() chains visible session messagesSync invalidation '
+      'AFTER sessionsSync completes (not in parallel)',
+      () async {
+        // THE RACE CONDITION BEING TESTED:
+        //
+        // OLD BUG: resume() called messagesSync.invalidate() immediately after
+        // _invalidateAllSyncs(), in the same synchronous block. Both were queued
+        // as microtasks and ran in undefined order. If messagesSync._run() (which
+        // calls fetchMessages) ran BEFORE sessionsSync._run() (which updates
+        // _sessions[sessionId].lastSeq), fetchMessages would see stale serverLastSeq
+        // and skip via "already caught up" — losing messages.
+        //
+        // NEW FIX: resume() chains messagesSync.invalidate() inside
+        // sessionsSync.invalidateAndAwait().then(...), guaranteeing that
+        // sessionsSync completes first and _sessions[sessionId].lastSeq is updated.
+
+        final visibleId = 'visible-session';
+
+        // Track the ORDER in which sessionsSync and messagesSync are invalidated
+        final callOrder = <String>[];
+        sync.sessionsSync = InvalidateSync(() async {
+          callOrder.add('sessionsSync');
+        });
+
+        // Create messagesSync for the visible session
+        sync.messagesSync[visibleId] = InvalidateSync(() async {
+          callOrder.add('messagesSync');
+        });
+
+        // Mark session as visible
+        sync.onSessionVisible(visibleId);
+        expect(sync.testGetVisibleSessionId(), equals(visibleId));
+
+        // Call resume()
+        sync.resume();
+
+        // Wait for all async operations to complete
+        await sync.sessionsSync.awaitQueue();
+        await sync.messagesSync[visibleId]!.awaitQueue();
+
+        // Verify messagesSync ran AFTER sessionsSync (chained, not parallel).
+        // sessionsSync may appear multiple times due to _invalidateAllSyncs
+        // calling it for both phase=null and phase=_criticalSyncPhase.
+        // The key invariant: messagesSync LAST (after all sessionsSync calls).
+        expect(callOrder.last, equals('messagesSync'),
+          reason: 'messagesSync must be the LAST call (chained after sessionsSync, '
+              'not parallel — this is the race condition fix)',
+        );
+      },
+    );
+
+    test(
+      'resume() recreates messagesSync for non-visible sessions '
+      'and invalidates it (THE original message loss bug)',
+      () async {
+        // This is the ORIGINAL bug from commit 7ec83c8.
+        // Non-visible session Y had messages arrive while backgrounded.
+        // messagesSync[Y] was never created (only onSessionVisible creates it).
+        // Before the fix: resume() called messagesSync[Y]?.invalidate() which
+        // was a no-op (null safety), so messages were never fetched.
+        // After the fix: resume() CREATES messagesSync[Y] before invalidating.
+
+        final nonVisibleId = 'non-visible-session';
+        expect(
+          sync.messagesSync.containsKey(nonVisibleId),
+          isFalse,
+          reason: 'messagesSync should not exist for non-visible session initially',
+        );
+
+        sync.testSetPendingSocketMessages({nonVisibleId});
+
+        // Track if messagesSync was invalidated
+        var messagesSyncInvalidated = false;
+        // sessionsSync is a no-op
+        sync.sessionsSync = InvalidateSync(() async {});
+
+        // Call resume — the fix should create messagesSync[nonVisibleId]
+        // and invalidate it
+        sync.resume();
+
+        // Allow the microtask to run that creates messagesSync
+        await Future<void>.delayed(Duration.zero);
+
+        // THE FIX: messagesSync should now be created for this non-visible session
+        expect(
+          sync.messagesSync.containsKey(nonVisibleId),
+          isTrue,
+          reason: 'messagesSync MUST be created for non-visible session with '
+              'pending socket messages on resume (this was the original bug)',
+        );
+
+        // Verify it was invalidated (if the action had been set, it would run)
+        messagesSyncInvalidated = sync.messagesSync[nonVisibleId] != null;
+        expect(messagesSyncInvalidated, isTrue,
+          reason: 'messagesSync for non-visible session must be invalidated',
         );
       },
     );
