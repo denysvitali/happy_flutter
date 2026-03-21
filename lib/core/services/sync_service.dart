@@ -430,6 +430,11 @@ what you have, you must use the options mode.
   /// yet (replication lag). These are filtered from the active sessions list
   /// to prevent the "archive then reappear" bug.
   final Set<String> _optimisticallyArchivedSessions = {};
+
+  /// Tool results that arrived before their corresponding tool-call message.
+  /// Maps sessionId → list of pending tool results. Applied when the tool-call
+  /// message arrives via inline processing or HTTP fetch.
+  final Map<String, List<Map<String, dynamic>>> _pendingToolResults = {};
   @visibleForTesting
   bool? testSocketConnectedOverride;
   @visibleForTesting
@@ -558,6 +563,61 @@ what you have, you must use the options mode.
   void testSetSessionLastSeq(String sessionId, int seq) {
     _sessionLastSeq[sessionId] = seq;
   }
+
+  /// Test helper: directly set _sessionsWithPendingSocketMessages.
+  @visibleForTesting
+  void testSetPendingSocketMessages(Set<String> sessionIds) {
+    _sessionsWithPendingSocketMessages.addAll(sessionIds);
+  }
+
+  /// Test helper: check if a session has pending socket messages.
+  @visibleForTesting
+  bool testHasPendingSocketMessage(String sessionId) =>
+      _sessionsWithPendingSocketMessages.contains(sessionId);
+
+  /// Test helper: clear _sessionsWithPendingSocketMessages.
+  @visibleForTesting
+  void testClearSessionsWithPendingSocketMessages() =>
+      _sessionsWithPendingSocketMessages.clear();
+
+  /// Test helper: reset _lastResumeAtMs to bypass resume debounce in tests.
+  @visibleForTesting
+  void testResetLastResumeAtMs() => _lastResumeAtMs = null;
+
+  /// Test helper: check if _pendingUpdateSessionIds is empty.
+  @visibleForTesting
+  bool testPendingUpdateSessionIdsEmpty() =>
+      _pendingUpdateSessionIds.isEmpty;
+
+  /// Test helper: get _visibleSessionId.
+  @visibleForTesting
+  String? testGetVisibleSessionId() => _visibleSessionId;
+
+  /// Test helper: check if _inlineProcessingQueue contains a session.
+  @visibleForTesting
+  bool testInlineQueueContains(String sessionId) =>
+      _inlineProcessingQueue.containsKey(sessionId);
+
+  /// Test helper: get pending tool results for a session.
+  @visibleForTesting
+  List<Map<String, dynamic>> testPendingToolResults(String sessionId) =>
+      _pendingToolResults[sessionId] ?? [];
+
+  /// Test helper: get _sessionsNeedingTailRefresh as a set.
+  @visibleForTesting
+  Set<String> testSessionsNeedingTailRefresh() =>
+      Set<String>.from(_sessionsNeedingTailRefresh);
+
+  /// Test helper: add a session to _sessionsNeedingTailRefresh.
+  @visibleForTesting
+  void testAddSessionsNeedingTailRefresh(String sessionId) {
+    _sessionsNeedingTailRefresh.add(sessionId);
+  }
+
+  /// Test helper: get _sessionMessages for a session (null if none).
+  @visibleForTesting
+  List<Map<String, dynamic>>? testSessionMessages(String sessionId) =>
+      _sessionMessages[sessionId];
 
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
   Profile? get profile => _profile;
@@ -1406,6 +1466,13 @@ what you have, you must use the options mode.
       if (processed.toolResults.isNotEmpty) {
         _applyToolResults(sessionId, processed.toolResults);
       }
+      // Apply any pending tool results that arrived before these messages.
+      // This handles the case where a tool-call-result arrives via socket
+      // before the tool-call message itself.
+      final pending = _pendingToolResults.remove(sessionId);
+      if (pending != null && pending.isNotEmpty) {
+        _applyToolResults(sessionId, pending);
+      }
       for (final u in processed.usageUpdates) {
         _updateSessionUsage(
           u['sessionId'] as String,
@@ -1444,6 +1511,10 @@ what you have, you must use the options mode.
 
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged();
+      // Remove the completed Future from the queue so new messages can
+      // start fresh processing without chaining onto a resolved Future.
+      // The queue entry is also removed on error (below) for symmetry.
+      _inlineProcessingQueue.remove(sessionId);
     } catch (error, stack) {
       logger.warning(
         'Inline message processing failed — HTTP fetch will retry',
@@ -1473,6 +1544,11 @@ what you have, you must use the options mode.
   void _handleDeleteSession(Map<String, dynamic> data) {
     final sessionId = data['sid'] as String?;
     if (sessionId != null) {
+      // Clear _visibleSessionId if this was the visible session to prevent
+      // stale references pointing to a deleted session.
+      if (sessionId == _visibleSessionId) {
+        _visibleSessionId = null;
+      }
       messagesSync.remove(sessionId)?.dispose();
       _postSendCatchUpTimers.remove(sessionId)?.cancel();
       _loadingOlderMessages.remove(sessionId);
@@ -1489,6 +1565,7 @@ what you have, you must use the options mode.
       _sessionsWithPendingSocketMessages.remove(sessionId);
       _sessionSpawnedAt.remove(sessionId);
       _autoRestoreInFlight.remove(sessionId);
+      _pendingToolResults.remove(sessionId);
       if (isInitialized) {
         _sessionLastSeq.remove(sessionId);
         MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
@@ -5121,10 +5198,24 @@ what you have, you must use the options mode.
   }
 
   int _tailAfterSeqForSession(String sessionId) {
-    final knownLastSeq = max(
-      _sessionLastSeq[sessionId] ?? 0,
-      _sessions[sessionId]?.lastSeq ?? 0,
-    );
+    final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
+    final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
+
+    // Socket events can push cursorSeq past serverLastSeq (inline processing
+    // of messages the server hasn't committed yet). In this case, fetch
+    // from cursorSeq directly so we don't restart from a lower position.
+    if (cursorSeq > serverLastSeq) {
+      return cursorSeq;
+    }
+
+    // If cursorSeq is behind serverLastSeq but the gap is small, the normal
+    // delta path will handle it. Only use tail refresh for large gaps.
+    final gap = serverLastSeq - cursorSeq;
+    if (gap <= initialLoad) {
+      return cursorSeq;
+    }
+
+    final knownLastSeq = max(cursorSeq, serverLastSeq);
     if (knownLastSeq <= initialLoad) return 0;
     return knownLastSeq - initialLoad;
   }
@@ -5191,21 +5282,21 @@ what you have, you must use the options mode.
         'serverLastSeq=$serverLastSeq',
       );
 
-      // Skip the HTTP round-trip when the cursor exactly matches the
+      // Skip the HTTP round-trip when the cursor is at or ahead of the
       // server's known lastSeq — there is nothing to fetch.  Socket
       // events (new-message) update _sessionLastSeq via inline processing
       // for the visible session and can push cursor PAST the server's
       // lastSeq (since session.lastSeq lags behind socket events).
-      // We guard with cursorSeq <= serverLastSeq (same as gapTooLarge)
-      // so we don't skip when cursor > serverLastSeq — that indicates
-      // socket events may have outpaced the server and we should fetch
-      // to ensure no messages were missed.
-      if (!isFirstLoad &&
-          !forceTailRefresh &&
+      // We guard with !hasGap so we don't skip when cursor > serverLastSeq —
+      // that indicates socket events may have outpaced the server and we
+      // should fetch to ensure no messages were missed.
+      final hasGap = serverLastSeq > 0 && cursorSeq <= serverLastSeq &&
+          (serverLastSeq - cursorSeq) > initialLoad;
+      if (!forceTailRefresh &&
           cursorSeq > 0 &&
           serverLastSeq > 0 &&
-          cursorSeq >= serverLastSeq &&
-          cursorSeq <= serverLastSeq) {
+          cursorSeq == serverLastSeq &&
+          !hasGap) {
         logger.info(
           '[fetchMessages] $sessionId already caught up '
           '(cursor=$cursorSeq server=$serverLastSeq) — skipping',
@@ -5217,7 +5308,10 @@ what you have, you must use the options mode.
       // stale messages AFTER the first page succeeds to avoid losing
       // messages if the network request fails. Declared early so it's
       // accessible in the while loop below.
-      final isGapRecovery = gapTooLarge;
+      // Note: gapTooLarge is computed with !forceTailRefresh to short-circuit,
+      // so we must use || here to ensure stale clearing happens for both
+      // explicit tail-refresh requests AND large-gap detections.
+      final isGapRecovery = gapTooLarge || forceTailRefresh;
       if (isFirstLoad || forceTailRefresh || gapTooLarge) {
         // Lazy tail-load: start near the end of the session history so we
         // don't download thousands of messages that the UI will never show.
@@ -5247,8 +5341,11 @@ what you have, you must use the options mode.
             Map.unmodifiable(_sessionFirstLoadedSeq),
           );
         }
+      } else if (cursorSeq == 0) {
+        // No cursor established yet — use server's hint for tail refresh.
+        afterSeq = _tailAfterSeqForSession(sessionId);
       } else {
-        afterSeq = _sessionLastSeq[sessionId] ?? 0;
+        afterSeq = cursorSeq;
       }
 
       var page = 0;
@@ -5270,6 +5367,11 @@ what you have, you must use the options mode.
               ],
             ),
           );
+          // Notify UI so it stops the loading spinner. The session is
+          // non-visible so further pagination is the responsibility of
+          // onSessionVisible() when the user navigates back.
+          _notifySessionMessagesChanged(sessionId);
+          _notifyDataChanged();
           break;
         }
 
@@ -5297,6 +5399,10 @@ what you have, you must use the options mode.
 
         if (!apiClient.isSuccess(response)) {
           logger.warning('Failed to fetch messages: ${response.statusCode}');
+          // Notify UI so it stops the loading spinner and can show
+          // an error/empty state instead of spinning forever.
+          _notifySessionMessagesChanged(sessionId);
+          _notifyDataChanged();
           break;
         }
 
@@ -5385,6 +5491,11 @@ what you have, you must use the options mode.
         if (processed.toolResults.isNotEmpty) {
           _applyToolResults(sessionId, processed.toolResults);
         }
+        // Apply any pending tool results that arrived before these messages.
+        final pending = _pendingToolResults.remove(sessionId);
+        if (pending != null && pending.isNotEmpty) {
+          _applyToolResults(sessionId, pending);
+        }
         for (final u in processed.usageUpdates) {
           _updateSessionUsage(
             u['sessionId'] as String,
@@ -5463,6 +5574,13 @@ what you have, you must use the options mode.
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged();
     } on DioException {
+      // Network error (e.g., connection lost). The InvalidateSync retry
+      // mechanism will handle retries, but we must notify the UI now so
+      // it doesn't spin forever while waiting for awaitQueue(). When
+      // retries exhaust, the Completer completes with error and the chat
+      // screen's timeout will handle it.
+      _notifySessionMessagesChanged(sessionId);
+      _notifyDataChanged();
       rethrow;
     } catch (error, stack) {
       logger.error(
@@ -5531,6 +5649,11 @@ what you have, you must use the options mode.
       }
       if (processed.toolResults.isNotEmpty) {
         _applyToolResults(sessionId, processed.toolResults);
+      }
+      // Apply any pending tool results that arrived before these messages.
+      final pending = _pendingToolResults.remove(sessionId);
+      if (pending != null && pending.isNotEmpty) {
+        _applyToolResults(sessionId, pending);
       }
       for (final u in processed.usageUpdates) {
         _updateSessionUsage(
@@ -7073,7 +7196,14 @@ what you have, you must use the options mode.
     if (toolResults.isEmpty) return;
 
     final existing = _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
-    if (existing.isEmpty) return;
+    if (existing.isEmpty) {
+      // Queue tool results that arrived before their tool-call message.
+      // They will be applied when the tool-call message arrives.
+      _pendingToolResults
+          .putIfAbsent(sessionId, () => [])
+          .addAll(toolResults);
+      return;
+    }
 
     final toolResultsById = <String, Map<String, dynamic>>{};
     for (final result in toolResults) {
@@ -7682,6 +7812,8 @@ what you have, you must use the options mode.
     _sessionsNeedingTailRefresh.clear();
     _sessionsWithPendingUpdates.clear();
     _sessionsWithPendingSocketMessages.clear();
+    _pendingUpdateSessionIds.clear();
+    _pendingToolResults.clear();
     _sessionUnreadCounts.clear();
 
     socketIoClient
