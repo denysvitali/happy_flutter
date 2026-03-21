@@ -1239,8 +1239,15 @@ what you have, you must use the options mode.
         // navigates to them via onSessionVisible(). Invalidating every
         // messagesSync entry caused a thundering herd of concurrent
         // fetchMessages calls on reconnect, blocking the main thread.
+        // IMPORTANT: Chain after sessionsSync invalidation so fetchMessages
+        // runs AFTER fetchSessions has updated serverLastSeq. Without this,
+        // fetchMessages may see stale serverLastSeq and skip via early exit.
         if (_visibleSessionId != null) {
-          messagesSync[_visibleSessionId]?.invalidate();
+          unawaited(sessionsSync.invalidateAndAwait().then((_) {
+            if (_visibleSessionId != null) {
+              messagesSync[_visibleSessionId]?.invalidate();
+            }
+          }));
         }
       })
       ..onStatusChange((status) {
@@ -3423,6 +3430,11 @@ what you have, you must use the options mode.
     required String machineId,
     required String path,
     bool approvedNewDirectoryCreation = false,
+    /// Explicit profile ID for this session. Takes precedence over
+    /// [_settingsSnapshot.lastUsedProfile]. Should be passed when creating a
+    /// session so the correct profile env vars are used, rather than relying
+    /// on [lastUsedProfile] which can change over time.
+    String? profileId,
   }) async {
     if (!isInitialized) {
       throw StateError('Sync is not initialized');
@@ -3431,10 +3443,14 @@ what you have, you must use the options mode.
       throw StateError('Not connected to server');
     }
 
-    // Derive agent type and environment variables from the active profile.
-    final profileId = _settingsSnapshot.lastUsedProfile;
-    final profile =
-        profileId != null ? _resolveProfile(profileId) : null;
+    // Derive agent type and environment variables from the profile.
+    // Use explicit profileId if provided, otherwise fall back to
+    // [_settingsSnapshot.lastUsedProfile].
+    final effectiveProfileId =
+        profileId ?? _settingsSnapshot.lastUsedProfile;
+    final profile = effectiveProfileId != null
+        ? _resolveProfile(effectiveProfileId)
+        : null;
     final profileEnvVars =
         profile != null ? _profileEnvironmentVariables(profile) : null;
     final agent = _settingsSnapshot.lastUsedAgent;
@@ -3823,15 +3839,14 @@ what you have, you must use the options mode.
   }
 
   /// Get environment variables for spawning a session, using the profile
-  /// associated with the session if available, otherwise falling back to
-  /// the last-used profile.
+  /// associated with the session if available. Does NOT fall back to
+  /// [lastUsedProfile] — if no profile is saved for the session, returns
+  /// empty env vars to avoid using a wrong profile after profile switches.
   Future<Map<String, String>> _getSpawnEnvVarsForSession(
     String sessionId,
   ) async {
-    // Try to get the profile ID that was saved for this specific session.
-    final profileId =
-        await MMKVStorage().getSessionProfile(sessionId) ??
-        _settingsSnapshot.lastUsedProfile;
+    // Get the profile ID that was saved for this specific session.
+    final profileId = await MMKVStorage().getSessionProfile(sessionId);
     if (profileId != null) {
       final profile = _resolveProfile(profileId);
       if (profile != null) {
@@ -3840,6 +3855,8 @@ what you have, you must use the options mode.
         );
       }
     }
+    // No profile saved for this session — return empty env vars rather than
+    // falling back to lastUsedProfile which may have changed since creation.
     return _spawnEnvironmentVariables(null);
   }
 
@@ -7774,6 +7791,10 @@ what you have, you must use the options mode.
     // These sessions received messages while non-visible and need to fetch
     // from the server to get those messages (socket messages are not stored
     // in _sessionMessages for non-visible sessions).
+    // IMPORTANT: Chain after sessionsSync invalidation so fetchMessages runs
+    // AFTER fetchSessions has updated _sessions[sessionId].lastSeq. Without
+    // this, fetchMessages may see stale serverLastSeq and skip fetching via
+    // the "already caught up" early exit, causing message loss.
     if (_sessionsWithPendingSocketMessages.isNotEmpty) {
       logger.info(
         '[Sync] resuming — invalidating ${_sessionsWithPendingSocketMessages.length} '
@@ -7788,14 +7809,23 @@ what you have, you must use the options mode.
             minInterval: _messagesSyncMinInterval,
           );
         }
-        messagesSync[sessionId]?.invalidate();
+        // Chain after sessionsSync so serverLastSeq is updated first.
+        unawaited(sessionsSync.invalidateAndAwait().then((_) {
+          messagesSync[sessionId]?.invalidate();
+        }));
       }
       _sessionsWithPendingSocketMessages.clear();
     }
 
     // Always invalidate the visible session to ensure it's caught up.
+    // Chain after sessionsSync invalidation so fetchMessages sees the updated
+    // serverLastSeq from fetchSessions and doesn't skip via "already caught up".
     if (_visibleSessionId != null) {
-      messagesSync[_visibleSessionId]?.invalidate();
+      unawaited(sessionsSync.invalidateAndAwait().then((_) {
+        if (_visibleSessionId != null) {
+          messagesSync[_visibleSessionId]?.invalidate();
+        }
+      }));
     }
     // Resume message outbox retry timers
     messageOutbox.resume();
