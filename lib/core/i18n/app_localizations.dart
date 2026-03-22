@@ -1227,6 +1227,11 @@ class AppLocalizations {
   // Friends screen
   String get friendsNoRequestsSubtitle =>
       'Friend requests will appear here';
+
+  // Offline banner
+  String get offlineBannerNoConnection =>
+      'No internet connection';
+  String get offlineBannerReconnecting => 'Reconnecting...';
 }
 
 /// Localizations delegate

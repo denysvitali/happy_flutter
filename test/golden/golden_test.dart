@@ -60,7 +60,12 @@ class _StubMachinesNotifier extends MachinesNotifier {
 
 class _StubConnectionNotifier extends ConnectionNotifier {
   @override
-  ConnectionStatus build() => ConnectionStatus.disconnected;
+  ConnectionStatus build() => ConnectionStatus.connected;
+}
+
+class _StubNetworkNotifier extends NetworkNotifier {
+  @override
+  bool build() => true;
 }
 
 class _StubProfileNotifier extends ProfileNotifier {
@@ -150,6 +155,7 @@ _commonOverrides(Map<String, Session> sessions) => [
           .overrideWith(() => _StubSessionsNotifier(sessions)),
       machinesNotifierProvider.overrideWith(() => _StubMachinesNotifier()),
       connectionNotifierProvider.overrideWith(() => _StubConnectionNotifier()),
+      networkNotifierProvider.overrideWith(() => _StubNetworkNotifier()),
       profileNotifierProvider.overrideWith(() => _StubProfileNotifier()),
       currentSessionNotifierProvider
           .overrideWith(() => _StubCurrentSessionNotifier()),

@@ -2,6 +2,7 @@ export 'artifacts_notifier.dart';
 export 'auth_state_notifier.dart';
 export 'chat_action_notifier.dart';
 export 'connection_notifier.dart';
+export 'network_notifier.dart';
 export 'current_session_notifier.dart';
 export 'feed_notifier.dart';
 export 'friends_notifier.dart';

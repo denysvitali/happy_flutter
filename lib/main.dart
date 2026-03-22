@@ -15,6 +15,7 @@ import 'core/i18n/supported_locales.dart';
 import 'core/providers/app_providers.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/logger_service.dart';
+import 'core/services/network_monitor_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/remote_logger.dart';
 import 'core/services/server_config.dart';
@@ -76,6 +77,7 @@ Future<void> _runApp() async {
   final deepLinkFuture = _getInitialDeepLink();
 
   await storage.Storage().initialize();
+  await NetworkMonitorService().initialize();
 
   final serverUrl = getServerUrl();
   await ApiClient().initialize(serverUrl: serverUrl);

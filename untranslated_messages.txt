@@ -28,7 +28,14 @@
     "machineShowLess",
     "machineShowAll",
     "machineEnterCustomPath",
-    "machineOfflineUnableToSpawnNew"
+    "machineOfflineUnableToSpawnNew",
+    "offlineBannerNoConnection",
+    "offlineBannerReconnecting"
+  ],
+
+  "es": [
+    "offlineBannerNoConnection",
+    "offlineBannerReconnecting"
   ],
 
   "fr": [
@@ -60,6 +67,8 @@
     "machineShowLess",
     "machineShowAll",
     "machineEnterCustomPath",
-    "machineOfflineUnableToSpawnNew"
+    "machineOfflineUnableToSpawnNew",
+    "offlineBannerNoConnection",
+    "offlineBannerReconnecting"
   ]
 }

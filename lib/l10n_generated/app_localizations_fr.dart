@@ -2342,4 +2342,10 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get usageNoData => 'Aucune donnée d\'utilisation disponible';
+
+  @override
+  String get offlineBannerNoConnection => 'No internet connection';
+
+  @override
+  String get offlineBannerReconnecting => 'Reconnecting...';
 }

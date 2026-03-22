@@ -969,5 +969,7 @@
   "usageCost": "Cost",
   "usageUsageOverTime": "Usage over time",
   "usageByModel": "By Model",
-  "usageNoData": "No usage data available"
+  "usageNoData": "No usage data available",
+  "offlineBannerNoConnection": "No internet connection",
+  "offlineBannerReconnecting": "Reconnecting..."
 }

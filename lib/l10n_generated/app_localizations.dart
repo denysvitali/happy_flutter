@@ -4130,6 +4130,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No usage data available'**
   String get usageNoData;
+
+  /// No description provided for @offlineBannerNoConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'No internet connection'**
+  String get offlineBannerNoConnection;
+
+  /// No description provided for @offlineBannerReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting...'**
+  String get offlineBannerReconnecting;
 }
 
 class _AppLocalizationsDelegate

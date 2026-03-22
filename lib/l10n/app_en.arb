@@ -1342,5 +1342,9 @@
   "voiceSettingsDescription": "Select the language for voice assistant output. Language settings are provided by ElevenLabs.",
   "@voiceSettingsDescription": {},
   "voiceSettingsVoiceAssistant": "Voice Assistant",
-  "@voiceSettingsVoiceAssistant": {}
+  "@voiceSettingsVoiceAssistant": {},
+  "offlineBannerNoConnection": "No internet connection",
+  "@offlineBannerNoConnection": {},
+  "offlineBannerReconnecting": "Reconnecting...",
+  "@offlineBannerReconnecting": {}
 }

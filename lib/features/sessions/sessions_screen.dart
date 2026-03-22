@@ -15,6 +15,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
+import '../../core/widgets/offline_banner.dart';
 import '../../core/utils/session_utils.dart';
 import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
@@ -207,7 +208,12 @@ class _SessionsScreenState
       },
       child: Scaffold(
         appBar: _buildAppBar(context, l10n),
-        body: _buildCurrentTabContent(),
+        body: Column(
+          children: [
+            const OfflineBanner(),
+            Expanded(child: _buildCurrentTabContent()),
+          ],
+        ),
         bottomNavigationBar: TabBar(
           activeTab: _activeTab,
           onTabPress: (tab) {

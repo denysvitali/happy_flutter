@@ -21,6 +21,7 @@ import '../sessions/widgets/session_cards.dart'
     show parseAvatarStyle;
 import 'chat_input.dart';
 import 'message_widget.dart';
+import '../../core/widgets/offline_banner.dart';
 import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_loading_shimmer.dart';
 import 'widgets/empty_chat_view.dart';
@@ -688,6 +689,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
         body: Column(
           children: [
+            const OfflineBanner(),
             Expanded(
               child: Stack(
                 children: [

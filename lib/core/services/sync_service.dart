@@ -35,6 +35,7 @@ import '../models/todo.dart';
 import '../rpc/rpc_types.dart';
 import '../services/message_cache_service.dart';
 import '../services/message_outbox.dart';
+import '../services/network_monitor_service.dart';
 import '../services/mmkv_storage.dart';
 import '../services/server_config.dart';
 import '../utils/invalidate_sync.dart';
@@ -7501,6 +7502,7 @@ what you have, you must use the options mode.
 
     // Suspend message outbox to stop retry timers
     messageOutbox.suspend();
+    NetworkMonitorService().suspend();
 
     // Flush pending message saves so the MMKV cache is up-to-date when the
     // OS kills the app while backgrounded.  Without this, an in-flight
@@ -7594,6 +7596,7 @@ what you have, you must use the options mode.
     }
     // Resume message outbox retry timers
     messageOutbox.resume();
+    NetworkMonitorService().resume();
   }
 
   /// Shutdown sync engine and clear volatile state.

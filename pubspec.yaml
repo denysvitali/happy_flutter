@@ -60,6 +60,7 @@ dependencies:
   flutter_user_certificates_android: ^0.0.1
 
   # Native platform integrations
+  connectivity_plus: ^6.1.4
   geolocator: ^13.0.1
   firebase_core: ^4.4.0
   firebase_messaging: ^16.1.1

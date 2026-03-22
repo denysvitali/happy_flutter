@@ -2279,4 +2279,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get usageNoData => 'No usage data available';
+
+  @override
+  String get offlineBannerNoConnection => 'No internet connection';
+
+  @override
+  String get offlineBannerReconnecting => 'Reconnecting...';
 }
