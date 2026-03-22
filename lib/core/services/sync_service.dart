@@ -3995,22 +3995,25 @@ what you have, you must use the options mode.
   /// to override the default. When [lastUsedModelMode] is 'default', uses
   /// the profile's configured model instead of returning null (which would
   /// cause the daemon to fall back to its stale session metadata).
-  String? _getModelOverride({AIBackendProfile? profile}) {
+      String? _getModelOverride({AIBackendProfile? profile}) {
     final modelMode = _settingsSnapshot.lastUsedModelMode;
-    // Only pass --model for actual model names (e.g. 'claude-3-5-sonnet').
-    // 'sonnet' and 'opus' are mode identifiers, not model names — the profile
-    // resolves them via ANTHROPIC_DEFAULT_SONNET_MODEL / OPUS_MODEL env vars.
-    // Passing them as --model would override the profile's intended model.
-    if (modelMode != null &&
-        modelMode != 'default' &&
-        modelMode != 'sonnet' &&
-        modelMode != 'opus') {
-      return modelMode;
+    // Only pass --model for 'sonnet' and 'opus' which are the daemon's
+    // recognized CLI model identifiers. All other values (full model names
+    // like 'claude-3-opus', custom models like 'GLM-4.6', or 'default')
+    // should come from env vars instead of --model.
+    if (modelMode != 'sonnet' && modelMode != 'opus') {
+      return null;
     }
-    // lastUsedModelMode is 'default', null, 'sonnet', or 'opus': do NOT pass
-    // --model. The profile's configured model is already set via env vars
-    // (ANTHROPIC_MODEL, OPENAI_MODEL, etc.) by _profileEnvironmentVariables.
-    return null;
+    // For custom profiles (those with anthropicConfig.model or
+    // openaiConfig.model set), the model is already passed via
+    // ANTHROPIC_MODEL/OPENAI_MODEL env vars. Passing --model would conflict.
+    if (profile != null) {
+      if (profile.anthropicConfig?.model != null ||
+          profile.openaiConfig?.model != null) {
+        return null;
+      }
+    }
+    return modelMode;
   }
 
   /// Get environment variables and profile for spawning a session, using the

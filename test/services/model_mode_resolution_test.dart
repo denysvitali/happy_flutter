@@ -12,18 +12,18 @@ void main() {
   });
 
   group('_getModelOverride', () {
-    group('when lastUsedModelMode is a specific model', () {
-      test('returns the model string directly', () {
+    group('when lastUsedModelMode is a full model name', () {
+      test('returns null for full model names (use env vars instead)', () {
         sync.testSettingsSnapshot = Settings()
           ..lastUsedModelMode = 'claude-3-opus';
 
         final result = sync.testGetModelOverride();
 
-        expect(result, 'claude-3-opus');
+        expect(result, isNull);
       });
 
       test(
-        'returns model string even when profile is provided',
+        'returns null for full model name even when profile is provided',
         () {
           sync.testSettingsSnapshot = Settings()
             ..lastUsedModelMode = 'claude-3-opus';
@@ -38,7 +38,7 @@ void main() {
             profile: profile,
           );
 
-          expect(result, 'claude-3-opus');
+          expect(result, isNull);
         },
       );
     });
@@ -286,10 +286,76 @@ void main() {
       );
     });
 
+    group("when lastUsedModelMode is 'sonnet' or 'opus'", () {
+      test("'sonnet' returns 'sonnet' (valid CLI model identifier)", () {
+        sync.testSettingsSnapshot = Settings()
+          ..lastUsedModelMode = 'sonnet';
+
+        final result = sync.testGetModelOverride();
+
+        expect(result, 'sonnet');
+      });
+
+      test("'opus' returns 'opus' (valid CLI model identifier)", () {
+        sync.testSettingsSnapshot = Settings()
+          ..lastUsedModelMode = 'opus';
+
+        final result = sync.testGetModelOverride();
+
+        expect(result, 'opus');
+      });
+
+      test(
+        "'sonnet' returns null when profile has anthropicConfig.model "
+        "(use env vars instead)",
+        () {
+          sync.testSettingsSnapshot = Settings()
+            ..lastUsedModelMode = 'sonnet';
+
+          final profile = AIBackendProfile(
+            id: 'p1',
+            name: 'Anthropic Profile',
+            anthropicConfig: AnthropicConfig(
+              model: 'claude-3-sonnet',
+            ),
+          );
+
+          final result = sync.testGetModelOverride(profile: profile);
+
+          // Custom profile with anthropicConfig.model - model comes from
+          // ANTHROPIC_MODEL env var, not --model
+          expect(result, isNull);
+        },
+      );
+
+      test(
+        "'opus' returns null when profile has anthropicConfig.model "
+        "(use env vars instead)",
+        () {
+          sync.testSettingsSnapshot = Settings()
+            ..lastUsedModelMode = 'opus';
+
+          final profile = AIBackendProfile(
+            id: 'p1',
+            name: 'Anthropic Profile',
+            anthropicConfig: AnthropicConfig(
+              model: 'claude-opus-4-6',
+            ),
+          );
+
+          final result = sync.testGetModelOverride(profile: profile);
+
+          // Custom profile with anthropicConfig.model - model comes from
+          // ANTHROPIC_MODEL env var, not --model
+          expect(result, isNull);
+        },
+      );
+    });
+
     group('edge cases', () {
       test(
-        'explicit model mode overrides even when profile '
-        'has models',
+        'full model name like claude-3-5-sonnet returns null '
+        '(use env vars instead)',
         () {
           sync.testSettingsSnapshot = Settings()
             ..lastUsedModelMode = 'claude-3-5-sonnet';
@@ -308,7 +374,8 @@ void main() {
             profile: profile,
           );
 
-          expect(result, 'claude-3-5-sonnet');
+          // Full model names should come from ANTHROPIC_MODEL env var, not --model
+          expect(result, isNull);
         },
       );
 
