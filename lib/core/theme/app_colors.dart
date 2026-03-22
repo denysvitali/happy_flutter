@@ -25,6 +25,10 @@ abstract final class AppColors {
   /// Used for "connecting" session status and intermediate states.
   static const Color warning = Color(0xFFFF9500);
 
+  /// Error red – destructive actions, offline state, failed operations.
+  /// Used for error messages, high-utilization indicators, and alerts.
+  static const Color error = Color(0xFFFF3B30);
+
   /// Info amber – informational states, permissions pending, disabled features.
   /// Used for permission requests and informational messages.
   static const Color info = Color(0xFFF59E0B);
