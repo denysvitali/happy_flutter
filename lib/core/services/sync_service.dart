@@ -4079,10 +4079,15 @@ what you have, you must use the options mode.
     final recentlySpawned =
         spawnedAt != null &&
         DateTime.now().millisecondsSinceEpoch - spawnedAt < 120000;
+    // When lifecycleState is explicitly 'archived', the agent process is
+    // gone.  Don't trust a stale presence='online' — fall through to
+    // auto-restore instead.
+    final isArchived = lifecycleState == 'archived';
     final looksReady =
-        session.isOnline ||
-        (agentIsStartingOrRunning && lifecycleRecent) ||
-        recentlySpawned;
+        !isArchived &&
+        (session.isOnline ||
+            (agentIsStartingOrRunning && lifecycleRecent) ||
+            recentlySpawned);
     logger.info(
       '[sendMessage] _resolveSendTargetSession '
       'session=$sessionId looksReady=$looksReady '
@@ -5058,8 +5063,10 @@ what you have, you must use the options mode.
         DateTime.now().millisecondsSinceEpoch - lifecycleStateSince < 120000;
     final agentIsStartingOrRunning =
         lifecycleState == 'starting' || lifecycleState == 'running';
+    final isArchived = lifecycleState == 'archived';
     final looksReady =
-        session.isOnline || (agentIsStartingOrRunning && lifecycleRecent);
+        !isArchived &&
+        (session.isOnline || (agentIsStartingOrRunning && lifecycleRecent));
     if (looksReady) return false;
 
     final machineId = session.metadata?.machineId;
