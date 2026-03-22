@@ -145,6 +145,17 @@ class _HttpResponseCache {
   }
 }
 
+/// Returns true for transient connection errors that are not actionable
+/// (e.g. Cronet aborting a request because the OS killed the connection
+/// while the app was backgrounded).
+bool _isTransientConnectionError(DioException error) {
+  final inner = error.error?.toString() ?? '';
+  return inner.contains('ERR_CONNECTION_ABORTED') ||
+      inner.contains('ERR_CONNECTION_RESET') ||
+      inner.contains('Connection closed') ||
+      inner.contains('Software caused connection abort');
+}
+
 /// Retry interceptor for Dio with exponential backoff
 ///
 /// Retries transient failures:
@@ -369,11 +380,22 @@ class ApiClient {
           // better debugging
           final errorMessage =
               error.message ?? error.error?.toString() ?? 'no message';
-          logger.warning(
-            'Dio error: ${error.type} - $errorMessage\n'
-            '  Request: ${error.requestOptions.method} '
-            '${error.requestOptions.uri}',
-          );
+          // Downgrade transient connection errors (e.g. Cronet
+          // aborting connections when the app is backgrounded)
+          // to info so they don't create Sentry noise.
+          if (_isTransientConnectionError(error)) {
+            logger.info(
+              'Dio transient error: $errorMessage\n'
+              '  Request: ${error.requestOptions.method} '
+              '${error.requestOptions.uri}',
+            );
+          } else {
+            logger.warning(
+              'Dio error: ${error.type} - $errorMessage\n'
+              '  Request: ${error.requestOptions.method} '
+              '${error.requestOptions.uri}',
+            );
+          }
           if (error.response?.statusCode == 401) {
             logger.warning(
               '401 Unauthorized response: '

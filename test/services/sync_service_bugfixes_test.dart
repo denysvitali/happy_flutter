@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
@@ -40,36 +41,28 @@ void main() {
     test(
       'resume() creates messagesSync for non-visible sessions without one '
       '(THE KEY FIX for message loss)',
-      () async {
-        // This is THE critical bug that was causing message loss.
-        // Non-visible session Y had messages arrive while backgrounded.
-        // messagesSync[Y] was never created (only onSessionVisible creates it).
-        // Before the fix: resume() called messagesSync[Y]?.invalidate() which
-        // was a no-op (null safety), so messages were never fetched.
-        // After the fix: resume() CREATES messagesSync[Y] before invalidating.
+      () {
+        fakeAsync((async) {
+          final sessionY = 'session-y';
+          expect(
+            sync.messagesSync.containsKey(sessionY),
+            isFalse,
+            reason: 'messagesSync should not exist initially',
+          );
 
-        final sessionY = 'session-y';
-        expect(
-          sync.messagesSync.containsKey(sessionY),
-          isFalse,
-          reason: 'messagesSync should not exist for non-visible session initially',
-        );
+          sync.testSetPendingSocketMessages({sessionY});
 
-        sync.testSetPendingSocketMessages({sessionY});
+          // resume() defers invalidation by 1500ms
+          sync.resume();
+          async.elapse(const Duration(milliseconds: 1600));
 
-        // Call resume — the fix creates messagesSync[Y] and invalidates it
-        sync.resume();
-
-        // Allow microtask to process
-        await Future<void>.delayed(Duration.zero);
-
-        // THE FIX: messagesSync should now be created for this non-visible session
-        expect(
-          sync.messagesSync.containsKey(sessionY),
-          isTrue,
-          reason: 'messagesSync MUST be created for non-visible session with '
-              'pending socket messages on resume (this was the bug)',
-        );
+          expect(
+            sync.messagesSync.containsKey(sessionY),
+            isTrue,
+            reason: 'messagesSync MUST be created for non-visible '
+                'session with pending socket messages on resume',
+          );
+        });
       },
     );
 
@@ -100,20 +93,23 @@ void main() {
 
     test(
       'resume() clears _sessionsWithPendingSocketMessages after invalidating',
-      () async {
-        final sessionW = 'session-w';
-        sync.testSetPendingSocketMessages({sessionW});
-        expect(sync.testHasPendingSocketMessage(sessionW), isTrue);
+      () {
+        fakeAsync((async) {
+          final sessionW = 'session-w';
+          sync.testSetPendingSocketMessages({sessionW});
+          expect(sync.testHasPendingSocketMessage(sessionW), isTrue);
 
-        sync.resume();
-        await Future<void>.delayed(Duration.zero);
+          // resume() defers invalidation by 1500ms
+          sync.resume();
+          async.elapse(const Duration(milliseconds: 1600));
 
-        // After resume, the set should be cleared (sessions were invalidated)
-        expect(
-          sync.testHasPendingSocketMessage(sessionW),
-          isFalse,
-          reason: '_sessionsWithPendingSocketMessages should be cleared after resume',
-        );
+          expect(
+            sync.testHasPendingSocketMessage(sessionW),
+            isFalse,
+            reason: '_sessionsWithPendingSocketMessages '
+                'should be cleared after resume',
+          );
+        });
       },
     );
   });
@@ -484,48 +480,35 @@ void main() {
     test(
       'resume() recreates messagesSync for non-visible sessions '
       'and invalidates it (THE original message loss bug)',
-      () async {
-        // This is the ORIGINAL bug from commit 7ec83c8.
-        // Non-visible session Y had messages arrive while backgrounded.
-        // messagesSync[Y] was never created (only onSessionVisible creates it).
-        // Before the fix: resume() called messagesSync[Y]?.invalidate() which
-        // was a no-op (null safety), so messages were never fetched.
-        // After the fix: resume() CREATES messagesSync[Y] before invalidating.
+      () {
+        fakeAsync((async) {
+          final nonVisibleId = 'non-visible-session';
+          expect(
+            sync.messagesSync.containsKey(nonVisibleId),
+            isFalse,
+            reason: 'messagesSync should not exist initially',
+          );
 
-        final nonVisibleId = 'non-visible-session';
-        expect(
-          sync.messagesSync.containsKey(nonVisibleId),
-          isFalse,
-          reason: 'messagesSync should not exist for non-visible session initially',
-        );
+          sync.testSetPendingSocketMessages({nonVisibleId});
+          sync.sessionsSync = InvalidateSync(() async {});
 
-        sync.testSetPendingSocketMessages({nonVisibleId});
+          // resume() defers invalidation by 1500ms
+          sync.resume();
+          async.elapse(const Duration(milliseconds: 1600));
 
-        // Track if messagesSync was invalidated
-        var messagesSyncInvalidated = false;
-        // sessionsSync is a no-op
-        sync.sessionsSync = InvalidateSync(() async {});
+          expect(
+            sync.messagesSync.containsKey(nonVisibleId),
+            isTrue,
+            reason: 'messagesSync MUST be created for non-visible '
+                'session with pending socket messages on resume',
+          );
 
-        // Call resume — the fix should create messagesSync[nonVisibleId]
-        // and invalidate it
-        sync.resume();
-
-        // Allow the microtask to run that creates messagesSync
-        await Future<void>.delayed(Duration.zero);
-
-        // THE FIX: messagesSync should now be created for this non-visible session
-        expect(
-          sync.messagesSync.containsKey(nonVisibleId),
-          isTrue,
-          reason: 'messagesSync MUST be created for non-visible session with '
-              'pending socket messages on resume (this was the original bug)',
-        );
-
-        // Verify it was invalidated (if the action had been set, it would run)
-        messagesSyncInvalidated = sync.messagesSync[nonVisibleId] != null;
-        expect(messagesSyncInvalidated, isTrue,
-          reason: 'messagesSync for non-visible session must be invalidated',
-        );
+          expect(
+            sync.messagesSync[nonVisibleId] != null,
+            isTrue,
+            reason: 'messagesSync must be invalidated',
+          );
+        });
       },
     );
   });

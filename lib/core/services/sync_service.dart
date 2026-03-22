@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import '../api/api_client.dart';
 import '../api/kv_api.dart';
 import '../api/push_api.dart';
@@ -391,6 +392,10 @@ what you have, you must use the options mode.
   /// Minimum interval between resume() calls — prevents socket reconnect loops
   /// when the app cycles between paused and resumed states repeatedly.
   static const int _resumeDebounceWindowMs = 2000;
+  /// Delay before firing network invalidations on resume. Cancelled by
+  /// suspend() so that rapid foreground/background cycling does not produce
+  /// wasted HTTP requests that the OS aborts mid-flight.
+  Timer? _deferredResumeInvalidationTimer;
   Timer? _sessionsRefreshDebounceTimer;
   final Set<String> _pendingNewSessionIds = <String>{};
   final Map<String, Machine> _machines = <String, Machine>{};
@@ -776,6 +781,16 @@ what you have, you must use the options mode.
   /// Stream that emits the sessionId when messages for that session change.
   Stream<String> get onSessionMessagesChanged =>
       _sessionMessageChangeController.stream;
+
+  /// Returns true for transient network errors that are not actionable
+  /// (e.g. Cronet aborting a connection because the app was backgrounded).
+  static bool _isTransientConnectionError(Object error) {
+    final msg = error.toString();
+    return msg.contains('ERR_CONNECTION_ABORTED') ||
+        msg.contains('ERR_CONNECTION_RESET') ||
+        msg.contains('Connection closed') ||
+        msg.contains('Software caused connection abort');
+  }
 
   bool _isSocketConnected() {
     return testSocketConnectedOverride ??
@@ -3407,7 +3422,17 @@ what you have, you must use the options mode.
           ? updateUrl
           : null;
     } catch (error, stack) {
-      logger.error('Failed to fetch native update', error, stack);
+      if (_isTransientConnectionError(error)) {
+        logger.info(
+          'Native update fetch aborted (transient): $error',
+        );
+      } else {
+        logger.error(
+          'Failed to fetch native update',
+          error,
+          stack,
+        );
+      }
       _nativeUpdateUrl = null;
     }
   }
@@ -4924,6 +4949,12 @@ what you have, you must use the options mode.
   ) async {
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
+      Sentry.addBreadcrumb(Breadcrumb(
+        message: 'fetchMessages: encryption null, '
+            'awaiting sessions',
+        category: 'sync.messages',
+        data: {'sessionId': sessionId},
+      ));
       // Encryption may not be initialized yet — wait for pending fetch.
       await sessionsSync.invalidateAndAwait();
       sessionEncryption = encryption.getSessionEncryption(sessionId);
@@ -5341,6 +5372,24 @@ what you have, you must use the options mode.
     // Clear any residual failed Future from the inline queue so that
     // new messages can enter the inline fast path immediately.
     _inlineProcessor.clearSession(sessionId);
+    Sentry.addBreadcrumb(Breadcrumb(
+      message: 'onSessionVisible',
+      category: 'sync.messages',
+      data: {
+        'sessionId': sessionId,
+        'hasPending':
+            _sessionsWithPendingSocketMessages
+                .contains(sessionId),
+        'hasMessagesInMemory':
+            _sessionMessages[sessionId]
+                    ?.isNotEmpty ??
+                false,
+        'cursorSeq':
+            _sessionLastSeq[sessionId] ?? 0,
+        'serverLastSeq':
+            _sessions[sessionId]?.lastSeq ?? 0,
+      },
+    ));
 
     // If this session received socket messages while non-visible, we MUST
     // fetch from the server to get those messages.  Socket messages are NOT
@@ -5464,10 +5513,20 @@ what you have, you must use the options mode.
   /// fetching only the most recent [initialLoad] messages.  Subsequent calls
   /// (incremental delta syncs) continue from [_sessionLastSeq] as before.
   Future<void> fetchMessages(String sessionId) async {
-    logger.info('Fetching messages for session: $sessionId');
+    logger.info(
+      'Fetching messages for session: $sessionId',
+    );
+    final fetchStopwatch = Stopwatch()..start();
 
-    var sessionEncryption = encryption.getSessionEncryption(sessionId);
+    var sessionEncryption =
+        encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
+      Sentry.addBreadcrumb(Breadcrumb(
+        message: 'fetchMessages: encryption null, '
+            'awaiting sessions',
+        category: 'sync.messages',
+        data: {'sessionId': sessionId},
+      ));
       // Encryption may not be initialized yet — wait for pending fetch.
       await sessionsSync.invalidateAndAwait();
       sessionEncryption = encryption.getSessionEncryption(sessionId);
@@ -5478,9 +5537,26 @@ what you have, you must use the options mode.
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
       if (sessionEncryption == null) {
-        logger.info(
-          'Session encryption not initialized for $sessionId, skipping fetch',
+        logger.warning(
+          'Session encryption not initialized for '
+          '$sessionId after 2 attempts, skipping',
         );
+        Sentry.addBreadcrumb(Breadcrumb(
+          message: 'fetchMessages: encryption still '
+              'null after 2 attempts',
+          category: 'sync.messages',
+          level: SentryLevel.warning,
+          data: {
+            'sessionId': sessionId,
+            'sessionExists':
+                _sessions.containsKey(sessionId),
+            'elapsedMs':
+                fetchStopwatch.elapsedMilliseconds,
+          },
+        ));
+        // Notify UI so the loading spinner clears.
+        _notifySessionMessagesChanged(sessionId);
+        _notifyDataChanged();
         return;
       }
     }
@@ -5536,8 +5612,11 @@ what you have, you must use the options mode.
           !hasGap) {
         logger.info(
           '[fetchMessages] $sessionId already caught up '
-          '(cursor=$cursorSeq server=$serverLastSeq) — skipping',
+          '(cursor=$cursorSeq server=$serverLastSeq) '
+          '— skipping',
         );
+        // Notify UI so any pending loading state clears.
+        _notifySessionMessagesChanged(sessionId);
         return;
       }
 
@@ -5635,7 +5714,22 @@ what you have, you must use the options mode.
 
         if (!apiClient.isSuccess(response)) {
           final statusCode = response.statusCode;
-          logger.warning('Failed to fetch messages: $statusCode');
+          logger.warning(
+            'Failed to fetch messages: $statusCode',
+          );
+          Sentry.addBreadcrumb(Breadcrumb(
+            message: 'fetchMessages: HTTP error',
+            category: 'sync.messages',
+            level: SentryLevel.warning,
+            data: {
+              'sessionId': sessionId,
+              'statusCode': statusCode,
+              'afterSeq': afterSeq,
+              'page': page,
+              'elapsedMs':
+                  fetchStopwatch.elapsedMilliseconds,
+            },
+          ));
           // 404 means the session doesn't exist on the server. Clean up
           // the local session and stop retries to prevent repeated 404s.
           if (statusCode == 404) {
@@ -5828,7 +5922,19 @@ what you have, you must use the options mode.
       }
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged();
-    } on DioException {
+    } on DioException catch (e) {
+      Sentry.addBreadcrumb(Breadcrumb(
+        message: 'fetchMessages: DioException',
+        category: 'sync.messages',
+        level: SentryLevel.error,
+        data: {
+          'sessionId': sessionId,
+          'type': e.type.name,
+          'statusCode': e.response?.statusCode,
+          'elapsedMs':
+              fetchStopwatch.elapsedMilliseconds,
+        },
+      ));
       // Network error (e.g., connection lost). The InvalidateSync retry
       // mechanism will handle retries, but we must notify the UI now so
       // it doesn't spin forever while waiting for awaitQueue(). When
@@ -5838,6 +5944,17 @@ what you have, you must use the options mode.
       _notifyDataChanged();
       rethrow;
     } catch (error, stack) {
+      Sentry.addBreadcrumb(Breadcrumb(
+        message: 'fetchMessages: unexpected error',
+        category: 'sync.messages',
+        level: SentryLevel.error,
+        data: {
+          'sessionId': sessionId,
+          'error': error.toString(),
+          'elapsedMs':
+              fetchStopwatch.elapsedMilliseconds,
+        },
+      ));
       logger.error(
         'Error fetching messages',
         error,
@@ -7389,9 +7506,15 @@ what you have, you must use the options mode.
     if (!isInitialized) return;
     logger.info('[Sync] suspending — disconnecting socket');
 
-    // Set backgrounded flag FIRST — this prevents any in-flight InvalidateSync
-    // operations from performing network I/O while backgrounded.  Checked in
-    // InvalidateSync._run() before the await _action() call.
+    // Cancel deferred resume invalidation — if the app is backgrounding
+    // before the 1.5s timer fired, no HTTP requests should be started.
+    _deferredResumeInvalidationTimer?.cancel();
+    _deferredResumeInvalidationTimer = null;
+
+    // Set backgrounded flag FIRST — this prevents any in-flight
+    // InvalidateSync operations from performing network I/O while
+    // backgrounded.  Checked in InvalidateSync._run() before the
+    // await _action() call.
     InvalidateSync.isBackgrounded = true;
 
     // Cancel all InvalidateSync retry/cooldown timers.  This stops any
@@ -7500,58 +7623,68 @@ what you have, you must use the options mode.
 
     logger.info('[Sync] resuming — reconnecting socket');
     socketIoClient.reconnect();
-    _invalidateAllSyncs();
 
-    // Invalidate all sessions that had pending socket messages before suspend.
-    // These sessions received messages while non-visible and need to fetch
-    // from the server to get those messages (socket messages are not stored
-    // in _sessionMessages for non-visible sessions).
-    // IMPORTANT: Chain after sessionsSync invalidation so fetchMessages runs
-    // AFTER fetchSessions has updated _sessions[sessionId].lastSeq. Without
-    // this, fetchMessages may see stale serverLastSeq and skip fetching via
-    // the "already caught up" early exit, causing message loss.
-    if (_sessionsWithPendingSocketMessages.isNotEmpty) {
-      final pendingSessionIds =
-          _sessionsWithPendingSocketMessages.toList();
-      // Mark these sessions as needing tail refresh so fetchMessages forces a
-      // fresh fetch even if hasPendingSocketMessages set was already cleared.
-      for (final sessionId in pendingSessionIds) {
-        _sessionsNeedingTailRefresh.add(sessionId);
-      }
-      logger.info(
-        '[Sync] resuming — invalidating ${pendingSessionIds.length} '
-        'sessions with pending socket messages',
-      );
-      for (final sessionId in pendingSessionIds) {
-        // Recreate InvalidateSync if needed — non-visible sessions never had
-        // one created, so ?.invalidate() would be a no-op without this.
-        if (!messagesSync.containsKey(sessionId)) {
-          messagesSync[sessionId] = InvalidateSync(
-            () => fetchMessages(sessionId),
-            minInterval: _messagesSyncMinInterval,
-          );
-        }
-        // Chain after sessionsSync so serverLastSeq is updated first.
-        unawaited(sessionsSync.invalidateAndAwait().then((_) {
-          messagesSync[sessionId]?.invalidate();
-        }));
-      }
-      _sessionsWithPendingSocketMessages.clear();
-    }
-
-    // Always invalidate the visible session to ensure it's caught up.
-    // Chain after sessionsSync invalidation so fetchMessages sees the updated
-    // serverLastSeq from fetchSessions and doesn't skip via "already caught up".
-    if (_visibleSessionId != null) {
-      unawaited(sessionsSync.invalidateAndAwait().then((_) {
-        if (_visibleSessionId != null) {
-          messagesSync[_visibleSessionId]?.invalidate();
-        }
-      }));
-    }
-    // Resume message outbox retry timers
+    // Resume lightweight services immediately.
     messageOutbox.resume();
     NetworkMonitorService().resume();
+
+    // Defer network-heavy invalidations so that rapid foreground/background
+    // cycling (e.g. Android 16 aggressive background management) does not
+    // fire HTTP requests that get aborted when the app backgrounds again
+    // within ~1 second.  suspend() cancels this timer.
+    _deferredResumeInvalidationTimer?.cancel();
+    _deferredResumeInvalidationTimer = Timer(
+      const Duration(milliseconds: 1500),
+      () {
+        _deferredResumeInvalidationTimer = null;
+        if (!isInitialized || InvalidateSync.isBackgrounded) {
+          return;
+        }
+
+        _invalidateAllSyncs();
+
+        // Invalidate sessions that had pending socket messages
+        // before suspend.
+        if (_sessionsWithPendingSocketMessages.isNotEmpty) {
+          final pendingSessionIds =
+              _sessionsWithPendingSocketMessages.toList();
+          for (final sessionId in pendingSessionIds) {
+            _sessionsNeedingTailRefresh.add(sessionId);
+          }
+          logger.info(
+            '[Sync] resuming — invalidating '
+            '${pendingSessionIds.length} sessions with '
+            'pending socket messages',
+          );
+          for (final sessionId in pendingSessionIds) {
+            if (!messagesSync.containsKey(sessionId)) {
+              messagesSync[sessionId] = InvalidateSync(
+                () => fetchMessages(sessionId),
+                minInterval: _messagesSyncMinInterval,
+              );
+            }
+            unawaited(
+              sessionsSync.invalidateAndAwait().then((_) {
+                messagesSync[sessionId]?.invalidate();
+              }),
+            );
+          }
+          _sessionsWithPendingSocketMessages.clear();
+        }
+
+        // Always invalidate the visible session.
+        if (_visibleSessionId != null) {
+          unawaited(
+            sessionsSync.invalidateAndAwait().then((_) {
+              if (_visibleSessionId != null) {
+                messagesSync[_visibleSessionId]
+                    ?.invalidate();
+              }
+            }),
+          );
+        }
+      },
+    );
   }
 
   /// Shutdown sync engine and clear volatile state.

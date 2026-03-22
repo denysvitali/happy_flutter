@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sentry_flutter/sentry_flutter.dart'
+    show Breadcrumb, Hint, Sentry, SentryLevel;
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
@@ -17,11 +19,11 @@ import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/widgets/offline_banner.dart';
 import '../sessions/widgets/session_cards.dart'
     show parseAvatarStyle;
 import 'chat_input.dart';
 import 'message_widget.dart';
-import '../../core/widgets/offline_banner.dart';
 import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_loading_shimmer.dart';
 import 'widgets/empty_chat_view.dart';
@@ -48,6 +50,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _loadFailed = false;
 
   bool _didStartInitialLoad = false;
+  Timer? _loadingSafetyTimer;
   int _lastDataChangeCounter = -1;
   int _prevMessagesLength = 0;
   int _prevSeenLength = 0;
@@ -280,6 +283,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
+    _loadingSafetyTimer?.cancel();
     _dataSyncSubscription?.cancel();
     _messageSyncSubscription?.cancel();
     _controller.dispose();
@@ -320,29 +324,123 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _doInitialLoad() async {
     if (_didStartInitialLoad) return;
     _didStartInitialLoad = true;
-
-    sync.onSessionVisible(widget.sessionId);
-
-    // Show cached messages immediately instead of waiting for the
-    // debounced stream notification (100ms).  onSessionVisible() loads
-    // the MMKV cache synchronously, so sync already has messages in
-    // memory at this point.
-    _refreshFromSync();
-
+    final sessionId = widget.sessionId;
+    final stopwatch = Stopwatch()..start();
     var success = true;
+
+    // Safety timer: if loading is still in progress after 15s,
+    // force-clear the spinner and report to Sentry.
+    _loadingSafetyTimer?.cancel();
+    _loadingSafetyTimer = Timer(
+      const Duration(seconds: 15),
+      () {
+        if (!mounted || !_isLoadingMessages) return;
+        logger.warning(
+          '[ChatScreen] Safety timeout: loading stuck '
+          'for 15s session=$sessionId '
+          'messages=${_messages.length}',
+        );
+        unawaited(Sentry.captureMessage(
+          'ChatScreen loading stuck for 15s',
+          level: SentryLevel.warning,
+          params: [sessionId],
+          hint: Hint.withMap({
+            'sessionId': sessionId,
+            'messageCount':
+                _messages.length.toString(),
+            'initialLoadComplete':
+                _initialLoadComplete.toString(),
+            'syncInitialized':
+                sync.isInitialized.toString(),
+            'hasMsgSync':
+                (sync.messagesSync[sessionId] != null)
+                    .toString(),
+            'syncMessages': sync
+                .messagesForSession(sessionId)
+                .length
+                .toString(),
+          }),
+        ));
+        setState(() {
+          _isLoadingMessages = false;
+          _initialLoadComplete = true;
+          if (_messages.isEmpty) _loadFailed = true;
+        });
+      },
+    );
+
     try {
-      await sync.messagesSync[widget.sessionId]?.awaitQueue().timeout(
-        const Duration(seconds: 5),
-      );
-    } catch (_) {
+      Sentry.addBreadcrumb(Breadcrumb(
+        message: 'ChatScreen._doInitialLoad started',
+        category: 'chat.load',
+        data: {
+          'sessionId': sessionId,
+          'hasCachedMessages': _messages.isNotEmpty,
+          'syncInitialized': sync.isInitialized,
+        },
+      ));
+
+      sync.onSessionVisible(sessionId);
+
+      // Show cached messages immediately instead of
+      // waiting for the debounced stream notification
+      // (100ms). onSessionVisible() loads the MMKV cache
+      // synchronously so sync already has messages in
+      // memory at this point.
+      _refreshFromSync();
+
+      try {
+        await sync.messagesSync[sessionId]
+            ?.awaitQueue()
+            .timeout(const Duration(seconds: 5));
+      } catch (_) {
+        success = false;
+      }
+    } catch (error, stack) {
       success = false;
+      logger.error(
+        '[ChatScreen] _doInitialLoad error '
+        'session=$sessionId',
+        error,
+        stack,
+      );
+      unawaited(Sentry.captureException(
+        error,
+        stackTrace: stack,
+        hint: Hint.withMap({
+          'context': 'ChatScreen._doInitialLoad',
+          'sessionId': sessionId,
+        }),
+      ));
+    } finally {
+      _loadingSafetyTimer?.cancel();
+      _loadingSafetyTimer = null;
     }
+
     if (!mounted) return;
-    _refreshFromSync(markLoaded: true, loadFailed: !success && _messages.isEmpty);
+
+    Sentry.addBreadcrumb(Breadcrumb(
+      message: 'ChatScreen._doInitialLoad completed',
+      category: 'chat.load',
+      data: {
+        'sessionId': sessionId,
+        'success': success,
+        'elapsedMs': stopwatch.elapsedMilliseconds,
+        'messageCount': _messages.length,
+        'syncMessages':
+            sync.messagesForSession(sessionId).length,
+      },
+    ));
+
+    _refreshFromSync(
+      markLoaded: true,
+      loadFailed: !success && _messages.isEmpty,
+    );
   }
 
   Future<void> _retry() async {
     if (!mounted) return;
+    _loadingSafetyTimer?.cancel();
     setState(() {
       _loadFailed = false;
       _isLoadingMessages = true;
