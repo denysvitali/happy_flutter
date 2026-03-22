@@ -5426,8 +5426,14 @@ what you have, you must use the options mode.
           }
         }
       }
-      _requestTailRefresh(sessionId);
-      logger.info('[onSessionVisible] tailRefresh requested');
+      // Only request tail refresh if cache restore failed or was skipped.
+      // When messages are restored from cache, the normal delta fetch
+      // (afterSeq = _sessionLastSeq) is sufficient — a tail refresh would
+      // unnecessarily clear and re-download the same messages.
+      if (!hasMessages) {
+        _requestTailRefresh(sessionId);
+        logger.info('[onSessionVisible] tailRefresh requested');
+      }
     } else {
       // Messages are in memory (from cache or previous load). Check if the
       // server has newer messages that we're missing. This handles the case
