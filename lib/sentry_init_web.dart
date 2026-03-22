@@ -8,9 +8,9 @@ Future<void> initSentryForPlatform(Future<void> Function() appRunner) async {
   await SentryFlutter.init((options) {
     options
       ..dsn =
-          'https://b4bcb97417717a4e933c1ccb8305d6ab'
-          '@o4506225548853248.ingest.us.sentry.io'
-          '/4510912147292160'
+          'https://f5678b69ba186b302ab87c88707fe0c1'
+          '@sentry.k2.k8s.best'
+          '/2'
       ..sendDefaultPii = true
       ..tracesSampleRate = kReleaseMode ? 0.2 : 1.0
       ..release = _sentryRelease.isNotEmpty ? _sentryRelease : null
