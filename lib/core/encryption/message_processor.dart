@@ -500,6 +500,15 @@ void _processOutputContent({
           'parentUuid': ?dataParentUuid,
         });
       } else if (type == 'tool_use') {
+        // Use the tool-use ID as uuid when available so that
+        // parallel tool calls from the same assistant message
+        // get unique UUIDs for sidechain grouping (the shared
+        // effectiveUuid causes collision in SidechainGrouper
+        // when multiple Agent/Task calls are batched together).
+        final toolUseUuid =
+            (c['id'] as String?)?.isNotEmpty == true
+                ? c['id'] as String
+                : effectiveUuid;
         messages.add({
           'id': '${id}_u$i',
           'localId': localId,
@@ -515,7 +524,7 @@ void _processOutputContent({
           'raw': outerContent,
           'model': ?agentModel,
           if (isSidechain) 'isSidechain': true,
-          'uuid': effectiveUuid,
+          'uuid': toolUseUuid,
           'parentUuid': ?dataParentUuid,
         });
       }
