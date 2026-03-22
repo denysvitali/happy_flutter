@@ -157,7 +157,10 @@ class LoggerService {
     }
   }
 
-  /// Forward warnings and errors to Sentry
+  /// Forward warnings and errors to Sentry.
+  ///
+  /// Transport failures are surfaced as info-level log entries
+  /// (not warning/error, to avoid a recursive loop).
   void _forwardToSentry(LogEntry entry) {
     // Only forward warning and error levels
     if (entry.level != LogLevel.warning &&
@@ -166,26 +169,36 @@ class LoggerService {
     }
 
     try {
+      final Future<SentryId> future;
       if (entry.level == LogLevel.error) {
-        // Errors get captured as exceptions
-        Sentry.captureException(
+        future = Sentry.captureException(
           entry.error ?? entry.message,
           stackTrace: entry.stackTrace,
           hint: Hint.withMap({'logger': 'LoggerService'}),
         );
       } else {
-        // Warnings get captured as messages
-        Sentry.captureMessage(
+        future = Sentry.captureMessage(
           entry.message,
           level: SentryLevel.warning,
           hint: Hint.withMap({
             'logger': 'LoggerService',
-            if (entry.error != null) 'error': entry.error.toString(),
+            if (entry.error != null)
+              'error': entry.error.toString(),
           }),
         );
       }
+      // Surface async transport failures in the log buffer
+      // using info level to avoid a circular forward loop.
+      future.then((eventId) {
+        if (eventId == SentryId.empty()) {
+          info('[Sentry] Event dropped '
+              '(filtered or DSN invalid)');
+        }
+      }).catchError((Object e) {
+        info('[Sentry] Transport failed: $e');
+      });
     } catch (e) {
-      // Silently fail if Sentry fails - don't crash the app
+      info('[Sentry] Forward failed: $e');
     }
   }
 
