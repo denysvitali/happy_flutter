@@ -159,14 +159,18 @@ class LoggerService {
 
   /// Forward warnings and errors to Sentry.
   ///
-  /// Transport failures are surfaced as info-level log entries
-  /// (not warning/error, to avoid a recursive loop).
+  /// Messages prefixed with `[Sentry]` are never forwarded to
+  /// prevent circular loops (Sentry failure → warning → forward
+  /// → Sentry failure → …). Transport failures are surfaced as
+  /// warning-level entries so they appear in DevLogsScreen.
   void _forwardToSentry(LogEntry entry) {
-    // Only forward warning and error levels
+    // Only forward warning and error levels.
     if (entry.level != LogLevel.warning &&
         entry.level != LogLevel.error) {
       return;
     }
+    // Break circular forwarding for our own diagnostics.
+    if (entry.message.startsWith('[Sentry]')) return;
 
     try {
       final Future<SentryId> future;
@@ -187,18 +191,16 @@ class LoggerService {
           }),
         );
       }
-      // Surface async transport failures in the log buffer
-      // using info level to avoid a circular forward loop.
       future.then((eventId) {
         if (eventId == SentryId.empty()) {
-          info('[Sentry] Event dropped '
+          warning('[Sentry] Event dropped '
               '(filtered or DSN invalid)');
         }
       }).catchError((Object e) {
-        info('[Sentry] Transport failed: $e');
+        warning('[Sentry] Transport failed: $e');
       });
     } catch (e) {
-      info('[Sentry] Forward failed: $e');
+      warning('[Sentry] Forward failed: $e');
     }
   }
 

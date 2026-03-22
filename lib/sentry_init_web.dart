@@ -40,7 +40,7 @@ Future<void> _pingSentry() async {
       level: SentryLevel.info,
     );
     if (eventId == SentryId.empty()) {
-      logger.info(
+      logger.warning(
         '[Sentry] Ping dropped '
         '(event filtered or DSN invalid)',
       );
@@ -48,6 +48,6 @@ Future<void> _pingSentry() async {
       logger.info('[Sentry] Ping sent (event $eventId)');
     }
   } catch (e) {
-    logger.info('[Sentry] Ping failed: $e');
+    logger.warning('[Sentry] Ping failed: $e');
   }
 }

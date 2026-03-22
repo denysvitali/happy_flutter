@@ -75,13 +75,47 @@ Future<void> initSentryForPlatform(
 }
 
 Future<void> _pingSentry() async {
+  // ── Step 1: raw HTTP check (bypasses Sentry SDK) ──
+  // Verifies TLS override + server reachability before we
+  // trust the SDK to deliver events.
+  final client = HttpClient();
+  try {
+    final uri = Uri.https(_sentryHost, '/api/0/');
+    final request = await client.getUrl(uri);
+    final response = await request.close();
+    await response.drain<void>();
+    logger.info(
+      '[Sentry] Server reachable '
+      '(HTTP ${response.statusCode})',
+    );
+  } on HandshakeException catch (e) {
+    logger.warning(
+      '[Sentry] TLS handshake failed — '
+      'HttpOverrides may not be active: $e',
+    );
+    return;
+  } on SocketException catch (e) {
+    logger.warning(
+      '[Sentry] Server unreachable: $e',
+    );
+    return;
+  } catch (e) {
+    logger.warning(
+      '[Sentry] Connectivity check failed: $e',
+    );
+    return;
+  } finally {
+    client.close();
+  }
+
+  // ── Step 2: SDK-level test event ──
   try {
     final eventId = await Sentry.captureMessage(
       'App started — Sentry connectivity test',
       level: SentryLevel.info,
     );
     if (eventId == SentryId.empty()) {
-      logger.info(
+      logger.warning(
         '[Sentry] Ping dropped '
         '(event filtered or DSN invalid)',
       );
@@ -89,6 +123,6 @@ Future<void> _pingSentry() async {
       logger.info('[Sentry] Ping sent (event $eventId)');
     }
   } catch (e) {
-    logger.info('[Sentry] Ping failed: $e');
+    logger.warning('[Sentry] Ping failed: $e');
   }
 }
