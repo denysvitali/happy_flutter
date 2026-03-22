@@ -1,5 +1,7 @@
-import 'mmkv_storage.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+
 import 'logger_service.dart' show logger;
+import 'mmkv_storage.dart';
 
 /// Local-first message cache service.
 ///
@@ -20,14 +22,36 @@ class MessageCacheService {
   /// Returns empty list if no cache exists (not null). This enables
   /// zero-delay UI rendering on cold starts.
   List<Map<String, dynamic>> getMessages(String sessionId) {
+    final stopwatch = Stopwatch()..start();
     final cached = MMKVStorage().getSessionMessages(sessionId);
+    final elapsedMs = stopwatch.elapsedMilliseconds;
+
     if (cached.isEmpty) {
       logger.info('[MessageCache] Cache miss for session $sessionId');
+      Sentry.addBreadcrumb(Breadcrumb(
+        message: 'MessageCache: cache miss',
+        category: 'cache.messages',
+        level: SentryLevel.info,
+        data: {
+          'sessionId': sessionId,
+          'elapsedMs': elapsedMs,
+        },
+      ));
       return [];
     }
     logger.info(
       '[MessageCache] Cache hit for session $sessionId: ${cached.length} messages',
     );
+    Sentry.addBreadcrumb(Breadcrumb(
+      message: 'MessageCache: cache hit',
+      category: 'cache.messages',
+      level: SentryLevel.info,
+      data: {
+        'sessionId': sessionId,
+        'messageCount': cached.length,
+        'elapsedMs': elapsedMs,
+      },
+    ));
     return cached;
   }
 
@@ -36,17 +60,42 @@ class MessageCacheService {
   /// Only saves the last N messages to keep cache size bounded.
   /// Messages are persisted synchronously for instant recall.
   void saveMessages(String sessionId, List<Map<String, dynamic>> messages) {
+    final stopwatch = Stopwatch()..start();
     final toSave = messages.length > _maxCachedMessages
         ? messages.sublist(messages.length - _maxCachedMessages)
         : messages;
     try {
       MMKVStorage().saveSessionMessages(sessionId, toSave);
+      final elapsedMs = stopwatch.elapsedMilliseconds;
       logger.info(
         '[MessageCache] Saved ${toSave.length} messages for session $sessionId '
         '(truncated from ${messages.length})',
       );
+      Sentry.addBreadcrumb(Breadcrumb(
+        message: 'MessageCache: saved messages',
+        category: 'cache.messages',
+        level: SentryLevel.info,
+        data: {
+          'sessionId': sessionId,
+          'savedCount': toSave.length,
+          'originalCount': messages.length,
+          'truncated': messages.length > _maxCachedMessages,
+          'elapsedMs': elapsedMs,
+        },
+      ));
     } catch (e) {
+      final elapsedMs = stopwatch.elapsedMilliseconds;
       logger.warning('[MessageCache] Failed to save cache for $sessionId: $e');
+      Sentry.addBreadcrumb(Breadcrumb(
+        message: 'MessageCache: save failed',
+        category: 'cache.messages',
+        level: SentryLevel.warning,
+        data: {
+          'sessionId': sessionId,
+          'error': e.toString(),
+          'elapsedMs': elapsedMs,
+        },
+      ));
     }
   }
 

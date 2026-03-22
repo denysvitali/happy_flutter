@@ -1461,6 +1461,7 @@ what you have, you must use the options mode.
       messagesSync[sessionId] = InvalidateSync(
         () => fetchMessages(sessionId),
         minInterval: _messagesSyncMinInterval,
+        name: 'fetchMessages:$sessionId',
       );
     }
 
@@ -5488,6 +5489,7 @@ what you have, you must use the options mode.
       messagesSync[sessionId] = InvalidateSync(
         () => fetchMessages(sessionId),
         minInterval: _messagesSyncMinInterval,
+        name: 'fetchMessages:$sessionId',
       );
     }
     messagesSync[sessionId]?.invalidate();
@@ -5518,9 +5520,20 @@ what you have, you must use the options mode.
     );
     final fetchStopwatch = Stopwatch()..start();
 
+    // Start a Sentry span for this fetch operation
+    final fetchSpan = Sentry.getSpan()?.startChild(
+      'sync.fetchMessages',
+      description: 'Fetch messages for session $sessionId',
+    );
+    fetchSpan?.setData('sessionId', sessionId);
+
     var sessionEncryption =
         encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
+      final encSpan = fetchSpan?.startChild(
+        'sync.encryption.init',
+        description: 'Wait for session encryption',
+      );
       Sentry.addBreadcrumb(Breadcrumb(
         message: 'fetchMessages: encryption null, '
             'awaiting sessions',
@@ -5536,11 +5549,16 @@ what you have, you must use the options mode.
         await sessionsSync.invalidateAndAwait();
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
+      encSpan?.finish();
       if (sessionEncryption == null) {
         logger.warning(
           'Session encryption not initialized for '
           '$sessionId after 2 attempts, skipping',
         );
+        fetchSpan?.setData('status', 'preconditionFailed');
+        fetchSpan?.setData('encryptionInitFailed', true);
+        fetchSpan?.setData('elapsedMs', fetchStopwatch.elapsedMilliseconds);
+        fetchSpan?.finish();
         Sentry.addBreadcrumb(Breadcrumb(
           message: 'fetchMessages: encryption still '
               'null after 2 attempts',
@@ -5922,7 +5940,14 @@ what you have, you must use the options mode.
       }
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged();
+      // Finish the fetch span successfully
+      fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
+      fetchSpan?.finish();
     } on DioException catch (e) {
+      fetchSpan?.setData('status', 'networkError');
+      fetchSpan?.setData('dioExceptionType', e.type.name);
+      fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
+      fetchSpan?.finish();
       Sentry.addBreadcrumb(Breadcrumb(
         message: 'fetchMessages: DioException',
         category: 'sync.messages',
@@ -5944,6 +5969,10 @@ what you have, you must use the options mode.
       _notifyDataChanged();
       rethrow;
     } catch (error, stack) {
+      fetchSpan?.setStatus(SpanStatus.internalError());
+      fetchSpan?.setData('error', error.toString());
+      fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
+      fetchSpan?.finish();
       Sentry.addBreadcrumb(Breadcrumb(
         message: 'fetchMessages: unexpected error',
         category: 'sync.messages',

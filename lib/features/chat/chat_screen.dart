@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sentry_flutter/sentry_flutter.dart'
-    show Breadcrumb, Hint, Sentry, SentryLevel;
+    show Breadcrumb, Hint, ISentrySpan, Sentry, SentryLevel;
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
@@ -328,6 +328,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final stopwatch = Stopwatch()..start();
     var success = true;
 
+    // Start a Sentry transaction for the entire chat loading flow
+    final transaction = Sentry.startTransaction(
+      'chat.screen.load',
+      'ui.load',
+      bindToScope: true,
+    ) as ISentrySpan;
+    transaction.setData('sessionId', sessionId);
+
     // Safety timer: if loading is still in progress after 15s,
     // force-clear the spinner and report to Sentry.
     _loadingSafetyTimer?.cancel();
@@ -359,8 +367,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 .messagesForSession(sessionId)
                 .length
                 .toString(),
+            'elapsedMs': stopwatch.elapsedMilliseconds,
           }),
         ));
+        // Finish the transaction as failed
+        transaction.setData('timeout', true);
+        transaction.finish();
         setState(() {
           _isLoadingMessages = false;
           _initialLoadComplete = true;
@@ -370,6 +382,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
 
     try {
+      final cacheSpan = transaction.startChild(
+        'chat.cache.check',
+        description: 'Check cached messages',
+      );
+      cacheSpan.setData('cachedCount', _messages.length);
+      cacheSpan.finish();
+
       Sentry.addBreadcrumb(Breadcrumb(
         message: 'ChatScreen._doInitialLoad started',
         category: 'chat.load',
@@ -380,22 +399,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         },
       ));
 
+      // Span for onSessionVisible
+      final visibleSpan = transaction.startChild(
+        'chat.sync.visible',
+        description: 'Mark session as visible',
+      );
       sync.onSessionVisible(sessionId);
+      visibleSpan.finish();
 
       // Show cached messages immediately instead of
       // waiting for the debounced stream notification
       // (100ms). onSessionVisible() loads the MMKV cache
       // synchronously so sync already has messages in
       // memory at this point.
+      final refreshSpan = transaction.startChild(
+        'chat.sync.refresh',
+        description: 'Refresh from sync singleton',
+      );
       _refreshFromSync();
+      refreshSpan.finish();
 
+      // Span for awaiting message sync queue
+      final awaitSpan = transaction.startChild(
+        'chat.sync.await',
+        description: 'Await message sync queue',
+      );
       try {
         await sync.messagesSync[sessionId]
             ?.awaitQueue()
             .timeout(const Duration(seconds: 5));
-      } catch (_) {
+        awaitSpan.setData('timedOut', false);
+      } catch (e) {
         success = false;
+        awaitSpan.setData('timedOut', true);
+        awaitSpan.setData('error', e.toString());
       }
+      awaitSpan.finish();
     } catch (error, stack) {
       success = false;
       logger.error(
@@ -404,6 +443,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         error,
         stack,
       );
+      transaction.setData('error', error.toString());
       unawaited(Sentry.captureException(
         error,
         stackTrace: stack,
@@ -417,7 +457,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _loadingSafetyTimer = null;
     }
 
-    if (!mounted) return;
+    if (!mounted) {
+      transaction.finish();
+      return;
+    }
 
     Sentry.addBreadcrumb(Breadcrumb(
       message: 'ChatScreen._doInitialLoad completed',
@@ -436,6 +479,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       markLoaded: true,
       loadFailed: !success && _messages.isEmpty,
     );
+
+    // Finish the transaction
+    transaction.setData('finalMessageCount', _messages.length);
+    transaction.setData('elapsedMs', stopwatch.elapsedMilliseconds);
+    transaction.finish();
   }
 
   Future<void> _retry() async {
