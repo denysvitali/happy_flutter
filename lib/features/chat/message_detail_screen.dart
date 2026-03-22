@@ -330,7 +330,7 @@ class _ToolResultSectionState extends State<_ToolResultSection> {
       try {
         return jsonDecode(t);
       } catch (e) {
-        logger.warning('Failed to parse JSON: $e');
+        logger.info('Failed to parse JSON: $e');
       }
     }
     return null;

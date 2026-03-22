@@ -130,7 +130,7 @@ class _SmartOutputContainerState extends State<SmartOutputContainer> {
         try {
           return (true, jsonDecode(unwrapped));
         } catch (e) {
-          logger.warning(
+          logger.info(
             'Failed to parse JSON in viewer: $e',
           );
         }
