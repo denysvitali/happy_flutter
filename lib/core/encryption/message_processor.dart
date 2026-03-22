@@ -12,6 +12,7 @@ class ProcessedMessages {
     required this.toolResults,
     required this.usageUpdates,
     required this.maxSeq,
+    this.droppedReasons = const [],
   });
 
   /// Display-ready message maps.
@@ -26,6 +27,10 @@ class ProcessedMessages {
 
   /// Highest `seq` seen in this batch (-1 if empty).
   final int maxSeq;
+
+  /// Debug info for messages that were silently dropped during
+  /// processing. Each entry: `{seq, reason}`.
+  final List<String> droppedReasons;
 }
 
 /// Process a list of decrypted message JSON maps into display messages,
@@ -49,6 +54,7 @@ ProcessedMessages processDecryptedMessages({
   final messages = <Map<String, dynamic>>[];
   final toolResults = <Map<String, dynamic>>[];
   final usageUpdates = <Map<String, dynamic>>[];
+  final droppedReasons = <String>[];
   var maxSeq = -1;
 
   for (var i = 0; i < wireMessages.length; i++) {
@@ -73,7 +79,9 @@ ProcessedMessages processDecryptedMessages({
           : true; // default: assume encrypted (backwards compat)
 
       if (!encrypted) {
-        // Message was not encrypted — skip, don't show error
+        droppedReasons.add(
+          'seq=$seq id=$id: null content, not encrypted',
+        );
         continue;
       }
 
@@ -280,6 +288,7 @@ ProcessedMessages processDecryptedMessages({
     toolResults: toolResults,
     usageUpdates: usageUpdates,
     maxSeq: maxSeq,
+    droppedReasons: droppedReasons,
   );
 }
 
@@ -390,10 +399,32 @@ void _processOutputContent({
   final dataType = data['type'] as String?;
 
   if (dataType == 'assistant') {
-    if (dataUuid == null || dataUuid.isEmpty) return;
+    // Synthesise a UUID from the message id when the server omits it
+    // (older sessions may lack uuid/id in the data envelope).
+    final effectiveUuid = (dataUuid != null && dataUuid.isNotEmpty)
+        ? dataUuid
+        : id;
 
     final agentMsg = data['message'];
-    if (agentMsg is! Map<String, dynamic>) return;
+    if (agentMsg is! Map<String, dynamic>) {
+      // Legacy format: message might be a bare string.
+      if (agentMsg is String && agentMsg.isNotEmpty) {
+        messages.add({
+          'id': id,
+          'localId': localId,
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'text',
+          'content': agentMsg,
+          'raw': outerContent,
+          if (isSidechain) 'isSidechain': true,
+          'uuid': effectiveUuid,
+          'parentUuid': ?dataParentUuid,
+        });
+      }
+      return;
+    }
 
     final usageData = agentMsg['usage'] as Map<String, dynamic>?;
     if (usageData != null) {
@@ -407,7 +438,27 @@ void _processOutputContent({
     final agentModel = agentMsg['model'] as String?;
 
     final agentContentList = agentMsg['content'];
-    if (agentContentList is! List) return;
+    if (agentContentList is! List) {
+      // Legacy format: content might be a bare string instead of
+      // Claude API content blocks.
+      if (agentContentList is String && agentContentList.isNotEmpty) {
+        messages.add({
+          'id': id,
+          'localId': localId,
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'text',
+          'content': agentContentList,
+          'raw': outerContent,
+          'model': ?agentModel,
+          if (isSidechain) 'isSidechain': true,
+          'uuid': effectiveUuid,
+          'parentUuid': ?dataParentUuid,
+        });
+      }
+      return;
+    }
 
     var i = 0;
     for (final c in agentContentList) {
@@ -429,7 +480,7 @@ void _processOutputContent({
           'raw': outerContent,
           'model': ?agentModel,
           if (isSidechain) 'isSidechain': true,
-          'uuid': dataUuid,
+          'uuid': effectiveUuid,
           'parentUuid': ?dataParentUuid,
         });
       } else if (type == 'thinking') {
@@ -445,7 +496,7 @@ void _processOutputContent({
           'raw': outerContent,
           'model': ?agentModel,
           if (isSidechain) 'isSidechain': true,
-          'uuid': dataUuid,
+          'uuid': effectiveUuid,
           'parentUuid': ?dataParentUuid,
         });
       } else if (type == 'tool_use') {
@@ -464,7 +515,7 @@ void _processOutputContent({
           'raw': outerContent,
           'model': ?agentModel,
           if (isSidechain) 'isSidechain': true,
-          'uuid': dataUuid,
+          'uuid': effectiveUuid,
           'parentUuid': ?dataParentUuid,
         });
       }

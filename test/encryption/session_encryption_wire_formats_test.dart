@@ -244,7 +244,7 @@ void main() {
     });
 
     test(
-      'non-encrypted content returns DecryptedMessage with null content',
+      'non-encrypted content passes through wire content',
       () async {
         final key = _generateKey();
         final enc = AES256Encryption(key);
@@ -263,7 +263,13 @@ void main() {
         expect(result, isNotNull);
         expect(result!.id, equals('msg-plaintext'));
         expect(result.seq, equals(10));
-        expect(result.content, isNull);
+        // Non-encrypted content is passed through so that
+        // processDecryptedMessages can handle it instead of
+        // silently dropping it.
+        expect(result.content, isA<Map<String, dynamic>>());
+        final content = result.content as Map<String, dynamic>;
+        expect(content['t'], equals('plaintext'));
+        expect(content['data'], equals('hello'));
       },
     );
 

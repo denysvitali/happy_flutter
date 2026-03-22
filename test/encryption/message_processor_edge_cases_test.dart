@@ -151,8 +151,9 @@ void main() {
     // 4. Agent output with non-list content (e.g., a plain string)
     // -----------------------------------------------------------------------
     group('agent output with non-list content', () {
-      test('string content triggers early return — no messages emitted', () {
-        // agentMsg['content'] is a String, not a List.
+      test('string content emits text message as legacy fallback', () {
+        // agentMsg['content'] is a String, not a List — treated as
+        // legacy format and emitted as a plain text message.
         final result = processDecryptedMessages(
           decryptedJsonList: [
             {
@@ -171,9 +172,10 @@ void main() {
           sessionId: 's1',
         );
 
-        // The function returns early when content is not a List.
-        expect(result.messages, isEmpty,
-            reason: 'non-list assistant content should be skipped gracefully');
+        expect(result.messages, hasLength(1));
+        expect(result.messages[0]['role'], 'agent');
+        expect(result.messages[0]['kind'], 'text');
+        expect(result.messages[0]['content'], 'just a string');
         expect(result.toolResults, isEmpty);
       });
 

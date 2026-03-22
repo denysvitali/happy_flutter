@@ -1557,6 +1557,13 @@ what you have, you must use the options mode.
         // (below) to be skipped by fetchMessages' "already caught up"
         // guard, permanently losing the message.  Keeping the cursor
         // unchanged lets the fetch retrieve the message from the server.
+        if (processed.droppedReasons.isNotEmpty) {
+          for (final reason in processed.droppedReasons) {
+            logger.warning(
+              '[inline] $sessionId dropped: $reason',
+            );
+          }
+        }
         messagesSync[sessionId]?.invalidate();
         _notifySessionMessagesChanged(sessionId);
         return;
@@ -5762,6 +5769,13 @@ what you have, you must use the options mode.
           'afterSeq=$afterSeq '
           'maxSeq=${processed.maxSeq}',
         );
+        if (processed.droppedReasons.isNotEmpty) {
+          for (final reason in processed.droppedReasons) {
+            logger.warning(
+              '[fetchMessages] $sessionId dropped: $reason',
+            );
+          }
+        }
 
         // ── Yield before main-thread merge/group work ──
         await Future<void>.delayed(Duration.zero);
@@ -5945,6 +5959,19 @@ what you have, you must use the options mode.
         messages,
         sessionId,
       );
+
+      logger.info(
+        '[fetchOlderMessages] $sessionId '
+        'processedMsgs=${processed.messages.length} '
+        'toolResults=${processed.toolResults.length}',
+      );
+      if (processed.droppedReasons.isNotEmpty) {
+        for (final reason in processed.droppedReasons) {
+          logger.warning(
+            '[fetchOlderMessages] $sessionId dropped: $reason',
+          );
+        }
+      }
 
       // Yield before main-thread merge work
       await Future<void>.delayed(Duration.zero);

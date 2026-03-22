@@ -165,12 +165,15 @@ class SessionEncryption {
       if (content != null && content['t'] == 'encrypted') {
         toDecrypt.add((index: i, message: message));
       } else {
-        // Not encrypted or invalid
+        // Not encrypted — pass through the wire content so that
+        // processDecryptedMessages can handle it normally instead
+        // of silently dropping it (content: null + wasEncrypted=false
+        // previously caused a silent skip).
         results[i] = DecryptedMessage(
           id: message['id'] as String? ?? '',
           seq: message['seq'] as int? ?? 0,
           localId: message['localId'] as String?,
-          content: null,
+          content: content ?? contentRaw,
           createdAt: _parseCreatedAt(message['createdAt']),
         );
         if (cacheKey.isNotEmpty) {
@@ -319,6 +322,7 @@ class SessionEncryption {
               seq: seq,
               localId: localId,
               createdAt: createdAt,
+              isEncrypted: isEncrypted,
             ),
           );
           continue;
