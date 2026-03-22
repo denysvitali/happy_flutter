@@ -141,11 +141,14 @@ class _HappyAppState extends ConsumerState<HappyApp>
   late final GoRouter _router;
   AppThemeMode? _lastAppliedThemeMode;
 
-  // Battery diagnostics — track lifecycle state cycling frequency
-  int _lifecycleChangeCount = 0;
-  DateTime? _lastLifecycleChangeAt;
-  /// Warn if lifecycle state changes more than this many times per minute.
-  static const int _lifecycleCyclingWarningThreshold = 10;
+  // Battery diagnostics — track paused↔resumed cycle frequency.
+  // Only paused/resumed are counted (not intermediate states like inactive,
+  // hidden, detached) because Android sends ~6 callbacks per single
+  // background/foreground cycle.
+  int _lifecycleCycleCount = 0;
+  DateTime? _lastLifecycleCycleAt;
+  /// Warn if full paused↔resumed cycles exceed this many per minute.
+  static const int _lifecycleCyclingWarningThreshold = 6;
 
   @override
   void initState() {
@@ -211,27 +214,32 @@ class _HappyAppState extends ConsumerState<HappyApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
 
-    // Battery diagnostics: detect rapid lifecycle cycling (e.g. screen lock
-    // causing repeated paused/resumed transitions).  If cycling more than
-    // _lifecycleCyclingWarningThreshold times per minute, log a warning.
-    _lifecycleChangeCount++;
-    final now = DateTime.now();
-    if (_lastLifecycleChangeAt != null) {
-      final elapsed = now.difference(_lastLifecycleChangeAt!).inSeconds;
-      if (elapsed < 60) {
-        if (_lifecycleChangeCount > _lifecycleCyclingWarningThreshold) {
-          logger.warning(
-            '[Battery] Rapid lifecycle cycling detected: '
-            '$_lifecycleChangeCount changes in ${elapsed}s — '
-            'this indicates the app is not staying backgrounded, '
-            'possibly due to timers, streams, or platform behaviour',
-          );
+    // Battery diagnostics: only count actual paused/resumed transitions.
+    // Intermediate states (inactive, hidden, detached) are ignored because
+    // Android sends ~6 callbacks per single background/foreground cycle.
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.resumed) {
+      _lifecycleCycleCount++;
+      final now = DateTime.now();
+      if (_lastLifecycleCycleAt != null) {
+        final elapsed =
+            now.difference(_lastLifecycleCycleAt!).inSeconds;
+        if (elapsed < 60) {
+          if (_lifecycleCycleCount > _lifecycleCyclingWarningThreshold) {
+            logger.warning(
+              '[Battery] Rapid lifecycle cycling detected: '
+              '$_lifecycleCycleCount paused/resumed transitions in '
+              '${elapsed}s — this indicates the app is not staying '
+              'backgrounded, possibly due to timers, streams, or '
+              'platform behaviour',
+            );
+          }
+        } else {
+          _lifecycleCycleCount = 1;
         }
-      } else {
-        _lifecycleChangeCount = 1;
       }
+      _lastLifecycleCycleAt = now;
     }
-    _lastLifecycleChangeAt = now;
 
     switch (state) {
       case AppLifecycleState.paused:
