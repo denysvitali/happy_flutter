@@ -166,11 +166,27 @@ class TaskView extends StatelessWidget {
             if (shownTools.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xsm),
               ...shownTools.map(
-                (t) => _InlineToolRow(
-                  key: ValueKey(t['toolUseId'] ?? t['id']),
-                  tool: t,
-                  metadata: metadata,
-                ),
+                (t) {
+                  final name =
+                      t['name'] as String? ?? '';
+                  if (name == 'Task' ||
+                      name == 'Agent') {
+                    return _InlineNestedTaskRow(
+                      key: ValueKey(
+                        t['toolUseId'] ?? t['id'],
+                      ),
+                      tool: t,
+                      metadata: metadata,
+                    );
+                  }
+                  return _InlineToolRow(
+                    key: ValueKey(
+                      t['toolUseId'] ?? t['id'],
+                    ),
+                    tool: t,
+                    metadata: metadata,
+                  );
+                },
               ),
               if (remainingCount > 0)
                 Padding(
@@ -411,6 +427,152 @@ class _InlineToolRow extends StatelessWidget {
               size: 12,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------
+// Inline nested Task/Agent row (shows sub-agent children)
+// ----------------------------------------------------------
+
+class _InlineNestedTaskRow extends StatelessWidget {
+  const _InlineNestedTaskRow({
+    required this.tool,
+    super.key,
+    this.metadata,
+  });
+
+  final Map<String, dynamic> tool;
+  final Map<String, dynamic>? metadata;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final input =
+        tool['input'] as Map<String, dynamic>?;
+    final description =
+        input?['description'] as String? ??
+            input?['prompt'] as String? ??
+            'Task';
+    final state =
+        tool['state'] as String? ?? 'pending';
+    final toolState = _parseState(state);
+    final subagentType =
+        input?['subagent_type'] as String?;
+
+    final children =
+        tool['children'] as List<dynamic>?;
+    final nestedToolCalls = children
+            ?.whereType<Map<String, dynamic>>()
+            .where((c) => c['kind'] == 'tool-call')
+            .toList() ??
+        [];
+    final shownNested =
+        nestedToolCalls.length > _kMaxToolsShown
+            ? nestedToolCalls.sublist(
+                nestedToolCalls.length -
+                    _kMaxToolsShown,
+              )
+            : nestedToolCalls;
+    final remainingCount =
+        nestedToolCalls.length - shownNested.length;
+
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: 24,
+        top: 2,
+        bottom: 2,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 12,
+                height: 12,
+                child: ToolStatusIndicator(
+                  state: toolState,
+                  size: 12,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xsm),
+              Icon(
+                Icons.rocket_launch,
+                size: 10,
+                color:
+                    theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 3),
+              Expanded(
+                child: Text(
+                  description,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(
+                    color: theme
+                        .colorScheme.onSurfaceVariant,
+                    fontFamily: 'monospace',
+                    fontSize: AppFontSize.xs,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (subagentType != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                _SubAgentBadge(type: subagentType),
+              ],
+              const SizedBox(width: AppSpacing.xs),
+              SizedBox(
+                width: 12,
+                height: 12,
+                child: ToolStatusIndicator(
+                  state: toolState,
+                  size: 12,
+                ),
+              ),
+            ],
+          ),
+          ...shownNested.map(
+            (t) {
+              final name =
+                  t['name'] as String? ?? '';
+              if (name == 'Task' ||
+                  name == 'Agent') {
+                return _InlineNestedTaskRow(
+                  key: ValueKey(
+                    t['toolUseId'] ?? t['id'],
+                  ),
+                  tool: t,
+                  metadata: metadata,
+                );
+              }
+              return _InlineToolRow(
+                key: ValueKey(
+                  t['toolUseId'] ?? t['id'],
+                ),
+                tool: t,
+                metadata: metadata,
+              );
+            },
+          ),
+          if (remainingCount > 0)
+            Padding(
+              padding:
+                  const EdgeInsets.only(left: 24),
+              child: Text(
+                'and $remainingCount more...',
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(
+                  color: theme
+                      .colorScheme.onSurfaceVariant
+                      .withValues(alpha: 0.5),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
         ],
       ),
     );
