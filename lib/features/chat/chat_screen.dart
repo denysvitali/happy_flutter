@@ -418,6 +418,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         latestSession?.metadata?.flavor,
       );
 
+      // Handle markLoaded unconditionally — the HTTP fetch completed even if
+      // no messages changed (e.g. empty session or subagent session).
+      if (markLoaded) {
+        _isLoadingMessages = false;
+        _initialLoadComplete = true;
+      }
+
       // Update messages and visible count
       if (messagesChanged) {
         if (latestMessages.length > _prevMessagesLength) {
@@ -435,8 +442,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
         // Handle message visibility and seen tracking
         if (markLoaded) {
-          _isLoadingMessages = false;
-          _initialLoadComplete = true;
           _markMessagesAsSeen(latestMessages, 0, latestMessages.length);
         } else if (latestMessages.isNotEmpty) {
           // Cached messages arrived from MMKV (via onSessionVisible) — dismiss

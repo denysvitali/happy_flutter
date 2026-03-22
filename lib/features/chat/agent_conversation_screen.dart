@@ -77,15 +77,19 @@ class _AgentConversationScreenState
         final children = msg['children'] as List<dynamic>?;
         final count = children?.length ?? 0;
         final fingerprint = _computeChildrenFingerprint(children);
-        if (fingerprint != _prevChildFingerprint) {
-          if (count > _prevChildCount) {
-            _speakNewMessages(children);
-          }
-          setState(() {
-            _taskMsg = Map<String, dynamic>.from(msg);
-            _prevChildCount = count;
-            _prevChildFingerprint = fingerprint;
-          });
+        final childrenChanged = fingerprint != _prevChildFingerprint;
+        // Always update _taskMsg when found, even if fingerprint unchanged.
+        // This fixes infinite spinner when both old and new fingerprint are 0
+        // (empty children) — we still need to pick up state changes from sync.
+        if (childrenChanged && count > _prevChildCount) {
+          _speakNewMessages(children);
+        }
+        setState(() {
+          _taskMsg = Map<String, dynamic>.from(msg);
+          _prevChildCount = count;
+          _prevChildFingerprint = fingerprint;
+        });
+        if (childrenChanged) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             if (_scroll.hasClients) {
