@@ -5,8 +5,6 @@ import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
-
 import '../api/api_client.dart';
 import '../api/kv_api.dart';
 import '../api/push_api.dart';
@@ -5605,17 +5603,6 @@ what you have, you must use the options mode.
             '[fetchMessages] $sessionId no longer visible '
             'after page $page — aborting',
           );
-          unawaited(
-            Sentry.captureMessage(
-              'fetchMessages aborted — session not visible',
-              level: SentryLevel.info,
-              params: [
-                'sessionId=$sessionId',
-                'page=$page',
-                'afterSeq=$afterSeq',
-              ],
-            ),
-          );
           // Notify UI so it stops the loading spinner. The session is
           // non-visible so further pagination is the responsibility of
           // onSessionVisible() when the user navigates back.
@@ -5704,20 +5691,6 @@ what you have, you must use the options mode.
             .whereType<Map<String, dynamic>>()
             .toList();
         final hasMore = data['hasMore'] as bool? ?? false;
-
-        unawaited(
-          Sentry.captureMessage(
-            'fetchMessages page $page',
-            level: SentryLevel.info,
-            params: [
-              'sessionId=$sessionId',
-              'msgs=${messages.length}',
-              'hasMore=$hasMore',
-              'afterSeq=$afterSeq',
-              'fetchMs=$fetchMs',
-            ],
-          ),
-        );
 
         logger.info(
           '[fetchMessages] $sessionId page=$page '
@@ -5827,24 +5800,6 @@ what you have, you must use the options mode.
           afterSeq = processed.maxSeq;
         }
         _advanceSeqCursor(sessionId, afterSeq);
-
-        unawaited(
-          Sentry.captureMessage(
-            'fetchMessages page $page done',
-            level: SentryLevel.info,
-            params: [
-              'sessionId=$sessionId',
-              'existing=$existingCount',
-              'newMsgs=${processed.messages.length}',
-              'decryptMs=$decryptMs',
-              'upsertMs=$upsertMs',
-              'toolMs=$toolMs',
-              'groupMs=$groupMs',
-              'permMs=$permMs',
-              'mergeMs=$mergeMs',
-            ],
-          ),
-        );
 
         logger.info(
           '[fetchMessages] $sessionId page=$page '
