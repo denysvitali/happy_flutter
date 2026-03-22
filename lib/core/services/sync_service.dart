@@ -3989,32 +3989,11 @@ what you have, you must use the options mode.
     return <String, String>{...?base};
   }
 
-  /// Get the model override to pass when spawning a session.
-  ///
-  /// Returns `null` to use the daemon's default model, or a model string
-  /// to override the default. When [lastUsedModelMode] is 'default', uses
-  /// the profile's configured model instead of returning null (which would
-  /// cause the daemon to fall back to its stale session metadata).
-      String? _getModelOverride({AIBackendProfile? profile}) {
-    final modelMode = _settingsSnapshot.lastUsedModelMode;
-    // Only pass --model for 'sonnet' and 'opus' which are the daemon's
-    // recognized CLI model identifiers. All other values (full model names
-    // like 'claude-3-opus', custom models like 'GLM-4.6', or 'default')
-    // should come from env vars instead of --model.
-    if (modelMode != 'sonnet' && modelMode != 'opus') {
-      return null;
-    }
-    // For custom profiles (those with anthropicConfig.model or
-    // openaiConfig.model set), the model is already passed via
-    // ANTHROPIC_MODEL/OPENAI_MODEL env vars. Passing --model would conflict.
-    if (profile != null) {
-      if (profile.anthropicConfig?.model != null ||
-          profile.openaiConfig?.model != null) {
-        return null;
-      }
-    }
-    return modelMode;
-  }
+  /// Never pass --model when spawning sessions. The model is always
+  /// determined by profile env vars (ANTHROPIC_MODEL, OPENAI_MODEL, etc.)
+  /// or the CLI's own defaults. Passing --model causes stale model names
+  /// (e.g. GLM-5) to leak across profile switches.
+  String? _getModelOverride({AIBackendProfile? profile}) => null;
 
   /// Get environment variables and profile for spawning a session, using the
   /// profile associated with the session if available. Does NOT fall back to
