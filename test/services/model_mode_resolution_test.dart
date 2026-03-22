@@ -54,7 +54,7 @@ void main() {
       });
 
       test(
-        'returns openaiConfig.model when profile has it',
+        'returns null even when profile has openaiConfig.model',
         () {
           sync.testSettingsSnapshot = Settings()
             ..lastUsedModelMode = null;
@@ -69,12 +69,13 @@ void main() {
             profile: profile,
           );
 
-          expect(result, 'gpt-4o');
+          // Model is passed via ANTHROPIC_MODEL env var, not --model
+          expect(result, isNull);
         },
       );
 
       test(
-        'returns anthropicConfig.model when profile has it',
+        'returns null even when profile has anthropicConfig.model',
         () {
           sync.testSettingsSnapshot = Settings()
             ..lastUsedModelMode = null;
@@ -91,12 +92,12 @@ void main() {
             profile: profile,
           );
 
-          expect(result, 'claude-3-sonnet');
+          expect(result, isNull);
         },
       );
 
       test(
-        'returns defaultModelMode when profile has it',
+        'returns null even when profile has defaultModelMode',
         () {
           sync.testSettingsSnapshot = Settings()
             ..lastUsedModelMode = null;
@@ -111,7 +112,7 @@ void main() {
             profile: profile,
           );
 
-          expect(result, 'sonnet');
+          expect(result, isNull);
         },
       );
     });
@@ -127,7 +128,7 @@ void main() {
       });
 
       test(
-        'returns openaiConfig.model from profile',
+        'returns null even when profile has openaiConfig.model',
         () {
           sync.testSettingsSnapshot = Settings()
             ..lastUsedModelMode = 'default';
@@ -142,12 +143,13 @@ void main() {
             profile: profile,
           );
 
-          expect(result, 'gpt-4');
+          // Model is passed via OPENAI_MODEL env var, not --model
+          expect(result, isNull);
         },
       );
 
       test(
-        'returns anthropicConfig.model from profile',
+        'returns null even when profile has anthropicConfig.model',
         () {
           sync.testSettingsSnapshot = Settings()
             ..lastUsedModelMode = 'default';
@@ -164,12 +166,12 @@ void main() {
             profile: profile,
           );
 
-          expect(result, 'claude-3');
+          expect(result, isNull);
         },
       );
 
       test(
-        'returns defaultModelMode from profile',
+        'returns null even when profile has defaultModelMode',
         () {
           sync.testSettingsSnapshot = Settings()
             ..lastUsedModelMode = 'default';
@@ -184,12 +186,12 @@ void main() {
             profile: profile,
           );
 
-          expect(result, 'sonnet');
+          expect(result, isNull);
         },
       );
 
       test(
-        "returns null when profile defaultModelMode is 'default'",
+        'returns null when profile defaultModelMode is "default"',
         () {
           sync.testSettingsSnapshot = Settings()
             ..lastUsedModelMode = 'default';
@@ -229,8 +231,11 @@ void main() {
     });
 
     group('profile model priority', () {
+      // When lastUsedModelMode is 'default', --model is not passed at all.
+      // Profile models are set via env vars only.
       test(
-        'openaiConfig takes priority over anthropicConfig',
+        'returns null regardless of profile model configs '
+        'when lastUsedModelMode is "default"',
         () {
           sync.testSettingsSnapshot = Settings()
             ..lastUsedModelMode = 'default';
@@ -249,37 +254,13 @@ void main() {
             profile: profile,
           );
 
-          expect(result, 'gpt-4o');
+          expect(result, isNull);
         },
       );
 
       test(
-        'anthropicConfig takes priority over '
-        'defaultModelMode',
-        () {
-          sync.testSettingsSnapshot = Settings()
-            ..lastUsedModelMode = 'default';
-
-          final profile = AIBackendProfile(
-            id: 'p1',
-            name: 'Anthropic + Default',
-            anthropicConfig: AnthropicConfig(
-              model: 'claude-3',
-            ),
-            defaultModelMode: 'sonnet',
-          );
-
-          final result = sync.testGetModelOverride(
-            profile: profile,
-          );
-
-          expect(result, 'claude-3');
-        },
-      );
-
-      test(
-        'falls through to defaultModelMode when '
-        'openai and anthropic models are null',
+        'returns null when lastUsedModelMode is "default" '
+        'and profile has no model configs',
         () {
           sync.testSettingsSnapshot = Settings()
             ..lastUsedModelMode = 'default';
@@ -294,32 +275,6 @@ void main() {
               baseUrl: 'https://api.example.com',
             ),
             defaultModelMode: 'haiku',
-          );
-
-          final result = sync.testGetModelOverride(
-            profile: profile,
-          );
-
-          expect(result, 'haiku');
-        },
-      );
-
-      test(
-        'returns null when all profile model sources '
-        'are null',
-        () {
-          sync.testSettingsSnapshot = Settings()
-            ..lastUsedModelMode = 'default';
-
-          final profile = AIBackendProfile(
-            id: 'p1',
-            name: 'No Models',
-            openaiConfig: OpenAIConfig(
-              baseUrl: 'https://api.example.com',
-            ),
-            anthropicConfig: AnthropicConfig(
-              baseUrl: 'https://api.example.com',
-            ),
           );
 
           final result = sync.testGetModelOverride(

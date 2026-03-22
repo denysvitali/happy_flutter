@@ -3997,34 +3997,19 @@ what you have, you must use the options mode.
   /// cause the daemon to fall back to its stale session metadata).
   String? _getModelOverride({AIBackendProfile? profile}) {
     final modelMode = _settingsSnapshot.lastUsedModelMode;
-    if (modelMode != null && modelMode != 'default') {
+    // Only pass --model for actual model names (e.g. 'claude-3-5-sonnet').
+    // 'sonnet' and 'opus' are mode identifiers, not model names — the profile
+    // resolves them via ANTHROPIC_DEFAULT_SONNET_MODEL / OPUS_MODEL env vars.
+    // Passing them as --model would override the profile's intended model.
+    if (modelMode != null &&
+        modelMode != 'default' &&
+        modelMode != 'sonnet' &&
+        modelMode != 'opus') {
       return modelMode;
     }
-    // lastUsedModelMode is 'default' or null: use profile's model if
-    // available, to avoid daemon falling back to stale session metadata.
-    // For custom profiles, check openaiConfig/anthropicConfig first
-    // (they contain the user's configured model). For built-in profiles,
-    // defaultModelMode is the only source of truth.
-    // NOTE: Do NOT return 'default' (the literal string) as a model name -
-    // the daemon interprets this as an actual model named 'default', which
-    // doesn't exist. Return null to let the daemon use its own default.
-    if (profile != null) {
-      // Check openaiConfig.model (custom OpenAI-compatible profiles).
-      if (profile.openaiConfig?.model != null) {
-        return profile.openaiConfig!.model;
-      }
-      // Check anthropicConfig.model (custom Anthropic-compatible profiles).
-      if (profile.anthropicConfig?.model != null) {
-        return profile.anthropicConfig!.model;
-      }
-      // Check defaultModelMode (built-in profiles with hardcoded defaults).
-      // Only return it if it's NOT the literal 'default' string, which
-      // would be misinterpreted by the daemon as a model name.
-      if (profile.defaultModelMode != null &&
-          profile.defaultModelMode != 'default') {
-        return profile.defaultModelMode;
-      }
-    }
+    // lastUsedModelMode is 'default', null, 'sonnet', or 'opus': do NOT pass
+    // --model. The profile's configured model is already set via env vars
+    // (ANTHROPIC_MODEL, OPENAI_MODEL, etc.) by _profileEnvironmentVariables.
     return null;
   }
 
