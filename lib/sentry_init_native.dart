@@ -79,15 +79,13 @@ Future<void> _pingSentry() async {
   // Verifies TLS override + server reachability before we
   // trust the SDK to deliver events.
   final client = HttpClient();
+  int? statusCode;
   try {
     final uri = Uri.https(_sentryHost, '/api/0/');
     final request = await client.getUrl(uri);
     final response = await request.close();
     await response.drain<void>();
-    logger.info(
-      '[Sentry] Server reachable '
-      '(HTTP ${response.statusCode})',
-    );
+    statusCode = response.statusCode;
   } on HandshakeException catch (e) {
     logger.warning(
       '[Sentry] TLS handshake failed — '
@@ -107,6 +105,19 @@ Future<void> _pingSentry() async {
   } finally {
     client.close();
   }
+
+  if (statusCode != null && statusCode >= 500) {
+    logger.warning(
+      '[Sentry] Server returned HTTP $statusCode — '
+      'the Sentry instance appears unhealthy. '
+      'Events will likely be lost.',
+    );
+    return;
+  }
+
+  logger.info(
+    '[Sentry] Server healthy (HTTP $statusCode)',
+  );
 
   // ── Step 2: SDK-level test event ──
   try {
