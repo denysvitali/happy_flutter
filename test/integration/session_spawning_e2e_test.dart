@@ -815,7 +815,14 @@ void main() {
     });
 
     test('returns true immediately for online session', () async {
-      sync.testSessions['s1'] = _makeSession('s1', presence: 'online');
+      sync.testSessions['s1'] =
+          _makeSession('s1', presence: 'online');
+      // _isSessionReady requires a recent ephemeral event
+      // to trust 'online' presence.
+      sync.testSetLastEphemeralAt(
+        's1',
+        DateTime.now().millisecondsSinceEpoch,
+      );
       final ready = await sync.waitForAgentReady('s1');
       expect(ready, isTrue);
     });
@@ -844,17 +851,27 @@ void main() {
       expect(ready, isTrue);
     });
 
-    test('waits and returns true when session comes online via data change',
-        () async {
-      sync.testSessions['s1'] = _makeSession('s1', presence: 'offline');
+    test(
+        'waits and returns true when session comes '
+        'online via data change', () async {
+      sync.testSessions['s1'] =
+          _makeSession('s1', presence: 'offline');
 
       // Simulate session coming online after 100ms
       Timer(const Duration(milliseconds: 100), () {
-        sync.testSessions['s1'] = _makeSession('s1', presence: 'online');
+        sync.testSessions['s1'] =
+            _makeSession('s1', presence: 'online');
+        // _isSessionReady requires a recent ephemeral
+        // event to trust 'online' presence.
+        sync.testSetLastEphemeralAt(
+          's1',
+          DateTime.now().millisecondsSinceEpoch,
+        );
         sync.testNotifyDataChanged();
       });
 
-      final ready = await sync.waitForAgentReady('s1', 5000);
+      final ready =
+          await sync.waitForAgentReady('s1', 5000);
       expect(ready, isTrue);
     });
 
