@@ -138,6 +138,24 @@ class SocketIoClient {
     });
 
     _socket!.onAny((event, data) {
+      // Record every websocket event as a Sentry breadcrumb so traces
+      // can be correlated with incoming socket activity.
+      final breadcrumbData = <String, dynamic>{'event': event};
+      if (data is Map<String, dynamic>) {
+        final updateType = data['t'] as String?;
+        if (updateType != null) breadcrumbData['type'] = updateType;
+        final sid = data['d'] is Map
+            ? (data['d'] as Map)['sid'] as String?
+            : null;
+        if (sid != null) breadcrumbData['sessionId'] = sid;
+      }
+      Sentry.addBreadcrumb(Breadcrumb(
+        message: 'ws event: $event',
+        category: 'websocket',
+        level: SentryLevel.info,
+        data: breadcrumbData,
+      ));
+
       if (_messageController.hasListener) {
         _messageController.add(
           SocketMessage(event: event, data: data),

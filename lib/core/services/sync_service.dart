@@ -1378,6 +1378,19 @@ what you have, you must use the options mode.
     try {
       final update = ApiUpdate.fromJson(payload);
 
+      Sentry.addBreadcrumb(Breadcrumb(
+        message: 'sync update: ${update.type}',
+        category: 'sync.update',
+        level: SentryLevel.info,
+        data: <String, dynamic>{
+          'type': update.type,
+          if (update.data['sid'] is String)
+            'sessionId': update.data['sid'] as String,
+          if (update.data['id'] is String)
+            'entityId': update.data['id'] as String,
+        },
+      ));
+
       switch (update.type) {
         case 'new-message':
           _handleNewMessage(update.data);
@@ -1553,8 +1566,22 @@ what you have, you must use the options mode.
       // so onSessionVisible() knows to force a server fetch instead of
       // restoring stale cache.
       _sessionsWithPendingSocketMessages.add(sessionId);
-      _sessionUnreadCounts[sessionId] =
+      final newUnread =
           (_sessionUnreadCounts[sessionId] ?? 0) + 1;
+      _sessionUnreadCounts[sessionId] = newUnread;
+
+      Sentry.addBreadcrumb(Breadcrumb(
+        message: 'Background message received',
+        category: 'chat.background',
+        level: SentryLevel.info,
+        data: <String, dynamic>{
+          'sessionId': sessionId,
+          'msgSeq': msgSeq,
+          'unreadCount': newUnread,
+          'hasEmbedded': embeddedMessage != null,
+          'isFirstPending': isNew,
+        },
+      ));
     }
   }
 
@@ -4448,6 +4475,18 @@ what you have, you must use the options mode.
       'textLen=${text.length}',
     );
 
+    // Start a Sentry transaction covering the entire send flow.
+    final sendTransaction = Sentry.startTransaction(
+      'chat.sendMessage',
+      'task',
+      bindToScope: false,
+    )
+      ..setData('sessionId', targetSessionId)
+      ..setData('localId', localId)
+      ..setData('textLength', text.length)
+      ..setData('permissionMode', wirePermissionMode)
+      ..setData('model', model ?? 'default');
+
     // Ensure catch-up polling is active for this session. Without this,
     // if sendMessage() is called before onSessionVisible() (e.g. from the
     // sessions list before the chat screen initialises), _startPostSendCatchUp
@@ -4478,9 +4517,14 @@ what you have, you must use the options mode.
 
     // Encrypt after the optimistic insert so the user sees instant feedback.
     // The encrypted record is only needed for the HTTP POST to the server.
+    final encryptSpan = sendTransaction.startChild(
+      'chat.encrypt',
+      description: 'Encrypt message for session',
+    );
     final encryptedRawRecord = await sessionEncryption.encryptRawRecord(
       rawRecord,
     );
+    encryptSpan.finish();
 
     // ── Background: REST POST + socket emit ──
     // Fire-and-forget — the caller returns targetSessionId immediately.
@@ -4491,6 +4535,7 @@ what you have, you must use the options mode.
       text: text,
       rawRecord: rawRecord,
       encryptedRawRecord: encryptedRawRecord,
+      transaction: sendTransaction,
     );
     lastCompleteSendFuture = completeSendFuture;
     unawaited(completeSendFuture);
@@ -4506,6 +4551,7 @@ what you have, you must use the options mode.
     required String text,
     required Map<String, dynamic> rawRecord,
     required String encryptedRawRecord,
+    required ISentrySpan transaction,
   }) async {
     final apiClient = ApiClient();
     var sent = false;
@@ -4514,6 +4560,10 @@ what you have, you must use the options mode.
       // Wait for agent readiness. Use a longer timeout for sessions we
       // just spawned, since the agent needs time to connect Socket.IO
       // and update lifecycleState before it can receive messages.
+      final waitSpan = transaction.startChild(
+        'chat.waitForAgent',
+        description: 'Wait for agent readiness',
+      );
       final spawnedAt = _sessionSpawnedAt[targetSessionId];
       final recentlySpawned =
           spawnedAt != null &&
@@ -4522,6 +4572,14 @@ what you have, you must use the options mode.
         targetSessionId,
         recentlySpawned ? 15000 : sessionReadyTimeoutMs,
       );
+      waitSpan
+        ..setData('ready', ready)
+        ..setData('recentlySpawned', recentlySpawned)
+        ..finish(
+            status: ready
+                ? const SpanStatus.ok()
+                : const SpanStatus.deadlineExceeded(),
+          );
       if (!ready) {
         logger.info(
           '[sendMessage] agent not ready for '
@@ -4535,6 +4593,11 @@ what you have, you must use the options mode.
         'socketStatus=${socketIoClient.connectionStatus} '
         'session=$targetSessionId',
       );
+      final postSpan = transaction.startChild(
+        'http.client',
+        description:
+            'POST /v3/sessions/$targetSessionId/messages',
+      );
       final response = await apiClient.post(
         '/v3/sessions/$targetSessionId/messages',
         data: {
@@ -4543,6 +4606,15 @@ what you have, you must use the options mode.
           ],
         },
       );
+      postSpan
+        ..setData('statusCode', response.statusCode ?? 0)
+        ..finish(
+            status: apiClient.isSuccess(response)
+                ? const SpanStatus.ok()
+                : SpanStatus.fromHttpStatusCode(
+                    response.statusCode ?? 500,
+                  ),
+          );
       logger.info(
         '[sendMessage] POST '
         '/v3/sessions/$targetSessionId/messages '
@@ -4664,8 +4736,12 @@ what you have, you must use the options mode.
         );
         throw StateError('Failed to send message: ${response.statusCode}');
       }
+      transaction.finish(status: const SpanStatus.ok());
     } catch (e, stack) {
       logger.error('[sendMessage] error sending', e, stack);
+      transaction
+        ..setData('error', e.toString())
+        ..finish(status: const SpanStatus.internalError());
       if (!sent) {
         // Queue in the outbox for automatic retry with backoff.
         final entry = OutboxEntry(
