@@ -19,7 +19,9 @@ Future<void> initSentryForPlatform(
           '@sentry.k2.k8s.best'
           '/2'
       ..sendDefaultPii = true
-      ..tracesSampleRate = kReleaseMode ? 0.2 : 1.0
+      ..tracesSampleRate = 1.0
+      ..profilesSampleRate = 1.0
+      ..enableLogs = true
       ..release =
           _sentryRelease.isNotEmpty ? _sentryRelease : null
       ..environment = kReleaseMode ? 'production' : 'debug'
