@@ -138,7 +138,7 @@ class InvalidateSync {
     try {
       await _action();
 
-      transaction.finish();
+      await transaction.finish();
 
       // Add breadcrumb for successful completion
       Sentry.addBreadcrumb(Breadcrumb(
@@ -151,7 +151,7 @@ class InvalidateSync {
         },
       ));
     } catch (error, stackTrace) {
-      transaction.finish(
+      await transaction.finish(
         status: const SpanStatus.internalError(),
       );
 

@@ -1370,7 +1370,7 @@ what you have, you must use the options mode.
   }
 
   /// Handle incoming updates
-  void handleUpdate(dynamic data) {
+  Future<void> handleUpdate(dynamic data) async {
     final payload = _normalizeSocketPayload(data, handlerName: 'handleUpdate');
     if (payload == null) {
       return;
@@ -1448,10 +1448,10 @@ what you have, you must use the options mode.
           break;
       }
 
-      updateTransaction.finish();
+      await updateTransaction.finish();
     } catch (error, stack) {
       logger.error('Failed to handle update', error, stack);
-      updateTransaction?.finish(
+      await updateTransaction?.finish(
         status: const SpanStatus.internalError(),
       );
     }

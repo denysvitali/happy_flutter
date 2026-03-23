@@ -105,7 +105,7 @@ class SocketIoClient {
   }
 
   void _setupEventHandlers() {
-    _socket!.onConnect((_) {
+    _socket!.onConnect((_) async {
       logger.info('Socket.IO connected');
       _updateStatus(ConnectionStatus.connected);
 
@@ -115,7 +115,7 @@ class SocketIoClient {
         'connection',
         bindToScope: false,
       )..setData('recovered', _socket?.recovered ?? false);
-      transaction.finish();
+      await transaction.finish();
 
       if (_hasConnectedOnce && !(_socket?.recovered ?? false)) {
         _notifyReconnected();
@@ -123,7 +123,7 @@ class SocketIoClient {
       _hasConnectedOnce = true;
     });
 
-    _socket!.onDisconnect((_) {
+    _socket!.onDisconnect((_) async {
       logger.info('Socket.IO disconnected');
       _updateStatus(ConnectionStatus.disconnected);
 
@@ -133,10 +133,10 @@ class SocketIoClient {
         'connection',
         bindToScope: false,
       );
-      transaction.finish();
+      await transaction.finish();
     });
 
-    _socket!.onConnectError((error) {
+    _socket!.onConnectError((error) async {
       _updateStatus(ConnectionStatus.error);
       logger.warning('Socket.IO connect error: $error');
 
@@ -146,7 +146,7 @@ class SocketIoClient {
         'connection',
         bindToScope: false,
       )..setData('error', error.toString());
-      transaction.finish(
+      await transaction.finish(
         status: const SpanStatus.internalError(),
       );
 
@@ -156,7 +156,7 @@ class SocketIoClient {
       ));
     });
 
-    _socket!.onError((error) {
+    _socket!.onError((error) async {
       _updateStatus(ConnectionStatus.error);
       logger.warning('Socket.IO error: $error');
 
@@ -166,7 +166,7 @@ class SocketIoClient {
         'connection',
         bindToScope: false,
       )..setData('error', error.toString());
-      transaction.finish(
+      await transaction.finish(
         status: const SpanStatus.internalError(),
       );
 
