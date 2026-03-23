@@ -127,8 +127,19 @@ class InvalidateSync {
     _retryTimer = null;
     _invalidated = false;
 
+    // Start a transaction for this sync operation to capture it in
+    // performance monitoring, not just as a breadcrumb attached to errors.
+    final transaction = Sentry.startTransaction(
+      'sync.invalidate.${_name ?? 'unknown'}',
+      'sync.fetch',
+      bindToScope: false,
+    )..setData('name', _name ?? 'unknown');
+
     try {
       await _action();
+
+      transaction.finish();
+
       // Add breadcrumb for successful completion
       Sentry.addBreadcrumb(Breadcrumb(
         message: 'InvalidateSync action completed',
@@ -140,6 +151,10 @@ class InvalidateSync {
         },
       ));
     } catch (error, stackTrace) {
+      transaction.finish(
+        status: const SpanStatus.internalError(),
+      );
+
       _retryCount++;
       if (_retryCount <= maxRetries) {
         _scheduleRetry();

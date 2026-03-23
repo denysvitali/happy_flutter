@@ -108,6 +108,15 @@ class SocketIoClient {
     _socket!.onConnect((_) {
       logger.info('Socket.IO connected');
       _updateStatus(ConnectionStatus.connected);
+
+      // Track connection as a transaction for performance monitoring
+      final transaction = Sentry.startTransaction(
+        _hasConnectedOnce ? 'websocket.reconnect' : 'websocket.connect',
+        'connection',
+        bindToScope: false,
+      )..setData('recovered', _socket?.recovered ?? false);
+      transaction.finish();
+
       if (_hasConnectedOnce && !(_socket?.recovered ?? false)) {
         _notifyReconnected();
       }
@@ -117,11 +126,30 @@ class SocketIoClient {
     _socket!.onDisconnect((_) {
       logger.info('Socket.IO disconnected');
       _updateStatus(ConnectionStatus.disconnected);
+
+      // Track disconnection as a transaction
+      final transaction = Sentry.startTransaction(
+        'websocket.disconnect',
+        'connection',
+        bindToScope: false,
+      );
+      transaction.finish();
     });
 
     _socket!.onConnectError((error) {
       _updateStatus(ConnectionStatus.error);
       logger.warning('Socket.IO connect error: $error');
+
+      // Track connection error as a transaction
+      final transaction = Sentry.startTransaction(
+        'websocket.connect_error',
+        'connection',
+        bindToScope: false,
+      )..setData('error', error.toString());
+      transaction.finish(
+        status: const SpanStatus.internalError(),
+      );
+
       unawaited(Sentry.captureException(
         Exception('Socket.IO connect error: $error'),
         stackTrace: StackTrace.current,
@@ -131,6 +159,17 @@ class SocketIoClient {
     _socket!.onError((error) {
       _updateStatus(ConnectionStatus.error);
       logger.warning('Socket.IO error: $error');
+
+      // Track error as a transaction
+      final transaction = Sentry.startTransaction(
+        'websocket.error',
+        'connection',
+        bindToScope: false,
+      )..setData('error', error.toString());
+      transaction.finish(
+        status: const SpanStatus.internalError(),
+      );
+
       unawaited(Sentry.captureException(
         Exception('Socket.IO error: $error'),
         stackTrace: StackTrace.current,
