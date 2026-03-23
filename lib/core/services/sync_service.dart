@@ -439,6 +439,12 @@ what you have, you must use the options mode.
   // RPCs.
   final Set<String> _autoRestoreInFlight = {};
 
+  // sessionId → epoch-ms of last ephemeral event (keep-alive or activity).
+  // Used by _resolveSendTargetSession to avoid trusting stale 'online'
+  // presence after a daemon restart (full-fetch timer reset can leave dead
+  // sessions appearing online for up to 60 s).
+  final Map<String, int> _lastEphemeralAt = {};
+
   /// Sessions that have been archived locally but the server hasn't confirmed
   /// yet (replication lag). These are filtered from the active sessions list
   /// to prevent the "archive then reappear" bug.
@@ -649,6 +655,13 @@ what you have, you must use the options mode.
   /// Test helper: clear all spawn timestamps.
   @visibleForTesting
   void testClearSessionSpawnedAt() => _sessionSpawnedAt.clear();
+
+  /// Test helper: record a recent ephemeral event for a session so
+  /// that [_isSessionReady] trusts its 'online' presence.
+  @visibleForTesting
+  void testSetLastEphemeralAt(String sessionId, int epochMs) {
+    _lastEphemeralAt[sessionId] = epochMs;
+  }
 
   /// Test helper: invoke [_checkForNewPermissionRequests].
   @visibleForTesting
@@ -1895,6 +1908,9 @@ what you have, you must use the options mode.
       final session = _sessions[sessionId];
       if (session == null) return;
 
+      _lastEphemeralAt[sessionId] =
+          DateTime.now().millisecondsSinceEpoch;
+
       final nextThinking = keepThinking ? session.thinking : thinking ?? false;
       final nextThinkingAt = keepThinking
           ? session.thinkingAt
@@ -2220,11 +2236,12 @@ what you have, you must use the options mode.
       }
 
       if (changedSince == null) {
-        // Full fetch: cancel all presence timers and replace sessions.
-        for (final timer in _presenceTimers.values) {
-          timer.cancel();
-        }
-        _presenceTimers.clear();
+        // Full fetch: selectively cancel presence timers. Preserve timers
+        // for sessions that remain 'online' so their countdown from the
+        // last keep-alive is maintained.  Without this, dead sessions
+        // (e.g. after a daemon restart) get a fresh 60-second timer that
+        // delays offline detection and allows messages to be sent to a
+        // session with no running process.
         // Atomic update: build new map then swap to avoid the clear()
         // window where concurrent operations see an empty _sessions.
         final newSessions = Map<String, Session>.fromEntries(
@@ -2253,6 +2270,21 @@ what you have, you must use the options mode.
             'optimistic sessions from full fetch: $preservedSessions',
           );
         }
+        // Cancel timers for sessions that were removed or went offline.
+        // Keep timers for sessions that remain 'online' so their original
+        // countdown from the last keep-alive is preserved.
+        final staleTimerIds = <String>[];
+        for (final entry in _presenceTimers.entries) {
+          final newSession = newSessions[entry.key];
+          if (newSession == null ||
+              newSession.presence != 'online') {
+            entry.value.cancel();
+            staleTimerIds.add(entry.key);
+          }
+        }
+        for (final id in staleTimerIds) {
+          _presenceTimers.remove(id);
+        }
         _sessions = newSessions;
       } else {
         // Delta fetch: merge updated sessions, cancel their stale timers.
@@ -2278,13 +2310,14 @@ what you have, you must use the options mode.
         );
       }
 
-      // Start 60 s staleness timers for every session that came back
-      // 'online' from the server. If no real-time activity event arrives
-      // to confirm the session is still running, the timer will drop it
-      // to inactive — preventing stale active flags from persisting
-      // indefinitely (matches the reference implementation's behaviour).
+      // Start 60 s staleness timers for sessions that came back 'online'
+      // but don't already have a running timer.  Existing timers (from
+      // keep-alives) are preserved so their original countdown is
+      // maintained — this prevents dead sessions from getting a fresh
+      // 60 s window after every fetch.
       for (final s in decryptedSessions) {
-        if (s.presence == 'online') {
+        if (s.presence == 'online' &&
+            !_presenceTimers.containsKey(s.id)) {
           _presenceTimers[s.id] = Timer(const Duration(seconds: 60), () {
             _presenceTimers.remove(s.id);
             final current = _sessions[s.id];
@@ -4075,15 +4108,26 @@ what you have, you must use the options mode.
     // gone.  Don't trust a stale presence='online' — fall through to
     // auto-restore instead.
     final isArchived = lifecycleState == 'archived';
+    // Don't trust presence='online' by itself — after a daemon restart a
+    // full session fetch resets all presence-expiry timers, leaving dead
+    // sessions with stale 'online' presence for up to 60 s.  Cross-check
+    // with the last ephemeral event (keep-alive / activity) timestamp so
+    // we only trust presence that is backed by a recent real-time signal.
+    final lastEphemeral = _lastEphemeralAt[sessionId];
+    final recentEphemeral =
+        lastEphemeral != null &&
+        DateTime.now().millisecondsSinceEpoch - lastEphemeral < 90000;
+    final isOnlineTrusted = session.isOnline && recentEphemeral;
     final looksReady =
         !isArchived &&
-        (session.isOnline ||
+        (isOnlineTrusted ||
             (agentIsStartingOrRunning && lifecycleRecent) ||
             recentlySpawned);
     logger.info(
       '[sendMessage] _resolveSendTargetSession '
       'session=$sessionId looksReady=$looksReady '
       '(isOnline=${session.isOnline}, '
+      'isOnlineTrusted=$isOnlineTrusted, '
       'lifecycleState=$lifecycleState, '
       'lifecycleRecent=$lifecycleRecent, '
       'recentlySpawned=$recentlySpawned, '
@@ -5969,7 +6013,7 @@ what you have, you must use the options mode.
       _notifyDataChanged();
       rethrow;
     } catch (error, stack) {
-      fetchSpan?.setStatus(SpanStatus.internalError());
+      fetchSpan?.status = SpanStatus.internalError();
       fetchSpan?.setData('error', error.toString());
       fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
       fetchSpan?.finish();
@@ -6099,7 +6143,14 @@ what you have, you must use the options mode.
   /// Checks both ephemeral presence and lifecycle metadata.
   /// Guards against stale lifecycleState by requiring a recent timestamp.
   bool _isSessionReady(Session s) {
-    if (s.isOnline) return true;
+    // Cross-check presence with a recent ephemeral event — same logic
+    // as _resolveSendTargetSession to avoid trusting stale 'online'
+    // presence after a daemon restart.
+    final lastEphemeral = _lastEphemeralAt[s.id];
+    final recentEphemeral =
+        lastEphemeral != null &&
+        DateTime.now().millisecondsSinceEpoch - lastEphemeral < 90000;
+    if (s.isOnline && recentEphemeral) return true;
     final lc = s.metadata?.lifecycleState;
     if (lc != 'running') return false;
     // Only trust "running" if the timestamp is recent (< 2 minutes).
@@ -7815,6 +7866,7 @@ what you have, you must use the options mode.
     _sessionGitStatus.clear();
     _sessionSpawnedAt.clear();
     _autoRestoreInFlight.clear();
+    _lastEphemeralAt.clear();
     _pendingNewSessionIds.clear();
     _sessionUsage.clear();
     _profile = null;
