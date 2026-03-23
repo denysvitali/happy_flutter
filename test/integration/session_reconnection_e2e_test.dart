@@ -392,6 +392,8 @@ void main() {
 
         // After resetting the resume timestamp the forced call can run.
         sync.testResetLastResumeAtMs();
+        // Ensure at least 1ms passes so the timestamp is strictly newer.
+        await Future<void>.delayed(const Duration(milliseconds: 2));
         sync.testInvalidateAllSyncs(force: true);
         expect(
           sync.testLastInvalidateAllSyncsAtMs,
