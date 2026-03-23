@@ -372,7 +372,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ));
         // Finish the transaction as failed
         transaction.setData('timeout', true);
-        transaction.finish();
+        await transaction.finish();
         setState(() {
           _isLoadingMessages = false;
           _initialLoadComplete = true;
@@ -458,7 +458,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     if (!mounted) {
-      transaction.finish();
+      await transaction.finish();
       return;
     }
 
@@ -483,7 +483,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // Finish the transaction
     transaction.setData('finalMessageCount', _messages.length);
     transaction.setData('elapsedMs', stopwatch.elapsedMilliseconds);
-    transaction.finish();
+    await transaction.finish();
   }
 
   Future<void> _retry() async {

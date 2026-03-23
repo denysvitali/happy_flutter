@@ -4759,12 +4759,11 @@ what you have, you must use the options mode.
         );
         throw StateError('Failed to send message: ${response.statusCode}');
       }
-      transaction.finish(status: const SpanStatus.ok());
+      await transaction.finish(status: const SpanStatus.ok());
     } catch (e, stack) {
       logger.error('[sendMessage] error sending', e, stack);
-      transaction
-        ..setData('error', e.toString())
-        ..finish(status: const SpanStatus.internalError());
+      transaction.setData('error', e.toString());
+      await transaction.finish(status: const SpanStatus.internalError());
       if (!sent) {
         // Queue in the outbox for automatic retry with backoff.
         final entry = OutboxEntry(
