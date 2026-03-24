@@ -372,7 +372,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ));
         // Finish the transaction as failed
         transaction.setData('timeout', true);
-        await transaction.finish();
+        unawaited(transaction.finish());
         setState(() {
           _isLoadingMessages = false;
           _initialLoadComplete = true;
