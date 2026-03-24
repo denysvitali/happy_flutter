@@ -9,10 +9,32 @@
       <stop offset="0" stop-color="#57D6B7"/>
       <stop offset="1" stop-color="#3FA3FF"/>
     </linearGradient>
+    <linearGradient id="promptGrad" x1="200" y1="380" x2="520" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#57D6B7"/>
+      <stop offset="1" stop-color="#3FA3FF"/>
+    </linearGradient>
   </defs>
+  <!-- Outer rounded square -->
   <rect x="64" y="64" width="896" height="896" rx="224" fill="url(#bg)"/>
-  <rect x="128" y="128" width="768" height="768" rx="200" fill="url(#accent)" opacity="0.16"/>
-  <rect x="320" y="256" width="128" height="512" rx="40" fill="#F7F9FC"/>
-  <rect x="576" y="256" width="128" height="512" rx="40" fill="#F7F9FC"/>
-  <rect x="320" y="448" width="384" height="128" rx="40" fill="#F7F9FC"/>
+  <!-- Subtle accent glow -->
+  <rect x="128" y="128" width="768" height="768" rx="200" fill="url(#accent)" opacity="0.10"/>
+  <!-- Terminal window body -->
+  <rect x="168" y="220" width="688" height="560" rx="40" fill="#0D1017" stroke="#2A3040" stroke-width="4"/>
+  <!-- Title bar -->
+  <rect x="168" y="220" width="688" height="72" rx="40" fill="#161B26"/>
+  <!-- Cover bottom corners of title bar -->
+  <rect x="168" y="252" width="688" height="40" fill="#161B26"/>
+  <!-- Traffic light dots -->
+  <circle cx="224" cy="256" r="14" fill="#FF5F57"/>
+  <circle cx="268" cy="256" r="14" fill="#FEBC2E"/>
+  <circle cx="312" cy="256" r="14" fill="#28C840"/>
+  <!-- Prompt chevron > -->
+  <path d="M240 440 L360 520 L240 600" stroke="url(#promptGrad)" stroke-width="48" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Cursor line -->
+  <rect x="420" y="488" width="48" height="64" rx="8" fill="url(#accent)" opacity="0.9"/>
+  <!-- Faux code line 1 -->
+  <rect x="520" y="498" width="240" height="44" rx="12" fill="#2A3040" opacity="0.7"/>
+  <!-- Faux code line 2 -->
+  <rect x="240" y="650" width="180" height="40" rx="12" fill="#2A3040" opacity="0.45"/>
+  <rect x="440" y="650" width="280" height="40" rx="12" fill="#2A3040" opacity="0.3"/>
 </svg>
