@@ -1,6 +1,6 @@
 {
-    "name": "happy_flutter",
-    "short_name": "happy_flutter",
+    "name": "Happy",
+    "short_name": "Happy",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
