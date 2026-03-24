@@ -83,6 +83,52 @@ class FriendsNotifier extends Notifier<FriendsState> {
   void clear() {
     state = FriendsState();
   }
+
+  /// Applies [fn] (a local state mutation) immediately, then awaits [action].
+  /// Rolls back via [fn] on failure and logs a warning. Returns whether [action]
+  /// succeeded.
+  Future<bool> optimisticRemove(
+    List<UserProfile> Function(FriendsState) itemsGetter,
+    void Function(FriendsState, List<UserProfile>) itemsSetter,
+    Future<void> Function() action,
+  ) async {
+    final before = itemsGetter(state);
+    itemsSetter(state, before.where((f) => f.id != 'PLACEHOLDER').toList());
+    try {
+      await action();
+      return true;
+    } catch (e) {
+      itemsSetter(state, before);
+      logger.warning(
+        'OptimisticMutation: friend action failed, rolled back'
+        ' — error: $e',
+      );
+      return false;
+    }
+  }
+
+  /// Optimistically removes [userId] from the friends list, then calls
+  /// [action] to perform the server operation. Rolls back on failure.
+  Future<bool> optimisticRemoveFriend(
+    String userId,
+    Future<void> Function() action,
+  ) async {
+    final snapshot = state.friends;
+    state = state.copyWith(
+      friends: state.friends.where((f) => f.id != userId).toList(),
+    );
+    try {
+      await action();
+      return true;
+    } catch (e) {
+      state = state.copyWith(friends: snapshot);
+      logger.warning(
+        'OptimisticMutation: removeFriend($userId) failed, rolled back'
+        ' — error: $e',
+      );
+      return false;
+    }
+  }
 }
 
 class FriendsState {

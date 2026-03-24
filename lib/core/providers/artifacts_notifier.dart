@@ -59,6 +59,25 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
   void clear() {
     state = {};
   }
+
+  /// Removes [id] from state immediately, then confirms with the server.
+  /// Rolls back on failure and logs a warning. Returns whether the server
+  /// accepted the deletion.
+  Future<bool> optimisticRemove(String id) async {
+    final snapshot = state;
+    state = Map<String, DecryptedArtifact>.from(state)..remove(id);
+    try {
+      await sync.deleteArtifact(id);
+      return true;
+    } catch (e) {
+      state = snapshot;
+      logger.warning(
+        'OptimisticMutation: deleteArtifact($id) failed, rolled back'
+        ' — error: $e',
+      );
+      return false;
+    }
+  }
 }
 
 final artifactsNotifierProvider =

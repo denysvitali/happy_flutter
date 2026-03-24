@@ -197,36 +197,18 @@ class DismissibleInactiveSession extends ConsumerWidget {
 
     if (confirmed != true) return false;
 
-    try {
-      final success = await sync.deleteSession(session.id);
-      if (success) {
-        await ref
-            .read(sessionsNotifierProvider.notifier)
-            .refreshFromSync();
-        return true;
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                context.l10n.sessionsFailedToDelete,
-              ),
-            ),
-          );
-        }
-        return false;
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              context.l10n.sessionsFailedToDelete,
-            ),
-          ),
-        );
-      }
-      return false;
+    // Optimistic: remove from UI immediately, roll back on failure.
+    final success = await ref
+        .read(sessionsNotifierProvider.notifier)
+        .optimisticDelete(session.id);
+
+    if (!success && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.sessionsFailedToDelete),
+        ),
+      );
     }
+    return success;
   }
 }

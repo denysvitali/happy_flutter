@@ -3,7 +3,6 @@ import 'package:riverpod/riverpod.dart';
 import '../models/session.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
-import '_shared.dart';
 
 class SessionsNotifier extends Notifier<Map<String, Session>> {
   int _lastDataChangeCounter = -1;
@@ -53,6 +52,56 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   }
 
   Session? getSession(String id) => state[id];
+
+  /// Removes [id] from state immediately, then confirms with the server.
+  /// Rolls back on failure and logs a warning. Returns whether the server
+  /// accepted the deletion.
+  Future<bool> optimisticDelete(String id) async {
+    final snapshot = state;
+    state = Map<String, Session>.from(state)..remove(id);
+    try {
+      final ok = await sync.deleteSession(id);
+      if (!ok) {
+        state = snapshot;
+        return false;
+      }
+      return true;
+    } catch (e) {
+      state = snapshot;
+      logger.warning('OptimisticMutation: deleteSession($id) failed, rolled back'
+          ' — error: $e');
+      return false;
+    }
+  }
+
+  /// Optimistically removes all [ids] from state immediately, then confirms
+  /// each with the server. Restores any that failed. Returns the number of
+  /// sessions that failed to delete.
+  Future<int> optimisticBatchDelete(List<String> ids) async {
+    if (ids.isEmpty) return 0;
+    final snapshot = state;
+    state = Map<String, Session>.from(state)
+      ..removeWhere((id, _) => ids.contains(id));
+    final results = await Future.wait(ids.map(sync.deleteSession));
+    int failCount = 0;
+    for (int i = 0; i < ids.length; i++) {
+      if (!results[i]) failCount++;
+    }
+    if (failCount > 0) {
+      // Restore only the ones that failed.
+      for (int i = 0; i < ids.length; i++) {
+        if (!results[i] && snapshot.containsKey(ids[i])) {
+          state = {...state, ids[i]: snapshot[ids[i]]!};
+        }
+      }
+    }
+    if (failCount > 0) {
+      logger.warning(
+        'OptimisticMutation: batchDelete($ids) — $failCount failed, rolled back',
+      );
+    }
+    return failCount;
+  }
 }
 
 final sessionsNotifierProvider =

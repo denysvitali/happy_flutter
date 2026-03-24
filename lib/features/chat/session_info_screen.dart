@@ -202,18 +202,15 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
     if (confirmed != true) return;
     setState(() => _isDeleting = true);
-    try {
-      final deleted = await sync.deleteSession(widget.session.id);
-      if (!mounted) return;
-      if (deleted) {
-        Navigator.of(context).pop();
-      } else {
-        _showError(failedDeleteMsg);
-      }
-    } catch (e) {
+    final deleted = await ref
+        .read(sessionsNotifierProvider.notifier)
+        .optimisticDelete(widget.session.id);
+    if (!mounted) return;
+    setState(() => _isDeleting = false);
+    if (deleted) {
+      Navigator.of(context).pop();
+    } else {
       _showError(failedDeleteMsg);
-    } finally {
-      if (mounted) setState(() => _isDeleting = false);
     }
   }
 

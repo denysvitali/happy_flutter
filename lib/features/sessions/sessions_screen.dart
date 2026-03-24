@@ -566,18 +566,14 @@ class _SessionsScreenState
         sel.copyWith(isBatchDeleting: true);
 
     final ids = List<String>.from(sel.selectedIds);
-    final results =
-        await Future.wait(ids.map(sync.deleteSession));
 
-    if (mounted) {
-      ref
-          .read(sessionsNotifierProvider.notifier)
-          .loadFromSync();
-    }
+    // Optimistic: remove all immediately, restore failures.
+    final failCount = await ref
+        .read(sessionsNotifierProvider.notifier)
+        .optimisticBatchDelete(ids);
 
     _exitSelectionMode();
 
-    final failCount = results.where((r) => !r).length;
     if (failCount > 0 && mounted) {
       messenger.showSnackBar(
         SnackBar(

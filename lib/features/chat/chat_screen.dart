@@ -1555,8 +1555,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               Navigator.pop(context);
               final failedL10n = l10n;
               final deleted = await ref
-                  .read(chatActionNotifierProvider.notifier)
-                  .deleteSession(widget.sessionId);
+                  .read(sessionsNotifierProvider.notifier)
+                  .optimisticDelete(widget.sessionId);
               if (!mounted) return;
               if (deleted) {
                 Navigator.of(this.context).pop();
