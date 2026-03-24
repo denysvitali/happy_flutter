@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- Trust the K2 private CA for the self-hosted Sentry instance.
+         Without this, the native Android Sentry SDK (OkHttp) cannot
+         deliver disk-persisted events (ANR, native crashes) because
+         the Dart-side _SentryHttpOverrides only applies to dart:io. -->
+    <domain-config>
+        <domain includeSubdomains="true">k2.k8s.best</domain>
+        <trust-anchors>
+            <certificates src="@raw/k2_cluster_root_ca" />
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
     <base-config>
         <trust-anchors>
             <certificates src="system" />
