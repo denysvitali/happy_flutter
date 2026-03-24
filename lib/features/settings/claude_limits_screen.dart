@@ -319,25 +319,27 @@ class _MachinePicker extends StatelessWidget {
               final online = now - m.activeAt < threshold;
               return DropdownMenuItem(
                 value: m.id,
-                child: Row(
-                  children: [
-                    Icon(
-                      online
-                          ? Icons.circle
-                          : Icons.circle_outlined,
-                      size: 10,
-                      color: online
-                          ? AppColors.success
-                          : cs.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Flexible(
-                      child: Text(
-                        name,
-                        overflow: TextOverflow.ellipsis,
+                child: Expanded(
+                  child: Row(
+                    children: [
+                      Icon(
+                        online
+                            ? Icons.circle
+                            : Icons.circle_outlined,
+                        size: 10,
+                        color: online
+                            ? AppColors.success
+                            : cs.onSurfaceVariant,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: AppSpacing.sm),
+                      Flexible(
+                        child: Text(
+                          name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }).toList(),
