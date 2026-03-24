@@ -257,10 +257,13 @@ void main() {
       expect(entry.level, LogLevel.error);
     });
 
-    test('should log message with error and stacktrace', () {
+    test('should log message with error and stacktrace', () async {
       final notifier = container.read(loggerNotifierProvider.notifier);
 
       notifier.error('failed', 'SomeException', StackTrace.empty);
+      // Await microtask to allow the synchronous state update to propagate
+      // through the Riverpod notifier before reading.
+      await Future<void>.delayed(Duration.zero);
 
       final state = container.read(loggerNotifierProvider);
       final entry = state.logs.firstWhere(
