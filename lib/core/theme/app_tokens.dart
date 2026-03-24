@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 
 // ─── Spacing ─────────────────────────────────────────────────────────────────
 
@@ -298,7 +299,72 @@ abstract final class AppBreakpoint {
   static const double sidebarMax = 360;
 }
 
-// ─── Screen padding ────────────────────────────────────────────────────────
+// ─── Spring physics ────────────────────────────────────────────────────────
+
+/// Pre-tuned spring physics configurations.
+///
+/// Each preset is a [SpringDescription] ready for use with
+/// [SpringSimulation] or [AnimationController] via [SpringDescription]:
+/// ```dart
+/// controller.animateWith(AppSpring.standard);
+/// ```
+///
+/// Tuned for feel rather than physics accuracy — values produce
+/// the desired motion character (snappy, bouncy, gentle) when used
+/// with Flutter's [SpringSimulation].
+abstract final class AppSpring {
+  /// Snappy spring — quick response, minimal overshoot.
+  ///
+  /// Use for: toggles, checkboxes, small chip animations.
+  /// Feel: immediate, crisp snap into place.
+  static const SpringDescription snappy = SpringDescription(
+    mass: 1.0,
+    stiffness: 500.0,
+    damping: 26.0,
+  );
+
+  /// Standard spring — balanced response with light overshoot.
+  ///
+  /// Use for: cards, list item expand/collapse, toolbar reveals.
+  /// Feel: responsive with a satisfying settle.
+  static const SpringDescription standard = SpringDescription(
+    mass: 1.0,
+    stiffness: 300.0,
+    damping: 22.0,
+  );
+
+  /// Gentle spring — slower response, smooth settle.
+  ///
+  /// Use for: bottom sheets, panels, modal-scale elements.
+  /// Feel: slow and controlled, no bounce.
+  static const SpringDescription gentle = SpringDescription(
+    mass: 1.0,
+    stiffness: 180.0,
+    damping: 20.0,
+  );
+
+  /// Bouncy spring — pronounced overshoot and rebound.
+  ///
+  /// Use for: FAB appearance, toast entry, playful confirmations.
+  /// Feel: energetic, fun, attention-grabbing.
+  static const SpringDescription bouncy = SpringDescription(
+    mass: 1.0,
+    stiffness: 400.0,
+    damping: 14.0,
+  );
+
+  /// Critically-damped spring — fastest settle with zero overshoot.
+  ///
+  /// Use for: scroll-linked animations, physics-driven motion.
+  /// Feel: as fast as possible without overshooting.
+  static const SpringDescription criticallyDamped = SpringDescription(
+    mass: 1.0,
+    stiffness: 300.0,
+    damping: 30.0,
+  );
+}
+
+// ─── Screen padding ───────────────────────────────────────────────────────
 
 /// Standard screen padding presets.
 ///

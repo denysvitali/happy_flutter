@@ -96,7 +96,39 @@ jobs:
         run: devenv shell -- flutter pub get
 
       - name: Run tests
-        run: devenv shell -- flutter test --coverage
+        run: devenv shell -- flutter test --coverage --concurrency=4
+
+  golden:
+    name: Golden Screenshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Run on PRs to main to catch regressions; skip on draft PRs
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Get dependencies
+        run: devenv shell -- flutter pub get
+
+      - name: Run golden tests
+        run: devenv shell -- flutter test test/golden/golden_test.dart
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

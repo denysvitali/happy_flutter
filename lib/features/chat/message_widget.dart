@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'markdown/markdown.dart';
 import 'tools/tools.dart';
+import 'widgets/streaming_cursor.dart';
 
 /// Message widget for displaying chat messages with speech bubbles,
 /// entrance animations, and full markdown support.
@@ -441,9 +442,17 @@ class _BotMessage extends StatelessWidget {
               ),
               child: DefaultTextStyle.merge(
                 style: TextStyle(color: cs.onSurface),
-                child: MarkdownView(
-                  markdown: text,
-                  onOptionPress: onOptionPress,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: MarkdownView(
+                        markdown: text,
+                        onOptionPress: onOptionPress,
+                      ),
+                    ),
+                    const StreamingCursor(),
+                  ],
                 ),
               ),
             ),

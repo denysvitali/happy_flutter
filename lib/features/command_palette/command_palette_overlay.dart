@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fuzzy/fuzzy.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
@@ -91,19 +92,34 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
   }
 
   void _filterCommands() {
-    final query = _searchQuery.toLowerCase().trim();
+    final query = _searchQuery.trim();
 
     List<CommandItem> filtered;
     if (query.isEmpty) {
       filtered = widget.commands;
     } else {
-      filtered = widget.commands.where((command) {
-        final titleMatch = command.title.toLowerCase().contains(query);
-        final subtitleMatch =
-            command.subtitle != null &&
-            command.subtitle!.toLowerCase().contains(query);
-        return titleMatch || subtitleMatch;
-      }).toList();
+      // Use fuzzy matching for typo-tolerant search with relevance scoring.
+      final fuzzy = Fuzzy<CommandItem>(
+        widget.commands,
+        options: FuzzyOptions(
+          keys: [
+            WeightedKey(
+              name: 'title',
+              getter: (item) => item.title,
+              weight: 1.0,
+            ),
+            WeightedKey(
+              name: 'subtitle',
+              getter: (item) => item.subtitle ?? '',
+              weight: 0.5,
+            ),
+          ],
+          threshold: 0.4,
+        ),
+      );
+      final results = fuzzy.search(query);
+      // Fuzzy results are already sorted by score (lower = better match).
+      filtered = results.map((r) => r.item).toList();
     }
 
     // Store all commands for keyboard navigation
