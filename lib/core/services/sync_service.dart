@@ -796,11 +796,16 @@ what you have, you must use the options mode.
       _sessionMessageChangeController.stream;
 
   /// Returns true for transient network errors that are not actionable
-  /// (e.g. Cronet aborting a connection because the app was backgrounded).
+  /// (e.g. DNS failure, timeout, Cronet aborting a connection because the
+  /// app was backgrounded).
   static bool _isTransientConnectionError(Object error) {
     final msg = error.toString();
     return msg.contains('ERR_CONNECTION_ABORTED') ||
         msg.contains('ERR_CONNECTION_RESET') ||
+        msg.contains('ERR_NAME_NOT_RESOLVED') ||
+        msg.contains('ERR_CONNECTION_TIMED_OUT') ||
+        msg.contains('Failed host lookup') ||
+        msg.contains('No address associated') ||
         msg.contains('Connection closed') ||
         msg.contains('Software caused connection abort');
   }
@@ -4339,15 +4344,25 @@ what you have, you must use the options mode.
         sessionEncryption: restoredSessionEncryption,
       );
     } catch (error, stack) {
-      logger
-        ..warning(
-          '[sendMessage] auto-restore failed for session=$sessionId',
-          error,
-        )
-        ..warning(
-          '[sendMessage] auto-restore stacktrace for session=$sessionId',
-          stack,
+      // Transient network errors during auto-restore are expected
+      // when the device is offline — log at info to avoid Sentry noise.
+      if (_isTransientConnectionError(error)) {
+        logger.info(
+          '[sendMessage] auto-restore failed (transient) '
+          'session=$sessionId: $error',
         );
+      } else {
+        logger
+          ..warning(
+            '[sendMessage] auto-restore failed for session=$sessionId',
+            error,
+          )
+          ..warning(
+            '[sendMessage] auto-restore stacktrace '
+            'for session=$sessionId',
+            stack,
+          );
+      }
       return (
         sessionId: sessionId,
         session: session,
@@ -5258,10 +5273,17 @@ what you have, you must use the options mode.
         'error=${result.errorMessage ?? 'unknown'}',
       );
     } catch (error) {
-      logger.warning(
-        '[permission] auto-restore failed '
-        'session=$sessionId: $error',
-      );
+      if (_isTransientConnectionError(error)) {
+        logger.info(
+          '[permission] auto-restore failed (transient) '
+          'session=$sessionId: $error',
+        );
+      } else {
+        logger.warning(
+          '[permission] auto-restore failed '
+          'session=$sessionId: $error',
+        );
+      }
     }
     return false;
   }

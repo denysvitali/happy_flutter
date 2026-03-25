@@ -163,8 +163,9 @@ class InvalidateSync {
         _currentOperation = null;
         _running = false;
         if (operation != null && !operation.isCompleted) {
+          // logger.error already forwards to Sentry via
+          // _forwardToSentry — no need for a separate captureException.
           logger.error('InvalidateSync: max retries exceeded', error);
-          // Add breadcrumb for max retries exceeded
           Sentry.addBreadcrumb(Breadcrumb(
             message: 'InvalidateSync max retries exceeded',
             category: 'sync.retry',
@@ -173,15 +174,6 @@ class InvalidateSync {
               'name': _name ?? 'unknown',
               'error': error.toString(),
             },
-          ));
-          // Capture the final error to Sentry
-          unawaited(Sentry.captureException(
-            error,
-            stackTrace: stackTrace,
-            hint: Hint.withMap({
-              'name': _name ?? 'unknown',
-              'retryCount': _retryCount,
-            }),
           ));
           operation.completeError(error);
         }

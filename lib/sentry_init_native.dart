@@ -52,13 +52,13 @@ Future<void> initSentryForPlatform(
       ..sendDefaultPii = true
       ..tracesSampleRate = 1.0
       ..profilesSampleRate = 1.0
-      ..enableLogs = true
       ..release =
           _sentryRelease.isNotEmpty ? _sentryRelease : null
       ..environment = kReleaseMode ? 'production' : 'debug'
-      // ── ANR detection ──
-      ..anrEnabled = true
-      ..anrTimeoutInterval = const Duration(seconds: 5)
+      // ANR detection disabled — background ANRs on Android are
+      // almost always false positives and native-layer ANR events
+      // bypass Dart's beforeSend filter.
+      ..anrEnabled = false
       // ── Breadcrumb limits ──
       ..maxBreadcrumbs = 250
       // ── Attach screenshots on errors/ANRs ──

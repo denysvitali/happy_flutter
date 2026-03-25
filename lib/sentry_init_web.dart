@@ -19,7 +19,6 @@ Future<void> initSentryForPlatform(
       ..sendDefaultPii = true
       ..tracesSampleRate = 1.0
       ..profilesSampleRate = 1.0
-      ..enableLogs = true
       ..release =
           _sentryRelease.isNotEmpty ? _sentryRelease : null
       ..environment = kReleaseMode ? 'production' : 'debug'
