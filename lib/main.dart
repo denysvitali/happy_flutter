@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'core/api/api_client.dart';
 import 'core/i18n/app_localizations.dart';
@@ -228,12 +229,25 @@ class _HappyAppState extends ConsumerState<HappyApp>
             now.difference(_lastLifecycleCycleAt!).inSeconds;
         if (elapsed < 60) {
           if (_lifecycleCycleCount > _lifecycleCyclingWarningThreshold) {
-            logger.warning(
-              '[Battery] Rapid lifecycle cycling detected: '
-              '$_lifecycleCycleCount paused/resumed transitions in '
-              '${elapsed}s — this indicates the app is not staying '
-              'backgrounded, possibly due to timers, streams, or '
-              'platform behaviour',
+            // Log variable details locally for dev logs.
+            logger.info(
+              '[Battery] Rapid lifecycle cycling: '
+              '$_lifecycleCycleCount transitions in ${elapsed}s',
+            );
+            // Send to Sentry with a stable fingerprint so all
+            // occurrences group into a single issue regardless of
+            // the variable count/elapsed values.
+            Sentry.captureMessage(
+              '[Battery] Rapid lifecycle cycling detected',
+              level: SentryLevel.warning,
+              withScope: (scope) {
+                scope
+                  ..fingerprint = ['battery-rapid-lifecycle-cycling']
+                  ..setContexts('battery', {
+                    'cycleCount': _lifecycleCycleCount,
+                    'elapsedSeconds': elapsed,
+                  });
+              },
             );
           }
         } else {

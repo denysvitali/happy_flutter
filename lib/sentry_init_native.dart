@@ -1,5 +1,5 @@
 // Native platform Sentry initialization
-import 'dart:async' show unawaited;
+import 'dart:async' show FutureOr, unawaited;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart'
@@ -67,7 +67,9 @@ Future<void> initSentryForPlatform(
       ..replay.sessionSampleRate = 1.0
       ..replay.onErrorSampleRate = 1.0
       // Print Sentry diagnostics to console in debug builds.
-      ..debug = kDebugMode;
+      ..debug = kDebugMode
+      // ── Filter noisy events ──
+      ..beforeSend = _beforeSend;
   }, appRunner: appRunner);
 
   // Fire-and-forget: verify Sentry connectivity.
@@ -118,22 +120,53 @@ Future<void> _pingSentry() async {
   logger.info(
     '[Sentry] Server healthy (HTTP $statusCode)',
   );
+}
 
-  // ── Step 2: SDK-level test event ──
-  try {
-    final eventId = await Sentry.captureMessage(
-      'App started — Sentry connectivity test',
-      level: SentryLevel.info,
-    );
-    if (eventId == SentryId.empty()) {
-      logger.warning(
-        '[Sentry] Ping dropped '
-        '(event filtered or DSN invalid)',
-      );
-    } else {
-      logger.info('[Sentry] Ping sent (event $eventId)');
+/// Patterns that indicate a transient network error (DNS failure,
+/// connection timeout, etc.) — not actionable and expected on mobile.
+const _transientNetworkPatterns = [
+  'ERR_NAME_NOT_RESOLVED',
+  'ERR_CONNECTION_TIMED_OUT',
+  'ERR_CONNECTION_ABORTED',
+  'ERR_CONNECTION_RESET',
+  'Failed host lookup',
+  'No address associated',
+  'Connection closed',
+  'Software caused connection abort',
+];
+
+bool _isTransientNetworkEvent(SentryEvent event) {
+  for (final exception in event.exceptions ?? <SentryException>[]) {
+    final value = exception.value ?? '';
+    for (final pattern in _transientNetworkPatterns) {
+      if (value.contains(pattern)) return true;
     }
-  } catch (e) {
-    logger.warning('[Sentry] Ping failed: $e');
   }
+  final message = event.message?.formatted ?? '';
+  for (final pattern in _transientNetworkPatterns) {
+    if (message.contains(pattern)) return true;
+  }
+  return false;
+}
+
+FutureOr<SentryEvent?> _beforeSend(
+  SentryEvent event,
+  Hint hint,
+) {
+  // Drop background ANRs — on Android these are almost always
+  // false positives caused by the OS deprioritising the app.
+  for (final exception in event.exceptions ?? <SentryException>[]) {
+    if (exception.type == 'ApplicationNotResponding' &&
+        (exception.value?.contains('Background') ?? false)) {
+      return null;
+    }
+  }
+
+  // Drop transient network errors (DNS, timeout, etc.) — these
+  // are expected when the device briefly loses connectivity.
+  if (_isTransientNetworkEvent(event)) {
+    return null;
+  }
+
+  return event;
 }

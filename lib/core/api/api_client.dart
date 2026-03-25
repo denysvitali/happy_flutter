@@ -152,6 +152,10 @@ bool _isTransientConnectionError(DioException error) {
   final inner = error.error?.toString() ?? '';
   return inner.contains('ERR_CONNECTION_ABORTED') ||
       inner.contains('ERR_CONNECTION_RESET') ||
+      inner.contains('ERR_NAME_NOT_RESOLVED') ||
+      inner.contains('ERR_CONNECTION_TIMED_OUT') ||
+      inner.contains('Failed host lookup') ||
+      inner.contains('No address associated') ||
       inner.contains('Connection closed') ||
       inner.contains('Software caused connection abort');
 }

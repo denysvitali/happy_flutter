@@ -6,6 +6,21 @@ import 'package:socket_io_client/socket_io_client.dart' as sio;
 import '../../core/models/api_update.dart';
 import '../services/logger_service.dart' show logger;
 
+/// Returns true for transient network errors (DNS failure,
+/// connection timeout, etc.) that are expected during brief
+/// connectivity loss on mobile.
+bool _isTransientSocketError(String error) {
+  return error.contains('ERR_NAME_NOT_RESOLVED') ||
+      error.contains('ERR_CONNECTION_TIMED_OUT') ||
+      error.contains('ERR_CONNECTION_ABORTED') ||
+      error.contains('ERR_CONNECTION_RESET') ||
+      error.contains('Failed host lookup') ||
+      error.contains('No address associated') ||
+      error.contains('Connection closed') ||
+      error.contains('Software caused connection abort') ||
+      error.contains('xhr poll error');
+}
+
 /// Represents a decoded Socket.io message
 class SocketMessage {
 
@@ -138,42 +153,62 @@ class SocketIoClient {
 
     _socket!.onConnectError((error) async {
       _updateStatus(ConnectionStatus.error);
-      logger.warning('Socket.IO connect error: $error');
 
-      // Track connection error as a transaction
+      final errorStr = error.toString();
+      final isTransient = _isTransientSocketError(errorStr);
+
+      // Downgrade transient network errors to info to avoid
+      // Sentry noise when the device briefly loses connectivity.
+      if (isTransient) {
+        logger.info('Socket.IO transient connect error: $error');
+      } else {
+        logger.warning('Socket.IO connect error: $error');
+      }
+
       final transaction = Sentry.startTransaction(
         'websocket.connect_error',
         'connection',
         bindToScope: false,
-      )..setData('error', error.toString());
+      )..setData('error', errorStr);
       await transaction.finish(
         status: const SpanStatus.internalError(),
       );
 
-      unawaited(Sentry.captureException(
-        Exception('Socket.IO connect error: $error'),
-        stackTrace: StackTrace.current,
-      ));
+      if (!isTransient) {
+        unawaited(Sentry.captureException(
+          Exception('Socket.IO connect error: $error'),
+          stackTrace: StackTrace.current,
+        ));
+      }
     });
 
     _socket!.onError((error) async {
       _updateStatus(ConnectionStatus.error);
-      logger.warning('Socket.IO error: $error');
 
-      // Track error as a transaction
+      final errorStr = error.toString();
+      final isTransient = _isTransientSocketError(errorStr);
+
+      if (isTransient) {
+        logger.info('Socket.IO transient error: $error');
+      } else {
+        logger.warning('Socket.IO error: $error');
+      }
+
       final transaction = Sentry.startTransaction(
         'websocket.error',
         'connection',
         bindToScope: false,
-      )..setData('error', error.toString());
+      )..setData('error', errorStr);
       await transaction.finish(
         status: const SpanStatus.internalError(),
       );
 
-      unawaited(Sentry.captureException(
-        Exception('Socket.IO error: $error'),
-        stackTrace: StackTrace.current,
-      ));
+      if (!isTransient) {
+        unawaited(Sentry.captureException(
+          Exception('Socket.IO error: $error'),
+          stackTrace: StackTrace.current,
+        ));
+      }
     });
 
     _socket!.onAny((event, data) {
