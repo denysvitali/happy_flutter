@@ -499,7 +499,10 @@ void _processOutputContent({
           'uuid': effectiveUuid,
           'parentUuid': ?dataParentUuid,
         });
-      } else if (type == 'tool_use') {
+      } else if (type == 'tool_use' ||
+          type == 'server_tool_use' ||
+          type == 'mcp_tool_use' ||
+          type == 'code_execution_tool_use') {
         // Use the tool-use ID as uuid when available so that
         // parallel tool calls from the same assistant message
         // get unique UUIDs for sidechain grouping (the shared
@@ -516,7 +519,7 @@ void _processOutputContent({
           'createdAt': createdAt,
           'role': 'agent',
           'kind': 'tool-call',
-          'name': c['name'],
+          'name': c['name'] ?? c['server_name'] ?? type,
           'input': c['input'],
           'toolUseId': c['id'],
           'state': 'running',
@@ -527,6 +530,25 @@ void _processOutputContent({
           'uuid': toolUseUuid,
           'parentUuid': ?dataParentUuid,
         });
+      } else if (type == 'web_search_tool_result' ||
+          type == 'server_tool_result' ||
+          type == 'mcp_tool_result' ||
+          type == 'code_execution_tool_result') {
+        // Server/MCP tool results arrive in the same assistant
+        // message as the tool-use block. Extract them so
+        // _applyToolResults can match them to the tool-call.
+        final toolUseId = c['tool_use_id'] as String?;
+        if (toolUseId != null && toolUseId.isNotEmpty) {
+          toolResults.add({
+            'toolUseId': toolUseId,
+            'result': c['content'],
+            'isError': c['is_error'] == true,
+            'createdAt': createdAt,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': ?effectiveUuid,
+            'parentUuid': ?dataParentUuid,
+          });
+        }
       }
       i++;
     }

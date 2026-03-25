@@ -117,7 +117,8 @@ void main() {
     expect(result.messages[1]['content'], '');
   });
 
-  test('unrecognized content types are silently skipped', () {
+  test('server_tool_use creates tool-call, redacted_thinking skipped',
+      () {
     final result = processDecryptedMessages(
       decryptedJsonList: [
         {
@@ -137,6 +138,14 @@ void main() {
                     'type': 'server_tool_use',
                     'id': 'st1',
                     'name': 'web_search',
+                    'input': {'query': 'flutter'},
+                  },
+                  {
+                    'type': 'web_search_tool_result',
+                    'tool_use_id': 'st1',
+                    'content': [
+                      {'type': 'text', 'text': 'results'},
+                    ],
                   },
                   {
                     'type': 'redacted_thinking',
@@ -158,9 +167,67 @@ void main() {
       sessionId: 's1',
     );
 
-    // Only thinking + text, skips server_tool_use and redacted_thinking
-    expect(result.messages.length, 2);
+    // thinking + server_tool_use (tool-call) + text = 3 messages
+    // redacted_thinking skipped, web_search_tool_result extracted
+    expect(result.messages.length, 3);
     expect(result.messages[0]['isThinking'], true);
-    expect(result.messages[1]['content'], 'Final answer here.');
+    expect(result.messages[1]['kind'], 'tool-call');
+    expect(result.messages[1]['name'], 'web_search');
+    expect(result.messages[1]['toolUseId'], 'st1');
+    expect(result.messages[2]['content'], 'Final answer here.');
+
+    // Tool result extracted for matching
+    expect(result.toolResults.length, 1);
+    expect(result.toolResults[0]['toolUseId'], 'st1');
+  });
+
+  test('mcp_tool_use creates tool-call with result', () {
+    final result = processDecryptedMessages(
+      decryptedJsonList: [
+        {
+          'role': 'agent',
+          'content': {
+            'type': 'output',
+            'data': {
+              'type': 'assistant',
+              'uuid': 'u1',
+              'message': {
+                'content': [
+                  {
+                    'type': 'mcp_tool_use',
+                    'id': 'mcp1',
+                    'name': 'get_weather',
+                    'server_name': 'weather-server',
+                    'input': {'city': 'Amsterdam'},
+                  },
+                  {
+                    'type': 'mcp_tool_result',
+                    'tool_use_id': 'mcp1',
+                    'content': 'Sunny, 20°C',
+                  },
+                  {
+                    'type': 'text',
+                    'text': 'The weather is sunny.',
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ],
+      wireMessages: [
+        {'id': 'm2', 'seq': 10, 'createdAt': 1774195704000},
+      ],
+      sessionId: 's1',
+    );
+
+    expect(result.messages.length, 2);
+    expect(result.messages[0]['kind'], 'tool-call');
+    expect(result.messages[0]['name'], 'get_weather');
+    expect(result.messages[0]['toolUseId'], 'mcp1');
+    expect(result.messages[1]['content'], 'The weather is sunny.');
+
+    expect(result.toolResults.length, 1);
+    expect(result.toolResults[0]['toolUseId'], 'mcp1');
   });
 }
