@@ -68,6 +68,9 @@ Future<void> initSentryForPlatform(
       ..maxBreadcrumbs = 250
       // ── Attach screenshots on errors/ANRs ──
       ..attachScreenshot = true
+      // ── Session replay ──
+      ..replay.sessionSampleRate = 1.0
+      ..replay.onErrorSampleRate = 1.0
       // Print Sentry diagnostics to console in debug builds.
       ..debug = kDebugMode;
   }, appRunner: appRunner);

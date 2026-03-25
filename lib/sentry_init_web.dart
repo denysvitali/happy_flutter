@@ -27,6 +27,9 @@ Future<void> initSentryForPlatform(
       ..environment = kReleaseMode ? 'production' : 'debug'
       // ── Breadcrumb limits ──
       ..maxBreadcrumbs = 250
+      // ── Session replay ──
+      ..replay.sessionSampleRate = 1.0
+      ..replay.onErrorSampleRate = 1.0
       // Print Sentry diagnostics to console in debug builds.
       ..debug = kDebugMode;
   }, appRunner: appRunner);
