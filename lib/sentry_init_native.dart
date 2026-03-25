@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart'
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'core/services/logger_service.dart';
+import 'sentry_config.dart';
 
 // Baked in at build time via --dart-define=SENTRY_RELEASE=...
 // Must match the release string used by sentry_dart_plugin when
@@ -15,15 +16,12 @@ import 'core/services/logger_service.dart';
 // local builds where --dart-define is not passed.
 const _sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
 
-/// Hostname of the self-hosted Sentry instance (private CA).
-const _sentryHost = 'sentry.k2.k8s.best';
-
 /// Trusts the self-hosted Sentry server certificate.
 ///
 /// The server presents a leaf cert signed by "K2 Cluster Root CA",
 /// a private CA absent from platform trust stores. This override
 /// lets dart:io [HttpClient] — used by the Sentry SDK transport —
-/// accept that certificate for [_sentryHost] only.
+/// accept that certificate for [sentryHost] only.
 class _SentryHttpOverrides extends HttpOverrides {
   _SentryHttpOverrides(this._previous);
   final HttpOverrides? _previous;
@@ -35,7 +33,7 @@ class _SentryHttpOverrides extends HttpOverrides {
         ? prev.createHttpClient(context)
         : super.createHttpClient(context);
     client.badCertificateCallback =
-        (cert, host, port) => host == _sentryHost;
+        (cert, host, port) => host == sentryHost;
     return client;
   }
 }
@@ -50,10 +48,7 @@ Future<void> initSentryForPlatform(
 
   await SentryFlutter.init((options) {
     options
-      ..dsn =
-          'https://f5678b69ba186b302ab87c88707fe0c1'
-          '@$_sentryHost'
-          '/2'
+      ..dsn = sentryDsn
       ..sendDefaultPii = true
       ..tracesSampleRate = 1.0
       ..profilesSampleRate = 1.0
@@ -86,7 +81,7 @@ Future<void> _pingSentry() async {
   final client = HttpClient();
   int? statusCode;
   try {
-    final uri = Uri.https(_sentryHost, '/api/0/');
+    final uri = Uri.https(sentryHost, '/api/0/');
     final request = await client.getUrl(uri);
     final response = await request.close();
     await response.drain<void>();

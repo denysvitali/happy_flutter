@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart'
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'core/services/logger_service.dart';
+import 'sentry_config.dart';
 
 const _sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
 
@@ -14,10 +15,7 @@ Future<void> initSentryForPlatform(
 ) async {
   await SentryFlutter.init((options) {
     options
-      ..dsn =
-          'https://f5678b69ba186b302ab87c88707fe0c1'
-          '@sentry.k2.k8s.best'
-          '/2'
+      ..dsn = sentryDsn
       ..sendDefaultPii = true
       ..tracesSampleRate = 1.0
       ..profilesSampleRate = 1.0
