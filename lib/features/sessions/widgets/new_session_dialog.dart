@@ -6,6 +6,7 @@ import '../../../core/api/socket_io_client.dart'
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/models/settings.dart';
+import '../../../core/services/draft_storage.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
 
@@ -269,9 +270,12 @@ class _NewSessionDialogState
     });
 
     try {
-      await sync.applySettings(
-        {'lastUsedAgent': _selectedAgent},
-      );
+      final settings = ref.read(settingsNotifierProvider);
+      final profileId = settings.lastUsedProfile;
+      await sync.applySettings({
+        'lastUsedAgent': _selectedAgent,
+        'lastUsedProfile': profileId,
+      });
       final String sessionPath;
       if (_sessionType == 'worktree') {
         sessionPath = await sync.createWorktree(
@@ -284,7 +288,12 @@ class _NewSessionDialogState
       final sessionId = await sync.createSession(
         machineId: machineId,
         path: sessionPath,
+        profileId: profileId,
       );
+      // Persist the profile so auto-restore reads correct env vars.
+      if (profileId != null) {
+        await DraftStorage().saveProfileId(sessionId, profileId);
+      }
       // createSession() already called refreshSessions() internally
       // and added the session to sync._sessions (optimistic fallback).
       // Just read the in-memory state — no redundant server fetch.
