@@ -8,8 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sentry_flutter/sentry_flutter.dart'
-    show Sentry, SentryLevel;
 
 import 'core/api/api_client.dart';
 import 'core/i18n/app_localizations.dart';
@@ -230,25 +228,12 @@ class _HappyAppState extends ConsumerState<HappyApp>
             now.difference(_lastLifecycleCycleAt!).inSeconds;
         if (elapsed < 60) {
           if (_lifecycleCycleCount > _lifecycleCyclingWarningThreshold) {
-            // Log variable details locally for dev logs.
+            // Log locally for dev logs — not worth a Sentry event
+            // since Android routinely cycles the lifecycle on low
+            // battery or when the OS manages background apps.
             logger.info(
               '[Battery] Rapid lifecycle cycling: '
               '$_lifecycleCycleCount transitions in ${elapsed}s',
-            );
-            // Send to Sentry with a stable fingerprint so all
-            // occurrences group into a single issue regardless of
-            // the variable count/elapsed values.
-            Sentry.captureMessage(
-              '[Battery] Rapid lifecycle cycling detected',
-              level: SentryLevel.warning,
-              withScope: (scope) {
-                scope
-                  ..fingerprint = ['battery-rapid-lifecycle-cycling']
-                  ..setContexts('battery', {
-                    'cycleCount': _lifecycleCycleCount,
-                    'elapsedSeconds': elapsed,
-                  });
-              },
             );
           }
         } else {

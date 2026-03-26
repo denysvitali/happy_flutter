@@ -154,6 +154,9 @@ bool _isTransientConnectionError(DioException error) {
       inner.contains('ERR_CONNECTION_RESET') ||
       inner.contains('ERR_NAME_NOT_RESOLVED') ||
       inner.contains('ERR_CONNECTION_TIMED_OUT') ||
+      inner.contains('ERR_NETWORK_CHANGED') ||
+      inner.contains('ERR_INTERNET_DISCONNECTED') ||
+      inner.contains('ERR_ADDRESS_UNREACHABLE') ||
       inner.contains('Failed host lookup') ||
       inner.contains('No address associated') ||
       inner.contains('Connection closed') ||

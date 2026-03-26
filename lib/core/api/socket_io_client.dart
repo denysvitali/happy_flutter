@@ -14,6 +14,9 @@ bool _isTransientSocketError(String error) {
       error.contains('ERR_CONNECTION_TIMED_OUT') ||
       error.contains('ERR_CONNECTION_ABORTED') ||
       error.contains('ERR_CONNECTION_RESET') ||
+      error.contains('ERR_NETWORK_CHANGED') ||
+      error.contains('ERR_INTERNET_DISCONNECTED') ||
+      error.contains('ERR_ADDRESS_UNREACHABLE') ||
       error.contains('Failed host lookup') ||
       error.contains('No address associated') ||
       error.contains('Connection closed') ||

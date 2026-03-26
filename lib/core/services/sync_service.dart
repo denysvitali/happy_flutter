@@ -804,6 +804,9 @@ what you have, you must use the options mode.
         msg.contains('ERR_CONNECTION_RESET') ||
         msg.contains('ERR_NAME_NOT_RESOLVED') ||
         msg.contains('ERR_CONNECTION_TIMED_OUT') ||
+        msg.contains('ERR_NETWORK_CHANGED') ||
+        msg.contains('ERR_INTERNET_DISCONNECTED') ||
+        msg.contains('ERR_ADDRESS_UNREACHABLE') ||
         msg.contains('Failed host lookup') ||
         msg.contains('No address associated') ||
         msg.contains('Connection closed') ||
