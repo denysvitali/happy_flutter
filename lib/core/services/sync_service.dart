@@ -884,19 +884,23 @@ what you have, you must use the options mode.
     _restoreAllCachedMessages();
 
     // Initialize sync managers
-    sessionsSync = InvalidateSync(fetchSessions);
-    settingsSync = InvalidateSync(syncSettings);
-    profileSync = InvalidateSync(fetchProfile);
-    purchasesSync = InvalidateSync(syncPurchases);
-    machinesSync = InvalidateSync(fetchMachines);
-    pushTokenSync = InvalidateSync(syncPushToken);
-    nativeUpdateSync = InvalidateSync(fetchNativeUpdate);
-    artifactsSync = InvalidateSync(fetchArtifactsList);
-    friendsSync = InvalidateSync(fetchFriends);
-    friendRequestsSync = InvalidateSync(fetchFriendRequests);
-    feedSync = InvalidateSync(fetchFeed);
-    todosSync = InvalidateSync(fetchTodos);
-    sessionGitStatusSync = InvalidateSync(_fetchSessionGitStatus);
+    sessionsSync = InvalidateSync(fetchSessions, name: 'fetchSessions');
+    settingsSync = InvalidateSync(syncSettings, name: 'syncSettings');
+    profileSync = InvalidateSync(fetchProfile, name: 'fetchProfile');
+    purchasesSync = InvalidateSync(syncPurchases, name: 'syncPurchases');
+    machinesSync = InvalidateSync(fetchMachines, name: 'fetchMachines');
+    pushTokenSync = InvalidateSync(syncPushToken, name: 'syncPushToken');
+    nativeUpdateSync =
+        InvalidateSync(fetchNativeUpdate, name: 'fetchNativeUpdate');
+    artifactsSync =
+        InvalidateSync(fetchArtifactsList, name: 'fetchArtifactsList');
+    friendsSync = InvalidateSync(fetchFriends, name: 'fetchFriends');
+    friendRequestsSync =
+        InvalidateSync(fetchFriendRequests, name: 'fetchFriendRequests');
+    feedSync = InvalidateSync(fetchFeed, name: 'fetchFeed');
+    todosSync = InvalidateSync(fetchTodos, name: 'fetchTodos');
+    sessionGitStatusSync =
+        InvalidateSync(_fetchSessionGitStatus, name: 'fetchSessionGitStatus');
 
     // Mark initialized early so that provider loadFromSync() can serve
     // cached sessions and messages immediately, before network syncs
@@ -7884,6 +7888,7 @@ what you have, you must use the options mode.
               messagesSync[sessionId] = InvalidateSync(
                 () => fetchMessages(sessionId),
                 minInterval: _messagesSyncMinInterval,
+                name: 'fetchMessages:$sessionId',
               );
             }
             unawaited(

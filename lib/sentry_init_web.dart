@@ -17,15 +17,15 @@ Future<void> initSentryForPlatform(
     options
       ..dsn = sentryDsn
       ..sendDefaultPii = true
-      ..tracesSampleRate = 1.0
-      ..profilesSampleRate = 1.0
+      ..tracesSampleRate = 0.2
+      ..profilesSampleRate = 0.2
       ..release =
           _sentryRelease.isNotEmpty ? _sentryRelease : null
       ..environment = kReleaseMode ? 'production' : 'debug'
       // ── Breadcrumb limits ──
-      ..maxBreadcrumbs = 250
+      ..maxBreadcrumbs = 100
       // ── Session replay ──
-      ..replay.sessionSampleRate = 1.0
+      ..replay.sessionSampleRate = 0.1
       ..replay.onErrorSampleRate = 1.0
       // Print Sentry diagnostics to console in debug builds.
       ..debug = kDebugMode
