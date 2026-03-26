@@ -292,6 +292,7 @@ class AppLocalizations {
   String profilesDeleteConfirm(String name) =>
       'Are you sure you want to delete "$name"?';
   String get profilesFailedToSave => 'Failed to save profile';
+  String profilesDuplicated(String name) => 'Profile "$name" duplicated';
   String get settingsUsage => 'Usage';
   String get settingsUsageSubtitle => 'View usage statistics';
 

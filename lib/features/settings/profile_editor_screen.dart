@@ -698,6 +698,8 @@ class _EnvVarsSection extends StatelessWidget {
                       fontFamily: 'monospace',
                       fontSize: AppFontSize.md,
                     ),
+                    maxLines: 2,
+                    minLines: 1,
                     textCapitalization: TextCapitalization.characters,
                     onChanged: (_) => onChanged(),
                   ),
@@ -829,13 +831,15 @@ class _ValueField extends StatefulWidget {
 }
 
 class _ValueFieldState extends State<_ValueField> {
-  bool _obscure = true;
+  bool _obscure = false;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: widget.row.valueCtrl,
       obscureText: _obscure,
+      maxLines: 3,
+      minLines: 2,
       decoration: InputDecoration(
         labelText: AppLocalizations.of(context).profilesEnvValueLabel,
         border: const OutlineInputBorder(),

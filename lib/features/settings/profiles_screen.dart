@@ -120,6 +120,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                       'profile-editor',
                       extra: profile,
                     ),
+                    onDuplicate: () => _duplicateProfile(context, ref, profile),
                     onDelete: () =>
                         _confirmDeleteProfile(
                       context,
@@ -143,6 +144,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     required VoidCallback onTap,
     VoidCallback? onEdit,
     VoidCallback? onDelete,
+    VoidCallback? onDuplicate,
   }) {
     final cs = Theme.of(context).colorScheme;
     final iconColor = profile == null
@@ -173,6 +175,16 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
               Icons.check_circle,
               color: cs.primary,
               size: AppSpacing.xl,
+            ),
+          if (onDuplicate != null)
+            IconButton(
+              icon: Icon(
+                Icons.copy_outlined,
+                size: AppSpacing.xl,
+                color: cs.onSurfaceVariant,
+              ),
+              onPressed: onDuplicate,
+              visualDensity: VisualDensity.compact,
             ),
           if (onEdit != null)
             IconButton(
@@ -357,6 +369,43 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
           ],
         );
       },
+    );
+  }
+
+  void _duplicateProfile(
+    BuildContext context,
+    WidgetRef ref,
+    AIBackendProfile profile,
+  ) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final duplicate = AIBackendProfile(
+      id: 'custom_$now',
+      name: '${profile.name} (Copy)',
+      description: profile.description,
+      startupBashScript: profile.startupBashScript,
+      environmentVariables: profile.environmentVariables
+          .map((e) => EnvironmentVariable(name: e.name, value: e.value))
+          .toList(),
+      isBuiltIn: false,
+      compatibility: profile.compatibility,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    final settings = ref.read(settingsNotifierProvider);
+    final updatedProfiles = [...settings.profiles, duplicate];
+
+    ref
+        .read(settingsNotifierProvider.notifier)
+        .updateSetting('profiles', updatedProfiles);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          AppLocalizations.of(context)
+              .profilesDuplicated(profile.name),
+        ),
+      ),
     );
   }
 

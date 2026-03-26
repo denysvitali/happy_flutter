@@ -1249,6 +1249,14 @@
     }
   },
   "@profilesDeleteConfirm": {},
+  "profilesDuplicated": "Profile \"{name}\" duplicated",
+  "@profilesDuplicated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "tabsInbox": "Inbox",
   "@tabsInbox": {},
   "tabsSessions": "Terminals",
