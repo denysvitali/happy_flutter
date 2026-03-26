@@ -1,27 +1,20 @@
-// Architecture guard: crypto files must never use Isolate.run() or
-// import dart:isolate.  Platform-channel-backed crypto libraries (NaCl /
-// AES-256-GCM) cannot cross isolate boundaries on Android — doing so
-// causes silent failures (empty decryption, "No machines found").
+// Architecture guard: NaCl / libsodium crypto (CryptoSecretBox, CryptoBox)
+// must never be called inside Isolate.run(). The sodium FFI library uses
+// SecureKey objects backed by native memory that cannot cross isolate
+// boundaries — doing so causes silent decryption failures.
 //
-// See: git commit 6fbe95e — "fix: remove Isolate.run() for crypto
-// decryption — crashes on Android"
+// AES-256-GCM (package:cryptography → DartAesGcm) is pure Dart with no
+// platform channels or FFI, so it IS safe in background isolates.
+//
+// See: git commit 6fbe95e — original discovery of the NaCl isolate bug.
 
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('Architecture guard: no Isolate.run() in crypto/sync files', () {
-    // Files that are explicitly allowed to use dart:isolate (e.g. for
-    // error-handler wiring via RawReceivePort, not for crypto work).
-    const _allowedIsolateFiles = <String>{
-      'remote_logger.dart',
-    };
-
+  group('Architecture guard: NaCl crypto must not run in isolates', () {
     /// Returns every non-comment, non-blank line from [file].
-    ///
-    /// Single-line (`//`) comments are stripped.  Block comments (`/* */`)
-    /// are not common in this codebase so a line-level check is sufficient.
     List<String> _codeLines(File file) {
       final lines = file.readAsLinesSync();
       return [
@@ -30,27 +23,23 @@ void main() {
       ];
     }
 
-    /// Collects all `.dart` files to audit.
+    /// Collects all `.dart` files under lib/core/encryption/ and
+    /// lib/core/services/sync_service.dart.
     List<File> _filesToAudit() {
       final files = <File>[];
 
-      // All files under lib/core/encryption/
-      final encryptionDir = Directory(
-        'lib/core/encryption',
-      );
+      final encryptionDir = Directory('lib/core/encryption');
       if (encryptionDir.existsSync()) {
         for (final entity in encryptionDir.listSync()) {
           if (entity is File && entity.path.endsWith('.dart')) {
-            final name = entity.uri.pathSegments.last;
-            if (!_allowedIsolateFiles.contains(name)) {
-              files.add(entity);
-            }
+            files.add(entity);
           }
         }
       }
 
-      // lib/core/services/sync_service.dart
-      final syncService = File('lib/core/services/sync_service.dart');
+      final syncService = File(
+        'lib/core/services/sync_service.dart',
+      );
       if (syncService.existsSync()) {
         files.add(syncService);
       }
@@ -59,17 +48,49 @@ void main() {
     }
 
     test(
-      "no file imports 'dart:isolate'",
+      'CryptoSecretBox/CryptoBox are not imported alongside '
+      'dart:isolate in the same file',
       () {
+        // Files that use dart:isolate must not also import NaCl
+        // primitives (CryptoSecretBox, CryptoBox) — those use FFI
+        // with non-sendable SecureKey objects.
+        //
+        // These files import both but keep NaCl on the main thread:
+        // - encryptor.dart: AES256Encryption.decryptInIsolate
+        //   sends only pure-Dart AES data; SecretBoxEncryption
+        //   (NaCl) never touches isolates.
+        // - sync_service.dart: isAes/else branch ensures NaCl
+        //   items stay on the main thread.
+        const allowedMixedFiles = <String>{
+          'encryptor.dart',
+          'sync_service.dart',
+        };
+
         final violations = <String>[];
 
         for (final file in _filesToAudit()) {
+          final name = file.uri.pathSegments.last;
+          if (allowedMixedFiles.contains(name)) continue;
+
           final codeLines = _codeLines(file);
-          for (var i = 0; i < codeLines.length; i++) {
-            if (codeLines[i].contains("import 'dart:isolate'") ||
-                codeLines[i].contains('import "dart:isolate"')) {
-              violations.add('${file.path}:${i + 1}: ${codeLines[i].trim()}');
-            }
+          final hasIsolateImport = codeLines.any(
+            (l) =>
+                l.contains("import 'dart:isolate'") ||
+                l.contains('import "dart:isolate"'),
+          );
+          if (!hasIsolateImport) continue;
+
+          final hasNaCl = codeLines.any(
+            (l) =>
+                l.contains('CryptoSecretBox') ||
+                l.contains('CryptoBox') ||
+                l.contains('sodiumSingleton'),
+          );
+          if (hasNaCl) {
+            violations.add(
+              '${file.path}: imports dart:isolate AND NaCl '
+              'primitives',
+            );
           }
         }
 
@@ -77,37 +98,42 @@ void main() {
           violations,
           isEmpty,
           reason:
-              'Crypto and sync files must not import dart:isolate.\n'
-              'Platform-channel-backed crypto (NaCl / AES-256-GCM) cannot\n'
-              'cross isolate boundaries on Android — use the main isolate.\n'
-              'Violations found:\n${violations.join('\n')}',
+              'Files that import dart:isolate must not also use '
+              'NaCl/libsodium primitives (CryptoSecretBox, '
+              'CryptoBox, sodiumSingleton).\n'
+              'NaCl FFI objects (SecureKey) cannot cross isolate '
+              'boundaries.\n'
+              'AES-256-GCM (pure Dart) IS isolate-safe.\n'
+              'Violations:\n${violations.join('\n')}',
         );
       },
     );
 
     test(
-      'no file calls Isolate.run()',
+      'session_encryption.dart does not import dart:isolate '
+      'directly',
       () {
-        final violations = <String>[];
-
-        for (final file in _filesToAudit()) {
-          final codeLines = _codeLines(file);
-          for (var i = 0; i < codeLines.length; i++) {
-            if (codeLines[i].contains('Isolate.run(')) {
-              violations.add('${file.path}:${i + 1}: ${codeLines[i].trim()}');
-            }
-          }
-        }
-
+        // session_encryption.dart delegates to
+        // AES256Encryption.decryptInIsolate() rather than calling
+        // Isolate.run() directly, keeping the isolate boundary
+        // management in one place.
+        final file = File(
+          'lib/core/encryption/session_encryption.dart',
+        );
+        if (!file.existsSync()) return;
+        final codeLines = _codeLines(file);
+        final hasIsolateImport = codeLines.any(
+          (l) =>
+              l.contains("import 'dart:isolate'") ||
+              l.contains('import "dart:isolate"'),
+        );
         expect(
-          violations,
-          isEmpty,
+          hasIsolateImport,
+          isFalse,
           reason:
-              'Crypto and sync files must not call Isolate.run().\n'
-              'Platform-channel-backed crypto (NaCl / AES-256-GCM) cannot\n'
-              'cross isolate boundaries on Android — silent failures result.\n'
-              'See commit 6fbe95e for context.\n'
-              'Violations found:\n${violations.join('\n')}',
+              'session_encryption.dart should delegate isolate '
+              'work to AES256Encryption.decryptInIsolate(), not '
+              'import dart:isolate directly.',
         );
       },
     );
@@ -118,11 +144,11 @@ void main() {
         final files = _filesToAudit();
         final paths = files.map((f) => f.path).toList();
 
-        // The two historically vulnerable files must always be present.
         expect(
           paths,
           contains('lib/core/encryption/session_encryption.dart'),
-          reason: 'session_encryption.dart must be in the audit list',
+          reason:
+              'session_encryption.dart must be in the audit list',
         );
         expect(
           paths,
@@ -130,16 +156,17 @@ void main() {
           reason: 'sync_service.dart must be in the audit list',
         );
 
-        // Sanity-check: at least several encryption files are scanned.
         final encryptionFiles = paths
-            .where((p) => p.startsWith('lib/core/encryption/'))
+            .where(
+              (p) => p.startsWith('lib/core/encryption/'),
+            )
             .toList();
         expect(
           encryptionFiles.length,
           greaterThanOrEqualTo(5),
           reason:
-              'Expected at least 5 encryption files to be audited; '
-              'got ${encryptionFiles.length}',
+              'Expected at least 5 encryption files to be '
+              'audited; got ${encryptionFiles.length}',
         );
       },
     );

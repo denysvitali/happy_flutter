@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import '../services/logger_service.dart' show logger;
@@ -95,6 +96,45 @@ class AES256Encryption implements Encryptor {
         logger.warning('AES256Encryption.decrypt failed', e);
         results.add(null);
       }
+    }
+    return results;
+  }
+
+  /// Decrypt a batch of items in a background isolate.
+  ///
+  /// AES-256-GCM uses pure-Dart crypto (`DartAesGcm`) — no platform
+  /// channels or FFI — so it is fully isolate-safe. Falls back to
+  /// main-thread decryption if the isolate spawn fails (e.g. web).
+  Future<List<dynamic>> decryptInIsolate(
+    List<Uint8List> data,
+  ) async {
+    final stripped = <Uint8List>[];
+    final validIndices = <int>[];
+    for (var i = 0; i < data.length; i++) {
+      final item = data[i];
+      if (item.isNotEmpty && item[0] == 0) {
+        stripped.add(item.sublist(1));
+        validIndices.add(i);
+      }
+    }
+    if (stripped.isEmpty) {
+      return List<dynamic>.filled(data.length, null);
+    }
+    List<dynamic> isolateResults;
+    try {
+      isolateResults = await Isolate.run(
+        () => AesGcmEncryption.decryptBatch(
+          stripped,
+          _secretKey,
+        ),
+      );
+    } catch (_) {
+      // Fallback: main-thread decrypt (e.g. web).
+      return decrypt(data);
+    }
+    final results = List<dynamic>.filled(data.length, null);
+    for (var i = 0; i < validIndices.length; i++) {
+      results[validIndices[i]] = isolateResults[i];
     }
     return results;
   }

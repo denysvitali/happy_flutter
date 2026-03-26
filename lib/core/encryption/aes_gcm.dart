@@ -185,6 +185,94 @@ class AesGcmEncryption {
     _secretKeyCache.remove(base64.encode(secretKey));
   }
 
+  /// Batch-decrypt AES-256-GCM items without using static caches.
+  ///
+  /// Designed to run inside [Isolate.run] — creates its own cipher
+  /// and key instances. Each item is
+  /// `[12-byte nonce][ciphertext][16-byte auth tag]` (no version byte).
+  ///
+  /// Returns decoded JSON values (`null` for failed items).
+  static Future<List<dynamic>> decryptBatch(
+    List<Uint8List> items,
+    Uint8List secretKey,
+  ) async {
+    final cipher = AesGcm.with256bits();
+    final key = await cipher.newSecretKeyFromBytes(secretKey);
+    final results = <dynamic>[];
+    for (final item in items) {
+      try {
+        if (item.length < nonceSize + authTagSize) {
+          results.add(null);
+          continue;
+        }
+        final nonce = item.sublist(0, nonceSize);
+        final ciphertext = item.sublist(
+          nonceSize,
+          item.length - authTagSize,
+        );
+        final tag = item.sublist(item.length - authTagSize);
+        final box = SecretBox(
+          ciphertext,
+          nonce: nonce,
+          mac: Mac(tag),
+        );
+        final decrypted = await cipher.decrypt(
+          box,
+          secretKey: key,
+        );
+        results.add(jsonDecode(utf8.decode(decrypted)));
+      } catch (_) {
+        results.add(null);
+      }
+    }
+    return results;
+  }
+
+  /// Batch-decrypt AES-256-GCM items with per-item keys.
+  ///
+  /// Like [decryptBatch] but each item may use a different key.
+  /// [items] and [keys] must have the same length.
+  static Future<List<dynamic>> decryptMultiKeyBatch(
+    List<Uint8List> items,
+    List<Uint8List> keys,
+  ) async {
+    final cipher = AesGcm.with256bits();
+    final keyCache = <String, SecretKey>{};
+    final results = <dynamic>[];
+    for (var i = 0; i < items.length; i++) {
+      try {
+        final item = items[i];
+        if (item.length < nonceSize + authTagSize) {
+          results.add(null);
+          continue;
+        }
+        final rawKey = keys[i];
+        final cacheKey = base64.encode(rawKey);
+        final sk = keyCache[cacheKey] ??=
+            await cipher.newSecretKeyFromBytes(rawKey);
+        final nonce = item.sublist(0, nonceSize);
+        final ciphertext = item.sublist(
+          nonceSize,
+          item.length - authTagSize,
+        );
+        final tag = item.sublist(item.length - authTagSize);
+        final box = SecretBox(
+          ciphertext,
+          nonce: nonce,
+          mac: Mac(tag),
+        );
+        final decrypted = await cipher.decrypt(
+          box,
+          secretKey: sk,
+        );
+        results.add(jsonDecode(utf8.decode(decrypted)));
+      } catch (_) {
+        results.add(null);
+      }
+    }
+    return results;
+  }
+
   /// Validate that data is AES-256-GCM encrypted (has correct format).
   static bool isAesGcmEncrypted(Uint8List data) {
     // Minimum size: 12 (IV) + 0 (ciphertext) + 16 (auth tag) = 28

@@ -202,10 +202,15 @@ class SessionEncryption {
 
       List<dynamic> decrypted;
 
-      // Note: Isolate.run() cannot be used here because the cryptography
-      // package's AesGcm uses platform channels that create unsendable
-      // async objects (_AsyncCompleter) across isolate boundaries on Android.
-      decrypted = await _decryptor.decrypt(encrypted);
+      // AES-256-GCM (pure Dart, no platform channels) runs in a
+      // background isolate. NaCl/libsodium (FFI) stays on the
+      // main isolate.
+      if (_decryptor is AES256Encryption) {
+        decrypted = await (_decryptor as AES256Encryption)
+            .decryptInIsolate(encrypted);
+      } else {
+        decrypted = await _decryptor.decrypt(encrypted);
+      }
 
       for (var i = 0; i < toDecrypt.length; i++) {
         final decryptedData = decrypted[i];
@@ -352,7 +357,6 @@ class SessionEncryption {
       'cached=$cachedCount',
     );
 
-    // Note: Isolate.run() cannot be used here — see decryptMessages comment.
     final decryptedList = await decryptMessages(messages);
     final contentList = <dynamic>[];
     for (final dm in decryptedList) {

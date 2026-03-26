@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
@@ -105,56 +106,119 @@ class _ArtifactIsolateResult {
   final Map<String, dynamic>? body;
 }
 
-/// Decrypt machine metadata and daemonState in a background isolate.
-/// Handles both AES-256-GCM (isAes=true) and NaCl SecretBox
+/// Decrypt machine metadata and daemonState.
+/// AES-256-GCM items run in a background isolate; NaCl stays on main thread.
 /// (isAes=false, legacy machines).
 Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
   List<_MachineIsolateItem> items,
 ) async {
+  // Collect AES payloads for batch isolate decryption.
+  // Each entry maps back to (itemIndex, 0=metadata | 1=daemonState).
+  final aesPayloads = <Uint8List>[];
+  final aesKeys = <Uint8List>[];
+  final aesMapping = <(int, int)>[];
+
+  for (var i = 0; i < items.length; i++) {
+    final item = items[i];
+    if (!item.isAes) continue;
+
+    final encMeta = item.encryptedMetadata;
+    if (encMeta != null && encMeta.isNotEmpty && encMeta[0] == 0) {
+      aesPayloads.add(encMeta.sublist(1));
+      aesKeys.add(item.secretKey);
+      aesMapping.add((i, 0));
+    }
+
+    final encDs = item.encryptedDaemonState;
+    if (encDs != null && encDs.isNotEmpty && encDs[0] == 0) {
+      aesPayloads.add(encDs.sublist(1));
+      aesKeys.add(item.secretKey);
+      aesMapping.add((i, 1));
+    }
+  }
+
+  // Run AES batch in a background isolate (pure Dart — no FFI).
+  Map<(int, int), dynamic>? aesResultMap;
+  if (aesPayloads.isNotEmpty) {
+    try {
+      final aesResults = await Isolate.run(
+        () => AesGcmEncryption.decryptMultiKeyBatch(
+          aesPayloads,
+          aesKeys,
+        ),
+      );
+      aesResultMap = {
+        for (var i = 0; i < aesMapping.length; i++)
+          aesMapping[i]: aesResults[i],
+      };
+    } catch (e) {
+      logger.warning('Machine AES isolate failed, '
+          'falling back to main thread: $e');
+    }
+  }
+
+  // Build results. AES items use isolate results; NaCl and
+  // isolate-fallback items decrypt on the main thread.
   final results = <_MachineIsolateResult>[];
-  for (final item in items) {
+  for (var i = 0; i < items.length; i++) {
+    final item = items[i];
     Map<String, dynamic>? metadata;
     dynamic daemonState;
 
-    final encMeta = item.encryptedMetadata;
-    if (encMeta != null) {
-      try {
-        if (item.isAes) {
-          if (encMeta.isNotEmpty && encMeta[0] == 0) {
-            final d = await AesGcmEncryption.decrypt(
-              encMeta.sublist(1),
+    if (item.isAes && aesResultMap != null) {
+      final metaResult = aesResultMap[(i, 0)];
+      if (metaResult is Map<String, dynamic>) {
+        metadata = metaResult;
+      }
+      daemonState = aesResultMap[(i, 1)];
+    } else {
+      // NaCl (legacy) or AES isolate fallback.
+      final encMeta = item.encryptedMetadata;
+      if (encMeta != null) {
+        try {
+          if (item.isAes) {
+            if (encMeta.isNotEmpty && encMeta[0] == 0) {
+              final d = await AesGcmEncryption.decrypt(
+                encMeta.sublist(1),
+                item.secretKey,
+              );
+              if (d is Map<String, dynamic>) metadata = d;
+            }
+          } else {
+            final d = await CryptoSecretBox.decrypt(
+              encMeta,
               item.secretKey,
             );
             if (d is Map<String, dynamic>) metadata = d;
           }
-        } else {
-          final d = await CryptoSecretBox.decrypt(encMeta, item.secretKey);
-          if (d is Map<String, dynamic>) metadata = d;
+        } catch (e) {
+          logger.warning(
+            'Failed to decrypt machine metadata: $e',
+          );
         }
-      } catch (e) {
-        logger.warning(
-          'Failed to decrypt machine metadata: $e',
-        );
       }
-    }
 
-    final encDs = item.encryptedDaemonState;
-    if (encDs != null) {
-      try {
-        if (item.isAes) {
-          if (encDs.isNotEmpty && encDs[0] == 0) {
-            daemonState = await AesGcmEncryption.decrypt(
-              encDs.sublist(1),
+      final encDs = item.encryptedDaemonState;
+      if (encDs != null) {
+        try {
+          if (item.isAes) {
+            if (encDs.isNotEmpty && encDs[0] == 0) {
+              daemonState = await AesGcmEncryption.decrypt(
+                encDs.sublist(1),
+                item.secretKey,
+              );
+            }
+          } else {
+            daemonState = await CryptoSecretBox.decrypt(
+              encDs,
               item.secretKey,
             );
           }
-        } else {
-          daemonState = await CryptoSecretBox.decrypt(encDs, item.secretKey);
+        } catch (e) {
+          logger.warning(
+            'Failed to decrypt machine daemon state: $e',
+          );
         }
-      } catch (e) {
-        logger.warning(
-          'Failed to decrypt machine daemon state: $e',
-        );
       }
     }
 
@@ -170,49 +234,109 @@ Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
 }
 
 /// Decrypt artifact headers and bodies in a background isolate.
-/// Artifacts always use AES-256-GCM.
+/// Artifacts always use AES-256-GCM (pure Dart — fully isolate-safe).
 Future<List<_ArtifactIsolateResult>> _decryptArtifactsInIsolate(
   List<_ArtifactIsolateItem> items,
 ) async {
-  final results = <_ArtifactIsolateResult>[];
-  for (final item in items) {
-    Map<String, dynamic>? header;
-    Map<String, dynamic>? body;
+  // Collect all payloads for batch isolate decryption.
+  // Each entry maps to (itemIndex, 0=header | 1=body).
+  final payloads = <Uint8List>[];
+  final keys = <Uint8List>[];
+  final mapping = <(int, int)>[];
+
+  for (var i = 0; i < items.length; i++) {
+    final item = items[i];
 
     final hRaw = item.encryptedHeader;
     if (hRaw.isNotEmpty && hRaw[0] == 0) {
-      try {
-        final d = await AesGcmEncryption.decrypt(
-          hRaw.sublist(1),
-          item.secretKey,
-        );
-        if (d is Map<String, dynamic>) header = d;
-      } catch (e) {
-        logger.warning(
-          'Failed to decrypt artifact header: $e',
-        );
-      }
+      payloads.add(hRaw.sublist(1));
+      keys.add(item.secretKey);
+      mapping.add((i, 0));
     }
 
     final bRaw = item.encryptedBody;
     if (bRaw != null && bRaw.isNotEmpty && bRaw[0] == 0) {
-      try {
-        final d = await AesGcmEncryption.decrypt(
-          bRaw.sublist(1),
-          item.secretKey,
-        );
-        if (d is Map<String, dynamic>) {
-          body = {'body': d['body'] as String?};
+      payloads.add(bRaw.sublist(1));
+      keys.add(item.secretKey);
+      mapping.add((i, 1));
+    }
+  }
+
+  // Run batch in background isolate.
+  Map<(int, int), dynamic>? resultMap;
+  if (payloads.isNotEmpty) {
+    try {
+      final batchResults = await Isolate.run(
+        () => AesGcmEncryption.decryptMultiKeyBatch(
+          payloads,
+          keys,
+        ),
+      );
+      resultMap = {
+        for (var i = 0; i < mapping.length; i++)
+          mapping[i]: batchResults[i],
+      };
+    } catch (e) {
+      logger.warning('Artifact AES isolate failed, '
+          'falling back to main thread: $e');
+    }
+  }
+
+  // Build results — fall back to main-thread decrypt on failure.
+  final results = <_ArtifactIsolateResult>[];
+  for (var i = 0; i < items.length; i++) {
+    final item = items[i];
+    Map<String, dynamic>? header;
+    Map<String, dynamic>? body;
+
+    if (resultMap != null) {
+      final hResult = resultMap[(i, 0)];
+      if (hResult is Map<String, dynamic>) header = hResult;
+      final bResult = resultMap[(i, 1)];
+      if (bResult is Map<String, dynamic>) {
+        body = {'body': bResult['body'] as String?};
+      }
+    } else {
+      // Isolate fallback — main thread.
+      final hRaw = item.encryptedHeader;
+      if (hRaw.isNotEmpty && hRaw[0] == 0) {
+        try {
+          final d = await AesGcmEncryption.decrypt(
+            hRaw.sublist(1),
+            item.secretKey,
+          );
+          if (d is Map<String, dynamic>) header = d;
+        } catch (e) {
+          logger.warning(
+            'Failed to decrypt artifact header: $e',
+          );
         }
-      } catch (e) {
-        logger.warning(
-          'Failed to decrypt artifact body: $e',
-        );
+      }
+
+      final bRaw = item.encryptedBody;
+      if (bRaw != null && bRaw.isNotEmpty && bRaw[0] == 0) {
+        try {
+          final d = await AesGcmEncryption.decrypt(
+            bRaw.sublist(1),
+            item.secretKey,
+          );
+          if (d is Map<String, dynamic>) {
+            body = {'body': d['body'] as String?};
+          }
+        } catch (e) {
+          logger.warning(
+            'Failed to decrypt artifact body: $e',
+          );
+        }
       }
     }
 
     results.add(
-      _ArtifactIsolateResult(id: item.id, header: header, body: body),
+      _ArtifactIsolateResult(
+        id: item.id,
+        header: header,
+        body: body,
+      ),
     );
   }
   return results;
@@ -2631,11 +2755,7 @@ what you have, you must use the options mode.
           );
         }
 
-        // Decrypt all machine payloads.
-        // Note: cannot use Isolate.run() here because the cryptography
-        // package's AesGcm uses platform channels / native bindings that
-        // create unsendable async objects (_AsyncCompleter) across isolate
-        // boundaries on Android.
+        // Decrypt all machine payloads (AES in background isolate).
         final machineIsolateResults =
             await _decryptMachinesInIsolate(machineIsolateItems);
         final machineResultById = {
@@ -2767,7 +2887,6 @@ what you have, you must use the options mode.
           );
         }).toList();
 
-        // Note: cannot use Isolate.run() — see machine decryption comment.
         final artifactIsolateResults =
             await _decryptArtifactsInIsolate(artifactIsolateItems);
         final artifactResultById = {
