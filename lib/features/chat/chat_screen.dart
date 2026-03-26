@@ -159,8 +159,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       });
       logger.info(
         '[ChatScreen] Loaded ${cached.length} cached messages for '
-        'session ${widget.sessionId}',
+        'session ${widget.sessionId} '
+        'visibleCount=$_visibleCount',
       );
+      Sentry.addBreadcrumb(Breadcrumb(
+        message: 'ChatScreen: initState cache hit',
+        category: 'chat.load',
+        data: {
+          'sessionId': widget.sessionId,
+          'cachedCount': cached.length,
+          'visibleCount': _visibleCount,
+        },
+      ));
     }
 
     _initializeSyncBackedChat();
