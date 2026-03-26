@@ -3650,6 +3650,11 @@ what you have, you must use the options mode.
     /// session so the correct profile env vars are used, rather than relying
     /// on [lastUsedProfile] which can change over time.
     String? profileId,
+    /// Optional initial message to pipe directly to the agent's stdin
+    /// on startup via the HAPPY_INITIAL_PROMPT env var.  Bypasses the
+    /// WebSocket message chain which is unreliable for the very first
+    /// message on freshly-spawned sessions.
+    String? message,
   }) async {
     if (!isInitialized) {
       throw StateError('Sync is not initialized');
@@ -3678,6 +3683,9 @@ what you have, you must use the options mode.
     // model env vars would break profiles that configure a specific model
     // (e.g. Z.AI's GLM-4.6 via ANTHROPIC_MODEL).
     final envVars = _spawnEnvironmentVariables(profileEnvVars);
+    if (message != null && message.isNotEmpty) {
+      envVars['HAPPY_INITIAL_PROMPT'] = message;
+    }
     final req = SpawnSessionRequest(
       type: 'spawn-in-directory',
       directory: path,
@@ -3759,6 +3767,23 @@ what you have, you must use the options mode.
       // navigates to the chat screen before the sync entry exists.
       if (!messagesSync.containsKey(sessionId)) {
         onSessionVisible(sessionId);
+      }
+
+      // Optimistic insert: show the initial message immediately in the
+      // chat screen while the daemon child pipes it to Claude via stdin.
+      if (message != null && message.isNotEmpty) {
+        _upsertSessionMessages(sessionId, [
+          <String, dynamic>{
+            'id': 'initial-${DateTime.now().millisecondsSinceEpoch}',
+            'seq': 0,
+            'createdAt': DateTime.now().millisecondsSinceEpoch,
+            'role': 'user',
+            'kind': 'text',
+            'content': message,
+            'sendStatus': 'sending',
+          },
+        ]);
+        _notifySessionMessagesChanged(sessionId);
       }
 
       return sessionId;

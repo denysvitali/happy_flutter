@@ -1,5 +1,7 @@
 {
   "de": [
+    "sessionInitialMessage",
+    "sessionInitialMessageHint",
     "machineTitle",
     "machineLaunchNewSessionInDirectory",
     "machineOfflineUnableToSpawn",
@@ -34,11 +36,15 @@
   ],
 
   "es": [
+    "sessionInitialMessage",
+    "sessionInitialMessageHint",
     "offlineBannerNoConnection",
     "offlineBannerReconnecting"
   ],
 
   "fr": [
+    "sessionInitialMessage",
+    "sessionInitialMessageHint",
     "machineTitle",
     "machineLaunchNewSessionInDirectory",
     "machineOfflineUnableToSpawn",

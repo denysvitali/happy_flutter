@@ -582,6 +582,18 @@ abstract class AppLocalizations {
   /// **'Enter path'**
   String get sessionPathHint;
 
+  /// No description provided for @sessionInitialMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Initial message'**
+  String get sessionInitialMessage;
+
+  /// No description provided for @sessionInitialMessageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What would you like to work on?'**
+  String get sessionInitialMessageHint;
+
   /// No description provided for @sessionInputPlaceholder.
   ///
   /// In en, this message translates to:

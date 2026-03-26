@@ -107,6 +107,9 @@ class AppLocalizations {
   String get sessionSelectMachine => 'Select Machine';
   String get sessionPath => 'Path';
   String get sessionPathHint => 'Enter path';
+  String get sessionInitialMessage => 'Initial message';
+  String get sessionInitialMessageHint =>
+      'What would you like to work on?';
 
   // Date Groups
   String get dateGroupToday => 'Today';

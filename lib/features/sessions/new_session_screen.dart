@@ -10,6 +10,7 @@ import '../../core/models/built_in_profiles.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/providers/chat_action_notifier.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -41,6 +42,7 @@ class _NewSessionScreenState
     extends ConsumerState<NewSessionScreen> {
   Machine? _selectedMachine;
   final _pathController = TextEditingController();
+  final _messageController = TextEditingController();
   bool _isCreating = false;
   String _selectedAgent = 'claude';
   String _sessionType = 'simple';
@@ -62,6 +64,7 @@ class _NewSessionScreenState
   @override
   void dispose() {
     _pathController.dispose();
+    _messageController.dispose();
     super.dispose();
   }
 
@@ -103,10 +106,12 @@ class _NewSessionScreenState
       } else {
         sessionPath = path;
       }
+      final initialMessage = _messageController.text.trim();
       final sessionId = await sync.createSession(
         machineId: machine.id,
         path: sessionPath,
         profileId: _selectedProfileId,
+        message: initialMessage.isNotEmpty ? initialMessage : null,
       );
       if (!mounted) return;
       final profile = _selectedProfileId != null
@@ -124,6 +129,23 @@ class _NewSessionScreenState
       if (_selectedProfileId != null) {
         await DraftStorage()
             .saveProfileId(sessionId, _selectedProfileId!);
+      }
+      // Persist the initial message on the server via the normal
+      // sendMessage flow.  The daemon child already received the
+      // message via HAPPY_INITIAL_PROMPT env var, so this is purely
+      // for server-side storage.  The dedup flag in the Go CLI
+      // prevents the message from being piped to Claude twice.
+      if (initialMessage.isNotEmpty) {
+        unawaited(
+          ref
+              .read(chatActionNotifierProvider.notifier)
+              .sendMessage(
+                sessionId,
+                initialMessage,
+                displayText: initialMessage,
+                permissionMode: permissionMode,
+              ),
+        );
       }
       // createSession() already called refreshSessions() internally
       // and added the session to sync._sessions (optimistic fallback).
@@ -457,6 +479,32 @@ class _NewSessionScreenState
               onSelectionChanged: (selection) {
                 setState(() => _selectedAgent = selection.first);
               },
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+
+          // ── Initial message (optional) ─────────────────────────
+          _SectionLabel(l10n.sessionInitialMessage),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+              ),
+              child: TextField(
+                controller: _messageController,
+                decoration: InputDecoration(
+                  hintText: l10n.sessionInitialMessageHint,
+                  border: InputBorder.none,
+                  prefixIcon: Icon(
+                    Icons.chat_bubble_outline,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+                maxLines: 3,
+                minLines: 1,
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.xxxl),

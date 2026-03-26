@@ -277,6 +277,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionPathHint => 'Enter path';
 
   @override
+  String get sessionInitialMessage => 'Initial message';
+
+  @override
+  String get sessionInitialMessageHint => 'What would you like to work on?';
+
+  @override
   String get sessionInputPlaceholder => 'Type a message ...';
 
   @override

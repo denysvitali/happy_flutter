@@ -278,6 +278,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get sessionPathHint => 'Entrer le chemin';
 
   @override
+  String get sessionInitialMessage => 'Initial message';
+
+  @override
+  String get sessionInitialMessageHint => 'What would you like to work on?';
+
+  @override
   String get sessionInputPlaceholder => 'Tapez un message ...';
 
   @override

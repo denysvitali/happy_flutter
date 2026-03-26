@@ -165,6 +165,71 @@ void main() {
           reason: 'createSession must pre-initialize messagesSync');
     });
 
+    test('createSession with message sets HAPPY_INITIAL_PROMPT env var',
+        () async {
+      final sessionId = 'spawn-msg-prompt-1';
+      Map<String, dynamic>? capturedParams;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
+        };
+      };
+
+      await sync.createSession(
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        message: 'Fix the login bug',
+      );
+
+      expect(capturedParams, isNotNull);
+      final envVars = capturedParams!['environmentVariables']
+          as Map<String, dynamic>?;
+      expect(envVars, isNotNull);
+      expect(envVars!['HAPPY_INITIAL_PROMPT'], 'Fix the login bug');
+
+      // Optimistic user message should be inserted
+      final messages = sync.testSessionMessages(sessionId);
+      expect(messages, isNotNull);
+      expect(messages!.length, 1);
+      expect(messages.first['role'], 'user');
+      expect(messages.first['content'], 'Fix the login bug');
+      expect(messages.first['sendStatus'], 'sending');
+    });
+
+    test('createSession without message omits HAPPY_INITIAL_PROMPT',
+        () async {
+      final sessionId = 'spawn-no-prompt-1';
+      Map<String, dynamic>? capturedParams;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
+        };
+      };
+
+      await sync.createSession(
+        machineId: 'machine-1',
+        path: '/home/user/project',
+      );
+
+      expect(capturedParams, isNotNull);
+      final envVars = capturedParams!['environmentVariables']
+          as Map<String, dynamic>?;
+      // env vars may be null or present but without HAPPY_INITIAL_PROMPT
+      if (envVars != null) {
+        expect(envVars.containsKey('HAPPY_INITIAL_PROMPT'), isFalse);
+      }
+
+      // No optimistic message should be inserted
+      final messages = sync.testSessionMessages(sessionId);
+      expect(messages == null || messages.isEmpty, isTrue);
+    });
+
     test('createSession throws when not initialized', () {
       sync.testIsInitialized = false;
       expect(

@@ -121,6 +121,8 @@
   "sessionSelectMachine": "Select a machine",
   "sessionPath": "Path",
   "sessionPathHint": "Enter path",
+  "sessionInitialMessage": "Initial message",
+  "sessionInitialMessageHint": "What would you like to work on?",
   "sessionInputPlaceholder": "Type a message ...",
   "sessionStartSession": "Start Session",
   "sessionStarting": "Starting session...",
