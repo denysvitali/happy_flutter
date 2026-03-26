@@ -5,6 +5,7 @@ import '../../../core/api/socket_io_client.dart'
     show ConnectionStatus;
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/models/settings.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
 

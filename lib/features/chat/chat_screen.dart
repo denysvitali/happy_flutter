@@ -155,7 +155,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _seenMessageIds.add(_messageKey(m));
         }
         _prevSeenLength = cached.length;
-        _visibleCount = cached.length.clamp(0, _pageSize);
+        _visibleCount = cached.length;
       });
       logger.info(
         '[ChatScreen] Loaded ${cached.length} cached messages for '
@@ -570,6 +570,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (markLoaded) {
         _isLoadingMessages = false;
         _initialLoadComplete = true;
+        // Always sync _prevMessagesLength so the next messagesChanged
+        // adjustment is correct (prevMessagesLength is only set inside the
+        // messagesChanged block below, so it must be set here too).
+        _prevMessagesLength = latestMessages.length;
       }
 
       // Update messages and visible count

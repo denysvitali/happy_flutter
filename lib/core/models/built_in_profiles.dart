@@ -55,7 +55,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_AUTH_TOKEN',
-            value: r'${DEEPSEEK_AUTH_TOKEN}',
+            value: r'${DEEPSEEK_AUTH_TOKEN:-}',
           ),
           EnvironmentVariable(
             name: 'API_TIMEOUT_MS',
@@ -98,7 +98,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_AUTH_TOKEN',
-            value: r'${Z_AI_AUTH_TOKEN}',
+            value: r'${Z_AI_AUTH_TOKEN:-}',
           ),
           EnvironmentVariable(
             name: 'API_TIMEOUT_MS',
@@ -143,7 +143,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
           ),
           EnvironmentVariable(
             name: 'OPENAI_API_KEY',
-            value: r'${MINIMAX_API_KEY}',
+            value: r'${MINIMAX_API_KEY:-}',
           ),
           EnvironmentVariable(
             name: 'OPENAI_MODEL',
