@@ -7844,7 +7844,15 @@ what you have, you must use the options mode.
           return;
         }
 
-        _invalidateAllSyncs();
+        // Force a full session fetch (not delta) on resume so that
+        // session.lastSeq is always up-to-date. Delta fetches may miss
+        // sessions where only messages changed (no metadata update),
+        // causing fetchMessages() to skip with "already caught up"
+        // because both cursorSeq and serverLastSeq are stale.
+        _invalidateAllSyncs(
+          force: true,
+          resetSessionDeltaCursor: true,
+        );
 
         // Invalidate sessions that had pending socket messages
         // before suspend.
