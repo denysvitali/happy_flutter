@@ -6087,6 +6087,16 @@ what you have, you must use the options mode.
           'group=$groupMs perm=$permMs',
         );
 
+        // Notify the UI after each page so the chat screen can
+        // display partial results immediately instead of waiting
+        // for all pages to complete. This is critical for sessions
+        // with many messages where pagination + decryption exceeds
+        // the 5s awaitQueue timeout in ChatScreen._doInitialLoad.
+        if (processed.messages.isNotEmpty) {
+          _notifySessionMessagesChanged(sessionId);
+          _notifyDataChanged();
+        }
+
         if (!hasMore) break;
         page++;
 
@@ -6105,6 +6115,8 @@ what you have, you must use the options mode.
         // ── Yield between pages ──
         await Future<void>.delayed(Duration.zero);
       }
+      // Final notification in case some pages had no messages
+      // (notification already fired per-page for non-empty pages).
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged();
       // Finish the fetch span successfully
