@@ -1388,25 +1388,9 @@ what you have, you must use the options mode.
       return;
     }
 
-    ISentrySpan? updateTransaction;
     ApiUpdate? update;
     try {
       update = ApiUpdate.fromJson(payload);
-
-      // Start a transaction for this update to capture it in performance
-      // monitoring, not just as a breadcrumb attached to errors.
-      updateTransaction = Sentry.startTransaction(
-        'sync.update.${update.type}',
-        'websocket.process',
-        bindToScope: false,
-      )..setData('type', update.type);
-
-      if (update.data['sid'] is String) {
-        updateTransaction.setData('sessionId', update.data['sid'] as String);
-      }
-      if (update.data['id'] is String) {
-        updateTransaction.setData('entityId', update.data['id'] as String);
-      }
 
       Sentry.addBreadcrumb(Breadcrumb(
         message: 'sync update: ${update.type}',
@@ -1460,12 +1444,8 @@ what you have, you must use the options mode.
           break;
       }
 
-      await updateTransaction.finish();
     } catch (error, stack) {
       logger.error('Failed to handle update', error, stack);
-      await updateTransaction?.finish(
-        status: const SpanStatus.internalError(),
-      );
     }
   }
 
