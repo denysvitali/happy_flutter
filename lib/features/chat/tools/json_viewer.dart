@@ -84,13 +84,13 @@ class SmartOutputContainer extends StatefulWidget {
 }
 
 class _SmartOutputContainerState extends State<SmartOutputContainer> {
-  late final (bool, dynamic) _parsedJson =
+  late final (bool, dynamic, String?) _parsed =
       _tryParseJson(widget.content);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final (isJson, jsonValue) = _parsedJson;
+    final (isJson, jsonValue, plainText) = _parsed;
 
     return Container(
       constraints: const BoxConstraints(maxHeight: 300),
@@ -106,9 +106,10 @@ class _SmartOutputContainerState extends State<SmartOutputContainer> {
         child: isJson
             ? JsonTreeViewer(value: jsonValue)
             : SelectableText(
-                widget.content is String
-                    ? widget.content as String
-                    : widget.content.toString(),
+                plainText ??
+                    (widget.content is String
+                        ? widget.content as String
+                        : widget.content.toString()),
                 style: TextStyle(
                   fontFamily: 'monospace',
                   fontFamilyFallback: const ['Courier New', 'Courier'],
@@ -121,23 +122,55 @@ class _SmartOutputContainerState extends State<SmartOutputContainer> {
     );
   }
 
-  static (bool, dynamic) _tryParseJson(dynamic value) {
+  /// Parses [value] into displayable form.
+  ///
+  /// Returns `(isJson, jsonValue, plainText)`:
+  /// - `isJson` true  → render [jsonValue] with [JsonTreeViewer]
+  /// - `isJson` false → render [plainText] (or fall back to
+  ///   `widget.content`)
+  ///
+  /// Handles MCP content blocks at both the Dart-object level
+  /// (already-parsed List) AND the String level (JSON-encoded
+  /// wrapper that was not pre-parsed).
+  static (bool, dynamic, String?) _tryParseJson(dynamic value) {
     final unwrapped = _unwrapMcpContentBlocks(value);
-    if (unwrapped is Map || unwrapped is List) return (true, unwrapped);
+    if (unwrapped is Map || unwrapped is List) {
+      return (true, unwrapped, null);
+    }
     if (unwrapped is String) {
       final trimmed = unwrapped.trim();
       if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
         try {
-          return (true, jsonDecode(unwrapped));
+          final decoded = jsonDecode(unwrapped);
+          // The decoded value might itself be an MCP content-block
+          // wrapper (e.g. the content arrived as a JSON string
+          // rather than a pre-parsed List).
+          final inner = _unwrapMcpContentBlocks(decoded);
+          if (inner is String) {
+            final innerTrimmed = inner.trim();
+            if (innerTrimmed.startsWith('{') ||
+                innerTrimmed.startsWith('[')) {
+              try {
+                return (true, jsonDecode(inner), null);
+              } catch (_) {
+                // Inner text is not JSON — show as plain text.
+              }
+            }
+            return (false, null, inner);
+          }
+          if (inner is Map || inner is List) {
+            return (true, inner, null);
+          }
+          return (true, decoded, null);
         } catch (e) {
           logger.info(
             'Failed to parse JSON in viewer: $e',
           );
         }
       }
-      return (false, null);
+      return (false, null, unwrapped);
     }
-    return (false, null);
+    return (false, null, null);
   }
 
   /// Unwraps MCP tool result content blocks.
