@@ -1034,6 +1034,14 @@ what you have, you must use the options mode.
       ..addAll(MMKVStorage().getSessionFirstLoadedSeq());
     await _restoreSessionsCache();
 
+    // Restore cached settings so that loadFromSync() serves the user's
+    // last-known settings instead of defaults before syncSettings()
+    // completes.  Without this, there is a race between checkAuth()
+    // (which calls loadFromSync → reads _settingsSnapshot) and
+    // _initializeTheme() (which loads from MMKV).  If checkAuth wins,
+    // the Riverpod state briefly reverts to Settings() defaults.
+    _settingsSnapshot = await MMKVStorage().getSettings();
+
     // Bulk-restore cached messages for all sessions so that
     // getLastMessagePreview() works immediately on cold start.
     // Deferred off the synchronous _init() critical path — sessions can
@@ -3657,6 +3665,10 @@ what you have, you must use the options mode.
             _settingsVersion =
                 _asInt(data['settingsVersion']) ?? _settingsVersion;
             _notifyDataChanged();
+            // Persist to MMKV so the next cold start has fresh data.
+            unawaited(
+              MMKVStorage().saveSettings(_settingsSnapshot),
+            );
           }
         } else {
           _settingsSnapshot = Settings();
