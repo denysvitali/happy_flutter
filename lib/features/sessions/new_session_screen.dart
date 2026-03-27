@@ -126,6 +126,12 @@ class _NewSessionScreenState
               .savePermissionMode(sessionId, permissionMode),
         );
       }
+      final modelMode = profile?.defaultModelMode;
+      if (modelMode != null) {
+        unawaited(
+          DraftStorage().saveModelMode(sessionId, modelMode),
+        );
+      }
       if (_selectedProfileId != null) {
         await DraftStorage()
             .saveProfileId(sessionId, _selectedProfileId!);
@@ -144,6 +150,7 @@ class _NewSessionScreenState
                 initialMessage,
                 displayText: initialMessage,
                 permissionMode: permissionMode,
+                modelMode: modelMode,
               ),
         );
       }

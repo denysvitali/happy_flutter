@@ -978,7 +978,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // Use the profile's default model mode when switching providers.
     // If no profile is selected, fall back to ClaudeModel.defaultModel.
     final profileDefaultModelMode = profile?.defaultModelMode;
-    final newModel = ClaudeModel.defaultModel; // Always default for UI
+    final newModel = profileDefaultModelMode != null
+        ? ClaudeModel.normalizeForFlavor(
+            ClaudeModel.fromString(profileDefaultModelMode),
+            _session?.metadata?.flavor,
+          )
+        : ClaudeModel.defaultModel;
     final rawModelString = profileDefaultModelMode ?? newModel.modeString;
     setState(() {
       _selectedProfile = profile;
