@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:socket_io_client/socket_io_client.dart' as sio;
 
-import '../../core/models/api_update.dart';
 import '../services/logger_service.dart' show logger;
 
 /// Returns true for transient network errors (DNS failure,
@@ -56,8 +55,6 @@ class SocketIoClient {
 
   // Stream controllers for events
   final _statusController = StreamController<ConnectionStatus>.broadcast();
-  final _updateController = StreamController<ApiUpdate>.broadcast();
-  final _messageController = StreamController<SocketMessage>.broadcast();
 
   // Event handlers - supports multiple handlers per event
   final Map<String, List<void Function(dynamic)>> _messageHandlers = {};
@@ -68,12 +65,6 @@ class SocketIoClient {
 
   /// Get connection status stream
   Stream<ConnectionStatus> get statusStream => _statusController.stream;
-
-  /// Get updates stream
-  Stream<ApiUpdate> get updateStream => _updateController.stream;
-
-  /// Get raw message stream
-  Stream<SocketMessage> get messageStream => _messageController.stream;
 
   /// Current connection status
   ConnectionStatus get connectionStatus => _status;
@@ -215,45 +206,37 @@ class SocketIoClient {
     });
 
     _socket!.onAny((event, data) {
-      // Record every websocket event as a Sentry breadcrumb so traces
-      // can be correlated with incoming socket activity.
-      final breadcrumbData = <String, dynamic>{'event': event};
-      if (data is Map<String, dynamic>) {
-        final updateType = data['t'] as String?;
-        if (updateType != null) breadcrumbData['type'] = updateType;
-        final sid = data['d'] is Map
-            ? (data['d'] as Map)['sid'] as String?
-            : null;
-        if (sid != null) breadcrumbData['sessionId'] = sid;
-      }
-      Sentry.addBreadcrumb(Breadcrumb(
-        message: 'ws event: $event',
-        category: 'websocket',
-        level: SentryLevel.info,
-        data: breadcrumbData,
-      ));
-
-      if (_messageController.hasListener) {
-        _messageController.add(
-          SocketMessage(event: event, data: data),
-        );
+      // Only record non-streaming events as Sentry breadcrumbs.
+      // During AI streaming, 'update' events with new-message arrive
+      // at 10-50/sec — recording each one floods Sentry's ring buffer
+      // with useless breadcrumbs and adds allocation pressure.
+      final isStreamingUpdate = event == 'update' &&
+          data is Map<String, dynamic> &&
+          data['t'] == 'new-message';
+      if (!isStreamingUpdate) {
+        final breadcrumbData = <String, dynamic>{'event': event};
+        if (data is Map<String, dynamic>) {
+          final updateType = data['t'] as String?;
+          if (updateType != null) {
+            breadcrumbData['type'] = updateType;
+          }
+          final sid = data['d'] is Map
+              ? (data['d'] as Map)['sid'] as String?
+              : null;
+          if (sid != null) breadcrumbData['sessionId'] = sid;
+        }
+        Sentry.addBreadcrumb(Breadcrumb(
+          message: 'ws event: $event',
+          category: 'websocket',
+          level: SentryLevel.info,
+          data: breadcrumbData,
+        ));
       }
 
       final handlers = _messageHandlers[event];
       if (handlers != null) {
         for (final h in handlers) {
           h(data);
-        }
-      }
-
-      if (event == 'update' &&
-          data is Map<String, dynamic> &&
-          _updateController.hasListener) {
-        try {
-          _updateController.add(ApiUpdate.fromJson(data));
-        } catch (e, s) {
-          logger.warning('Failed to parse update: $e');
-          unawaited(Sentry.captureException(e, stackTrace: s));
         }
       }
     });
@@ -389,8 +372,6 @@ class SocketIoClient {
   void dispose() {
     disconnect();
     _statusController.close();
-    _updateController.close();
-    _messageController.close();
     _messageHandlers.clear();
   }
 }

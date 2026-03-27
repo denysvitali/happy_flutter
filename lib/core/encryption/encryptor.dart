@@ -37,9 +37,17 @@ class SecretBoxEncryption implements Encryptor {
   @override
   Future<List<dynamic>> decrypt(List<Uint8List> data) async {
     final results = <dynamic>[];
-    for (final item in data) {
-      final decrypted = await CryptoSecretBox.decrypt(item, _secretKey);
+    for (var i = 0; i < data.length; i++) {
+      final decrypted =
+          await CryptoSecretBox.decrypt(data[i], _secretKey);
       results.add(decrypted);
+      // Yield to the event loop every 10 messages to keep the UI
+      // responsive during large legacy NaCl batch decryptions.
+      // Each CryptoSecretBox.decrypt is a synchronous FFI call that
+      // blocks the main isolate.
+      if (i > 0 && i % 10 == 0) {
+        await Future<void>.delayed(Duration.zero);
+      }
     }
     return results;
   }

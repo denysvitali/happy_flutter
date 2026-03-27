@@ -416,13 +416,11 @@ class _DefaultSessionContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
-    final sessionList = ref.watch(
-      sessionsNotifierProvider.select((s) {
-        final list = s.values.toList()
-          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-        return list;
-      }),
-    );
+    // Watch the sessions map directly — select() with a new List
+    // always returns != on reference equality, defeating the purpose.
+    final sessions = ref.watch(sessionsNotifierProvider);
+    final sessionList = sessions.values.toList()
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
     if (sessionList.isEmpty) {
       return Center(

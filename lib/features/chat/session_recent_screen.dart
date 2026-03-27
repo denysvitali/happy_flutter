@@ -21,13 +21,11 @@ class SessionRecentScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final sessionList = ref.watch(
-      sessionsNotifierProvider.select((s) {
-        final list = s.values.toList()
-          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-        return list;
-      }),
-    );
+    // Watch the sessions map directly — select() with a new List
+    // always returns != on reference equality, defeating the purpose.
+    final sessions = ref.watch(sessionsNotifierProvider);
+    final sessionList = sessions.values.toList()
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     final showFlavorIcons = ref.watch(
       settingsNotifierProvider.select((s) => s.showFlavorIcons),
     );

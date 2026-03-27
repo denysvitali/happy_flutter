@@ -176,13 +176,16 @@ bool _isTransientConnectionError(DioException error) {
 /// - Cancellation errors
 class _RetryInterceptor extends Interceptor {
   _RetryInterceptor({
+    required Dio Function() dioGetter,
     int maxRetries = 3,
     int baseDelayMs = 1000,
     int maxDelayMs = 10000,
-  })  : _maxRetries = maxRetries,
+  })  : _dioGetter = dioGetter,
+        _maxRetries = maxRetries,
         _baseDelayMs = baseDelayMs,
         _maxDelayMs = maxDelayMs;
 
+  final Dio Function() _dioGetter;
   final int _maxRetries;
   final int _baseDelayMs;
   final int _maxDelayMs;
@@ -250,7 +253,7 @@ class _RetryInterceptor extends Interceptor {
     retryOptions.extra['_retryCount'] = currentRetry + 1;
 
     try {
-      final response = await Dio().fetch(retryOptions);
+      final response = await _dioGetter().fetch(retryOptions);
       return handler.resolve(response);
     } on DioException catch (e) {
       // If retry fails, pass through onError again for potential retry
@@ -338,6 +341,7 @@ class ApiClient {
     // Add retry interceptor first (executes last on error)
     _dio!.interceptors.add(
       _RetryInterceptor(
+        dioGetter: () => _dio!,
         maxRetries: 4,
         baseDelayMs: 1000,
         maxDelayMs: 10000,

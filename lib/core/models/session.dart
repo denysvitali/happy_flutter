@@ -184,6 +184,7 @@ class Metadata {
           hostPid == other.hostPid &&
           flavor == other.flavor &&
           lifecycleState == other.lifecycleState &&
+          lifecycleStateSince == other.lifecycleStateSince &&
           sandboxEnabled == other.sandboxEnabled;
 
   @override
@@ -203,6 +204,7 @@ class Metadata {
     hostPid,
     flavor,
     lifecycleState,
+    lifecycleStateSince,
     sandboxEnabled,
   );
 }

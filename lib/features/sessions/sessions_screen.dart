@@ -767,7 +767,12 @@ class _SessionsListContentState
   @override
   Widget build(BuildContext context) {
     final sessions = ref.watch(sessionsNotifierProvider);
-    final machines = ref.watch(machinesNotifierProvider);
+    // Only watch the full machines map when folder-grouped view is
+    // active. Machine heartbeats (activeAt updates) arrive every few
+    // seconds and would otherwise trigger full session list rebuilds.
+    final machines = _archivedGrouping == ArchivedGrouping.folder
+        ? ref.watch(machinesNotifierProvider)
+        : ref.read(machinesNotifierProvider);
     final hideInactive = ref.watch(
       settingsNotifierProvider
           .select((s) => s.hideInactiveSessions),
@@ -895,6 +900,27 @@ class _SessionsListContentState
     );
   }
 
+  Key _keyForItem(_ListItem item) {
+    return switch (item.type) {
+      _ListItemType.activeSession ||
+      _ListItemType.archivedSession ||
+      _ListItemType.folderEntry =>
+        ValueKey('s-${item.session!.id}'),
+      _ListItemType.pathHeader =>
+        ValueKey('p-${item.pathKey}'),
+      _ListItemType.dateHeader =>
+        ValueKey('d-${item.dateKey}'),
+      _ListItemType.folderHeader =>
+        ValueKey(
+          'f-${item.folderHeader?.folderKey}',
+        ),
+      _ListItemType.sectionHeader =>
+        ValueKey('sh-${item.title}'),
+      _ListItemType.archiveHeader =>
+        const ValueKey('archive-header'),
+    };
+  }
+
   Widget _buildSessionsList(
     BuildContext context,
     List<Session> activeSessions,
@@ -984,6 +1010,7 @@ class _SessionsListContentState
           triggerStagger: triggerStagger,
         );
         return StaggeredSlideIn(
+          key: _keyForItem(item),
           index: item.staggerIndex,
           animate: triggerStagger,
           child: child,

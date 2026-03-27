@@ -40,8 +40,8 @@ dependencies:
   uuid: ^4.5.2
   intl: ^0.20.2
   convert: ^3.1.1
-  pointycastle: ^4.0.0
-  ed25519_edwards: ^0.3.1
+  # pointycastle and ed25519_edwards removed — zero Dart imports
+  # (crypto uses 'cryptography' package; Ed25519 uses sodium FFI)
   sodium: ^3.4.6
   sodium_libs: ^3.4.6
   cryptography: ^2.7.0
@@ -50,7 +50,7 @@ dependencies:
   # UI and navigation
   go_router: ^17.0.1
   google_fonts: ^8.0.2
-  webview_flutter: 4.4.2
+  # webview_flutter removed — zero Dart imports, native plugin bloat
   flutter_tts: ^4.2.0
   url_launcher: ^6.3.1
   qr: ^3.0.2
@@ -62,8 +62,7 @@ dependencies:
 
   # Native platform integrations
   connectivity_plus: ^6.1.4
-  local_auth: ^2.3.0
-  geolocator: ^13.0.1
+  # local_auth and geolocator removed — zero callers in lib/
   firebase_core: ^4.4.0
   firebase_messaging: ^16.1.1
   flutter_local_notifications: ^19.0.0

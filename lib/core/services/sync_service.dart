@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:isolate';
 import 'dart:math';
 
@@ -462,11 +463,13 @@ what you have, you must use the options mode.
   final Set<String> _notifiedPermissionIds = {};
   static const int _maxNotifiedPermissionIds = 500;
 
-  /// Dedup set for inline socket messages.  Keyed by
+  /// Dedup set + FIFO queue for inline socket messages.  Keyed by
   /// `"$sessionId:$messageId:$seq"` to skip duplicate `new-message`
   /// events that the server broadcasts multiple times.
+  /// Queue provides O(1) FIFO eviction; Set provides O(1) lookup.
   final Set<String> _recentInlineMessageKeys = {};
-  static const int _maxRecentInlineKeys = 200;
+  final Queue<String> _recentInlineMessageKeyOrder = Queue<String>();
+  static const int _maxRecentInlineKeys = 500;
 
   /// Per-session serial queue for inline message processing.
   final InlineMessageProcessor _inlineProcessor =
@@ -1177,22 +1180,44 @@ what you have, you must use the options mode.
     }
   }
 
-  /// Debounced data change notification.
-  /// Batches rapid successive emissions within 250ms window.
+  /// Leading-edge + trailing-edge debounced data change notification.
   ///
   /// The counter is incremented immediately so that callers like
   /// `loadFromSync()` can detect the change without waiting for the
-  /// debounce timer.  The stream emission is still debounced to avoid
-  /// excessive widget rebuilds.
+  /// debounce timer.
+  ///
+  /// The stream emission uses a leading+trailing pattern: the first
+  /// call in a quiet window fires immediately (so the UI updates
+  /// promptly), then subsequent calls within 250ms are coalesced
+  /// into a single trailing emission.  This prevents the old
+  /// cancel-and-restart pattern from deferring the emission
+  /// indefinitely during sustained streaming (events every 20-50ms).
   void _notifyDataChanged() {
     _dataChangeCounter++;
-    _dataChangeDebounceTimer?.cancel();
-    _dataChangeDebounceTimer = Timer(const Duration(milliseconds: 250), () {
+    // If no timer is running, fire immediately (leading edge) and
+    // start a cooldown window.
+    if (_dataChangeDebounceTimer == null ||
+        !_dataChangeDebounceTimer!.isActive) {
       if (!_dataChangeController.isClosed) {
         _dataChangeController.add(null);
       }
-    });
+      _dataChangePendingTrailing = false;
+      _dataChangeDebounceTimer =
+          Timer(const Duration(milliseconds: 250), () {
+        // Trailing edge: emit once more if calls arrived during
+        // the cooldown window.
+        if (_dataChangePendingTrailing &&
+            !_dataChangeController.isClosed) {
+          _dataChangeController.add(null);
+        }
+        _dataChangePendingTrailing = false;
+      });
+    } else {
+      // Timer is active — mark that a trailing emission is needed.
+      _dataChangePendingTrailing = true;
+    }
   }
+  bool _dataChangePendingTrailing = false;
 
   /// Immediately emit data change notification, bypassing debounce.
   /// Use sparingly when listeners need to be notified synchronously.
@@ -1267,20 +1292,12 @@ what you have, you must use the options mode.
   /// per session every 500 ms, keeping only the last ~200 messages in
   /// the persisted copy. The in-memory list retains all messages.
   void _scheduleSaveMessages(String sessionId) {
-    final msgs = _sessionMessages[sessionId];
-    if (msgs != null) {
-      // Immediately persist if there are messages with 'sending' status —
-      // these are user-sent messages that must not be lost if the app
-      // crashes or gets backgrounded before the debounce timer fires.
-      final hasSending = msgs.any((m) => m['sendStatus'] == 'sending');
-      if (hasSending) {
-        final clean = msgs
-            .where((m) => m['isSidechain'] != true)
-            .toList();
-        MessageCacheService().saveMessages(sessionId, clean);
-        return;
-      }
-    }
+    // Always use the debounce path. The previous immediate-persist for
+    // 'sending' messages ran jsonEncode on the full 200-message list
+    // synchronously on the main thread for every streaming token.
+    // The 500ms debounce is short enough that messages survive brief
+    // backgrounding, and _flushPendingMessageSaves() handles app
+    // lifecycle transitions.
     _saveMsgsDebounceTimers[sessionId]?.cancel();
     _saveMsgsDebounceTimers[sessionId] = Timer(
       const Duration(milliseconds: 500),
@@ -1411,13 +1428,36 @@ what you have, you must use the options mode.
     }
   }
 
+  /// Cached per-session JSON + object reference from the last persist.
+  /// On each persist, only sessions whose object reference differs from
+  /// the cached one are re-serialized via `toJson()`.
+  final Map<String, (Session, Map<String, dynamic>)>
+      _sessionJsonCache = {};
+
   void _persistSessionsCache() {
     _saveSessionsCacheDebounceTimer?.cancel();
     _saveSessionsCacheDebounceTimer = null;
+
+    // Incrementally update only sessions whose object changed.
+    for (final entry in _sessions.entries) {
+      final cached = _sessionJsonCache[entry.key];
+      if (cached == null || !identical(cached.$1, entry.value)) {
+        _sessionJsonCache[entry.key] =
+            (entry.value, entry.value.toJson());
+      }
+    }
+    // Remove stale entries for deleted sessions.
+    _sessionJsonCache.removeWhere(
+      (id, _) => !_sessions.containsKey(id),
+    );
+
     MMKVStorage().saveSessionsCache({
       'lastFetchedAt': _lastSessionsFetchedAt,
-      'sessions': _sessions.values.map((session) => session.toJson()).toList(),
-      'encryptedDataKeys': Map<String, String>.from(_sessionEncryptedDataKeys),
+      'sessions': [
+        for (final e in _sessionJsonCache.values) e.$2,
+      ],
+      'encryptedDataKeys':
+          Map<String, String>.from(_sessionEncryptedDataKeys),
     });
   }
 
@@ -1585,18 +1625,23 @@ what you have, you must use the options mode.
     try {
       update = ApiUpdate.fromJson(payload);
 
-      Sentry.addBreadcrumb(Breadcrumb(
-        message: 'sync update: ${update.type}',
-        category: 'sync.update',
-        level: SentryLevel.info,
-        data: <String, dynamic>{
-          'type': update.type,
-          if (update.data['sid'] is String)
-            'sessionId': update.data['sid'] as String,
-          if (update.data['id'] is String)
-            'entityId': update.data['id'] as String,
-        },
-      ));
+      // Skip Sentry breadcrumbs for high-frequency streaming events.
+      // new-message arrives at 10-50/sec during AI responses — recording
+      // each one floods Sentry's ring buffer and wastes allocations.
+      if (update.type != 'new-message') {
+        Sentry.addBreadcrumb(Breadcrumb(
+          message: 'sync update: ${update.type}',
+          category: 'sync.update',
+          level: SentryLevel.info,
+          data: <String, dynamic>{
+            'type': update.type,
+            if (update.data['sid'] is String)
+              'sessionId': update.data['sid'] as String,
+            if (update.data['id'] is String)
+              'entityId': update.data['id'] as String,
+          },
+        ));
+      }
 
       switch (update.type) {
         case 'new-message':
@@ -1709,20 +1754,15 @@ what you have, you must use the options mode.
       final msgId = embeddedMessage['id'] as String?;
       final msgSeq = embeddedMessage['seq'];
       final dedupKey = '$sessionId:$msgId:$msgSeq';
-      if (_recentInlineMessageKeys.contains(dedupKey)) {
-        return;
+      if (!_recentInlineMessageKeys.add(dedupKey)) {
+        return; // already seen
       }
-      _recentInlineMessageKeys.add(dedupKey);
-      if (_recentInlineMessageKeys.length > _maxRecentInlineKeys) {
-        // Evict oldest entries.
-        final excess =
-            _recentInlineMessageKeys.length - _maxRecentInlineKeys;
-        final it = _recentInlineMessageKeys.iterator;
-        final toRemove = <String>[];
-        for (var i = 0; i < excess && it.moveNext(); i++) {
-          toRemove.add(it.current);
-        }
-        _recentInlineMessageKeys.removeAll(toRemove);
+      _recentInlineMessageKeyOrder.addLast(dedupKey);
+      while (_recentInlineMessageKeyOrder.length >
+          _maxRecentInlineKeys) {
+        _recentInlineMessageKeys.remove(
+          _recentInlineMessageKeyOrder.removeFirst(),
+        );
       }
     }
 
@@ -1852,28 +1892,24 @@ what you have, you must use the options mode.
           u['timestamp'] as int,
         );
       }
-      // Pass the IDs of messages we just upserted so the grouping
-      // method can skip all four passes when none of them are
-      // sidechain-related (the common case for streaming tokens).
-      final inlineChangedIds = {
-        for (final m in processed.messages)
-          if (m['id'] is String) m['id'] as String,
-      };
-      _groupSidechainMessages(
-        sessionId,
-        changedIds: inlineChangedIds,
-      );
       _applyPermissionRequests(sessionId);
 
-      // Schedule a deferred re-grouping sweep when sidechain
-      // messages were involved.  This catches any messages that
-      // were orphaned on a previous run because their parent
-      // hadn't been upserted yet (a chain gap).  The debounce
-      // timer coalesces rapid arrivals into a single sweep.
+      // Only run the expensive multi-pass sidechain grouper when the
+      // incoming messages actually contain sidechain content. For
+      // ordinary streaming tokens (the 99% case) this skips all four
+      // passes + the O(n) orphan scan entirely.
       final hasSidechain = processed.messages.any(
         (m) => m['isSidechain'] == true,
       );
       if (hasSidechain) {
+        final inlineChangedIds = {
+          for (final m in processed.messages)
+            if (m['id'] is String) m['id'] as String,
+        };
+        _groupSidechainMessages(
+          sessionId,
+          changedIds: inlineChangedIds,
+        );
         _scheduleSidechainRegroup(sessionId);
       }
 
@@ -7808,38 +7844,40 @@ what you have, you must use the options mode.
     if (existing.isEmpty || incoming.isEmpty) return false;
     if (!_isMessageListOrdered(incoming)) return false;
 
-    final existingIds = <String>{};
-    final existingLocalIds = <String>{};
-    for (final message in existing) {
-      final id = message['id'] as String?;
-      if (id != null && id.isNotEmpty) {
-        existingIds.add(id);
-      }
-      final localId = message['localId'] as String?;
-      if (localId != null && localId.isNotEmpty) {
-        existingLocalIds.add(localId);
-      }
-    }
-
     final lastMessage = existing.last;
     final lastCreatedAt = _asInt(lastMessage['createdAt']) ?? 0;
     final lastSeq = lastMessage['seq'] as int? ?? 0;
+
+    // Build a small set of IDs from the tail of the existing list
+    // (last 20 entries). This catches the common case of an update
+    // to a recently-appended message without scanning the full list.
+    // For true id collisions deeper in the list, the full merge path
+    // handles them correctly (at O(n) cost, but those are rare).
+    final tailStart =
+        existing.length > 20 ? existing.length - 20 : 0;
+    final recentIds = <String>{};
+    for (var i = tailStart; i < existing.length; i++) {
+      final id = existing[i]['id'] as String?;
+      if (id != null && id.isNotEmpty) recentIds.add(id);
+    }
 
     for (final message in incoming) {
       final messageId = message['id'] as String?;
       if (messageId == null || messageId.isEmpty) {
         return false;
       }
-      if (existingIds.contains(messageId)) {
+
+      // If this id already exists in the recent tail, it's an update
+      // not an append — fall through to merge.
+      if (recentIds.contains(messageId)) {
         return false;
       }
 
+      // Messages with localId may collide with optimistic entries —
+      // fall through to the full merge path.
       final localId = message['localId'] as String?;
       if (localId != null && localId.isNotEmpty) {
-        if (existingIds.contains(localId) ||
-            existingLocalIds.contains(localId)) {
-          return false;
-        }
+        return false;
       }
 
       final createdAt = _asInt(message['createdAt']) ?? 0;
@@ -7847,7 +7885,7 @@ what you have, you must use the options mode.
       if (createdAt < lastCreatedAt) {
         return false;
       }
-      if (createdAt == lastCreatedAt && seq < lastSeq) {
+      if (createdAt == lastCreatedAt && seq <= lastSeq) {
         return false;
       }
     }

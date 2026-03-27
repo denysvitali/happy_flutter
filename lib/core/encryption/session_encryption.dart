@@ -259,111 +259,40 @@ class SessionEncryption {
     List<Map<String, dynamic>> messages,
     String sessionId,
   ) async {
-    // Build lightweight wire data — extract only the fields the
-    // isolate needs.  This keeps isolate-boundary serialisation
-    // small (ids + seq + base64 string) instead of copying the
-    // entire API response maps.
-    var toDecryptCount = 0;
-    var cachedCount = 0;
-    final wireData = <_IsolateWireMessage>[];
-
-    for (var i = 0; i < messages.length; i++) {
-      final msg = messages[i];
+    // Single pass: decrypt messages and extract the wasEncrypted flag
+    // in one go.  The previous implementation did two full passes over
+    // the message list — one to build wireData, one inside
+    // decryptMessages().  Now decryptMessages() is the only heavy pass.
+    final wasEncryptedList = <bool>[];
+    for (final msg in messages) {
       if (msg.isEmpty) {
-        wireData.add(const _IsolateWireMessage(id: '', seq: 0, createdAt: 0));
+        wasEncryptedList.add(false);
         continue;
       }
-
-      final messageId = msg['id'] as String? ?? '';
-      final seq = msg['seq'] as int? ?? 0;
-      final localId = msg['localId'] as String?;
-      final createdAt = msg['createdAt'];
-      final contentRaw2 = msg['content'];
-      var content = contentRaw2 is Map<String, dynamic> ? contentRaw2 : null;
-      // Fallback: if content is a JSON string, try decoding it
-      if (content == null && contentRaw2 is String) {
+      final contentRaw = msg['content'];
+      var isEncrypted = false;
+      if (contentRaw is Map<String, dynamic>) {
+        isEncrypted = contentRaw['t'] == 'encrypted';
+      } else if (contentRaw is String && contentRaw.isNotEmpty) {
         try {
-          final decoded = jsonDecode(contentRaw2);
-          if (decoded is Map<String, dynamic>) {
-            content = decoded;
-          } else if (decoded is String) {
-            // JSON-encoded bare base64 string — use decoded value
-            content = {'t': 'encrypted', 'c': decoded};
+          final decoded = jsonDecode(contentRaw);
+          isEncrypted = decoded is Map<String, dynamic> &&
+              decoded['t'] == 'encrypted';
+          if (!isEncrypted && decoded is String) {
+            isEncrypted = true; // bare base64 string
           }
         } catch (_) {
-          // Not valid JSON — handled below
+          isEncrypted = true; // raw base64 string
         }
       }
-      // New server format: content is the raw base64 encrypted string
-      if (content == null && contentRaw2 is String && contentRaw2.isNotEmpty) {
-        content = {'t': 'encrypted', 'c': contentRaw2};
-      }
-      final isEncrypted = content != null && content['t'] == 'encrypted';
-
-      if (!isEncrypted && msg.isNotEmpty) {
-        final preview = contentRaw2 is String
-            ? contentRaw2.substring(
-                0,
-                contentRaw2.length < 80 ? contentRaw2.length : 80,
-              )
-            : '$contentRaw2';
-        logger.warning(
-          '[fetchMessages] session=$sessionId '
-          'msg=$messageId: content not encrypted — '
-          'type=${contentRaw2.runtimeType}, '
-          'value=$preview',
-        );
-      }
-
-      // Check cache
-      final cacheKey = _messageCacheKey(msg);
-      if (cacheKey.isNotEmpty) {
-        final cached = _cache.getCachedMessage(cacheKey);
-        if (cached != null) {
-          cachedCount++;
-          wireData.add(
-            _IsolateWireMessage(
-              id: messageId,
-              seq: seq,
-              localId: localId,
-              createdAt: createdAt,
-              isEncrypted: isEncrypted,
-            ),
-          );
-          continue;
-        }
-      }
-
-      if (isEncrypted) {
-        toDecryptCount++;
-      }
-
-      wireData.add(
-        _IsolateWireMessage(
-          id: messageId,
-          seq: seq,
-          localId: localId,
-          createdAt: createdAt,
-          base64Content: isEncrypted ? content['c'] as String? : null,
-          isEncrypted: isEncrypted,
-        ),
-      );
+      wasEncryptedList.add(isEncrypted);
     }
-
-    logger.info(
-      '[fetchMessages] session=$sessionId '
-      'total=${messages.length} '
-      'toDecrypt=$toDecryptCount '
-      'cached=$cachedCount',
-    );
 
     final decryptedList = await decryptMessages(messages);
     final contentList = <dynamic>[];
     for (final dm in decryptedList) {
       contentList.add(dm?.content);
     }
-
-    final wasEncryptedList = wireData.map((w) => w.isEncrypted).toList();
 
     return processDecryptedMessages(
       decryptedJsonList: contentList,
