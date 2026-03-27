@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'core/api/api_client.dart';
 import 'core/encryption/sodium_singleton.dart';
@@ -57,6 +58,17 @@ Future<void> _runApp() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Installed here so Sentry's Zone and error handlers are set up first.
   remoteLoggerAutoInstall();
+
+  // Cap Flutter's image cache to avoid unbounded memory growth from
+  // decoded network images (avatars, etc.).  The default is 1000 images /
+  // 100 MB — tighten both so the cache stays manageable on low-end devices.
+  PaintingBinding.instance.imageCache
+    ..maximumSize = 150       // max decoded images
+    ..maximumSizeBytes = 30 * 1024 * 1024; // 30 MB
+
+  // All fonts are bundled in google_fonts/ — disable network fetching so
+  // the package never attempts HTTP requests for font files at runtime.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   // Register background FCM handler before any Firebase calls.
   if (!kIsWeb) {

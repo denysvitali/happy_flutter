@@ -99,13 +99,14 @@ class SessionAvatar extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.cover,
-        memCacheWidth: (size * 3).toInt(),
-        memCacheHeight: (size * 3).toInt(),
+        memCacheWidth:
+            (size * MediaQuery.devicePixelRatioOf(context)).toInt(),
+        memCacheHeight:
+            (size * MediaQuery.devicePixelRatioOf(context)).toInt(),
         placeholder: (context, url) => Container(
           width: size,
           height: size,
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: const Center(child: CircularProgressIndicator()),
         ),
         errorWidget: (context, url, error) => _buildFallbackAvatar(context),
       ),
