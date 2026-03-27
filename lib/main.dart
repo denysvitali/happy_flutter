@@ -95,9 +95,9 @@ Future<void> _runApp() async {
   // and network init below.
   unawaited(sodiumSingleton);
 
+  await storage.Storage().initialize();
   final serverUrl = getServerUrl();
   await Future.wait([
-    storage.Storage().initialize(),
     NetworkMonitorService().initialize(),
     ApiClient().initialize(serverUrl: serverUrl),
   ]);
