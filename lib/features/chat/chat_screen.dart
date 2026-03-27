@@ -584,6 +584,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         // adjustment is correct (prevMessagesLength is only set inside the
         // messagesChanged block below, so it must be set here too).
         _prevMessagesLength = latestMessages.length;
+        // When _prevMessagesLength was 0 (cold start), the messagesChanged
+        // adjustment above could not run (_prevMessagesLength > 0 guard failed).
+        // Sync _visibleCount here so all loaded messages are visible immediately.
+        if (_visibleCount < latestMessages.length) {
+          _visibleCount = latestMessages.length;
+        }
       }
 
       // Update messages and visible count
@@ -709,16 +715,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _autoScroll = nearBottom;
     }
 
-    // In a reverse ListView (reverse: true), newer messages are at the bottom.
-    // When pixels is near maxScrollExtent, the user is at the bottom looking
-    // at newest messages — this is where we load MORE NEWER messages.
-    // When pixels is near minScrollExtent (typically 0), the user is at the
-    // top looking at oldest messages — this is where we load OLDER messages.
+    // In a reverse ListView (reverse: true), index 0 (oldest message) is at
+    // the BOTTOM and the last index (newest message) is at the TOP.
+    // At pixels = 0 (minScrollExtent): at the TOP, viewing newest messages.
+    // At pixels = maxScrollExtent: at the BOTTOM, viewing oldest messages.
     //
-    // The original check (pixels >= maxScrollExtent - 300) only triggered
-    // when near the bottom, so old messages could never be loaded by scrolling.
-    final nearTop = pos.pixels <= 300;
-    if (nearTop) {
+    // Older messages are at the BOTTOM (index 0 direction), so we load older
+    // messages when the user scrolls to the BOTTOM — near maxScrollExtent.
+    final atBottom = pos.pixels >= pos.maxScrollExtent - 300;
+    if (atBottom) {
       final now = DateTime.now().millisecondsSinceEpoch;
       if (now - _lastLoadMoreMs >= 200) {
         _lastLoadMoreMs = now;
