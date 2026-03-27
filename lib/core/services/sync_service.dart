@@ -4075,7 +4075,7 @@ what you have, you must use the options mode.
         ClaudeUsageLimitsResponse.fromJson,
       );
     } catch (error) {
-      logger.error('machineGetClaudeUsageLimits error', error);
+      logger.warning('machineGetClaudeUsageLimits error', error);
     }
     return const ClaudeUsageLimitsResponse(
       success: false,

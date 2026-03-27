@@ -90,7 +90,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
     try {
       await cb();
     } on Object catch (e) {
-      logger.error('Permission action failed: $e');
+      logger.warning('Permission action failed: $e');
       if (mounted) {
         final msg = e.toString();
         final l10n = AppLocalizations.of(context);
@@ -99,7 +99,8 @@ class _PermissionFooterState extends State<PermissionFooter> {
             msg.contains('expired')) {
           label = l10n.permissionExpiredRestarted;
         } else if (msg.contains('no pending permission') ||
-            msg.contains('not available')) {
+            msg.contains('not available') ||
+            msg.contains('failed to resolve')) {
           label = l10n.permissionExpiredNoPending;
         } else {
           label = l10n.permissionActionFailed;
