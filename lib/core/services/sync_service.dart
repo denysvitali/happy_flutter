@@ -1170,11 +1170,16 @@ what you have, you must use the options mode.
 
   /// Debounced data change notification.
   /// Batches rapid successive emissions within 250ms window.
+  ///
+  /// The counter is incremented immediately so that callers like
+  /// `loadFromSync()` can detect the change without waiting for the
+  /// debounce timer.  The stream emission is still debounced to avoid
+  /// excessive widget rebuilds.
   void _notifyDataChanged() {
+    _dataChangeCounter++;
     _dataChangeDebounceTimer?.cancel();
     _dataChangeDebounceTimer = Timer(const Duration(milliseconds: 250), () {
       if (!_dataChangeController.isClosed) {
-        _dataChangeCounter++;
         _dataChangeController.add(null);
       }
     });
@@ -1184,8 +1189,8 @@ what you have, you must use the options mode.
   /// Use sparingly when listeners need to be notified synchronously.
   void _flushDataChanged() {
     _dataChangeDebounceTimer?.cancel();
+    _dataChangeCounter++;
     if (!_dataChangeController.isClosed) {
-      _dataChangeCounter++;
       _dataChangeController.add(null);
     }
   }
