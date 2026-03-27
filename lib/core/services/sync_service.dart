@@ -6111,6 +6111,14 @@ what you have, you must use the options mode.
           afterSeq = knownMax <= initialLoad
               ? 0
               : knownMax - initialLoad;
+          // after_seq=N returns messages with seq > N, so small
+          // non-zero values (1-10) would skip the very first
+          // message(s) of the conversation.  Round down to 0 when
+          // the window barely exceeds initialLoad so the first
+          // message is always included in the initial fetch.
+          if (afterSeq > 0 && afterSeq <= 10) {
+            afterSeq = 0;
+          }
         } else {
           afterSeq = _tailAfterSeqForSession(sessionId);
         }
