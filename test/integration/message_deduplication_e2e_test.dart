@@ -417,6 +417,141 @@ void main() {
     );
   });
 
+  group('sidechain merge-path regression', () {
+    late Sync sync;
+
+    setUp(() {
+      sync = Sync();
+
+      for (final id in sync.sessionMessages.keys.toList()) {
+        sync.testSetSessionMessages(id, []);
+      }
+      sync.testSessions.clear();
+
+      _stubAllSyncs(sync);
+    });
+
+    test(
+      'sidechain messages must not remove Task tool-calls '
+      'via shared localId',
+      () {
+        // Regression: When multiple Task/Agent tool-calls share the
+        // same wire message localId, arriving sidechain-root messages
+        // with that same localId would remove the last Task card via
+        // the localIdToId reverse index, progressively deleting all
+        // but the first agent.
+        const sessionId = 'sidechain-merge-1';
+
+        // Pre-populate with 3 Task tool-calls that share the same
+        // localId (as they would from a single assistant wire message).
+        const sharedLocalId = 'wire-msg-1';
+        sync.testSetSessionMessages(sessionId, [
+          {
+            'id': 'task-1',
+            'localId': sharedLocalId,
+            'seq': 5,
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'createdAt': 1700000005000,
+            'toolUseId': 'toolu_1',
+            'state': 'running',
+            'input': {'prompt': 'Task 1'},
+          },
+          {
+            'id': 'task-2',
+            'localId': sharedLocalId,
+            'seq': 5,
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'createdAt': 1700000006000,
+            'toolUseId': 'toolu_2',
+            'state': 'running',
+            'input': {'prompt': 'Task 2'},
+          },
+          {
+            'id': 'task-3',
+            'localId': sharedLocalId,
+            'seq': 5,
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'createdAt': 1700000007000,
+            'toolUseId': 'toolu_3',
+            'state': 'running',
+            'input': {'prompt': 'Task 3'},
+          },
+        ]);
+
+        // Now upsert sidechain-root messages that also have the same
+        // localId — this must NOT remove any Task card.
+        sync.testUpsertSessionMessages(sessionId, [
+          {
+            'id': 'sidechain-root-1',
+            'localId': sharedLocalId,
+            'seq': 6,
+            'createdAt': 1700000008000,
+            'kind': 'sidechain-root',
+            'isSidechain': true,
+            'prompt': 'Task 1',
+            'parentUuid': 'toolu_1',
+          },
+          {
+            'id': 'sidechain-root-2',
+            'localId': sharedLocalId,
+            'seq': 7,
+            'createdAt': 1700000009000,
+            'kind': 'sidechain-root',
+            'isSidechain': true,
+            'prompt': 'Task 2',
+            'parentUuid': 'toolu_2',
+          },
+          {
+            'id': 'sidechain-root-3',
+            'localId': sharedLocalId,
+            'seq': 8,
+            'createdAt': 1700000010000,
+            'kind': 'sidechain-root',
+            'isSidechain': true,
+            'prompt': 'Task 3',
+            'parentUuid': 'toolu_3',
+          },
+        ]);
+
+        final msgs = sync.testSessionMessages(sessionId);
+        expect(msgs, isNotNull);
+
+        // All 3 Task tool-calls must still be present
+        for (final taskId in ['task-1', 'task-2', 'task-3']) {
+          final count = msgs!
+              .where((m) => m['id'] == taskId)
+              .length;
+          expect(
+            count,
+            1,
+            reason:
+                '$taskId must survive merge — sidechain-root '
+                'messages must not remove it via shared localId',
+          );
+        }
+
+        // Sidechain roots should also be present
+        for (final scId in [
+          'sidechain-root-1',
+          'sidechain-root-2',
+          'sidechain-root-3',
+        ]) {
+          expect(
+            msgs!.any((m) => m['id'] == scId),
+            isTrue,
+            reason: '$scId should be present after merge',
+          );
+        }
+      },
+    );
+  });
+
   group('cross-source deduplication', () {
     late Sync sync;
     late _FakeEncryption encryption;

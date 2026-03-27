@@ -7773,6 +7773,14 @@ what you have, you must use the options mode.
     return true;
   }
 
+  /// @visibleForTesting
+  void testUpsertSessionMessages(
+    String sessionId,
+    List<Map<String, dynamic>> messages,
+  ) {
+    _upsertSessionMessages(sessionId, messages);
+  }
+
   void _upsertSessionMessages(
     String sessionId,
     List<Map<String, dynamic>> messages,
@@ -7829,12 +7837,23 @@ what you have, you must use the options mode.
       final hasLocalId = localId != null && localId.isNotEmpty;
       // If this is an incoming server message whose localId matches an
       // optimistic placeholder, remove the placeholder first.
-      if (hasLocalId && localId != messageId) {
+      // Sidechain messages (sub-agent tool calls, sidechain-root
+      // prompts) share localId with their parent Task/Agent tool-call
+      // but must NOT remove the parent — they are separate messages.
+      final isSidechainMsg =
+          message['isSidechain'] == true ||
+          message['kind'] == 'sidechain-root';
+      if (hasLocalId && localId != messageId && !isSidechainMsg) {
         merged.remove(localId);
       }
       // Also remove any existing entry that was the optimistic placeholder
       // for this localId (handles the reverse lookup case).
-      if (hasLocalId) {
+      // Guard: sidechain messages share localId with their parent
+      // assistant message's tool-call cards. Without this guard each
+      // arriving sidechain message would evict the last Task tool-call
+      // from the list via localIdToId, progressively removing agents
+      // until only the first one remains.
+      if (hasLocalId && !isSidechainMsg) {
         final existingId = localIdToId[localId];
         if (existingId != null && existingId != messageId) {
           merged.remove(existingId);
