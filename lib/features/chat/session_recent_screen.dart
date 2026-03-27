@@ -6,6 +6,7 @@ import '../../core/components/app_empty_state.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/session_utils.dart';
 import '../sessions/session_avatar.dart';
@@ -100,6 +101,8 @@ class _SessionRecentList extends StatelessWidget {
     final groupedItems = groupSessionsByDate(
       sessionList,
       localize: localizeDateGroup,
+      getLastMessageTimestamp:
+          sync.getLastMessageTimestamp,
     );
 
     return ListView.builder(
@@ -148,6 +151,10 @@ class _SessionRecentList extends StatelessWidget {
         isSingle: isSingle,
         showFlavorIcon: showFlavorIcons,
         avatarStyle: avatarStyle,
+        lastMessageTimestamp:
+            sync.getLastMessageTimestamp(session.id),
+        lastMessagePreview:
+            sync.getLastMessagePreview(session.id),
       ),
     );
   }

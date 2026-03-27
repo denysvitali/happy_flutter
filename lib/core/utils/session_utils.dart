@@ -42,8 +42,10 @@ enum DateGroup {
 /// Categories: "Today", "Yesterday", "This Week",
 /// "This Month", "Older".
 Map<DateGroup, List<Session>> groupSessionsByDateCategory(
-  List<Session> sessions,
-) {
+  List<Session> sessions, {
+  int? Function(String sessionId)?
+      getLastMessageTimestamp,
+}) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final yesterday =
@@ -90,9 +92,15 @@ Map<DateGroup, List<Session>> groupSessionsByDateCategory(
   groups
     ..removeWhere((_, sessions) => sessions.isEmpty)
     ..forEach((_, sessions) {
-      sessions.sort(
-        (a, b) => b.updatedAt.compareTo(a.updatedAt),
-      );
+      sessions.sort((a, b) {
+        final aTs = getLastMessageTimestamp != null
+            ? getLastMessageTimestamp(a.id) ?? a.updatedAt
+            : a.updatedAt;
+        final bTs = getLastMessageTimestamp != null
+            ? getLastMessageTimestamp(b.id) ?? b.updatedAt
+            : b.updatedAt;
+        return bTs.compareTo(aTs);
+      });
     });
 
   return groups;
@@ -235,12 +243,17 @@ List<SessionHistoryItem> groupSessionsByExactDate(List<Session> sessions) {
 List<SessionHistoryItem> groupSessionsByDate(
   List<Session> sessions, {
   String Function(DateGroup)? localize,
+  int? Function(String sessionId)?
+      getLastMessageTimestamp,
 }) {
   if (sessions.isEmpty) {
     return [];
   }
 
-  final grouped = groupSessionsByDateCategory(sessions);
+  final grouped = groupSessionsByDateCategory(
+    sessions,
+    getLastMessageTimestamp: getLastMessageTimestamp,
+  );
 
   String defaultLocalize(DateGroup group) {
     return switch (group) {
@@ -451,11 +464,13 @@ class SessionFolderEntry extends SessionFolderItem {
 ///
 /// Returns a flat list of [SessionFolderItem] where each folder group starts
 /// with a [SessionFolderHeader] followed by [SessionFolderEntry] items.
-/// Groups are sorted by the most recently updated session descending.
+/// Groups are sorted by the most recently active session descending.
 List<SessionFolderItem> groupSessionsByFolder(
   List<Session> sessions,
-  Map<String, Machine> machines,
-) {
+  Map<String, Machine> machines, {
+  int? Function(String sessionId)?
+      getLastMessageTimestamp,
+}) {
   if (sessions.isEmpty) return [];
 
   // Group by (machineId:path) key, preserving insertion order.
@@ -467,17 +482,30 @@ List<SessionFolderItem> groupSessionsByFolder(
     groups.putIfAbsent(key, () => []).add(s);
   }
 
-  // Sort groups by most recently updated session descending.
+  // Sort groups by most recently active session descending.
   final sortedKeys = groups.keys.toList()
     ..sort((a, b) {
-      final aLatest = groups[a]!.map((s) => s.updatedAt).reduce(math.max);
-      final bLatest = groups[b]!.map((s) => s.updatedAt).reduce(math.max);
+      int ts(Session s) => getLastMessageTimestamp != null
+          ? getLastMessageTimestamp(s.id) ?? s.updatedAt
+          : s.updatedAt;
+      final aLatest =
+          groups[a]!.map(ts).reduce(math.max);
+      final bLatest =
+          groups[b]!.map(ts).reduce(math.max);
       return bLatest.compareTo(aLatest);
     });
 
-  // Sort sessions within each group by updatedAt descending.
+  // Sort sessions within each group by last activity descending.
   for (final key in sortedKeys) {
-    groups[key]!.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    groups[key]!.sort((a, b) {
+      final aTs = getLastMessageTimestamp != null
+          ? getLastMessageTimestamp(a.id) ?? a.updatedAt
+          : a.updatedAt;
+      final bTs = getLastMessageTimestamp != null
+          ? getLastMessageTimestamp(b.id) ?? b.updatedAt
+          : b.updatedAt;
+      return bTs.compareTo(aTs);
+    });
   }
 
   final items = <SessionFolderItem>[];

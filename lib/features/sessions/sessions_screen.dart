@@ -621,12 +621,18 @@ class _SortedSessions {
 /// Compute sorted active/inactive lists, only if [sessions] changed.
 /// Sessions in [optimisticallyArchivedIds] are excluded from the active list
 /// to prevent them from reappearing during server replication lag.
+///
+/// Sessions are sorted by last message timestamp when available,
+/// falling back to [Session.activeAt] (active) or [Session.updatedAt]
+/// (inactive).
 _SortedSessions _computeSortedSessions(
   Map<String, Session> sessions, {
   required _SortedSessions? previous,
   required Map<String, Session>? lastSessions,
   required String? lastSearchQuery,
   required Set<String> optimisticallyArchivedIds,
+  required int? Function(String sessionId)
+      getLastMessageTimestamp,
   String searchQuery = '',
 }) {
   if (previous != null &&
@@ -668,11 +674,19 @@ _SortedSessions _computeSortedSessions(
     final aOnline = a.presence == 'online' ? 0 : 1;
     final bOnline = b.presence == 'online' ? 0 : 1;
     if (aOnline != bOnline) return aOnline.compareTo(bOnline);
-    return b.activeAt.compareTo(a.activeAt);
+    final aTs =
+        getLastMessageTimestamp(a.id) ?? a.activeAt;
+    final bTs =
+        getLastMessageTimestamp(b.id) ?? b.activeAt;
+    return bTs.compareTo(aTs);
   });
-  inactive.sort(
-    (a, b) => b.updatedAt.compareTo(a.updatedAt),
-  );
+  inactive.sort((a, b) {
+    final aTs =
+        getLastMessageTimestamp(a.id) ?? a.updatedAt;
+    final bTs =
+        getLastMessageTimestamp(b.id) ?? b.updatedAt;
+    return bTs.compareTo(aTs);
+  });
   return _SortedSessions(active: active, inactive: inactive);
 }
 
@@ -778,6 +792,7 @@ class _SessionsListContentState
       lastSessions: _lastSessionsMap,
       lastSearchQuery: _lastSearchQuery,
       optimisticallyArchivedIds: optimisticallyArchivedIds,
+      getLastMessageTimestamp: sync.getLastMessageTimestamp,
       searchQuery: searchQuery,
     );
     _sortedCache = sorted;
@@ -1212,7 +1227,11 @@ class _SessionsListContentState
     required int startIndex,
   }) {
     final grouped =
-        groupSessionsByDateCategory(sessions);
+        groupSessionsByDateCategory(
+          sessions,
+          getLastMessageTimestamp:
+              sync.getLastMessageTimestamp,
+        );
 
     var itemIndex = startIndex;
     final items = <_ListItem>[];
@@ -1278,7 +1297,12 @@ class _SessionsListContentState
     required int startIndex,
   }) {
     final folderItems =
-        groupSessionsByFolder(sessions, machines);
+        groupSessionsByFolder(
+          sessions,
+          machines,
+          getLastMessageTimestamp:
+              sync.getLastMessageTimestamp,
+        );
 
     var itemIndex = startIndex;
     final items = <_ListItem>[];
