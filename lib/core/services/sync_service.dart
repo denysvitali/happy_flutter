@@ -704,6 +704,17 @@ what you have, you must use the options mode.
     int limit,
   )? testFetchMessagesOverride;
 
+  /// Overrides the HTTP fetch path in [fetchOlderMessages] for integration
+  /// tests. When set, [fetchOlderMessages] calls this instead of making a real
+  /// HTTP request. The callback receives (sessionId, afterSeq, limit) and
+  /// returns the parsed response map.
+  @visibleForTesting
+  Future<Map<String, dynamic>>? Function(
+    String sessionId,
+    int afterSeq,
+    int limit,
+  )? testFetchOlderMessagesOverride;
+
   /// Sets the in-memory seq cursor for a session (bypasses the normal
   /// inline-processing path that normally updates this from socket events).
   @visibleForTesting
@@ -765,6 +776,17 @@ what you have, you must use the options mode.
   @visibleForTesting
   List<Map<String, dynamic>>? testSessionMessages(String sessionId) =>
       _sessionMessages[sessionId];
+
+  /// Test helper: get the first loaded seq for a session (null if not set).
+  @visibleForTesting
+  int? testSessionFirstLoadedSeq(String sessionId) =>
+      _sessionFirstLoadedSeq[sessionId];
+
+  /// Test helper: set the first loaded seq for a session.
+  @visibleForTesting
+  void testSetSessionFirstLoadedSeq(String sessionId, int seq) {
+    _sessionFirstLoadedSeq[sessionId] = seq;
+  }
 
   /// Test helper: get _sessionSpawnedAt map.
   @visibleForTesting
@@ -6321,17 +6343,31 @@ what you have, you must use the options mode.
       const pageSize = 100;
       final startSeq = (firstLoaded - 1 - pageSize).clamp(0, firstLoaded - 1);
 
-      final apiClient = ApiClient();
-      final response = await apiClient.get(
-        '/v3/sessions/$sessionId/messages',
-        queryParameters: {'after_seq': startSeq, 'limit': pageSize},
-      );
-
-      if (!apiClient.isSuccess(response)) {
-        logger.warning(
-          'Failed to fetch older messages: ${response.statusCode}',
+      final Response<dynamic> response;
+      if (testFetchOlderMessagesOverride != null) {
+        final overrideResult = await testFetchOlderMessagesOverride!(
+          sessionId,
+          startSeq,
+          pageSize,
         );
-        return;
+        response = Response(
+          requestOptions: RequestOptions(path: ''),
+          statusCode: 200,
+          data: overrideResult,
+        );
+      } else {
+        final apiClient = ApiClient();
+        response = await apiClient.get(
+          '/v3/sessions/$sessionId/messages',
+          queryParameters: {'after_seq': startSeq, 'limit': pageSize},
+        );
+
+        if (!apiClient.isSuccess(response)) {
+          logger.warning(
+            'Failed to fetch older messages: ${response.statusCode}',
+          );
+          return;
+        }
       }
 
       final data = response.data as Map<String, dynamic>;
