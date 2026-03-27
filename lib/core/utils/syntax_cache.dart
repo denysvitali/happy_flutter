@@ -1,4 +1,4 @@
-import 'dart:math';
+import 'package:flutter/material.dart';
 
 import '../utils/lru_cache.dart';
 import '../../features/chat/syntax_highlighter.dart';
@@ -41,40 +41,31 @@ class SyntaxTokenCache {
   Map<String, int> getStats() => _cache.getStats();
 }
 
-/// Global cache for markdown parsed AST nodes.
+/// Global cache for parsed markdown widget trees.
 ///
-/// Parsing markdown to AST is CPU-intensive. This cache stores the parsed
-/// document nodes by content hash, allowing identical markdown strings
-/// across the app to render without re-parsing.
+/// Parsing markdown to a widget tree is CPU-intensive.  This cache stores
+/// the built [MarkdownBody] widget by the exact markdown string, so that
+/// identical markdown content reuses the same widget instance on rebuild.
+/// This prevents re-parsing on every [build] when the parent rebuilds with
+/// an unchanged markdown string (the common case during streaming).
+///
+/// Caching is safe for [SimpleMarkdownView] (no callbacks) and for
+/// [MarkdownView] when [onOptionPress] is stable across rebuilds.
 class MarkdownAstCache {
   MarkdownAstCache._();
   static final MarkdownAstCache instance = MarkdownAstCache._();
 
-  /// LRU cache with 200-entry limit (~500KB-1MB for typical markdown)
-  final LRUCache<String, String> _cache = LRUCache(200);
+  /// LRU cache with 200-entry limit.  Each entry stores the built
+  /// [MarkdownBody] widget for a given markdown string.
+  final LRUCache<String, Widget> _cache = LRUCache(200);
 
-  /// Generate cache key from markdown content.
-  String _generateKey(String markdown) {
-    // Short hash for compact keys.
-    final hash = Object.hash(markdown, markdown.length);
-    return hash.toString();
-  }
+  /// Get the cached [MarkdownBody] widget for [markdown], or null if not cached.
+  Widget? get(String markdown) => _cache.get(markdown);
 
-  /// Check if markdown is cached (for stats/debugging).
-  bool contains(String markdown) {
-    final key = _generateKey(markdown);
-    return _cache.containsKey(key);
-  }
+  /// Store a [MarkdownBody] widget in the cache keyed by [markdown].
+  void put(String markdown, Widget widget) => _cache.put(markdown, widget);
 
-  /// Store parsed markdown result by hash.
-  /// Note: flutter_markdown_plus doesn't expose AST, so this is a placeholder
-  /// for future integration or custom parsing. Currently used for hit tracking.
-  void put(String markdown) {
-    final key = _generateKey(markdown);
-    _cache.put(key, markdown);
-  }
-
-  /// Clear all cached markdown.
+  /// Clear all cached markdown widgets.
   void clear() => _cache.clear();
 
   /// Get cache statistics for debugging.

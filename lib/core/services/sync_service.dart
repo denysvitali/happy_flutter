@@ -1027,7 +1027,10 @@ what you have, you must use the options mode.
 
     // Bulk-restore cached messages for all sessions so that
     // getLastMessagePreview() works immediately on cold start.
-    _restoreAllCachedMessages();
+    // Deferred off the synchronous _init() critical path — sessions can
+    // render from the session cache before per-session message caches are
+    // warm.  Messages are loaded lazily when the user opens a chat.
+    unawaited(_restoreAllCachedMessagesAsync());
 
     // Initialize sync managers
     sessionsSync = InvalidateSync(fetchSessions, name: 'fetchSessions');
@@ -1346,18 +1349,33 @@ what you have, you must use the options mode.
       if (encryptedKeysRaw is Map) {
         final sessionKeys = <String, Uint8List?>{};
         _sessionEncryptedDataKeys.clear();
-        for (final entry in encryptedKeysRaw.entries) {
-          if (entry.key is! String || entry.value is! String) continue;
-          final sessionId = entry.key as String;
-          final encryptedKey = entry.value as String;
-          if (encryptedKey.isEmpty) continue;
-          _sessionEncryptedDataKeys[sessionId] = encryptedKey;
-          final decryptedKey = await encryption.decryptEncryptionKey(
-            encryptedKey,
+        // Collect all entries first, then decrypt in parallel instead of
+        // sequentially awaiting each one.
+        final entries = encryptedKeysRaw.entries
+            .where(
+              (e) =>
+                  e.key is String &&
+                  e.value is String &&
+                  (e.value as String).isNotEmpty,
+            )
+            .map((e) => (e.key as String, e.value as String))
+            .toList();
+        for (final (id, key) in entries) {
+          _sessionEncryptedDataKeys[id] = key;
+        }
+        if (entries.isNotEmpty) {
+          final decrypted = await Future.wait(
+            entries.map(
+              (e) => encryption.decryptEncryptionKey(e.$2),
+            ),
           );
-          if (decryptedKey == null) continue;
-          _sessionDataKeys[sessionId] = decryptedKey;
-          sessionKeys[sessionId] = decryptedKey;
+          for (var i = 0; i < decrypted.length; i++) {
+            final dk = decrypted[i];
+            if (dk == null) continue;
+            final sessionId = entries[i].$1;
+            _sessionDataKeys[sessionId] = dk;
+            sessionKeys[sessionId] = dk;
+          }
         }
         if (sessionKeys.isNotEmpty) {
           await encryption.initializeSessions(sessionKeys);
@@ -1401,6 +1419,14 @@ what you have, you must use the options mode.
   /// [_sessionMessages].  Called once during [_init] so that
   /// [getLastMessagePreview] and [messagesForSession] return data
   /// immediately on cold start, without waiting for any HTTP fetch.
+  /// Async wrapper that defers [_restoreAllCachedMessages] off the
+  /// synchronous [_init] critical path.  Sessions can render from the
+  /// session cache before per-session message caches are warm.  Messages
+  /// are loaded lazily when the user opens a chat.
+  Future<void> _restoreAllCachedMessagesAsync() async {
+    _restoreAllCachedMessages();
+  }
+
   void _restoreAllCachedMessages() {
     var firstLoadedChanged = false;
     for (final sessionId in _sessions.keys) {
@@ -1928,18 +1954,63 @@ what you have, you must use the options mode.
 
   /// Handle session update
   ///
-  /// Session-level metadata changes (typing state, tool state, title, etc.)
-  /// do NOT imply new messages.  New messages arrive via `new-message` events
-  /// which are handled by [_handleNewMessage].  Invalidating messagesSync here
-  /// caused a storm of redundant full-history fetches during streaming because
-  /// `update-session` fires on every typing/tool state change.
+  /// Applies delta patches directly to the in-memory session for unencrypted
+  /// fields (presence, active, activeAt, title, thinking).  Only falls back
+  /// to [sessionsSync.invalidate()] for encrypted fields (metadata, agentState)
+  /// that require decryption.  This eliminates the ~4 fetchSessions() HTTP
+  /// calls/sec that were happening during active streaming even with debouncing.
   void _handleUpdateSession(Map<String, dynamic> data) {
     final sessionId = data['id'] as String?;
+    if (sessionId == null) return;
+
+    // Apply delta patch directly to the in-memory session for unencrypted fields.
+    // This updates the UI immediately without waiting for a debounced HTTP fetch.
+    // Ephemeral events (handleEphemeralUpdate) already handle presence/typing
+    // directly -- the update-session event carries the same data plus metadata.
+    final session = _sessions[sessionId];
+    if (session != null) {
+      final presence = data['presence'] as String?;
+      final active = data['active'] as bool?;
+      final activeAt = data['activeAt'] is int
+          ? data['activeAt'] as int
+          : data['activeAt'] is double
+              ? (data['activeAt'] as double).toInt()
+              : null;
+      final title = data['title'] as String?;
+      final thinking = data['thinking'] as bool?;
+      final thinkingAt = data['thinkingAt'] is int
+          ? data['thinkingAt'] as int
+          : data['thinkingAt'] is double
+              ? (data['thinkingAt'] as double).toInt()
+              : null;
+
+      // Only update if at least one unencrypted field is present.
+      if (presence != null ||
+          active != null ||
+          activeAt != null ||
+          title != null ||
+          thinking != null ||
+          thinkingAt != null) {
+        _sessions[sessionId] = session.copyWith(
+          presence: presence ?? session.presence,
+          active: active ?? session.active,
+          activeAt: activeAt ?? session.activeAt,
+          thinking: thinking ?? session.thinking,
+          thinkingAt: thinkingAt,
+        );
+        _notifyDataChanged();
+      }
+    }
+
+    // Schedule a debounced refresh as a safety net for encrypted fields
+    // (metadata, agentState) that we can't decrypt inline here.  The refresh
+    // is also needed for new sessions that aren't in _sessions yet.
     _scheduleSessionsRefresh();
+
     // Only log the first occurrence per session within a debounce window.
     // The server broadcasts dozens of identical update-session events per
     // second during streaming (typing/tool state changes).
-    if (sessionId != null && _pendingUpdateSessionIds.add(sessionId)) {
+    if (_pendingUpdateSessionIds.add(sessionId)) {
       logger.info('Session update received: $sessionId');
     }
   }

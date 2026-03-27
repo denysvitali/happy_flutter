@@ -52,6 +52,7 @@ class _MarkdownViewState extends State<MarkdownView> {
   MarkdownStyleSheet? _styleSheet;
   ThemeData? _lastTheme;
   Color? _lastTextColor;
+  String? _lastMarkdown;
 
   /// Cached builders map — same reference passed to [MarkdownBody] each build
   /// unless the options builder instance changes.
@@ -60,6 +61,7 @@ class _MarkdownViewState extends State<MarkdownView> {
   @override
   void didUpdateWidget(MarkdownView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Invalidate builders if callbacks or theme-related fields change.
     if (widget.onOptionPress != oldWidget.onOptionPress ||
         widget.textColor != oldWidget.textColor) {
       _builders = null;
@@ -129,11 +131,16 @@ class _MarkdownViewState extends State<MarkdownView> {
 
   @override
   Widget build(BuildContext context) {
-    // Track markdown content in cache for hit statistics.
-    // flutter_markdown_plus doesn't expose AST, but this enables
-    // future caching integration and provides metrics.
-    _markdownCache.put(widget.markdown);
+    // Fast path: if the markdown string hasn't changed from the last build,
+    // return the cached widget.  This prevents re-parsing on every parent
+    // rebuild when the content is unchanged (the common case during streaming).
+    if (widget.markdown == _lastMarkdown) {
+      return _markdownCache.get(widget.markdown) ?? _buildMarkdownBody(context);
+    }
+    return _buildMarkdownBody(context);
+  }
 
+  Widget _buildMarkdownBody(BuildContext context) {
     final theme = Theme.of(context);
     if (_styleSheet == null ||
         !identical(theme, _lastTheme) ||
@@ -143,9 +150,12 @@ class _MarkdownViewState extends State<MarkdownView> {
       _lastTextColor = widget.textColor;
     }
 
-    return RepaintBoundary(
+    final markdown = widget.markdown;
+    _lastMarkdown = markdown;
+
+    final widget_ = RepaintBoundary(
       child: MarkdownBody(
-        data: widget.markdown,
+        data: markdown,
         extensionSet: _gitHubFlavoredExtensionSet,
         builders: _effectiveBuilders,
         blockSyntaxes: _optionsBlockSyntaxes,
@@ -160,6 +170,11 @@ class _MarkdownViewState extends State<MarkdownView> {
         },
       ),
     );
+
+    // Cache the built widget keyed by exact markdown string so that
+    // identical markdown strings reuse the same widget tree on the next build.
+    _markdownCache.put(markdown, widget_);
+    return widget_;
   }
 }
 
@@ -182,6 +197,7 @@ class SimpleMarkdownView extends StatefulWidget {
 class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
   MarkdownStyleSheet? _styleSheet;
   ThemeData? _lastTheme;
+  String? _lastMarkdown;
 
   MarkdownStyleSheet _buildStyleSheet(ThemeData theme) {
     final onSurface = theme.colorScheme.onSurface;
@@ -216,18 +232,26 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
 
   @override
   Widget build(BuildContext context) {
-    // Track markdown content in cache for hit statistics.
-    _markdownCache.put(widget.markdown);
+    if (widget.markdown == _lastMarkdown) {
+      return _markdownCache.get(widget.markdown) ??
+          _buildMarkdownBody(context);
+    }
+    return _buildMarkdownBody(context);
+  }
 
+  Widget _buildMarkdownBody(BuildContext context) {
     final theme = Theme.of(context);
     if (_styleSheet == null || !identical(theme, _lastTheme)) {
       _styleSheet = _buildStyleSheet(theme);
       _lastTheme = theme;
     }
 
-    return RepaintBoundary(
+    final markdown = widget.markdown;
+    _lastMarkdown = markdown;
+
+    final widget_ = RepaintBoundary(
       child: MarkdownBody(
-        data: widget.markdown,
+        data: markdown,
         extensionSet: _gitHubFlavoredExtensionSet,
         builders: _simpleBuilders,
         styleSheet: _styleSheet!,
@@ -241,6 +265,9 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
         },
       ),
     );
+
+    _markdownCache.put(markdown, widget_);
+    return widget_;
   }
 }
 

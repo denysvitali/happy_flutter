@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/api/api_client.dart';
+import 'core/encryption/sodium_singleton.dart';
 import 'core/i18n/app_localizations.dart';
 import 'core/i18n/supported_locales.dart';
 import 'core/providers/app_providers.dart';
@@ -76,11 +77,18 @@ Future<void> _runApp() async {
   final firebaseInitialization = _initializeOptionalFirebase();
   final deepLinkFuture = _getInitialDeepLink();
 
-  await storage.Storage().initialize();
-  await NetworkMonitorService().initialize();
+  // Pre-warm the sodium native library so Encryption.create() doesn't
+  // block on first access during checkAuth(). The FFI .so/.dylib load
+  // takes 50-200ms on Android; starting it here overlaps with storage
+  // and network init below.
+  unawaited(sodiumSingleton);
 
   final serverUrl = getServerUrl();
-  await ApiClient().initialize(serverUrl: serverUrl);
+  await Future.wait([
+    storage.Storage().initialize(),
+    NetworkMonitorService().initialize(),
+    ApiClient().initialize(serverUrl: serverUrl),
+  ]);
 
   // Handle initial deep link if the app was opened from a link
   final deepLink = await deepLinkFuture;
