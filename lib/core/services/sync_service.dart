@@ -6263,15 +6263,19 @@ what you have, you must use the options mode.
         if (!hasMore) break;
         page++;
 
-        // Safety valve: if we've paginated through too many pages,
-        // something is wrong (stale cursor, missing lastSeq, etc.).
-        // Stop crawling to avoid blocking the UI for minutes.
+        // Safety valve: stop this cycle to let the UI render, then
+        // schedule a follow-up fetch so we keep crawling.  Without the
+        // re-trigger, messages beyond the cutoff are lost until the
+        // next external invalidation — which may never come if all new
+        // messages use the inline socket path.
         const maxPages = 5; // 500 messages max per fetch cycle
         if (page >= maxPages) {
           logger.warning(
             '[fetchMessages] $sessionId hit $maxPages page limit '
             '— stopping forward crawl at afterSeq=$afterSeq',
           );
+          // Re-trigger so the next cycle continues from the new cursor.
+          messagesSync[sessionId]?.invalidate();
           break;
         }
 

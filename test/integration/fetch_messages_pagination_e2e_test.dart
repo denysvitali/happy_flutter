@@ -524,6 +524,88 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  // Group 3b: page limit re-trigger
+  // ---------------------------------------------------------------------------
+
+  group('page limit re-trigger', () {
+    late Sync sync;
+    late _FakeEncryption encryption;
+
+    setUp(() {
+      sync = Sync();
+      encryption = _FakeEncryption();
+      _clearSyncState(sync);
+      _stubAllSyncs(sync);
+      sync.testSocketConnectedOverride = true;
+      sync.testSocketSendOverride = (_, __) {};
+      sync.encryption = encryption;
+      sync.testIsInitialized = true;
+    });
+
+    tearDown(() {
+      sync.testSocketConnectedOverride = null;
+      sync.testSocketSendOverride = null;
+      sync.testFetchMessagesOverride = null;
+      sync.testVisibleSessionId = null;
+    });
+
+    test(
+      'invalidates messagesSync after hitting page limit',
+      () async {
+        const sessionId = 'sess-pagelimit-1';
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 10,
+        );
+        sync.testVisibleSessionId = sessionId;
+
+        // Ensure messagesSync exists for the session so we can
+        // track invalidation.
+        var invalidateCount = 0;
+        sync.messagesSync[sessionId] = InvalidateSync(
+          () async {
+            invalidateCount++;
+          },
+        );
+
+        var callCount = 0;
+        sync.testFetchMessagesOverride =
+            (sid, afterSeq, limit) async {
+          callCount++;
+          // Always return hasMore=true to trigger page limit.
+          return _buildMessagesResponse(
+            [
+              _makeEncryptedMessage(
+                'msg-$callCount',
+                seq: callCount,
+                content: 'Msg$callCount',
+              ),
+            ],
+            hasMore: true,
+          );
+        };
+
+        await sync.fetchMessages(sessionId);
+
+        expect(
+          callCount,
+          5,
+          reason: 'Should stop after 5 pages (maxPages)',
+        );
+        // The messagesSync should have been invalidated so a
+        // follow-up cycle is scheduled.
+        expect(
+          invalidateCount,
+          greaterThan(0),
+          reason:
+              'messagesSync should be invalidated after page '
+              'limit so the crawl continues in the next cycle',
+        );
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
   // Group 4: edge cases
   // ---------------------------------------------------------------------------
 
