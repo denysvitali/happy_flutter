@@ -709,7 +709,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _autoScroll = nearBottom;
     }
 
-    if (pos.pixels >= pos.maxScrollExtent - 300) {
+    // In a reverse ListView (reverse: true), newer messages are at the bottom.
+    // When pixels is near maxScrollExtent, the user is at the bottom looking
+    // at newest messages — this is where we load MORE NEWER messages.
+    // When pixels is near minScrollExtent (typically 0), the user is at the
+    // top looking at oldest messages — this is where we load OLDER messages.
+    //
+    // The original check (pixels >= maxScrollExtent - 300) only triggered
+    // when near the bottom, so old messages could never be loaded by scrolling.
+    final nearTop = pos.pixels <= 300;
+    if (nearTop) {
       final now = DateTime.now().millisecondsSinceEpoch;
       if (now - _lastLoadMoreMs >= 200) {
         _lastLoadMoreMs = now;
