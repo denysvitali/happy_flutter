@@ -663,9 +663,13 @@ _SortedSessions _computeSortedSessions(
       inactive.add(s);
     }
   }
-  active.sort(
-    (a, b) => b.activeAt.compareTo(a.activeAt),
-  );
+  active.sort((a, b) {
+    // Currently-online sessions first within each directory group
+    final aOnline = a.presence == 'online' ? 0 : 1;
+    final bOnline = b.presence == 'online' ? 0 : 1;
+    if (aOnline != bOnline) return aOnline.compareTo(bOnline);
+    return b.activeAt.compareTo(a.activeAt);
+  });
   inactive.sort(
     (a, b) => b.updatedAt.compareTo(a.updatedAt),
   );
