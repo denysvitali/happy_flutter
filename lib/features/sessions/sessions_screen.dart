@@ -1080,6 +1080,8 @@ class _SessionsListContentState
                 sync.getLastMessageTimestamp(session.id),
             lastMessagePreview:
                 sync.getLastMessagePreview(session.id),
+            lastMessageRole:
+                sync.getLastMessageRole(session.id),
             isSelected: sel.selectedIds.contains(session.id),
             selectionMode: sel.isActive,
             unreadCount: sync.getUnreadCount(session.id),
@@ -1157,6 +1159,8 @@ class _SessionsListContentState
                   sync.getLastMessageTimestamp(session.id),
               lastMessagePreview:
                   sync.getLastMessagePreview(session.id),
+              lastMessageRole:
+                  sync.getLastMessageRole(session.id),
             ),
             if (!item.isLast! && !item.isSingle!)
               Divider(
@@ -1228,6 +1232,8 @@ class _SessionsListContentState
                   sync.getLastMessageTimestamp(session.id),
               lastMessagePreview:
                   sync.getLastMessagePreview(session.id),
+              lastMessageRole:
+                  sync.getLastMessageRole(session.id),
             ),
             if (!item.isLast! && !item.isSingle!)
               Divider(

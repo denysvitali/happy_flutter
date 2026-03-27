@@ -153,6 +153,8 @@ class _SessionRecentList extends StatelessWidget {
             sync.getLastMessageTimestamp(session.id),
         lastMessagePreview:
             sync.getLastMessagePreview(session.id),
+        lastMessageRole:
+            sync.getLastMessageRole(session.id),
       ),
     );
   }

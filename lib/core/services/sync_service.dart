@@ -906,8 +906,9 @@ what you have, you must use the options mode.
   /// Returns a brief preview of the last message in a session.
   ///
   /// Scans from the end to find the last assistant or human message
-  /// with non-empty text content. Returns null when no suitable
-  /// preview is available.
+  /// with non-empty text content. Strips markdown, collapses
+  /// whitespace, and truncates to [_kPreviewMaxLen] characters.
+  /// Returns null when no suitable preview is available.
   String? getLastMessagePreview(String sessionId) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return null;
@@ -917,10 +918,62 @@ what you have, you must use the options mode.
       if (role != MessageRole.agent && role != MessageRole.user) continue;
       final text = msg['text'] as String?;
       if (text != null && text.trim().isNotEmpty) {
-        return text.trim();
+        return _cleanPreviewText(text.trim());
       }
     }
     return null;
+  }
+
+  /// Returns the role ([MessageRole.user] or [MessageRole.agent]) of
+  /// the message used by [getLastMessagePreview], or null.
+  String? getLastMessageRole(String sessionId) {
+    final messages = _sessionMessages[sessionId];
+    if (messages == null || messages.isEmpty) return null;
+    for (var i = messages.length - 1; i >= 0; i--) {
+      final msg = messages[i];
+      final role = msg['role'] as String?;
+      if (role != MessageRole.agent && role != MessageRole.user) continue;
+      final text = msg['text'] as String?;
+      if (text != null && text.trim().isNotEmpty) return role;
+    }
+    return null;
+  }
+
+  static const _kPreviewMaxLen = 120;
+
+  /// Strips markdown formatting, collapses whitespace, and truncates
+  /// [raw] to a clean single-line preview string.
+  static String _cleanPreviewText(String raw) {
+    var text = raw;
+    // Fenced code blocks
+    text = text.replaceAll(
+      RegExp(r'```[\s\S]*?```', multiLine: true),
+      ' [code]',
+    );
+    // Inline code
+    text = text.replaceAll(RegExp(r'`[^`]+`'), ' [code]');
+    // Images: ![alt](url)
+    text = text.replaceAll(RegExp(r'!\[([^\]]*)\]\([^)]+\)'), ' [image]');
+    // Links: [text](url)
+    text = text.replaceAll(RegExp(r'\[([^\]]+)\]\([^)]+\)'), r'$1');
+    // Bold/italic markers
+    text = text.replaceAll(RegExp(r'\*{1,3}'), '');
+    text = text.replaceAll(RegExp(r'_{1,3}'), '');
+    // Strikethrough
+    text = text.replaceAll(RegExp(r'~~'), '');
+    // Headings
+    text = text.replaceAll(RegExp(r'^#{1,6}\s+', multiLine: true), '');
+    // Blockquotes
+    text = text.replaceAll(RegExp(r'^>\s*', multiLine: true), '');
+    // HTML tags
+    text = text.replaceAll(RegExp(r'<[^>]+>'), '');
+    // Collapse whitespace
+    text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    // Truncate
+    if (text.length > _kPreviewMaxLen) {
+      text = '${text.substring(0, _kPreviewMaxLen)}…';
+    }
+    return text;
   }
 
   /// Returns true when there are older messages available for [sessionId]

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/components/app_status_dot.dart';
+import '../../../core/models/message.dart';
 import '../../../core/models/session.dart';
 import '../../../core/models/todo.dart';
 import '../../../core/theme/app_colors.dart';
@@ -65,6 +66,51 @@ Widget? _buildStatusText(
   );
 }
 
+/// Builds a Telegram-style message preview with a "You: " prefix
+/// for user messages in a subtle accent color.
+Widget _buildPreviewText({
+  required BuildContext context,
+  required String preview,
+  required String? role,
+  required TextStyle? style,
+  required int maxLines,
+}) {
+  final cs = Theme.of(context).colorScheme;
+  final isUser = role == MessageRole.user;
+  final baseStyle = style?.copyWith(
+    color: cs.onSurfaceVariant.withValues(alpha: AppOpacity.high),
+  );
+
+  if (!isUser) {
+    return Text(
+      preview,
+      style: baseStyle,
+      overflow: TextOverflow.ellipsis,
+      maxLines: maxLines,
+    );
+  }
+
+  return RichText(
+    overflow: TextOverflow.ellipsis,
+    maxLines: maxLines,
+    text: TextSpan(
+      children: [
+        TextSpan(
+          text: 'You: ',
+          style: baseStyle?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: cs.onSurfaceVariant,
+          ),
+        ),
+        TextSpan(
+          text: preview,
+          style: baseStyle,
+        ),
+      ],
+    ),
+  );
+}
+
 // ────────────────────────────────────────────────────────────
 // Active session card — full-size variant
 // ────────────────────────────────────────────────────────────
@@ -80,6 +126,7 @@ class ActiveSessionCard extends StatefulWidget {
     this.avatarStyle,
     this.lastMessageTimestamp,
     this.lastMessagePreview,
+    this.lastMessageRole,
     this.unreadCount = 0,
   });
 
@@ -89,6 +136,7 @@ class ActiveSessionCard extends StatefulWidget {
   final AvatarStyle? avatarStyle;
   final int? lastMessageTimestamp;
   final String? lastMessagePreview;
+  final String? lastMessageRole;
   final int unreadCount;
 
   @override
@@ -141,6 +189,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
         sessionSubtitle: _sessionSubtitle,
         lastMessageTimestamp: widget.lastMessageTimestamp,
         lastMessagePreview: widget.lastMessagePreview,
+        lastMessageRole: widget.lastMessageRole,
         unreadCount: widget.unreadCount,
         avatarStyle: widget.avatarStyle,
         theme: theme,
@@ -168,6 +217,7 @@ class _ActiveSessionCardContent extends StatelessWidget {
     required this.sessionSubtitle,
     required this.lastMessageTimestamp,
     required this.lastMessagePreview,
+    required this.lastMessageRole,
     required this.unreadCount,
     required this.theme,
     required this.colorScheme,
@@ -185,6 +235,7 @@ class _ActiveSessionCardContent extends StatelessWidget {
   final String sessionSubtitle;
   final int? lastMessageTimestamp;
   final String? lastMessagePreview;
+  final String? lastMessageRole;
   final int unreadCount;
   final AvatarStyle? avatarStyle;
   final ThemeData theme;
@@ -341,25 +392,19 @@ class _ActiveSessionCardContent extends StatelessWidget {
                             const SizedBox(
                               height: AppSpacing.xxs,
                             ),
-                            Text(
-                              lastMessagePreview!,
+                            _buildPreviewText(
+                              context: context,
+                              preview:
+                                  lastMessagePreview!,
+                              role: lastMessageRole,
                               style: theme
                                   .textTheme
                                   .bodySmall
                                   ?.copyWith(
-                                color: cs
-                                    .onSurfaceVariant
-                                    .withValues(
-                                  alpha:
-                                      AppOpacity
-                                          .high,
-                                ),
                                 fontSize:
                                     AppFontSize.xs,
                                 height: 1.2,
                               ),
-                              overflow: TextOverflow
-                                  .ellipsis,
                               maxLines: 1,
                             ),
                           ],
@@ -472,6 +517,7 @@ class CompactActiveSessionCard extends StatefulWidget {
     this.avatarStyle,
     this.lastMessageTimestamp,
     this.lastMessagePreview,
+    this.lastMessageRole,
     this.selectionMode = false,
     this.isSelected = false,
     this.unreadCount = 0,
@@ -483,6 +529,7 @@ class CompactActiveSessionCard extends StatefulWidget {
   final AvatarStyle? avatarStyle;
   final int? lastMessageTimestamp;
   final String? lastMessagePreview;
+  final String? lastMessageRole;
   final bool selectionMode;
   final bool isSelected;
   final int unreadCount;
@@ -538,6 +585,7 @@ class _CompactActiveSessionCardState
         showFlavorIcon: widget.showFlavorIcon,
         lastMessageTimestamp: widget.lastMessageTimestamp,
         lastMessagePreview: widget.lastMessagePreview,
+        lastMessageRole: widget.lastMessageRole,
         selectionMode: widget.selectionMode,
         isSelected: widget.isSelected,
         unreadCount: widget.unreadCount,
@@ -570,6 +618,7 @@ class _CompactActiveSessionCardContent
     required this.showFlavorIcon,
     required this.lastMessageTimestamp,
     required this.lastMessagePreview,
+    required this.lastMessageRole,
     required this.selectionMode,
     required this.isSelected,
     required this.unreadCount,
@@ -590,6 +639,7 @@ class _CompactActiveSessionCardContent
   final bool showFlavorIcon;
   final int? lastMessageTimestamp;
   final String? lastMessagePreview;
+  final String? lastMessageRole;
   final bool selectionMode;
   final bool isSelected;
   final int unreadCount;
@@ -774,26 +824,19 @@ class _CompactActiveSessionCardContent
                                 const SizedBox(
                                   height: AppSpacing.xs,
                                 ),
-                                Text(
-                                  lastMessagePreview!,
+                                _buildPreviewText(
+                                  context: context,
+                                  preview:
+                                      lastMessagePreview!,
+                                  role: lastMessageRole,
                                   style: theme
                                       .textTheme
                                       .bodySmall
                                       ?.copyWith(
-                                    color: cs
-                                        .onSurfaceVariant
-                                        .withValues(
-                                      alpha:
-                                          AppOpacity
-                                              .high,
-                                    ),
                                     fontSize:
                                         AppFontSize.xs,
                                     height: 1.2,
                                   ),
-                                  overflow:
-                                      TextOverflow
-                                          .ellipsis,
                                   maxLines: 1,
                                 ),
                               ],
@@ -887,6 +930,7 @@ class SessionCard extends StatefulWidget {
     this.avatarStyle,
     this.lastMessageTimestamp,
     this.lastMessagePreview,
+    this.lastMessageRole,
   });
 
   final Session session;
@@ -903,6 +947,7 @@ class SessionCard extends StatefulWidget {
   final AvatarStyle? avatarStyle;
   final int? lastMessageTimestamp;
   final String? lastMessagePreview;
+  final String? lastMessageRole;
 
   @override
   State<SessionCard> createState() =>
@@ -996,6 +1041,7 @@ class _SessionCardState extends State<SessionCard> {
         sessionSubtitle: _sessionSubtitle,
         lastMessageTimestamp: widget.lastMessageTimestamp,
         lastMessagePreview: widget.lastMessagePreview,
+        lastMessageRole: widget.lastMessageRole,
         compact: widget.compact,
         selectionMode: widget.selectionMode,
         isSelected: widget.isSelected,
@@ -1027,6 +1073,7 @@ class _SessionCardContent extends StatelessWidget {
     required this.sessionSubtitle,
     required this.lastMessageTimestamp,
     required this.lastMessagePreview,
+    required this.lastMessageRole,
     required this.compact,
     required this.selectionMode,
     required this.isSelected,
@@ -1051,6 +1098,7 @@ class _SessionCardContent extends StatelessWidget {
   final String sessionSubtitle;
   final int? lastMessageTimestamp;
   final String? lastMessagePreview;
+  final String? lastMessageRole;
   final bool compact;
   final bool selectionMode;
   final bool isSelected;
@@ -1243,25 +1291,19 @@ class _SessionCardContent extends StatelessWidget {
                             const SizedBox(
                               height: AppSpacing.xs,
                             ),
-                            Text(
-                              lastMessagePreview!,
+                            _buildPreviewText(
+                              context: context,
+                              preview:
+                                  lastMessagePreview!,
+                              role: lastMessageRole,
                               style: theme
                                   .textTheme
                                   .bodySmall
                                   ?.copyWith(
-                                color: cs
-                                    .onSurfaceVariant
-                                    .withValues(
-                                  alpha:
-                                      AppOpacity.high,
-                                ),
                                 fontSize:
                                     AppFontSize.sm,
                                 height: 1.3,
                               ),
-                              overflow:
-                                  TextOverflow
-                                      .ellipsis,
                               maxLines: 2,
                             ),
                           ],
