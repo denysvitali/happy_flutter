@@ -1169,7 +1169,7 @@ what you have, you must use the options mode.
   }
 
   /// Debounced data change notification.
-  /// Batches rapid successive emissions within 16ms window.
+  /// Batches rapid successive emissions within 250ms window.
   void _notifyDataChanged() {
     _dataChangeDebounceTimer?.cancel();
     _dataChangeDebounceTimer = Timer(const Duration(milliseconds: 250), () {
@@ -1178,6 +1178,16 @@ what you have, you must use the options mode.
         _dataChangeController.add(null);
       }
     });
+  }
+
+  /// Immediately emit data change notification, bypassing debounce.
+  /// Use sparingly when listeners need to be notified synchronously.
+  void _flushDataChanged() {
+    _dataChangeDebounceTimer?.cancel();
+    if (!_dataChangeController.isClosed) {
+      _dataChangeCounter++;
+      _dataChangeController.add(null);
+    }
   }
 
   /// Debounced session-message change notification.
@@ -3900,8 +3910,11 @@ what you have, you must use the options mode.
           thinking: false,
           presence: 'offline',
         );
-        _notifyDataChanged();
       }
+      // Flush data change notification immediately so the counter is
+      // incremented before loadFromSync() is called. This ensures the
+      // sessions list updates without requiring a pull-to-refresh.
+      _flushDataChanged();
 
       // Pre-initialise messagesSync so the chat screen doesn't need to
       // wait for onSessionVisible() — prevents a window where the user
