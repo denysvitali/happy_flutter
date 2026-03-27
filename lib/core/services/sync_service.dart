@@ -454,7 +454,13 @@ what you have, you must use the options mode.
   /// Permission IDs for which a local notification has already been
   /// fired.  Prevents duplicate notifications across repeated
   /// [fetchSessions] calls.
+  ///
+  /// Capped at [_maxNotifiedPermissionIds] to prevent unbounded growth
+  /// across a long session; oldest entries are evicted when the cap is
+  /// reached.  Active (unresolved) permissions are re-added on next
+  /// [_checkForNewPermissionRequests] call if needed.
   final Set<String> _notifiedPermissionIds = {};
+  static const int _maxNotifiedPermissionIds = 500;
 
   /// Dedup set for inline socket messages.  Keyed by
   /// `"$sessionId:$messageId:$seq"` to skip duplicate `new-message`
@@ -5549,6 +5555,11 @@ what you have, you must use the options mode.
       for (final entry in requests.entries) {
         final permId = entry.key;
         if (_notifiedPermissionIds.contains(permId)) continue;
+        // Evict oldest entries when the cap is reached to bound memory.
+        if (_notifiedPermissionIds.length >= _maxNotifiedPermissionIds) {
+          _notifiedPermissionIds
+              .remove(_notifiedPermissionIds.first);
+        }
         _notifiedPermissionIds.add(permId);
 
         final request = entry.value;
