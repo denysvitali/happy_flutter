@@ -295,14 +295,9 @@ String getSessionName(Session session) {
   return 'Unknown';
 }
 
-/// Generates a deterministic avatar ID from machine ID and path.
-/// This ensures the same machine + path combination always gets
+/// Generates a deterministic avatar ID from the session ID.
+/// Each session gets its own unique avatar appearance.
 String getSessionAvatarId(Session session) {
-  if (session.metadata?.machineId != null && session.metadata?.path != null) {
-    // Combine machine ID and path for a unique, deterministic avatar
-    return '${session.metadata!.machineId}:${session.metadata!.path}';
-  }
-  // Fallback to session ID if metadata is missing
   return session.id;
 }
 
