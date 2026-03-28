@@ -18,6 +18,7 @@ Future<void> initSentryForPlatform(
       ..dsn = sentryDsn
       ..sendDefaultPii = true
       ..tracesSampleRate = 0.2
+      // ignore: experimental_member_use
       ..profilesSampleRate = 0.2
       ..release =
           _sentryRelease.isNotEmpty ? _sentryRelease : null
