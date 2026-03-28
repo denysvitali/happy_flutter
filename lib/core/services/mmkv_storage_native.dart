@@ -13,14 +13,215 @@ import 'logger_service.dart' show logger;
 class _StorageKeys {
   static const String settings = 'settings';
   static const String sessionDrafts = 'session-drafts';
-  static const String sessionPermissionModes = 'session-permission-modes';
+  static const String sessionPermissionModes =
+      'session-permission-modes';
   static const String sessionModelModes = 'session-model-modes';
   static const String sessionProfiles = 'session-profiles';
   static const String profile = 'profile';
   static const String migrationComplete = 'mmkv-migration-complete';
   static const String sessionLastSeq = 'session-last-seq';
-  static const String sessionFirstLoadedSeq = 'session-first-loaded-seq';
+  static const String sessionFirstLoadedSeq =
+      'session-first-loaded-seq';
   static const String sessionsCache = 'sessions-cache';
+}
+
+/// Generic store for a JSON-encoded `Map<String, String>` in MMKV.
+///
+/// Used by session-scoped maps (drafts, permission modes, model
+/// modes, profiles) to eliminate identical CRUD boilerplate.
+class _JsonMapStore {
+  _JsonMapStore({
+    required MMKV? Function() mmkv,
+    required String key,
+    Map<String, String>? cache,
+  })  : _mmkv = mmkv,
+        _key = key,
+        _cache = cache;
+
+  final MMKV? Function() _mmkv;
+  final String _key;
+  Map<String, String>? _cache;
+
+  /// Load from MMKV into cache, returning the map.
+  Map<String, String> _loadCache() {
+    try {
+      final json = _mmkv()?.decodeString(_key);
+      if (json != null) {
+        final decoded = jsonDecode(json) as Map<String, dynamic>;
+        return decoded.map(
+            (k, v) => MapEntry(k, v as String));
+      }
+    } catch (e) {
+      logger.warning('MMKV: Failed to load $_key: $e');
+    }
+    return {};
+  }
+
+  /// Get all entries (re-reads from MMKV each time).
+  Future<Map<String, String>> getAll() async {
+    try {
+      return _loadCache();
+    } catch (e) {
+      logger.warning('MMKV: Failed to get all $_key: $e');
+    }
+    return {};
+  }
+
+  /// Get a single entry by key.
+  Future<String?> get(String id) async {
+    try {
+      return _loadCache()[id];
+    } catch (e) {
+      logger.warning('MMKV: Failed to get $_key[$id]: $e');
+    }
+    return null;
+  }
+
+  /// Get a single entry synchronously (direct MMKV read).
+  String? getDirect(String id) {
+    try {
+      return _loadCache()[id];
+    } catch (e) {
+      logger.warning('MMKV: Failed to get direct $_key[$id]: $e');
+    }
+    return null;
+  }
+
+  /// Save a key-value pair, persisting the full map.
+  Future<void> save(String id, String value) async {
+    try {
+      final map = _loadCache();
+      map[id] = value;
+      _mmkv()?.encodeString(_key, jsonEncode(map));
+    } catch (e) {
+      logger.warning('MMKV: Failed to save $_key[$id]: $e');
+      rethrow;
+    }
+  }
+
+  /// Remove an entry by key, persisting the updated map.
+  Future<void> remove(String id) async {
+    try {
+      final map = _loadCache();
+      if (map.containsKey(id)) {
+        map.remove(id);
+        _mmkv()?.encodeString(_key, jsonEncode(map));
+      }
+    } catch (e) {
+      logger.warning('MMKV: Failed to remove $_key[$id]: $e');
+    }
+  }
+
+  /// Clear the entire map from MMKV.
+  Future<void> clear() async {
+    try {
+      _mmkv()?.removeValue(_key);
+    } catch (e) {
+      logger.warning('MMKV: Failed to clear $_key: $e');
+    }
+  }
+
+  // ── Cached (synchronous) accessors for permission/model modes ──
+
+  /// Get from in-memory cache (must call [initCache] first).
+  String? getFromCache(String id) => _cache?[id];
+
+  /// Save to in-memory cache and persist synchronously.
+  void saveToCache(String id, String value) {
+    _cache ??= {};
+    _cache![id] = value;
+    try {
+      _mmkv()?.encodeString(_key, jsonEncode(_cache));
+    } catch (e) {
+      logger.warning('MMKV: Failed to save cached $_key[$id]: $e');
+    }
+  }
+
+  /// Initialize cache from MMKV. Returns the loaded map.
+  Future<Map<String, String>> initCache() async {
+    _cache = _loadCache();
+    return _cache!;
+  }
+
+  /// Clear the in-memory cache (call after MMKV clear).
+  void clearCache() {
+    _cache = null;
+  }
+}
+
+/// Generic store for a JSON-encoded `Map<String, int>` cursor map
+/// backed by an in-memory cache with synchronous access.
+class _IntCursorStore {
+  _IntCursorStore({
+    required MMKV? Function() mmkv,
+    required String key,
+  })   : _mmkv = mmkv,
+        _key = key;
+
+  final MMKV? Function() _mmkv;
+  final String _key;
+  Map<String, int>? _cache;
+
+  Map<String, int> _loadFromMMKV() {
+    try {
+      final json = _mmkv()?.decodeString(_key);
+      if (json != null) {
+        final decoded = jsonDecode(json) as Map<String, dynamic>;
+        return decoded.map((k, v) => MapEntry(k, v as int));
+      }
+    } catch (e) {
+      logger.warning('MMKV: Failed to load $_key: $e');
+    }
+    return {};
+  }
+
+  /// Get all entries (returns cached copy if available).
+  Map<String, int> getAll() {
+    if (_cache != null) return Map<String, int>.from(_cache!);
+    final loaded = _loadFromMMKV();
+    if (loaded.isNotEmpty) {
+      _cache = loaded;
+      return Map<String, int>.from(_cache!);
+    }
+    return {};
+  }
+
+  /// Get a single entry by key (uses cache if available).
+  int? getSingle(String id) {
+    if (_cache != null) return _cache![id];
+    return getAll()[id];
+  }
+
+  /// Replace the entire map and persist.
+  void saveAll(Map<String, int> seqs) {
+    try {
+      _mmkv()?.encodeString(_key, jsonEncode(seqs));
+      _cache = Map<String, int>.from(seqs);
+    } catch (e) {
+      logger.warning('MMKV: Failed to save $_key: $e');
+    }
+  }
+
+  /// Update a single entry and persist.
+  void saveSingle(String id, int value) {
+    _cache ??= getAll();
+    _cache![id] = value;
+    try {
+      _mmkv()?.encodeString(_key, jsonEncode(_cache));
+    } catch (e) {
+      logger.warning('MMKV: Failed to save $_key[$id]: $e');
+    }
+  }
+
+  /// Clear all entries and reset cache.
+  void clearAll() {
+    try {
+      _mmkv()?.removeValue(_key);
+      _cache = null;
+    } catch (e) {
+      logger.warning('MMKV: Failed to clear $_key: $e');
+    }
+  }
 }
 
 /// MMKV-based storage wrapper with migration from SharedPreferences
@@ -37,28 +238,50 @@ class MMKVStorage {
   MMKV? _mmkv;
   bool _initialized = false;
 
-  // In-memory caches for frequently accessed session data
-  Map<String, int>? _lastSeqCache;
-  Map<String, int>? _firstLoadedSeqCache;
-  Map<String, String>? _permissionModesCache;
-  Map<String, String>? _modelModesCache;
+  // Lazy-initialized stores
+  late final _JsonMapStore _draftsStore = _JsonMapStore(
+    mmkv: () => _mmkv,
+    key: _StorageKeys.sessionDrafts,
+  );
+  late final _JsonMapStore _permissionModesStore = _JsonMapStore(
+    mmkv: () => _mmkv,
+    key: _StorageKeys.sessionPermissionModes,
+  );
+  late final _JsonMapStore _modelModesStore = _JsonMapStore(
+    mmkv: () => _mmkv,
+    key: _StorageKeys.sessionModelModes,
+  );
+  late final _JsonMapStore _profilesStore = _JsonMapStore(
+    mmkv: () => _mmkv,
+    key: _StorageKeys.sessionProfiles,
+  );
+  late final _IntCursorStore _lastSeqStore = _IntCursorStore(
+    mmkv: () => _mmkv,
+    key: _StorageKeys.sessionLastSeq,
+  );
+  late final _IntCursorStore _firstLoadedSeqStore = _IntCursorStore(
+    mmkv: () => _mmkv,
+    key: _StorageKeys.sessionFirstLoadedSeq,
+  );
+
+  Future<void> _ensureInitialized() async {
+    if (!_initialized) await initialize();
+  }
 
   /// Initialize MMKV and migrate data from SharedPreferences if needed
   static Future<void> initialize() async {
     if (_instance._initialized) return;
 
     try {
-      // Initialize MMKV library
       await MMKV.initialize();
-      // Get default MMKV instance
       _instance._mmkv = MMKV.defaultMMKV();
       _instance._initialized = true;
 
       // Initialize in-memory caches
-      _instance._lastSeqCache = _instance.getSessionLastSeq();
-      _instance._firstLoadedSeqCache = _instance.getSessionFirstLoadedSeq();
-      _instance._permissionModesCache = await _instance._loadPermissionModes();
-      _instance._modelModesCache = await _instance._loadModelModes();
+      _instance._lastSeqStore.getAll();
+      _instance._firstLoadedSeqStore.getAll();
+      await _instance._permissionModesStore.initCache();
+      await _instance._modelModesStore.initCache();
 
       // Check if migration is needed
       final migrationComplete =
@@ -66,8 +289,13 @@ class MMKVStorage {
 
       if (!migrationComplete) {
         await _instance._migrateFromSharedPreferences();
-        _instance._mmkv!.encodeBool(_StorageKeys.migrationComplete, true);
-        logger.info('MMKV: Migration from SharedPreferences completed');
+        _instance._mmkv!.encodeBool(
+          _StorageKeys.migrationComplete,
+          true,
+        );
+        logger.info(
+          'MMKV: Migration from SharedPreferences completed',
+        );
       }
     } catch (e) {
       logger.warning('MMKV: Initialization failed: $e');
@@ -82,64 +310,45 @@ class MMKVStorage {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // Migrate settings
-      final settingsJson = prefs.getString(_StorageKeys.settings);
-      if (settingsJson != null) {
-        _mmkv!.encodeString(_StorageKeys.settings, settingsJson);
-        await prefs.remove(_StorageKeys.settings);
-      }
-
-      // Migrate session drafts
-      final draftsJson = prefs.getString(_StorageKeys.sessionDrafts);
-      if (draftsJson != null) {
-        _mmkv!.encodeString(_StorageKeys.sessionDrafts, draftsJson);
-        await prefs.remove(_StorageKeys.sessionDrafts);
-      }
-
-      // Migrate session permission modes
-      final modesJson = prefs.getString(_StorageKeys.sessionPermissionModes);
-      if (modesJson != null) {
-        _mmkv!.encodeString(_StorageKeys.sessionPermissionModes, modesJson);
-        await prefs.remove(_StorageKeys.sessionPermissionModes);
-      }
-
-      // Migrate profile
-      final profileJson = prefs.getString(_StorageKeys.profile);
-      if (profileJson != null) {
-        _mmkv!.encodeString(_StorageKeys.profile, profileJson);
-        await prefs.remove(_StorageKeys.profile);
+      for (final key in [
+        _StorageKeys.settings,
+        _StorageKeys.sessionDrafts,
+        _StorageKeys.sessionPermissionModes,
+        _StorageKeys.profile,
+      ]) {
+        final json = prefs.getString(key);
+        if (json != null) {
+          _mmkv!.encodeString(key, json);
+          await prefs.remove(key);
+        }
       }
     } catch (e) {
       logger.warning('MMKV: Migration failed: $e');
-      // Don't rethrow - allow app to continue even if migration fails
     }
   }
 
+  // ── Settings ────────────────────────────────────────────────────
+
   /// Get settings from storage
   Future<Settings> getSettings() async {
-    if (!_initialized) {
-      await initialize();
-    }
-
+    await _ensureInitialized();
     try {
-      final settingsJson = _mmkv?.decodeString(_StorageKeys.settings);
+      final settingsJson =
+          _mmkv?.decodeString(_StorageKeys.settings);
       if (settingsJson != null) {
-        final decoded = jsonDecode(settingsJson) as Map<String, dynamic>;
+        final decoded =
+            jsonDecode(settingsJson) as Map<String, dynamic>;
         return Settings.fromJson(decoded);
       }
     } catch (e) {
       logger.warning('MMKV: Failed to load settings: $e');
     }
-
     return Settings();
   }
 
   /// Save settings to storage
   Future<void> saveSettings(Settings settings) async {
-    if (!_initialized) {
-      await initialize();
-    }
-
+    await _ensureInitialized();
     try {
       final settingsJson = jsonEncode(settings.toJson());
       _mmkv?.encodeString(_StorageKeys.settings, settingsJson);
@@ -151,10 +360,7 @@ class MMKVStorage {
 
   /// Clear settings from storage
   Future<void> clearSettings() async {
-    if (!_initialized) {
-      await initialize();
-    }
-
+    await _ensureInitialized();
     try {
       _mmkv?.removeValue(_StorageKeys.settings);
     } catch (e) {
@@ -162,564 +368,189 @@ class MMKVStorage {
     }
   }
 
+  // ── Session drafts (delegates to _JsonMapStore) ─────────────────
+
   /// Get draft for a specific session
   Future<String?> getSessionDraft(String sessionId) async {
-    if (!_initialized) {
-      await initialize();
-    }
-
-    try {
-      final draftsJson = _mmkv?.decodeString(_StorageKeys.sessionDrafts);
-      if (draftsJson != null) {
-        final drafts = jsonDecode(draftsJson) as Map<String, dynamic>;
-        return drafts[sessionId] as String?;
-      }
-    } catch (e) {
-      logger.warning('MMKV: Failed to get session draft: $e');
-    }
-
-    return null;
+    await _ensureInitialized();
+    return _draftsStore.get(sessionId);
   }
 
   /// Get draft for a specific session directly (synchronous)
-  /// Returns null if not initialized or draft not found
   String? getSessionDraftDirect(String sessionId) {
     if (!_initialized) return null;
-
-    try {
-      final draftsJson = _mmkv?.decodeString(_StorageKeys.sessionDrafts);
-      if (draftsJson != null) {
-        final drafts = jsonDecode(draftsJson) as Map<String, dynamic>;
-        return drafts[sessionId] as String?;
-      }
-    } catch (e) {
-      logger.warning('MMKV: Failed to get session draft direct: $e');
-    }
-
-    return null;
+    return _draftsStore.getDirect(sessionId);
   }
 
   /// Save draft for a specific session
-  Future<void> saveSessionDraft(String sessionId, String draft) async {
-    if (!_initialized) {
-      await initialize();
-    }
-
-    try {
-      final draftsJson = _mmkv?.decodeString(_StorageKeys.sessionDrafts);
-      final drafts = draftsJson != null
-          ? jsonDecode(draftsJson) as Map<String, dynamic>
-          : <String, dynamic>{};
-      drafts[sessionId] = draft;
-      _mmkv?.encodeString(
-          _StorageKeys.sessionDrafts, jsonEncode(drafts));
-    } catch (e) {
-      logger.warning('MMKV: Failed to save session draft: $e');
-      rethrow;
-    }
+  Future<void> saveSessionDraft(
+      String sessionId, String draft) async {
+    await _ensureInitialized();
+    return _draftsStore.save(sessionId, draft);
   }
 
   /// Remove draft for a specific session
   Future<void> removeSessionDraft(String sessionId) async {
-    if (!_initialized) {
-      await initialize();
-    }
-
-    try {
-      final draftsJson = _mmkv?.decodeString(_StorageKeys.sessionDrafts);
-      if (draftsJson != null) {
-        final drafts = (jsonDecode(draftsJson) as Map<String, dynamic>)
-          ..remove(sessionId);
-        _mmkv?.encodeString(
-          _StorageKeys.sessionDrafts,
-          jsonEncode(drafts),
-        );
-      }
-    } catch (e) {
-      logger.warning('MMKV: Failed to remove session draft: $e');
-    }
+    await _ensureInitialized();
+    return _draftsStore.remove(sessionId);
   }
 
   /// Get all session drafts
   Future<Map<String, String>> getSessionDrafts() async {
-    if (!_initialized) {
-      await initialize();
-    }
-
-    try {
-      final draftsJson = _mmkv?.decodeString(_StorageKeys.sessionDrafts);
-      if (draftsJson != null) {
-        final drafts = jsonDecode(draftsJson) as Map<String, dynamic>;
-        return drafts.map<String, String>(
-            (key, value) => MapEntry(key, value as String));
-      }
-    } catch (e) {
-      logger.warning('MMKV: Failed to get session drafts: $e');
-    }
-
-    return {};
+    await _ensureInitialized();
+    return _draftsStore.getAll();
   }
 
   /// Clear all session drafts
   Future<void> clearSessionDrafts() async {
-    if (!_initialized) {
-      await initialize();
-    }
-
-    try {
-      _mmkv?.removeValue(_StorageKeys.sessionDrafts);
-    } catch (e) {
-      logger.warning('MMKV: Failed to clear session drafts: $e');
-    }
+    await _ensureInitialized();
+    return _draftsStore.clear();
   }
 
+  // ── Session permission modes (delegates to _JsonMapStore) ──────
+
   /// Get permission mode for a specific session
-  Future<String?> getSessionPermissionMode(String sessionId) async {
-    if (!_initialized) {
-      await initialize();
-    }
-
-    try {
-      final modesJson = _mmkv?.decodeString(
-        _StorageKeys.sessionPermissionModes,
-      );
-      if (modesJson != null) {
-        final modes = jsonDecode(modesJson) as Map<String, dynamic>;
-        return modes[sessionId] as String?;
-      }
-    } catch (e) {
-      logger.warning('MMKV: Failed to get session permission mode: $e');
-    }
-
-    return null;
+  Future<String?> getSessionPermissionMode(
+      String sessionId) async {
+    await _ensureInitialized();
+    return _permissionModesStore.get(sessionId);
   }
 
   /// Save permission mode for a specific session
   Future<void> saveSessionPermissionMode(
       String sessionId, String mode) async {
-    if (!_initialized) {
-      await initialize();
-    }
-
-    try {
-      final modesJson = _mmkv?.decodeString(
-        _StorageKeys.sessionPermissionModes,
-      );
-      final modes = modesJson != null
-          ? jsonDecode(modesJson) as Map<String, dynamic>
-          : <String, dynamic>{};
-      modes[sessionId] = mode;
-      _mmkv?.encodeString(
-          _StorageKeys.sessionPermissionModes, jsonEncode(modes));
-    } catch (e) {
-      logger.warning('MMKV: Failed to save session permission mode: $e');
-      rethrow;
-    }
+    await _ensureInitialized();
+    return _permissionModesStore.save(sessionId, mode);
   }
 
   /// Remove permission mode for a specific session
-  Future<void> removeSessionPermissionMode(String sessionId) async {
-    if (!_initialized) {
-      await initialize();
-    }
-
-    try {
-      final modesJson = _mmkv?.decodeString(
-        _StorageKeys.sessionPermissionModes,
-      );
-      if (modesJson != null) {
-        final modes = (jsonDecode(modesJson) as Map<String, dynamic>)
-          ..remove(sessionId);
-        _mmkv?.encodeString(
-          _StorageKeys.sessionPermissionModes,
-          jsonEncode(modes),
-        );
-      }
-    } catch (e) {
-      logger.warning('MMKV: Failed to remove session permission mode: $e');
-    }
+  Future<void> removeSessionPermissionMode(
+      String sessionId) async {
+    await _ensureInitialized();
+    return _permissionModesStore.remove(sessionId);
   }
 
   /// Get all session permission modes
   Future<Map<String, String>> getSessionPermissionModes() async {
-    if (!_initialized) {
-      await initialize();
-    }
-
-    try {
-      final modesJson = _mmkv?.decodeString(
-        _StorageKeys.sessionPermissionModes,
-      );
-      if (modesJson != null) {
-        final modes = jsonDecode(modesJson) as Map<String, dynamic>;
-        return modes.map<String, String>(
-            (key, value) => MapEntry(key, value as String));
-      }
-    } catch (e) {
-      logger.warning('MMKV: Failed to get session permission modes: $e');
-    }
-
-    return {};
+    await _ensureInitialized();
+    return _permissionModesStore.getAll();
   }
 
   /// Clear all session permission modes
   Future<void> clearSessionPermissionModes() async {
-    if (!_initialized) {
-      await initialize();
-    }
-
-    try {
-      _mmkv?.removeValue(_StorageKeys.sessionPermissionModes);
-      _permissionModesCache = null;
-    } catch (e) {
-      logger.warning('MMKV: Failed to clear session permission modes: $e');
-    }
-  }
-
-  /// Load permission modes into memory cache (private helper)
-  Future<Map<String, String>> _loadPermissionModes() async {
-    if (!_initialized) return {};
-    try {
-      final modesJson = _mmkv?.decodeString(
-        _StorageKeys.sessionPermissionModes,
-      );
-      if (modesJson != null) {
-        final modes = jsonDecode(modesJson) as Map<String, dynamic>;
-        return modes.map<String, String>(
-            (key, value) => MapEntry(key, value as String));
-      }
-    } catch (e) {
-      logger.warning('MMKV: Failed to load permission modes cache: $e');
-    }
-    return {};
+    await _ensureInitialized();
+    await _permissionModesStore.clear();
+    _permissionModesStore.clearCache();
   }
 
   /// Get permission mode directly from cache (synchronous)
   String? getSessionPermissionModeDirect(String sessionId) {
     if (!_initialized) return null;
-    _permissionModesCache ??= {};
-    return _permissionModesCache![sessionId];
+    return _permissionModesStore.getFromCache(sessionId);
   }
 
   /// Save permission mode to cache and persist (synchronous)
-  void saveSessionPermissionModeDirect(String sessionId, String mode) {
+  void saveSessionPermissionModeDirect(
+      String sessionId, String mode) {
     if (!_initialized) return;
-
-    _permissionModesCache ??= {};
-    _permissionModesCache![sessionId] = mode;
-
-    try {
-      _mmkv?.encodeString(
-        _StorageKeys.sessionPermissionModes,
-        jsonEncode(_permissionModesCache),
-      );
-    } catch (e) {
-      logger.warning('MMKV: Failed to save session permission mode: $e');
-    }
+    _permissionModesStore.saveToCache(sessionId, mode);
   }
+
+  // ── Session model modes (delegates to _JsonMapStore) ────────────
 
   /// Get model mode for a specific session
   Future<String?> getSessionModelMode(String sessionId) async {
-    if (!_initialized) {
-      await initialize();
-    }
-    try {
-      final json = _mmkv?.decodeString(_StorageKeys.sessionModelModes);
-      if (json != null) {
-        final map = jsonDecode(json) as Map<String, dynamic>;
-        return map[sessionId] as String?;
-      }
-    } catch (e) {
-      logger.warning('MMKV: Failed to get session model mode: $e');
-    }
-    return null;
+    await _ensureInitialized();
+    return _modelModesStore.get(sessionId);
   }
 
   /// Save model mode for a specific session
   Future<void> saveSessionModelMode(
-    String sessionId,
-    String mode,
-  ) async {
-    if (!_initialized) {
-      await initialize();
-    }
-    try {
-      final json = _mmkv?.decodeString(_StorageKeys.sessionModelModes);
-      final map = json != null
-          ? jsonDecode(json) as Map<String, dynamic>
-          : <String, dynamic>{};
-      map[sessionId] = mode;
-      _mmkv?.encodeString(_StorageKeys.sessionModelModes, jsonEncode(map));
-      // Update cache
-      _modelModesCache ??= {};
-      _modelModesCache![sessionId] = mode;
-    } catch (e) {
-      logger.warning('MMKV: Failed to save session model mode: $e');
-      rethrow;
-    }
-  }
-
-  /// Load model modes into memory cache (private helper)
-  Future<Map<String, String>> _loadModelModes() async {
-    if (!_initialized) return {};
-    try {
-      final json = _mmkv?.decodeString(_StorageKeys.sessionModelModes);
-      if (json != null) {
-        final map = jsonDecode(json) as Map<String, dynamic>;
-        return map.map<String, String>(
-            (key, value) => MapEntry(key, value as String));
-      }
-    } catch (e) {
-      logger.warning('MMKV: Failed to load model modes cache: $e');
-    }
-    return {};
+      String sessionId, String mode) async {
+    await _ensureInitialized();
+    await _modelModesStore.save(sessionId, mode);
+    // Update cache
+    _modelModesStore.saveToCache(sessionId, mode);
   }
 
   /// Get model mode directly from cache (synchronous)
   String? getSessionModelModeDirect(String sessionId) {
     if (!_initialized) return null;
-    _modelModesCache ??= {};
-    return _modelModesCache![sessionId];
+    return _modelModesStore.getFromCache(sessionId);
   }
 
   /// Save model mode to cache and persist (synchronous)
-  void saveSessionModelModeDirect(String sessionId, String mode) {
+  void saveSessionModelModeDirect(
+      String sessionId, String mode) {
     if (!_initialized) return;
-
-    _modelModesCache ??= {};
-    _modelModesCache![sessionId] = mode;
-
-    try {
-      _mmkv?.encodeString(
-        _StorageKeys.sessionModelModes,
-        jsonEncode(_modelModesCache),
-      );
-    } catch (e) {
-      logger.warning('MMKV: Failed to save session model mode: $e');
-    }
+    _modelModesStore.saveToCache(sessionId, mode);
   }
+
+  // ── Session profiles (delegates to _JsonMapStore) ───────────────
 
   /// Get profile ID for a specific session
   Future<String?> getSessionProfile(String sessionId) async {
-    if (!_initialized) {
-      await initialize();
-    }
-    try {
-      final json = _mmkv?.decodeString(_StorageKeys.sessionProfiles);
-      if (json != null) {
-        final map = jsonDecode(json) as Map<String, dynamic>;
-        return map[sessionId] as String?;
-      }
-    } catch (e) {
-      logger.warning('MMKV: Failed to get session profile: $e');
-    }
-    return null;
+    await _ensureInitialized();
+    return _profilesStore.get(sessionId);
   }
 
   /// Save profile ID for a specific session
   Future<void> saveSessionProfile(
-    String sessionId,
-    String profileId,
-  ) async {
-    if (!_initialized) {
-      await initialize();
-    }
-    try {
-      final json = _mmkv?.decodeString(_StorageKeys.sessionProfiles);
-      final map = json != null
-          ? jsonDecode(json) as Map<String, dynamic>
-          : <String, dynamic>{};
-      map[sessionId] = profileId;
-      _mmkv?.encodeString(_StorageKeys.sessionProfiles, jsonEncode(map));
-    } catch (e) {
-      logger.warning('MMKV: Failed to save session profile: $e');
-      rethrow;
-    }
+      String sessionId, String profileId) async {
+    await _ensureInitialized();
+    return _profilesStore.save(sessionId, profileId);
   }
 
   /// Remove profile ID for a specific session
   Future<void> removeSessionProfile(String sessionId) async {
-    if (!_initialized) {
-      await initialize();
-    }
-    try {
-      final json = _mmkv?.decodeString(_StorageKeys.sessionProfiles);
-      if (json != null) {
-        final map = (jsonDecode(json) as Map<String, dynamic>)
-          ..remove(sessionId);
-        _mmkv?.encodeString(_StorageKeys.sessionProfiles, jsonEncode(map));
-      }
-    } catch (e) {
-      logger.warning('MMKV: Failed to remove session profile: $e');
-    }
+    await _ensureInitialized();
+    return _profilesStore.remove(sessionId);
   }
 
-  /// Get all persisted session last-seq cursors (synchronous — MMKV is sync)
-  Map<String, int> getSessionLastSeq() {
-    if (!_initialized) return {};
+  // ── Session last-seq (delegates to _IntCursorStore) ─────────────
 
-    // Return cached copy if available
-    if (_lastSeqCache != null) {
-      return Map<String, int>.from(_lastSeqCache!);
-    }
-
-    try {
-      final json = _mmkv?.decodeString(_StorageKeys.sessionLastSeq);
-      if (json != null) {
-        final decoded = jsonDecode(json) as Map<String, dynamic>;
-        _lastSeqCache = decoded.map((k, v) => MapEntry(k, v as int));
-        return Map<String, int>.from(_lastSeqCache!);
-      }
-    } catch (e) {
-      logger.warning('MMKV: Failed to get session last seq: $e');
-    }
-    return {};
-  }
+  /// Get all persisted session last-seq cursors (synchronous)
+  Map<String, int> getSessionLastSeq() => _lastSeqStore.getAll();
 
   /// Get a single session's last-seq cursor (synchronous, cached)
-  int? getSessionLastSeqSingle(String sessionId) {
-    if (!_initialized) return null;
-
-    // Use cache if available
-    if (_lastSeqCache != null) {
-      return _lastSeqCache![sessionId];
-    }
-
-    // Fall back to loading all data
-    final all = getSessionLastSeq();
-    return all[sessionId];
-  }
+  int? getSessionLastSeqSingle(String sessionId) =>
+      _lastSeqStore.getSingle(sessionId);
 
   /// Persist all session last-seq cursors (synchronous)
-  void saveSessionLastSeq(Map<String, int> seqs) {
-    if (!_initialized) return;
-    try {
-      _mmkv?.encodeString(
-        _StorageKeys.sessionLastSeq,
-        jsonEncode(seqs),
-      );
-      // Update cache
-      _lastSeqCache = Map<String, int>.from(seqs);
-    } catch (e) {
-      logger.warning('MMKV: Failed to save session last seq: $e');
-    }
-  }
+  void saveSessionLastSeq(Map<String, int> seqs) =>
+      _lastSeqStore.saveAll(seqs);
 
   /// Update a single session's last-seq cursor (synchronous, cached)
-  void saveSessionLastSeqSingle(String sessionId, int seq) {
-    if (!_initialized) return;
-
-    // Initialize cache if needed
-    _lastSeqCache ??= getSessionLastSeq();
-
-    // Update cache
-    _lastSeqCache![sessionId] = seq;
-
-    try {
-      _mmkv?.encodeString(
-        _StorageKeys.sessionLastSeq,
-        jsonEncode(_lastSeqCache),
-      );
-    } catch (e) {
-      logger.warning('MMKV: Failed to save session last seq: $e');
-    }
-  }
+  void saveSessionLastSeqSingle(String sessionId, int seq) =>
+      _lastSeqStore.saveSingle(sessionId, seq);
 
   /// Clear all session last-seq cursors
-  void clearSessionLastSeq() {
-    if (!_initialized) return;
-    try {
-      _mmkv?.removeValue(_StorageKeys.sessionLastSeq);
-      _lastSeqCache = null;
-    } catch (e) {
-      logger.warning('MMKV: Failed to clear session last seq: $e');
-    }
-  }
+  void clearSessionLastSeq() => _lastSeqStore.clearAll();
+
+  // ── Session first-loaded-seq (delegates to _IntCursorStore) ─────
 
   /// Get all persisted session first-loaded-seq cursors (synchronous)
-  Map<String, int> getSessionFirstLoadedSeq() {
-    if (!_initialized) return {};
+  Map<String, int> getSessionFirstLoadedSeq() =>
+      _firstLoadedSeqStore.getAll();
 
-    // Return cached copy if available
-    if (_firstLoadedSeqCache != null) {
-      return Map<String, int>.from(_firstLoadedSeqCache!);
-    }
-
-    try {
-      final json =
-          _mmkv?.decodeString(_StorageKeys.sessionFirstLoadedSeq);
-      if (json != null) {
-        final decoded = jsonDecode(json) as Map<String, dynamic>;
-        _firstLoadedSeqCache = decoded.map((k, v) => MapEntry(k, v as int));
-        return Map<String, int>.from(_firstLoadedSeqCache!);
-      }
-    } catch (e) {
-      logger.warning('MMKV: Failed to get session first loaded seq: $e');
-    }
-    return {};
-  }
-
-  /// Get a single session's first-loaded-seq cursor (synchronous, cached)
-  int? getSessionFirstLoadedSeqSingle(String sessionId) {
-    if (!_initialized) return null;
-
-    // Use cache if available
-    if (_firstLoadedSeqCache != null) {
-      return _firstLoadedSeqCache![sessionId];
-    }
-
-    // Fall back to loading all data
-    final all = getSessionFirstLoadedSeq();
-    return all[sessionId];
-  }
+  /// Get a single session's first-loaded-seq cursor (sync, cached)
+  int? getSessionFirstLoadedSeqSingle(String sessionId) =>
+      _firstLoadedSeqStore.getSingle(sessionId);
 
   /// Persist all session first-loaded-seq cursors (synchronous)
-  void saveSessionFirstLoadedSeq(Map<String, int> seqs) {
-    if (!_initialized) return;
-    try {
-      _mmkv?.encodeString(
-        _StorageKeys.sessionFirstLoadedSeq,
-        jsonEncode(seqs),
-      );
-      // Update cache
-      _firstLoadedSeqCache = Map<String, int>.from(seqs);
-    } catch (e) {
-      logger.warning('MMKV: Failed to save session first loaded seq: $e');
-    }
-  }
+  void saveSessionFirstLoadedSeq(Map<String, int> seqs) =>
+      _firstLoadedSeqStore.saveAll(seqs);
 
-  /// Update a single session's first-loaded-seq cursor (synchronous, cached)
-  void saveSessionFirstLoadedSeqSingle(String sessionId, int seq) {
-    if (!_initialized) return;
-
-    // Initialize cache if needed
-    _firstLoadedSeqCache ??= getSessionFirstLoadedSeq();
-
-    // Update cache
-    _firstLoadedSeqCache![sessionId] = seq;
-
-    try {
-      _mmkv?.encodeString(
-        _StorageKeys.sessionFirstLoadedSeq,
-        jsonEncode(_firstLoadedSeqCache),
-      );
-    } catch (e) {
-      logger.warning('MMKV: Failed to save session first loaded seq: $e');
-    }
-  }
+  /// Update a single session's first-loaded-seq cursor (sync)
+  void saveSessionFirstLoadedSeqSingle(
+          String sessionId, int seq) =>
+      _firstLoadedSeqStore.saveSingle(sessionId, seq);
 
   /// Clear all session first-loaded-seq cursors
-  void clearSessionFirstLoadedSeq() {
-    if (!_initialized) return;
-    try {
-      _mmkv?.removeValue(_StorageKeys.sessionFirstLoadedSeq);
-      _firstLoadedSeqCache = null;
-    } catch (e) {
-      logger.warning(
-        'MMKV: Failed to clear session first loaded seq', e,
-      );
-    }
-  }
+  void clearSessionFirstLoadedSeq() =>
+      _firstLoadedSeqStore.clearAll();
+
+  // ── Sessions cache ──────────────────────────────────────────────
 
   Map<String, dynamic>? getSessionsCache() {
     if (!_initialized) return null;
@@ -727,9 +558,7 @@ class MMKVStorage {
       final json = _mmkv?.decodeString(_StorageKeys.sessionsCache);
       if (json == null || json.isEmpty) return null;
       final decoded = jsonDecode(json);
-      if (decoded is Map<String, dynamic>) {
-        return decoded;
-      }
+      if (decoded is Map<String, dynamic>) return decoded;
       if (decoded is Map) {
         return Map<String, dynamic>.from(decoded);
       }
@@ -742,7 +571,8 @@ class MMKVStorage {
   void saveSessionsCache(Map<String, dynamic> cache) {
     if (!_initialized) return;
     try {
-      _mmkv?.encodeString(_StorageKeys.sessionsCache, jsonEncode(cache));
+      _mmkv?.encodeString(
+          _StorageKeys.sessionsCache, jsonEncode(cache));
     } catch (e) {
       logger.warning('MMKV: Failed to save sessions cache: $e');
     }
@@ -757,12 +587,11 @@ class MMKVStorage {
     }
   }
 
+  // ── Clear all ───────────────────────────────────────────────────
+
   /// Clear all data from MMKV storage
   Future<void> clearAll() async {
-    if (!_initialized) {
-      await initialize();
-    }
-
+    await _ensureInitialized();
     try {
       _mmkv?.clearAll();
     } catch (e) {
@@ -772,13 +601,11 @@ class MMKVStorage {
 
   /// Test helper: Write raw string to MMKV (for testing error handling)
   Future<void> writeRawString(String key, String value) async {
-    if (!_initialized) {
-      await initialize();
-    }
+    await _ensureInitialized();
     _mmkv?.encodeString(key, value);
   }
 
-  // ─── Session message cache ──────────────────────────────────────────
+  // ─── Session message cache ──────────────────────────────────────
 
   List<Map<String, dynamic>> getSessionMessages(String sessionId) {
     final raw = _mmkv?.decodeString('session-messages-$sessionId');
@@ -805,31 +632,51 @@ class MMKVStorage {
     _mmkv?.removeValue('session-messages-$sessionId');
   }
 
-  // ─── Outbox persistence ─────────────────────────────────────────────
+  // ─── Outbox persistence ─────────────────────────────────────────
 
   Future<String?> getOutboxEntries() async {
-    if (!_initialized) await initialize();
+    await _ensureInitialized();
     return _mmkv?.decodeString('outbox-entries');
   }
 
   Future<void> saveOutboxEntries(String jsonStr) async {
-    if (!_initialized) await initialize();
+    await _ensureInitialized();
     _mmkv?.encodeString('outbox-entries', jsonStr);
   }
 }
 
-/// Server configuration storage using separate MMKV instance
-/// This persists across logouts and is separate from user data
+/// Server configuration storage using separate MMKV instance.
+/// This persists across logouts and is separate from user data.
 class ServerConfigStorage {
   factory ServerConfigStorage() => _instance;
   ServerConfigStorage._();
-  static final ServerConfigStorage _instance = ServerConfigStorage._();
+  static final ServerConfigStorage _instance =
+      ServerConfigStorage._();
 
   MMKV? _mmkv;
   bool _initialized = false;
 
   static const String _serverUrlKey = 'custom-server-url';
-  static const String _serverUrlErrorKey = 'last-server-url-error';
+  static const String _serverUrlErrorKey =
+      'last-server-url-error';
+
+  Future<void> _ensureInitialized() async {
+    if (!_initialized) await initialize();
+  }
+
+  /// Ensure initialized synchronously (for sync getters).
+  void _syncInit() {
+    if (!_initialized) {
+      try {
+        _mmkv = MMKV('server-config');
+        _initialized = true;
+      } catch (e) {
+        logger.warning(
+          'ServerConfigStorage: Sync init failed: $e',
+        );
+      }
+    }
+  }
 
   /// Initialize server config MMKV instance
   static Future<void> initialize() async {
@@ -840,37 +687,30 @@ class ServerConfigStorage {
       _instance._mmkv = MMKV('server-config');
       _instance._initialized = true;
     } catch (e) {
-      logger.warning('ServerConfigStorage: Initialization failed: $e');
+      logger.warning(
+        'ServerConfigStorage: Initialization failed: $e',
+      );
       rethrow;
     }
   }
 
   /// Get custom server URL
   String? getServerUrl() {
-    if (!_initialized) {
-      try {
-        _mmkv = MMKV('server-config');
-        _initialized = true;
-      } catch (e) {
-        logger.warning('ServerConfigStorage: Sync init failed: $e');
-        return null;
-      }
-    }
-
+    _syncInit();
+    if (!_initialized) return null;
     try {
       return _mmkv?.decodeString(_serverUrlKey);
     } catch (e) {
-      logger.warning('ServerConfigStorage: Failed to get server URL: $e');
+      logger.warning(
+        'ServerConfigStorage: Failed to get server URL: $e',
+      );
       return null;
     }
   }
 
   /// Set custom server URL
   Future<void> setServerUrl(String? url) async {
-    if (!_initialized) {
-      await initialize();
-    }
-
+    await _ensureInitialized();
     try {
       if (url != null && url.trim().isNotEmpty) {
         _mmkv?.encodeString(_serverUrlKey, url.trim());
@@ -878,7 +718,9 @@ class ServerConfigStorage {
         _mmkv?.removeValue(_serverUrlKey);
       }
     } catch (e) {
-      logger.warning('ServerConfigStorage: Failed to set server URL: $e');
+      logger.warning(
+        'ServerConfigStorage: Failed to set server URL: $e',
+      );
       rethrow;
     }
   }
@@ -891,36 +733,27 @@ class ServerConfigStorage {
 
   /// Save server URL error for display on auth screen
   Future<void> saveServerUrlError(String error) async {
-    if (!_initialized) {
-      await initialize();
-    }
-
+    await _ensureInitialized();
     try {
       _mmkv?.encodeString(_serverUrlErrorKey, error);
     } catch (e) {
       logger.warning(
-        'ServerConfigStorage: Failed to save server URL error', e,
+        'ServerConfigStorage: Failed to save server URL error',
+        e,
       );
     }
   }
 
   /// Get the last server URL error
   String? getLastServerUrlError() {
-    if (!_initialized) {
-      try {
-        _mmkv = MMKV('server-config');
-        _initialized = true;
-      } catch (e) {
-        logger.warning('ServerConfigStorage: Sync init failed: $e');
-        return null;
-      }
-    }
-
+    _syncInit();
+    if (!_initialized) return null;
     try {
       return _mmkv?.decodeString(_serverUrlErrorKey);
     } catch (e) {
       logger.warning(
-        'ServerConfigStorage: Failed to get server URL error', e,
+        'ServerConfigStorage: Failed to get server URL error',
+        e,
       );
       return null;
     }
@@ -928,29 +761,26 @@ class ServerConfigStorage {
 
   /// Clear the last server URL error
   Future<void> clearLastServerUrlError() async {
-    if (!_initialized) {
-      await initialize();
-    }
-
+    await _ensureInitialized();
     try {
       _mmkv?.removeValue(_serverUrlErrorKey);
     } catch (e) {
       logger.warning(
-        'ServerConfigStorage: Failed to clear server URL error', e,
+        'ServerConfigStorage: Failed to clear server URL error',
+        e,
       );
     }
   }
 
   /// Clear all server config data
   Future<void> clearAll() async {
-    if (!_initialized) {
-      await initialize();
-    }
-
+    await _ensureInitialized();
     try {
       _mmkv?.clearAll();
     } catch (e) {
-      logger.warning('ServerConfigStorage: Failed to clear all: $e');
+      logger.warning(
+        'ServerConfigStorage: Failed to clear all: $e',
+      );
     }
   }
 }
@@ -969,21 +799,24 @@ class ProfileStorage {
     try {
       final profileJson = await _getString(_StorageKeys.profile);
       if (profileJson != null) {
-        final decoded = jsonDecode(profileJson) as Map<String, dynamic>;
-        // Map old format to new Profile format
+        final decoded =
+            jsonDecode(profileJson) as Map<String, dynamic>;
         return models.Profile(
           id: decoded['id'] as String? ?? '',
           timestamp: decoded['timestamp'] as int? ?? 0,
           firstName: decoded['firstName'] as String?,
           lastName: decoded['lastName'] as String?,
-          connectedServices: (decoded['connectedServices'] as List<dynamic>?)
-                  ?.map((e) => e as String)
-                  .toList() ??
-              [],
+          connectedServices:
+              (decoded['connectedServices'] as List<dynamic>?)
+                      ?.map((e) => e as String)
+                      .toList() ??
+                  [],
         );
       }
     } catch (e) {
-      logger.warning('ProfileStorage: Failed to load profile: $e');
+      logger.warning(
+        'ProfileStorage: Failed to load profile: $e',
+      );
     }
 
     return models.Profile.defaults;
@@ -1001,7 +834,9 @@ class ProfileStorage {
       });
       await _setString(_StorageKeys.profile, profileJson);
     } catch (e) {
-      logger.warning('ProfileStorage: Failed to save profile: $e');
+      logger.warning(
+        'ProfileStorage: Failed to save profile: $e',
+      );
       rethrow;
     }
   }
@@ -1011,7 +846,9 @@ class ProfileStorage {
     try {
       _storage._mmkv?.removeValue(_StorageKeys.profile);
     } catch (e) {
-      logger.warning('ProfileStorage: Failed to clear profile: $e');
+      logger.warning(
+        'ProfileStorage: Failed to clear profile: $e',
+      );
     }
   }
 
