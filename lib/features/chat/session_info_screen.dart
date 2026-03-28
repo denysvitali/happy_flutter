@@ -162,7 +162,8 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
       Navigator.of(context).pop();
     } catch (e, st) {
       logger.error(
-        'Failed to archive session from info screen: sessionId=${widget.session.id}',
+        'Failed to archive session from info screen: '
+            'sessionId=${widget.session.id}',
         e,
         st,
       );
@@ -360,19 +361,31 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     : session.id,
                 onTap: () => _copyToClipboard(session.id),
               ),
-              const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+              const Divider(
+                height: 1,
+                thickness: AppBorder.hairline,
+                indent: 52,
+              ),
               _InfoRow(
                 icon: Icons.access_time,
                 label: l10n.sessionInfoLabelCreated,
                 value: _formatDate(session.createdAt),
               ),
-              const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+              const Divider(
+                height: 1,
+                thickness: AppBorder.hairline,
+                indent: 52,
+              ),
               _InfoRow(
                 icon: Icons.update,
                 label: l10n.sessionInfoLabelLastUpdated,
                 value: _formatDate(session.updatedAt),
               ),
-              const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+              const Divider(
+                height: 1,
+                thickness: AppBorder.hairline,
+                indent: 52,
+              ),
               _InfoRow(
                 icon: Icons.tag,
                 label: l10n.sessionInfoLabelSequence,
@@ -409,7 +422,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 ),
               ],
               if (meta?.machineId != null && (isOnline || !session.active))
-                const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+                const Divider(
+                  height: 1,
+                  thickness: AppBorder.hairline,
+                  indent: 52,
+                ),
               if (isOnline)
                 _ActionRow(
                   icon: Icons.archive_outlined,
@@ -419,7 +436,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   onTap: _isArchiving ? null : _handleArchiveSession,
                 ),
               if (isOnline && !session.active)
-                const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+                const Divider(
+                  height: 1,
+                  thickness: AppBorder.hairline,
+                  indent: 52,
+                ),
               if (!session.active)
                 _ActionRow(
                   icon: Icons.delete_outline,
@@ -456,7 +477,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   value: meta.host,
                 ),
                 if (meta.path != null) ...[
-                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+                  const Divider(
+                    height: 1,
+                    thickness: AppBorder.hairline,
+                    indent: 52,
+                  ),
                   _InfoRow(
                     icon: Icons.folder_outlined,
                     label: l10n.sessionInfoLabelPath,
@@ -467,7 +492,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.machineId != null) ...[
-                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+                  const Divider(
+                    height: 1,
+                    thickness: AppBorder.hairline,
+                    indent: 52,
+                  ),
                   _InfoRow(
                     icon: Icons.dns_outlined,
                     label: l10n.sessionInfoLabelMachineId,
@@ -477,7 +506,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.os != null) ...[
-                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+                  const Divider(
+                    height: 1,
+                    thickness: AppBorder.hairline,
+                    indent: 52,
+                  ),
                   _InfoRow(
                     icon: Icons.memory,
                     label: l10n.sessionInfoLabelOs,
@@ -485,7 +518,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.version != null) ...[
-                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+                  const Divider(
+                    height: 1,
+                    thickness: AppBorder.hairline,
+                    indent: 52,
+                  ),
                   _InfoRow(
                     icon: isCliOutdated
                         ? Icons.warning_amber_outlined
@@ -498,7 +535,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.flavor != null) ...[
-                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+                  const Divider(
+                    height: 1,
+                    thickness: AppBorder.hairline,
+                    indent: 52,
+                  ),
                   _InfoRow(
                     icon: Icons.auto_awesome,
                     label: l10n.sessionInfoLabelAiProvider,
@@ -506,7 +547,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.claudeSessionId != null) ...[
-                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+                  const Divider(
+                    height: 1,
+                    thickness: AppBorder.hairline,
+                    indent: 52,
+                  ),
                   _InfoRow(
                     icon: Icons.code_outlined,
                     label: l10n.sessionInfoLabelClaudeSessionId,
@@ -520,7 +565,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.hostPid != null) ...[
-                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+                  const Divider(
+                    height: 1,
+                    thickness: AppBorder.hairline,
+                    indent: 52,
+                  ),
                   _InfoRow(
                     icon: Icons.terminal,
                     label: l10n.sessionInfoLabelProcessId,
@@ -528,7 +577,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.happyHomeDir != null) ...[
-                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+                  const Divider(
+                    height: 1,
+                    thickness: AppBorder.hairline,
+                    indent: 52,
+                  ),
                   _InfoRow(
                     icon: Icons.home_outlined,
                     label: l10n.sessionInfoLabelHappyHome,
@@ -538,7 +591,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     ),
                   ),
                 ],
-                const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+                const Divider(
+                  height: 1,
+                  thickness: AppBorder.hairline,
+                  indent: 52,
+                ),
                 _ActionRow(
                   icon: Icons.copy_outlined,
                   label: l10n.sessionInfoActionCopyMetadata,
@@ -582,7 +639,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 ),
                 if (session.agentState!.requests != null &&
                     session.agentState!.requests!.isNotEmpty) ...[
-                  const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+                  const Divider(
+                    height: 1,
+                    thickness: AppBorder.hairline,
+                    indent: 52,
+                  ),
                   _InfoRow(
                     icon: Icons.hourglass_empty_outlined,
                     label: l10n.sessionInfoLabelPendingRequests,
@@ -622,7 +683,11 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               ),
               if (session.thinking &&
                   session.thinkingAt != null) ...[
-                const Divider(height: 1, thickness: AppBorder.hairline, indent: 52),
+                const Divider(
+                  height: 1,
+                  thickness: AppBorder.hairline,
+                  indent: 52,
+                ),
                 _InfoRow(
                   icon: Icons.timer_outlined,
                   label: l10n.sessionInfoLabelThinkingSince,
