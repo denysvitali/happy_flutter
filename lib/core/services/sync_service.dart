@@ -4271,7 +4271,12 @@ what you have, you must use the options mode.
         BashResponse.fromJson,
       );
     } catch (error) {
-      logger.error('machineBash error', error);
+      if (error is StateError &&
+          error.message.contains('not connected')) {
+        logger.info('machineBash: socket not connected');
+      } else {
+        logger.error('machineBash error', error);
+      }
     }
     return const BashResponse(success: false, stderr: 'RPC call failed');
   }
@@ -4289,7 +4294,12 @@ what you have, you must use the options mode.
         ReadFileResponse.fromJson,
       );
     } catch (error) {
-      logger.error('machineReadFile error', error);
+      if (error is StateError &&
+          error.message.contains('not connected')) {
+        logger.info('machineReadFile: socket not connected');
+      } else {
+        logger.error('machineReadFile error', error);
+      }
     }
     return const ReadFileResponse(
       success: false,
@@ -4312,7 +4322,17 @@ what you have, you must use the options mode.
         ClaudeUsageLimitsResponse.fromJson,
       );
     } catch (error) {
-      logger.warning('machineGetClaudeUsageLimits error', error);
+      if (error is StateError &&
+          error.message.contains('not connected')) {
+        logger.info(
+          'machineGetClaudeUsageLimits: socket not connected',
+        );
+      } else {
+        logger.warning(
+          'machineGetClaudeUsageLimits error',
+          error,
+        );
+      }
     }
     return const ClaudeUsageLimitsResponse(
       success: false,
@@ -6016,11 +6036,13 @@ what you have, you must use the options mode.
           _notifyDataChanged();
         }
       }
-      // Request tail refresh if cache restore failed OR if the cache
-      // is potentially stale (pending socket messages).  When the
-      // cache was restored successfully and there are no pending
-      // messages, the normal delta fetch is sufficient.
-      if (!hasMessages || hasPendingSocketMessages) {
+      // Only request a tail refresh when there are NO messages to show.
+      // When cache was restored, the incremental delta path (afterSeq =
+      // _sessionLastSeq) is sufficient and avoids a destructive
+      // gap-recovery that clears the cached messages the user already
+      // sees.  The delta fetch will pick up newer messages and merge
+      // them with the cache.
+      if (!hasMessages) {
         _requestTailRefresh(sessionId);
         logger.info(
           '[onSessionVisible] tailRefresh requested '
@@ -6433,19 +6455,33 @@ what you have, you must use the options mode.
         await Future<void>.delayed(Duration.zero);
 
         // ── Upsert messages ──
-        // For gap recovery, clear stale in-memory messages right before
-        // the first successful upsert so we don't lose messages if the
-        // network request fails. We defer clearing until we know the fetch
-        // succeeded.
+        // For gap recovery on truly first loads (no cached messages),
+        // clear before upserting to prevent stale data from lingering.
+        // When cached messages exist, merge the tail with existing data
+        // instead of clearing — the user is already seeing the cached
+        // messages and clearing them would cause a visible flash of
+        // empty content.  The maxMessages cap in _upsertSessionMessages
+        // prevents unbounded growth.
         if (isGapRecovery && page == 0 && processed.messages.isNotEmpty) {
-          _sessionMessages.remove(sessionId);
-          _sessionMessagesCache = null;
-          _sessionMessagesViewCache.remove(sessionId);
-          MessageCacheService().clearMessages(sessionId);
-          logger.info(
-            '[fetchMessages] $sessionId gap recovery: cleared stale messages '
-            'before upserting ${processed.messages.length} new ones',
-          );
+          final hasCachedMessages =
+              (_sessionMessages[sessionId]?.isNotEmpty ?? false);
+          if (!hasCachedMessages) {
+            _sessionMessages.remove(sessionId);
+            _sessionMessagesCache = null;
+            _sessionMessagesViewCache.remove(sessionId);
+            MessageCacheService().clearMessages(sessionId);
+            logger.info(
+              '[fetchMessages] $sessionId gap recovery: cleared stale '
+              'messages before upserting '
+              '${processed.messages.length} new ones',
+            );
+          } else {
+            logger.info(
+              '[fetchMessages] $sessionId gap recovery: merging '
+              '${processed.messages.length} new messages with '
+              '${_sessionMessages[sessionId]?.length ?? 0} cached',
+            );
+          }
         }
         final existingCount = _sessionMessages[sessionId]?.length ?? 0;
         final upsertStart = Stopwatch()..start();
