@@ -33,6 +33,73 @@ class ProcessedMessages {
   final List<String> droppedReasons;
 }
 
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+/// Extracts sidechain metadata from a data envelope.
+///
+/// Returns a record with `(isSidechain, uuid, parentUuid)` extracted from
+/// the various naming conventions used across wire formats.
+({bool isSidechain, String? uuid, String? parentUuid}) _sidechainMeta(
+  Map<String, dynamic> data,
+) {
+  return (
+    isSidechain:
+        data['isSidechain'] == true || data['is_sidechain'] == true,
+    uuid: (data['uuid'] ?? data['id']) as String?,
+    parentUuid: (data['subagent'] ??
+        data['parentUuid'] ??
+        data['parent_uuid']) as String?,
+  );
+}
+
+int _parseCreatedAtMs(dynamic raw) {
+  if (raw is int) return raw;
+  if (raw is String) {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed != null) return parsed.millisecondsSinceEpoch;
+  }
+  return DateTime.now().millisecondsSinceEpoch;
+}
+
+bool _looksLikeSessionEnvelope(dynamic value) {
+  if (value is! Map<String, dynamic>) return false;
+  final hasEvent =
+      value['ev'] is Map<String, dynamic> ||
+      value['event'] is Map<String, dynamic>;
+  final hasIdentity =
+      value['id'] != null || value['uuid'] != null || value['time'] != null;
+  return hasEvent && hasIdentity;
+}
+
+String? _extractAgentFallbackText(dynamic nestedContent) {
+  if (nestedContent is! Map<String, dynamic>) return null;
+
+  final directText = nestedContent['text'] ?? nestedContent['message'];
+  if (directText is String && directText.isNotEmpty) {
+    return directText;
+  }
+
+  final data = nestedContent['data'];
+  if (data is Map<String, dynamic>) {
+    final dataMessage = data['message'];
+    if (dataMessage is String && dataMessage.isNotEmpty) {
+      return dataMessage;
+    }
+    final dataText = data['text'];
+    if (dataText is String && dataText.isNotEmpty) {
+      return dataText;
+    }
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Main entry point
+// ---------------------------------------------------------------------------
+
 /// Process a list of decrypted message JSON maps into display messages,
 /// tool results, and usage updates.
 ///
@@ -62,8 +129,7 @@ ProcessedMessages processDecryptedMessages({
     final id = wire['id'] as String? ?? '';
     final seq = wire['seq'] as int? ?? 0;
     final localId = wire['localId'] as String?;
-    final rawCreatedAt = wire['createdAt'];
-    final createdAt = _parseCreatedAtMs(rawCreatedAt);
+    final createdAt = _parseCreatedAtMs(wire['createdAt']);
 
     final decrypted = i < decryptedJsonList.length
         ? decryptedJsonList[i]
@@ -72,11 +138,9 @@ ProcessedMessages processDecryptedMessages({
     if (decrypted == null) {
       if (seq > maxSeq) maxSeq = seq;
 
-      // Check if message was actually encrypted — if not,
-      // skip silently instead of showing a decryption error.
       final encrypted = wasEncrypted != null && i < wasEncrypted.length
           ? wasEncrypted[i]
-          : true; // default: assume encrypted (backwards compat)
+          : true;
 
       if (!encrypted) {
         droppedReasons.add(
@@ -85,7 +149,6 @@ ProcessedMessages processDecryptedMessages({
         continue;
       }
 
-      // Decryption actually failed — emit error placeholder
       messages.add({
         'id': 'error-${id.isEmpty ? 'unknown-$i' : id}',
         'seq': seq,
@@ -201,18 +264,8 @@ ProcessedMessages processDecryptedMessages({
           messages: messages,
           toolResults: toolResults,
         );
-      } else if (_looksLikeSessionEnvelope(nestedContent)) {
-        _processSessionContent(
-          id: id,
-          localId: localId,
-          seq: seq,
-          createdAt: createdAt,
-          outerContent: content,
-          nestedContent: nestedContent,
-          messages: messages,
-          toolResults: toolResults,
-        );
-      } else if (contentType == 'session') {
+      } else if (_looksLikeSessionEnvelope(nestedContent) ||
+          contentType == 'session') {
         _processSessionContent(
           id: id,
           localId: localId,
@@ -244,7 +297,8 @@ ProcessedMessages processDecryptedMessages({
             'role': 'system',
             'kind': 'error',
             'errorType': 'unknown_agent_content_type',
-            'errorMessage': 'Unrecognized agent content type: $contentType',
+            'errorMessage':
+                'Unrecognized agent content type: $contentType',
             'debugData': {
               'messageId': id,
               'seq': seq,
@@ -292,51 +346,9 @@ ProcessedMessages processDecryptedMessages({
   );
 }
 
-bool _looksLikeSessionEnvelope(dynamic value) {
-  if (value is! Map<String, dynamic>) return false;
-  final hasEvent =
-      value['ev'] is Map<String, dynamic> ||
-      value['event'] is Map<String, dynamic>;
-  final hasIdentity =
-      value['id'] != null || value['uuid'] != null || value['time'] != null;
-  return hasEvent && hasIdentity;
-}
-
-String? _extractAgentFallbackText(dynamic nestedContent) {
-  if (nestedContent is! Map<String, dynamic>) return null;
-
-  final directText = nestedContent['text'] ?? nestedContent['message'];
-  if (directText is String && directText.isNotEmpty) {
-    return directText;
-  }
-
-  final data = nestedContent['data'];
-  if (data is Map<String, dynamic>) {
-    final dataMessage = data['message'];
-    if (dataMessage is String && dataMessage.isNotEmpty) {
-      return dataMessage;
-    }
-    final dataText = data['text'];
-    if (dataText is String && dataText.isNotEmpty) {
-      return dataText;
-    }
-  }
-
-  return null;
-}
-
 // ---------------------------------------------------------------------------
-// Private helpers
+// Content-type handlers
 // ---------------------------------------------------------------------------
-
-int _parseCreatedAtMs(dynamic raw) {
-  if (raw is int) return raw;
-  if (raw is String) {
-    final parsed = DateTime.tryParse(raw);
-    if (parsed != null) return parsed.millisecondsSinceEpoch;
-  }
-  return DateTime.now().millisecondsSinceEpoch;
-}
 
 void _processUserMessage({
   required String id,
@@ -347,30 +359,21 @@ void _processUserMessage({
   required dynamic nestedContent,
   required List<Map<String, dynamic>> messages,
 }) {
-  if (nestedContent is Map<String, dynamic> &&
-      nestedContent['type'] == 'text') {
-    messages.add({
-      'id': id,
-      'localId': localId,
-      'seq': seq,
-      'createdAt': createdAt,
-      'role': 'user',
-      'kind': 'text',
-      'content': nestedContent['text']?.toString() ?? '',
-      'raw': content,
-    });
-  } else {
-    messages.add({
-      'id': id,
-      'localId': localId,
-      'seq': seq,
-      'createdAt': createdAt,
-      'role': 'user',
-      'kind': 'text',
-      'content': content.toString(),
-      'raw': content,
-    });
-  }
+  final text = nestedContent is Map<String, dynamic> &&
+          nestedContent['type'] == 'text'
+      ? nestedContent['text']?.toString() ?? ''
+      : content.toString();
+
+  messages.add({
+    'id': id,
+    'localId': localId,
+    'seq': seq,
+    'createdAt': createdAt,
+    'role': 'user',
+    'kind': 'text',
+    'content': text,
+    'raw': content,
+  });
 }
 
 void _processOutputContent({
@@ -390,24 +393,16 @@ void _processOutputContent({
 
   if (data['isMeta'] == true || data['isCompactSummary'] == true) return;
 
-  final isSidechain =
-      data['isSidechain'] == true || data['is_sidechain'] == true;
-  final dataUuid = (data['uuid'] ?? data['id']) as String?;
-  final dataParentUuid =
-      (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])
-          as String?;
+  final meta = _sidechainMeta(data);
   final dataType = data['type'] as String?;
 
   if (dataType == 'assistant') {
-    // Synthesise a UUID from the message id when the server omits it
-    // (older sessions may lack uuid/id in the data envelope).
-    final effectiveUuid = (dataUuid != null && dataUuid.isNotEmpty)
-        ? dataUuid
+    final effectiveUuid = (meta.uuid != null && meta.uuid!.isNotEmpty)
+        ? meta.uuid!
         : id;
 
     final agentMsg = data['message'];
     if (agentMsg is! Map<String, dynamic>) {
-      // Legacy format: message might be a bare string.
       if (agentMsg is String && agentMsg.isNotEmpty) {
         messages.add({
           'id': id,
@@ -418,9 +413,9 @@ void _processOutputContent({
           'kind': 'text',
           'content': agentMsg,
           'raw': outerContent,
-          if (isSidechain) 'isSidechain': true,
+          if (meta.isSidechain) 'isSidechain': true,
           'uuid': effectiveUuid,
-          'parentUuid': ?dataParentUuid,
+          'parentUuid': ?meta.parentUuid,
         });
       }
       return;
@@ -439,8 +434,6 @@ void _processOutputContent({
 
     final agentContentList = agentMsg['content'];
     if (agentContentList is! List) {
-      // Legacy format: content might be a bare string instead of
-      // Claude API content blocks.
       if (agentContentList is String && agentContentList.isNotEmpty) {
         messages.add({
           'id': id,
@@ -452,9 +445,9 @@ void _processOutputContent({
           'content': agentContentList,
           'raw': outerContent,
           'model': ?agentModel,
-          if (isSidechain) 'isSidechain': true,
+          if (meta.isSidechain) 'isSidechain': true,
           'uuid': effectiveUuid,
-          'parentUuid': ?dataParentUuid,
+          'parentUuid': ?meta.parentUuid,
         });
       }
       return;
@@ -479,9 +472,9 @@ void _processOutputContent({
           'content': c['text']?.toString() ?? '',
           'raw': outerContent,
           'model': ?agentModel,
-          if (isSidechain) 'isSidechain': true,
+          if (meta.isSidechain) 'isSidechain': true,
           'uuid': effectiveUuid,
-          'parentUuid': ?dataParentUuid,
+          'parentUuid': ?meta.parentUuid,
         });
       } else if (type == 'thinking') {
         messages.add({
@@ -495,19 +488,14 @@ void _processOutputContent({
           'content': '*Thinking...*\n\n*${c['thinking']}*',
           'raw': outerContent,
           'model': ?agentModel,
-          if (isSidechain) 'isSidechain': true,
+          if (meta.isSidechain) 'isSidechain': true,
           'uuid': effectiveUuid,
-          'parentUuid': ?dataParentUuid,
+          'parentUuid': ?meta.parentUuid,
         });
       } else if (type == 'tool_use' ||
           type == 'server_tool_use' ||
           type == 'mcp_tool_use' ||
           type == 'code_execution_tool_use') {
-        // Use the tool-use ID as uuid when available so that
-        // parallel tool calls from the same assistant message
-        // get unique UUIDs for sidechain grouping (the shared
-        // effectiveUuid causes collision in SidechainGrouper
-        // when multiple Agent/Task calls are batched together).
         final toolUseUuid =
             (c['id'] as String?)?.isNotEmpty ?? false
                 ? c['id'] as String
@@ -526,17 +514,14 @@ void _processOutputContent({
           'content': c,
           'raw': outerContent,
           'model': ?agentModel,
-          if (isSidechain) 'isSidechain': true,
+          if (meta.isSidechain) 'isSidechain': true,
           'uuid': toolUseUuid,
-          'parentUuid': ?dataParentUuid,
+          'parentUuid': ?meta.parentUuid,
         });
       } else if (type == 'web_search_tool_result' ||
           type == 'server_tool_result' ||
           type == 'mcp_tool_result' ||
           type == 'code_execution_tool_result') {
-        // Server/MCP tool results arrive in the same assistant
-        // message as the tool-use block. Extract them so
-        // _applyToolResults can match them to the tool-call.
         final toolUseId = c['tool_use_id'] as String?;
         if (toolUseId != null && toolUseId.isNotEmpty) {
           toolResults.add({
@@ -544,9 +529,9 @@ void _processOutputContent({
             'result': c['content'],
             'isError': c['is_error'] == true,
             'createdAt': createdAt,
-            if (isSidechain) 'isSidechain': true,
+            if (meta.isSidechain) 'isSidechain': true,
             'uuid': effectiveUuid,
-            'parentUuid': ?dataParentUuid,
+            'parentUuid': ?meta.parentUuid,
           });
         }
       }
@@ -556,10 +541,8 @@ void _processOutputContent({
   }
 
   if (dataType == 'user') {
-    if (isSidechain) {
+    if (meta.isSidechain) {
       final msgContent = data['message']?['content'];
-      // Extract the prompt text — bare string or Claude API
-      // content-block format [{type: 'text', text: '...'}].
       final promptText = msgContent is String
           ? msgContent
           : (msgContent is List
@@ -573,8 +556,8 @@ void _processOutputContent({
           'kind': 'sidechain-root',
           'isSidechain': true,
           'prompt': promptText,
-          'uuid': ?dataUuid,
-          'parentUuid': ?dataParentUuid,
+          'uuid': ?meta.uuid,
+          'parentUuid': ?meta.parentUuid,
         });
         return;
       }
@@ -590,9 +573,9 @@ void _processOutputContent({
             'isError': c['is_error'] == true,
             'createdAt': createdAt,
             'permissions': c['permissions'],
-            if (isSidechain) 'isSidechain': true,
-            'uuid': ?dataUuid,
-            'parentUuid': ?dataParentUuid,
+            if (meta.isSidechain) 'isSidechain': true,
+            'uuid': ?meta.uuid,
+            'parentUuid': ?meta.parentUuid,
           });
         }
       }
@@ -658,15 +641,7 @@ void _processCodexContent({
   }
 
   final dataType = data['type'] as String?;
-
-  // Sidechain metadata for sub-agent grouping
-  final isSidechain =
-      data['isSidechain'] == true || data['is_sidechain'] == true;
-  final uuid =
-      (data['uuid'] ?? data['id']) as String?;
-  final parentUuid =
-      (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])
-          as String?;
+  final meta = _sidechainMeta(data);
 
   if (dataType == 'message' || dataType == 'reasoning') {
     messages.add({
@@ -678,9 +653,9 @@ void _processCodexContent({
       'kind': 'text',
       'content': data['message']?.toString() ?? '',
       'raw': outerContent,
-      if (isSidechain) 'isSidechain': true,
-      'uuid': ?uuid,
-      'parentUuid': ?parentUuid,
+      if (meta.isSidechain) 'isSidechain': true,
+      'uuid': ?meta.uuid,
+      'parentUuid': ?meta.parentUuid,
     });
     return;
   }
@@ -699,9 +674,9 @@ void _processCodexContent({
       'state': 'running',
       'content': data,
       'raw': outerContent,
-      if (isSidechain) 'isSidechain': true,
-      'uuid': ?uuid,
-      'parentUuid': ?parentUuid,
+      if (meta.isSidechain) 'isSidechain': true,
+      'uuid': ?meta.uuid,
+      'parentUuid': ?meta.parentUuid,
     });
     return;
   }
@@ -713,9 +688,9 @@ void _processCodexContent({
       'result': result,
       'isError': data['isError'] == true || data['is_error'] == true,
       'createdAt': createdAt,
-      if (isSidechain) 'isSidechain': true,
-      'uuid': ?uuid,
-      'parentUuid': ?parentUuid,
+      if (meta.isSidechain) 'isSidechain': true,
+      'uuid': ?meta.uuid,
+      'parentUuid': ?meta.parentUuid,
     });
   }
 }
@@ -746,15 +721,7 @@ void _processAcpContent({
   if (data is! Map<String, dynamic>) return;
 
   final dataType = data['type'] as String?;
-
-  // Sidechain metadata for sub-agent grouping
-  final isSidechain =
-      data['isSidechain'] == true || data['is_sidechain'] == true;
-  final uuid =
-      (data['uuid'] ?? data['id']) as String?;
-  final parentUuid =
-      (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])
-          as String?;
+  final meta = _sidechainMeta(data);
 
   if (dataType == 'message' || dataType == 'reasoning') {
     messages.add({
@@ -766,9 +733,9 @@ void _processAcpContent({
       'kind': 'text',
       'content': data['message']?.toString() ?? '',
       'raw': outerContent,
-      if (isSidechain) 'isSidechain': true,
-      'uuid': ?uuid,
-      'parentUuid': ?parentUuid,
+      if (meta.isSidechain) 'isSidechain': true,
+      'uuid': ?meta.uuid,
+      'parentUuid': ?meta.parentUuid,
     });
     return;
   }
@@ -784,9 +751,9 @@ void _processAcpContent({
       'isThinking': true,
       'content': '*Thinking...*\n\n*${data['text']}*',
       'raw': outerContent,
-      if (isSidechain) 'isSidechain': true,
-      'uuid': ?uuid,
-      'parentUuid': ?parentUuid,
+      if (meta.isSidechain) 'isSidechain': true,
+      'uuid': ?meta.uuid,
+      'parentUuid': ?meta.parentUuid,
     });
     return;
   }
@@ -805,9 +772,9 @@ void _processAcpContent({
       'state': 'running',
       'content': data,
       'raw': outerContent,
-      if (isSidechain) 'isSidechain': true,
-      'uuid': ?uuid,
-      'parentUuid': ?parentUuid,
+      if (meta.isSidechain) 'isSidechain': true,
+      'uuid': ?meta.uuid,
+      'parentUuid': ?meta.parentUuid,
     });
     return;
   }
@@ -819,9 +786,9 @@ void _processAcpContent({
       'result': result,
       'isError': data['isError'] == true || data['is_error'] == true,
       'createdAt': createdAt,
-      if (isSidechain) 'isSidechain': true,
-      'uuid': ?uuid,
-      'parentUuid': ?parentUuid,
+      if (meta.isSidechain) 'isSidechain': true,
+      'uuid': ?meta.uuid,
+      'parentUuid': ?meta.parentUuid,
     });
     return;
   }
@@ -846,9 +813,9 @@ void _processAcpContent({
       'state': 'running',
       'content': data,
       'raw': outerContent,
-      if (isSidechain) 'isSidechain': true,
-      'uuid': ?uuid,
-      'parentUuid': ?parentUuid,
+      if (meta.isSidechain) 'isSidechain': true,
+      'uuid': ?meta.uuid,
+      'parentUuid': ?meta.parentUuid,
     });
   }
 
@@ -883,15 +850,15 @@ void _processSessionContent({
   if (eventType == null) return;
 
   final eventRole = envelope['role'] as String?;
-  final envelopeId = (envelope['id'] ?? envelope['uuid']) as String? ?? id;
+  final envelopeId =
+      (envelope['id'] ?? envelope['uuid']) as String? ?? id;
   final envelopeCreatedAt = _parseCreatedAtMs(
     envelope['time'] ?? envelope['createdAt'] ?? createdAt,
   );
-  final parentUuid =
-      (envelope['subagent'] ??
-              envelope['parentUuid'] ??
-              envelope['parent_uuid'])
-          as String?;
+  final parentUuid = (envelope['subagent'] ??
+          envelope['parentUuid'] ??
+          envelope['parent_uuid'])
+      as String?;
   final isSidechain = parentUuid != null && parentUuid.isNotEmpty;
   final uuid = (envelope['id'] ?? envelope['uuid']) as String? ?? id;
 
@@ -946,7 +913,8 @@ void _processSessionContent({
         'role': 'agent',
         'kind': 'text',
         if (thinking) 'isThinking': true,
-        'content': thinking ? '*Thinking...*\n\n*$text*' : text,
+        'content':
+            thinking ? '*Thinking...*\n\n*$text*' : text,
         'raw': outerContent,
         if (isSidechain) 'isSidechain': true,
         if (uuid.isNotEmpty) 'uuid': uuid,
@@ -974,9 +942,11 @@ void _processSessionContent({
   if (eventType == 'tool-call-start') {
     if (eventRole != 'agent') return;
     final args = event['args'] ?? event['input'];
-    final input = args is Map<String, dynamic> ? args : <String, dynamic>{};
+    final input =
+        args is Map<String, dynamic> ? args : <String, dynamic>{};
     final callId =
-        (event['call'] ?? event['callId'] ?? event['toolUseId']) as String?;
+        (event['call'] ?? event['callId'] ?? event['toolUseId'])
+            as String?;
     messages.add({
       'id': envelopeId,
       'localId': localId,
@@ -999,12 +969,15 @@ void _processSessionContent({
 
   if (eventType == 'tool-call-end') {
     final callId =
-        (event['call'] ?? event['callId'] ?? event['toolUseId']) as String?;
+        (event['call'] ?? event['callId'] ?? event['toolUseId'])
+            as String?;
     if (callId == null || callId.isEmpty) return;
     toolResults.add({
       'toolUseId': callId,
-      'result': event['result'] ?? event['output'] ?? event['content'],
-      'isError': event['isError'] == true || event['is_error'] == true,
+      'result':
+          event['result'] ?? event['output'] ?? event['content'],
+      'isError':
+          event['isError'] == true || event['is_error'] == true,
       'createdAt': envelopeCreatedAt,
       if (isSidechain) 'isSidechain': true,
       if (uuid.isNotEmpty) 'uuid': uuid,

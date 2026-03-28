@@ -6,6 +6,7 @@ import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../tools/tool_status_indicator.dart';
+import '../tools/tool_view.dart' show parseToolState;
 
 /// Bottom sheet showing all active/running Task agents in the session.
 class AgentsListSheet extends StatelessWidget {
@@ -162,18 +163,7 @@ class _AgentTile extends StatelessWidget {
   final Map<String, dynamic> agent;
   final String sessionId;
 
-  ToolState _parseToolState(String? state) {
-    switch (state) {
-      case 'running':
-        return ToolState.running;
-      case 'completed':
-        return ToolState.completed;
-      case 'error':
-        return ToolState.error;
-      default:
-        return ToolState.pending;
-    }
-  }
+  ToolState _parseToolState(String? state) => parseToolState(state);
 
   @override
   Widget build(BuildContext context) {

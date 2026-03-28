@@ -44,6 +44,30 @@ AvatarStyle? parseAvatarStyle(String? style) {
 // Shared helpers
 // ────────────────────────────────────────────────────────────
 
+/// Derived display values computed from a [Session].
+class _SessionDerived {
+  _SessionDerived({
+    required this.status,
+    required this.avatarId,
+    required this.name,
+    required this.subtitle,
+  });
+
+  factory _SessionDerived.from(Session session) {
+    return _SessionDerived(
+      status: getSessionStatus(session),
+      avatarId: getSessionAvatarId(session),
+      name: getSessionName(session),
+      subtitle: getSessionSubtitle(session),
+    );
+  }
+
+  final SessionStatus status;
+  final String avatarId;
+  final String name;
+  final String subtitle;
+}
+
 /// Builds the status text widget shown beneath the session
 /// name when the session is connected and has a meaningful
 /// status (thinking, permission required, etc.).
@@ -111,6 +135,101 @@ Widget _buildPreviewText({
   );
 }
 
+/// Name row: session name with trailing status dot.
+Widget _buildNameRow({
+  required String name,
+  required SessionStatus sessionStatus,
+  required TextStyle? style,
+  Color? dotColor,
+  double dotSize = 7,
+}) {
+  return Row(
+    children: [
+      Flexible(
+        child: Text(
+          name,
+          style: style,
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
+      ),
+      const SizedBox(width: AppSpacing.xsm),
+      AppStatusDot(
+        color: dotColor ??
+            Color(sessionStatus.statusDotColor),
+        pulse: sessionStatus.isPulsing,
+        size: dotSize,
+      ),
+    ],
+  );
+}
+
+/// Right column: timestamp + optional unread + todo badges.
+Widget _buildTimestampBadges({
+  required int timestamp,
+  required ThemeData theme,
+  required ColorScheme cs,
+  int unreadCount = 0,
+  ({int completed, int total})? todoProgress,
+  double badgeGap = AppSpacing.xxs,
+}) {
+  return Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    crossAxisAlignment: CrossAxisAlignment.end,
+    children: [
+      Text(
+        formatTimestamp(timestamp, relative: true),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: cs.onSurfaceVariant,
+          fontSize: AppFontSize.xs,
+        ),
+      ),
+      if (unreadCount > 0) ...[
+        SizedBox(height: badgeGap),
+        UnreadBadge(count: unreadCount),
+      ],
+      if (todoProgress != null) ...[
+        SizedBox(height: badgeGap),
+        TodoProgressBadge(
+          completed: todoProgress.completed,
+          total: todoProgress.total,
+        ),
+      ],
+    ],
+  );
+}
+
+/// Shared avatar with Hero, optional draft badge.
+Widget _buildAvatar({
+  required String sessionId,
+  required String avatarId,
+  required String? sessionFlavor,
+  required double size,
+  required bool showFlavorIcon,
+  required bool hasDraft,
+  AvatarStyle? avatarStyle,
+  bool monochrome = false,
+}) {
+  return Hero(
+    tag: 'session-avatar-$sessionId',
+    child: Stack(
+      clipBehavior: Clip.none,
+      children: [
+        SessionAvatar(
+          id: avatarId,
+          flavor: sessionFlavor,
+          size: size,
+          showFlavorIcon: showFlavorIcon,
+          monochrome: monochrome,
+          square: true,
+          style: avatarStyle,
+        ),
+        if (hasDraft) const DraftBadge(),
+      ],
+    ),
+  );
+}
+
 // ────────────────────────────────────────────────────────────
 // Active session card — full-size variant
 // ────────────────────────────────────────────────────────────
@@ -144,358 +263,211 @@ class ActiveSessionCard extends StatefulWidget {
       _ActiveSessionCardState();
 }
 
-class _ActiveSessionCardState extends State<ActiveSessionCard> {
+class _ActiveSessionCardState
+    extends State<ActiveSessionCard> {
   bool _pressed = false;
-
-  late SessionStatus _sessionStatus;
-  late String _avatarId;
-  late String _sessionName;
-  late String _sessionSubtitle;
+  late _SessionDerived _d;
 
   @override
   void initState() {
     super.initState();
-    _computeDerivedValues();
+    _d = _SessionDerived.from(widget.session);
   }
 
   @override
   void didUpdateWidget(ActiveSessionCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.session != widget.session) {
-      _computeDerivedValues();
+      _d = _SessionDerived.from(widget.session);
     }
-  }
-
-  void _computeDerivedValues() {
-    _sessionStatus = getSessionStatus(widget.session);
-    _avatarId = getSessionAvatarId(widget.session);
-    _sessionName = getSessionName(widget.session);
-    _sessionSubtitle = getSessionSubtitle(widget.session);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final session = widget.session;
+    final hasPreview = widget.lastMessagePreview != null &&
+        widget.lastMessagePreview!.isNotEmpty;
+    final statusWidget =
+        _buildStatusText(_d.status, theme.textTheme);
+    final todoProgress = getTodoProgress(session.todos);
+    final sessionFlavor = session.metadata?.flavor;
+    final hasDraft =
+        session.draft != null && session.draft!.isNotEmpty;
 
     return AnimatedScale(
       scale: _pressed ? 0.98 : 1.0,
       duration: AppDuration.fast,
       curve: AppCurve.standard,
-      child: _ActiveSessionCardContent(
-        session: widget.session,
-        sessionStatus: _sessionStatus,
-        avatarId: _avatarId,
-        sessionName: _sessionName,
-        sessionSubtitle: _sessionSubtitle,
-        lastMessageTimestamp: widget.lastMessageTimestamp,
-        lastMessagePreview: widget.lastMessagePreview,
-        lastMessageRole: widget.lastMessageRole,
-        unreadCount: widget.unreadCount,
-        avatarStyle: widget.avatarStyle,
-        theme: theme,
-        colorScheme: theme.colorScheme,
-        onTap: () {
-          HapticFeedback.lightImpact();
-          widget.onTap?.call();
-        },
-        onTapDown: () => setState(() => _pressed = true),
-        onTapUp: () => setState(() => _pressed = false),
-        onTapCancel: () => setState(() => _pressed = false),
-      ),
-    );
-  }
-}
-
-/// Extracted content for [_ActiveSessionCardState].
-/// Does not rebuild when press state changes.
-class _ActiveSessionCardContent extends StatelessWidget {
-  const _ActiveSessionCardContent({
-    required this.session,
-    required this.sessionStatus,
-    required this.avatarId,
-    required this.sessionName,
-    required this.sessionSubtitle,
-    required this.lastMessageTimestamp,
-    required this.lastMessagePreview,
-    required this.lastMessageRole,
-    required this.unreadCount,
-    required this.theme,
-    required this.colorScheme,
-    required this.onTap,
-    required this.onTapDown,
-    required this.onTapUp,
-    required this.onTapCancel,
-    this.avatarStyle,
-  });
-
-  final Session session;
-  final SessionStatus sessionStatus;
-  final String avatarId;
-  final String sessionName;
-  final String sessionSubtitle;
-  final int? lastMessageTimestamp;
-  final String? lastMessagePreview;
-  final String? lastMessageRole;
-  final int unreadCount;
-  final AvatarStyle? avatarStyle;
-  final ThemeData theme;
-  final ColorScheme colorScheme;
-  final VoidCallback onTap;
-  final VoidCallback onTapDown;
-  final VoidCallback onTapUp;
-  final VoidCallback onTapCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = colorScheme;
-    final sessionFlavor = session.metadata?.flavor;
-    final hasDraft =
-        session.draft != null && session.draft!.isNotEmpty;
-    final todoProgress = getTodoProgress(session.todos);
-    final statusWidget =
-        _buildStatusText(sessionStatus, theme.textTheme);
-    final hasPreview =
-        lastMessagePreview != null &&
-        lastMessagePreview!.isNotEmpty;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        borderRadius:
-            BorderRadius.circular(AppRadius.md),
-        color: cs.primary.withValues(alpha: 0.04),
-        border: Border.all(
-          color: cs.primary.withValues(alpha: 0.12),
-          width: AppBorder.hairline,
+      child: Container(
+        margin: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.xxs,
         ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius:
-            BorderRadius.circular(AppRadius.md),
-        clipBehavior: Clip.hardEdge,
-        child: InkWell(
-          onTap: onTap,
-          onTapDown: (_) => onTapDown(),
-          onTapUp: (_) => onTapUp(),
-          onTapCancel: onTapCancel,
-          splashColor:
-              cs.primary.withValues(alpha: 0.08),
-          highlightColor:
-              cs.primary.withValues(alpha: 0.04),
+        decoration: BoxDecoration(
           borderRadius:
               BorderRadius.circular(AppRadius.md),
-          child: Stack(
-            fit: StackFit.passthrough,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                child: Row(
-                  children: [
-                    // Avatar
-                    Hero(
-                      tag:
-                          'session-avatar-'
-                          '${session.id}',
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          SessionAvatar(
-                            id: avatarId,
-                            flavor: sessionFlavor,
-                            size: 44,
-                            showFlavorIcon: true,
-                            square: true,
-                            style: avatarStyle,
-                          ),
-                          if (hasDraft)
-                            const DraftBadge(),
-                        ],
+          color: cs.primary.withValues(alpha: 0.04),
+          border: Border.all(
+            color:
+                cs.primary.withValues(alpha: 0.12),
+            width: AppBorder.hairline,
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius:
+              BorderRadius.circular(AppRadius.md),
+          clipBehavior: Clip.hardEdge,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              widget.onTap?.call();
+            },
+            onTapDown: (_) =>
+                setState(() => _pressed = true),
+            onTapUp: (_) =>
+                setState(() => _pressed = false),
+            onTapCancel: () =>
+                setState(() => _pressed = false),
+            splashColor:
+                cs.primary.withValues(alpha: 0.08),
+            highlightColor:
+                cs.primary.withValues(alpha: 0.04),
+            borderRadius:
+                BorderRadius.circular(AppRadius.md),
+            child: Stack(
+              fit: StackFit.passthrough,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  child: Row(
+                    children: [
+                      _buildAvatar(
+                        sessionId: session.id,
+                        avatarId: _d.avatarId,
+                        sessionFlavor: sessionFlavor,
+                        size: 44,
+                        showFlavorIcon: true,
+                        hasDraft: hasDraft,
+                        avatarStyle: widget.avatarStyle,
                       ),
-                    ),
-                    const SizedBox(
-                      width: AppSpacing.md,
-                    ),
-                    // Title / subtitle / preview / status
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        mainAxisAlignment:
-                            MainAxisAlignment.center,
-                        children: [
-                          // Name row
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  sessionName,
-                                  style: theme
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(
-                                    fontWeight:
-                                        FontWeight
-                                            .w600,
-                                  ),
-                                  overflow:
-                                      TextOverflow
-                                          .ellipsis,
-                                  maxLines: 1,
-                                ),
+                      const SizedBox(
+                        width: AppSpacing.md,
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          mainAxisAlignment:
+                              MainAxisAlignment.center,
+                          children: [
+                            _buildNameRow(
+                              name: _d.name,
+                              sessionStatus:
+                                  _d.status,
+                              style: theme
+                                  .textTheme.titleSmall
+                                  ?.copyWith(
+                                fontWeight:
+                                    FontWeight.w600,
                               ),
-                              const SizedBox(
-                                width:
-                                    AppSpacing.xsm,
-                              ),
-                              AppStatusDot(
-                                color: Color(
-                                  sessionStatus
-                                      .statusDotColor,
-                                ),
-                                pulse: sessionStatus
-                                    .isPulsing,
-                                size: 7,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(
-                            height: AppSpacing.xxs,
-                          ),
-                          // Subtitle (path)
-                          Text(
-                            sessionSubtitle,
-                            style: theme
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                              color: cs
-                                  .onSurfaceVariant,
-                              fontFamily:
-                                  'monospace',
-                              fontSize:
-                                  AppFontSize.xs,
-                              height: 1.2,
                             ),
-                            overflow:
-                                TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                          // Message preview
-                          if (hasPreview) ...[
                             const SizedBox(
                               height: AppSpacing.xxs,
                             ),
-                            _buildPreviewText(
-                              context: context,
-                              preview:
-                                  lastMessagePreview!,
-                              role: lastMessageRole,
+                            Text(
+                              _d.subtitle,
                               style: theme
-                                  .textTheme
-                                  .bodySmall
+                                  .textTheme.bodySmall
                                   ?.copyWith(
+                                color:
+                                    cs.onSurfaceVariant,
+                                fontFamily: 'monospace',
                                 fontSize:
                                     AppFontSize.xs,
                                 height: 1.2,
                               ),
+                              overflow:
+                                  TextOverflow.ellipsis,
                               maxLines: 1,
                             ),
+                            if (hasPreview) ...[
+                              const SizedBox(
+                                height:
+                                    AppSpacing.xxs,
+                              ),
+                              _buildPreviewText(
+                                context: context,
+                                preview: widget
+                                    .lastMessagePreview!,
+                                role: widget
+                                    .lastMessageRole,
+                                style: theme
+                                    .textTheme.bodySmall
+                                    ?.copyWith(
+                                  fontSize:
+                                      AppFontSize.xs,
+                                  height: 1.2,
+                                ),
+                                maxLines: 1,
+                              ),
+                            ],
+                            if (statusWidget !=
+                                null) ...[
+                              const SizedBox(
+                                height:
+                                    AppSpacing.xxs,
+                              ),
+                              statusWidget,
+                            ],
                           ],
-                          // Status text
-                          if (statusWidget !=
-                              null) ...[
-                            const SizedBox(
-                              height: AppSpacing.xxs,
-                            ),
-                            statusWidget,
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(
-                      width: AppSpacing.sm,
-                    ),
-                    // Timestamp & badges
-                    Column(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center,
-                      crossAxisAlignment:
-                          CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          formatTimestamp(
-                            lastMessageTimestamp ??
-                                session.updatedAt,
-                            relative: true,
-                          ),
-                          style: theme
-                              .textTheme
-                              .labelSmall
-                              ?.copyWith(
-                            color:
-                                cs.onSurfaceVariant,
-                            fontSize:
-                                AppFontSize.xs,
-                          ),
                         ),
-                        if (unreadCount > 0) ...[
-                          const SizedBox(
-                            height: AppSpacing.xxs,
-                          ),
-                          UnreadBadge(
-                            count: unreadCount,
-                          ),
-                        ],
-                        if (todoProgress !=
-                            null) ...[
-                          const SizedBox(
-                            height: AppSpacing.xs,
-                          ),
-                          TodoProgressBadge(
-                            completed:
-                                todoProgress
-                                    .completed,
-                            total:
-                                todoProgress.total,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              // Left accent bar — overlaid via
-              // Positioned so no IntrinsicHeight needed
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                child: Container(
-                  width: 3,
-                  decoration: BoxDecoration(
-                    color: Color(
-                      sessionStatus.statusDotColor,
-                    ),
-                    borderRadius:
-                        const BorderRadius.only(
-                      topLeft: Radius.circular(
-                        AppRadius.md,
                       ),
-                      bottomLeft: Radius.circular(
-                        AppRadius.md,
+                      const SizedBox(
+                        width: AppSpacing.sm,
+                      ),
+                      _buildTimestampBadges(
+                        timestamp:
+                            widget.lastMessageTimestamp ??
+                                session.updatedAt,
+                        theme: theme,
+                        cs: cs,
+                        unreadCount: widget.unreadCount,
+                        todoProgress: todoProgress,
+                        badgeGap: AppSpacing.xxs,
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 3,
+                    decoration: BoxDecoration(
+                      color: Color(
+                        _d.status.statusDotColor,
+                      ),
+                      borderRadius:
+                          const BorderRadius.only(
+                        topLeft: Radius.circular(
+                          AppRadius.md,
+                        ),
+                        bottomLeft: Radius.circular(
+                          AppRadius.md,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -542,15 +514,12 @@ class CompactActiveSessionCard extends StatefulWidget {
 class _CompactActiveSessionCardState
     extends State<CompactActiveSessionCard> {
   bool _pressed = false;
-
-  late SessionStatus _sessionStatus;
-  late String _avatarId;
-  late String _sessionName;
+  late _SessionDerived _d;
 
   @override
   void initState() {
     super.initState();
-    _computeDerivedValues();
+    _d = _SessionDerived.from(widget.session);
   }
 
   @override
@@ -559,346 +528,207 @@ class _CompactActiveSessionCardState
   ) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.session != widget.session) {
-      _computeDerivedValues();
+      _d = _SessionDerived.from(widget.session);
     }
-  }
-
-  void _computeDerivedValues() {
-    _sessionStatus = getSessionStatus(widget.session);
-    _avatarId = getSessionAvatarId(widget.session);
-    _sessionName = getSessionName(widget.session);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    return AnimatedScale(
-      scale: _pressed ? 0.98 : 1.0,
-      duration: AppDuration.fast,
-      curve: AppCurve.standard,
-      child: _CompactActiveSessionCardContent(
-        session: widget.session,
-        sessionStatus: _sessionStatus,
-        avatarId: _avatarId,
-        sessionName: _sessionName,
-        showFlavorIcon: widget.showFlavorIcon,
-        lastMessageTimestamp: widget.lastMessageTimestamp,
-        lastMessagePreview: widget.lastMessagePreview,
-        lastMessageRole: widget.lastMessageRole,
-        selectionMode: widget.selectionMode,
-        isSelected: widget.isSelected,
-        unreadCount: widget.unreadCount,
-        avatarStyle: widget.avatarStyle,
-        theme: theme,
-        colorScheme: theme.colorScheme,
-        onTap: () {
-          HapticFeedback.lightImpact();
-          widget.onTap?.call();
-        },
-        onTapDown: () => setState(() => _pressed = true),
-        onTapUp: () => setState(() => _pressed = false),
-        onTapCancel: () =>
-            setState(() => _pressed = false),
-      ),
-    );
-  }
-}
-
-/// Extracted content for
-/// [_CompactActiveSessionCardState].
-/// Does not rebuild when press state changes.
-class _CompactActiveSessionCardContent
-    extends StatelessWidget {
-  const _CompactActiveSessionCardContent({
-    required this.session,
-    required this.sessionStatus,
-    required this.avatarId,
-    required this.sessionName,
-    required this.showFlavorIcon,
-    required this.lastMessageTimestamp,
-    required this.lastMessagePreview,
-    required this.lastMessageRole,
-    required this.selectionMode,
-    required this.isSelected,
-    required this.unreadCount,
-    required this.theme,
-    required this.colorScheme,
-    required this.onTap,
-    required this.onTapDown,
-    required this.onTapUp,
-    required this.onTapCancel,
-    this.avatarStyle,
-  });
-
-  final Session session;
-  final SessionStatus sessionStatus;
-  final String avatarId;
-  final AvatarStyle? avatarStyle;
-  final String sessionName;
-  final bool showFlavorIcon;
-  final int? lastMessageTimestamp;
-  final String? lastMessagePreview;
-  final String? lastMessageRole;
-  final bool selectionMode;
-  final bool isSelected;
-  final int unreadCount;
-  final ThemeData theme;
-  final ColorScheme colorScheme;
-  final VoidCallback onTap;
-  final VoidCallback onTapDown;
-  final VoidCallback onTapUp;
-  final VoidCallback onTapCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = colorScheme;
+    final cs = theme.colorScheme;
+    final session = widget.session;
     final sessionFlavor = session.metadata?.flavor;
     final hasDraft =
         session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
     final statusWidget =
-        _buildStatusText(sessionStatus, theme.textTheme);
+        _buildStatusText(_d.status, theme.textTheme);
     final hasPreview =
-        lastMessagePreview != null &&
-        lastMessagePreview!.isNotEmpty;
+        widget.lastMessagePreview != null &&
+        widget.lastMessagePreview!.isNotEmpty;
 
-    final cardColor = isSelected
+    final cardColor = widget.isSelected
         ? cs.primary.withValues(alpha: 0.10)
         : cs.primary.withValues(alpha: 0.04);
-    final borderColor = isSelected
+    final borderColor = widget.isSelected
         ? cs.primary.withValues(alpha: 0.3)
         : cs.primary.withValues(alpha: 0.12);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: 1,
-      ),
-      decoration: BoxDecoration(
-        borderRadius:
-            BorderRadius.circular(AppRadius.md),
-        color: cardColor,
-        border: Border.all(
-          color: borderColor,
-          width: AppBorder.hairline,
+    return AnimatedScale(
+      scale: _pressed ? 0.98 : 1.0,
+      duration: AppDuration.fast,
+      curve: AppCurve.standard,
+      child: Container(
+        margin: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: 1,
         ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius:
-            BorderRadius.circular(AppRadius.md),
-        clipBehavior: Clip.hardEdge,
-        child: InkWell(
-          onTap: onTap,
-          onTapDown: (_) => onTapDown(),
-          onTapUp: (_) => onTapUp(),
-          onTapCancel: onTapCancel,
-          splashColor:
-              cs.primary.withValues(alpha: 0.08),
-          highlightColor:
-              cs.primary.withValues(alpha: 0.04),
+        decoration: BoxDecoration(
           borderRadius:
               BorderRadius.circular(AppRadius.md),
-          child: SizedBox(
-            height: hasPreview ? 72 : 56,
-            child: Row(
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
-              children: [
-                if (selectionMode)
-                  SelectionCheckbox(
-                    isSelected: isSelected,
-                    borderRadius:
-                        BorderRadius.circular(
-                      AppRadius.md,
-                    ),
-                  )
-                else
-                  Container(
-                    width: 3,
-                    decoration: BoxDecoration(
-                      color: Color(
-                        sessionStatus.statusDotColor,
-                      ),
+          color: cardColor,
+          border: Border.all(
+            color: borderColor,
+            width: AppBorder.hairline,
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius:
+              BorderRadius.circular(AppRadius.md),
+          clipBehavior: Clip.hardEdge,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              widget.onTap?.call();
+            },
+            onTapDown: (_) =>
+                setState(() => _pressed = true),
+            onTapUp: (_) =>
+                setState(() => _pressed = false),
+            onTapCancel: () =>
+                setState(() => _pressed = false),
+            splashColor:
+                cs.primary.withValues(alpha: 0.08),
+            highlightColor:
+                cs.primary.withValues(alpha: 0.04),
+            borderRadius:
+                BorderRadius.circular(AppRadius.md),
+            child: SizedBox(
+              height: hasPreview ? 72 : 56,
+              child: Row(
+                crossAxisAlignment:
+                    CrossAxisAlignment.stretch,
+                children: [
+                  if (widget.selectionMode)
+                    SelectionCheckbox(
+                      isSelected: widget.isSelected,
                       borderRadius:
-                          const BorderRadius.only(
-                        topLeft: Radius.circular(
-                          AppRadius.md,
-                        ),
-                        bottomLeft:
-                            Radius.circular(
-                          AppRadius.md,
-                        ),
+                          BorderRadius.circular(
+                        AppRadius.md,
                       ),
-                    ),
-                  ),
-                Expanded(
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                    ),
-                    child: Row(
-                      children: [
-                        // Avatar
-                        Hero(
-                          tag:
-                              'session-avatar-'
-                              '${session.id}',
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              SessionAvatar(
-                                id: avatarId,
-                                flavor: sessionFlavor,
-                                size: 36,
-                                showFlavorIcon:
-                                    showFlavorIcon,
-                                square: true,
-                                style: avatarStyle,
-                              ),
-                              if (hasDraft)
-                                const DraftBadge(),
-                            ],
+                    )
+                  else
+                    Container(
+                      width: 3,
+                      decoration: BoxDecoration(
+                        color: Color(
+                          _d.status.statusDotColor,
+                        ),
+                        borderRadius:
+                            const BorderRadius.only(
+                          topLeft: Radius.circular(
+                            AppRadius.md,
+                          ),
+                          bottomLeft:
+                              Radius.circular(
+                            AppRadius.md,
                           ),
                         ),
-                        const SizedBox(
-                          width: AppSpacing.sm,
-                        ),
-                        // Name + status
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment:
-                                MainAxisAlignment
-                                    .center,
-                            crossAxisAlignment:
-                                CrossAxisAlignment
-                                    .start,
-                            children: [
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      sessionName,
-                                      style: theme
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(
-                                        fontWeight:
-                                            FontWeight
-                                                .w600,
-                                        color: cs
-                                            .onSurface,
-                                      ),
-                                      overflow:
-                                          TextOverflow
-                                              .ellipsis,
-                                      maxLines: 1,
-                                    ),
-                                  ),
-                                  const SizedBox(
-                                    width: AppSpacing
-                                        .xsm,
-                                  ),
-                                  AppStatusDot(
-                                    color: Color(
-                                      sessionStatus
-                                          .statusDotColor,
-                                    ),
-                                    pulse: sessionStatus
-                                        .isPulsing,
-                                    size: 7,
-                                  ),
-                                ],
-                              ),
-                              if (statusWidget !=
-                                  null) ...[
-                                const SizedBox(
-                                  height:
-                                      AppSpacing.xxs,
-                                ),
-                                statusWidget,
-                              ],
-                              if (hasPreview) ...[
-                                const SizedBox(
-                                  height: AppSpacing.xs,
-                                ),
-                                _buildPreviewText(
-                                  context: context,
-                                  preview:
-                                      lastMessagePreview!,
-                                  role: lastMessageRole,
+                      ),
+                    ),
+                  Expanded(
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                      ),
+                      child: Row(
+                        children: [
+                          _buildAvatar(
+                            sessionId: session.id,
+                            avatarId: _d.avatarId,
+                            sessionFlavor:
+                                sessionFlavor,
+                            size: 36,
+                            showFlavorIcon:
+                                widget.showFlavorIcon,
+                            hasDraft: hasDraft,
+                            avatarStyle:
+                                widget.avatarStyle,
+                          ),
+                          const SizedBox(
+                            width: AppSpacing.sm,
+                          ),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment:
+                                  MainAxisAlignment
+                                      .center,
+                              crossAxisAlignment:
+                                  CrossAxisAlignment
+                                      .start,
+                              children: [
+                                _buildNameRow(
+                                  name: _d.name,
+                                  sessionStatus:
+                                      _d.status,
                                   style: theme
                                       .textTheme
-                                      .bodySmall
+                                      .titleSmall
                                       ?.copyWith(
-                                    fontSize:
-                                        AppFontSize.xs,
-                                    height: 1.2,
+                                    fontWeight:
+                                        FontWeight
+                                            .w600,
+                                    color:
+                                        cs.onSurface,
                                   ),
-                                  maxLines: 1,
                                 ),
+                                if (statusWidget !=
+                                    null) ...[
+                                  const SizedBox(
+                                    height:
+                                        AppSpacing
+                                            .xxs,
+                                  ),
+                                  statusWidget,
+                                ],
+                                if (hasPreview) ...[
+                                  const SizedBox(
+                                    height:
+                                        AppSpacing.sm,
+                                  ),
+                                  _buildPreviewText(
+                                    context: context,
+                                    preview: widget
+                                        .lastMessagePreview!,
+                                    role: widget
+                                        .lastMessageRole,
+                                    style: theme
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                      fontSize:
+                                          AppFontSize
+                                              .xs,
+                                      height: 1.2,
+                                    ),
+                                    maxLines: 1,
+                                  ),
+                                ],
                               ],
-                            ],
-                          ),
-                        ),
-                        const SizedBox(
-                          width: AppSpacing.sm,
-                        ),
-                        // Timestamp & badges
-                        Column(
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
-                          crossAxisAlignment:
-                              CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              formatTimestamp(
-                                lastMessageTimestamp ??
-                                    session.updatedAt,
-                                relative: true,
-                              ),
-                              style: theme
-                                  .textTheme
-                                  .labelSmall
-                                  ?.copyWith(
-                                color: cs
-                                    .onSurfaceVariant,
-                                fontSize:
-                                    AppFontSize.xs,
-                              ),
                             ),
-                            if (unreadCount > 0) ...[
-                              const SizedBox(
-                                height:
-                                    AppSpacing.xxs,
-                              ),
-                              UnreadBadge(
-                                count: unreadCount,
-                              ),
-                            ],
-                            if (todoProgress !=
-                                null) ...[
-                              const SizedBox(
-                                height:
-                                    AppSpacing.xxs,
-                              ),
-                              TodoProgressBadge(
-                                completed:
-                                    todoProgress
-                                        .completed,
-                                total:
-                                    todoProgress.total,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
+                          ),
+                          const SizedBox(
+                            width: AppSpacing.sm,
+                          ),
+                          _buildTimestampBadges(
+                            timestamp: widget
+                                    .lastMessageTimestamp ??
+                                session.updatedAt,
+                            theme: theme,
+                            cs: cs,
+                            unreadCount:
+                                widget.unreadCount,
+                            todoProgress:
+                                todoProgress,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -950,17 +780,12 @@ class SessionCard extends StatefulWidget {
   final String? lastMessageRole;
 
   @override
-  State<SessionCard> createState() =>
-      _SessionCardState();
+  State<SessionCard> createState() => _SessionCardState();
 }
 
 class _SessionCardState extends State<SessionCard> {
   bool _pressed = false;
-
-  late SessionStatus _sessionStatus;
-  late String _avatarId;
-  late String _sessionName;
-  late String _sessionSubtitle;
+  late _SessionDerived _d;
   late BorderRadius _borderRadius;
   Color? _titleColor;
   Color? _cardColor;
@@ -968,7 +793,8 @@ class _SessionCardState extends State<SessionCard> {
   @override
   void initState() {
     super.initState();
-    _computeSessionValues();
+    _d = _SessionDerived.from(widget.session);
+    _borderRadius = _resolveBorderRadius();
   }
 
   @override
@@ -985,22 +811,15 @@ class _SessionCardState extends State<SessionCard> {
         oldWidget.isFirst != widget.isFirst ||
         oldWidget.isLast != widget.isLast ||
         oldWidget.isSelected != widget.isSelected) {
-      _computeSessionValues();
+      _d = _SessionDerived.from(widget.session);
+      _borderRadius = _resolveBorderRadius();
       _computeThemeValues();
     }
   }
 
-  void _computeSessionValues() {
-    _sessionStatus = getSessionStatus(widget.session);
-    _avatarId = getSessionAvatarId(widget.session);
-    _sessionName = getSessionName(widget.session);
-    _sessionSubtitle = getSessionSubtitle(widget.session);
-    _borderRadius = _resolveBorderRadius();
-  }
-
   void _computeThemeValues() {
     final cs = Theme.of(context).colorScheme;
-    _titleColor = _sessionStatus.isConnected
+    _titleColor = _d.status.isConnected
         ? cs.onSurface
         : cs.onSurfaceVariant;
     _cardColor = widget.isSelected
@@ -1028,349 +847,241 @@ class _SessionCardState extends State<SessionCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    return AnimatedScale(
-      scale: _pressed ? 0.98 : 1.0,
-      duration: AppDuration.fast,
-      curve: AppCurve.standard,
-      child: _SessionCardContent(
-        session: widget.session,
-        sessionStatus: _sessionStatus,
-        avatarId: _avatarId,
-        sessionName: _sessionName,
-        sessionSubtitle: _sessionSubtitle,
-        lastMessageTimestamp: widget.lastMessageTimestamp,
-        lastMessagePreview: widget.lastMessagePreview,
-        lastMessageRole: widget.lastMessageRole,
-        compact: widget.compact,
-        selectionMode: widget.selectionMode,
-        isSelected: widget.isSelected,
-        avatarStyle: widget.avatarStyle,
-        onLongPress: widget.onLongPress,
-        borderRadius: _borderRadius,
-        titleColor: _titleColor ?? theme.colorScheme.onSurfaceVariant,
-        cardColor: _cardColor ?? theme.colorScheme.surfaceContainerHighest,
-        theme: theme,
-        colorScheme: theme.colorScheme,
-        onTap: widget.onTap,
-        onTapDown: () => setState(() => _pressed = true),
-        onTapUp: () => setState(() => _pressed = false),
-        onTapCancel: () =>
-            setState(() => _pressed = false),
-      ),
-    );
-  }
-}
-
-/// Extracted content for [_SessionCardState].
-/// Does not rebuild when press state changes.
-class _SessionCardContent extends StatelessWidget {
-  const _SessionCardContent({
-    required this.session,
-    required this.sessionStatus,
-    required this.avatarId,
-    required this.sessionName,
-    required this.sessionSubtitle,
-    required this.lastMessageTimestamp,
-    required this.lastMessagePreview,
-    required this.lastMessageRole,
-    required this.compact,
-    required this.selectionMode,
-    required this.isSelected,
-    required this.onLongPress,
-    required this.borderRadius,
-    required this.titleColor,
-    required this.cardColor,
-    required this.theme,
-    required this.colorScheme,
-    required this.onTap,
-    required this.onTapDown,
-    required this.onTapUp,
-    required this.onTapCancel,
-    this.avatarStyle,
-  });
-
-  final Session session;
-  final SessionStatus sessionStatus;
-  final String avatarId;
-  final AvatarStyle? avatarStyle;
-  final String sessionName;
-  final String sessionSubtitle;
-  final int? lastMessageTimestamp;
-  final String? lastMessagePreview;
-  final String? lastMessageRole;
-  final bool compact;
-  final bool selectionMode;
-  final bool isSelected;
-  final VoidCallback? onLongPress;
-  final BorderRadius borderRadius;
-  final Color titleColor;
-  final Color cardColor;
-  final ThemeData theme;
-  final ColorScheme colorScheme;
-  final VoidCallback? onTap;
-  final VoidCallback onTapDown;
-  final VoidCallback onTapUp;
-  final VoidCallback onTapCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = colorScheme;
+    final cs = theme.colorScheme;
+    final session = widget.session;
     final sessionFlavor = session.metadata?.flavor;
     final hasDraft =
         session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
     final statusWidget =
-        _buildStatusText(sessionStatus, theme.textTheme);
+        _buildStatusText(_d.status, theme.textTheme);
 
-    return GestureDetector(
-      onLongPress: onLongPress,
-      child: Card(
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: borderRadius,
-          side: isSelected
-              ? BorderSide(
-                  color: cs.primary.withValues(
-                    alpha: 0.3,
+    return AnimatedScale(
+      scale: _pressed ? 0.98 : 1.0,
+      duration: AppDuration.fast,
+      curve: AppCurve.standard,
+      child: GestureDetector(
+        onLongPress: widget.onLongPress,
+        child: Card(
+          margin: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: _borderRadius,
+            side: widget.isSelected
+                ? BorderSide(
+                    color: cs.primary.withValues(
+                      alpha: 0.3,
+                    ),
+                  )
+                : BorderSide.none,
+          ),
+          elevation: 0,
+          color:
+              _cardColor ?? cs.surfaceContainerHighest,
+          clipBehavior: Clip.hardEdge,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              widget.onTap?.call();
+            },
+            onTapDown: (_) =>
+                setState(() => _pressed = true),
+            onTapUp: (_) =>
+                setState(() => _pressed = false),
+            onTapCancel: () =>
+                setState(() => _pressed = false),
+            splashColor:
+                cs.primary.withValues(alpha: 0.08),
+            highlightColor:
+                cs.primary.withValues(alpha: 0.04),
+            borderRadius: _borderRadius,
+            child: Stack(
+              fit: StackFit.passthrough,
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    widget.selectionMode
+                        ? 36 + AppSpacing.md
+                        : AppSpacing.md,
+                    widget.compact
+                        ? AppSpacing.xsm
+                        : AppSpacing.sm,
+                    AppSpacing.md,
+                    widget.compact
+                        ? AppSpacing.xsm
+                        : AppSpacing.sm,
                   ),
-                )
-              : BorderSide.none,
-        ),
-        elevation: 0,
-        color: cardColor,
-        clipBehavior: Clip.hardEdge,
-        child: InkWell(
-          onTap: onTap,
-          onTapDown: (_) => onTapDown(),
-          onTapUp: (_) => onTapUp(),
-          onTapCancel: onTapCancel,
-          splashColor:
-              cs.primary.withValues(alpha: 0.08),
-          highlightColor:
-              cs.primary.withValues(alpha: 0.04),
-          borderRadius: borderRadius,
-          child: Stack(
-            fit: StackFit.passthrough,
-            children: [
-              // Content — determines the card height.
-              // Left padding accommodates the leading
-              // widget width (accent bar 3px < md=12, so
-              // md suffices; checkbox 36px needs 36+md).
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  selectionMode
-                      ? 36 + AppSpacing.md
-                      : AppSpacing.md,
-                  compact
-                      ? AppSpacing.xsm
-                      : AppSpacing.sm,
-                  AppSpacing.md,
-                  compact
-                      ? AppSpacing.xsm
-                      : AppSpacing.sm,
-                ),
-                child: Row(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    // Avatar
-                    Padding(
-                      padding:
-                          const EdgeInsets.only(
-                        top: AppSpacing.xxs,
+                  child: Row(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding:
+                            const EdgeInsets.only(
+                          top: AppSpacing.xxs,
+                        ),
+                        child: _buildAvatar(
+                          sessionId: session.id,
+                          avatarId: _d.avatarId,
+                          sessionFlavor:
+                              sessionFlavor,
+                          size: widget.compact
+                              ? 36.0
+                              : 44.0,
+                          showFlavorIcon: true,
+                          hasDraft: hasDraft,
+                          avatarStyle:
+                              widget.avatarStyle,
+                          monochrome: !_d
+                              .status.isConnected,
+                        ),
                       ),
-                      child: Hero(
-                        tag:
-                            'session-avatar-'
-                            '${session.id}',
-                        child: Stack(
-                          clipBehavior: Clip.none,
+                      SizedBox(
+                        width: widget.compact
+                            ? AppSpacing.sm
+                            : AppSpacing.md,
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment
+                                  .start,
                           children: [
-                            SessionAvatar(
-                              id: avatarId,
-                              flavor: sessionFlavor,
-                              size: compact
-                                  ? 36.0
-                                  : 44.0,
-                              monochrome:
-                                  !sessionStatus
-                                      .isConnected,
-                              showFlavorIcon: true,
-                              square: true,
-                              style: avatarStyle,
+                            _buildNameRow(
+                              name: _d.name,
+                              sessionStatus:
+                                  _d.status,
+                              style: theme
+                                  .textTheme.titleSmall
+                                  ?.copyWith(
+                                fontWeight:
+                                    FontWeight.w600,
+                                color: _titleColor ??
+                                    cs
+                                        .onSurfaceVariant,
+                              ),
+                              dotColor: _d.status
+                                      .isConnected
+                                  ? null
+                                  : cs.outlineVariant,
                             ),
-                            if (hasDraft)
-                              const DraftBadge(),
+                            const SizedBox(
+                              height:
+                                  AppSpacing.xxs,
+                            ),
+                            Text(
+                              _d.subtitle,
+                              style: theme
+                                  .textTheme.bodySmall
+                                  ?.copyWith(
+                                color:
+                                    cs.onSurfaceVariant,
+                                fontFamily:
+                                    'monospace',
+                                fontSize:
+                                    AppFontSize.xs,
+                                height: 1.2,
+                              ),
+                              overflow:
+                                  TextOverflow
+                                      .ellipsis,
+                              maxLines: 1,
+                            ),
+                            if (statusWidget !=
+                                null) ...[
+                              const SizedBox(
+                                height:
+                                    AppSpacing.xxs,
+                              ),
+                              statusWidget,
+                            ],
+                            if (widget
+                                    .lastMessagePreview !=
+                                null) ...[
+                              const SizedBox(
+                                height:
+                                    AppSpacing.sm,
+                              ),
+                              _buildPreviewText(
+                                context: context,
+                                preview: widget
+                                    .lastMessagePreview!,
+                                role: widget
+                                    .lastMessageRole,
+                                style: theme
+                                    .textTheme.bodySmall
+                                    ?.copyWith(
+                                  fontSize:
+                                      AppFontSize.sm,
+                                  height: 1.3,
+                                ),
+                                maxLines: 2,
+                              ),
+                            ],
                           ],
                         ),
                       ),
-                    ),
-                    SizedBox(
-                      width: compact
-                          ? AppSpacing.sm
-                          : AppSpacing.md,
-                    ),
-                    // Text content
-                    Expanded(
-                      child: Column(
+                      const SizedBox(
+                        width: AppSpacing.sm,
+                      ),
+                      Column(
                         crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                            CrossAxisAlignment.end,
                         children: [
-                          // Name row
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  sessionName,
-                                  style: theme
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(
-                                    fontWeight:
-                                        FontWeight
-                                            .w600,
-                                    color: titleColor,
-                                  ),
-                                  overflow:
-                                      TextOverflow
-                                          .ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ),
-                              const SizedBox(
-                                width:
-                                    AppSpacing.xsm,
-                              ),
-                              AppStatusDot(
-                                color: sessionStatus
-                                        .isConnected
-                                    ? Color(
-                                        sessionStatus
-                                            .statusDotColor,
-                                      )
-                                    : cs.outlineVariant,
-                                pulse: sessionStatus
-                                    .isPulsing,
-                                size: 7,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(
-                            height: AppSpacing.xxs,
-                          ),
-                          // Path subtitle
                           Text(
-                            sessionSubtitle,
+                            formatTimestamp(
+                              widget.lastMessageTimestamp ??
+                                  session.updatedAt,
+                              relative: true,
+                            ),
                             style: theme
-                                .textTheme
-                                .bodySmall
+                                .textTheme.labelSmall
                                 ?.copyWith(
                               color:
                                   cs.onSurfaceVariant,
-                              fontFamily: 'monospace',
                               fontSize:
                                   AppFontSize.xs,
-                              height: 1.2,
                             ),
-                            overflow:
-                                TextOverflow.ellipsis,
-                            maxLines: 1,
                           ),
-                          // Status text
-                          if (statusWidget !=
+                          if (todoProgress !=
                               null) ...[
                             const SizedBox(
-                              height: AppSpacing.xxs,
+                              height:
+                                  AppSpacing.xsm,
                             ),
-                            statusWidget,
-                          ],
-                          // Message preview
-                          if (lastMessagePreview !=
-                              null) ...[
-                            const SizedBox(
-                              height: AppSpacing.xs,
-                            ),
-                            _buildPreviewText(
-                              context: context,
-                              preview:
-                                  lastMessagePreview!,
-                              role: lastMessageRole,
-                              style: theme
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                fontSize:
-                                    AppFontSize.sm,
-                                height: 1.3,
-                              ),
-                              maxLines: 2,
+                            TodoProgressBadge(
+                              completed: todoProgress
+                                  .completed,
+                              total:
+                                  todoProgress.total,
                             ),
                           ],
                         ],
                       ),
-                    ),
-                    const SizedBox(
-                      width: AppSpacing.sm,
-                    ),
-                    // Timestamp & badges
-                    Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          formatTimestamp(
-                            lastMessageTimestamp ??
-                                session.updatedAt,
-                            relative: true,
-                          ),
-                          style: theme
-                              .textTheme
-                              .labelSmall
-                              ?.copyWith(
-                            color:
-                                cs.onSurfaceVariant,
-                            fontSize: AppFontSize.xs,
-                          ),
-                        ),
-                        if (todoProgress !=
-                            null) ...[
-                          const SizedBox(
-                            height: AppSpacing.xsm,
-                          ),
-                          TodoProgressBadge(
-                            completed:
-                                todoProgress.completed,
-                            total: todoProgress.total,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              // Leading: selection checkbox or accent
-              // bar — overlaid via Positioned so no
-              // IntrinsicHeight is needed
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                child: selectionMode
-                    ? SelectionCheckbox(
-                        isSelected: isSelected,
-                        borderRadius: borderRadius,
-                      )
-                    : _OfflineAccentBar(
-                        isConnected:
-                            sessionStatus.isConnected,
-                        statusDotColor:
-                            sessionStatus.statusDotColor,
-                        outlineVariant:
-                            cs.outlineVariant,
-                      ),
-              ),
-            ],
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: widget.selectionMode
+                      ? SelectionCheckbox(
+                          isSelected:
+                              widget.isSelected,
+                          borderRadius:
+                              _borderRadius,
+                        )
+                      : _OfflineAccentBar(
+                          isConnected:
+                              _d.status.isConnected,
+                          statusDotColor:
+                              _d.status.statusDotColor,
+                          outlineVariant:
+                              cs.outlineVariant,
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

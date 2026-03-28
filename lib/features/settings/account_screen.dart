@@ -15,10 +15,11 @@ import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/logger_service.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/backup_key_utils.dart';
 import '../auth/widgets/qr_code_display.dart';
+import 'helpers/account_dialogs.dart';
+import 'widgets/connected_accounts_section.dart';
 
 /// Account management screen
 class AccountScreen extends ConsumerWidget {
@@ -123,13 +124,13 @@ class AccountScreen extends ConsumerWidget {
           title: context.l10n.accountShowBackupKey,
           subtitle:
               context.l10n.accountShowBackupKeySubtitle,
-          onTap: () => _showBackupKeyDialog(context),
+          onTap: () => showBackupKeyDialog(context),
         ),
         SettingsNavRow(
           icon: Icons.content_copy,
           title: context.l10n.accountCopyBackupKey,
           subtitle: context.l10n.accountCopyToClipboard,
-          onTap: () => _copyBackupKey(context),
+          onTap: () => copyBackupKeyToClipboard(context),
         ),
       ],
     );
@@ -178,232 +179,10 @@ class AccountScreen extends ConsumerWidget {
   Widget buildServicesSection(BuildContext context) {
     return SettingsSection(
       title: context.l10n.accountConnectedServices,
-      children: [const _ConnectedServicesLoader()],
+      children: [const ConnectedServicesLoader()],
     );
   }
 
-  void _showBackupKeyDialog(BuildContext context) async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final errorPrefix = context.l10n.commonError;
-    try {
-      final key = await AuthService().generateBackupKey();
-      if (!context.mounted) return;
-      unawaited(
-        showDialog(
-          context: context,
-          builder: (context) {
-            final cs = Theme.of(context).colorScheme;
-            final l10n = AppLocalizations.of(context);
-            return AlertDialog(
-              title: Text(l10n.accountBackupKey),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    l10n.accountBackupKeyDialogContent,
-                    style: TextStyle(
-                      fontSize: AppFontSize.sm,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: cs.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      border: Border.all(color: cs.outlineVariant),
-                    ),
-                    child: SelectableText(
-                      key,
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: AppFontSize.lg,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(l10n.commonClose),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: key));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(l10n.accountBackupKeyCopied)),
-                    );
-                  },
-                  icon: const Icon(Icons.content_copy),
-                  label: Text(l10n.commonCopy),
-                ),
-              ],
-            );
-          },
-        ),
-      );
-    } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('$errorPrefix: $e')),
-      );
-    }
-  }
-
-  void _copyBackupKey(BuildContext context) async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final copiedMsg = context.l10n.accountBackupKeyCopiedToClipboard;
-    final errorPrefix = context.l10n.commonError;
-    try {
-      final key = await AuthService().generateBackupKey();
-      await Clipboard.setData(ClipboardData(text: key));
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(copiedMsg)),
-      );
-    } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('$errorPrefix: $e')),
-      );
-    }
-  }
-}
-
-/// Loads connected services once in initState to avoid re-fetching on rebuild.
-class _ConnectedServicesLoader extends StatefulWidget {
-  const _ConnectedServicesLoader();
-
-  @override
-  State<_ConnectedServicesLoader> createState() =>
-      _ConnectedServicesLoaderState();
-}
-
-class _ConnectedServicesLoaderState extends State<_ConnectedServicesLoader> {
-  late final Future<List<ConnectedServiceInfo>> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = AuthService().getConnectedServices();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<List<ConnectedServiceInfo>>(
-      future: _future,
-      builder: (context, snapshot) {
-        final services = snapshot.data ?? [];
-        return Column(
-          children: ConnectedService.values.map((service) {
-            final info = services.firstWhere(
-              (s) => s.service == service,
-              orElse: () =>
-                  ConnectedServiceInfo(service: service, isConnected: false),
-            );
-            return ServiceTile(service: info);
-          }).toList(),
-        );
-      },
-    );
-  }
-}
-
-/// Service tile for connected services
-class ServiceTile extends StatelessWidget {
-  const ServiceTile({required this.service, super.key});
-  final ConnectedServiceInfo service;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return SettingsRow(
-      icon: _getServiceIcon(),
-      iconColor: _getServiceColor(cs),
-      title: service.service.displayName,
-      subtitle: service.isConnected
-          ? service.accountName ??
-              service.accountEmail ??
-              'Connected'
-          : context.l10n.accountNotConnected,
-      trailing: service.isConnected
-          ? Icon(
-              Icons.check_circle,
-              color: cs.primary,
-              size: AppSpacing.xl,
-            )
-          : Icon(
-              Icons.circle_outlined,
-              size: AppSpacing.xl,
-              color: cs.onSurface
-                  .withValues(alpha: AppOpacity.medium),
-            ),
-      onTap: service.isConnected
-          ? () => _showServiceInfo(context)
-          : null,
-    );
-  }
-
-  IconData _getServiceIcon() {
-    switch (service.service) {
-      case ConnectedService.claude:
-        return Icons.auto_awesome;
-      case ConnectedService.github:
-        return Icons.code;
-      case ConnectedService.gemini:
-        return Icons.auto_awesome;
-      case ConnectedService.openai:
-        return Icons.psychology;
-    }
-  }
-
-  Color _getServiceColor(ColorScheme cs) {
-    switch (service.service) {
-      case ConnectedService.claude:
-        return AppColors.warning;
-      case ConnectedService.github:
-        return cs.onSurface;
-      case ConnectedService.gemini:
-        return cs.primary;
-      case ConnectedService.openai:
-        return AppColors.success;
-    }
-  }
-
-  void _showServiceInfo(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${service.service.displayName} Account'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (service.accountName != null)
-              ListTile(
-                title: Text(context.l10n.accountName),
-                subtitle: Text(service.accountName!),
-              ),
-            if (service.accountEmail != null)
-              ListTile(
-                title: Text(context.l10n.accountEmail),
-                subtitle: Text(service.accountEmail!),
-              ),
-            if (service.connectedAt != null)
-              ListTile(
-                title: Text(context.l10n.accountName),
-                subtitle: Text(service.connectedAt!.toLocal().toString()),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.l10n.commonClose),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Account restoration screen

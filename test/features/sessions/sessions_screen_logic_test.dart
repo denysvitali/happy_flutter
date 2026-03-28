@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:happy_flutter/features/sessions/sessions_screen.dart';
+import 'package:happy_flutter/features/sessions/widgets/sessions_list_content.dart';
 
 void main() {
   group('shouldShowInactiveSessionsSection', () {

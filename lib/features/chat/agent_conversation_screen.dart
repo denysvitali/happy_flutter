@@ -438,18 +438,7 @@ class _AgentConversationScreenState
     );
   }
 
-  ToolState _parseToolState(String state) {
-    switch (state) {
-      case 'running':
-        return ToolState.running;
-      case 'completed':
-        return ToolState.completed;
-      case 'error':
-        return ToolState.error;
-      default:
-        return ToolState.pending;
-    }
-  }
+  ToolState _parseToolState(String state) => parseToolState(state);
 }
 
 // ----------------------------------------------------------

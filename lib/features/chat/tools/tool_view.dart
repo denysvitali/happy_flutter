@@ -36,27 +36,45 @@ import 'views/write_view.dart';
 /// Duration before auto-collapsing a completed/error tool.
 const _kAutoCollapseDelay = Duration(seconds: 8);
 
-/// Returns the left border accent color for a given tool state.
-Color _stateAccentColor(ToolState state, ColorScheme cs) {
+/// Parses a tool state string into [ToolState].
+///
+/// Null or unknown values map to [ToolState.pending].
+ToolState parseToolState(String? state) {
   switch (state) {
-    case ToolState.running:
-      return cs.primary;
-    case ToolState.completed:
-      return AppColors.success; // semantic green brand color
-    case ToolState.error:
-      return cs.error;
-    case ToolState.pending:
-      return cs.onSurfaceVariant;
+    case 'running':
+      return ToolState.running;
+    case 'completed':
+      return ToolState.completed;
+    case 'error':
+      return ToolState.error;
+    default:
+      return ToolState.pending;
   }
 }
 
-/// Returns the background color for the status badge.
-Color _statusBadgeBg(ToolState state, ColorScheme cs) {
+/// Whether a permission map represents a pending (unresolved) request.
+bool _isPermissionPending(Map<String, dynamic>? permission) {
+  if (permission == null) return false;
+  final status = permission['status'];
+  return status != 'approved' &&
+      status != 'denied' &&
+      status != 'canceled';
+}
+
+/// Whether a permission was not denied or canceled (still relevant to show).
+bool _isPermissionNotDeniedOrCanceled(Map<String, dynamic>? permission) {
+  if (permission == null) return false;
+  final status = permission['status'];
+  return status != 'denied' && status != 'canceled';
+}
+
+/// Returns the accent/background color for a given tool state.
+Color _stateColor(ToolState state, ColorScheme cs) {
   switch (state) {
     case ToolState.running:
       return cs.primary;
     case ToolState.completed:
-      return AppColors.success; // semantic green brand color
+      return AppColors.success;
     case ToolState.error:
       return cs.error;
     case ToolState.pending:
@@ -230,11 +248,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     _prevState = initial;
 
     final initPermission = widget.tool['permission'] as Map<String, dynamic>?;
-    final hasPermissionRequest =
-        initPermission != null &&
-        initPermission['status'] != 'approved' &&
-        initPermission['status'] != 'denied' &&
-        initPermission['status'] != 'canceled';
+    final hasPermissionRequest = _isPermissionPending(initPermission);
 
     if (initial == ToolState.running || hasPermissionRequest) {
       _expanded = true;
@@ -257,11 +271,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
 
     final updatedPermission =
         widget.tool['permission'] as Map<String, dynamic>?;
-    final hasPermissionRequest =
-        updatedPermission != null &&
-        updatedPermission['status'] != 'approved' &&
-        updatedPermission['status'] != 'denied' &&
-        updatedPermission['status'] != 'canceled';
+    final hasPermissionRequest = _isPermissionPending(updatedPermission);
 
     if (hasPermissionRequest && !_expanded) {
       _setExpanded(true);
@@ -320,91 +330,15 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     _setExpanded(!_expanded);
   }
 
-  Future<void> _handlePermissionAllow(
+  /// Unified handler for all permission actions.
+  Future<void> _handlePermission(
+    PermissionActionKind kind,
     Map<String, dynamic> permission,
     String toolName,
     Map<String, dynamic>? toolInput,
   ) async {
     await _emitPermissionAction(
-      kind: PermissionActionKind.allow,
-      permission: permission,
-      toolName: toolName,
-      toolInput: toolInput,
-    );
-  }
-
-  Future<void> _handlePermissionDeny(
-    Map<String, dynamic> permission,
-    String toolName,
-    Map<String, dynamic>? toolInput,
-  ) async {
-    await _emitPermissionAction(
-      kind: PermissionActionKind.deny,
-      permission: permission,
-      toolName: toolName,
-      toolInput: toolInput,
-    );
-  }
-
-  Future<void> _handlePermissionAllowAllEdits(
-    Map<String, dynamic> permission,
-    String toolName,
-    Map<String, dynamic>? toolInput,
-  ) async {
-    await _emitPermissionAction(
-      kind: PermissionActionKind.allowAllEdits,
-      permission: permission,
-      toolName: toolName,
-      toolInput: toolInput,
-    );
-  }
-
-  Future<void> _handlePermissionAllowForSession(
-    Map<String, dynamic> permission,
-    String toolName,
-    Map<String, dynamic>? toolInput,
-  ) async {
-    await _emitPermissionAction(
-      kind: PermissionActionKind.allowForSession,
-      permission: permission,
-      toolName: toolName,
-      toolInput: toolInput,
-    );
-  }
-
-  Future<void> _handleCodexApprove(
-    Map<String, dynamic> permission,
-    String toolName,
-    Map<String, dynamic>? toolInput,
-  ) async {
-    await _emitPermissionAction(
-      kind: PermissionActionKind.codexApprove,
-      permission: permission,
-      toolName: toolName,
-      toolInput: toolInput,
-    );
-  }
-
-  Future<void> _handleCodexApproveForSession(
-    Map<String, dynamic> permission,
-    String toolName,
-    Map<String, dynamic>? toolInput,
-  ) async {
-    await _emitPermissionAction(
-      kind: PermissionActionKind.codexApproveForSession,
-      permission: permission,
-      toolName: toolName,
-      toolInput: toolInput,
-    );
-  }
-
-  Future<void> _handleCodexAbort(
-    Map<String, dynamic> permission,
-    String toolName,
-    Map<String, dynamic>? toolInput,
-  ) async {
-    await _emitPermissionAction(
-      kind: PermissionActionKind.codexAbort,
+      kind: kind,
       permission: permission,
       toolName: toolName,
       toolInput: toolInput,
@@ -521,18 +455,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  ToolState _parseToolState(String state) {
-    switch (state) {
-      case 'running':
-        return ToolState.running;
-      case 'completed':
-        return ToolState.completed;
-      case 'error':
-        return ToolState.error;
-      default:
-        return ToolState.pending;
-    }
-  }
+  ToolState _parseToolState(String state) => parseToolState(state);
 
   /// Format MCP tool name for display.
   ///
@@ -613,14 +536,10 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     final state = _parseToolState(toolState);
 
     // Permission pending overrides accent colour
-    final hasPermissionRequest =
-        permission != null &&
-        permission['status'] != 'approved' &&
-        permission['status'] != 'denied' &&
-        permission['status'] != 'canceled';
+    final hasPermissionRequest = _isPermissionPending(permission);
     final accentColor = hasPermissionRequest
         ? _permissionColor
-        : _stateAccentColor(state, theme.colorScheme);
+        : _stateColor(state, theme.colorScheme);
 
     // Check for tool-use error
     final resultStr = toolResult?.toString() ?? '';
@@ -742,23 +661,48 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
             toolInput: toolInput,
             flavor: widget.metadata?['flavor'] as String?,
             isSessionOnline: widget.isSessionOnline,
-            onAllow: () =>
-                _handlePermissionAllow(permission, toolName, toolInput),
-            onDeny: () =>
-                _handlePermissionDeny(permission, toolName, toolInput),
-            onAllowAllEdits: () =>
-                _handlePermissionAllowAllEdits(permission, toolName, toolInput),
-            onAllowForSession: () => _handlePermissionAllowForSession(
+            onAllow: () => _handlePermission(
+              PermissionActionKind.allow,
               permission,
               toolName,
               toolInput,
             ),
-            onCodexApprove: () =>
-                _handleCodexApprove(permission, toolName, toolInput),
-            onCodexApproveForSession: () =>
-                _handleCodexApproveForSession(permission, toolName, toolInput),
-            onCodexAbort: () =>
-                _handleCodexAbort(permission, toolName, toolInput),
+            onDeny: () => _handlePermission(
+              PermissionActionKind.deny,
+              permission,
+              toolName,
+              toolInput,
+            ),
+            onAllowAllEdits: () => _handlePermission(
+              PermissionActionKind.allowAllEdits,
+              permission,
+              toolName,
+              toolInput,
+            ),
+            onAllowForSession: () => _handlePermission(
+              PermissionActionKind.allowForSession,
+              permission,
+              toolName,
+              toolInput,
+            ),
+            onCodexApprove: () => _handlePermission(
+              PermissionActionKind.codexApprove,
+              permission,
+              toolName,
+              toolInput,
+            ),
+            onCodexApproveForSession: () => _handlePermission(
+              PermissionActionKind.codexApproveForSession,
+              permission,
+              toolName,
+              toolInput,
+            ),
+            onCodexAbort: () => _handlePermission(
+              PermissionActionKind.codexAbort,
+              permission,
+              toolName,
+              toolInput,
+            ),
           ),
       ],
     );
@@ -831,9 +775,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
             ),
             if (state == ToolState.error &&
                 toolResult != null &&
-                permission != null &&
-                permission['status'] != 'denied' &&
-                permission['status'] != 'canceled' &&
+                _isPermissionNotDeniedOrCanceled(permission) &&
                 !(knownTool?.hideDefaultError ?? false) &&
                 !(errorResult?.isToolUseError ?? false))
               ToolError(message: toolResult.toString()),
@@ -872,9 +814,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
             ),
           if (state == ToolState.error &&
               toolResult != null &&
-              permission != null &&
-              permission['status'] != 'denied' &&
-              permission['status'] != 'canceled' &&
+              _isPermissionNotDeniedOrCanceled(permission) &&
               !(errorResult?.isToolUseError ?? false))
             ToolError(message: toolResult.toString()),
         ],
@@ -1195,7 +1135,7 @@ class _ToolStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = _statusBadgeBg(state, Theme.of(context).colorScheme);
+    final bg = _stateColor(state, Theme.of(context).colorScheme);
 
     final Widget child;
     if (state == ToolState.completed) {
@@ -1444,16 +1384,5 @@ class ToolViewMinimal extends StatelessWidget {
     );
   }
 
-  ToolState _parseState(String state) {
-    switch (state) {
-      case 'running':
-        return ToolState.running;
-      case 'completed':
-        return ToolState.completed;
-      case 'error':
-        return ToolState.error;
-      default:
-        return ToolState.pending;
-    }
-  }
+  ToolState _parseState(String state) => parseToolState(state);
 }

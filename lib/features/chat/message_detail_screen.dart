@@ -10,6 +10,7 @@ import '../../core/theme/app_tokens.dart';
 import 'tools/json_viewer.dart';
 import 'tools/known_tools.dart';
 import 'tools/tool_status_indicator.dart';
+import 'tools/tool_view.dart' show parseToolState;
 
 /// Screen showing full details of a tool-call message.
 ///
@@ -88,18 +89,10 @@ class _TextDetailView extends StatelessWidget {
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
 
-ToolState _parseToolState(String? state) {
-  switch (state) {
-    case 'running':
-      return ToolState.running;
-    case 'completed':
-      return ToolState.completed;
-    case 'error':
-      return ToolState.error;
-    default:
-      return ToolState.pending;
-  }
-}
+// Re-export the shared parser from tool_view.dart — used by multiple widgets
+// in this file. The function handles null/unknown values as ToolState.pending.
+// ignore: unused_element
+ToolState _parseToolState(String? state) => parseToolState(state);
 
 // ── Tool detail view ───────────────────────────────────────────────────────
 

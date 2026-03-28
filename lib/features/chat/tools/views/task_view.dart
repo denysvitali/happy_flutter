@@ -5,6 +5,7 @@ import '../../../../core/theme/app_tokens.dart';
 import '../../markdown/markdown_view.dart';
 import '../known_tools.dart';
 import '../tool_status_indicator.dart';
+import '../tool_view.dart' show parseToolState;
 
 /// Max number of child tool calls shown inline.
 const int _kMaxToolsShown = 3;
@@ -579,15 +580,4 @@ class _InlineNestedTaskRow extends StatelessWidget {
   }
 }
 
-ToolState _parseState(String state) {
-  switch (state) {
-    case 'running':
-      return ToolState.running;
-    case 'completed':
-      return ToolState.completed;
-    case 'error':
-      return ToolState.error;
-    default:
-      return ToolState.pending;
-  }
-}
+ToolState _parseState(String state) => parseToolState(state);
