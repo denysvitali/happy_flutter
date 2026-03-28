@@ -512,7 +512,11 @@ class _SessionsScreenState
         // Mark optimistically archived to prevent reappear during server lag.
         sync.markSessionArchived(id);
       } catch (e, st) {
-        logger.error('Failed to archive session in batch: sessionId=$id', e, st);
+        logger.error(
+          'Failed to archive session in batch: sessionId=$id',
+          e,
+          st,
+        );
         failCount++;
       }
     }
@@ -651,7 +655,7 @@ _SortedSessions _computeSortedSessions(
   }
 
   final query = searchQuery.toLowerCase().trim();
-  Iterable<Session> sessionList = sessions.values;
+  var sessionList = sessions.values;
   if (query.isNotEmpty) {
     sessionList = sessionList.where((s) {
       final name = (s.metadata?.name ?? '').toLowerCase();
@@ -1397,23 +1401,6 @@ enum _ListItemType {
 /// Lightweight descriptor for a list item. Widgets are built on demand
 /// by [_SessionsListContentState._buildItemWidget].
 class _ListItem {
-  // Fields are non-nullable and populated by each named constructor.
-  final _ListItemType type;
-  final int staggerIndex;
-  // Active/session items.
-  final Session? session;
-  final SessionFolderHeader? folderHeader;
-  // Grouping metadata.
-  final String? title;
-  final String? pathKey;
-  final int? sessionCount;
-  final String? dateKey;
-  final ArchivedGrouping? archivedGrouping;
-  // Archived session card shapes.
-  final bool? isFirst;
-  final bool? isLast;
-  final bool? isSingle;
-
   _ListItem._raw({
     required this.type,
     required this.staggerIndex,
@@ -1517,4 +1504,21 @@ class _ListItem {
           isLast: isLast,
           isSingle: isSingle,
         );
+
+  // Fields are non-nullable and populated by each named constructor.
+  final _ListItemType type;
+  final int staggerIndex;
+  // Active/session items.
+  final Session? session;
+  final SessionFolderHeader? folderHeader;
+  // Grouping metadata.
+  final String? title;
+  final String? pathKey;
+  final int? sessionCount;
+  final String? dateKey;
+  final ArchivedGrouping? archivedGrouping;
+  // Archived session card shapes.
+  final bool? isFirst;
+  final bool? isLast;
+  final bool? isSingle;
 }

@@ -22,13 +22,6 @@ class ProfileWizardScreen extends ConsumerStatefulWidget {
 class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
   int _currentStep = 0;
   String? _selectedProvider;
-  String _name = '';
-  String _description = '';
-  String _apiKey = '';
-  String _baseUrl = '';
-  String _model = '';
-  String _smallFastModel = '';
-  String _timeout = '300000';
 
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
@@ -120,19 +113,21 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
     final envVars = <EnvironmentVariable>[];
 
     // Determine which env vars to use based on provider type
-    if (_selectedProvider == 'openai' || _selectedProvider == 'minimax') {
-      envVars.add(EnvironmentVariable(
-        name: 'OPENAI_BASE_URL',
-        value: _baseUrlCtrl.text,
-      ));
-      envVars.add(EnvironmentVariable(
-        name: 'OPENAI_API_KEY',
-        value: _apiKeyCtrl.text,
-      ));
-      envVars.add(EnvironmentVariable(
-        name: 'OPENAI_MODEL',
-        value: _modelCtrl.text,
-      ));
+    if (_selectedProvider == 'openai' ||
+        _selectedProvider == 'minimax') {
+      envVars
+        ..add(EnvironmentVariable(
+          name: 'OPENAI_BASE_URL',
+          value: _baseUrlCtrl.text,
+        ))
+        ..add(EnvironmentVariable(
+          name: 'OPENAI_API_KEY',
+          value: _apiKeyCtrl.text,
+        ))
+        ..add(EnvironmentVariable(
+          name: 'OPENAI_MODEL',
+          value: _modelCtrl.text,
+        ));
       if (_smallFastModelCtrl.text.isNotEmpty) {
         envVars.add(EnvironmentVariable(
           name: 'OPENAI_SMALL_FAST_MODEL',
@@ -144,40 +139,42 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         value: _timeoutCtrl.text,
       ));
     } else if (_selectedProvider == 'azure-openai') {
-      envVars.add(EnvironmentVariable(
-        name: 'AZURE_OPENAI_API_VERSION',
-        value: '2024-02-15-preview',
-      ));
-      envVars.add(EnvironmentVariable(
-        name: 'AZURE_OPENAI_DEPLOYMENT_NAME',
-        value: _modelCtrl.text,
-      ));
-      envVars.add(EnvironmentVariable(
-        name: 'OPENAI_API_KEY',
-        value: _apiKeyCtrl.text,
-      ));
-      envVars.add(EnvironmentVariable(
-        name: 'OPENAI_BASE_URL',
-        value: _baseUrlCtrl.text,
-      ));
-      envVars.add(EnvironmentVariable(
-        name: 'API_TIMEOUT_MS',
-        value: _timeoutCtrl.text,
-      ));
+      envVars
+        ..add(EnvironmentVariable(
+          name: 'AZURE_OPENAI_API_VERSION',
+          value: '2024-02-15-preview',
+        ))
+        ..add(EnvironmentVariable(
+          name: 'AZURE_OPENAI_DEPLOYMENT_NAME',
+          value: _modelCtrl.text,
+        ))
+        ..add(EnvironmentVariable(
+          name: 'OPENAI_API_KEY',
+          value: _apiKeyCtrl.text,
+        ))
+        ..add(EnvironmentVariable(
+          name: 'OPENAI_BASE_URL',
+          value: _baseUrlCtrl.text,
+        ))
+        ..add(EnvironmentVariable(
+          name: 'API_TIMEOUT_MS',
+          value: _timeoutCtrl.text,
+        ));
     } else {
       // Anthropic-compatible (Anthropic, Z.AI, DeepSeek)
-      envVars.add(EnvironmentVariable(
-        name: 'ANTHROPIC_BASE_URL',
-        value: _baseUrlCtrl.text,
-      ));
-      envVars.add(EnvironmentVariable(
-        name: 'ANTHROPIC_AUTH_TOKEN',
-        value: _apiKeyCtrl.text,
-      ));
-      envVars.add(EnvironmentVariable(
-        name: 'ANTHROPIC_MODEL',
-        value: _modelCtrl.text,
-      ));
+      envVars
+        ..add(EnvironmentVariable(
+          name: 'ANTHROPIC_BASE_URL',
+          value: _baseUrlCtrl.text,
+        ))
+        ..add(EnvironmentVariable(
+          name: 'ANTHROPIC_AUTH_TOKEN',
+          value: _apiKeyCtrl.text,
+        ))
+        ..add(EnvironmentVariable(
+          name: 'ANTHROPIC_MODEL',
+          value: _modelCtrl.text,
+        ));
       if (_smallFastModelCtrl.text.isNotEmpty) {
         envVars.add(EnvironmentVariable(
           name: 'ANTHROPIC_SMALL_FAST_MODEL',
@@ -207,6 +204,8 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
     final updatedProfiles = [...settings.profiles, profile];
 
     final messenger = ScaffoldMessenger.of(context);
+    final failedToSaveMsg =
+        AppLocalizations.of(context).profilesFailedToSave;
     try {
       await ref
           .read(settingsNotifierProvider.notifier)
@@ -217,7 +216,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
       if (mounted) context.pop();
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).profilesFailedToSave)),
+        SnackBar(content: Text(failedToSaveMsg)),
       );
     }
   }
@@ -333,7 +332,11 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
     );
   }
 
-  Widget _buildProviderSelection(TextTheme tt, ColorScheme cs, AppLocalizations l10n) {
+  Widget _buildProviderSelection(
+    TextTheme tt,
+    ColorScheme cs,
+    AppLocalizations l10n,
+  ) {
     return Form(
       key: _formKey,
       child: Column(
@@ -560,7 +563,10 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
                   ],
                 ),
                 const Divider(height: AppSpacing.xl),
-                _ReviewRow(label: 'Provider', value: _getProviderName(_selectedProvider!)),
+                _ReviewRow(
+                  label: 'Provider',
+                  value: _getProviderName(_selectedProvider!),
+                ),
                 _ReviewRow(
                   label: 'Base URL',
                   value: _baseUrlCtrl.text.isNotEmpty
