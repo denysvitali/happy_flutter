@@ -481,6 +481,11 @@ what you have, you must use the options mode.
   /// chain gaps (e.g. a message arrived before its parent was
   /// processed on a previous run).
   final Map<String, Timer> _sidechainRegroupTimers = {};
+  /// Epoch-ms when the first regroup was requested for a session during
+  /// the current burst. Used to enforce a maximum delay — without this,
+  /// rapid streaming keeps cancelling the debounce timer and the sweep
+  /// never fires while an agent is active.
+  final Map<String, int> _sidechainRegroupFirstRequestMs = {};
   late InvalidateSync settingsSync;
   late InvalidateSync profileSync;
   late InvalidateSync purchasesSync;
@@ -559,6 +564,21 @@ what you have, you must use the options mode.
   /// were dropped while the session was in the background.
   final Set<String> _sessionsWithPendingUpdates = <String>{};
   final Map<String, int> _sessionUnreadCounts = <String, int>{};
+
+  /// Epoch-ms of last unread count increment per session. Used to
+  /// rate-limit increments during rapid agent streaming — without this,
+  /// sidechain/meta messages inflate the badge count 10-50x.
+  final Map<String, int> _sessionUnreadLastIncrementMs = <String, int>{};
+
+  /// Minimum interval between unread count increments for the same
+  /// session (milliseconds). During rapid agent streaming, socket
+  /// events fire every ~50ms but only a fraction represent messages
+  /// the user would see in the main chat.
+  static const int _unreadIncrementMinIntervalMs = 1000;
+
+  /// Maximum unread count per session. Prevents runaway counters for
+  /// sessions with heavy agent activity.
+  static const int _maxUnreadCount = 99;
 
   /// Session IDs that triggered `update-session` since the last debounced
   /// sessions refresh.  Used to suppress duplicate log entries when the
@@ -914,9 +934,20 @@ what you have, you must use the options mode.
     if (messages == null || messages.isEmpty) return null;
     for (var i = messages.length - 1; i >= 0; i--) {
       final msg = messages[i];
+      // Skip sidechain messages — they appear inside the agent
+      // conversation screen, not in the main chat.
+      if (msg['isSidechain'] == true) continue;
       final role = msg['role'] as String?;
       if (role != MessageRole.agent && role != MessageRole.user) continue;
-      final text = msg['text'] as String?;
+      final kind = msg['kind'] as String?;
+      // Skip tool-call and agent-event messages — they don't have
+      // meaningful preview text.
+      if (kind == 'tool-call' || kind == 'agent-event') continue;
+      // Skip thinking blocks — they are collapsed in the UI and
+      // don't represent the final assistant response.
+      if (msg['isThinking'] == true) continue;
+      final text =
+          (msg['content'] ?? msg['text']) as String?;
       if (text != null && text.trim().isNotEmpty) {
         return _cleanPreviewText(text.trim());
       }
@@ -931,9 +962,14 @@ what you have, you must use the options mode.
     if (messages == null || messages.isEmpty) return null;
     for (var i = messages.length - 1; i >= 0; i--) {
       final msg = messages[i];
+      if (msg['isSidechain'] == true) continue;
       final role = msg['role'] as String?;
       if (role != MessageRole.agent && role != MessageRole.user) continue;
-      final text = msg['text'] as String?;
+      final kind = msg['kind'] as String?;
+      if (kind == 'tool-call' || kind == 'agent-event') continue;
+      if (msg['isThinking'] == true) continue;
+      final text =
+          (msg['content'] ?? msg['text']) as String?;
       if (text != null && text.trim().isNotEmpty) return role;
     }
     return null;
@@ -1875,9 +1911,23 @@ what you have, you must use the options mode.
       // so onSessionVisible() knows to force a server fetch instead of
       // restoring stale cache.
       _sessionsWithPendingSocketMessages.add(sessionId);
-      final newUnread =
-          (_sessionUnreadCounts[sessionId] ?? 0) + 1;
-      _sessionUnreadCounts[sessionId] = newUnread;
+      // Rate-limit unread increments: during rapid agent streaming,
+      // most socket events are sidechain/meta messages that won't be
+      // visible in the main chat. Increment at most once per interval
+      // to keep the badge count proportional to actual new content.
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final lastIncrMs =
+          _sessionUnreadLastIncrementMs[sessionId] ?? 0;
+      final current = _sessionUnreadCounts[sessionId] ?? 0;
+      final int newUnread;
+      if (current < _maxUnreadCount &&
+          nowMs - lastIncrMs >= _unreadIncrementMinIntervalMs) {
+        newUnread = current + 1;
+        _sessionUnreadCounts[sessionId] = newUnread;
+        _sessionUnreadLastIncrementMs[sessionId] = nowMs;
+      } else {
+        newUnread = current;
+      }
 
       Sentry.addBreadcrumb(Breadcrumb(
         message: 'Background message received',
@@ -1955,23 +2005,27 @@ what you have, you must use the options mode.
       }
       _applyPermissionRequests(sessionId);
 
-      // Only run the expensive multi-pass sidechain grouper when the
-      // incoming messages actually contain sidechain content. For
-      // ordinary streaming tokens (the 99% case) this skips all four
-      // passes + the O(n) orphan scan entirely.
+      // Run the sidechain grouper when the incoming messages contain
+      // sidechain content.  We intentionally omit changedIds here to
+      // force the full 4-pass grouper instead of the fast-path.  The
+      // fast-path only checks whether the *changed* messages are
+      // sidechain-relevant, which misses orphaned children from
+      // previous batches whose parent chain wasn't established yet.
+      // During active agent streaming, messages arrive every ~50ms and
+      // the deferred regroup timer (300ms) keeps getting cancelled, so
+      // orphans accumulate and never get grouped — this is the root
+      // cause of agent conversation screens showing incomplete children
+      // (only 1-2 tool calls, no thinking or text blocks).
+      //
+      // The full grouper is O(4n) where n ≤ 3000 (the message cap),
+      // which completes in ~1-2ms — negligible for inline processing.
       final hasSidechain = processed.messages.any(
-        (m) => m['isSidechain'] == true,
+        (m) =>
+            m['isSidechain'] == true ||
+            m['kind'] == 'sidechain-root',
       );
       if (hasSidechain) {
-        final inlineChangedIds = {
-          for (final m in processed.messages)
-            if (m['id'] is String) m['id'] as String,
-        };
-        _groupSidechainMessages(
-          sessionId,
-          changedIds: inlineChangedIds,
-        );
-        _scheduleSidechainRegroup(sessionId);
+        _groupSidechainMessages(sessionId);
       }
 
       // Advance the seq cursor so future incremental fetches don't
@@ -5888,6 +5942,7 @@ what you have, you must use the options mode.
   void onSessionVisible(String sessionId) {
     _visibleSessionId = sessionId;
     _sessionUnreadCounts.remove(sessionId);
+    _sessionUnreadLastIncrementMs.remove(sessionId);
     // Clear any residual failed Future from the inline queue so that
     // new messages can enter the inline fast path immediately.
     _inlineProcessor.clearSession(sessionId);
@@ -5935,38 +5990,43 @@ what you have, you must use the options mode.
 
     if (!hasMessages) {
       // Restore from MMKV cache so the UI shows messages immediately
-      // while the HTTP fetch is in flight.
-      // BUT: when hasPendingSocketMessages is true, the cache is potentially
-      // stale (socket messages arrived after the cache was saved) and we MUST
-      // skip it to force a server fetch that picks up those messages.
-      if (!hasPendingSocketMessages) {
-        final cached = MessageCacheService().getMessages(sessionId);
-        logger.info(
-          '[onSessionVisible] cacheRestore: ${cached.length} cached messages',
-        );
-        if (cached.isNotEmpty) {
-          // Strip orphaned sidechain messages (see _restoreAllCachedMessages).
-          final clean = cached.any((m) => m['isSidechain'] == true)
-              ? cached.where((m) => m['isSidechain'] != true).toList()
-              : cached;
-          if (clean.isNotEmpty) {
-            _sessionMessages[sessionId] = clean;
-            _sessionMessagesCache = null;
-            _sessionMessagesViewCache.remove(sessionId);
-            hasMessages = true;
-            // Notify UI immediately so it can render the cached messages.
-            _notifySessionMessagesChanged(sessionId);
-            _notifyDataChanged();
-          }
+      // while the HTTP fetch is in flight.  Even when
+      // hasPendingSocketMessages is true, show the (possibly stale)
+      // cache as a starting point — the user sees *something* instead
+      // of a loading spinner for 5-15s while the server fetch runs.
+      // The incremental delta fetch will fill in any missing messages.
+      final cached = MessageCacheService().getMessages(sessionId);
+      logger.info(
+        '[onSessionVisible] cacheRestore: ${cached.length} '
+        'cached messages '
+        '(hasPendingSocket=$hasPendingSocketMessages)',
+      );
+      if (cached.isNotEmpty) {
+        // Strip orphaned sidechain messages (see _restoreAllCachedMessages).
+        final clean = cached.any((m) => m['isSidechain'] == true)
+            ? cached.where((m) => m['isSidechain'] != true).toList()
+            : cached;
+        if (clean.isNotEmpty) {
+          _sessionMessages[sessionId] = clean;
+          _sessionMessagesCache = null;
+          _sessionMessagesViewCache.remove(sessionId);
+          hasMessages = true;
+          // Notify UI immediately so it can render the cached messages.
+          _notifySessionMessagesChanged(sessionId);
+          _notifyDataChanged();
         }
       }
-      // Only request tail refresh if cache restore failed or was skipped.
-      // When messages are restored from cache, the normal delta fetch
-      // (afterSeq = _sessionLastSeq) is sufficient — a tail refresh would
-      // unnecessarily clear and re-download the same messages.
-      if (!hasMessages) {
+      // Request tail refresh if cache restore failed OR if the cache
+      // is potentially stale (pending socket messages).  When the
+      // cache was restored successfully and there are no pending
+      // messages, the normal delta fetch is sufficient.
+      if (!hasMessages || hasPendingSocketMessages) {
         _requestTailRefresh(sessionId);
-        logger.info('[onSessionVisible] tailRefresh requested');
+        logger.info(
+          '[onSessionVisible] tailRefresh requested '
+          '(hasMessages=$hasMessages '
+          'hasPendingSocket=$hasPendingSocketMessages)',
+        );
       }
     } else {
       // Messages are in memory (from cache or previous load). Check if the
@@ -7746,31 +7806,56 @@ what you have, you must use the options mode.
   /// the grouping logic to iterate all messages and catch any that
   /// were orphaned because their parent hadn't been upserted yet.
   void _scheduleSidechainRegroup(String sessionId) {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+
+    // Track when the first regroup request in this burst arrived.
+    _sidechainRegroupFirstRequestMs.putIfAbsent(sessionId, () => nowMs);
+
+    // If the burst has lasted longer than 2s, fire immediately instead
+    // of debouncing further.  During active agent streaming, messages
+    // arrive every ~50ms and the 300ms debounce timer keeps getting
+    // cancelled — without this cap, the sweep never fires and orphaned
+    // sidechain messages remain invisible.
+    final burstStartMs = _sidechainRegroupFirstRequestMs[sessionId]!;
+    final burstDuration = nowMs - burstStartMs;
+    if (burstDuration >= 2000) {
+      _sidechainRegroupTimers[sessionId]?.cancel();
+      _sidechainRegroupTimers.remove(sessionId);
+      _sidechainRegroupFirstRequestMs.remove(sessionId);
+      _runDeferredRegroupSweep(sessionId);
+      return;
+    }
+
     _sidechainRegroupTimers[sessionId]?.cancel();
     _sidechainRegroupTimers[sessionId] = Timer(
       const Duration(milliseconds: 300),
       () {
         _sidechainRegroupTimers.remove(sessionId);
-        final messages = _sessionMessages[sessionId];
-        if (messages == null || messages.isEmpty) return;
-
-        // Only run if there are still ungrouped sidechain messages
-        // sitting in the main list (a normal message list has no
-        // isSidechain entries after successful grouping).
-        final hasOrphans = messages.any(
-          (m) => m['isSidechain'] == true,
-        );
-        if (!hasOrphans) return;
-
-        logger.info(
-          '[sidechain] running deferred re-group sweep '
-          'for session=$sessionId',
-        );
-        _groupSidechainMessages(sessionId);
-        _notifySessionMessagesChanged(sessionId);
-        _notifyDataChanged();
+        _sidechainRegroupFirstRequestMs.remove(sessionId);
+        _runDeferredRegroupSweep(sessionId);
       },
     );
+  }
+
+  void _runDeferredRegroupSweep(String sessionId) {
+    final messages = _sessionMessages[sessionId];
+    if (messages == null || messages.isEmpty) return;
+
+    // Only run if there are still ungrouped sidechain messages
+    // sitting in the main list (a normal message list has no
+    // isSidechain entries after successful grouping).
+    final hasOrphans = messages.any(
+      (m) => m['isSidechain'] == true,
+    );
+    if (!hasOrphans) return;
+
+    logger.info(
+      '[sidechain] running deferred re-group sweep '
+      'for session=$sessionId',
+    );
+    _groupSidechainMessages(sessionId);
+    _notifySessionMessagesChanged(sessionId);
+    _notifyDataChanged();
   }
 
   /// Delegates to [SidechainGrouper] and updates session message
@@ -8159,6 +8244,7 @@ what you have, you must use the options mode.
       timer.cancel();
     }
     _sidechainRegroupTimers.clear();
+    _sidechainRegroupFirstRequestMs.clear();
     _inlineProcessor.clear();
     _sessionsRefreshDebounceTimer?.cancel();
     _saveSeqDebounceTimer?.cancel();
@@ -8174,6 +8260,7 @@ what you have, you must use the options mode.
     // backgrounded. Clearing this set causes message loss for non-visible sessions.
     // _sessionsWithPendingSocketMessages.clear();
     _sessionUnreadCounts.clear();
+    _sessionUnreadLastIncrementMs.clear();
 
     // Cancel deferred syncs timer (non-critical data syncs)
     _deferredSyncsTimer?.cancel();
@@ -8324,6 +8411,7 @@ what you have, you must use the options mode.
     _pendingUpdateSessionIds.clear();
     _pendingToolResults.clear();
     _sessionUnreadCounts.clear();
+    _sessionUnreadLastIncrementMs.clear();
 
     socketIoClient
       ..offMessage('update')
@@ -8340,6 +8428,7 @@ what you have, you must use the options mode.
       timer.cancel();
     }
     _sidechainRegroupTimers.clear();
+    _sidechainRegroupFirstRequestMs.clear();
     _inlineProcessor.clear();
     // Flush any pending seq write before shutdown so cursors aren't lost.
     _saveSeqDebounceTimer?.cancel();

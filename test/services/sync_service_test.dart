@@ -775,6 +775,101 @@ void main() {
         'correct role',
       );
     });
+
+    test('finds message via content field (processed messages)', () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'user',
+          'kind': 'text',
+          'content': 'user prompt',
+          'createdAt': 1,
+        },
+        {
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'agent response',
+          'createdAt': 2,
+        },
+      ]);
+      expect(
+        instance.getLastMessagePreview('s1'),
+        'agent response',
+      );
+      expect(instance.getLastMessageRole('s1'), 'agent');
+    });
+
+    test('skips sidechain messages', () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'user',
+          'kind': 'text',
+          'content': 'main chat',
+          'createdAt': 1,
+        },
+        {
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'sidechain text',
+          'isSidechain': true,
+          'createdAt': 2,
+        },
+      ]);
+      expect(
+        instance.getLastMessagePreview('s1'),
+        'main chat',
+      );
+      expect(instance.getLastMessageRole('s1'), 'user');
+    });
+
+    test('skips tool-call and agent-event messages', () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'user',
+          'kind': 'text',
+          'content': 'prompt',
+          'createdAt': 1,
+        },
+        {
+          'role': 'agent',
+          'kind': 'tool-call',
+          'name': 'Agent',
+          'content': 'tool data',
+          'createdAt': 2,
+        },
+        {
+          'role': 'agent',
+          'kind': 'agent-event',
+          'content': '',
+          'createdAt': 3,
+        },
+      ]);
+      expect(
+        instance.getLastMessagePreview('s1'),
+        'prompt',
+      );
+    });
+
+    test('skips thinking blocks', () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'actual response',
+          'createdAt': 1,
+        },
+        {
+          'role': 'agent',
+          'kind': 'text',
+          'content': '*Thinking...*',
+          'isThinking': true,
+          'createdAt': 2,
+        },
+      ]);
+      expect(
+        instance.getLastMessagePreview('s1'),
+        'actual response',
+      );
+    });
   });
 }
 
