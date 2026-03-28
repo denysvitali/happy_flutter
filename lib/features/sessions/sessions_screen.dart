@@ -85,6 +85,7 @@ class _SessionsScreenState
     extends ConsumerState<SessionsScreen> {
   late AppTab _activeTab;
   StreamSubscription<void>? _syncSubscription;
+  StreamSubscription<String>? _messagesSubscription;
   final _selectionNotifier = ValueNotifier<_SelectionState>(
     const _SelectionState(),
   );
@@ -118,6 +119,13 @@ class _SessionsScreenState
       ref
           .read(todoStateNotifierProvider.notifier)
           .loadFromSync();
+    });
+    // Re-render session cards when messages are loaded/restored so
+    // that lastMessagePreview appears without a full sessions refresh.
+    _messagesSubscription =
+        sync.onSessionMessagesChanged.listen((sessionId) {
+      if (!mounted) return;
+      setState(() {});
     });
   }
 
@@ -165,6 +173,7 @@ class _SessionsScreenState
     _searchDebounce?.cancel();
     _searchController.dispose();
     _syncSubscription?.cancel();
+    _messagesSubscription?.cancel();
     super.dispose();
   }
 
