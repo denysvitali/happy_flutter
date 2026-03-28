@@ -1579,42 +1579,39 @@ what you have, you must use the options mode.
       if (_sessionMessages.containsKey(sessionId)) continue;
       final cached = MessageCacheService().getMessages(sessionId);
       if (cached.isNotEmpty) {
-        // Strip any orphaned sidechain messages that were persisted
-        // before the deferred regroup timer could clean them up (e.g.
-        // app was killed while the 500ms save debounce was pending).
-        // ChatScreen's _buildMessageList filters isSidechain == true,
-        // so leaving them in the restored list causes "invisible"
-        // messages that occupy space but never render.
-        final clean = cached.any((m) => m['isSidechain'] == true)
-            ? cached.where((m) => m['isSidechain'] != true).toList()
-            : cached;
-        if (clean.isNotEmpty) {
-          _sessionMessages[sessionId] = clean;
-          _sessionMessagesViewCache.remove(sessionId);
-          // Notify UI so ChatScreen refreshes with cached messages.
-          // The 100ms debounce in _notifySessionMessagesChanged coalesces
-          // rapid restores into a single notification.
-          _notifySessionMessagesChanged(sessionId);
+        _sessionMessages[sessionId] = cached;
+        _sessionMessagesViewCache.remove(sessionId);
+        // Run the sidechain grouper to attach orphaned sidechain
+        // messages that slipped into the cache before the deferred
+        // regroup timer fired (e.g. app killed during the 500ms
+        // save debounce).  This also re-establishes children arrays
+        // on Task messages whose children were already grouped.
+        _groupSidechainMessages(sessionId);
+        // Notify UI so ChatScreen refreshes with cached messages.
+        // The 100ms debounce in _notifySessionMessagesChanged coalesces
+        // rapid restores into a single notification.
+        _notifySessionMessagesChanged(sessionId);
 
-          // The MMKV cache only stores the most recent ~100 messages.
-          // _sessionFirstLoadedSeq (restored from MMKV earlier) may
-          // still say 0 ("loaded from beginning") or be null, which
-          // tells hasOlderMessages() there is nothing older.  That
-          // was true before the restart when all messages were in
-          // memory, but now we only have ~100.  Recalculate from the
-          // lowest seq actually present so the user can scroll up to
-          // load older history.
-          int? minSeq;
-          for (final m in clean) {
-            final seq = m['seq'] as int?;
-            if (seq != null && (minSeq == null || seq < minSeq)) {
-              minSeq = seq;
-            }
+        // The MMKV cache only stores the most recent ~100 messages.
+        // _sessionFirstLoadedSeq (restored from MMKV earlier) may
+        // still say 0 ("loaded from beginning") or be null, which
+        // tells hasOlderMessages() there is nothing older.  That
+        // was true before the restart when all messages were in
+        // memory, but now we only have ~100.  Recalculate from the
+        // lowest seq actually present so the user can scroll up to
+        // load older history.
+        final restored =
+            _sessionMessages[sessionId] ?? cached;
+        int? minSeq;
+        for (final m in restored) {
+          final seq = m['seq'] as int?;
+          if (seq != null && (minSeq == null || seq < minSeq)) {
+            minSeq = seq;
           }
-          if (minSeq != null && minSeq > 1) {
-            _sessionFirstLoadedSeq[sessionId] = minSeq;
-            firstLoadedChanged = true;
-          }
+        }
+        if (minSeq != null && minSeq > 1) {
+          _sessionFirstLoadedSeq[sessionId] = minSeq;
+          firstLoadedChanged = true;
         }
       }
     }
@@ -6029,19 +6026,20 @@ what you have, you must use the options mode.
         '(hasPendingSocket=$hasPendingSocketMessages)',
       );
       if (cached.isNotEmpty) {
-        // Strip orphaned sidechain messages (see _restoreAllCachedMessages).
-        final clean = cached.any((m) => m['isSidechain'] == true)
-            ? cached.where((m) => m['isSidechain'] != true).toList()
-            : cached;
-        if (clean.isNotEmpty) {
-          _sessionMessages[sessionId] = clean;
-          _sessionMessagesCache = null;
-          _sessionMessagesViewCache.remove(sessionId);
-          hasMessages = true;
-          // Notify UI immediately so it can render the cached messages.
-          _notifySessionMessagesChanged(sessionId);
-          _notifyDataChanged();
-        }
+        _sessionMessages[sessionId] = cached;
+        _sessionMessagesCache = null;
+        _sessionMessagesViewCache.remove(sessionId);
+        // Run the sidechain grouper on restored messages so that
+        // orphaned sidechain messages get grouped into their parent
+        // Task's children array.  Without this, orphans that
+        // slipped into the cache are stripped and invisible, and
+        // Task messages that already have children from a previous
+        // grouping keep their children intact.
+        _groupSidechainMessages(sessionId);
+        hasMessages = true;
+        // Notify UI immediately so it can render the cached messages.
+        _notifySessionMessagesChanged(sessionId);
+        _notifyDataChanged();
       }
       // Only request a tail refresh when there are NO messages to show.
       // When cache was restored, the incremental delta path (afterSeq =
@@ -8154,17 +8152,60 @@ what you have, you must use the options mode.
       if (hasLocalId && localId != messageId && !isSidechainMsg) {
         merged.remove(localId);
       }
-      // Also remove any existing entry that was the optimistic placeholder
-      // for this localId (handles the reverse lookup case).
-      // Guard: sidechain messages share localId with their parent
-      // assistant message's tool-call cards. Without this guard each
-      // arriving sidechain message would evict the last Task tool-call
-      // from the list via localIdToId, progressively removing agents
-      // until only the first one remains.
+      // Also remove via the reverse index, but ONLY if the target
+      // is an optimistic placeholder (id == localId).  The reverse
+      // index (`localIdToId`) maps localId → id for messages where
+      // localId != id — so it never points at a placeholder.  When
+      // multiple display messages share the same localId (e.g. text
+      // + Task1 + Task2 from one assistant turn), the index captures
+      // only the last one.  Blindly removing it evicts a sibling
+      // message that has already been grouped with sidechain
+      // children, causing permanent data loss (the re-added copy
+      // from the server batch has no children).
+      //
+      // The first check (`merged.remove(localId)`) already handles
+      // placeholder removal by key (placeholder.id == localId), so
+      // this second check is only needed for the case where the
+      // placeholder was previously replaced and now has a server id.
+      // Guard: skip sidechain messages entirely (they share
+      // localId with their parent Task/Agent tool-call).
       if (hasLocalId && !isSidechainMsg) {
         final existingId = localIdToId[localId];
         if (existingId != null && existingId != messageId) {
-          merged.remove(existingId);
+          // Only remove if the target is the optimistic placeholder
+          // (its id matches the localId).  Since localIdToId excludes
+          // entries where id == localId, this condition is never true
+          // — which is correct: the first check above already removed
+          // the placeholder by key.  This guard prevents the reverse
+          // index from accidentally evicting sibling messages that
+          // share the same localId.
+          if (existingId == localId) {
+            merged.remove(existingId);
+          }
+        }
+      }
+      // Preserve grouped sidechain children and root uuid metadata
+      // when replacing a message — the incoming copy from the server
+      // does not carry these (they are computed locally by the
+      // grouper).  Without this, a delta-fetch that overlaps with
+      // inline-processed messages replaces the grouped Task message
+      // with a child-less copy, and the sidechain messages that were
+      // already removed from the flat list can never be re-grouped.
+      final existing = merged[messageId];
+      if (existing != null) {
+        final existingChildren =
+            existing['children'] as List<dynamic>?;
+        if (existingChildren != null &&
+            existingChildren.isNotEmpty &&
+            message['children'] == null) {
+          message['children'] = existingChildren;
+        }
+        final existingRoots =
+            existing['_sidechainRootUuids'] as List<dynamic>?;
+        if (existingRoots != null &&
+            existingRoots.isNotEmpty &&
+            message['_sidechainRootUuids'] == null) {
+          message['_sidechainRootUuids'] = existingRoots;
         }
       }
       merged[messageId] = message;
