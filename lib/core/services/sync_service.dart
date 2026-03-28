@@ -8,6 +8,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+
 import '../api/api_client.dart';
 import '../api/kv_api.dart';
 import '../api/push_api.dart';
@@ -36,16 +37,16 @@ import '../models/todo.dart';
 import '../rpc/rpc_types.dart';
 import '../services/message_cache_service.dart';
 import '../services/message_outbox.dart';
-import '../services/network_monitor_service.dart';
 import '../services/mmkv_storage.dart';
+import '../services/network_monitor_service.dart';
 import '../services/server_config.dart';
 import '../utils/invalidate_sync.dart';
 import '../utils/parse_token.dart';
 import '../utils/wire_parsers.dart';
-import 'logger_service.dart';
-import 'notification_service.dart';
 import 'inline_message_processor.dart';
+import 'logger_service.dart';
 import 'message_cursor_manager.dart';
+import 'notification_service.dart';
 import 'sidechain_grouper.dart';
 import 'tool_result_processor.dart';
 

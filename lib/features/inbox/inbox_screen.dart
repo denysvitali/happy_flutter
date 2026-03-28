@@ -15,9 +15,9 @@ import '../../core/models/feed.dart';
 import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/social_service.dart';
-import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/sync_subscription_mixin.dart';
 
 /// Selector value for friends data used in inbox.
 class _InboxFriendsData {

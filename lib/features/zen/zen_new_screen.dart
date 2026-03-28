@@ -8,9 +8,9 @@ import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/sync_subscription_mixin.dart';
 import 'zen_priority.dart';
 
 /// Screen for creating a new Zen todo item.

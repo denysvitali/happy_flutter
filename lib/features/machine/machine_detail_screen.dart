@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../core/api/api_client.dart';
 import '../../core/components/app_card.dart';
-import '../../core/services/sync_service.dart';
 import '../../core/components/app_section_header.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/components/app_tappable.dart';
@@ -13,10 +13,11 @@ import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/utils/sync_subscription_mixin.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart'
     show AppFontSize, AppSpacing, AppTouchTarget;
+import '../../core/utils/sync_subscription_mixin.dart';
 
 /// Detail screen for a single machine.
 ///

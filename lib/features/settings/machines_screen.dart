@@ -6,15 +6,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/components/app_empty_state.dart';
-import '../../core/services/sync_service.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/utils/sync_subscription_mixin.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/sync_subscription_mixin.dart';
 
 class MachinesScreen extends ConsumerStatefulWidget {
   const MachinesScreen({super.key});

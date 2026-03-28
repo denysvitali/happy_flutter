@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../utils/lru_cache.dart';
 import '../../features/chat/syntax_highlighter.dart';
+import '../utils/lru_cache.dart';
 
 /// Global cache for syntax-highlighted code tokenization results.
 ///

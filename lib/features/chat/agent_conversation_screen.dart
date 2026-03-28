@@ -11,8 +11,8 @@ import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'markdown/markdown.dart';
-import 'tools/tool_view.dart';
 import 'tools/tool_status_indicator.dart';
+import 'tools/tool_view.dart';
 
 /// Full-screen view for a Task (sub-agent) tool call's
 /// conversation.

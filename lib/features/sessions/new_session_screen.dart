@@ -10,7 +10,6 @@ import '../../core/models/built_in_profiles.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/providers/chat_action_notifier.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
