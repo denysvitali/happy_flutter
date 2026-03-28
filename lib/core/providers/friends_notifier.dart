@@ -84,9 +84,9 @@ class FriendsNotifier extends Notifier<FriendsState> {
     state = FriendsState();
   }
 
-  /// Applies [fn] (a local state mutation) immediately, then awaits [action].
-  /// Rolls back via [fn] on failure and logs a warning. Returns whether [action]
-  /// succeeded.
+  /// Applies [fn] (a local state mutation) immediately, then awaits
+  /// [action]. Rolls back via [fn] on failure and logs a warning.
+  /// Returns whether [action] succeeded.
   Future<bool> optimisticRemove(
     List<UserProfile> Function(FriendsState) itemsGetter,
     void Function(FriendsState, List<UserProfile>) itemsSetter,

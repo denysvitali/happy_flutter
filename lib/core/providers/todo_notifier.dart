@@ -20,7 +20,7 @@ class TodoStateNotifier extends Notifier<TodoListState> {
     // Fast path: check length first, then use identical() for each value
     final currentLists = state.lists;
     if (currentLists.length == next.length) {
-      bool changed = false;
+      var changed = false;
       next.forEach((key, value) {
         if (!identical(currentLists[key], value)) {
           changed = true;

@@ -3,8 +3,6 @@ import 'package:riverpod/riverpod.dart';
 import '../models/machine.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
-import '_shared.dart';
-
 class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
   int _lastDataChangeCounter = -1;
 
@@ -19,7 +17,7 @@ class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
     final next = sync.sessionGitStatus;
     // Fast path: check length first, then use identical() for each value
     if (state.length == next.length) {
-      bool changed = false;
+      var changed = false;
       next.forEach((key, value) {
         if (!identical(state[key], value)) {
           changed = true;

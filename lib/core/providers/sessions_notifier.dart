@@ -24,7 +24,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     // each time, so identical() check is skipped. Direct map comparison is
     // more efficient than mapEquals() for most cases.
     if (state.length == next.length) {
-      bool changed = false;
+      var changed = false;
       next.forEach((key, value) {
         if (!identical(state[key], value)) {
           changed = true;
@@ -68,8 +68,10 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       return true;
     } catch (e) {
       state = snapshot;
-      logger.warning('OptimisticMutation: deleteSession($id) failed, rolled back'
-          ' — error: $e');
+      logger.warning(
+        'OptimisticMutation: deleteSession($id) failed,'
+        ' rolled back — error: $e',
+      );
       return false;
     }
   }
@@ -83,13 +85,13 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     state = Map<String, Session>.from(state)
       ..removeWhere((id, _) => ids.contains(id));
     final results = await Future.wait(ids.map(sync.deleteSession));
-    int failCount = 0;
-    for (int i = 0; i < ids.length; i++) {
+    var failCount = 0;
+    for (var i = 0; i < ids.length; i++) {
       if (!results[i]) failCount++;
     }
     if (failCount > 0) {
       // Restore only the ones that failed.
-      for (int i = 0; i < ids.length; i++) {
+      for (var i = 0; i < ids.length; i++) {
         if (!results[i] && snapshot.containsKey(ids[i])) {
           state = {...state, ids[i]: snapshot[ids[i]]!};
         }
@@ -97,7 +99,8 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     }
     if (failCount > 0) {
       logger.warning(
-        'OptimisticMutation: batchDelete($ids) — $failCount failed, rolled back',
+        'OptimisticMutation: batchDelete($ids) —'
+        ' $failCount failed, rolled back',
       );
     }
     return failCount;

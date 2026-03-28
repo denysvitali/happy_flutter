@@ -2,7 +2,9 @@ import '../utils/lru_cache.dart';
 
 /// LRU cache entry with access time tracking for legacy compatibility
 class CacheEntry<T> {
-  CacheEntry(this.data, [int? accessTime]) : accessTime = accessTime ?? DateTime.now().millisecondsSinceEpoch;
+  CacheEntry(this.data, [int? accessTime])
+      : accessTime =
+            accessTime ?? DateTime.now().millisecondsSinceEpoch;
   final T data;
   final int accessTime;
 }

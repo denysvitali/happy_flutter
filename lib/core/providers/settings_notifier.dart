@@ -1,6 +1,5 @@
 import 'package:riverpod/riverpod.dart';
 
-import '../models/profile.dart';
 import '../models/settings.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/storage_service.dart';
