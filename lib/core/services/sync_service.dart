@@ -1452,7 +1452,6 @@ what you have, you must use the options mode.
     try {
       final sessionsRaw = cache['sessions'];
       final encryptedKeysRaw = cache['encryptedDataKeys'];
-      final lastFetchedAt = cache['lastFetchedAt'];
 
       if (sessionsRaw is List) {
         final restoredSessions = <Session>[];
@@ -1730,7 +1729,7 @@ what you have, you must use the options mode.
       // new-message arrives at 10-50/sec during AI responses — recording
       // each one floods Sentry's ring buffer and wastes allocations.
       if (update.type != 'new-message') {
-        Sentry.addBreadcrumb(Breadcrumb(
+        unawaited(Sentry.addBreadcrumb(Breadcrumb(
           message: 'sync update: ${update.type}',
           category: 'sync.update',
           level: SentryLevel.info,
@@ -1741,7 +1740,7 @@ what you have, you must use the options mode.
             if (update.data['id'] is String)
               'entityId': update.data['id'] as String,
           },
-        ));
+        )));
       }
 
       switch (update.type) {
@@ -2338,9 +2337,9 @@ what you have, you must use the options mode.
     }
 
     void markOnline({
+      required bool keepThinking,
       bool? thinking,
       int? activeAt,
-      required bool keepThinking,
     }) {
       final session = _sessions[sessionId];
       if (session == null) return;
@@ -4991,7 +4990,7 @@ what you have, you must use the options mode.
     final encryptedRawRecord = await sessionEncryption.encryptRawRecord(
       rawRecord,
     );
-    encryptSpan.finish();
+    unawaited(encryptSpan.finish());
 
     // ── Background: REST POST + socket emit ──
     // Fire-and-forget — the caller returns targetSessionId immediately.
@@ -5041,12 +5040,12 @@ what you have, you must use the options mode.
       );
       waitSpan
         ..setData('ready', ready)
-        ..setData('recentlySpawned', recentlySpawned)
-        ..finish(
-            status: ready
-                ? const SpanStatus.ok()
-                : const SpanStatus.deadlineExceeded(),
-          );
+        ..setData('recentlySpawned', recentlySpawned);
+      unawaited(waitSpan.finish(
+        status: ready
+            ? const SpanStatus.ok()
+            : const SpanStatus.deadlineExceeded(),
+      ));
       if (!ready) {
         logger.info(
           '[sendMessage] agent not ready for '
@@ -5073,15 +5072,14 @@ what you have, you must use the options mode.
           ],
         },
       );
-      postSpan
-        ..setData('statusCode', response.statusCode ?? 0)
-        ..finish(
-            status: apiClient.isSuccess(response)
-                ? const SpanStatus.ok()
-                : SpanStatus.fromHttpStatusCode(
-                    response.statusCode ?? 500,
-                  ),
-          );
+      postSpan.setData('statusCode', response.statusCode ?? 0);
+      unawaited(postSpan.finish(
+        status: apiClient.isSuccess(response)
+            ? const SpanStatus.ok()
+            : SpanStatus.fromHttpStatusCode(
+                response.statusCode ?? 500,
+              ),
+      ));
       logger.info(
         '[sendMessage] POST '
         '/v3/sessions/$targetSessionId/messages '
@@ -5539,12 +5537,12 @@ what you have, you must use the options mode.
   ) async {
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
-      Sentry.addBreadcrumb(Breadcrumb(
+      unawaited(Sentry.addBreadcrumb(Breadcrumb(
         message: 'fetchMessages: encryption null, '
             'awaiting sessions',
         category: 'sync.messages',
         data: {'sessionId': sessionId},
-      ));
+      )));
       // Encryption may not be initialized yet — wait for pending fetch.
       await sessionsSync.invalidateAndAwait();
       sessionEncryption = encryption.getSessionEncryption(sessionId);
@@ -6146,12 +6144,12 @@ what you have, you must use the options mode.
         'sync.encryption.init',
         description: 'Wait for session encryption',
       );
-      Sentry.addBreadcrumb(Breadcrumb(
+      unawaited(Sentry.addBreadcrumb(Breadcrumb(
         message: 'fetchMessages: encryption null, '
             'awaiting sessions',
         category: 'sync.messages',
         data: {'sessionId': sessionId},
-      ));
+      )));
       // Encryption may not be initialized yet — wait for pending fetch.
       await sessionsSync.invalidateAndAwait();
       sessionEncryption = encryption.getSessionEncryption(sessionId);
@@ -6161,7 +6159,7 @@ what you have, you must use the options mode.
         await sessionsSync.invalidateAndAwait();
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
-      encSpan?.finish();
+      if (encSpan != null) unawaited(encSpan.finish());
       if (sessionEncryption == null) {
         logger.warning(
           'Session encryption not initialized for '
@@ -6170,8 +6168,8 @@ what you have, you must use the options mode.
         fetchSpan?.setData('status', 'preconditionFailed');
         fetchSpan?.setData('encryptionInitFailed', true);
         fetchSpan?.setData('elapsedMs', fetchStopwatch.elapsedMilliseconds);
-        fetchSpan?.finish();
-        Sentry.addBreadcrumb(Breadcrumb(
+        if (fetchSpan != null) unawaited(fetchSpan.finish());
+        unawaited(Sentry.addBreadcrumb(Breadcrumb(
           message: 'fetchMessages: encryption still '
               'null after 2 attempts',
           category: 'sync.messages',
@@ -6183,7 +6181,7 @@ what you have, you must use the options mode.
             'elapsedMs':
                 fetchStopwatch.elapsedMilliseconds,
           },
-        ));
+        )));
         // Notify UI so the loading spinner clears.
         _notifySessionMessagesChanged(sessionId);
         _notifyDataChanged();
@@ -6355,7 +6353,7 @@ what you have, you must use the options mode.
           logger.warning(
             'Failed to fetch messages: $statusCode',
           );
-          Sentry.addBreadcrumb(Breadcrumb(
+          unawaited(Sentry.addBreadcrumb(Breadcrumb(
             message: 'fetchMessages: HTTP error',
             category: 'sync.messages',
             level: SentryLevel.warning,
@@ -6367,7 +6365,7 @@ what you have, you must use the options mode.
               'elapsedMs':
                   fetchStopwatch.elapsedMilliseconds,
             },
-          ));
+          )));
           // 404 means the session doesn't exist on the server. Clean up
           // the local session and stop retries to prevent repeated 404s.
           if (statusCode == 404) {
@@ -6481,7 +6479,6 @@ what you have, you must use the options mode.
             'before upserting ${processed.messages.length} new ones',
           );
         }
-        final existingCount = _sessionMessages[sessionId]?.length ?? 0;
         final upsertStart = Stopwatch()..start();
         if (processed.messages.isNotEmpty) {
           _upsertSessionMessages(sessionId, processed.messages);
@@ -6526,7 +6523,6 @@ what you have, you must use the options mode.
         _applyPermissionRequests(sessionId);
         final permMs = permStart.elapsedMilliseconds;
 
-        final mergeMs = upsertMs + toolMs + groupMs + permMs;
 
         if (processed.maxSeq > afterSeq) {
           afterSeq = processed.maxSeq;
@@ -6578,13 +6574,13 @@ what you have, you must use the options mode.
       _notifyDataChanged();
       // Finish the fetch span successfully
       fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
-      fetchSpan?.finish();
+      if (fetchSpan != null) unawaited(fetchSpan.finish());
     } on DioException catch (e) {
       fetchSpan?.setData('status', 'networkError');
       fetchSpan?.setData('dioExceptionType', e.type.name);
       fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
-      fetchSpan?.finish();
-      Sentry.addBreadcrumb(Breadcrumb(
+      if (fetchSpan != null) unawaited(fetchSpan.finish());
+      unawaited(Sentry.addBreadcrumb(Breadcrumb(
         message: 'fetchMessages: DioException',
         category: 'sync.messages',
         level: SentryLevel.error,
@@ -6595,7 +6591,7 @@ what you have, you must use the options mode.
           'elapsedMs':
               fetchStopwatch.elapsedMilliseconds,
         },
-      ));
+      )));
       // Network error (e.g., connection lost). The InvalidateSync retry
       // mechanism will handle retries, but we must notify the UI now so
       // it doesn't spin forever while waiting for awaitQueue(). When
@@ -6608,8 +6604,8 @@ what you have, you must use the options mode.
       fetchSpan?.status = SpanStatus.internalError();
       fetchSpan?.setData('error', error.toString());
       fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
-      fetchSpan?.finish();
-      Sentry.addBreadcrumb(Breadcrumb(
+      if (fetchSpan != null) unawaited(fetchSpan.finish());
+      unawaited(Sentry.addBreadcrumb(Breadcrumb(
         message: 'fetchMessages: unexpected error',
         category: 'sync.messages',
         level: SentryLevel.error,
@@ -6619,7 +6615,7 @@ what you have, you must use the options mode.
           'elapsedMs':
               fetchStopwatch.elapsedMilliseconds,
         },
-      ));
+      )));
       logger.error(
         'Error fetching messages',
         error,

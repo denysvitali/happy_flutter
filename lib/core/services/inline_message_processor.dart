@@ -53,7 +53,6 @@ class InlineMessageProcessor {
   }
 
   /// Whether a queue entry exists for [sessionId].
-  @visibleForTesting
   bool contains(String sessionId) =>
       _queue.containsKey(sessionId);
 
