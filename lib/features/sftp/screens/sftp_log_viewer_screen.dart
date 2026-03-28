@@ -188,7 +188,7 @@ class _SftpLogViewerScreenState
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       if (_selectedDeviceId != null) {
         await sftpLogStore
             .clearDeviceLogs(_selectedDeviceId!);
@@ -471,7 +471,7 @@ class _SftpLogViewerScreenState
                       vertical: AppSpacing.sm,
                     ),
                     itemCount: _filteredLogs.length,
-                    separatorBuilder: (_, __) =>
+                    separatorBuilder: (_, _) =>
                         const SizedBox(
                       height: AppSpacing.xs,
                     ),

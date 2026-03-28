@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -179,7 +180,7 @@ class ConnectionHistoryStore {
         .where((e) => e.duration != null)
         .toList();
 
-    Duration totalDuration = Duration.zero;
+    var totalDuration = Duration.zero;
     for (final s in sessions) {
       totalDuration += s.duration!;
     }
@@ -316,9 +317,9 @@ class _SftpConnectionHistoryScreenState
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       await connectionHistoryStore.clear();
-      _loadEvents();
+      unawaited(_loadEvents());
     }
   }
 
@@ -390,7 +391,7 @@ class _SftpConnectionHistoryScreenState
                   // Device filter
                   Expanded(
                     child: DropdownButtonFormField<String?>(
-                      value: _selectedDeviceId,
+                      initialValue: _selectedDeviceId,
                       isDense: true,
                       decoration: InputDecoration(
                         labelText: 'Device',
@@ -435,7 +436,7 @@ class _SftpConnectionHistoryScreenState
                   // User filter
                   Expanded(
                     child: DropdownButtonFormField<String?>(
-                      value: _selectedUsername,
+                      initialValue: _selectedUsername,
                       isDense: true,
                       decoration: InputDecoration(
                         labelText: 'User',
@@ -558,7 +559,7 @@ class _SftpConnectionHistoryScreenState
                     vertical: AppSpacing.sm,
                   ),
                   itemCount: _events.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (_, _) =>
                       const SizedBox(
                     height: AppSpacing.sm,
                   ),
@@ -586,7 +587,7 @@ class _SftpConnectionHistoryScreenState
     return ListView.separated(
       padding: AppScreenPadding.standard,
       itemCount: allDevices.length,
-      separatorBuilder: (_, __) =>
+      separatorBuilder: (_, _) =>
           const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) {
         final deviceId = allDevices[index];

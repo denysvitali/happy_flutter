@@ -889,8 +889,10 @@ class AppLocalizations {
   String get profilesWizardTimeoutHelp => 'Optional - defaults to 300000ms';
   String get profilesWizardReviewHint =>
       'Review your settings and tap Save to create the profile.';
-  String get profilesWizardSubtitle => 'Step-by-step setup with guided configuration';
-  String get profilesAddProfileSubtitle => 'Start from scratch with empty configuration';
+  String get profilesWizardSubtitle =>
+      'Step-by-step setup with guided configuration';
+  String get profilesAddProfileSubtitle =>
+      'Start from scratch with empty configuration';
   String get commonOptional => '(optional)';
 
   // Changelog

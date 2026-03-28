@@ -75,7 +75,10 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
         details.exception,
         details.stack,
       );
-      widget.onError?.call(details.exception, details.stack ?? StackTrace.empty);
+      widget.onError?.call(
+        details.exception,
+        details.stack ?? StackTrace.empty,
+      );
       return _ErrorWidgetFallback(details: details);
     };
   }

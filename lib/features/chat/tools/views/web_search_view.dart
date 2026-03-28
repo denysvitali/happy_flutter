@@ -209,7 +209,10 @@ class _SearchBar extends StatelessWidget {
     final isDone = state == 'completed';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.smd, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.smd,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.xxl),

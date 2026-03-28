@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_tokens.dart';
 import 'avatar.dart';
 
-// ─── Palette definitions ──────────────────────────────────────────────────────
+// ─── Palette definitions ─────────────────────────────────────────────────────
 
 /// Sunset palette: warm oranges, pinks, and deep purples.
 const _kSunsetBg = Color(0xFF1A0A1E);
@@ -141,10 +141,10 @@ class _WavePainter extends CustomPainter {
     final dx = size.width / steps;
 
     // Start at bottom-left corner to create a closed filled shape.
-    path.moveTo(0, size.height);
-
-    // Bottom edge to the first wave point.
-    path.lineTo(0, _waveY(0, dx, freq, amp, phase, baseY, size));
+    path
+      ..moveTo(0, size.height)
+      // Bottom edge to the first wave point.
+      ..lineTo(0, _waveY(0, dx, freq, amp, phase, baseY, size));
 
     for (var s = 1; s <= steps; s++) {
       path.lineTo(
@@ -154,8 +154,9 @@ class _WavePainter extends CustomPainter {
     }
 
     // Close the path along the bottom.
-    path.lineTo(size.width, size.height);
-    path.close();
+    path
+      ..lineTo(size.width, size.height)
+      ..close();
 
     canvas.drawPath(path, Paint()..color = color);
   }

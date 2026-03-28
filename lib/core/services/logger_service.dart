@@ -64,7 +64,8 @@ class LogEntry {
 /// entries are added. All logs are also written to the console in debug builds.
 ///
 /// When [developerModeEnabled] is true, all log levels are captured even in
-/// release builds, allowing developers to see operational logs in the DevLogsScreen.
+/// release builds, allowing developers to see operational logs in
+/// the DevLogsScreen.
 class LoggerService {
   factory LoggerService() => _instance;
   LoggerService._();
@@ -123,7 +124,9 @@ class LoggerService {
     );
 
     // Add to circular buffer (in release mode without dev mode, only errors)
-    final shouldBuffer = !kReleaseMode || _developerModeEnabled || level == LogLevel.error;
+    final shouldBuffer = !kReleaseMode ||
+        _developerModeEnabled ||
+        level == LogLevel.error;
     if (shouldBuffer) {
       _logs.add(entry);
 
@@ -133,19 +136,23 @@ class LoggerService {
       }
     }
 
-    // Forward warnings and errors to Sentry (errors only in release mode without dev mode)
-    final shouldForwardToSentry = !kReleaseMode || _developerModeEnabled || level == LogLevel.error;
+    // Forward to Sentry (errors only in release mode without dev mode)
+    final shouldForwardToSentry = !kReleaseMode ||
+        _developerModeEnabled ||
+        level == LogLevel.error;
     if (shouldForwardToSentry) {
       _forwardToSentry(entry);
     }
 
-    // Write to console in debug mode (or in release with dev mode for visibility)
+    // Write to console in debug mode (or release with dev mode)
     if (kDebugMode || (kReleaseMode && _developerModeEnabled)) {
       _writeToConsole(entry);
     }
 
     // Notify listeners
-    final shouldNotify = !kReleaseMode || _developerModeEnabled || level == LogLevel.error;
+    final shouldNotify = !kReleaseMode ||
+        _developerModeEnabled ||
+        level == LogLevel.error;
     if (shouldNotify) {
       for (final listener in _listeners) {
         try {

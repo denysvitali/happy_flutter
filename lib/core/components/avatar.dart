@@ -1,10 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import '../ui/avatars/avatar_brutalist.dart' as _canvas;
+import '../ui/avatars/avatar_brutalist.dart' as canvas_brutalist;
 import '../ui/avatars/avatar_constellation.dart';
 import '../ui/avatars/avatar_geometric.dart';
-import '../ui/avatars/avatar_gradient.dart' as _canvas;
+import '../ui/avatars/avatar_gradient.dart' as canvas_gradient;
 import '../ui/avatars/avatar_rings.dart';
 import '../ui/avatars/avatar_wave.dart';
 
@@ -59,7 +59,7 @@ class AvatarBrutalist extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _canvas.AvatarBrutalist(id: id, size: size);
+    return canvas_brutalist.AvatarBrutalist(id: id, size: size);
   }
 }
 
@@ -85,7 +85,7 @@ class AvatarGradient extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _canvas.AvatarGradient(id: id, size: size);
+    return canvas_gradient.AvatarGradient(id: id, size: size);
   }
 }
 

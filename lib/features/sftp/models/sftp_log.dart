@@ -81,9 +81,9 @@ class SftpLogStore {
 
   /// Add a log entry for a device
   Future<void> addLog(SftpLogEntry entry) async {
-    _logs.putIfAbsent(entry.deviceId, () => []);
-    final deviceLogs = _logs[entry.deviceId]!;
-    deviceLogs.insert(0, entry);
+    final deviceLogs =
+        _logs.putIfAbsent(entry.deviceId, () => [])
+          ..insert(0, entry);
 
     // Enforce max logs per device
     if (deviceLogs.length > _maxLogsPerDevice) {

@@ -19,8 +19,8 @@ import '../providers/sftp_provider.dart';
 /// and actions
 class SftpDirectoryManagerScreen extends ConsumerStatefulWidget {
   const SftpDirectoryManagerScreen({
-    super.key,
     required this.directory,
+    super.key,
   });
 
   final SftpDirectory directory;
@@ -150,7 +150,7 @@ class _SftpDirectoryManagerScreenState
       ),
     );
 
-    if (confirmed == true && mounted) {
+    if ((confirmed ?? false) && mounted) {
       await ref
           .read(sftpNotifierProvider.notifier)
           .removeDirectory(_dir.id);
@@ -442,7 +442,7 @@ class _SftpDirectoryManagerScreenState
                                 vertical: AppSpacing.sm,
                               ),
                               itemCount: _entities.length,
-                              separatorBuilder: (_, __) =>
+                              separatorBuilder: (_, _) =>
                                   const SizedBox(
                                 height: AppSpacing.xs,
                               ),

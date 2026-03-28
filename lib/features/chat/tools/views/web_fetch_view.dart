@@ -35,7 +35,9 @@ class _WebFetchViewState extends State<WebFetchView> {
         builder: (_, scrollController) => Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0,
+              ),
               child: Row(
                 children: [
                   Icon(

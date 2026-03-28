@@ -297,7 +297,7 @@ class _MachinePicker extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: DropdownButtonFormField<String>(
-            value: selectedMachineId,
+            initialValue: selectedMachineId,
             decoration: InputDecoration(
               border: OutlineInputBorder(
                 borderRadius:

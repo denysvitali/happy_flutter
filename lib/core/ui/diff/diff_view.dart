@@ -412,7 +412,10 @@ class DiffStatsView extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Text(
             '(${stats.totalChanges} changes)',
-            style: TextStyle(color: theme.hunkHeaderText, fontSize: AppFontSize.sm),
+            style: TextStyle(
+              color: theme.hunkHeaderText,
+              fontSize: AppFontSize.sm,
+            ),
           ),
         ],
       ],

@@ -142,7 +142,7 @@ class _AppSidebarState extends State<AppSidebar> {
   }
 }
 
-// ─── _SidebarItem ─────────────────────────────────────────────────────────────
+// ─── _SidebarItem ────────────────────────────────────────────────────────────
 
 /// A single sidebar navigation item with icon, optional label, and badge.
 class _SidebarItem extends StatelessWidget {
@@ -261,7 +261,7 @@ class _SidebarItem extends StatelessWidget {
   }
 }
 
-// ─── _SidebarBadge ────────────────────────────────────────────────────────────
+// ─── _SidebarBadge ───────────────────────────────────────────────────────────
 
 /// Numeric red badge for the sidebar inbox item.
 class _SidebarBadge extends StatelessWidget {
@@ -303,7 +303,7 @@ class _SidebarBadge extends StatelessWidget {
   }
 }
 
-// ─── _CollapseToggle ──────────────────────────────────────────────────────────
+// ─── _CollapseToggle ─────────────────────────────────────────────────────────
 
 /// Toggle button at the bottom of the sidebar that collapses or expands it.
 class _CollapseToggle extends StatelessWidget {

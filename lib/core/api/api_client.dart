@@ -624,7 +624,7 @@ class ApiClient {
       return response;
     } finally {
       // Clean up after request completes (whether successful or not)
-      _activeRequests.remove(key);
+      unawaited(_activeRequests.remove(key));
     }
   }
 
@@ -650,7 +650,7 @@ class ApiClient {
       _httpCache.invalidate(path);
       return response;
     } finally {
-      _activeRequests.remove(key);
+      unawaited(_activeRequests.remove(key));
     }
   }
 
@@ -676,7 +676,7 @@ class ApiClient {
       _httpCache.invalidate(path);
       return response;
     } finally {
-      _activeRequests.remove(key);
+      unawaited(_activeRequests.remove(key));
     }
   }
 
@@ -702,7 +702,7 @@ class ApiClient {
       _httpCache.invalidate(path);
       return response;
     } finally {
-      _activeRequests.remove(key);
+      unawaited(_activeRequests.remove(key));
     }
   }
 
@@ -792,15 +792,17 @@ class ApiClient {
         queryParameters.entries.toList()
           ..sort((a, b) => a.key.compareTo(b.key)),
       );
-      buffer.write('?');
-      buffer.write(sortedParams.entries
-          .map((e) => '${e.key}=${e.value}')
-          .join('&'));
+      buffer
+        ..write('?')
+        ..write(sortedParams.entries
+            .map((e) => '${e.key}=${e.value}')
+            .join('&'));
     }
     if (data != null && (method == 'POST' || method == 'PUT')) {
       // For POST/PUT, include a hash of the data to differentiate requests
-      buffer.write(':');
-      buffer.write(data.hashCode);
+      buffer
+        ..write(':')
+        ..write(data.hashCode);
     }
     return buffer.toString();
   }

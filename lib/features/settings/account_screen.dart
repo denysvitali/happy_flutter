@@ -201,7 +201,10 @@ class AccountScreen extends ConsumerWidget {
                 children: [
                   Text(
                     l10n.accountBackupKeyDialogContent,
-                    style: TextStyle(fontSize: AppFontSize.sm, color: cs.onSurfaceVariant),
+                    style: TextStyle(
+                      fontSize: AppFontSize.sm,
+                      color: cs.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Container(
@@ -883,7 +886,10 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
           Text(
             l10n.accountScanHint,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: AppFontSize.sm, color: cs.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: AppFontSize.sm,
+              color: cs.onSurfaceVariant,
+            ),
           ),
         const SizedBox(height: AppSpacing.lg),
       ],
@@ -1139,7 +1145,10 @@ class DeviceTile extends StatelessWidget {
                 ),
                 child: Text(
                   l10n.accountThisDevice,
-                  style: TextStyle(fontSize: AppFontSize.xs, color: cs.onPrimaryContainer),
+                  style: TextStyle(
+                    fontSize: AppFontSize.xs,
+                    color: cs.onPrimaryContainer,
+                  ),
                 ),
               ),
           ],

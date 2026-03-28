@@ -178,7 +178,10 @@ class SessionsApi {
         statusCode: response.statusCode,
       );
     }
-    logger.debug('setSessionArchived success: sessionId=$sessionId archived=$archived');
+    logger.debug(
+      'setSessionArchived success: '
+      'sessionId=$sessionId archived=$archived',
+    );
   }
 }
 

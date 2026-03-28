@@ -154,7 +154,7 @@ class _AddSftpDirectoryDialogState extends State<AddSftpDirectoryDialog> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<SftpAuthMethod>(
-              value: _authMethod,
+              initialValue: _authMethod,
               decoration: const InputDecoration(
                 labelText: 'Authentication',
               ),
@@ -172,7 +172,7 @@ class _AddSftpDirectoryDialogState extends State<AddSftpDirectoryDialog> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<SftpClipboardMode>(
-              value: _clipboardMode,
+              initialValue: _clipboardMode,
               decoration: const InputDecoration(
                 labelText: 'Clipboard Sync',
               ),
