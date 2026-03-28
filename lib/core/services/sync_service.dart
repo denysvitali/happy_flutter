@@ -6455,33 +6455,19 @@ what you have, you must use the options mode.
         await Future<void>.delayed(Duration.zero);
 
         // ── Upsert messages ──
-        // For gap recovery on truly first loads (no cached messages),
-        // clear before upserting to prevent stale data from lingering.
-        // When cached messages exist, merge the tail with existing data
-        // instead of clearing — the user is already seeing the cached
-        // messages and clearing them would cause a visible flash of
-        // empty content.  The maxMessages cap in _upsertSessionMessages
-        // prevents unbounded growth.
+        // For gap recovery, clear stale in-memory messages right before
+        // the first successful upsert so we don't lose messages if the
+        // network request fails. We defer clearing until we know the fetch
+        // succeeded.
         if (isGapRecovery && page == 0 && processed.messages.isNotEmpty) {
-          final hasCachedMessages =
-              (_sessionMessages[sessionId]?.isNotEmpty ?? false);
-          if (!hasCachedMessages) {
-            _sessionMessages.remove(sessionId);
-            _sessionMessagesCache = null;
-            _sessionMessagesViewCache.remove(sessionId);
-            MessageCacheService().clearMessages(sessionId);
-            logger.info(
-              '[fetchMessages] $sessionId gap recovery: cleared stale '
-              'messages before upserting '
-              '${processed.messages.length} new ones',
-            );
-          } else {
-            logger.info(
-              '[fetchMessages] $sessionId gap recovery: merging '
-              '${processed.messages.length} new messages with '
-              '${_sessionMessages[sessionId]?.length ?? 0} cached',
-            );
-          }
+          _sessionMessages.remove(sessionId);
+          _sessionMessagesCache = null;
+          _sessionMessagesViewCache.remove(sessionId);
+          MessageCacheService().clearMessages(sessionId);
+          logger.info(
+            '[fetchMessages] $sessionId gap recovery: cleared stale messages '
+            'before upserting ${processed.messages.length} new ones',
+          );
         }
         final existingCount = _sessionMessages[sessionId]?.length ?? 0;
         final upsertStart = Stopwatch()..start();
