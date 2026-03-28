@@ -271,15 +271,32 @@ class SocketIoClient {
     _socket!.emit(event, data);
   }
 
+  /// Waits for the socket to reach [ConnectionStatus.connected].
+  /// Returns immediately if already connected. Throws [StateError]
+  /// if the socket is null or [timeout] elapses.
+  Future<void> _waitForConnection({
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    if (_socket != null && _status == ConnectionStatus.connected) return;
+    if (_socket == null) {
+      throw StateError('WebSocket not connected');
+    }
+    // Socket exists but isn't connected yet (e.g. reconnecting after
+    // app resume). Wait for it rather than failing immediately.
+    await statusStream
+        .firstWhere((s) => s == ConnectionStatus.connected)
+        .timeout(timeout, onTimeout: () {
+      throw StateError('WebSocket not connected');
+    });
+  }
+
   /// Emit event and wait for acknowledgement
   Future<dynamic> emitWithAck(
     String event,
     dynamic data, {
     Duration timeout = const Duration(seconds: 30),
   }) async {
-    if (_socket == null || _status != ConnectionStatus.connected) {
-      throw StateError('WebSocket not connected');
-    }
+    await _waitForConnection();
     final completer = Completer<dynamic>();
     _socket!.emitWithAck(event, data, ack: (response) {
       if (!completer.isCompleted) completer.complete(response);

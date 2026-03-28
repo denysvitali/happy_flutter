@@ -6466,7 +6466,7 @@ what you have, you must use the options mode.
         // messages use the inline socket path.
         const maxPages = 5; // 500 messages max per fetch cycle
         if (page >= maxPages) {
-          logger.warning(
+          logger.info(
             '[fetchMessages] $sessionId hit $maxPages page limit '
             '— stopping forward crawl at afterSeq=$afterSeq',
           );
