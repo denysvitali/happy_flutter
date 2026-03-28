@@ -335,6 +335,8 @@ class AppLocalizations {
   String get claudeLimitsSelectMachine => 'Machine';
 
   String get settingsFeatures => 'Features';
+  String get settingsFeaturesSubtitle =>
+      'Experiments and display preferences';
   String get featuresExperiments => 'Experiments';
   String get featuresExperimentsDesc => 'Try experimental features';
   String get settingsServerUrlLabel => 'Server URL';

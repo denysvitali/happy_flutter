@@ -114,6 +114,8 @@
   "@settingsMachines": {},
   "settingsFeatures": "Features",
   "@settingsFeatures": {},
+  "settingsFeaturesSubtitle": "Experiments and display preferences",
+  "@settingsFeaturesSubtitle": {},
   "settingsDeveloper": "Developer",
   "@settingsDeveloper": {},
   "settingsAbout": "About",

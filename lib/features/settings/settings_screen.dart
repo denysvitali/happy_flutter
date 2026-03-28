@@ -384,8 +384,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       children: [
         SettingsNavRow(
           icon: Icons.science,
-          title: l10n.featuresExperiments,
-          subtitle: l10n.featuresExperimentsDesc,
+          title: l10n.settingsFeatures,
+          subtitle: l10n.settingsFeaturesSubtitle,
           onTap: () => context.pushNamed('features'),
         ),
       ],
