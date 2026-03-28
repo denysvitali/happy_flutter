@@ -1579,39 +1579,32 @@ what you have, you must use the options mode.
       if (_sessionMessages.containsKey(sessionId)) continue;
       final cached = MessageCacheService().getMessages(sessionId);
       if (cached.isNotEmpty) {
-        _sessionMessages[sessionId] = cached;
-        _sessionMessagesViewCache.remove(sessionId);
-        // Run the sidechain grouper to attach orphaned sidechain
-        // messages that slipped into the cache before the deferred
-        // regroup timer fired (e.g. app killed during the 500ms
-        // save debounce).  This also re-establishes children arrays
-        // on Task messages whose children were already grouped.
-        _groupSidechainMessages(sessionId);
-        // Notify UI so ChatScreen refreshes with cached messages.
-        // The 100ms debounce in _notifySessionMessagesChanged coalesces
-        // rapid restores into a single notification.
-        _notifySessionMessagesChanged(sessionId);
+        // Strip orphaned sidechain messages that were persisted
+        // before the deferred regroup timer could clean them up.
+        final clean = cached.any((m) => m['isSidechain'] == true)
+            ? cached.where((m) => m['isSidechain'] != true).toList()
+            : cached;
+        if (clean.isNotEmpty) {
+          _sessionMessages[sessionId] = clean;
+          _sessionMessagesViewCache.remove(sessionId);
+          // Notify UI so ChatScreen refreshes with cached messages.
+          _notifySessionMessagesChanged(sessionId);
 
-        // The MMKV cache only stores the most recent ~100 messages.
-        // _sessionFirstLoadedSeq (restored from MMKV earlier) may
-        // still say 0 ("loaded from beginning") or be null, which
-        // tells hasOlderMessages() there is nothing older.  That
-        // was true before the restart when all messages were in
-        // memory, but now we only have ~100.  Recalculate from the
-        // lowest seq actually present so the user can scroll up to
-        // load older history.
-        final restored =
-            _sessionMessages[sessionId] ?? cached;
-        int? minSeq;
-        for (final m in restored) {
-          final seq = m['seq'] as int?;
-          if (seq != null && (minSeq == null || seq < minSeq)) {
-            minSeq = seq;
+          // The MMKV cache only stores the most recent ~100 messages.
+          // _sessionFirstLoadedSeq may say 0 or null, telling
+          // hasOlderMessages() there is nothing older.  Recalculate
+          // from the lowest seq so the user can scroll up.
+          int? minSeq;
+          for (final m in clean) {
+            final seq = m['seq'] as int?;
+            if (seq != null && (minSeq == null || seq < minSeq)) {
+              minSeq = seq;
+            }
           }
-        }
-        if (minSeq != null && minSeq > 1) {
-          _sessionFirstLoadedSeq[sessionId] = minSeq;
-          firstLoadedChanged = true;
+          if (minSeq != null && minSeq > 1) {
+            _sessionFirstLoadedSeq[sessionId] = minSeq;
+            firstLoadedChanged = true;
+          }
         }
       }
     }
@@ -6026,20 +6019,20 @@ what you have, you must use the options mode.
         '(hasPendingSocket=$hasPendingSocketMessages)',
       );
       if (cached.isNotEmpty) {
-        _sessionMessages[sessionId] = cached;
-        _sessionMessagesCache = null;
-        _sessionMessagesViewCache.remove(sessionId);
-        // Run the sidechain grouper on restored messages so that
-        // orphaned sidechain messages get grouped into their parent
-        // Task's children array.  Without this, orphans that
-        // slipped into the cache are stripped and invisible, and
-        // Task messages that already have children from a previous
-        // grouping keep their children intact.
-        _groupSidechainMessages(sessionId);
-        hasMessages = true;
-        // Notify UI immediately so it can render the cached messages.
-        _notifySessionMessagesChanged(sessionId);
-        _notifyDataChanged();
+        // Strip orphaned sidechain messages (see
+        // _restoreAllCachedMessages).
+        final clean = cached.any((m) => m['isSidechain'] == true)
+            ? cached.where((m) => m['isSidechain'] != true).toList()
+            : cached;
+        if (clean.isNotEmpty) {
+          _sessionMessages[sessionId] = clean;
+          _sessionMessagesCache = null;
+          _sessionMessagesViewCache.remove(sessionId);
+          hasMessages = true;
+          // Notify UI immediately so it can render cached messages.
+          _notifySessionMessagesChanged(sessionId);
+          _notifyDataChanged();
+        }
       }
       // Only request a tail refresh when there are NO messages to show.
       // When cache was restored, the incremental delta path (afterSeq =
