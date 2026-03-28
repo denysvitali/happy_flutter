@@ -16,6 +16,31 @@ import 'logger_service.dart' show logger;
 import 'storage_service.dart';
 import 'sync_service.dart';
 
+/// Per-flow configuration for [_waitForApproval].
+class _ApprovalFlowConfig {
+  const _ApprovalFlowConfig({
+    required this.label,
+    required this.requestData,
+    required this.getSecretKey,
+    required this.clearSecretKey,
+    required this.disposeCachedKeypairOnError,
+    required this.handleSslErrors,
+    required this.timeoutMessage,
+    required this.dioForbiddenMessage,
+    required this.dioForbiddenUsesExtractErrorMessage,
+  });
+  final String label;
+  final Map<String, dynamic> requestData;
+  final SecureKey? Function() getSecretKey;
+  final void Function() clearSecretKey;
+  final bool disposeCachedKeypairOnError;
+  final bool handleSslErrors;
+  final String timeoutMessage;
+  /// Message and serverResponse style for DioException 403.
+  final String dioForbiddenMessage;
+  final bool dioForbiddenUsesExtractErrorMessage;
+}
+
 /// Authentication service handling QR-based authentication flow
 class AuthService {
   factory AuthService() => _instance;
@@ -132,129 +157,19 @@ class AuthService {
 
   /// Wait for authentication approval
   Future<AuthCredentials> waitForAuthApproval(Uint8List publicKey) async {
-    final startTime = DateTime.now().millisecondsSinceEpoch;
-    final timeout = 120000;
-
-    while (DateTime.now().millisecondsSinceEpoch - startTime < timeout) {
-      try {
-        final response = await _apiClient.post(
-          '/v1/auth/account/request',
-          data: {
-            'publicKey': base64Encode(publicKey),
-          },
-        );
-
-        if (response.statusCode == 403) {
-          final serverResponse = _extractErrorMessage(response.data);
-          _cachedKeypairSecret?.dispose();
-          _cachedKeypairSecret = null;
-          throw AuthForbiddenError(
-            'Authentication rejected by server (403).',
-            serverResponse: serverResponse,
-            diagnosticInfo: _getDiagnosticInfo(response),
-          );
-        }
-
-        if (response.statusCode != null &&
-            response.statusCode! >= 400 &&
-            response.statusCode! < 500) {
-          final errorMsg = _extractErrorMessage(response.data);
-          _cachedKeypairSecret?.dispose();
-          _cachedKeypairSecret = null;
-          throw AuthRequestError(
-            errorMsg,
-            statusCode: response.statusCode,
-            serverResponse: response.data?.toString(),
-          );
-        }
-
-        if (response.statusCode != null && response.statusCode! >= 500) {
-          _cachedKeypairSecret?.dispose();
-          _cachedKeypairSecret = null;
-          throw ServerError(
-            'Please try again later.',
-            statusCode: response.statusCode,
-          );
-        }
-
-        if (response.statusCode == 200) {
-          final data = response.data as Map<String, dynamic>;
-
-          if (data['state'] == 'authorized') {
-            final token = data['token'] as String;
-            final encryptedResponse = data['response'] as String;
-
-            final secretKey = _pendingQRSecretKey;
-            final secret = secretKey == null
-                ? null
-                : await CryptoBox.decrypt(
-                    base64Decode(encryptedResponse),
-                    secretKey,
-                  );
-
-            if (secret != null) {
-              await _encryption.initialize(secret);
-
-              final credentials =
-                  AuthCredentials(token: token, secret: base64Encode(secret));
-              await _persistCredentials(credentials);
-              _apiClient.updateToken(token);
-              _pendingQRSecretKey = null;
-
-              return credentials;
-            }
-          }
-        }
-
-        await Future.delayed(const Duration(milliseconds: 1000));
-      } on DioException catch (e) {
-        if (e.type == DioExceptionType.connectionError ||
-            e.type == DioExceptionType.connectionTimeout) {
-          logger.warning('Connection error during auth polling: ${e.message}');
-          await Future.delayed(const Duration(milliseconds: 1000));
-        } else if (e.response?.statusCode == 403) {
-          final serverResponse = _extractErrorMessage(e.response?.data);
-          _cachedKeypairSecret?.dispose();
-          _cachedKeypairSecret = null;
-          throw AuthForbiddenError(
-            'Authentication rejected by server (403).',
-            serverResponse: serverResponse,
-            diagnosticInfo: 'DioException: ${e.message}',
-          );
-        } else if (e.error != null &&
-            (e.error.toString().contains('Tls') ||
-                e.error.toString().contains('Handshake') ||
-                e.error.toString().contains('Certificate') ||
-                e.error.toString().contains('SSL'))) {
-          _cachedKeypairSecret?.dispose();
-          _cachedKeypairSecret = null;
-          throw SSLError(
-            'SSL/TLS handshake failed.',
-            certificateInfo: e.message,
-          );
-        } else {
-          logger.warning('Dio error during auth polling: $e');
-          await Future.delayed(const Duration(milliseconds: 1000));
-        }
-      } catch (e) {
-        final errorStr = e.toString();
-        if (errorStr.contains('Handshake') ||
-            errorStr.contains('Tls') ||
-            errorStr.contains('Certificate') ||
-            errorStr.contains('SSL')) {
-          throw SSLError(
-            'SSL/TLS error during authentication.',
-            certificateInfo: e.toString(),
-          );
-        }
-        logger.warning('Auth polling error: $e');
-        await Future.delayed(const Duration(milliseconds: 1000));
-      }
-    }
-
-    _cachedKeypairSecret?.dispose();
-    _cachedKeypairSecret = null;
-    throw ExpiredError('Authentication timed out after 2 minutes');
+    return _waitForApproval(
+      _ApprovalFlowConfig(
+        label: 'Authentication',
+        requestData: {'publicKey': base64Encode(publicKey)},
+        getSecretKey: () => _pendingQRSecretKey,
+        clearSecretKey: () => _pendingQRSecretKey = null,
+        disposeCachedKeypairOnError: true,
+        handleSslErrors: true,
+        timeoutMessage: 'Authentication timed out after 2 minutes',
+        dioForbiddenMessage: 'Authentication rejected by server (403).',
+        dioForbiddenUsesExtractErrorMessage: true,
+      ),
+    );
   }
 
   /// Complete authentication with token
@@ -381,7 +296,9 @@ class AuthService {
         statusCode: response.statusCode,
       );
     } else {
-      throw AuthException('Failed to restore account: ${response.statusCode}');
+      throw AuthException(
+        'Failed to restore account: ${response.statusCode}',
+      );
     }
   }
 
@@ -467,92 +384,19 @@ Timestamp: ${DateTime.now().toIso8601String()}
 
   /// Wait for device linking approval
   Future<AuthCredentials> waitForLinkingApproval(String publicKey) async {
-    final startTime = DateTime.now().millisecondsSinceEpoch;
-    final timeout = 120000;
-
-    while (DateTime.now().millisecondsSinceEpoch - startTime < timeout) {
-      try {
-        final response = await _apiClient.post(
-          '/v1/auth/account/request',
-          data: {'publicKey': publicKey},
-        );
-
-        if (response.statusCode == 403) {
-          final serverResponse = _extractErrorMessage(response.data);
-          throw AuthForbiddenError(
-            'Device linking rejected by server (403).',
-            serverResponse: serverResponse,
-            diagnosticInfo: _getDiagnosticInfo(response),
-          );
-        }
-
-        if (response.statusCode != null &&
-            response.statusCode! >= 400 &&
-            response.statusCode! < 500) {
-          final errorMsg = _extractErrorMessage(response.data);
-          throw AuthRequestError(
-            errorMsg,
-            statusCode: response.statusCode,
-            serverResponse: response.data?.toString(),
-          );
-        }
-
-        if (response.statusCode != null && response.statusCode! >= 500) {
-          throw ServerError(
-            'Please try again later.',
-            statusCode: response.statusCode,
-          );
-        }
-
-        if (response.statusCode == 200) {
-          final data = response.data as Map<String, dynamic>;
-
-          if (data['state'] == 'authorized') {
-            final token = data['token'] as String;
-            final encryptedResponse = data['response'] as String;
-
-            final secretKey = _pendingLinkingSecretKey;
-            final secret = secretKey == null
-                ? null
-                : await CryptoBox.decrypt(
-                    base64Decode(encryptedResponse),
-                    secretKey,
-                  );
-
-            if (secret != null) {
-              await _encryption.initialize(secret);
-
-              final credentials =
-                  AuthCredentials(token: token, secret: base64Encode(secret));
-              await _persistCredentials(credentials);
-              _apiClient.updateToken(token);
-
-              return credentials;
-            }
-          }
-        }
-
-        await Future.delayed(const Duration(milliseconds: 1000));
-      } on DioException catch (e) {
-        if (e.type == DioExceptionType.connectionError ||
-            e.type == DioExceptionType.connectionTimeout) {
-          await Future.delayed(const Duration(milliseconds: 1000));
-        } else if (e.response?.statusCode == 403) {
-          throw AuthForbiddenError(
-            'Device linking rejected',
-            serverResponse: e.response?.data?.toString(),
-          );
-        } else {
-          logger.warning('Device linking error: $e');
-          await Future.delayed(const Duration(milliseconds: 1000));
-        }
-      } catch (e) {
-        logger.warning('Device linking error: $e');
-        await Future.delayed(const Duration(milliseconds: 1000));
-      }
-    }
-
-    throw ExpiredError('Device linking timed out after 2 minutes');
+    return _waitForApproval(
+      _ApprovalFlowConfig(
+        label: 'Device linking',
+        requestData: {'publicKey': publicKey},
+        getSecretKey: () => _pendingLinkingSecretKey,
+        clearSecretKey: () => _pendingLinkingSecretKey = null,
+        disposeCachedKeypairOnError: false,
+        handleSslErrors: false,
+        timeoutMessage: 'Device linking timed out after 2 minutes',
+        dioForbiddenMessage: 'Device linking rejected',
+        dioForbiddenUsesExtractErrorMessage: false,
+      ),
+    );
   }
 
   /// Get linked devices
@@ -688,6 +532,14 @@ Timestamp: ${DateTime.now().toIso8601String()}
     return 'URL: $uri\nStatus: $statusCode';
   }
 
+  /// Dispose [_cachedKeypairSecret] if [condition] is true.
+  void _disposeCachedKeypairIf(bool condition) {
+    if (condition) {
+      _cachedKeypairSecret?.dispose();
+      _cachedKeypairSecret = null;
+    }
+  }
+
   Future<void> _persistCredentials(AuthCredentials credentials) async {
     final tokenStorage = TokenStorage();
     final previous = await tokenStorage.getCredentials();
@@ -732,6 +584,141 @@ Timestamp: ${DateTime.now().toIso8601String()}
     return signature;
   }
 
+  /// Shared polling loop for both QR auth and device linking approval.
+  Future<AuthCredentials> _waitForApproval(
+    _ApprovalFlowConfig config,
+  ) async {
+    final startTime = DateTime.now().millisecondsSinceEpoch;
+    const timeout = 120000;
+
+    while (DateTime.now().millisecondsSinceEpoch - startTime < timeout) {
+      try {
+        final response = await _apiClient.post(
+          '/v1/auth/account/request',
+          data: config.requestData,
+        );
+
+        if (response.statusCode == 403) {
+          _disposeCachedKeypairIf(config.disposeCachedKeypairOnError);
+          throw AuthForbiddenError(
+            '${config.label} rejected by server (403).',
+            serverResponse: _extractErrorMessage(response.data),
+            diagnosticInfo: _getDiagnosticInfo(response),
+          );
+        }
+
+        if (response.statusCode != null &&
+            response.statusCode! >= 400 &&
+            response.statusCode! < 500) {
+          final errorMsg = _extractErrorMessage(response.data);
+          _disposeCachedKeypairIf(config.disposeCachedKeypairOnError);
+          throw AuthRequestError(
+            errorMsg,
+            statusCode: response.statusCode,
+            serverResponse: response.data?.toString(),
+          );
+        }
+
+        if (response.statusCode != null && response.statusCode! >= 500) {
+          _disposeCachedKeypairIf(config.disposeCachedKeypairOnError);
+          throw ServerError(
+            'Please try again later.',
+            statusCode: response.statusCode,
+          );
+        }
+
+        if (response.statusCode == 200) {
+          final data = response.data as Map<String, dynamic>;
+
+          if (data['state'] == 'authorized') {
+            final token = data['token'] as String;
+            final encryptedResponse = data['response'] as String;
+
+            final secretKey = config.getSecretKey();
+            final secret = secretKey == null
+                ? null
+                : await CryptoBox.decrypt(
+                    base64Decode(encryptedResponse),
+                    secretKey,
+                  );
+
+            if (secret != null) {
+              await _encryption.initialize(secret);
+
+              final credentials =
+                  AuthCredentials(
+                    token: token,
+                    secret: base64Encode(secret),
+                  );
+              await _persistCredentials(credentials);
+              _apiClient.updateToken(token);
+              config.clearSecretKey();
+
+              return credentials;
+            }
+          }
+        }
+
+        await Future.delayed(const Duration(milliseconds: 1000));
+      } on DioException catch (e) {
+        if (e.type == DioExceptionType.connectionError ||
+            e.type == DioExceptionType.connectionTimeout) {
+          logger.warning(
+            'Connection error during ${config.label.toLowerCase()} '
+            'polling: ${e.message}',
+          );
+          await Future.delayed(const Duration(milliseconds: 1000));
+        } else if (e.response?.statusCode == 403) {
+          _disposeCachedKeypairIf(config.disposeCachedKeypairOnError);
+          final serverResponse =
+              config.dioForbiddenUsesExtractErrorMessage
+                  ? _extractErrorMessage(e.response?.data)
+                  : e.response?.data?.toString();
+          throw AuthForbiddenError(
+            config.dioForbiddenMessage,
+            serverResponse: serverResponse,
+            diagnosticInfo: config.disposeCachedKeypairOnError
+                ? 'DioException: ${e.message}'
+                : null,
+          );
+        } else if (config.handleSslErrors &&
+            e.error != null &&
+            _isSslError(e.error.toString())) {
+          _disposeCachedKeypairIf(true);
+          throw SSLError(
+            'SSL/TLS handshake failed.',
+            certificateInfo: e.message,
+          );
+        } else {
+          logger.warning(
+            '${config.label} polling error: $e',
+          );
+          await Future.delayed(const Duration(milliseconds: 1000));
+        }
+      } catch (e) {
+        if (config.handleSslErrors && _isSslError(e.toString())) {
+          throw SSLError(
+            'SSL/TLS error during ${config.label.toLowerCase()}.',
+            certificateInfo: e.toString(),
+          );
+        }
+        logger.warning('${config.label} polling error: $e');
+        await Future.delayed(const Duration(milliseconds: 1000));
+      }
+    }
+
+    _disposeCachedKeypairIf(config.disposeCachedKeypairOnError);
+    throw ExpiredError(config.timeoutMessage);
+  }
+
+  /// Check if an error string indicates an SSL/TLS failure.
+  static bool _isSslError(String error) {
+    return error.contains('Tls') ||
+        error.contains('Handshake') ||
+        error.contains('Certificate') ||
+        error.contains('SSL');
+  }
+
   /// Parse a happy:// URL and extract the public key
   /// Supports formats:
   /// - `happy://terminal?<base64_public_key>`
@@ -742,8 +729,8 @@ Timestamp: ${DateTime.now().toIso8601String()}
         return null;
       }
 
-      final terminalPrefix = 'happy://terminal?';
-      final accountPrefix = 'happy:///account?';
+      const terminalPrefix = 'happy://terminal?';
+      const accountPrefix = 'happy:///account?';
 
       String base64Key;
       if (url.startsWith(terminalPrefix)) {
