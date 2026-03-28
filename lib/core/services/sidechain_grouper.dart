@@ -176,7 +176,7 @@ class SidechainGrouper {
           sidechainMsgIds.add(msg['id'] as String);
         }
       } else if (msg['isSidechain'] == true ||
-          (msg['parentUuid'] as String?)?.isNotEmpty == true) {
+          ((msg['parentUuid'] as String?)?.isNotEmpty ?? false)) {
         final uuid = msg['uuid'] as String?;
         final parentUuid = msg['parentUuid'] as String?;
 

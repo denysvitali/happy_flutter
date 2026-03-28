@@ -79,28 +79,6 @@ String _messageContentSignature(dynamic contentRaw) {
   return 'raw:${contentRaw?.hashCode ?? 0}';
 }
 
-/// Lightweight wire data sent to the isolate.
-/// Only the fields needed for decrypt + process — NOT the full API maps.
-class _IsolateWireMessage {
-  const _IsolateWireMessage({
-    required this.id,
-    required this.seq,
-    required this.createdAt,
-    this.localId,
-    this.base64Content,
-    this.isEncrypted = false,
-  });
-
-  final String id;
-  final int seq;
-  final dynamic createdAt;
-  final String? localId;
-
-  /// Base64-encoded encrypted payload (content.c), or null if not
-  /// encrypted.
-  final String? base64Content;
-  final bool isEncrypted;
-}
 
 /// Session-specific encryption management
 class SessionEncryption {
@@ -206,8 +184,7 @@ class SessionEncryption {
       // background isolate. NaCl/libsodium (FFI) stays on the
       // main isolate.
       if (_decryptor is AES256Encryption) {
-        decrypted = await (_decryptor as AES256Encryption)
-            .decryptInIsolate(encrypted);
+        decrypted = await _decryptor.decryptInIsolate(encrypted);
       } else {
         decrypted = await _decryptor.decrypt(encrypted);
       }

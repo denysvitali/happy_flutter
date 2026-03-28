@@ -141,7 +141,7 @@ class InvalidateSync {
       await transaction.finish();
 
       // Add breadcrumb for successful completion
-      Sentry.addBreadcrumb(Breadcrumb(
+      unawaited(Sentry.addBreadcrumb(Breadcrumb(
         message: 'InvalidateSync action completed',
         category: 'sync.retry',
         level: SentryLevel.info,
@@ -149,8 +149,8 @@ class InvalidateSync {
           'name': _name ?? 'unknown',
           'retryCount': _retryCount,
         },
-      ));
-    } catch (error, stackTrace) {
+      )));
+    } catch (error) {
       await transaction.finish(
         status: const SpanStatus.internalError(),
       );
@@ -166,7 +166,7 @@ class InvalidateSync {
           // logger.error already forwards to Sentry via
           // _forwardToSentry — no need for a separate captureException.
           logger.error('InvalidateSync: max retries exceeded', error);
-          Sentry.addBreadcrumb(Breadcrumb(
+          unawaited(Sentry.addBreadcrumb(Breadcrumb(
             message: 'InvalidateSync max retries exceeded',
             category: 'sync.retry',
             level: SentryLevel.error,
@@ -174,7 +174,7 @@ class InvalidateSync {
               'name': _name ?? 'unknown',
               'error': error.toString(),
             },
-          ));
+          )));
           operation.completeError(error);
         }
       }

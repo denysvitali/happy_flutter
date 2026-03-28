@@ -32,9 +32,9 @@ class _SentryHttpOverrides extends HttpOverrides {
     final client = prev != null
         ? prev.createHttpClient(context)
         : super.createHttpClient(context);
-    client.badCertificateCallback =
-        (cert, host, port) => host == sentryHost;
-    return client;
+    return client
+      ..badCertificateCallback =
+          (cert, host, port) => host == sentryHost;
   }
 }
 
@@ -108,7 +108,7 @@ Future<void> _pingSentry() async {
     client.close();
   }
 
-  if (statusCode != null && statusCode >= 500) {
+  if (statusCode >= 500) {
     logger.warning(
       '[Sentry] Server returned HTTP $statusCode — '
       'the Sentry instance appears unhealthy. '

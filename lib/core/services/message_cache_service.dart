@@ -40,7 +40,8 @@ class MessageCacheService {
       return [];
     }
     logger.info(
-      '[MessageCache] Cache hit for session $sessionId: ${cached.length} messages',
+      '[MessageCache] Cache hit for session $sessionId: '
+      '${cached.length} messages',
     );
     Sentry.addBreadcrumb(Breadcrumb(
       message: 'MessageCache: cache hit',

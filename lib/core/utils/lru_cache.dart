@@ -1,15 +1,13 @@
-import 'dart:collection';
-
 /// Simple LRU cache implementation with O(1) get/put/evict
 ///
 /// Uses a [LinkedHashMap] where access-order is maintained by
 /// removing and re-inserting entries on access.  All operations
 /// (get, put, remove, evict-oldest) are O(1).
 class LRUCache<K, V> {
-  final _map = LinkedHashMap<K, V>();
-  final int maxSize;
-
   LRUCache(this.maxSize);
+
+  final _map = <K, V>{};
+  final int maxSize;
 
   /// Get value by key, updating access order
   V? get(K key) {

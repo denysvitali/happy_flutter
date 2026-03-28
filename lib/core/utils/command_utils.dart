@@ -13,7 +13,7 @@ String _stripWrappedQuotes(String value) {
   if (value.length < 2) return value;
   final first = value[0];
   final last = value[value.length - 1];
-  if (first != last || (first != '"' && first != '\'')) {
+  if (first != last || (first != '"' && first != "'")) {
     return value;
   }
   var unwrapped = value.substring(1, value.length - 1);

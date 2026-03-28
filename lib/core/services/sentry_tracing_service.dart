@@ -18,9 +18,9 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 /// span.finish();
 /// ```
 class SentryTracingService {
+  factory SentryTracingService() => _instance;
   SentryTracingService._();
   static final SentryTracingService _instance = SentryTracingService._();
-  factory SentryTracingService() => _instance;
 
   /// Starts a child span on the current transaction.
   ///

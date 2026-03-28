@@ -59,7 +59,8 @@ class MarkdownAstCache {
   /// [MarkdownBody] widget for a given markdown string.
   final LRUCache<String, Widget> _cache = LRUCache(200);
 
-  /// Get the cached [MarkdownBody] widget for [markdown], or null if not cached.
+  /// Get the cached [MarkdownBody] widget for [markdown], or null if
+  /// not cached.
   Widget? get(String markdown) => _cache.get(markdown);
 
   /// Store a [MarkdownBody] widget in the cache keyed by [markdown].

@@ -13,11 +13,13 @@ class CacheEntry<T> {
 ///
 /// Uses O(1) LRU eviction instead of O(n) scan for better performance.
 class EncryptionCache {
-  late final LRUCache<String, Map<String, dynamic>> _agentStateCache;
-  late final LRUCache<String, Map<String, dynamic>> _metadataCache;
-  late final LRUCache<String, DecryptedMessage> _messageCache;
-  late final LRUCache<String, Map<String, dynamic>> _machineMetadataCache;
-  late final LRUCache<String, dynamic> _daemonStateCache;
+  EncryptionCache() {
+    _agentStateCache = LRUCache(maxAgentStates);
+    _metadataCache = LRUCache(maxMetadata);
+    _messageCache = LRUCache(maxMessages);
+    _machineMetadataCache = LRUCache(maxMachineMetadata);
+    _daemonStateCache = LRUCache(maxDaemonStates);
+  }
 
   // Configuration
   static const int maxAgentStates = 1000;
@@ -26,13 +28,11 @@ class EncryptionCache {
   static const int maxMachineMetadata = 500;
   static const int maxDaemonStates = 500;
 
-  EncryptionCache() {
-    _agentStateCache = LRUCache(maxAgentStates);
-    _metadataCache = LRUCache(maxMetadata);
-    _messageCache = LRUCache(maxMessages);
-    _machineMetadataCache = LRUCache(maxMachineMetadata);
-    _daemonStateCache = LRUCache(maxDaemonStates);
-  }
+  late final LRUCache<String, Map<String, dynamic>> _agentStateCache;
+  late final LRUCache<String, Map<String, dynamic>> _metadataCache;
+  late final LRUCache<String, DecryptedMessage> _messageCache;
+  late final LRUCache<String, Map<String, dynamic>> _machineMetadataCache;
+  late final LRUCache<String, dynamic> _daemonStateCache;
 
   /// Get cached agent state for a session
   Map<String, dynamic>? getCachedAgentState(String sessionId, int version) {

@@ -109,7 +109,6 @@ class MessageOutbox {
   static const int _maxRetries = 3;
   static const int _baseDelayMs = 1000;
   static const int _maxDelayMs = 30000;
-  static const String _storageKey = 'message-outbox';
 
   final MMKVStorage _storage;
   final OutboxDeliverFn? _deliverOverride;

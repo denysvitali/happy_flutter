@@ -509,7 +509,7 @@ void _processOutputContent({
         // effectiveUuid causes collision in SidechainGrouper
         // when multiple Agent/Task calls are batched together).
         final toolUseUuid =
-            (c['id'] as String?)?.isNotEmpty == true
+            (c['id'] as String?)?.isNotEmpty ?? false
                 ? c['id'] as String
                 : effectiveUuid;
         messages.add({
@@ -545,7 +545,7 @@ void _processOutputContent({
             'isError': c['is_error'] == true,
             'createdAt': createdAt,
             if (isSidechain) 'isSidechain': true,
-            'uuid': ?effectiveUuid,
+            'uuid': effectiveUuid,
             'parentUuid': ?dataParentUuid,
           });
         }
