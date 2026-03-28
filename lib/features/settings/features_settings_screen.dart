@@ -67,10 +67,16 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                 onChanged: (v) =>
                     notifier.updateSetting('compactSessionView', v),
               ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          SettingsSection(
+            title: l10n.zenTitle,
+            children: [
               SettingsToggleRow(
                 icon: Icons.science_outlined,
-                title: l10n.featuresExperiments,
-                subtitle: l10n.featuresExperimentsDesc,
+                title: l10n.commandZenModeTitle,
+                subtitle: l10n.commandZenModeSubtitle,
                 value: experiments,
                 onChanged: (v) =>
                     notifier.updateSetting('experiments', v),
