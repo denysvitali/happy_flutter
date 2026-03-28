@@ -1,16 +1,10 @@
-import 'dart:async';
-import 'dart:ui';
-
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/api/api_client.dart';
 import '../../core/api/github_api.dart';
 import '../../core/api/services_api.dart';
-import '../../core/api/socket_io_client.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/profile.dart';
@@ -18,6 +12,10 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/server_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import 'helpers/server_url_dialog.dart';
+import 'widgets/danger_zone.dart';
+import 'widgets/inline_theme_picker.dart';
+import 'widgets/profile_header.dart';
 
 // ─── Settings Screen ─────────────────────────────────────────────────────────
 
@@ -77,7 +75,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           vertical: AppSpacing.md,
         ),
         children: [
-          _ProfileHeader(profile: profile),
+          ProfileHeader(profile: profile),
           const SizedBox(height: AppSpacing.xl),
           _buildAppearanceSection(
             context,
@@ -124,7 +122,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: AppSpacing.lg),
           _buildAboutSection(context),
           const SizedBox(height: AppSpacing.xl),
-          _DangerZone(onSignOut: () => confirmSignOut(context, ref)),
+          DangerZone(onSignOut: () => confirmSignOut(context, ref)),
           const SizedBox(height: AppSpacing.xxxl),
         ],
       ),
@@ -239,7 +237,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return SettingsSection(
       title: l10n.settingsAppearance,
       children: [
-        _InlineThemePicker(
+        InlineThemePicker(
           currentMode: themeMode,
           onChanged: (mode) => ref
               .read(settingsNotifierProvider.notifier)
@@ -475,146 +473,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Future<void> showServerUrlDialog(
-    BuildContext context,
-    String currentUrl,
-  ) async {
-    final controller = TextEditingController(text: currentUrl);
-    try {
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) {
-          final formKey = GlobalKey<FormState>();
-          String? errorText;
-          var isVerifying = false;
-
-          return StatefulBuilder(
-          builder: (dialogContext, setDialogState) {
-            final l10nDialog = AppLocalizations.of(dialogContext);
-            return AlertDialog(
-              title: Text(l10nDialog.settingsServerUrl),
-              content: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: controller,
-                      decoration: InputDecoration(
-                        labelText: l10nDialog.settingsServerUrlLabel,
-                        hintText: defaultServerUrl,
-                        errorText: errorText,
-                        suffixIcon: controller.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                tooltip: l10nDialog.commonClear,
-                                onPressed: () {
-                                  controller.clear();
-                                  setDialogState(() {});
-                                },
-                              )
-                            : null,
-                      ),
-                      keyboardType: TextInputType.url,
-                      autofillHints: const [AutofillHints.url],
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(dialogContext);
-                  },
-                  child: Text(l10nDialog.commonCancel),
-                ),
-                if (currentUrl != defaultServerUrl)
-                  TextButton(
-                    onPressed: () {
-                      setServerUrl(null);
-                      ApiClient().refreshServerUrl();
-                      socketIoClient.refreshServerUrl(getServerUrl());
-                      Navigator.pop(dialogContext);
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        SnackBar(
-                          content: Text(l10nDialog.settingsServerResetSuccess),
-                          duration: const Duration(seconds: 3),
-                        ),
-                      );
-                    },
-                    child: Text(l10nDialog.settingsServerResetToDefault),
-                  ),
-                FilledButton(
-                  onPressed: isVerifying
-                      ? null
-                      : () async {
-                          final url = controller.text.trim();
-
-                          final validation = validateServerUrl(url);
-                          if (!validation.valid) {
-                            setDialogState(() {
-                              errorText = validation.error;
-                            });
-                            return;
-                          }
-
-                          setDialogState(() {
-                            errorText = null;
-                            isVerifying = true;
-                          });
-
-                          final verificationResult = await verifyServerUrl(url);
-
-                          setDialogState(() {
-                            isVerifying = false;
-                          });
-
-                          if (!verificationResult.isValid) {
-                            setDialogState(() {
-                              errorText =
-                                  l10nDialog.settingsServerNotReachable;
-                            });
-                            return;
-                          }
-
-                          setServerUrl(url);
-                          unawaited(ApiClient().refreshServerUrl());
-                          socketIoClient.refreshServerUrl(url);
-
-                          if (dialogContext.mounted) {
-                            Navigator.pop(dialogContext);
-                            ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              SnackBar(
-                                content: Text(l10nDialog.settingsServerSaved),
-                                duration: const Duration(seconds: 3),
-                              ),
-                            );
-                          }
-                        },
-                  child: isVerifying
-                      ? Semantics(
-                          label: 'Verifying...',
-                          child: SizedBox(
-                            width: AppSpacing.lg,
-                            height: AppSpacing.lg,
-                            child: const CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          ),
-                        )
-                      : Text(l10nDialog.settingsServerSaveVerify),
-                ),
-              ],
-            );
-          },
-        );
-      });
-    } finally {
-      controller.dispose();
-    }
-  }
-
   Widget _buildAboutSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return SettingsSection(
@@ -764,9 +622,7 @@ class _ServerSectionState extends State<_ServerSection> {
     BuildContext context,
     String currentUrl,
   ) async {
-    final state = context.findAncestorStateOfType<_SettingsScreenState>();
-    if (state == null) return;
-    await state.showServerUrlDialog(context, currentUrl);
+    await showServerUrlDialog(context, currentUrl);
     if (!mounted) return;
     setState(() {
       _serverInfoFuture = _getServerInfo();
@@ -804,242 +660,6 @@ class _ServerSectionState extends State<_ServerSection> {
           },
         ),
       ],
-    );
-  }
-}
-
-// ─── Private widget components ───────────────────────────────────────────────
-
-/// Hero-area profile header with gradient backdrop, centered avatar,
-/// name in headlineSmall, and bio/subtitle in bodyMedium.
-class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.profile});
-
-  final Profile? profile;
-
-  static String _initialForName(String value) {
-    if (value.isEmpty) return '?';
-    return value.substring(0, 1).toUpperCase();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final dark = theme.brightness == Brightness.dark;
-    final name = profile?.displayName?.trim();
-    final avatarUrl = profile?.avatarUrl;
-    final displayName = (name == null || name.isEmpty) ? 'Happy' : name;
-    final bio = profile?.bio ?? 'Secure mobile companion for your sessions';
-
-    return ClipRRect(
-      clipBehavior: Clip.hardEdge,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                cs.primaryContainer.withValues(
-                  alpha: dark ? 0.31 : 0.24,
-                ),
-                cs.surface.withValues(alpha: 0.59),
-              ],
-            ),
-            border: Border.all(
-              color: dark
-                  ? Colors.white.withValues(alpha: AppOpacity.faint)
-                  : Colors.black.withValues(alpha: 0.04),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.xl,
-          ),
-          child: Column(
-            children: [
-              CircleAvatar(
-                radius: 40,
-                backgroundColor: cs.primaryContainer,
-                backgroundImage: avatarUrl != null
-                    ? CachedNetworkImageProvider(
-                        avatarUrl,
-                        maxWidth: 216,
-                        maxHeight: 216,
-                      )
-                    : null,
-                child: avatarUrl == null
-                    ? Text(
-                        _initialForName(displayName),
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: cs.onPrimaryContainer,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                displayName,
-                style: theme.textTheme.headlineSmall,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                bio,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Danger zone section with sign-out in a red-tinted card.
-class _DangerZone extends StatelessWidget {
-  const _DangerZone({required this.onSignOut});
-
-  final VoidCallback onSignOut;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final cs = Theme.of(context).colorScheme;
-
-    return SettingsSection(
-      title: l10n.settingsAccount,
-      danger: true,
-      description: l10n.settingsSignOutConfirm,
-      children: [
-        SettingsRow(
-          icon: Icons.logout,
-          iconColor: cs.error,
-          title: l10n.settingsSignOut,
-          subtitle: l10n.settingsAccountSubtitle,
-          onTap: onSignOut,
-          trailing: Icon(
-            Icons.chevron_right,
-            size: 20,
-            color: cs.error.withValues(alpha: AppOpacity.half),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Inline theme picker showing three selectable chips for theme modes.
-class _InlineThemePicker extends StatelessWidget {
-  const _InlineThemePicker({
-    required this.currentMode,
-    required this.onChanged,
-  });
-
-  final String currentMode;
-  final ValueChanged<String> onChanged;
-
-  static const _modes = [
-    ('adaptive', Icons.brightness_auto, 'Auto'),
-    ('light', Icons.light_mode, 'Light'),
-    ('dark', Icons.dark_mode, 'Dark'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          SettingsIconContainer(icon: Icons.palette),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Row(
-              children: _modes.map((m) {
-                final selected = m.$1 == currentMode;
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xxxs,
-                    ),
-                    child: AnimatedContainer(
-                      duration: AppDuration.fast,
-                      curve: AppCurve.standard,
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? cs.primaryContainer
-                            : cs.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(
-                          AppRadius.sm,
-                        ),
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(
-                          AppRadius.sm,
-                        ),
-                        child: InkWell(
-                          onTap: () => onChanged(m.$1),
-                          borderRadius: BorderRadius.circular(
-                            AppRadius.sm,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: AppSpacing.sm,
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  m.$2,
-                                  size: 20,
-                                  color: selected
-                                      ? cs.onPrimaryContainer
-                                      : cs.onSurfaceVariant,
-                                ),
-                                const SizedBox(
-                                  height: AppSpacing.xs,
-                                ),
-                                Text(
-                                  m.$3,
-                                  style: theme.textTheme.labelSmall
-                                      ?.copyWith(
-                                    color: selected
-                                        ? cs.onPrimaryContainer
-                                        : cs.onSurfaceVariant,
-                                    fontWeight: selected
-                                        ? FontWeight.w600
-                                        : FontWeight.w400,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
