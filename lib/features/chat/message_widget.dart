@@ -79,7 +79,8 @@ class _MessageWidgetState extends State<MessageWidget>
       ).animate(CurvedAnimation(parent: _controller!, curve: Curves.easeOut));
       _controller!.forward();
     } else {
-      // Historical message — use static animations to avoid controller overhead.
+      // Historical message — use static animations to avoid
+      // controller overhead.
       _opacity = const AlwaysStoppedAnimation(1.0);
       _slide = const AlwaysStoppedAnimation(Offset.zero);
     }
@@ -536,8 +537,9 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
 
   @override
   void dispose() {
-    _controller.removeStatusListener(_onAnimationStatus);
-    _controller.dispose();
+    _controller
+      ..removeStatusListener(_onAnimationStatus)
+      ..dispose();
     super.dispose();
   }
 
@@ -620,7 +622,8 @@ class _ThinkingBlockState extends State<_ThinkingBlock>
                     ),
                   ),
                 ),
-                // Expanded content — ClipRect prevents overflow during animation.
+                // Expanded content — ClipRect prevents overflow
+                // during animation.
                 ClipRect(
                   child: SizeTransition(
                     sizeFactor: _expandAnimation,

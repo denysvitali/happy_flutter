@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sentry_flutter/sentry_flutter.dart'
-    show Breadcrumb, Hint, ISentrySpan, Sentry, SentryLevel;
+    show Breadcrumb, Hint, Sentry, SentryLevel;
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
@@ -252,7 +252,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     String? rawModelModeString;
     var modelMode = ClaudeModel.defaultModel;
 
-    // Priority: saved draft > session model > profile default > settings default
+    // Priority: saved draft > session model > profile default
+    // > settings default
     if (savedModelMode != null) {
       rawModelModeString = savedModelMode;
       modelMode = ClaudeModel.normalizeForFlavor(
@@ -343,8 +344,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       'chat.screen.load',
       'ui.load',
       bindToScope: true,
-    ) as ISentrySpan;
-    transaction.setData('sessionId', sessionId);
+    )..setData('sessionId', sessionId);
 
     // Safety timer: if loading is still in progress after 15s,
     // force-clear the spinner and report to Sentry.
@@ -396,10 +396,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         'chat.cache.check',
         description: 'Check cached messages',
       );
-      cacheSpan.setData('cachedCount', _messages.length);
-      cacheSpan.finish();
+      unawaited(
+        (cacheSpan..setData('cachedCount', _messages.length)).finish(),
+      );
 
-      Sentry.addBreadcrumb(Breadcrumb(
+      unawaited(Sentry.addBreadcrumb(Breadcrumb(
         message: 'ChatScreen._doInitialLoad started',
         category: 'chat.load',
         data: {
@@ -407,7 +408,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           'hasCachedMessages': _messages.isNotEmpty,
           'syncInitialized': sync.isInitialized,
         },
-      ));
+      )));
 
       // Span for onSessionVisible
       final visibleSpan = transaction.startChild(
@@ -415,7 +416,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         description: 'Mark session as visible',
       );
       sync.onSessionVisible(sessionId);
-      visibleSpan.finish();
+      unawaited(visibleSpan.finish());
 
       // Show cached messages immediately instead of
       // waiting for the debounced stream notification
@@ -427,7 +428,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         description: 'Refresh from sync singleton',
       );
       _refreshFromSync();
-      refreshSpan.finish();
+      unawaited(refreshSpan.finish());
 
       // Span for awaiting message sync queue
       final awaitSpan = transaction.startChild(
@@ -441,10 +442,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         awaitSpan.setData('timedOut', false);
       } catch (e) {
         success = false;
-        awaitSpan.setData('timedOut', true);
-        awaitSpan.setData('error', e.toString());
+        awaitSpan
+          ..setData('timedOut', true)
+          ..setData('error', e.toString());
       }
-      awaitSpan.finish();
+      unawaited(awaitSpan.finish());
     } catch (error, stack) {
       success = false;
       logger.error(
@@ -472,7 +474,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return;
     }
 
-    Sentry.addBreadcrumb(Breadcrumb(
+    unawaited(Sentry.addBreadcrumb(Breadcrumb(
       message: 'ChatScreen._doInitialLoad completed',
       category: 'chat.load',
       data: {
@@ -483,7 +485,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         'syncMessages':
             sync.messagesForSession(sessionId).length,
       },
-    ));
+    )));
 
     _refreshFromSync(
       markLoaded: true,
@@ -491,8 +493,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
 
     // Finish the transaction
-    transaction.setData('finalMessageCount', _messages.length);
-    transaction.setData('elapsedMs', stopwatch.elapsedMilliseconds);
+    transaction
+      ..setData('finalMessageCount', _messages.length)
+      ..setData('elapsedMs', stopwatch.elapsedMilliseconds);
     await transaction.finish();
   }
 
@@ -585,8 +588,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         // messagesChanged block below, so it must be set here too).
         _prevMessagesLength = latestMessages.length;
         // When _prevMessagesLength was 0 (cold start), the messagesChanged
-        // adjustment above could not run (_prevMessagesLength > 0 guard failed).
-        // Sync _visibleCount here so all loaded messages are visible immediately.
+        // adjustment above could not run
+        // (_prevMessagesLength > 0 guard failed).
+        // Sync _visibleCount here so all loaded messages
+        // are visible immediately.
         if (_visibleCount < latestMessages.length) {
           _visibleCount = latestMessages.length;
         }
@@ -1008,7 +1013,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Profile changed. Restart the session to apply new environment variables.',
+            'Profile changed. Restart the session to apply '
+            'new environment variables.',
           ),
           action: SnackBarAction(
             label: 'Restart',
@@ -1019,7 +1025,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Session restarted. Send a message to resume.'),
+                      content: Text(
+                        'Session restarted. Send a message to resume.',
+                      ),
                       duration: Duration(seconds: 3),
                     ),
                   );
