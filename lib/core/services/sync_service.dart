@@ -50,7 +50,7 @@ import 'notification_service.dart';
 import 'sidechain_grouper.dart';
 import 'tool_result_processor.dart';
 
-// ── Isolate helpers: machine payload decryption ──────────────────────────
+// ── Isolate helpers: machine payload decryption ───────────────────────
 
 class _MachineIsolateItem {
   const _MachineIsolateItem({
@@ -84,7 +84,7 @@ class _MachineIsolateResult {
   final dynamic daemonState;
 }
 
-// ── Isolate helpers: artifact payload decryption ──────────────────────────
+// ── Isolate helpers: artifact payload decryption ──────────────────────
 
 class _ArtifactIsolateItem {
   const _ArtifactIsolateItem({
@@ -528,7 +528,8 @@ what you have, you must use the options mode.
   int? _lastInvalidateAllSyncsAtMs;
   /// Timestamp of last resume() call for debouncing rapid pause/resume cycles.
   int? _lastResumeAtMs;
-  /// Minimum interval between resume() calls — prevents socket reconnect loops
+  /// Minimum interval between resume() calls — prevents socket reconnect
+  /// loops
   /// when the app cycles between paused and resumed states repeatedly.
   static const int _resumeDebounceWindowMs = 2000;
   /// Delay before firing network invalidations on resume. Cancelled by
@@ -605,7 +606,8 @@ what you have, you must use the options mode.
   final Set<String> _optimisticallyArchivedSessions = {};
 
   /// Tool results that arrived before their corresponding tool-call message.
-  /// Maps sessionId → list of pending tool results. Applied when the tool-call
+  /// Maps sessionId → list of pending tool results. Applied when the
+  /// tool-call
   /// message arrives via inline processing or HTTP fetch.
   final Map<String, List<Map<String, dynamic>>> _pendingToolResults = {};
   @visibleForTesting
@@ -724,7 +726,8 @@ what you have, you must use the options mode.
   }
 
   /// Overrides the HTTP fetch path in [fetchMessages] for integration tests.
-  /// When set, [fetchMessages] calls this instead of making a real HTTP request.
+  /// When set, [fetchMessages] calls this instead of making a real HTTP
+  /// request.
   /// The callback receives (sessionId, afterSeq, limit) and returns the parsed
   /// response map.
   @visibleForTesting
@@ -2116,13 +2119,15 @@ what you have, you must use the options mode.
   /// fields (presence, active, activeAt, title, thinking).  Only falls back
   /// to [sessionsSync.invalidate()] for encrypted fields (metadata, agentState)
   /// that require decryption.  This eliminates the ~4 fetchSessions() HTTP
-  /// calls/sec that were happening during active streaming even with debouncing.
+  /// calls/sec that were happening during active streaming even with
+  /// debouncing.
   void _handleUpdateSession(Map<String, dynamic> data) {
     final sessionId = data['id'] as String?;
     if (sessionId == null) return;
 
-    // Apply delta patch directly to the in-memory session for unencrypted fields.
-    // This updates the UI immediately without waiting for a debounced HTTP fetch.
+    // Apply delta patch directly to the in-memory session for unencrypted
+    // fields. This updates the UI immediately without waiting for a debounced
+    // HTTP fetch.
     // Ephemeral events (handleEphemeralUpdate) already handle presence/typing
     // directly -- the update-session event carries the same data plus metadata.
     final session = _sessions[sessionId];
@@ -5323,7 +5328,8 @@ what you have, you must use the options mode.
       // it as failed even though the server stored it).
       logger.error(
         '[MessageOutbox] local processing threw after HTTP 200 '
-        'localId=${entry.localId} — server has message, treating as delivered',
+        'localId=${entry.localId} — '
+        'server has message, treating as delivered',
         e,
         stack,
       );
@@ -5378,7 +5384,8 @@ what you have, you must use the options mode.
 
     if (failedMessage == null) {
       logger.warning(
-        '[retryFailedMessage] message not found: sessionId=$sessionId localId=$localId',
+        '[retryFailedMessage] message not found: '
+        'sessionId=$sessionId localId=$localId',
       );
       return;
     }
@@ -5433,7 +5440,8 @@ what you have, you must use the options mode.
     await messageOutbox.add(entry);
 
     logger.info(
-      '[retryFailedMessage] queued for retry: sessionId=$sessionId localId=$localId',
+      '[retryFailedMessage] queued for retry: '
+      'sessionId=$sessionId localId=$localId',
     );
 
     // Notify listeners
@@ -6070,8 +6078,8 @@ what you have, you must use the options mode.
         // Server has messages we haven't seen. Let fetchMessages handle it
         // via the normal incremental delta path (or gapTooLarge tail-load).
         logger.info(
-          '[onSessionVisible] gap detected: server($serverLastSeq) > cursor($cursorSeq) '
-          '— will fetch delta',
+          '[onSessionVisible] gap detected: '
+          'server($serverLastSeq) > cursor($cursorSeq) — will fetch delta',
         );
       } else if (hadPendingUpdates) {
         // Socket events arrived while session was non-visible, but cursor
@@ -6082,7 +6090,10 @@ what you have, you must use the options mode.
         // would unnecessarily wipe and re-download messages.
         if (cursorSeq <= 0 || serverLastSeq <= 0) {
           _requestTailRefresh(sessionId);
-          logger.info('[onSessionVisible] tailRefresh (pending updates, invalid cursor)');
+          logger.info(
+            '[onSessionVisible] tailRefresh '
+            '(pending updates, invalid cursor)',
+          );
         }
       }
     }
@@ -8278,9 +8289,11 @@ what you have, you must use the options mode.
     _postSendCatchUpTimers.clear();
     _sessionsNeedingTailRefresh.clear();
     _sessionsWithPendingUpdates.clear();
-    // DON'T clear _sessionsWithPendingSocketMessages — preserve it so resume()
+    // DON'T clear _sessionsWithPendingSocketMessages — preserve it so
+    // resume()
     // can invalidate those sessions and fetch any messages that arrived while
-    // backgrounded. Clearing this set causes message loss for non-visible sessions.
+    // backgrounded. Clearing this set causes message loss for non-visible
+    // sessions.
     // _sessionsWithPendingSocketMessages.clear();
     _sessionUnreadCounts.clear();
     _sessionUnreadLastIncrementMs.clear();
@@ -8331,7 +8344,8 @@ what you have, you must use the options mode.
     if (_lastResumeAtMs != null &&
         nowMs - _lastResumeAtMs! < _resumeDebounceWindowMs) {
       logger.debug(
-        '[Sync] resume debounced — last resume ${nowMs - _lastResumeAtMs!}ms ago',
+        '[Sync] resume debounced — '
+        'last resume ${nowMs - _lastResumeAtMs!}ms ago',
       );
       // Still clear the backgrounded flag so any pending operations can run.
       InvalidateSync.isBackgrounded = false;
@@ -8341,7 +8355,8 @@ what you have, you must use the options mode.
 
     // Clear backgrounded flag BEFORE reconnecting so that any InvalidateSync
     // operations kicked off by the invalidations below are allowed to run.
-    // The isBackgrounded check is in InvalidateSync._run() before await _action().
+    // The isBackgrounded check is in InvalidateSync._run() before
+    // await _action().
     InvalidateSync.isBackgrounded = false;
 
     logger.info('[Sync] resuming — reconnecting socket');
