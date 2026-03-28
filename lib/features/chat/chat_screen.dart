@@ -23,11 +23,15 @@ import '../../core/widgets/offline_banner.dart';
 import '../sessions/widgets/session_cards.dart'
     show parseAvatarStyle;
 import 'chat_input.dart';
+import 'helpers/chat_dialogs.dart';
 import 'message_widget.dart';
 import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_loading_shimmer.dart';
+import 'widgets/cleared_divider.dart';
+import 'widgets/conversation_start_label.dart';
 import 'widgets/empty_chat_view.dart';
 import 'widgets/permission_mode_selector.dart';
+import 'widgets/retry_error_view.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
 
 /// Chat screen for a session
@@ -837,7 +841,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           canPop: !hasUnsentMessage,
           onPopInvokedWithResult: (didPop, _) {
             if (!didPop && hasUnsentMessage) {
-              _showUnsentMessageDialog(context);
+              showUnsentMessageDialog(
+                context,
+                sessionId: widget.sessionId,
+                controller: _controller,
+              );
             }
           },
           child: child!,
@@ -864,7 +872,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               },
             );
           },
-          onMenuTap: () => _showSessionMenu(context),
+          onMenuTap: () => showSessionMenu(
+            context,
+            sessionId: widget.sessionId,
+            isThinking: _session?.thinking ?? false,
+            onAbort: _abortSession,
+          ),
         ),
         body: Column(
           children: [
@@ -878,7 +891,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         ? const ChatLoadingShimmer(key: ValueKey('loading'))
                         : _messages.isEmpty
                         ? (_loadFailed
-                              ? _buildRetryView()
+                              ? RetryErrorView(onRetry: _retry)
                               : EmptyChatView(
                                   key: const ValueKey('empty'),
                                   onSuggestionTap: _onSuggestionTap,
@@ -1071,86 +1084,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  void _showSessionMenu(BuildContext context) {
-    final l10n = context.l10n;
-    final cs = Theme.of(context).colorScheme;
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
-      backgroundColor: cs.surface,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(
-                Icons.settings_outlined,
-                color: cs.onSurfaceVariant,
-              ),
-              title: Text(l10n.chatSessionSettings),
-              onTap: () {
-                HapticFeedback.lightImpact();
-                Navigator.pop(context);
-                context.pushNamed(
-                  'session-info',
-                  pathParameters: {'sessionId': widget.sessionId},
-                );
-              },
-            ),
-            if (_session?.thinking ?? false)
-              ListTile(
-                leading: Icon(Icons.stop_rounded, color: cs.error),
-                title: Text(
-                  'Stop',
-                  style: TextStyle(color: cs.error),
-                ),
-                onTap: () {
-                  HapticFeedback.heavyImpact();
-                  Navigator.pop(context);
-                  _abortSession();
-                },
-              ),
-            ListTile(
-              leading: Icon(Icons.delete_outline, color: cs.error),
-              title: Text(
-                l10n.chatDeleteSession,
-                style: TextStyle(color: cs.error),
-              ),
-              onTap: () {
-                HapticFeedback.lightImpact();
-                Navigator.pop(context);
-                _confirmDelete(context);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRetryView() {
-    return Center(
-      key: const ValueKey('retry'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            context.l10n.chatFailedToLoadMessages,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          FilledButton.tonal(
-            onPressed: _retry,
-            child: Text(context.l10n.commonRetry),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildMessageList() {
     final totalCount = _messages.length;
@@ -1248,14 +1181,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             );
           }
 
-          return _buildConversationStartLabel(context);
+          return const ConversationStartLabel();
         }
 
         final reversedIndex = items.length - 1 - adjusted;
         final item = items[reversedIndex];
 
         if (item == null) {
-          return _buildClearedDivider(context);
+          return const ClearedDivider();
         }
 
         final message = item;
@@ -1319,73 +1252,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _buildConversationStartLabel(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Padding(
-      key: const ValueKey('header-beginning'),
-      padding: const EdgeInsets.symmetric(
-        vertical: AppSpacing.xl,
-        horizontal: AppSpacing.xxl,
-      ),
-      child: Center(
-        child: Text(
-          context.l10n.chatBeginningOfConversation,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: cs.onSurfaceVariant.withValues(
-              alpha: AppOpacity.half,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildClearedDivider(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final labelColor = cs.onSurfaceVariant.withValues(
-      alpha: AppOpacity.half,
-    );
-    return Padding(
-      key: const ValueKey('cleared-divider'),
-      padding: const EdgeInsets.symmetric(
-        vertical: AppSpacing.md,
-        horizontal: AppSpacing.lg,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              height: AppBorder.thin,
-              color: labelColor.withValues(
-                alpha: AppOpacity.medium,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-            ),
-            child: Text(
-              context.l10n.chatConversationCleared,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: labelColor,
-                fontSize: AppFontSize.xxs,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              height: AppBorder.thin,
-              color: labelColor.withValues(
-                alpha: AppOpacity.medium,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _onSuggestionTap(String suggestion) {
     _controller.text = suggestion;
@@ -1550,67 +1416,4 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return true;
   }
 
-  void _showUnsentMessageDialog(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.chatUnsentMessageTitle),
-        content: Text(context.l10n.chatUnsentMessageContent),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.l10n.chatStay),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: cs.error),
-            onPressed: () {
-              _controller.clear();
-              unawaited(DraftStorage().removeDraft(widget.sessionId));
-              Navigator.pop(context);
-              Navigator.of(this.context).pop();
-            },
-            child: Text(context.l10n.chatLeave),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmDelete(BuildContext context) {
-    final l10n = context.l10n;
-    final cs = Theme.of(context).colorScheme;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.chatDeleteSession),
-        content: Text(l10n.chatDeleteSessionConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.commonCancel),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: cs.error),
-            onPressed: () async {
-              Navigator.pop(context);
-              final failedL10n = l10n;
-              final deleted = await ref
-                  .read(sessionsNotifierProvider.notifier)
-                  .optimisticDelete(widget.sessionId);
-              if (!mounted) return;
-              if (deleted) {
-                Navigator.of(this.context).pop();
-                return;
-              }
-              ScaffoldMessenger.of(this.context).showSnackBar(
-                SnackBar(content: Text(failedL10n.chatFailedToDeleteSession)),
-              );
-            },
-            child: Text(l10n.commonDelete),
-          ),
-        ],
-      ),
-    );
-  }
 }
