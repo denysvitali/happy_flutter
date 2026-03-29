@@ -3711,6 +3711,7 @@ what you have, you must use the options mode.
       final apiClient = ApiClient();
 
       // Apply pending settings
+      var postedSuccessfully = false;
       if (pendingSettings.isNotEmpty) {
         final mergedSettings = Settings.fromJson({
           ..._settingsSnapshot.toJson(),
@@ -3733,6 +3734,15 @@ what you have, you must use the options mode.
         if (apiClient.isSuccess(updateResponse) && updateSuccess) {
           _settingsSnapshot = mergedSettings;
           pendingSettings.clear();
+          // Extract the incremented version from the POST response
+          // so the next optimistic write uses the correct base.
+          final newVersion = _asInt(updateData?['settingsVersion']);
+          if (newVersion != null) {
+            _settingsVersion = newVersion;
+          }
+          postedSuccessfully = true;
+          _notifyDataChanged();
+          unawaited(MMKVStorage().saveSettings(_settingsSnapshot));
         } else if (updateData?['error'] == 'version-mismatch') {
           final currentSettingsEncrypted =
               updateData?['currentSettings'] as String?;
@@ -3751,35 +3761,41 @@ what you have, you must use the options mode.
         }
       }
 
-      // Fetch latest settings
-      final response = await apiClient.get('/v1/account/settings');
+      // Fetch latest settings — skip after a successful POST to avoid
+      // overwriting with stale server data that hasn't committed the
+      // POST yet.  The next periodic sync or socket push will reconcile.
+      if (!postedSuccessfully) {
+        final response = await apiClient.get('/v1/account/settings');
 
-      if (apiClient.isSuccess(response)) {
-        final data = response.data as Map<String, dynamic>;
-        final encryptedSettings = data['settings'] as String?;
+        if (apiClient.isSuccess(response)) {
+          final data = response.data as Map<String, dynamic>;
+          final encryptedSettings = data['settings'] as String?;
 
-        if (encryptedSettings != null) {
-          final decrypted =
-              await encryption.decryptRaw(encryptedSettings)
-                  as Map<String, dynamic>?;
-          if (decrypted != null) {
-            _settingsSnapshot = Settings.fromJson(decrypted);
+          if (encryptedSettings != null) {
+            final decrypted =
+                await encryption.decryptRaw(encryptedSettings)
+                    as Map<String, dynamic>?;
+            if (decrypted != null) {
+              _settingsSnapshot = Settings.fromJson(decrypted);
+              _settingsVersion =
+                  _asInt(data['settingsVersion']) ?? _settingsVersion;
+              _notifyDataChanged();
+              // Persist to MMKV so the next cold start has fresh data.
+              unawaited(
+                MMKVStorage().saveSettings(_settingsSnapshot),
+              );
+            }
+          } else {
+            _settingsSnapshot = Settings();
             _settingsVersion =
                 _asInt(data['settingsVersion']) ?? _settingsVersion;
             _notifyDataChanged();
-            // Persist to MMKV so the next cold start has fresh data.
-            unawaited(
-              MMKVStorage().saveSettings(_settingsSnapshot),
-            );
           }
         } else {
-          _settingsSnapshot = Settings();
-          _settingsVersion =
-              _asInt(data['settingsVersion']) ?? _settingsVersion;
-          _notifyDataChanged();
+          logger.warning(
+            'Failed to fetch settings: ${response.statusCode}',
+          );
         }
-      } else {
-        logger.warning('Failed to fetch settings: ${response.statusCode}');
       }
     } on DioException {
       rethrow;
