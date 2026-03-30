@@ -172,5 +172,13 @@ FutureOr<SentryEvent?> _beforeSend(
     return null;
   }
 
+  // Drop expected permission-expiry events (session restarted while user
+  // was approving/denying — the agent re-requests automatically).
+  for (final exception in event.exceptions ?? <SentryException>[]) {
+    if (exception.value?.contains('Session was restarted') ?? false) {
+      return null;
+    }
+  }
+
   return event;
 }

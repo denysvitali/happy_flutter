@@ -1079,6 +1079,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       await ref
           .read(chatActionNotifierProvider.notifier)
           .abortSession(widget.sessionId, reason: _abortReason);
+    } catch (e) {
+      if (mounted) {
+        logger.warning('Abort failed: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not abort — this feature may not be '
+                'available on the server'),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isAborting = false);
     }
