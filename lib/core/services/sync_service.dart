@@ -4062,6 +4062,16 @@ what you have, you must use the options mode.
       throw StateError('Not connected to server');
     }
 
+    // Fail fast if the machine is offline — don't wait 60 s for a timeout.
+    final machine = _machines[machineId];
+    if (machine != null) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      const onlineThresholdMs = 60 * 1000;
+      if (now - machine.activeAt >= onlineThresholdMs) {
+        throw StateError('Machine is offline');
+      }
+    }
+
     // Derive agent type and environment variables from the profile.
     // Use explicit profileId if provided, otherwise fall back to
     // [_settingsSnapshot.lastUsedProfile].
@@ -4100,7 +4110,7 @@ what you have, you must use the options mode.
       'spawn-happy-session',
       req.toJson(),
       SpawnSessionResponse.fromJson,
-      timeout: const Duration(seconds: 120),
+      timeout: const Duration(seconds: 60),
     );
 
     if (result.type == 'success') {
@@ -4643,6 +4653,24 @@ what you have, you must use the options mode.
       );
     }
 
+    // Fail fast if the machine is offline — don't wait 60 s for a timeout.
+    final machine = _machines[machineId];
+    if (machine != null) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      const onlineThresholdMs = 60 * 1000;
+      if (now - machine.activeAt >= onlineThresholdMs) {
+        logger.info(
+          '[sendMessage] machine=$machineId is offline, '
+          'skipping auto-restore',
+        );
+        return (
+          sessionId: sessionId,
+          session: session,
+          sessionEncryption: sessionEncryption,
+        );
+      }
+    }
+
     logger.info(
       '[sendMessage] session=$sessionId appears offline '
       '(presence=${session.presence}, lifecycleState=$lifecycleState); '
@@ -4679,7 +4707,7 @@ what you have, you must use the options mode.
         'spawn-happy-session',
         req.toJson(),
         SpawnSessionResponse.fromJson,
-        timeout: const Duration(seconds: 120),
+        timeout: const Duration(seconds: 60),
       );
       if (result.type != 'success') {
         logger.warning(
