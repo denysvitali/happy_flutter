@@ -4100,7 +4100,7 @@ what you have, you must use the options mode.
       'spawn-happy-session',
       req.toJson(),
       SpawnSessionResponse.fromJson,
-      timeout: const Duration(seconds: 60),
+      timeout: const Duration(seconds: 120),
     );
 
     if (result.type == 'success') {
@@ -4679,7 +4679,7 @@ what you have, you must use the options mode.
         'spawn-happy-session',
         req.toJson(),
         SpawnSessionResponse.fromJson,
-        timeout: const Duration(seconds: 60),
+        timeout: const Duration(seconds: 120),
       );
       if (result.type != 'success') {
         logger.warning(
