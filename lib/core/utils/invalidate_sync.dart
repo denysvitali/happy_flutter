@@ -63,7 +63,6 @@ class InvalidateSync {
       final elapsed = DateTime.now().difference(_lastRunEnd!);
       if (elapsed < _minInterval) {
         final remaining = _minInterval - elapsed;
-        _cooldownTimer?.cancel();
         _cooldownTimer = Timer(remaining, () {
           _cooldownTimer = null;
           // Don't re-trigger if backgrounded — let the next resume cycle

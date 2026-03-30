@@ -34,7 +34,6 @@ class _SessionsScreenState
     extends ConsumerState<SessionsScreen> {
   late AppTab _activeTab;
   StreamSubscription<void>? _syncSubscription;
-  StreamSubscription<String>? _messagesSubscription;
   final _selectionNotifier =
       ValueNotifier<SelectionState>(
     const SelectionState(),
@@ -68,11 +67,6 @@ class _SessionsScreenState
       ref
           .read(todoStateNotifierProvider.notifier)
           .loadFromSync();
-    });
-    _messagesSubscription =
-        sync.onSessionMessagesChanged.listen((_) {
-      if (!mounted) return;
-      setState(() {});
     });
   }
 
@@ -120,7 +114,6 @@ class _SessionsScreenState
     _searchDebounce?.cancel();
     _searchController.dispose();
     _syncSubscription?.cancel();
-    _messagesSubscription?.cancel();
     super.dispose();
   }
 

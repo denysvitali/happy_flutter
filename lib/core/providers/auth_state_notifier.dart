@@ -51,11 +51,6 @@ class AuthStateNotifier extends Notifier<AuthState> {
           socket_io.socketIoClient.updateToken(credentials.token);
           await syncRestore(credentials);
 
-          ref.read(sessionsNotifierProvider.notifier).loadFromSync();
-          ref.read(machinesNotifierProvider.notifier).loadFromSync();
-          ref.read(settingsNotifierProvider.notifier).loadFromSync();
-          ref.read(todoStateNotifierProvider.notifier).loadFromSync();
-
           // Remaining syncs (settings, profile, friends, etc.) complete
           // in the background.  sync.onDataChanged already triggers
           // loadFromSync() on each screen's subscription, so we don't

@@ -22,7 +22,12 @@ class LRUCache<K, V> {
   void put(K key, V value) {
     _map.remove(key); // remove existing to update position
     if (_map.length >= maxSize) {
-      _map.remove(_map.keys.first); // evict oldest (head)
+      // Evict oldest (head) in O(1) using for-in instead of
+      // _map.keys.first (O(n)) — coverage: maxSize is always >= 1
+      for (final oldestKey in _map.keys) {
+        _map.remove(oldestKey);
+        break;
+      }
     }
     _map[key] = value;
   }

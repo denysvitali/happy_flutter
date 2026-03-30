@@ -41,6 +41,7 @@ class _JsonMapStore {
   final MMKV? Function() _mmkv;
   final String _key;
   Map<String, String>? _cache;
+  Timer? _persistTimer;
 
   /// Load from MMKV into cache, returning the map.
   Map<String, String> _loadCache() {
@@ -69,46 +70,60 @@ class _JsonMapStore {
 
   /// Get a single entry by key.
   Future<String?> get(String id) async {
-    try {
-      return _loadCache()[id];
-    } catch (e) {
-      logger.warning('MMKV: Failed to get $_key[$id]: $e');
-    }
-    return null;
+    // Use warm in-memory cache if available to avoid repeated JSON parse
+    final cache = _cache ??= _loadCache();
+    return cache[id];
   }
 
   /// Get a single entry synchronously (direct MMKV read).
   String? getDirect(String id) {
     try {
-      return _loadCache()[id];
+      final cache = _cache ??= _loadCache();
+      return cache[id];
     } catch (e) {
       logger.warning('MMKV: Failed to get direct $_key[$id]: $e');
     }
     return null;
   }
 
-  /// Save a key-value pair, persisting the full map.
+  /// Save a key-value pair, updating in-memory cache immediately
+  /// and debouncing persist to MMKV (500ms) to batch rapid writes.
   Future<void> save(String id, String value) async {
     try {
-      final map = _loadCache();
+      final map = _cache ??= _loadCache();
       map[id] = value;
-      _mmkv()?.encodeString(_key, jsonEncode(map));
+      _schedulePersist();
     } catch (e) {
       logger.warning('MMKV: Failed to save $_key[$id]: $e');
       rethrow;
     }
   }
 
-  /// Remove an entry by key, persisting the updated map.
+  /// Remove an entry by key, updating in-memory cache immediately
+  /// and debouncing persist to MMKV (500ms) to batch rapid writes.
   Future<void> remove(String id) async {
     try {
-      final map = _loadCache();
+      final map = _cache ??= _loadCache();
       if (map.containsKey(id)) {
         map.remove(id);
-        _mmkv()?.encodeString(_key, jsonEncode(map));
+        _schedulePersist();
       }
     } catch (e) {
       logger.warning('MMKV: Failed to remove $_key[$id]: $e');
+    }
+  }
+
+  static const _debounceDuration = Duration(milliseconds: 500);
+
+  void _schedulePersist() {
+    _persistTimer?.cancel();
+    _persistTimer = Timer(_debounceDuration, _persistNow);
+  }
+
+  void _persistNow() {
+    final cache = _cache;
+    if (cache != null) {
+      _mmkv()?.encodeString(_key, jsonEncode(cache));
     }
   }
 

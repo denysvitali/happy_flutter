@@ -35,6 +35,7 @@ class AvatarPixelated extends BaseAvatar {
           final shouldFill = pixelHash > 40;
 
           return Positioned(
+            key: ValueKey('pixel_${id}_${row}_$col'),
             left: col * pixelSize,
             top: row * pixelSize,
             child: Container(
