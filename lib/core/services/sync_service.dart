@@ -470,7 +470,19 @@ what you have, you must use the options mode.
   /// Queue provides O(1) FIFO eviction; Set provides O(1) lookup.
   final Set<String> _recentInlineMessageKeys = {};
   final Queue<String> _recentInlineMessageKeyOrder = Queue<String>();
-  static const int _maxRecentInlineKeys = 500;
+  static const int _maxRecentInlineKeys = 2000;
+
+  /// Tracks inline message keys that are currently being processed.
+  /// Used to allow retry on processing failure: if a message fails
+  /// decryption/processing, its key is left in this set so the next
+  /// retry can re-enter the inline path instead of being silently
+  /// dropped as "already seen" (which would happen if we moved the
+  /// key to _recentInlineMessageKeys before processing).
+  ///
+  /// On success: key is removed from here and added to
+  /// _recentInlineMessageKeys.  On failure: key stays here so a
+  /// subsequent retry (via HTTP fallback) can re-process it.
+  final Set<String> _pendingInlineMessageKeys = {};
 
   /// Per-session serial queue for inline message processing.
   final InlineMessageProcessor _inlineProcessor =
@@ -1839,20 +1851,20 @@ what you have, you must use the options mode.
     // dedup for non-visible sessions, a background session with an
     // active AI response floods the logger and triggers hundreds of
     // wasteful fetchMessages calls that immediately skip.
+    //
+    // Keys are added to _pendingInlineMessageKeys BEFORE processing and
+    // moved to _recentInlineMessageKeys AFTER success.  This allows
+    // retry on failure: if processing throws, the key stays pending so
+    // the HTTP fallback can re-process the message without it being
+    // incorrectly deduped as "already seen".
     final embeddedMessage = data['message'] as Map<String, dynamic>?;
     if (embeddedMessage != null) {
       final msgId = embeddedMessage['id'] as String?;
       final msgSeq = embeddedMessage['seq'];
       final dedupKey = '$sessionId:$msgId:$msgSeq';
-      if (!_recentInlineMessageKeys.add(dedupKey)) {
-        return; // already seen
-      }
-      _recentInlineMessageKeyOrder.addLast(dedupKey);
-      while (_recentInlineMessageKeyOrder.length >
-          _maxRecentInlineKeys) {
-        _recentInlineMessageKeys.remove(
-          _recentInlineMessageKeyOrder.removeFirst(),
-        );
+      if (!_recentInlineMessageKeys.contains(dedupKey) &&
+          !_pendingInlineMessageKeys.add(dedupKey)) {
+        return; // already seen (committed or currently processing)
       }
     }
 
@@ -1878,6 +1890,14 @@ what you have, you must use the options mode.
     } else {
       // Non-visible session: mark dirty so onSessionVisible() triggers
       // a fetch when the user navigates to it.
+      //
+      // Persist the raw message to _sessionMessages and MMKV so it
+      // survives app kill — previously, only the seq cursor was advanced
+      // and the message was held only in memory, losing it on crash.
+      if (embeddedMessage != null) {
+        _upsertSessionMessages(sessionId, [embeddedMessage]);
+        _scheduleSaveMessages(sessionId);
+      }
       //
       // Update session.lastSeq so the delta-fetch path in fetchMessages
       // can detect the gap (serverLastSeq > cursorSeq).  Do NOT advance
@@ -1946,8 +1966,14 @@ what you have, you must use the options mode.
     String sessionId,
     Map<String, dynamic> wireMessage,
   ) async {
+    final msgId = wireMessage['id'] as String?;
+    final msgSeq = wireMessage['seq'];
+    final dedupKey = '$sessionId:$msgId:$msgSeq';
+
     final sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
+      // Leave key in _pendingInlineMessageKeys so retry can re-enter inline
+      // path once encryption is initialized.
       messagesSync[sessionId]?.invalidate();
       _notifySessionMessagesChanged(sessionId);
       return;
@@ -2025,6 +2051,17 @@ what you have, you must use the options mode.
       // re-download this message.
       _advanceSeqCursor(sessionId, processed.maxSeq);
 
+      // Commit the dedup key: remove from _pendingInlineMessageKeys and
+      // add to _recentInlineMessageKeys with FIFO eviction.
+      _pendingInlineMessageKeys.remove(dedupKey);
+      _recentInlineMessageKeys.add(dedupKey);
+      _recentInlineMessageKeyOrder.addLast(dedupKey);
+      while (_recentInlineMessageKeyOrder.length > _maxRecentInlineKeys) {
+        _recentInlineMessageKeys.remove(
+          _recentInlineMessageKeyOrder.removeFirst(),
+        );
+      }
+
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged();
       // Remove the completed Future from the queue so new messages can
@@ -2037,6 +2074,7 @@ what you have, you must use the options mode.
         error,
         stack,
       );
+      // Leave key in _pendingInlineMessageKeys so retry can re-process.
       // Remove the failed Future from the queue so subsequent messages
       // can re-enter the inline fast path instead of being silently
       // dropped by chaining onto a rejected Future.
@@ -8563,6 +8601,8 @@ what you have, you must use the options mode.
     MMKVStorage().clearSessionFirstLoadedSeq();
     _loadingOlderMessages.clear();
     _recentInlineMessageKeys.clear();
+    _recentInlineMessageKeyOrder.clear();
+    _pendingInlineMessageKeys.clear();
     _sessionsWithPendingSocketMessages.clear();
     _notifiedPermissionIds.clear();
 

@@ -81,7 +81,7 @@ void main() {
     );
 
     test(
-      'non-visible session does not decrypt messages inline',
+      'non-visible session persists raw message but does not decrypt inline',
       () async {
         const sessionId = 'sess-bg-2';
         sync.testSessions[sessionId] = _makeSession(
@@ -106,13 +106,34 @@ void main() {
             sync.testSessionMessages(sessionId);
 
         // For non-visible sessions the inline processor is NOT used.
-        // The messages map should be unchanged (null or same length).
+        // However, the raw wire message IS persisted to _sessionMessages
+        // and MMKV so it survives app kill (fix: 2026-03 message loss).
+        // The message is stored in raw wire format, not decrypted.
         expect(
           messagesAfter,
-          equals(messagesBefore),
-          reason:
-              'Non-visible session must not decrypt or store '
-              'messages inline',
+          isNotNull,
+          reason: 'Non-visible session should persist raw message',
+        );
+        expect(
+          messagesAfter!.length,
+          equals(1),
+          reason: 'Raw message should be persisted for crash survival',
+        );
+        expect(
+          messagesAfter.first['id'],
+          equals('msg-6'),
+          reason: 'Persisted message should be the raw wire message',
+        );
+        // The content must still be in encrypted form (not decrypted inline)
+        expect(
+          messagesAfter.first['content'],
+          isA<Map<String, dynamic>>(),
+          reason: 'Content should remain encrypted',
+        );
+        expect(
+          (messagesAfter.first['content'] as Map<String, dynamic>)['t'],
+          equals('encrypted'),
+          reason: 'Content type should be encrypted, not decrypted',
         );
       },
     );

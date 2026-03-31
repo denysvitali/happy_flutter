@@ -297,6 +297,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   @override
+  void didUpdateWidget(ChatScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Session changed: reset state so the new session loads fresh.
+    if (oldWidget.sessionId != widget.sessionId) {
+      _dataSyncSubscription?.cancel();
+      _messageSyncSubscription?.cancel();
+      _didStartInitialLoad = false;
+      _lastDataChangeCounter = -1;
+      _lastMessagesList = null;
+    }
+  }
+
+  @override
   void dispose() {
     _loadingSafetyTimer?.cancel();
     _dataSyncSubscription?.cancel();

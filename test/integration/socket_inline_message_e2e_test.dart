@@ -330,7 +330,7 @@ void main() {
     );
 
     test(
-      'non-visible session does NOT decrypt inline',
+      'non-visible session persists raw message but does not decrypt inline',
       () async {
         const sessionId = 'non-visible-no-decrypt-1';
 
@@ -362,8 +362,9 @@ void main() {
           const Duration(milliseconds: 200),
         );
 
-        // Messages should still be just the original one —
-        // the new message was NOT decrypted inline for non-visible
+        // Non-visible sessions persist the raw wire message (for crash survival)
+        // but do NOT decrypt it inline — decryption happens via HTTP fetch when
+        // the session becomes visible.
         final msgs = sync.testSessionMessages(sessionId);
         expect(
           msgs,
@@ -372,15 +373,31 @@ void main() {
         );
         expect(
           msgs!.length,
-          equals(1),
+          equals(2),
           reason:
-              'Non-visible session should NOT have new message '
-              'appended via inline decryption',
+              'Non-visible session should persist raw message alongside '
+              'existing messages (not replace them)',
         );
         expect(
-          msgs.first['id'],
+          msgs[0]['id'],
           equals('old-msg'),
           reason: 'Original message should be preserved unchanged',
+        );
+        // The new message is persisted as raw encrypted wire format
+        expect(
+          msgs[1]['id'],
+          equals('msg-bg-2'),
+          reason: 'New raw message should be persisted',
+        );
+        expect(
+          msgs[1]['content'],
+          isA<Map<String, dynamic>>(),
+          reason: 'New message content should be encrypted wire format',
+        );
+        expect(
+          (msgs[1]['content'] as Map<String, dynamic>)['t'],
+          equals('encrypted'),
+          reason: 'New message should NOT be decrypted inline',
         );
       },
     );
