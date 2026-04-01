@@ -4353,6 +4353,7 @@ what you have, you must use the options mode.
             host: '',
             machineId: machineId,
             path: path,
+            flavor: agent,
             lifecycleState: 'starting',
           ),
           metadataVersion: 0,

@@ -94,6 +94,10 @@ void main() {
         // Server doesn't return the new session
       });
 
+      // Simulate the agent selection that new_session_screen sets before
+      // calling createSession.
+      await sync.applySettings({'lastUsedAgent': 'claude'});
+
       final result = await sync.createSession(
         machineId: 'machine-1',
         path: '/home/user/project',
@@ -108,6 +112,12 @@ void main() {
       expect(session.metadata?.machineId, 'machine-1');
       expect(session.metadata?.path, '/home/user/project');
       expect(session.metadata?.lifecycleState, 'starting');
+      // Placeholder must carry the agent flavor so the model picker in the
+      // chat screen can show the correct options before the real session
+      // data arrives from the server.
+      expect(session.metadata?.flavor, 'claude',
+          reason: 'placeholder must include flavor so model picker works '
+              'before real session data arrives');
     });
 
     test('successful spawn forces full fetch before checking session',
