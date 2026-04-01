@@ -2532,6 +2532,31 @@ what you have, you must use the options mode.
       return;
     }
 
+    // Machine-activity ephemeral — the CLI daemon sends machine-alive every
+    // 20s and the server broadcasts this ephemeral.  Patch activeAt in memory
+    // so createSession()'s 60s offline check doesn't false-positive between
+    // the daemon's 60s HTTP heartbeats.
+    if (type == 'machine-activity' || type == 'machine_activity') {
+      final machineId = sessionId; // parsed as 'id' above
+      final machine = _machines[machineId];
+      if (machine != null) {
+        final activeAt = payload['activeAt'] is int
+            ? payload['activeAt'] as int
+            : payload['activeAt'] is double
+                ? (payload['activeAt'] as double).toInt()
+                : null;
+        final active = payload['active'] as bool?;
+        if (activeAt != null || active != null) {
+          _machines[machineId] = machine.copyWith(
+            active: active ?? machine.active,
+            activeAt: activeAt ?? machine.activeAt,
+          );
+          _notifyDataChanged();
+        }
+      }
+      return;
+    }
+
     // Only invalidate if this session is currently open — ephemeral updates
     // for non-visible sessions are not urgent and can wait until the user
     // navigates to them. Invalidating all sessions caused a thundering herd
