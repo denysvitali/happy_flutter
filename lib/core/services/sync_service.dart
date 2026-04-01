@@ -651,6 +651,9 @@ what you have, you must use the options mode.
   Map<String, Session> get testSessions => _sessions;
 
   @visibleForTesting
+  Map<String, Machine> get testMachines => _machines;
+
+  @visibleForTesting
   void testNotifyDataChanged() => _notifyDataChanged();
 
   @visibleForTesting
@@ -2534,18 +2537,32 @@ what you have, you must use the options mode.
 
     // Machine-activity ephemeral — the CLI daemon sends machine-alive every
     // 20s and the server broadcasts this ephemeral.  Patch activeAt in memory
-    // so createSession()'s 60s offline check doesn't false-positive between
-    // the daemon's 60s HTTP heartbeats.
+    // so createSession()'s offline check doesn't false-positive between
+    // daemon heartbeats.
+    //
+    // The server may omit activeAt from the event (sending only active:true).
+    // In that case synthesise activeAt=now so the 120 s threshold in
+    // createSession() stays fresh for every incoming heartbeat.
     if (type == 'machine-activity' || type == 'machine_activity') {
       final machineId = sessionId; // parsed as 'id' above
       final machine = _machines[machineId];
       if (machine != null) {
-        final activeAt = payload['activeAt'] is int
+        final eventActiveAt = payload['activeAt'] is int
             ? payload['activeAt'] as int
             : payload['activeAt'] is double
                 ? (payload['activeAt'] as double).toInt()
                 : null;
         final active = payload['active'] as bool?;
+        // If the server says the machine is active but omits activeAt,
+        // use the current time so the client-side 120 s window stays fresh.
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final activeAt =
+            eventActiveAt ?? (active == true ? now : null);
+        logger.debug(
+          '[machine-activity] machineId=$machineId '
+          'active=$active activeAt=$activeAt '
+          '(eventActiveAt=$eventActiveAt)',
+        );
         if (activeAt != null || active != null) {
           _machines[machineId] = machine.copyWith(
             active: active ?? machine.active,

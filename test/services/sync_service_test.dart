@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/encryption_cache.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
+import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/utils/invalidate_sync.dart';
@@ -268,6 +269,100 @@ void main() {
       final session = instance.testSessions['s1']!;
       expect(session.presence, 'online');
     });
+
+    test(
+      'machine-activity without activeAt synthesises activeAt=now '
+      'so createSession 120s check stays fresh',
+      () {
+        final instance = Sync();
+        final staleAt = DateTime.now().millisecondsSinceEpoch - 200000;
+        instance.testMachines['m1'] = Machine(
+          id: 'm1',
+          seq: 1,
+          createdAt: 0,
+          updatedAt: 0,
+          active: true,
+          activeAt: staleAt, // 200 s ago — older than the 120 s threshold
+          metadataVersion: 0,
+          daemonStateVersion: 0,
+        );
+
+        final before = DateTime.now().millisecondsSinceEpoch;
+        instance.handleEphemeralUpdate({
+          'type': 'machine-activity',
+          'id': 'm1',
+          'active': true,
+          // no activeAt field
+        });
+        final after = DateTime.now().millisecondsSinceEpoch;
+
+        final machine = instance.testMachines['m1']!;
+        expect(machine.active, isTrue);
+        // activeAt must have been refreshed to ~now
+        expect(machine.activeAt, greaterThanOrEqualTo(before));
+        expect(machine.activeAt, lessThanOrEqualTo(after));
+      },
+    );
+
+    test(
+      'machine-activity with activeAt uses the provided value',
+      () {
+        final instance = Sync();
+        final serverActiveAt = DateTime.now().millisecondsSinceEpoch - 5000;
+        instance.testMachines['m1'] = Machine(
+          id: 'm1',
+          seq: 1,
+          createdAt: 0,
+          updatedAt: 0,
+          active: false,
+          activeAt: 0,
+          metadataVersion: 0,
+          daemonStateVersion: 0,
+        );
+
+        instance.handleEphemeralUpdate({
+          'type': 'machine-activity',
+          'id': 'm1',
+          'active': true,
+          'activeAt': serverActiveAt,
+        });
+
+        final machine = instance.testMachines['m1']!;
+        expect(machine.active, isTrue);
+        expect(machine.activeAt, serverActiveAt);
+      },
+    );
+
+    test(
+      'machine-activity with active=false does not synthesise activeAt',
+      () {
+        final instance = Sync();
+        final originalActiveAt =
+            DateTime.now().millisecondsSinceEpoch - 5000;
+        instance.testMachines['m1'] = Machine(
+          id: 'm1',
+          seq: 1,
+          createdAt: 0,
+          updatedAt: 0,
+          active: true,
+          activeAt: originalActiveAt,
+          metadataVersion: 0,
+          daemonStateVersion: 0,
+        );
+
+        instance.handleEphemeralUpdate({
+          'type': 'machine-activity',
+          'id': 'm1',
+          'active': false,
+          // no activeAt
+        });
+
+        final machine = instance.testMachines['m1']!;
+        expect(machine.active, isFalse);
+        // activeAt unchanged — allows 120s window to expire naturally
+        expect(machine.activeAt, originalActiveAt);
+      },
+    );
   });
 
   group('Sync global invalidation', () {
