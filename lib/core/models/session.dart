@@ -431,6 +431,7 @@ class Session {
     required this.agentStateVersion,
     required this.thinking,
     required this.presence,
+    this.archived = false,
     this.metadata,
     this.agentState,
     this.thinkingAt,
@@ -450,6 +451,7 @@ class Session {
       updatedAt: _asApiInt(json['updatedAt'], 'updatedAt'),
       active: _asApiBool(json['active'], 'active'),
       activeAt: _asApiInt(json['activeAt'], 'activeAt'),
+      archived: _asApiBool(json['archived'], 'archived'),
       metadata: json['metadata'] != null
           ? Metadata.fromJson(json['metadata'] as Map<String, dynamic>)
           : null,
@@ -484,6 +486,7 @@ class Session {
   final int updatedAt;
   final bool active;
   final int activeAt;
+  final bool archived;
   final Metadata? metadata;
   final int metadataVersion;
   final AgentState? agentState;
@@ -517,6 +520,7 @@ class Session {
       'updatedAt': updatedAt,
       'active': active,
       'activeAt': activeAt,
+      'archived': archived,
       'metadata': metadata?.toJson(),
       'metadataVersion': metadataVersion,
       'agentState': agentState?.toJson(),
@@ -540,6 +544,7 @@ class Session {
     int? updatedAt,
     bool? active,
     int? activeAt,
+    bool? archived,
     Metadata? metadata,
     int? metadataVersion,
     AgentState? agentState,
@@ -563,6 +568,7 @@ class Session {
       updatedAt: updatedAt ?? this.updatedAt,
       active: active ?? this.active,
       activeAt: activeAt ?? this.activeAt,
+      archived: archived ?? this.archived,
       metadata: metadata ?? this.metadata,
       metadataVersion: metadataVersion ?? this.metadataVersion,
       agentState: agentState ?? this.agentState,
@@ -591,6 +597,7 @@ class Session {
           updatedAt == other.updatedAt &&
           active == other.active &&
           activeAt == other.activeAt &&
+          archived == other.archived &&
           metadata == other.metadata &&
           metadataVersion == other.metadataVersion &&
           agentState == other.agentState &&
@@ -613,6 +620,7 @@ class Session {
     updatedAt,
     active,
     activeAt,
+    archived,
     metadata,
     metadataVersion,
     agentState,

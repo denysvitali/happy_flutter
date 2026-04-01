@@ -1755,6 +1755,9 @@ what you have, you must use the options mode.
         case 'delete-session':
           _handleDeleteSession(update.data);
           break;
+        case 'archive-session':
+          _handleArchiveSession(update.data);
+          break;
         case 'update-session':
           _handleUpdateSession(update.data);
           break;
@@ -2138,6 +2141,31 @@ what you have, you must use the options mode.
     );
   }
 
+  /// Handle archive-session WebSocket event.
+  ///
+  /// The server broadcasts this after a successful archive/unarchive API
+  /// call.  We apply the archived flag immediately to the in-memory session
+  /// so the UI updates without waiting for a full refetch.
+  void _handleArchiveSession(Map<String, dynamic> data) {
+    final sessionId = data['sid'] as String?;
+    final archived = data['archived'] as bool?;
+    if (sessionId == null || archived == null) return;
+
+    final session = _sessions[sessionId];
+    if (session == null) return;
+
+    _sessions[sessionId] = session.copyWith(archived: archived);
+    if (archived) {
+      _optimisticallyArchivedSessions.add(sessionId);
+    } else {
+      _optimisticallyArchivedSessions.remove(sessionId);
+    }
+    _notifyDataChanged();
+    logger.info(
+      'Session archive event: $sessionId archived=$archived',
+    );
+  }
+
   /// Handle session update
   ///
   /// Applies delta patches directly to the in-memory session for unencrypted
@@ -2171,6 +2199,7 @@ what you have, you must use the options mode.
           : data['thinkingAt'] is double
               ? (data['thinkingAt'] as double).toInt()
               : null;
+      final archived = data['archived'] as bool?;
 
       // Only update if at least one unencrypted field is present.
       if (presence != null ||
@@ -2178,13 +2207,15 @@ what you have, you must use the options mode.
           activeAt != null ||
           title != null ||
           thinking != null ||
-          thinkingAt != null) {
+          thinkingAt != null ||
+          archived != null) {
         _sessions[sessionId] = session.copyWith(
           presence: presence ?? session.presence,
           active: active ?? session.active,
           activeAt: activeAt ?? session.activeAt,
           thinking: thinking ?? session.thinking,
           thinkingAt: thinkingAt,
+          archived: archived ?? session.archived,
         );
         _notifyDataChanged();
       }
@@ -2819,10 +2850,10 @@ what you have, you must use the options mode.
       }
 
       // Clear optimistic archive flags for sessions that the server has
-      // confirmed as inactive (active: false) or that are no longer in the
-      // list. This prevents the "archive then reappear" bug.
+      // confirmed as archived or inactive. This prevents the
+      // "archive then reappear" bug.
       for (final session in decryptedSessions) {
-        if (!session.active) {
+        if (session.archived || !session.active) {
           _optimisticallyArchivedSessions.remove(session.id);
         }
       }

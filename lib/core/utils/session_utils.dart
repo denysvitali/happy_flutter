@@ -353,6 +353,7 @@ bool isSessionOnline(Session session) {
 /// persisted [Session.active] so sessions still appear after app relaunch or
 /// when ephemeral activity events have not arrived yet.
 bool isSessionActive(Session session) {
+  if (session.archived) return false;
   return session.presence == 'online' || session.active;
 }
 
