@@ -2707,7 +2707,10 @@ what you have, you must use the options mode.
               _asSessionInt(session['metadataVersion']) ?? 0;
           final agentStateVersion =
               _asSessionInt(session['agentStateVersion']) ?? 0;
-          final lastSeq = _asSessionInt(session['lastSeq']);
+          final lastSeq = max(
+            _asSessionInt(session['lastSeq']) ?? 0,
+            _sessions[sessionId]?.lastSeq ?? 0,
+          );
 
           Map<String, dynamic>? metadata;
           Map<String, dynamic>? agentState;
@@ -3016,7 +3019,10 @@ what you have, you must use the options mode.
         agentStateVersion: agentStateVersion,
         thinking: false,
         presence: _sessions[sessionId]?.presence ?? 'offline',
-        lastSeq: _asSessionInt(raw['lastSeq']),
+        lastSeq: max(
+          _asSessionInt(raw['lastSeq']) ?? 0,
+          _sessions[sessionId]?.lastSeq ?? 0,
+        ),
       );
 
       _sessions[sessionId] = session;
@@ -6691,7 +6697,23 @@ what you have, you must use the options mode.
         if (processed.maxSeq > afterSeq) {
           afterSeq = processed.maxSeq;
         }
-        _advanceSeqCursor(sessionId, afterSeq);
+        // Only advance cursor when messages/toolResults were actually
+        // produced.  Advancing on empty output permanently loses
+        // messages that the processor silently dropped — subsequent
+        // fetches skip via the "already caught up" guard.
+        if (processed.messages.isNotEmpty ||
+            processed.toolResults.isNotEmpty) {
+          _advanceSeqCursor(sessionId, afterSeq);
+        } else if (processed.maxSeq > 0 && messages.isNotEmpty) {
+          // Raw messages existed but all were dropped by the processor.
+          // Log a warning but do NOT advance so the next fetch retries.
+          logger.warning(
+            '[fetchMessages] $sessionId page=$page: '
+            '${messages.length} raw msg(s) → 0 output, '
+            'cursor NOT advanced '
+            '(afterSeq=$afterSeq maxSeq=${processed.maxSeq})',
+          );
+        }
 
         logger.info(
           '[fetchMessages] $sessionId page=$page '

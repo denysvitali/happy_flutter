@@ -229,6 +229,7 @@ ProcessedMessages processDecryptedMessages({
           messages: messages,
           toolResults: toolResults,
           usageUpdates: usageUpdates,
+          droppedReasons: droppedReasons,
         );
       } else if (contentType == 'event') {
         _processEventContent(
@@ -252,6 +253,7 @@ ProcessedMessages processDecryptedMessages({
           messages: messages,
           toolResults: toolResults,
           usageUpdates: usageUpdates,
+          droppedReasons: droppedReasons,
         );
       } else if (contentType == 'acp') {
         _processAcpContent(
@@ -263,6 +265,7 @@ ProcessedMessages processDecryptedMessages({
           nestedContent: nestedContent,
           messages: messages,
           toolResults: toolResults,
+          droppedReasons: droppedReasons,
         );
       } else if (_looksLikeSessionEnvelope(nestedContent) ||
           contentType == 'session') {
@@ -387,11 +390,24 @@ void _processOutputContent({
   required List<Map<String, dynamic>> messages,
   required List<Map<String, dynamic>> toolResults,
   required List<Map<String, dynamic>> usageUpdates,
+  List<String>? droppedReasons,
 }) {
   final data = nestedContent['data'];
-  if (data is! Map<String, dynamic>) return;
+  if (data is! Map<String, dynamic>) {
+    droppedReasons?.add(
+      'seq=$seq id=$id: output data is ${data?.runtimeType ?? 'null'}, '
+      'expected Map',
+    );
+    return;
+  }
 
-  if (data['isMeta'] == true || data['isCompactSummary'] == true) return;
+  if (data['isMeta'] == true || data['isCompactSummary'] == true) {
+    droppedReasons?.add(
+      'seq=$seq id=$id: output filtered (isMeta=${data['isMeta']}, '
+      'isCompactSummary=${data['isCompactSummary']})',
+    );
+    return;
+  }
 
   final meta = _sidechainMeta(data);
   final dataType = data['type'] as String?;
@@ -417,6 +433,12 @@ void _processOutputContent({
           'uuid': effectiveUuid,
           'parentUuid': ?meta.parentUuid,
         });
+      } else {
+        droppedReasons?.add(
+          'seq=$seq id=$id: assistant message field is '
+          '${agentMsg?.runtimeType ?? 'null'}, expected Map or '
+          'non-empty String',
+        );
       }
       return;
     }
@@ -449,7 +471,20 @@ void _processOutputContent({
           'uuid': effectiveUuid,
           'parentUuid': ?meta.parentUuid,
         });
+      } else {
+        droppedReasons?.add(
+          'seq=$seq id=$id: assistant content is '
+          '${agentContentList?.runtimeType ?? 'null'}, '
+          'expected List or non-empty String',
+        );
       }
+      return;
+    }
+
+    if (agentContentList.isEmpty) {
+      droppedReasons?.add(
+        'seq=$seq id=$id: assistant content list is empty',
+      );
       return;
     }
 
@@ -534,6 +569,11 @@ void _processOutputContent({
             'parentUuid': ?meta.parentUuid,
           });
         }
+      } else if (type != null) {
+        droppedReasons?.add(
+          'seq=$seq id=$id: unrecognized content block type=$type '
+          'at index $i',
+        );
       }
       i++;
     }
@@ -583,7 +623,11 @@ void _processOutputContent({
     return;
   }
 
-  // Skip system, result, summary messages
+  // Unrecognized dataType — log to help diagnose silent drops.
+  droppedReasons?.add(
+    'seq=$seq id=$id: output dataType=$dataType not handled '
+    '(keys=${data.keys.toList()})',
+  );
 }
 
 void _processEventContent({
@@ -623,9 +667,16 @@ void _processCodexContent({
   required List<Map<String, dynamic>> messages,
   required List<Map<String, dynamic>> toolResults,
   required List<Map<String, dynamic>> usageUpdates,
+  List<String>? droppedReasons,
 }) {
   final data = nestedContent['data'];
-  if (data is! Map<String, dynamic>) return;
+  if (data is! Map<String, dynamic>) {
+    droppedReasons?.add(
+      'seq=$seq id=$id: codex data is '
+      '${data?.runtimeType ?? 'null'}, expected Map',
+    );
+    return;
+  }
 
   final usageData =
       _extractUsageMap(data['usage']) ??
@@ -692,7 +743,14 @@ void _processCodexContent({
       'uuid': ?meta.uuid,
       'parentUuid': ?meta.parentUuid,
     });
+    return;
   }
+
+  // Unrecognized codex dataType
+  droppedReasons?.add(
+    'seq=$seq id=$id: codex dataType=$dataType not handled '
+    '(keys=${data.keys.toList()})',
+  );
 }
 
 Map<String, dynamic>? _extractUsageMap(dynamic value) {
@@ -716,9 +774,16 @@ void _processAcpContent({
   required Map<String, dynamic> nestedContent,
   required List<Map<String, dynamic>> messages,
   required List<Map<String, dynamic>> toolResults,
+  List<String>? droppedReasons,
 }) {
   final data = nestedContent['data'];
-  if (data is! Map<String, dynamic>) return;
+  if (data is! Map<String, dynamic>) {
+    droppedReasons?.add(
+      'seq=$seq id=$id: acp data is '
+      '${data?.runtimeType ?? 'null'}, expected Map',
+    );
+    return;
+  }
 
   final dataType = data['type'] as String?;
   final meta = _sidechainMeta(data);
