@@ -6697,22 +6697,19 @@ what you have, you must use the options mode.
         if (processed.maxSeq > afterSeq) {
           afterSeq = processed.maxSeq;
         }
-        // Only advance cursor when messages/toolResults were actually
-        // produced.  Advancing on empty output permanently loses
-        // messages that the processor silently dropped — subsequent
-        // fetches skip via the "already caught up" guard.
-        if (processed.messages.isNotEmpty ||
-            processed.toolResults.isNotEmpty) {
-          _advanceSeqCursor(sessionId, afterSeq);
-        } else if (processed.maxSeq > 0 && messages.isNotEmpty) {
-          // Raw messages existed but all were dropped by the processor.
-          // Log a warning but do NOT advance so the next fetch retries.
-          logger.warning(
-            '[fetchMessages] $sessionId page=$page: '
-            '${messages.length} raw msg(s) → 0 output, '
-            'cursor NOT advanced '
-            '(afterSeq=$afterSeq maxSeq=${processed.maxSeq})',
-          );
+        _advanceSeqCursor(sessionId, afterSeq);
+
+        if (processed.maxSeq > 0 &&
+            processed.messages.isEmpty &&
+            processed.toolResults.isEmpty &&
+            messages.isNotEmpty) {
+          // All raw messages were silently dropped by the processor.
+          // Log the reasons so unrecognized formats are discoverable.
+          for (final reason in processed.droppedReasons) {
+            logger.warning(
+              '[fetchMessages] dropped: $reason',
+            );
+          }
         }
 
         logger.info(
