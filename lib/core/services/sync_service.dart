@@ -2258,8 +2258,70 @@ what you have, you must use the options mode.
 
   /// Handle machine update
   void _handleUpdateMachine(Map<String, dynamic> data) {
-    logger.info('Machine update received');
-    machinesSync.invalidate();
+    final machineId = data['id'] as String?;
+    if (machineId == null) return;
+
+    // Apply delta patch directly to the in-memory machine for unencrypted
+    // fields (active, activeAt).  This updates the UI immediately without
+    // waiting for a debounced HTTP fetch, which fixes the "Machine is offline"
+    // false-positive when createSession is called shortly after a machine
+    // comes online.
+    final machine = _machines[machineId];
+    if (machine != null) {
+      final active = data['active'] as bool?;
+      final activeAt = data['activeAt'] is int
+          ? data['activeAt'] as int
+          : data['activeAt'] is double
+              ? (data['activeAt'] as double).toInt()
+              : null;
+      final updatedAt = data['updatedAt'] is int
+          ? data['updatedAt'] as int
+          : data['updatedAt'] is double
+              ? (data['updatedAt'] as double).toInt()
+              : null;
+      final seq = data['seq'] is int
+          ? data['seq'] as int
+          : data['seq'] is double
+              ? (data['seq'] as double).toInt()
+              : null;
+
+      if (active != null || activeAt != null) {
+        _machines[machineId] = machine.copyWith(
+          active: active ?? machine.active,
+          activeAt: activeAt ?? machine.activeAt,
+          updatedAt: updatedAt,
+          seq: seq,
+        );
+        _notifyDataChanged();
+      }
+    }
+
+    // Schedule a debounced refresh as a safety net for encrypted fields
+    // (metadata, daemonState) that we can't decrypt inline here.
+    _scheduleMachinesRefresh();
+
+    logger.info('Machine update received: $machineId');
+  }
+
+  static const Duration _machinesRefreshDebounce =
+      Duration(milliseconds: 250);
+
+  Timer? _machinesRefreshDebounceTimer;
+  final Set<String> _pendingUpdateMachineIds = {};
+
+  void _scheduleMachinesRefresh() {
+    _machinesRefreshDebounceTimer?.cancel();
+    _machinesRefreshDebounceTimer = Timer(
+      _machinesRefreshDebounce,
+      () => unawaited(_flushScheduledMachinesRefresh()),
+    );
+  }
+
+  Future<void> _flushScheduledMachinesRefresh() async {
+    _machinesRefreshDebounceTimer?.cancel();
+    _machinesRefreshDebounceTimer = null;
+    _pendingUpdateMachineIds.clear();
+    await machinesSync.invalidateAndAwait();
   }
 
   /// Handle relationship update

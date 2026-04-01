@@ -224,6 +224,32 @@ class Machine {
     daemonState,
     daemonStateVersion,
   );
+
+  Machine copyWith({
+    String? id,
+    int? seq,
+    int? createdAt,
+    int? updatedAt,
+    bool? active,
+    int? activeAt,
+    MachineMetadata? metadata,
+    int? metadataVersion,
+    Map<String, dynamic>? daemonState,
+    int? daemonStateVersion,
+  }) {
+    return Machine(
+      id: id ?? this.id,
+      seq: seq ?? this.seq,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      active: active ?? this.active,
+      activeAt: activeAt ?? this.activeAt,
+      metadata: metadata ?? this.metadata,
+      metadataVersion: metadataVersion ?? this.metadataVersion,
+      daemonState: daemonState ?? this.daemonState,
+      daemonStateVersion: daemonStateVersion ?? this.daemonStateVersion,
+    );
+  }
 }
 
 /// Git status model
