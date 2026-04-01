@@ -1891,13 +1891,11 @@ what you have, you must use the options mode.
       // Non-visible session: mark dirty so onSessionVisible() triggers
       // a fetch when the user navigates to it.
       //
-      // Persist the raw message to _sessionMessages and MMKV so it
-      // survives app kill — previously, only the seq cursor was advanced
-      // and the message was held only in memory, losing it on crash.
-      if (embeddedMessage != null) {
-        _upsertSessionMessages(sessionId, [embeddedMessage]);
-        _scheduleSaveMessages(sessionId);
-      }
+      // Note: Do NOT persist raw encrypted messages here. The raw wire format
+      // (with {c: 'encrypted_b64'}) would be cached and displayed as-is if we
+      // saved it before decryption. _sessionsWithPendingSocketMessages already
+      // tracks that this session has pending messages, so onSessionVisible()
+      // will force a server fetch instead of restoring stale cache.
       //
       // Update session.lastSeq so the delta-fetch path in fetchMessages
       // can detect the gap (serverLastSeq > cursorSeq).  Do NOT advance
