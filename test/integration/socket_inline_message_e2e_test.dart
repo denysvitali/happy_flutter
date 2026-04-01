@@ -330,7 +330,7 @@ void main() {
     );
 
     test(
-      'non-visible session persists raw message but does not decrypt inline',
+      'non-visible session does NOT persist raw message or decrypt inline',
       () async {
         const sessionId = 'non-visible-no-decrypt-1';
 
@@ -362,9 +362,8 @@ void main() {
           const Duration(milliseconds: 200),
         );
 
-        // Non-visible sessions persist the raw wire message (for crash survival)
-        // but do NOT decrypt it inline — decryption happens via HTTP fetch when
-        // the session becomes visible.
+        // Non-visible sessions do NOT persist raw encrypted messages.
+        // Existing messages remain untouched.
         final msgs = sync.testSessionMessages(sessionId);
         expect(
           msgs,
@@ -373,31 +372,30 @@ void main() {
         );
         expect(
           msgs!.length,
-          equals(2),
+          equals(1),
           reason:
-              'Non-visible session should persist raw message alongside '
-              'existing messages (not replace them)',
+              'Non-visible session should NOT append raw message '
+              'to existing messages',
         );
         expect(
           msgs[0]['id'],
           equals('old-msg'),
           reason: 'Original message should be preserved unchanged',
         );
-        // The new message is persisted as raw encrypted wire format
+
+        // But lastSeq should track the server seq for gap detection.
+        final session = sync.testSessions[sessionId];
         expect(
-          msgs[1]['id'],
-          equals('msg-bg-2'),
-          reason: 'New raw message should be persisted',
+          session!.lastSeq,
+          equals(6),
+          reason: 'lastSeq should track server seq for gap detection',
         );
+
+        // And the pending flag should be set.
         expect(
-          msgs[1]['content'],
-          isA<Map<String, dynamic>>(),
-          reason: 'New message content should be encrypted wire format',
-        );
-        expect(
-          (msgs[1]['content'] as Map<String, dynamic>)['t'],
-          equals('encrypted'),
-          reason: 'New message should NOT be decrypted inline',
+          sync.testHasPendingSocketMessage(sessionId),
+          isTrue,
+          reason: 'Non-visible session should have pending flag',
         );
       },
     );

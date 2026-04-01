@@ -81,16 +81,13 @@ void main() {
     );
 
     test(
-      'non-visible session persists raw message but does not decrypt inline',
+      'non-visible session does NOT persist raw message or decrypt inline',
       () async {
         const sessionId = 'sess-bg-2';
         sync.testSessions[sessionId] = _makeSession(
           sessionId,
           lastSeq: 5,
         );
-
-        final messagesBefore =
-            sync.testSessionMessages(sessionId);
 
         // Inject a new-message event with embedded content.
         sync.handleUpdate(_makeNewMessageUpdate(
@@ -105,35 +102,28 @@ void main() {
         final messagesAfter =
             sync.testSessionMessages(sessionId);
 
-        // For non-visible sessions the inline processor is NOT used.
-        // However, the raw wire message IS persisted to _sessionMessages
-        // and MMKV so it survives app kill (fix: 2026-03 message loss).
-        // The message is stored in raw wire format, not decrypted.
+        // Non-visible sessions do NOT persist raw encrypted messages.
+        // The raw wire format would be cached and displayed as-is.
+        // Instead, onSessionVisible() triggers a server fetch.
         expect(
           messagesAfter,
-          isNotNull,
-          reason: 'Non-visible session should persist raw message',
+          isNull,
+          reason: 'Non-visible session should NOT persist raw message',
         );
+
+        // But lastSeq should be updated so the gap is detected later.
+        final session = sync.testSessions[sessionId];
         expect(
-          messagesAfter!.length,
-          equals(1),
-          reason: 'Raw message should be persisted for crash survival',
+          session!.lastSeq,
+          equals(6),
+          reason: 'lastSeq should track server seq for gap detection',
         );
+
+        // And the pending flag should be set.
         expect(
-          messagesAfter.first['id'],
-          equals('msg-6'),
-          reason: 'Persisted message should be the raw wire message',
-        );
-        // The content must still be in encrypted form (not decrypted inline)
-        expect(
-          messagesAfter.first['content'],
-          isA<Map<String, dynamic>>(),
-          reason: 'Content should remain encrypted',
-        );
-        expect(
-          (messagesAfter.first['content'] as Map<String, dynamic>)['t'],
-          equals('encrypted'),
-          reason: 'Content type should be encrypted, not decrypted',
+          sync.testHasPendingSocketMessage(sessionId),
+          isTrue,
+          reason: 'Non-visible session should have pending flag',
         );
       },
     );
