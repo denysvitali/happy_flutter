@@ -52,7 +52,7 @@ class _ClaudeLimitsScreenState
 
   bool _isMachineOnline(Machine m) {
     final now = DateTime.now().millisecondsSinceEpoch;
-    const onlineThresholdMs = 60 * 1000;
+    const onlineThresholdMs = 120 * 1000; // 2 min
     return now - m.activeAt < onlineThresholdMs;
   }
 
@@ -315,7 +315,7 @@ class _MachinePicker extends StatelessWidget {
                   m.id;
               final now =
                   DateTime.now().millisecondsSinceEpoch;
-              const threshold = 60 * 1000;
+              const threshold = 120 * 1000; // 2 min
               final online = now - m.activeAt < threshold;
               return DropdownMenuItem(
                 value: m.id,

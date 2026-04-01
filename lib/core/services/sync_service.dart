@@ -4223,11 +4223,26 @@ what you have, you must use the options mode.
     }
 
     // Fail fast if the machine is offline — don't wait 60 s for a timeout.
+    //
+    // The server marks machines inactive after 10 min without a heartbeat.
+    // We use a 2 min activeAt threshold so that clock skew and the server's
+    // 30 s activity-cache throttle don't cause false positives (the old 60 s
+    // threshold matched the daemon HTTP heartbeat exactly).  When the server
+    // has explicitly set active=false we reject immediately regardless of
+    // activeAt.
     final machine = _machines[machineId];
     if (machine != null) {
+      if (!machine.active) {
+        throw StateError('Machine is offline');
+      }
       final now = DateTime.now().millisecondsSinceEpoch;
-      const onlineThresholdMs = 60 * 1000;
+      const onlineThresholdMs = 120 * 1000;
       if (now - machine.activeAt >= onlineThresholdMs) {
+        logger.warning(
+          'Machine $machineId appears offline: '
+          'activeAt=${machine.activeAt}, now=$now, '
+          'delta=${now - machine.activeAt}ms',
+        );
         throw StateError('Machine is offline');
       }
     }
@@ -4815,20 +4830,16 @@ what you have, you must use the options mode.
 
     // Fail fast if the machine is offline — don't wait 60 s for a timeout.
     final machine = _machines[machineId];
-    if (machine != null) {
-      final now = DateTime.now().millisecondsSinceEpoch;
-      const onlineThresholdMs = 60 * 1000;
-      if (now - machine.activeAt >= onlineThresholdMs) {
-        logger.info(
-          '[sendMessage] machine=$machineId is offline, '
-          'skipping auto-restore',
-        );
-        return (
-          sessionId: sessionId,
-          session: session,
-          sessionEncryption: sessionEncryption,
-        );
-      }
+    if (machine != null && !machine.active) {
+      logger.info(
+        '[sendMessage] machine=$machineId is offline, '
+        'skipping auto-restore',
+      );
+      return (
+        sessionId: sessionId,
+        session: session,
+        sessionEncryption: sessionEncryption,
+      );
     }
 
     logger.info(

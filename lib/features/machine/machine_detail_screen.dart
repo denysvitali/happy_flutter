@@ -48,7 +48,7 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
 
   bool _isMachineOnline(int activeAt) {
     final now = DateTime.now().millisecondsSinceEpoch;
-    const onlineThresholdMs = 60 * 1000;
+    const onlineThresholdMs = 120 * 1000; // 2 min
     return now - activeAt < onlineThresholdMs;
   }
 

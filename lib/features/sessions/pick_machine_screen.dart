@@ -164,7 +164,7 @@ class _MachineListTile extends StatelessWidget {
 
   bool get _isOnline {
     final now = DateTime.now().millisecondsSinceEpoch;
-    const onlineThresholdMs = 60 * 1000; // 1 minute
+    const onlineThresholdMs = 120 * 1000; // 2 min
     return now - machine.activeAt < onlineThresholdMs;
   }
 
