@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/widgets/claude_model.dart';
 import 'package:happy_flutter/features/chat/widgets/picker_sheets.dart';
 
@@ -12,6 +13,8 @@ void main() {
   }) async {
     await tester.pumpWidget(
       MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
         home: Builder(
           builder: (context) {
             return Scaffold(

@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/widgets/streaming_cursor.dart';
 
 Widget _app(Widget child) {
-  return MaterialApp(home: Scaffold(body: Center(child: child)));
+  return MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: Center(child: child)),
+  );
 }
 
 void main() {
@@ -69,7 +74,11 @@ void main() {
       await tester.pumpWidget(_app(const StreamingCursor()));
       // Replace the widget tree to trigger dispose.
       await tester.pumpWidget(
-        const MaterialApp(home: SizedBox.shrink()),
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const SizedBox.shrink(),
+        ),
       );
       // No error thrown.
     });

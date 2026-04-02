@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/todo.dart';
 import 'package:happy_flutter/features/sessions/session_avatar.dart';
@@ -98,6 +99,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ActiveSessionCard(
               session: session,
@@ -122,6 +125,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ActiveSessionCard(
               session: session,
@@ -146,6 +151,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ActiveSessionCard(
               session: session,
@@ -171,6 +178,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ActiveSessionCard(
               session: session,
@@ -196,6 +205,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ActiveSessionCard(
               session: session,
@@ -225,6 +236,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SessionCard(
               session: session,
@@ -249,6 +262,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SessionCard(
               session: session,
@@ -278,6 +293,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SessionCard(
               session: session,
@@ -300,6 +317,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SessionCard(
               session: session,

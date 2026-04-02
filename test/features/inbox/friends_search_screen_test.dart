@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 
 /// Minimal inline reproduction of FriendsSearchScreen that avoids
 /// SocialService and sync dependencies, allowing us to test the UI.
@@ -163,7 +164,11 @@ void main() {
   group('FriendsSearchScreen UI', () {
     testWidgets('renders app bar with title', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(home: _InlineSearchScreen()),
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: _InlineSearchScreen(),
+        ),
       );
 
       expect(find.text('Find Friends'), findsOneWidget);
@@ -172,7 +177,11 @@ void main() {
 
     testWidgets('renders search text field', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(home: _InlineSearchScreen()),
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: _InlineSearchScreen(),
+        ),
       );
 
       expect(find.byType(TextField), findsOneWidget);
@@ -186,7 +195,11 @@ void main() {
     testWidgets('shows empty state when no search performed',
         (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(home: _InlineSearchScreen()),
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: _InlineSearchScreen(),
+        ),
       );
 
       expect(find.byIcon(Icons.person_search), findsOneWidget);
@@ -204,6 +217,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: _InlineSearchScreen(hasSearched: true),
         ),
       );
@@ -223,6 +238,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: _InlineSearchScreen(
             initialResults: results,
             hasSearched: true,
@@ -247,6 +264,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: _InlineSearchScreen(
             initialResults: results,
             hasSearched: true,
@@ -273,6 +292,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: _InlineSearchScreen(
             initialResults: results,
             hasSearched: true,
@@ -297,6 +318,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: _InlineSearchScreen(
             initialResults: results,
             hasSearched: true,
@@ -330,6 +353,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: _InlineSearchScreen(
             initialResults: results,
             hasSearched: true,
@@ -352,7 +377,11 @@ void main() {
     testWidgets('accepts text input in search field',
         (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(home: _InlineSearchScreen()),
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: _InlineSearchScreen(),
+        ),
       );
 
       await tester.enterText(
@@ -376,6 +405,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: _InlineSearchScreen(
             initialResults: results,
             hasSearched: true,

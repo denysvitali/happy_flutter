@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart'
     show ConnectionStatus;
 import 'package:happy_flutter/features/sessions/widgets/connection_status_badge.dart';
@@ -12,6 +13,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ConnectionStatusBadge(
               status: ConnectionStatus.connected,
@@ -27,6 +30,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ConnectionStatusBadge(
               status: ConnectionStatus.disconnected,
@@ -42,6 +47,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ConnectionStatusBadge(
               status: ConnectionStatus.error,
@@ -57,6 +64,8 @@ void main() {
         'state', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ConnectionStatusBadge(
               status: ConnectionStatus.connecting,
@@ -76,6 +85,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ConnectionStatusBadge(
               status: ConnectionStatus.connected,
@@ -89,6 +100,8 @@ void main() {
       // Update to disconnected
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ConnectionStatusBadge(
               status: ConnectionStatus.disconnected,

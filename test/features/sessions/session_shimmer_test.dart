@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_shimmer.dart';
 
 void main() {
@@ -9,6 +10,8 @@ void main() {
     testWidgets('renders as a ListView', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SessionListShimmer(),
           ),
@@ -22,6 +25,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SessionListShimmer(),
           ),
@@ -40,6 +45,8 @@ void main() {
     testWidgets('contains Shimmer widget', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SessionListShimmer(),
           ),

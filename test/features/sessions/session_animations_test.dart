@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_animations.dart';
 
 void main() {
@@ -9,6 +10,8 @@ void main() {
     testWidgets('renders child widget', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: StaggeredSlideIn(
               index: 0,
@@ -26,6 +29,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: StaggeredSlideIn(
               index: 0,
@@ -48,6 +53,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: StaggeredSlideIn(
               index: 0,
@@ -65,6 +72,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: Column(
               children: [

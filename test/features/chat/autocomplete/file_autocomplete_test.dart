@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/autocomplete/file_autocomplete.dart';
 
 Widget _wrap(Widget child) {
   return MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(
       body: MediaQuery(
         data: const MediaQueryData(textScaler: TextScaler.linear(0.8)),
@@ -804,6 +807,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: MediaQuery(
               data: const MediaQueryData(

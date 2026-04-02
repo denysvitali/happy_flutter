@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/tools/tool_section_view.dart';
 import 'package:happy_flutter/features/chat/tools/tool_status_indicator.dart';
 import 'package:happy_flutter/features/chat/tools/tool_error.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view_colors.dart';
 
 Widget _wrap(Widget child) {
-  return MaterialApp(home: Scaffold(body: child));
+  return MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: child),
+  );
 }
 
 void main() {
@@ -264,6 +269,8 @@ void main() {
     testWidgets('resolves dark colors', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           theme: ThemeData(brightness: Brightness.dark),
           home: Builder(
             builder: (context) {
@@ -279,6 +286,8 @@ void main() {
     testWidgets('resolves light colors', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           theme: ThemeData(brightness: Brightness.light),
           home: Builder(
             builder: (context) {
@@ -294,6 +303,8 @@ void main() {
     testWidgets('has all expected color properties', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Builder(
             builder: (context) {
               final colors = ToolViewColors.of(context);

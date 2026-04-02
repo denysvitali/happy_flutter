@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/components/app_status_dot.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 
@@ -7,7 +8,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   Widget buildApp({required Widget child}) {
-    return MaterialApp(home: Scaffold(body: child));
+    return MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(body: child));
   }
 
   group('AppStatusDot', () {

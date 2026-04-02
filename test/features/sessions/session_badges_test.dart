@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_badges.dart';
 
 void main() {
@@ -12,6 +13,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SizedBox(
               width: 100,
@@ -32,6 +35,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SizedBox(
               width: 100,
@@ -52,6 +57,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SizedBox(
               width: 100,
@@ -83,6 +90,8 @@ void main() {
     testWidgets('renders draft icon', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SizedBox(
               width: 100,
@@ -111,6 +120,8 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: TodoProgressBadge(
               completed: 2,
@@ -126,6 +137,8 @@ void main() {
     testWidgets('displays zero progress', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: TodoProgressBadge(
               completed: 0,
@@ -141,6 +154,8 @@ void main() {
     testWidgets('renders lightbulb icon', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: TodoProgressBadge(
               completed: 1,

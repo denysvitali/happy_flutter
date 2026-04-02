@@ -15,8 +15,12 @@ void main() {
   group('AnimatedGradientBackground', () {
     testWidgets('renders child widget', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+
+                       Scaffold(
             body: AnimatedGradientBackground(
               child: Text('Child Content'),
             ),
@@ -31,8 +35,12 @@ void main() {
 
     testWidgets('disposes animation controller', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+
+                       Scaffold(
             body: AnimatedGradientBackground(
               child: Text('Test'),
             ),
@@ -44,7 +52,12 @@ void main() {
 
       // Remove widget to trigger dispose
       await tester.pumpWidget(
-        const MaterialApp(home: Scaffold(body: SizedBox())),
+        MaterialApp(
+
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+
+            home: Scaffold(body: SizedBox())),
       );
 
       await tester.pump();
@@ -104,8 +117,12 @@ void main() {
   group('LandingLogoMark', () {
     testWidgets('renders logo icon', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+
+                       Scaffold(
             body: LandingLogoMark(),
           ),
         ),
@@ -679,7 +696,7 @@ void main() {
 /// Minimal fake AppLocalizations for widget tests that accept
 /// [AppLocalizations] directly (no BuildContext needed).
 class _FakeL10n extends AppLocalizations {
-  _FakeL10n() : super(const Locale('en'));
+  _FakeL10n() : super('en');
 
   @override
   String get welcomeCreateAccount => 'Create Account';
@@ -689,4 +706,7 @@ class _FakeL10n extends AppLocalizations {
 
   @override
   String get authSignInWithSecretKey => 'Restore Key';
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => '';
 }
