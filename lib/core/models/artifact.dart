@@ -1,5 +1,6 @@
 /// Artifact models for encrypted content storage
-/// Matches React Native implementation in ../happy/sources/sync/artifactTypes.ts
+/// Matches React Native implementation in
+/// ../happy/sources/sync/artifactTypes.ts
 library;
 
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -42,9 +43,11 @@ List<String>? _stringListOrNull(dynamic value) {
 abstract class Artifact with _$Artifact {
   const factory Artifact({
     @JsonKey(fromJson: _asRequiredString) required String id,
-    @JsonKey(fromJson: _asRequiredString) required String header, // Base64 encoded encrypted JSON
+    // Base64 encoded encrypted JSON
+    @JsonKey(fromJson: _asRequiredString) required String header,
     @JsonKey(fromJson: _asApiInt) required int headerVersion,
-    @JsonKey(fromJson: _asRequiredString) required String dataEncryptionKey, // Base64 encoded encryption key
+    // Base64 encoded encryption key
+    @JsonKey(fromJson: _asRequiredString) required String dataEncryptionKey,
     @JsonKey(fromJson: _asApiInt) required int seq,
     @JsonKey(fromJson: _asApiInt) required int createdAt,
     @JsonKey(fromJson: _asApiInt) required int updatedAt,
