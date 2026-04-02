@@ -3,6 +3,9 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'settings.g.dart';
 
+// Sentinel used in copyWith to distinguish "not provided" from explicit null.
+const Object _unset = Object();
+
 /// Settings model — mutable fields, not freezed.
 /// Uses @JsonSerializable for fromJson/toJson generation only.
 ///
@@ -129,7 +132,9 @@ class Settings {
     int? schemaVersion,
     String? themeMode,
     bool? viewInline,
-    String? inferenceOpenAIKey,
+    // Nullable fields use Object? + _unset sentinel so that passing null
+    // explicitly clears the field instead of keeping the previous value.
+    Object? inferenceOpenAIKey = _unset,
     bool? expandTodos,
     bool? showLineNumbers,
     bool? showLineNumbersInToolViews,
@@ -146,18 +151,18 @@ class Settings {
     bool? compactSessionView,
     bool? hideInactiveSessions,
     bool? reviewPromptAnswered,
-    bool? reviewPromptLikedApp,
+    Object? reviewPromptLikedApp = _unset,
     bool? ttsEnabled,
-    String? voiceAssistantLanguage,
-    String? ttsEngine,
-    String? preferredLanguage,
+    Object? voiceAssistantLanguage = _unset,
+    Object? ttsEngine = _unset,
+    Object? preferredLanguage = _unset,
     String? usagePeriod,
     List<RecentMachinePath>? recentMachinePaths,
-    String? lastUsedAgent,
-    String? lastUsedPermissionMode,
-    String? lastUsedModelMode,
+    Object? lastUsedAgent = _unset,
+    Object? lastUsedPermissionMode = _unset,
+    Object? lastUsedModelMode = _unset,
     List<AIBackendProfile>? profiles,
-    String? lastUsedProfile,
+    Object? lastUsedProfile = _unset,
     List<String>? favoriteDirectories,
     List<String>? favoriteMachines,
     DismissedCLIWarnings? dismissedCLIWarnings,
@@ -166,7 +171,9 @@ class Settings {
       ..schemaVersion = schemaVersion ?? this.schemaVersion
       ..themeMode = themeMode ?? this.themeMode
       ..viewInline = viewInline ?? this.viewInline
-      ..inferenceOpenAIKey = inferenceOpenAIKey ?? this.inferenceOpenAIKey
+      ..inferenceOpenAIKey = identical(inferenceOpenAIKey, _unset)
+          ? this.inferenceOpenAIKey
+          : inferenceOpenAIKey as String?
       ..expandTodos = expandTodos ?? this.expandTodos
       ..showLineNumbers = showLineNumbers ?? this.showLineNumbers
       ..showLineNumbersInToolViews =
@@ -187,24 +194,38 @@ class Settings {
       ..compactSessionView = compactSessionView ?? this.compactSessionView
       ..hideInactiveSessions = hideInactiveSessions ?? this.hideInactiveSessions
       ..reviewPromptAnswered = reviewPromptAnswered ?? this.reviewPromptAnswered
-      ..reviewPromptLikedApp = reviewPromptLikedApp ?? this.reviewPromptLikedApp
+      ..reviewPromptLikedApp = identical(reviewPromptLikedApp, _unset)
+          ? this.reviewPromptLikedApp
+          : reviewPromptLikedApp as bool?
       ..ttsEnabled = ttsEnabled ?? this.ttsEnabled
-      ..voiceAssistantLanguage =
-          voiceAssistantLanguage ?? this.voiceAssistantLanguage
-      ..ttsEngine = ttsEngine ?? this.ttsEngine
-      ..preferredLanguage = preferredLanguage ?? this.preferredLanguage
+      ..voiceAssistantLanguage = identical(voiceAssistantLanguage, _unset)
+          ? this.voiceAssistantLanguage
+          : voiceAssistantLanguage as String?
+      ..ttsEngine = identical(ttsEngine, _unset)
+          ? this.ttsEngine
+          : ttsEngine as String?
+      ..preferredLanguage = identical(preferredLanguage, _unset)
+          ? this.preferredLanguage
+          : preferredLanguage as String?
       ..usagePeriod = usagePeriod ?? this.usagePeriod
       ..recentMachinePaths = recentMachinePaths != null
           ? List<RecentMachinePath>.from(recentMachinePaths)
           : this.recentMachinePaths
-      ..lastUsedAgent = lastUsedAgent ?? this.lastUsedAgent
-      ..lastUsedPermissionMode =
-          lastUsedPermissionMode ?? this.lastUsedPermissionMode
-      ..lastUsedModelMode = lastUsedModelMode ?? this.lastUsedModelMode
+      ..lastUsedAgent = identical(lastUsedAgent, _unset)
+          ? this.lastUsedAgent
+          : lastUsedAgent as String?
+      ..lastUsedPermissionMode = identical(lastUsedPermissionMode, _unset)
+          ? this.lastUsedPermissionMode
+          : lastUsedPermissionMode as String?
+      ..lastUsedModelMode = identical(lastUsedModelMode, _unset)
+          ? this.lastUsedModelMode
+          : lastUsedModelMode as String?
       ..profiles = profiles != null
           ? List<AIBackendProfile>.from(profiles)
           : this.profiles
-      ..lastUsedProfile = lastUsedProfile ?? this.lastUsedProfile
+      ..lastUsedProfile = identical(lastUsedProfile, _unset)
+          ? this.lastUsedProfile
+          : lastUsedProfile as String?
       ..favoriteDirectories = favoriteDirectories != null
           ? List<String>.from(favoriteDirectories)
           : this.favoriteDirectories

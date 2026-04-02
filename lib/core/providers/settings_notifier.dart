@@ -130,12 +130,7 @@ class SettingsNotifier extends Notifier<Settings> {
       'lastUsedModelMode' => settings.copyWith(
         lastUsedModelMode: value as String?,
       ),
-      // copyWith uses ??, so passing null keeps old value.
-      // Use JSON roundtrip to correctly clear the field.
-      'lastUsedProfile' => Settings.fromJson({
-        ...settings.toJson(),
-        'lastUsedProfile': value,
-      }),
+      'lastUsedProfile' => settings.copyWith(lastUsedProfile: value),
       'profiles' => settings.copyWith(
         profiles: value as List<AIBackendProfile>,
       ),

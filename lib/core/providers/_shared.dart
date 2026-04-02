@@ -1,4 +1,12 @@
-const Object unset = Object();
+/// Typed sentinel used in [copyWith]-style methods to distinguish
+/// "parameter not provided" from an explicit [null] value.
+///
+/// Use [identical] for comparison — never `==`.
+final class _Unset {
+  const _Unset();
+}
+
+const _Unset unset = _Unset();
 
 bool mapEquals<K, V>(Map<K, V> a, Map<K, V> b) {
   if (identical(a, b)) return true;

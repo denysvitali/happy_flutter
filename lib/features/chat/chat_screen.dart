@@ -1252,6 +1252,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         final needsMessages =
             isToolCall &&
             (toolName == 'Task' || toolName == 'Agent');
+        // Show streaming cursor on the last agent text message while thinking.
+        final isNewest = reversedIndex == items.length - 1;
+        final isStreaming =
+            isNewest &&
+            (_session?.thinking ?? false) &&
+            message['role'] == 'agent' &&
+            !isToolCall;
         return RepaintBoundary(
           key: ValueKey(messageKey),
           child: Padding(
@@ -1275,6 +1282,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   _initialLoadComplete && !_seenMessageIds.contains(messageKey),
               isFirstInGroup: isFirstInGroup,
               isLastInGroup: isLastInGroup,
+              isStreaming: isStreaming,
             ),
           ),
         );

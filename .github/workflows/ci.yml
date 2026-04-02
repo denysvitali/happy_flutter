@@ -98,6 +98,13 @@ jobs:
       - name: Run tests
         run: devenv shell -- flutter test --coverage --concurrency=4
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/lcov.info
+          fail_ci_if_error: false
+
   golden:
     name: Golden Screenshots
     runs-on: ubuntu-latest
@@ -129,13 +136,6 @@ jobs:
 
       - name: Run golden tests
         run: devenv shell -- flutter test test/golden/golden_test.dart
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage/lcov.info
-          fail_ci_if_error: false
 
   build-debug:
     name: Build Debug APK

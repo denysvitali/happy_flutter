@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'markdown/markdown.dart';
 import 'tools/tools.dart';
+import 'widgets/streaming_cursor.dart';
 
 /// Message widget for displaying chat messages with speech bubbles,
 /// entrance animations, and full markdown support.
@@ -27,6 +28,7 @@ class MessageWidget extends StatefulWidget {
     this.animate = true,
     this.isFirstInGroup = true,
     this.isLastInGroup = true,
+    this.isStreaming = false,
   });
 
   final Map<String, dynamic> messageData;
@@ -50,6 +52,12 @@ class MessageWidget extends StatefulWidget {
 
   /// Whether this is the last message in a group from the same sender.
   final bool isLastInGroup;
+
+  /// Whether the assistant is currently streaming this message.
+  ///
+  /// When [true] a blinking [StreamingCursor] is appended after the content.
+  /// Only meaningful for bot messages; ignored for user bubbles.
+  final bool isStreaming;
 
   @override
   State<MessageWidget> createState() => _MessageWidgetState();
@@ -171,6 +179,7 @@ class _MessageWidgetState extends State<MessageWidget>
                 onOptionPress: widget.onOptionPress,
                 isFirstInGroup: widget.isFirstInGroup,
                 isLastInGroup: widget.isLastInGroup,
+                isStreaming: widget.isStreaming,
               ),
       ),
     );
@@ -380,6 +389,7 @@ class _BotMessage extends StatelessWidget {
     this.onOptionPress,
     this.isFirstInGroup = true,
     this.isLastInGroup = true,
+    this.isStreaming = false,
   });
 
   final String text;
@@ -387,6 +397,7 @@ class _BotMessage extends StatelessWidget {
   final void Function(String)? onOptionPress;
   final bool isFirstInGroup;
   final bool isLastInGroup;
+  final bool isStreaming;
 
   static const _full = Radius.circular(AppRadius.xl);
   static const _small = Radius.circular(AppRadius.xsm);
@@ -442,9 +453,16 @@ class _BotMessage extends StatelessWidget {
               ),
               child: DefaultTextStyle.merge(
                 style: TextStyle(color: cs.onSurface),
-                child: MarkdownView(
-                  markdown: text,
-                  onOptionPress: onOptionPress,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    MarkdownView(
+                      markdown: text,
+                      onOptionPress: onOptionPress,
+                    ),
+                    if (isStreaming) const StreamingCursor(),
+                  ],
                 ),
               ),
             ),
