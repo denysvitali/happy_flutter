@@ -12,7 +12,6 @@ extension _SyncMessaging on Sync {
   /// - `'sending'` — immediately after insert
   /// - `'sent'`    — after server ACK
   /// - `'failed'`  — on error (message is kept so the user can see it)
-  // ignore: unused_element
   Future<String> sendMessage(
     String sessionId,
     String text, {
@@ -430,7 +429,6 @@ extension _SyncMessaging on Sync {
   /// Outbox delivery callback: re-attempt a single queued message.
   ///
   /// Returns `true` on success, `false` to schedule a retry.
-  // ignore: unused_element
   Future<bool> _deliverOutboxEntry(OutboxEntry entry) async {
     if (!isInitialized) return false;
 
@@ -561,7 +559,6 @@ extension _SyncMessaging on Sync {
   /// Re-queues the message in the outbox with reset retry count.
   /// The message must have a 'raw' field containing the original
   /// unencrypted message record.
-  // ignore: unused_element
   Future<void> retryFailedMessage(
     String sessionId,
     String localId,
@@ -926,7 +923,6 @@ extension _SyncMessaging on Sync {
   ///
   /// Called after [fetchSessions] merges updated sessions and
   /// after inline socket updates apply new agent state.
-  // ignore: unused_element
   void _checkForNewPermissionRequests(
     Iterable<Session> sessions,
   ) {
@@ -1031,7 +1027,6 @@ extension _SyncMessaging on Sync {
   /// The server acknowledges with `ok: true` but the response
   /// payload shape varies — the RN app ignores it entirely, so
   /// we just fire-and-forget the RPC without deserialising.
-  // ignore: unused_element
   Future<void> sessionAllow(
     String sessionId,
     String permissionId, {
@@ -1078,7 +1073,6 @@ extension _SyncMessaging on Sync {
   /// Deny a permission request for a session.
   ///
   /// See [sessionAllow] — response payload is ignored.
-  // ignore: unused_element
   Future<void> sessionDeny(
     String sessionId,
     String permissionId, {
@@ -1127,7 +1121,6 @@ extension _SyncMessaging on Sync {
   }
 
   /// Kill a session's agent process.
-  // ignore: unused_element
   Future<KillSessionResponse> killSession(String sessionId) async {
     return _typedSessionRPC(
       sessionId,
@@ -1138,7 +1131,6 @@ extension _SyncMessaging on Sync {
   }
 
   /// Abort the current agent turn without killing the session.
-  // ignore: unused_element
   Future<AbortResponse> abortSession(
     String sessionId, {
     String reason = '',
@@ -1149,7 +1141,6 @@ extension _SyncMessaging on Sync {
   }
 
   /// Apply settings delta
-  // ignore: unused_element
   Future<void> applySettings(Map<String, dynamic> delta) async {
     _settingsSnapshot = Settings.fromJson({
       ..._settingsSnapshot.toJson(),
@@ -1160,19 +1151,16 @@ extension _SyncMessaging on Sync {
   }
 
   /// Refresh purchases data
-  // ignore: unused_element
   Future<void> refreshPurchases() async {
     purchasesSync.invalidate();
   }
 
   /// Refresh profile data
-  // ignore: unused_element
   Future<void> refreshProfile() async {
     await profileSync.invalidateAndAwait();
   }
 
   /// Get authentication credentials
-  // ignore: unused_element
   AuthCredentials getCredentials() {
     return credentials;
   }
@@ -1335,7 +1323,7 @@ extension _SyncMessaging on Sync {
   ///
   /// On first open (no entry in [_sessionLastSeq]) this uses the session's
   /// [Session.lastSeq] hint to jump straight to the tail of the history,
-  /// fetching only the most recent [initialLoad] messages.  Subsequent calls
+  /// fetching only the most recent [Sync.initialLoad] messages.  Subsequent calls
   /// (incremental delta syncs) continue from [_sessionLastSeq] as before.
   Future<void> fetchMessages(String sessionId) async {
     logger.info(
@@ -1484,7 +1472,7 @@ extension _SyncMessaging on Sync {
           // after_seq=N returns messages with seq > N, so small
           // non-zero values (1-10) would skip the very first
           // message(s) of the conversation.  Round down to 0 when
-          // the window barely exceeds initialLoad so the first
+          // the window barely exceeds Sync.initialLoad so the first
           // message is always included in the initial fetch.
           if (afterSeq > 0 && afterSeq <= 10) {
             afterSeq = 0;
@@ -1857,7 +1845,6 @@ extension _SyncMessaging on Sync {
   /// Fetch the page of messages that precedes what has already been loaded
   /// for [sessionId].  Call [hasOlderMessages] first to guard against
   /// unnecessary requests.
-  // ignore: unused_element
   Future<void> fetchOlderMessages(String sessionId) async {
     if (isLoadingOlderMessages(sessionId)) return;
     final firstLoaded = _sessionFirstLoadedSeq[sessionId] ?? 0;
@@ -2045,7 +2032,6 @@ extension _SyncMessaging on Sync {
   /// Test helper for [_processDecryptedMessage].
   @visibleForTesting
   (List<Map<String, dynamic>>, List<Map<String, dynamic>>)
-  // ignore: unused_element
   testProcessDecryptedMessage({
     required String id,
     required int seq,
@@ -3310,7 +3296,6 @@ extension _SyncMessaging on Sync {
   }
 
   /// @visibleForTesting
-  // ignore: unused_element
   void testUpsertSessionMessages(
     String sessionId,
     List<Map<String, dynamic>> messages,

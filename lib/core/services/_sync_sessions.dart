@@ -1,0 +1,194 @@
+part of 'sync_service.dart';
+
+extension _SyncSessions on Sync {
+  void _scheduleSessionsRefresh() {
+    _sessionsRefreshDebounceTimer?.cancel();
+    _sessionsRefreshDebounceTimer = Timer(
+      Sync._sessionsRefreshDebounce,
+      () => unawaited(_flushScheduledSessionsRefresh()),
+    );
+  }
+
+  Future<void> _flushScheduledSessionsRefresh() async {
+    _sessionsRefreshDebounceTimer?.cancel();
+    _sessionsRefreshDebounceTimer = null;
+    _pendingUpdateSessionIds.clear();
+
+    await sessionsSync.invalidateAndAwait();
+
+    if (_pendingNewSessionIds.isEmpty) {
+      return;
+    }
+
+    final sessionIdsNeedingFullFetch = _pendingNewSessionIds
+        .where(
+          (sessionId) => encryption.getSessionEncryption(sessionId) == null,
+        )
+        .toList();
+    _pendingNewSessionIds.clear();
+
+    if (sessionIdsNeedingFullFetch.isEmpty) {
+      return;
+    }
+
+    // A newly created session can miss the first delta fetch due to clock skew
+    // or replication lag. Retry once with a full fetch so its encryption key is
+    // initialized before the user opens it.
+    _forceFullFetchNext = true;
+    await sessionsSync.invalidateAndAwait();
+  }
+
+  /// Handle account update
+  void _handleUpdateAccount(Map<String, dynamic> data) {
+    logger.info('Account update received');
+    profileSync.invalidate();
+    settingsSync.invalidate();
+  }
+
+  /// Handle machine update
+  void _handleUpdateMachine(Map<String, dynamic> data) {
+    final machineId = data['id'] as String?;
+    if (machineId == null) return;
+
+    // Apply delta patch directly to the in-memory machine for unencrypted
+    // fields (active, activeAt).  This updates the UI immediately without
+    // waiting for a debounced HTTP fetch, which fixes the "Machine is offline"
+    // false-positive when createSession is called shortly after a machine
+    // comes online.
+    final machine = _machines[machineId];
+    if (machine != null) {
+      final active = data['active'] as bool?;
+      final activeAt = data['activeAt'] is int
+          ? data['activeAt'] as int
+          : data['activeAt'] is double
+              ? (data['activeAt'] as double).toInt()
+              : null;
+      final updatedAt = data['updatedAt'] is int
+          ? data['updatedAt'] as int
+          : data['updatedAt'] is double
+              ? (data['updatedAt'] as double).toInt()
+              : null;
+      final seq = data['seq'] is int
+          ? data['seq'] as int
+          : data['seq'] is double
+              ? (data['seq'] as double).toInt()
+              : null;
+
+      if (active != null || activeAt != null) {
+        _machines[machineId] = machine.copyWith(
+          active: active ?? machine.active,
+          activeAt: activeAt ?? machine.activeAt,
+          updatedAt: updatedAt,
+          seq: seq,
+        );
+        _notifyDataChanged();
+      }
+    }
+
+    // Schedule a debounced refresh as a safety net for encrypted fields
+    // (metadata, daemonState) that we can't decrypt inline here.
+    _scheduleMachinesRefresh();
+
+    logger.info('Machine update received: $machineId');
+  }
+
+  void _scheduleMachinesRefresh() {
+    _machinesRefreshDebounceTimer?.cancel();
+    _machinesRefreshDebounceTimer = Timer(
+      Sync._machinesRefreshDebounce,
+      () => unawaited(_flushScheduledMachinesRefresh()),
+    );
+  }
+
+  Future<void> _flushScheduledMachinesRefresh() async {
+    _machinesRefreshDebounceTimer?.cancel();
+    _machinesRefreshDebounceTimer = null;
+    _pendingUpdateMachineIds.clear();
+    await machinesSync.invalidateAndAwait();
+  }
+
+  /// Handle relationship update
+  void _handleRelationshipUpdated(Map<String, dynamic> data) {
+    logger.info('Relationship update received');
+    friendsSync.invalidate();
+    friendRequestsSync.invalidate();
+    feedSync.invalidate();
+  }
+
+  /// Handle new artifact update
+  void _handleNewArtifact(Map<String, dynamic> data) {
+    logger.info('New artifact received');
+    artifactsSync.invalidate();
+  }
+
+  /// Handle artifact update
+  void _handleUpdateArtifact(Map<String, dynamic> data) {
+    logger.info('Artifact update received');
+    artifactsSync.invalidate();
+  }
+
+  /// Handle artifact deletion
+  void _handleDeleteArtifact(Map<String, dynamic> data) {
+    logger.info('Artifact deletion received');
+    artifactsSync.invalidate();
+  }
+
+  /// Handle new feed post
+  void _handleNewFeedPost(Map<String, dynamic> data) {
+    logger.info('New feed post received');
+    feedSync.invalidate();
+  }
+
+  /// Check if data contains a key matching the search string
+  /// without full JSON serialization.
+  bool _containsKeyRecursive(dynamic data, String key) {
+    if (data is Map) {
+      for (final k in data.keys) {
+        if (k is String && k.toLowerCase().contains(key)) {
+          return true;
+        }
+        if (_containsKeyRecursive(data[k], key)) {
+          return true;
+        }
+      }
+    } else if (data is List) {
+      for (final item in data) {
+        if (_containsKeyRecursive(item, key)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Handle KV batch update (for todos)
+  void _handleKvBatchUpdate(Map<String, dynamic> data) {
+    bool hasTodoEntry(List<dynamic> list) => list.any(
+      (entry) =>
+          entry is Map<String, dynamic> &&
+          ((entry['key'] as String?)?.startsWith('todo') ?? false),
+    );
+
+    final changes = data['changes'];
+    if (changes is List && hasTodoEntry(changes)) {
+      todosSync.invalidate();
+      logger.info('KV batch update received (todos)');
+      return;
+    }
+
+    final operations = data['operations'];
+    if (operations is List && hasTodoEntry(operations)) {
+      todosSync.invalidate();
+      logger.info('KV batch update received (todos)');
+      return;
+    }
+
+    if (_containsKeyRecursive(data, 'todo')) {
+      todosSync.invalidate();
+      logger.info('KV batch update received (todos-fallback)');
+      return;
+    }
+
+    logger.info('KV batch update received (non-todo)');
+  }
+}
