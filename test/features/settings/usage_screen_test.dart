@@ -89,7 +89,8 @@ void main() {
         ),
       );
       // Don't pumpAndSettle - check initial loading state
-      await tester.pump();
+      // pumpWidget alone triggers a build; the async _loadUsage()
+      // hasn't completed yet so _isLoading is still true.
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });

@@ -323,7 +323,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Cancel Request'), findsOneWidget);
+        expect(find.text('Cancel friendship request'),
+            findsOneWidget);
       });
 
       testWidgets('shows Accept and Deny buttons for pending status',
@@ -341,10 +342,10 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Accept Request'), findsOneWidget);
-        expect(find.text('Deny Request'), findsOneWidget);
+        expect(find.text('Deny friendship'), findsOneWidget);
         // Both buttons are present (FilledButton.icon and OutlinedButton.icon)
         expect(find.text('Accept Request'), findsOneWidget);
-        expect(find.text('Deny Request'), findsOneWidget);
+        expect(find.text('Deny friendship'), findsOneWidget);
       });
 
       testWidgets('shows Add Friend button for none status', (tester) async {

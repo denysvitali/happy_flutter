@@ -331,9 +331,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionTypeComingSoon => 'Coming soon';
 
   @override
-  String newSessionTitle(String directory) {
-    return 'Start New Session';
-  }
+  String get newSessionTitle => 'New Session';
 
   @override
   String get newSessionNoMachinesFound =>
@@ -358,9 +356,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Session spawning failed - no session ID returned.';
 
   @override
-  String sessionHistoryTitle(int count) {
-    return 'Session History';
-  }
+  String get sessionHistoryTitle => 'Sessions';
 
   @override
   String get sessionHistoryEmpty => 'No sessions found';
@@ -386,9 +382,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionHistoryViewAll => 'View all sessions';
 
   @override
-  String sessionInfoTitle(String currentVersion, String requiredVersion) {
-    return 'Session Info';
-  }
+  String get sessionInfoTitle => 'Session Info';
 
   @override
   String get sessionInfoHappySessionId => 'Happy Session ID';
@@ -668,9 +662,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String settingsTitle(String login) {
-    return 'Settings';
-  }
+  String get settingsTitle => 'Settings';
 
   @override
   String get settingsConnectedAccounts => 'Connected Accounts';
@@ -2291,4 +2283,2439 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offlineBannerReconnecting => 'Reconnecting...';
+
+  @override
+  String get commonVersion => 'Version';
+
+  @override
+  String get commonDone => 'Done';
+
+  @override
+  String get commonEdit => 'Edit';
+
+  @override
+  String get commonClose => 'Close';
+
+  @override
+  String get commonConfirm => 'Confirm';
+
+  @override
+  String get commonRetry => 'Retry';
+
+  @override
+  String get commonSearch => 'Search';
+
+  @override
+  String get commonSettings => 'Settings';
+
+  @override
+  String get commonCopyCode => 'Copy code';
+
+  @override
+  String get commonFile => 'File';
+
+  @override
+  String get commonFolder => 'Folder';
+
+  @override
+  String get commonCmd => 'Cmd';
+
+  @override
+  String get authSubtitle => 'Scan QR code to connect';
+
+  @override
+  String get authScanQR => 'Scan QR Code';
+
+  @override
+  String get authEnterToken => 'Enter Token Manually';
+
+  @override
+  String get authServerUrlHint => 'Server URL';
+
+  @override
+  String get authTokenHint => 'Authentication Token';
+
+  @override
+  String get authConnect => 'Connect';
+
+  @override
+  String get authConnecting => 'Connecting...';
+
+  @override
+  String get authInvalidQR => 'Invalid QR code';
+
+  @override
+  String get authServerConnectionError => 'Cannot connect to server';
+
+  @override
+  String get sessionsTitle => 'Sessions';
+
+  @override
+  String get sessionsNew => 'New Session';
+
+  @override
+  String get sessionsEmpty => 'No sessions yet';
+
+  @override
+  String get sessionsCreateFirst => 'Create your first session to get started';
+
+  @override
+  String get sessionsToday => 'Today';
+
+  @override
+  String get sessionsYesterday => 'Yesterday';
+
+  @override
+  String get sessionsThisWeek => 'This Week';
+
+  @override
+  String get sessionsThisMonth => 'This Month';
+
+  @override
+  String get sessionsOlder => 'Older';
+
+  @override
+  String get dateGroupToday => 'Today';
+
+  @override
+  String get dateGroupYesterday => 'Yesterday';
+
+  @override
+  String get dateGroupThisWeek => 'This Week';
+
+  @override
+  String get dateGroupThisMonth => 'This Month';
+
+  @override
+  String get dateGroupOlder => 'Older';
+
+  @override
+  String get sessionsActiveSessions => 'ACTIVE SESSIONS';
+
+  @override
+  String get sessionsArchive => 'Archive';
+
+  @override
+  String get sessionsArchiveSession => 'Archive Session';
+
+  @override
+  String get sessionsSimple => 'Simple';
+
+  @override
+  String get sessionsWorktree => 'Worktree';
+
+  @override
+  String get sessionsClaude => 'Claude';
+
+  @override
+  String get sessionsCodex => 'Codex';
+
+  @override
+  String get sessionsGemini => 'Gemini';
+
+  @override
+  String get sessionsType => 'Type';
+
+  @override
+  String get sessionsAgent => 'Agent';
+
+  @override
+  String get sessionsSelectAll => 'Select All';
+
+  @override
+  String get sessionsDeselectAll => 'Deselect All';
+
+  @override
+  String get sessionsRecentTitle => 'Recent Sessions';
+
+  @override
+  String get sessionsRecentEmpty => 'No recent sessions';
+
+  @override
+  String get sessionsPressBackToExit => 'Press back again to exit';
+
+  @override
+  String get sessionsFailedToArchive => 'Failed to archive session';
+
+  @override
+  String get sessionsFailedToDelete => 'Failed to delete session';
+
+  @override
+  String get messageDetailTitle => 'Message';
+
+  @override
+  String get toolDetailsTitle => 'Tool Details';
+
+  @override
+  String get sessionInfoNotFound => 'Session not found';
+
+  @override
+  String get messageNotFound => 'Message not found';
+
+  @override
+  String get messageDetailContent => 'Content';
+
+  @override
+  String get messageDetailDetails => 'Message Details';
+
+  @override
+  String get messageDetailNoDetails => 'No details available';
+
+  @override
+  String get messageDetailModel => 'Model';
+
+  @override
+  String get messageDetailSent => 'Sent';
+
+  @override
+  String get messageDetailMessageId => 'Message ID';
+
+  @override
+  String get messageDetailSeq => 'Seq';
+
+  @override
+  String get messageDetailTimestamp => 'Timestamp';
+
+  @override
+  String get messageDetailDebugData => 'Debug Data';
+
+  @override
+  String get commonNA => 'N/A';
+
+  @override
+  String get messageDetailPermission => 'Permission';
+
+  @override
+  String get messageDetailStatus => 'Status';
+
+  @override
+  String get messageDetailReason => 'Reason';
+
+  @override
+  String get messageDetailInput => 'Input';
+
+  @override
+  String get messageDetailOutput => 'Output';
+
+  @override
+  String get messageDetailSubagentTools => 'Sub-agent Tools';
+
+  @override
+  String get messageDetailTool => 'Tool';
+
+  @override
+  String get messageDetailState => 'State';
+
+  @override
+  String get messageDetailAgentType => 'Agent type';
+
+  @override
+  String get messageDetailDescription => 'Description';
+
+  @override
+  String get messageDetailShare => 'Share';
+
+  @override
+  String get messageDetailBookmark => 'Bookmark';
+
+  @override
+  String get commonCopiedToClipboard => 'Copied to clipboard';
+
+  @override
+  String get accountBackupKeyLabel => 'Backup Key';
+
+  @override
+  String get accountBackupKeyHint => 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX';
+
+  @override
+  String get accountEnterBackupKey => 'Please enter your backup key';
+
+  @override
+  String get commonUnsavedChangesTitle => 'Unsaved Changes';
+
+  @override
+  String get chatUnsentMessageTitle => 'Unsent Message';
+
+  @override
+  String get chatStay => 'Stay';
+
+  @override
+  String get chatLeave => 'Leave';
+
+  @override
+  String get sessionsGroupByDate => 'Group by date';
+
+  @override
+  String get pickSelectMachine => 'Select Machine';
+
+  @override
+  String get pickSelectProfile => 'Select Profile';
+
+  @override
+  String get pickSelectPath => 'Select Path';
+
+  @override
+  String get pickNoMachinesAvailable => 'No machines available';
+
+  @override
+  String get pickRecent => 'Recent';
+
+  @override
+  String get pickAllMachines => 'All Machines';
+
+  @override
+  String get chatInputHint => 'Message...';
+
+  @override
+  String get chatInputProfileTitle => 'Profile';
+
+  @override
+  String get chatInputProfileDefault => 'Default';
+
+  @override
+  String get chatInputProfileDefaultSubtitle => 'Server-configured defaults';
+
+  @override
+  String get chatEmpty => 'Start a conversation';
+
+  @override
+  String get chatSend => 'Send';
+
+  @override
+  String get chatCopyMessage => 'Copy';
+
+  @override
+  String get chatDeleteMessage => 'Delete';
+
+  @override
+  String get chatClearSession => 'Clear Session';
+
+  @override
+  String get chatConfirmClear => 'Are you sure you want to clear this session?';
+
+  @override
+  String get chatActionConfirm => 'Confirm Action';
+
+  @override
+  String get chatActionReject => 'Reject';
+
+  @override
+  String get chatActionAccept => 'Accept';
+
+  @override
+  String get chatChat => 'Chat';
+
+  @override
+  String get chatChatLoading => 'Loading...';
+
+  @override
+  String get chatFailedToLoadMessages => 'Failed to load messages';
+
+  @override
+  String get settingsTheme => 'Theme';
+
+  @override
+  String get settingsThemeLight => 'Light';
+
+  @override
+  String get settingsThemeDark => 'Dark';
+
+  @override
+  String get settingsThemeSystem => 'System';
+
+  @override
+  String get noLanguagesFound => 'No languages found';
+
+  @override
+  String get settingsServer => 'Server';
+
+  @override
+  String get settingsServerNotReachable => 'Server not reachable';
+
+  @override
+  String get settingsVoice => 'Voice';
+
+  @override
+  String get settingsLogout => 'Logout';
+
+  @override
+  String get settingsLogoutConfirm => 'Are you sure you want to logout?';
+
+  @override
+  String get settingsLogs => 'Logs';
+
+  @override
+  String get settingsVersion => 'Version';
+
+  @override
+  String get profilesDeleteTitle => 'Delete Profile';
+
+  @override
+  String get profilesFailedToSave => 'Failed to save profile';
+
+  @override
+  String profilesDuplicated(String name) {
+    return 'Profile \"$name\" duplicated';
+  }
+
+  @override
+  String get usageTitle => 'Usage';
+
+  @override
+  String get timePeriod => 'Time Period';
+
+  @override
+  String get totals => 'Totals';
+
+  @override
+  String get byModel => 'By Model';
+
+  @override
+  String get statistics => 'Statistics';
+
+  @override
+  String get today => 'Today';
+
+  @override
+  String get sevenDays => '7 Days';
+
+  @override
+  String get thirtyDays => '30 Days';
+
+  @override
+  String get totalTokens => 'Total Tokens';
+
+  @override
+  String get totalCost => 'Total Cost';
+
+  @override
+  String get reports => 'Reports';
+
+  @override
+  String get avgCostPerDay => 'Avg. Cost/Day';
+
+  @override
+  String get avgTokensPerDay => 'Avg. Tokens/Day';
+
+  @override
+  String get noUsageData => 'No usage data';
+
+  @override
+  String get noUsageDataSubtitle => 'Start using Happy to see your usage stats';
+
+  @override
+  String get failedToLoad => 'Failed to load usage data';
+
+  @override
+  String get claudeCodeLimits => 'Claude Code Limits';
+
+  @override
+  String get claudeLimitsTitle => 'Claude Code Limits';
+
+  @override
+  String get claudeLimitsUsage => 'Usage';
+
+  @override
+  String get claudeLimitsResetsAt => 'Resets';
+
+  @override
+  String get claudeLimitsExtraUsage => 'Extra Usage';
+
+  @override
+  String get claudeLimitsMonthlyLimit => 'Monthly Limit';
+
+  @override
+  String get claudeLimitsUsedCredits => 'Used Credits';
+
+  @override
+  String get claudeLimitsNoMachines => 'No machines available';
+
+  @override
+  String get claudeLimitsSelectMachine => 'Machine';
+
+  @override
+  String get featuresExperiments => 'Experiments';
+
+  @override
+  String get featuresExperimentsDesc => 'Try experimental features';
+
+  @override
+  String get settingsServerResetSuccess => 'Server URL reset to default';
+
+  @override
+  String get settingsServerSaved => 'Server URL saved';
+
+  @override
+  String get settingsServerSaveVerify => 'Save & Verify';
+
+  @override
+  String get settingsOnline => 'Online';
+
+  @override
+  String get settingsOffline => 'Offline';
+
+  @override
+  String get toolViewFullContent => 'View full content';
+
+  @override
+  String get toolEdit => 'Edit';
+
+  @override
+  String get toolRead => 'Read';
+
+  @override
+  String get toolWrite => 'Write';
+
+  @override
+  String get toolBash => 'Bash';
+
+  @override
+  String get toolGlob => 'Glob';
+
+  @override
+  String get toolGrep => 'Grep';
+
+  @override
+  String get toolLs => 'List Files';
+
+  @override
+  String get toolPatch => 'Patch';
+
+  @override
+  String get toolDiff => 'Diff';
+
+  @override
+  String get toolSectionDiff => 'DIFF';
+
+  @override
+  String get toolSectionContent => 'CONTENT';
+
+  @override
+  String get toolSectionCommand => 'COMMAND';
+
+  @override
+  String get toolSectionReading => 'Reading';
+
+  @override
+  String get toolSectionWriting => 'Writing';
+
+  @override
+  String get toolSectionInput => 'INPUT';
+
+  @override
+  String get toolSectionOutput => 'OUTPUT';
+
+  @override
+  String get toolTask => 'Task';
+
+  @override
+  String get toolTodo => 'Todo';
+
+  @override
+  String get toolWebFetch => 'Web Fetch';
+
+  @override
+  String get toolWebSearch => 'Web Search';
+
+  @override
+  String get toolExitPlan => 'Exit Plan';
+
+  @override
+  String get toolAskUser => 'Ask User';
+
+  @override
+  String get permissionAllow => 'Allow';
+
+  @override
+  String get permissionDeny => 'Deny';
+
+  @override
+  String get permissionStop => 'Stop';
+
+  @override
+  String get permissionYes => 'Yes';
+
+  @override
+  String get permissionDefault => 'Default';
+
+  @override
+  String get permissionAcceptEdits => 'Accept Edits';
+
+  @override
+  String get permissionPlan => 'Plan Mode';
+
+  @override
+  String get permissionYolo => 'Yolo Mode';
+
+  @override
+  String get permissionReadOnly => 'Read Only';
+
+  @override
+  String get permissionSafeYolo => 'Safe Yolo';
+
+  @override
+  String get permissionRequired => 'Permission required';
+
+  @override
+  String get permissionApproved => 'Approved';
+
+  @override
+  String get permissionDeniedLabel => 'Denied';
+
+  @override
+  String get permissionSessionOffline => 'Session offline';
+
+  @override
+  String get permissionAllEdits => 'All edits';
+
+  @override
+  String get permissionForSession => 'For session';
+
+  @override
+  String get permissionActionFailed => 'Permission action failed';
+
+  @override
+  String get permissionModeTitle => 'Permission Mode';
+
+  @override
+  String get permissionModeDefault => 'Default';
+
+  @override
+  String get permissionModeAcceptEdits => 'Accept Edits';
+
+  @override
+  String get permissionModePlan => 'Plan';
+
+  @override
+  String get permissionModeBypass => 'Yolo';
+
+  @override
+  String get permissionModeReadOnly => 'Read-only';
+
+  @override
+  String get permissionModeSafeYolo => 'Safe YOLO';
+
+  @override
+  String get permissionModeYolo => 'YOLO';
+
+  @override
+  String get permissionModeDefaultDesc => 'Ask for permissions';
+
+  @override
+  String get permissionModeAcceptEditsDesc => 'Auto-approve edits';
+
+  @override
+  String get permissionModePlanDesc => 'Plan before executing';
+
+  @override
+  String get permissionModeBypassDesc => 'Skip all permissions';
+
+  @override
+  String get permissionModeReadOnlyDesc => 'Read-only mode';
+
+  @override
+  String get permissionModeSafeYoloDesc => 'Safe YOLO mode';
+
+  @override
+  String get permissionModeYoloDesc => 'YOLO mode';
+
+  @override
+  String get voiceAssistantActive => 'Voice assistant active';
+
+  @override
+  String get voiceAssistantConnecting => 'Connecting...';
+
+  @override
+  String get voiceAssistantDefault => 'Voice';
+
+  @override
+  String get voiceAssistantTapToEnd => 'Tap to end';
+
+  @override
+  String get authClientError => 'Client Error';
+
+  @override
+  String get authServerError => 'Server Error';
+
+  @override
+  String get authCertificateError => 'Certificate Error';
+
+  @override
+  String get authConnectionFailed => 'Connection Failed';
+
+  @override
+  String get authServerSettings => 'Server Settings';
+
+  @override
+  String get authLinkAccount => 'Link Account';
+
+  @override
+  String get authTryAgain => 'Try Again';
+
+  @override
+  String get authSecretKeyLabel => 'Secret Key';
+
+  @override
+  String get authPaste => 'Paste';
+
+  @override
+  String get authSignIn => 'Sign In';
+
+  @override
+  String get errorGeneric => 'Something went wrong';
+
+  @override
+  String get errorNetwork => 'Network error. Please check your connection.';
+
+  @override
+  String get errorServer => 'Server error. Please try again later.';
+
+  @override
+  String get errorNotFound => 'Not found';
+
+  @override
+  String get voiceAssistantError => 'Voice assistant error';
+
+  @override
+  String get appearanceTheme => 'Theme';
+
+  @override
+  String get appearanceThemeAdaptive => 'Adaptive';
+
+  @override
+  String get appearanceThemeAdaptiveDesc => 'Match system settings';
+
+  @override
+  String get appearanceThemeLight => 'Light';
+
+  @override
+  String get appearanceThemeLightDesc => 'Always use light theme';
+
+  @override
+  String get appearanceThemeDark => 'Dark';
+
+  @override
+  String get appearanceThemeDarkDesc => 'Always use dark theme';
+
+  @override
+  String appearanceThemeApplied(String theme) {
+    return '$theme theme applied';
+  }
+
+  @override
+  String get appearanceThemePreview => 'Preview';
+
+  @override
+  String get appearanceThemeDarkModeActive => 'Dark mode active';
+
+  @override
+  String get appearanceThemeLightModeActive => 'Light mode active';
+
+  @override
+  String get appearanceThemeSampleContent => 'Sample content';
+
+  @override
+  String get appearanceThemeColorPrimary => 'Primary';
+
+  @override
+  String get appearanceThemeColorSecondary => 'Secondary';
+
+  @override
+  String get searchLanguages => 'Search languages';
+
+  @override
+  String get settingsBehavior => 'Behavior';
+
+  @override
+  String get settingsViewInline => 'View Inline';
+
+  @override
+  String get settingsViewInlineSubtitle => 'Show tool calls inline in chat';
+
+  @override
+  String get settingsExpandTodos => 'Expand Todos';
+
+  @override
+  String get settingsShowLineNumbers => 'Show Line Numbers';
+
+  @override
+  String get settingsCompactSessionView => 'Compact Session View';
+
+  @override
+  String get settingsShowFlavorIcons => 'Show Flavor Icons';
+
+  @override
+  String get settingsAvatarStyle => 'Avatar Style';
+
+  @override
+  String get settingsWrapLinesInDiffs => 'Wrap Lines in Diffs';
+
+  @override
+  String get zenTitle => 'Zen';
+
+  @override
+  String get zenNewTask => 'New Task';
+
+  @override
+  String get zenAddTask => 'Add Task';
+
+  @override
+  String get zenDescriptionHint => 'What needs to be done?';
+
+  @override
+  String get zenPriorityLabel => 'Priority';
+
+  @override
+  String get zenStatusLabel => 'Status';
+
+  @override
+  String get zenCreatedLabel => 'Created';
+
+  @override
+  String get zenCompletedLabel => 'Completed';
+
+  @override
+  String get zenMarkDone => 'Mark Done';
+
+  @override
+  String get zenTaskTitle => 'Task';
+
+  @override
+  String get zenTaskNotFound => 'Task not found';
+
+  @override
+  String get zenDeleteTitle => 'Delete Task';
+
+  @override
+  String get zenDeleteConfirm => 'Are you sure you want to delete this task?';
+
+  @override
+  String get zenEmptyTitle => 'No Tasks Yet';
+
+  @override
+  String get zenEmptySubtitle => 'Tap + to add your first task.';
+
+  @override
+  String get zenSectionActive => 'Active';
+
+  @override
+  String get zenSectionCompleted => 'Completed';
+
+  @override
+  String get userProfileTitle => 'User Profile';
+
+  @override
+  String get userNotFound => 'User not found';
+
+  @override
+  String get friendsStatusFriends => 'Friends';
+
+  @override
+  String get friendsStatusRequestSent => 'Request Sent';
+
+  @override
+  String get friendsStatusWantsToConnect => 'Wants to Connect';
+
+  @override
+  String get friendsAddFriendAction => 'Add Friend';
+
+  @override
+  String get friendsFailedToAdd => 'Failed to add friend';
+
+  @override
+  String get friendsFailedToUpdate => 'Failed to update friendship';
+
+  @override
+  String get friendsTabFriends => 'Friends';
+
+  @override
+  String get friendsTabRequests => 'Requests';
+
+  @override
+  String get friendsEmptyTitle => 'No Friends Yet';
+
+  @override
+  String get friendsNoRequests => 'No Incoming Requests';
+
+  @override
+  String get friendsRemoveTitle => 'Remove Friend';
+
+  @override
+  String get friendsRemoveAction => 'Remove';
+
+  @override
+  String get friendsRemoved => 'Friend removed';
+
+  @override
+  String get friendsWantsToConnect => 'Wants to connect';
+
+  @override
+  String get friendsSearchFailed => 'Search failed';
+
+  @override
+  String get friendsActionFailed => 'Action failed';
+
+  @override
+  String get friendsSearchByUsername => 'Search by username';
+
+  @override
+  String get friendsSearchEmptyTitle => 'Search for friends';
+
+  @override
+  String get friendsSearchEmptySubtitle => 'Search for a username to connect';
+
+  @override
+  String get friendsIncomingRequest => 'Incoming request';
+
+  @override
+  String get friendsNotConnected => 'Not connected';
+
+  @override
+  String get inboxPendingRequests => 'Pending Requests';
+
+  @override
+  String get inboxSentRequests => 'Sent Requests';
+
+  @override
+  String get inboxMyFriends => 'My Friends';
+
+  @override
+  String get inboxRequestPending => 'Request pending';
+
+  @override
+  String get inboxRequestCanceled => 'Request canceled';
+
+  @override
+  String get inboxFriendSubtitle => 'Friend';
+
+  @override
+  String get inboxNoNotificationsTitle => 'No notifications yet';
+
+  @override
+  String get inboxFeedFriendRequest => 'Friend request';
+
+  @override
+  String get inboxFeedFriendAccepted => 'Friend accepted';
+
+  @override
+  String get inboxFeedUpdate => 'Update';
+
+  @override
+  String get inboxTimeNow => 'now';
+
+  @override
+  String inboxTimeMinutesAgo(int n) {
+    return '${n}m ago';
+  }
+
+  @override
+  String inboxTimeHoursAgo(int n) {
+    return '${n}h ago';
+  }
+
+  @override
+  String get inboxTimeYesterday => 'Yesterday';
+
+  @override
+  String get accountAccountSettings => 'Account Settings';
+
+  @override
+  String get accountProfile => 'Profile';
+
+  @override
+  String get accountBackupKey => 'Backup Key';
+
+  @override
+  String get accountShowBackupKey => 'Show Backup Key';
+
+  @override
+  String get accountCopyBackupKey => 'Copy Backup Key';
+
+  @override
+  String get accountCopyToClipboard => 'Copy to clipboard';
+
+  @override
+  String get accountRestore => 'Restore';
+
+  @override
+  String get accountRestoreAccount => 'Restore Account';
+
+  @override
+  String get accountDevices => 'Devices';
+
+  @override
+  String get accountLinkedDevices => 'Linked Devices';
+
+  @override
+  String get accountLinkNewDevice => 'Link New Device';
+
+  @override
+  String get accountConnectedServices => 'Connected Services';
+
+  @override
+  String get accountBackupKeyCopied => 'Backup key copied';
+
+  @override
+  String get accountNotConnected => 'Not connected';
+
+  @override
+  String get accountName => 'Name';
+
+  @override
+  String get accountEmail => 'Email';
+
+  @override
+  String get accountPasteFromClipboard => 'Paste from Clipboard';
+
+  @override
+  String get accountRestoredSuccess => 'Account restored successfully';
+
+  @override
+  String get accountLinkDevice => 'Link Device';
+
+  @override
+  String get accountScanQR => 'Scan QR';
+
+  @override
+  String get accountShowQR => 'Show QR';
+
+  @override
+  String get accountEnterUrl => 'Enter URL';
+
+  @override
+  String get accountApproveLinking => 'Approve Linking';
+
+  @override
+  String get accountUnlinkDevice => 'Unlink Device';
+
+  @override
+  String get accountUnlink => 'Unlink';
+
+  @override
+  String get accountFailedToUnlink => 'Failed to unlink device';
+
+  @override
+  String get accountScanHint => 'New device: tap \"Link or Restore Account\"';
+
+  @override
+  String get accountThisDevice => 'This Device';
+
+  @override
+  String get settingsCertificates => 'Certificates';
+
+  @override
+  String get settingsUserCaCertificates => 'User CA Certificates';
+
+  @override
+  String get settingsNoUserCertificates => 'No user certificates installed';
+
+  @override
+  String get chatOnline => 'Online';
+
+  @override
+  String get chatConversationCleared => 'Conversation cleared';
+
+  @override
+  String get chatMoreOptions => 'More options';
+
+  @override
+  String get settingsClaudeCode => 'Claude Code';
+
+  @override
+  String get settingsConnected => 'Connected';
+
+  @override
+  String get settingsTextToSpeech => 'Text-to-Speech';
+
+  @override
+  String get settingsGitHub => 'GitHub';
+
+  @override
+  String get settingsFindFriends => 'Find Friends';
+
+  @override
+  String get settingsOpenInbox => 'Open Inbox';
+
+  @override
+  String get settingsDeveloperEnabled => 'Enabled';
+
+  @override
+  String get featuresTitle => 'Features';
+
+  @override
+  String get devLogsTitle => 'Logs';
+
+  @override
+  String devLogsCount(int count) {
+    return 'Logs ($count)';
+  }
+
+  @override
+  String devLogsCountFiltered(int count) {
+    return 'Logs ($count filtered)';
+  }
+
+  @override
+  String get devLogsEmpty => 'No logs yet';
+
+  @override
+  String get devLogsClearFilter => 'Clear Filter';
+
+  @override
+  String get devLogsNoLogsToCopy => 'No logs to copy';
+
+  @override
+  String get devLogsClearTitle => 'Clear Logs';
+
+  @override
+  String get devLogsClearAction => 'Clear';
+
+  @override
+  String get devLogsSearchTitle => 'Search Logs';
+
+  @override
+  String get devLogsSearchHint => 'Enter search term...';
+
+  @override
+  String get devLogsAllLevels => 'All Levels';
+
+  @override
+  String get devLogsLevelDebug => 'Debug';
+
+  @override
+  String get devLogsLevelInfo => 'Info';
+
+  @override
+  String get devLogsLevelWarning => 'Warning';
+
+  @override
+  String get devLogsLevelError => 'Error';
+
+  @override
+  String get devLogsLogEntryCopied => 'Log entry copied';
+
+  @override
+  String get devLogsCopyEntry => 'Copy Entry';
+
+  @override
+  String get devLogsAddTestLog => 'Add Test Log';
+
+  @override
+  String get devLogsCopyAllLogs => 'Copy All Logs';
+
+  @override
+  String get devLogsFilterByLevel => 'Filter by Level';
+
+  @override
+  String get devLogsSearchLogs => 'Search Logs';
+
+  @override
+  String get networkInspectorClearTitle => 'Clear Request Log';
+
+  @override
+  String get networkInspectorEntryCopied => 'Entry copied';
+
+  @override
+  String get developerTitle => 'Developer';
+
+  @override
+  String get developerClearCache => 'Clear Cache';
+
+  @override
+  String get developerResetSettings => 'Reset Settings';
+
+  @override
+  String get developerModeTitle => 'Developer Mode';
+
+  @override
+  String get developerModeEnabledDesc => 'Enabled - Debug tools are visible';
+
+  @override
+  String get developerNotYetImplemented => 'Not yet implemented';
+
+  @override
+  String get developerClearCacheAction => 'Clear';
+
+  @override
+  String get developerCacheCleared => 'Cache cleared';
+
+  @override
+  String get developerResetAction => 'Reset';
+
+  @override
+  String get developerSettingsReset => 'Settings reset';
+
+  @override
+  String get developerSectionDebugTools => 'Debug Tools';
+
+  @override
+  String get developerSectionTesting => 'Testing';
+
+  @override
+  String get developerSectionCacheStorage => 'Cache & Storage';
+
+  @override
+  String get developerSectionBuildInfo => 'Build Info';
+
+  @override
+  String get developerNetworkInspector => 'Network Inspector';
+
+  @override
+  String get developerLogsDesc => 'View application logs';
+
+  @override
+  String get developerEncryptionDebug => 'Encryption Debug';
+
+  @override
+  String get developerSessionDebug => 'Session Debug';
+
+  @override
+  String get developerTestNotifications => 'Test Notifications';
+
+  @override
+  String get developerTestSentryException => 'Test Sentry (Exception)';
+
+  @override
+  String get developerTestSentryUnhandled => 'Test Sentry (Unhandled)';
+
+  @override
+  String get developerTestSentryUnhandledDesc => 'Throw an unhandled error';
+
+  @override
+  String get developerClearCacheDesc => 'Clear cached data';
+
+  @override
+  String get developerResetSettingsDesc => 'Reset all settings to defaults';
+
+  @override
+  String get developerAppVersion => 'App Version';
+
+  @override
+  String get developerBuildNumber => 'Build Number';
+
+  @override
+  String get developerFlutterVersion => 'Flutter Version';
+
+  @override
+  String get developerDartVersion => 'Dart Version';
+
+  @override
+  String get profilesTitle => 'Profiles';
+
+  @override
+  String get profilesNone => 'None';
+
+  @override
+  String get profilesDefaultDescription => 'Use default configuration';
+
+  @override
+  String get profilesCustomTitle => 'Custom Profiles';
+
+  @override
+  String get profilesProfileName => 'Profile Name';
+
+  @override
+  String get profilesAddProfile => 'Add Profile';
+
+  @override
+  String get profilesEditProfile => 'Edit Profile';
+
+  @override
+  String get profilesDeleteProfile => 'Delete Profile';
+
+  @override
+  String get profilesNameHint => 'e.g. MiniMax, Kimi Code, DeepSeek';
+
+  @override
+  String get profilesNameRequired => 'Name is required';
+
+  @override
+  String get profilesDescriptionLabel => 'Description (optional)';
+
+  @override
+  String get profilesEnvVarsTitle => 'Environment Variables';
+
+  @override
+  String get profilesEnvKeyLabel => 'Key';
+
+  @override
+  String get profilesEnvKeyHint => 'VARIABLE_NAME';
+
+  @override
+  String get profilesEnvValueLabel => 'Value';
+
+  @override
+  String get profilesScriptTitle => 'Startup Shell Script';
+
+  @override
+  String get profilesScriptLabel => 'Bash script';
+
+  @override
+  String get profilesImportTitle => 'Import from Shell Script';
+
+  @override
+  String get profilesImportButton => 'Import';
+
+  @override
+  String get profilesImportLabel => 'Shell script content';
+
+  @override
+  String get profilesImportParsed => 'Parsed environment variables';
+
+  @override
+  String get profilesImportLabelShort => 'Import from script';
+
+  @override
+  String get profilesQuickSetup => 'Quick Setup';
+
+  @override
+  String get profilesWizardTitle => 'New AI Profile';
+
+  @override
+  String get profilesWizardStep1 => 'Choose Provider';
+
+  @override
+  String get profilesWizardStep1Subtitle => 'Select your AI provider';
+
+  @override
+  String get profilesWizardStep2 => 'Configure';
+
+  @override
+  String get profilesWizardStep2Subtitle => 'Enter API key and settings';
+
+  @override
+  String get profilesWizardStep3 => 'Review';
+
+  @override
+  String get profilesWizardStep3Subtitle => 'Confirm your settings';
+
+  @override
+  String get profilesWizardSelectProvider => 'Select a provider to get started';
+
+  @override
+  String get profilesWizardBaseUrl => 'Base URL';
+
+  @override
+  String get profilesWizardModel => 'Model';
+
+  @override
+  String get profilesWizardSmallFastModel => 'Small Fast Model';
+
+  @override
+  String get profilesWizardTimeout => 'Timeout (ms)';
+
+  @override
+  String get profilesWizardTimeoutHelp => 'Optional - defaults to 300000ms';
+
+  @override
+  String get changelogTitle => 'What\'s New';
+
+  @override
+  String get changelogOpenGitHub => 'Open GitHub Releases';
+
+  @override
+  String get serverTitle => 'Server';
+
+  @override
+  String get voiceTitle => 'Voice';
+
+  @override
+  String get voiceLanguageTitle => 'Voice Language';
+
+  @override
+  String get voiceTtsTitle => 'Text-to-Speech';
+
+  @override
+  String get voiceTtsSubtitle => 'Read assistant messages aloud';
+
+  @override
+  String get voiceTestTts => 'Test TTS';
+
+  @override
+  String get voiceTestTtsSubtitle => 'Tap to hear a test phrase';
+
+  @override
+  String get voiceSelectEngineHint => 'Select the TTS engine.';
+
+  @override
+  String get voiceDefaultEngine => 'Default Engine';
+
+  @override
+  String get voiceDefaultEngineSubtitle => 'Use system default';
+
+  @override
+  String get voiceSelectLanguageTitle => 'Select Language';
+
+  @override
+  String voiceLanguagesCount(int count) {
+    return '$count languages available';
+  }
+
+  @override
+  String get claudeConnectTitle => 'Connect Claude API';
+
+  @override
+  String get claudeConnectTerminalTitle => 'Connect Claude';
+
+  @override
+  String get claudeConnectManualLabel => 'MANUAL API KEY ENTRY';
+
+  @override
+  String get claudeConnectApiKeyLabel => 'API Key';
+
+  @override
+  String get claudeConnectApiKeyHint => 'sk-ant-...';
+
+  @override
+  String get claudeConnectBaseUrlLabel => 'Base URL (optional)';
+
+  @override
+  String get claudeConnectBaseUrlHint => 'https://api.anthropic.com';
+
+  @override
+  String get claudeConnectButton => 'Connect';
+
+  @override
+  String get sessionFilesTitle => 'Files';
+
+  @override
+  String get sessionFilesNotFound => 'Session not found';
+
+  @override
+  String get sessionFilesEmpty => 'No files yet';
+
+  @override
+  String get sessionInfoCopied => 'Copied to clipboard';
+
+  @override
+  String get sessionInfoUpdateCommandCopied => 'Update command copied';
+
+  @override
+  String get sessionInfoCliOutdated => 'CLI Version Outdated';
+
+  @override
+  String get sessionInfoSectionDetails => 'Session Details';
+
+  @override
+  String get sessionInfoLabelSessionId => 'Session ID';
+
+  @override
+  String get sessionInfoLabelCreated => 'Created';
+
+  @override
+  String get sessionInfoLabelLastUpdated => 'Last Updated';
+
+  @override
+  String get sessionInfoLabelSequence => 'Sequence';
+
+  @override
+  String get sessionInfoSectionQuickActions => 'Quick Actions';
+
+  @override
+  String get sessionInfoActionViewMachine => 'View Machine';
+
+  @override
+  String get sessionInfoActionArchive => 'Archive Session';
+
+  @override
+  String get sessionInfoActionDelete => 'Delete Session';
+
+  @override
+  String get sessionInfoSectionMetadata => 'Metadata';
+
+  @override
+  String get sessionInfoLabelHost => 'Host';
+
+  @override
+  String get sessionInfoLabelPath => 'Path';
+
+  @override
+  String get sessionInfoLabelMachineId => 'Machine ID';
+
+  @override
+  String get sessionInfoLabelCliVersion => 'CLI Version';
+
+  @override
+  String get sessionInfoLabelAiProvider => 'AI Provider';
+
+  @override
+  String get sessionInfoLabelClaudeSessionId => 'Claude Code Session ID';
+
+  @override
+  String get sessionInfoLabelProcessId => 'Process ID';
+
+  @override
+  String get sessionInfoLabelHappyHome => 'Happy Home';
+
+  @override
+  String get sessionInfoLabelOs => 'OS';
+
+  @override
+  String get sessionInfoActionCopyMetadata => 'Copy Metadata';
+
+  @override
+  String get sessionInfoSectionAgentState => 'Agent State';
+
+  @override
+  String get sessionInfoLabelControlledByUser => 'Controlled by user';
+
+  @override
+  String get sessionInfoLabelPendingRequests => 'Pending requests';
+
+  @override
+  String get sessionInfoSectionActivity => 'Activity';
+
+  @override
+  String get sessionInfoLabelThinking => 'Thinking';
+
+  @override
+  String get sessionInfoLabelThinkingSince => 'Thinking since';
+
+  @override
+  String get sessionInfoSectionTools => 'Tools';
+
+  @override
+  String get sessionInfoActive => 'Active';
+
+  @override
+  String get sessionInfoInactive => 'Inactive';
+
+  @override
+  String get commonId => 'ID';
+
+  @override
+  String get commonCreated => 'Created';
+
+  @override
+  String get commonUpdated => 'Updated';
+
+  @override
+  String get commonSequence => 'Sequence';
+
+  @override
+  String get artifactsContentLabel => 'CONTENT';
+
+  @override
+  String get artifactsDetail => 'Artifact';
+
+  @override
+  String get artifactsStatus => 'Status';
+
+  @override
+  String get artifactsDraft => 'Draft';
+
+  @override
+  String get artifactsFailedToDelete => 'Failed to delete artifact';
+
+  @override
+  String get artifactsFailedToSave => 'Failed to save artifact';
+
+  @override
+  String get artifactsFailedToCreate => 'Failed to create artifact';
+
+  @override
+  String get artifactsSearchHint => 'Search artifacts...';
+
+  @override
+  String get artifactsNoResults => 'No matching artifacts';
+
+  @override
+  String get machineHomeDir => 'Home Dir';
+
+  @override
+  String get machineInfo => 'Info';
+
+  @override
+  String get machineRunning => 'Running';
+
+  @override
+  String get machineStopped => 'Stopped';
+
+  @override
+  String get machineRemoveMachine => 'Remove Machine';
+
+  @override
+  String get machineOnline => 'Online';
+
+  @override
+  String get machineOffline => 'Offline';
+
+  @override
+  String get machineConnectedNow => 'Connected now';
+
+  @override
+  String machineLastSeenAt(String time) {
+    return 'Last seen $time';
+  }
+
+  @override
+  String machineSessions(int count) {
+    return 'Sessions ($count)';
+  }
+
+  @override
+  String get terminalSelectMachineHint => 'Select machine';
+
+  @override
+  String get terminalSelectMachineError => 'Please select a machine';
+
+  @override
+  String get terminalIdLabel => 'TERMINAL / SESSION ID';
+
+  @override
+  String get terminalIdHint => 'e.g. main, dev, 1234';
+
+  @override
+  String get terminalDisconnect => 'Disconnect';
+
+  @override
+  String get terminalTitle => 'Terminal';
+
+  @override
+  String get terminalSendCommand => 'Send command';
+
+  @override
+  String get commonClear => 'Clear';
+
+  @override
+  String get sessionsClearSearch => 'Clear search';
+
+  @override
+  String get commonUnknown => 'unknown';
+
+  @override
+  String get commonTryAgain => 'Try Again';
+
+  @override
+  String get commonGoHome => 'Go Home';
+
+  @override
+  String get commonPressBackAgainToExit => 'Press back again to exit';
+
+  @override
+  String get commonUnsavedChanges => 'Unsaved Changes';
+
+  @override
+  String get commonLeave => 'Leave';
+
+  @override
+  String get commonStay => 'Stay';
+
+  @override
+  String get commonUnsentMessage => 'Unsent Message';
+
+  @override
+  String get commonOperationInProgress => 'Operation In Progress';
+
+  @override
+  String get terminalEnterCommand => 'Enter command...';
+
+  @override
+  String get commandSearchHint => 'Search commands...';
+
+  @override
+  String get commandCategorySessions => 'Sessions';
+
+  @override
+  String get commandCategoryNavigation => 'Navigation';
+
+  @override
+  String get commandNewSessionTitle => 'New Session';
+
+  @override
+  String get commandNewSessionSubtitle => 'Start a new chat session';
+
+  @override
+  String get commandViewSessionsTitle => 'View All Sessions';
+
+  @override
+  String get commandViewSessionsSubtitle => 'Browse your chat history';
+
+  @override
+  String get commandSettingsTitle => 'Settings';
+
+  @override
+  String get commandSettingsSubtitle => 'Configure your preferences';
+
+  @override
+  String get commandAccountTitle => 'Account';
+
+  @override
+  String get commandAccountSubtitle => 'Manage your account';
+
+  @override
+  String get commandConnectDeviceTitle => 'Connect Device';
+
+  @override
+  String get commandConnectDeviceSubtitle => 'Connect a new device via web';
+
+  @override
+  String get commandInboxTitle => 'Inbox';
+
+  @override
+  String get commandInboxSubtitle => 'View your notifications';
+
+  @override
+  String get commandArtifactsTitle => 'Artifacts';
+
+  @override
+  String get commandArtifactsSubtitle => 'Browse your artifacts';
+
+  @override
+  String get commandZenModeTitle => 'Zen Mode';
+
+  @override
+  String get commandZenModeSubtitle => 'Focus mode with todos';
+
+  @override
+  String get commandTerminalTitle => 'Terminal';
+
+  @override
+  String get commandTerminalSubtitle => 'Access terminal sessions';
+
+  @override
+  String get commandFriendsTitle => 'Friends';
+
+  @override
+  String get commandFriendsSubtitle => 'Manage your friends';
+
+  @override
+  String networkInspectorTitle(int count) {
+    return 'Network Inspector ($count)';
+  }
+
+  @override
+  String get networkInspectorCopyAll => 'Copy all';
+
+  @override
+  String get networkInspectorNoRequests => 'No requests yet';
+
+  @override
+  String get networkInspectorLabelRequests => 'Requests';
+
+  @override
+  String get networkInspectorLabelSent => '↑ Sent';
+
+  @override
+  String get networkInspectorLabelReceived => '↓ Received';
+
+  @override
+  String get networkInspectorLabelDuration => 'Duration';
+
+  @override
+  String get networkInspectorLabelSentBody => 'Sent (body)';
+
+  @override
+  String get networkInspectorLabelReceivedBody => 'Received (body)';
+
+  @override
+  String developerSentToSentry(String eventId) {
+    return 'Sent to Sentry: $eventId';
+  }
+
+  @override
+  String get chatHowCanIHelpToday => 'How can I help you today?';
+
+  @override
+  String get chatSuggestionWriteCode => 'Write code';
+
+  @override
+  String get chatSuggestionDebugIssue => 'Debug an issue';
+
+  @override
+  String get chatSuggestionExplainCode => 'Explain code';
+
+  @override
+  String get chatSuggestionReviewPr => 'Review PR';
+
+  @override
+  String get pickRecentPaths => 'Recent Paths';
+
+  @override
+  String get pickSuggestedPaths => 'Suggested Paths';
+
+  @override
+  String get pickProfileNone => 'None';
+
+  @override
+  String get pickProfileNoneDesc => 'Use default configuration';
+
+  @override
+  String get pickProfileBuiltInSection => 'BUILT-IN';
+
+  @override
+  String get pickProfileCustomSection => 'CUSTOM';
+
+  @override
+  String get pickProfileCustomDescription => 'Custom profile';
+
+  @override
+  String get agentFallbackDescription => 'Agent';
+
+  @override
+  String get agentNoMessages => 'No messages yet';
+
+  @override
+  String get agentFallbackTask => 'Task';
+
+  @override
+  String get agentsListTitle => 'Agents';
+
+  @override
+  String get agentsListEmpty => 'No agents running';
+
+  @override
+  String get fileViewerNoContent => 'No content available';
+
+  @override
+  String get artifactsJustNow => 'Just now';
+
+  @override
+  String get artifactsYesterday => 'Yesterday';
+
+  @override
+  String artifactsMinutesAgo(int n) {
+    return '${n}m ago';
+  }
+
+  @override
+  String artifactsHoursAgo(int n) {
+    return '${n}h ago';
+  }
+
+  @override
+  String artifactsDaysAgo(int n) {
+    return '${n}d ago';
+  }
+
+  @override
+  String get userFallbackName => 'this user';
+
+  @override
+  String get commandCategoryRecentSessions => 'Recent Sessions';
+
+  @override
+  String get featuresSectionExperiments => 'Experiments';
+
+  @override
+  String get featuresSectionDisplay => 'Display';
+
+  @override
+  String get featuresCompactMode => 'Compact Mode';
+
+  @override
+  String get featuresShowLineNumbers => 'Show Line Numbers';
+
+  @override
+  String get featuresWrapLinesInDiffs => 'Wrap Lines in Diffs';
+
+  @override
+  String get serverCheckingConnection => 'Checking connection...';
+
+  @override
+  String get serverConnected => 'Connected';
+
+  @override
+  String get serverConnectionFailed => 'Connection failed';
+
+  @override
+  String get serverVerifyingServer => 'Verifying server...';
+
+  @override
+  String get serverCustomUrlSectionLabel => 'CUSTOM SERVER URL';
+
+  @override
+  String get machinesNoMachines => 'No machines';
+
+  @override
+  String get voiceAutoDetect => 'Auto-detect';
+
+  @override
+  String get inboxTitle => 'Inbox';
+
+  @override
+  String get accountBackupKeyCopiedToClipboard =>
+      'Backup key copied to clipboard';
+
+  @override
+  String get accountBackupKeyDialogContent =>
+      'Save this key in a safe place. You can use it to restore your account.';
+
+  @override
+  String get accountInvalidKeyFormat =>
+      'Invalid key format. Use XXXXX-XXXXX-XXXXX-XXXXX-XXXXX';
+
+  @override
+  String get accountLinkedDevicesSubtitle =>
+      'Manage devices linked to your account';
+
+  @override
+  String get accountLinkNewDeviceSubtitle =>
+      'Generate QR code for another device';
+
+  @override
+  String get accountRestoreAccountSubtitle => 'Recover account from backup key';
+
+  @override
+  String get accountRestoreInstruction =>
+      'Enter your backup key to restore your account.';
+
+  @override
+  String get accountScanInstruction =>
+      'Point your camera at the QR code displayed on the new device';
+
+  @override
+  String get accountShowBackupKeySubtitle => 'View your account recovery key';
+
+  @override
+  String get accountShowQRInstructions =>
+      '1. Open Happy on the new device\n2. Tap \"Link or Restore Account\"\n3. Scan this QR code';
+
+  @override
+  String get accountUnlinkConfirm =>
+      'Are you sure you want to unlink this device?';
+
+  @override
+  String get artifactsEmptySubtitle =>
+      'Create your first artifact using the + button.';
+
+  @override
+  String get artifactsEnterContent => 'Enter new content';
+
+  @override
+  String get artifactsEnterTitle => 'Enter a new title';
+
+  @override
+  String get artifactsEnterTitleOrContent => 'Please enter a title or content.';
+
+  @override
+  String get artifactsNoResultsSubtitle => 'Try a different search term.';
+
+  @override
+  String get authConnectionError =>
+      'Connection failed. Please check your server URL and try again.';
+
+  @override
+  String get authDeviceLinkedSuccess => 'Device linked successfully!';
+
+  @override
+  String get authErrorDetailsCopied => 'Error details copied';
+
+  @override
+  String get authFailedToLinkDevice => 'Failed to link device';
+
+  @override
+  String get authInvalidKey =>
+      'Invalid key. Use backup key (11 groups), base64, base64url, or 64-char hex.';
+
+  @override
+  String get authPleaseEnterSecretKey => 'Please enter a secret key';
+
+  @override
+  String get authProcessingDeviceLink => 'Processing device link...';
+
+  @override
+  String get authSecretKeyHint => 'Backup key / base64 / hex';
+
+  @override
+  String get authSecretKeyInstruction =>
+      'Enter backup key (11 groups like XXXXX-XXXXX...), base64/base64url, or 64-char hex key.';
+
+  @override
+  String get authServerUrlSaved => 'Server URL saved and applied.';
+
+  @override
+  String get authSignInFirst =>
+      'Please sign in first to approve device linking';
+
+  @override
+  String get authSignInWithSecretKey => 'Sign In with Secret Key';
+
+  @override
+  String get authSomethingWentWrong =>
+      'Something went wrong. Please sign in again.';
+
+  @override
+  String get authWaitingForApproval => 'Waiting for approval...';
+
+  @override
+  String get chatBeginningOfConversation => 'Beginning of conversation';
+
+  @override
+  String get chatFailedToDeleteSession => 'Failed to delete session';
+
+  @override
+  String get chatLastSeenJustNow => 'Last seen just now';
+
+  @override
+  String get chatPermissionRequired => 'Permission required';
+
+  @override
+  String get chatSuggestionDebugIssueDesc => 'Find and fix a bug in your code';
+
+  @override
+  String get chatSuggestionExplainCodeDesc => 'Understand how something works';
+
+  @override
+  String get chatSuggestionReviewPrDesc => 'Get feedback on your changes';
+
+  @override
+  String get chatSuggestionWriteCodeDesc => 'Generate a function or component';
+
+  @override
+  String get chatUnsentMessageContent =>
+      'You have an unsent message. Are you sure you want to leave?';
+
+  @override
+  String get claudeCodeLimitsSubtitle =>
+      'Rate limits for Claude Code on your machines';
+
+  @override
+  String get claudeConnectCliInfo =>
+      'API key management is handled via the CLI. Run: happy connect claude';
+
+  @override
+  String get claudeConnectDisclaimer =>
+      'Your API key is stored locally on this device only.';
+
+  @override
+  String get claudeConnectManualDesc =>
+      'Alternatively, enter your Anthropic API key directly.';
+
+  @override
+  String get claudeConnectTerminalSubtitle =>
+      'Run the following command in your terminal:';
+
+  @override
+  String get claudeLimitsNoMachinesSubtitle =>
+      'Connect a machine to check Claude Code limits';
+
+  @override
+  String get claudeLimitsNotAvailable => 'Claude Code limits not available';
+
+  @override
+  String get claudeLimitsNotAvailableSubtitle =>
+      'Make sure Claude Code is installed and authenticated on the selected machine';
+
+  @override
+  String get commonOperationInProgressConfirm =>
+      'An operation is in progress. Are you sure you want to leave?';
+
+  @override
+  String get commonUnsavedChangesContent =>
+      'You have unsaved changes. Are you sure you want to leave?';
+
+  @override
+  String get commonUnsavedChangesMessage =>
+      'You have unsaved changes. Are you sure you want to leave?';
+
+  @override
+  String get commonUnsentMessageConfirm =>
+      'You have an unsent message. Are you sure you want to leave?';
+
+  @override
+  String get developerClearCacheConfirm =>
+      'Are you sure you want to clear all cached data?';
+
+  @override
+  String get developerEncryptionDebugDesc =>
+      'View encryption keys and certificates';
+
+  @override
+  String get developerModeDisabledDesc => 'Disabled - Tap 10 times to enable';
+
+  @override
+  String get developerNetworkInspectorDesc => 'View API requests and responses';
+
+  @override
+  String get developerResetSettingsConfirm =>
+      'Are you sure you want to reset all settings to defaults?';
+
+  @override
+  String get developerSessionDebugDesc =>
+      'View active sessions and connections';
+
+  @override
+  String get developerTestNotificationsDesc => 'Send a test push notification';
+
+  @override
+  String get developerTestSentryExceptionDesc =>
+      'Capture a test exception via Sentry';
+
+  @override
+  String get devLogsClearConfirm => 'Are you sure you want to clear all logs?';
+
+  @override
+  String get devLogsEmptyDesc => 'Logs will appear here as they are generated';
+
+  @override
+  String get devLogsOnlyAvailableInDevMode =>
+      'Logs are only available when Developer Mode is enabled.\n\nGo to Settings and enable Developer Mode to view logs.';
+
+  @override
+  String get featuresAlwaysShowContextSize => 'Always Show Context Size';
+
+  @override
+  String get featuresAlwaysShowContextSizeDesc => 'Show context window usage';
+
+  @override
+  String get featuresCompactModeDesc => 'Reduce spacing in chat messages';
+
+  @override
+  String get featuresEnhancedSessionWizard => 'Enhanced Session Wizard';
+
+  @override
+  String get featuresEnhancedSessionWizardDesc =>
+      'Use the improved session creation flow';
+
+  @override
+  String get featuresExperimentalTitle => 'Experimental Features';
+
+  @override
+  String get featuresHideInactiveSessions => 'Hide Inactive Sessions';
+
+  @override
+  String get featuresHideInactiveSessionsDesc =>
+      'Hide sessions not used recently';
+
+  @override
+  String get featuresShowLineNumbersDesc =>
+      'Display line numbers in code blocks';
+
+  @override
+  String get featuresWrapLinesInDiffsDesc => 'Wrap long lines in diff views';
+
+  @override
+  String get fileViewerContentError => 'The file content could not be loaded.';
+
+  @override
+  String get friendsEmptySubtitle => 'Search for people to connect with.';
+
+  @override
+  String get friendsNoRequestsSubtitle => 'Friend requests will appear here';
+
+  @override
+  String get inboxConnectFriendsSubtitle =>
+      'Connect with friends to start sharing sessions.';
+
+  @override
+  String get machineLastKnownStatus => 'Last Known Status';
+
+  @override
+  String get networkInspectorClearConfirm =>
+      'Are you sure you want to clear all requests?';
+
+  @override
+  String get networkInspectorCopyInstruction =>
+      'Copy the log and send it to developers to investigate network usage.';
+
+  @override
+  String get networkInspectorNoRequestsSubtitle =>
+      'HTTP requests will appear here as they happen.';
+
+  @override
+  String get permissionExpiredNoPending =>
+      'Permission expired \\u2014 no longer pending';
+
+  @override
+  String get permissionExpiredRestarted =>
+      'Permission expired \\u2014 session was restarted';
+
+  @override
+  String get pickPathHint => 'Enter path (e.g. /home/user/projects)';
+
+  @override
+  String get pickProfileChooseBackend =>
+      'Choose an AI backend profile for your session.';
+
+  @override
+  String get profilesAddProfileSubtitle =>
+      'Start from scratch with empty configuration';
+
+  @override
+  String get profilesDescriptionHint =>
+      'e.g. MiniMax via OpenAI-compatible API';
+
+  @override
+  String get profilesEnvVarsEmpty =>
+      'No environment variables. Tap Add to set one.';
+
+  @override
+  String get profilesEnvVarsHint =>
+      'Set ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN, ANTHROPIC_MODEL, etc.';
+
+  @override
+  String get profilesImportHint =>
+      'Paste the contents of a shell script containing export statements (e.g., setup-hunter-alpha.sh)';
+
+  @override
+  String get profilesImportNoVars =>
+      'No environment variables found in the script.';
+
+  @override
+  String get profilesQuickSetupHint =>
+      'Select a provider to pre-fill configuration';
+
+  @override
+  String get profilesScriptDescription =>
+      'Runs before each session starts. Use to export variables or configure the environment.';
+
+  @override
+  String get profilesWizardReviewHint =>
+      'Review your settings and tap Save to create the profile.';
+
+  @override
+  String get profilesWizardSubtitle =>
+      'Step-by-step setup with guided configuration';
+
+  @override
+  String get serverCurrentlyUsingCustomUrl =>
+      'Currently using a custom server URL.';
+
+  @override
+  String get serverUrlCannotBeEmpty => 'Server URL cannot be empty';
+
+  @override
+  String get sessionFilesEmptySubtitle =>
+      'Files modified during the session will appear here.';
+
+  @override
+  String get sessionsArchiveConfirm =>
+      'This will stop the running session. Are you sure?';
+
+  @override
+  String get sessionsDeleteConfirm =>
+      'This will permanently delete the session and all its messages.';
+
+  @override
+  String get sessionsGroupByFolder => 'Group by folder';
+
+  @override
+  String get sessionsNewDialogPlaceholder => 'New session dialog would go here';
+
+  @override
+  String get sessionsNoSearchResults => 'No sessions match your search';
+
+  @override
+  String get settingsClaudeDisconnected => 'Claude disconnected';
+
+  @override
+  String get settingsCompactSessionViewSubtitle =>
+      'Use smaller cards for sessions';
+
+  @override
+  String get settingsConfigureVoice => 'Configure ElevenLabs voice';
+
+  @override
+  String get settingsConfigureVoiceAssistant => 'Configure voice assistant';
+
+  @override
+  String get settingsDeveloperOptions => 'Developer Options';
+
+  @override
+  String get settingsDeveloperTapToEnable => 'Tap 10 times to enable';
+
+  @override
+  String get settingsFindFriendsSubtitle => 'Search and send friend requests';
+
+  @override
+  String get settingsGitHubDisconnected => 'GitHub disconnected';
+
+  @override
+  String get settingsNotConnected => 'Not connected';
+
+  @override
+  String get settingsOpenInboxSubtitle => 'View updates and requests';
+
+  @override
+  String get settingsServerResetConfirm =>
+      'Reset the server URL to the default? This cannot be undone.';
+
+  @override
+  String get settingsShowFlavorIconsSubtitle =>
+      'Show AI provider icons in avatars';
+
+  @override
+  String get settingsTextToSpeechSubtitle => 'Read assistant messages aloud';
+
+  @override
+  String get settingsUserCertificatesInstalled =>
+      'User certificates are installed';
+
+  @override
+  String get settingsVoiceSettings => 'Voice Settings';
+
+  @override
+  String get terminalConnect => 'Connect Terminal';
+
+  @override
+  String get terminalConnected => 'Terminal connected.';
+
+  @override
+  String get terminalConnectInfo =>
+      'Connect to a terminal session running on one of your machines.';
+
+  @override
+  String get terminalDisconnectConfirm =>
+      'Are you sure you want to disconnect from the terminal?';
+
+  @override
+  String get terminalIdError => 'Please enter a terminal or session ID';
+
+  @override
+  String get terminalNoMachines =>
+      'No machines connected. Start the Happy CLI on a machine first.';
+
+  @override
+  String get terminalOutputPending => '[output pending]';
+
+  @override
+  String get voiceSelectLanguageHint => 'Select the language for voice output.';
+
+  @override
+  String get featuresMarkdownCopyV2 => 'Markdown Copy V2';
+
+  @override
+  String get featuresMarkdownCopyV2Desc => 'Use improved markdown copying';
+
+  @override
+  String artifactsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count artifacts',
+      one: '1 artifact',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String authErrorLinkingDevice(String error) {
+    return 'Error linking device: $error';
+  }
+
+  @override
+  String chatLastSeenMinutes(int minutes) {
+    return 'Last seen ${minutes}m ago';
+  }
+
+  @override
+  String chatLastSeenHours(int hours) {
+    return 'Last seen ${hours}h ago';
+  }
+
+  @override
+  String chatLastSeenDays(int days) {
+    return 'Last seen ${days}d ago';
+  }
+
+  @override
+  String chatFailedToClear(String error) {
+    return 'Failed to clear: $error';
+  }
+
+  @override
+  String devLogsCopied(int count) {
+    return '$count log entries copied';
+  }
+
+  @override
+  String friendsRemoveConfirm(String name) {
+    return 'Remove $name from your friends?';
+  }
+
+  @override
+  String machineRemoveConfirm(String name) {
+    return 'Are you sure you want to remove \"$name\"?';
+  }
+
+  @override
+  String machineDeleteFailed(int statusCode) {
+    return 'Failed to delete machine ($statusCode)';
+  }
+
+  @override
+  String sessionsSelectedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count selected',
+      one: '1 selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sessionsArchiveNConfirm(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Archive $count sessions?',
+      one: 'Archive 1 session?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sessionsArchivePartialFail(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessions',
+      one: '1 session',
+    );
+    return '$_temp0 failed to archive';
+  }
+
+  @override
+  String sessionsDeleteNConfirm(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Delete $count sessions?',
+      one: 'Delete 1 session?',
+    );
+    return '$_temp0 This cannot be undone.';
+  }
+
+  @override
+  String sessionsDeletePartialFail(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessions',
+      one: '1 session',
+    );
+    return '$_temp0 failed to delete';
+  }
+
+  @override
+  String accountLastActive(String platform, String time) {
+    return '$platform • Last active $time';
+  }
+
+  @override
+  String profilesDeleteConfirm(String name) {
+    return 'Are you sure you want to delete \"$name\"?';
+  }
+
+  @override
+  String settingsFailedToDisconnect(String error) {
+    return 'Failed to disconnect: $error';
+  }
+
+  @override
+  String settingsConnectedAs(String login) {
+    return 'Connected as @$login';
+  }
+
+  @override
+  String settingsFailedToStartOAuth(String error) {
+    return 'Failed to start OAuth: $error';
+  }
+
+  @override
+  String appearanceThemeBasedOnDevice(String mode) {
+    return 'Based on your device\'s $mode appearance setting.';
+  }
 }

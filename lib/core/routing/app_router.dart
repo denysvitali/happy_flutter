@@ -32,7 +32,6 @@ import '../../features/settings/account_screen.dart';
 import '../../features/settings/claude_limits_screen.dart';
 import '../../features/settings/developer_screen.dart';
 import '../../features/settings/features_settings_screen.dart';
-import '../../features/settings/language_settings_screen.dart';
 import '../../features/settings/machines_screen.dart';
 import '../../features/settings/profile_editor_screen.dart';
 import '../../features/settings/profile_wizard_screen.dart';
@@ -259,14 +258,6 @@ GoRouter createRouter(String? initialDeepLink) {
         name: 'theme',
         pageBuilder: (context, state) =>
             _slidePage(const AuthGate(child: ThemeSettingsScreen()), state),
-      ),
-      GoRoute(
-        path: '/settings/language',
-        name: 'language',
-        pageBuilder: (context, state) => _slidePage(
-          const AuthGate(child: LanguageSettingsScreen()),
-          state,
-        ),
       ),
       GoRoute(
         path: '/settings/voice',

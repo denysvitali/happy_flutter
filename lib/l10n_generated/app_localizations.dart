@@ -5,10 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
-import 'app_localizations_de.dart';
 import 'app_localizations_en.dart';
-import 'app_localizations_es.dart';
-import 'app_localizations_fr.dart';
 
 // ignore_for_file: type=lint
 
@@ -95,12 +92,7 @@ abstract class AppLocalizations {
       ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[
-    Locale('de'),
-    Locale('en'),
-    Locale('es'),
-    Locale('fr'),
-  ];
+  static const List<Locale> supportedLocales = <Locale>[Locale('en')];
 
   /// App title
   ///
@@ -678,11 +670,11 @@ abstract class AppLocalizations {
   /// **'Coming soon'**
   String get sessionTypeComingSoon;
 
-  /// New session screen title
+  /// No description provided for @newSessionTitle.
   ///
   /// In en, this message translates to:
-  /// **'Start New Session'**
-  String newSessionTitle(String directory);
+  /// **'New Session'**
+  String get newSessionTitle;
 
   /// No description provided for @newSessionNoMachinesFound.
   ///
@@ -720,11 +712,11 @@ abstract class AppLocalizations {
   /// **'Session spawning failed - no session ID returned.'**
   String get newSessionSessionSpawningFailed;
 
-  /// Session history screen title
+  /// No description provided for @sessionHistoryTitle.
   ///
   /// In en, this message translates to:
-  /// **'Session History'**
-  String sessionHistoryTitle(int count);
+  /// **'Sessions'**
+  String get sessionHistoryTitle;
 
   /// No description provided for @sessionHistoryEmpty.
   ///
@@ -756,11 +748,11 @@ abstract class AppLocalizations {
   /// **'View all sessions'**
   String get sessionHistoryViewAll;
 
-  /// Session info screen title
+  /// No description provided for @sessionInfoTitle.
   ///
   /// In en, this message translates to:
   /// **'Session Info'**
-  String sessionInfoTitle(String currentVersion, String requiredVersion);
+  String get sessionInfoTitle;
 
   /// No description provided for @sessionInfoHappySessionId.
   ///
@@ -1263,11 +1255,11 @@ abstract class AppLocalizations {
   /// **'Running: {toolName}'**
   String chatToolRunning(Object toolName);
 
-  /// Settings screen title
+  /// No description provided for @settingsTitle.
   ///
   /// In en, this message translates to:
   /// **'Settings'**
-  String settingsTitle(String login);
+  String get settingsTitle;
 
   /// No description provided for @settingsConnectedAccounts.
   ///
@@ -4154,6 +4146,4536 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reconnecting...'**
   String get offlineBannerReconnecting;
+
+  /// No description provided for @commonVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get commonVersion;
+
+  /// No description provided for @commonDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get commonDone;
+
+  /// No description provided for @commonEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get commonEdit;
+
+  /// No description provided for @commonClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get commonClose;
+
+  /// No description provided for @commonConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get commonConfirm;
+
+  /// No description provided for @commonRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get commonRetry;
+
+  /// No description provided for @commonSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get commonSearch;
+
+  /// No description provided for @commonSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get commonSettings;
+
+  /// No description provided for @commonCopyCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy code'**
+  String get commonCopyCode;
+
+  /// No description provided for @commonFile.
+  ///
+  /// In en, this message translates to:
+  /// **'File'**
+  String get commonFile;
+
+  /// No description provided for @commonFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder'**
+  String get commonFolder;
+
+  /// No description provided for @commonCmd.
+  ///
+  /// In en, this message translates to:
+  /// **'Cmd'**
+  String get commonCmd;
+
+  /// No description provided for @authSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR code to connect'**
+  String get authSubtitle;
+
+  /// No description provided for @authScanQR.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR Code'**
+  String get authScanQR;
+
+  /// No description provided for @authEnterToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter Token Manually'**
+  String get authEnterToken;
+
+  /// No description provided for @authServerUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL'**
+  String get authServerUrlHint;
+
+  /// No description provided for @authTokenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication Token'**
+  String get authTokenHint;
+
+  /// No description provided for @authConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get authConnect;
+
+  /// No description provided for @authConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting...'**
+  String get authConnecting;
+
+  /// No description provided for @authInvalidQR.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid QR code'**
+  String get authInvalidQR;
+
+  /// No description provided for @authServerConnectionError.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot connect to server'**
+  String get authServerConnectionError;
+
+  /// No description provided for @sessionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions'**
+  String get sessionsTitle;
+
+  /// No description provided for @sessionsNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New Session'**
+  String get sessionsNew;
+
+  /// No description provided for @sessionsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No sessions yet'**
+  String get sessionsEmpty;
+
+  /// No description provided for @sessionsCreateFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Create your first session to get started'**
+  String get sessionsCreateFirst;
+
+  /// No description provided for @sessionsToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get sessionsToday;
+
+  /// No description provided for @sessionsYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get sessionsYesterday;
+
+  /// No description provided for @sessionsThisWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'This Week'**
+  String get sessionsThisWeek;
+
+  /// No description provided for @sessionsThisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'This Month'**
+  String get sessionsThisMonth;
+
+  /// No description provided for @sessionsOlder.
+  ///
+  /// In en, this message translates to:
+  /// **'Older'**
+  String get sessionsOlder;
+
+  /// No description provided for @dateGroupToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get dateGroupToday;
+
+  /// No description provided for @dateGroupYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get dateGroupYesterday;
+
+  /// No description provided for @dateGroupThisWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'This Week'**
+  String get dateGroupThisWeek;
+
+  /// No description provided for @dateGroupThisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'This Month'**
+  String get dateGroupThisMonth;
+
+  /// No description provided for @dateGroupOlder.
+  ///
+  /// In en, this message translates to:
+  /// **'Older'**
+  String get dateGroupOlder;
+
+  /// No description provided for @sessionsActiveSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'ACTIVE SESSIONS'**
+  String get sessionsActiveSessions;
+
+  /// No description provided for @sessionsArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive'**
+  String get sessionsArchive;
+
+  /// No description provided for @sessionsArchiveSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive Session'**
+  String get sessionsArchiveSession;
+
+  /// No description provided for @sessionsSimple.
+  ///
+  /// In en, this message translates to:
+  /// **'Simple'**
+  String get sessionsSimple;
+
+  /// No description provided for @sessionsWorktree.
+  ///
+  /// In en, this message translates to:
+  /// **'Worktree'**
+  String get sessionsWorktree;
+
+  /// No description provided for @sessionsClaude.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude'**
+  String get sessionsClaude;
+
+  /// No description provided for @sessionsCodex.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex'**
+  String get sessionsCodex;
+
+  /// No description provided for @sessionsGemini.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemini'**
+  String get sessionsGemini;
+
+  /// No description provided for @sessionsType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get sessionsType;
+
+  /// No description provided for @sessionsAgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent'**
+  String get sessionsAgent;
+
+  /// No description provided for @sessionsSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select All'**
+  String get sessionsSelectAll;
+
+  /// No description provided for @sessionsDeselectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Deselect All'**
+  String get sessionsDeselectAll;
+
+  /// No description provided for @sessionsRecentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Sessions'**
+  String get sessionsRecentTitle;
+
+  /// No description provided for @sessionsRecentEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No recent sessions'**
+  String get sessionsRecentEmpty;
+
+  /// No description provided for @sessionsPressBackToExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Press back again to exit'**
+  String get sessionsPressBackToExit;
+
+  /// No description provided for @sessionsFailedToArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to archive session'**
+  String get sessionsFailedToArchive;
+
+  /// No description provided for @sessionsFailedToDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete session'**
+  String get sessionsFailedToDelete;
+
+  /// No description provided for @messageDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get messageDetailTitle;
+
+  /// No description provided for @toolDetailsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool Details'**
+  String get toolDetailsTitle;
+
+  /// No description provided for @sessionInfoNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Session not found'**
+  String get sessionInfoNotFound;
+
+  /// No description provided for @messageNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Message not found'**
+  String get messageNotFound;
+
+  /// No description provided for @messageDetailContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Content'**
+  String get messageDetailContent;
+
+  /// No description provided for @messageDetailDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Message Details'**
+  String get messageDetailDetails;
+
+  /// No description provided for @messageDetailNoDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'No details available'**
+  String get messageDetailNoDetails;
+
+  /// No description provided for @messageDetailModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get messageDetailModel;
+
+  /// No description provided for @messageDetailSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get messageDetailSent;
+
+  /// No description provided for @messageDetailMessageId.
+  ///
+  /// In en, this message translates to:
+  /// **'Message ID'**
+  String get messageDetailMessageId;
+
+  /// No description provided for @messageDetailSeq.
+  ///
+  /// In en, this message translates to:
+  /// **'Seq'**
+  String get messageDetailSeq;
+
+  /// No description provided for @messageDetailTimestamp.
+  ///
+  /// In en, this message translates to:
+  /// **'Timestamp'**
+  String get messageDetailTimestamp;
+
+  /// No description provided for @messageDetailDebugData.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug Data'**
+  String get messageDetailDebugData;
+
+  /// No description provided for @commonNA.
+  ///
+  /// In en, this message translates to:
+  /// **'N/A'**
+  String get commonNA;
+
+  /// No description provided for @messageDetailPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission'**
+  String get messageDetailPermission;
+
+  /// No description provided for @messageDetailStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get messageDetailStatus;
+
+  /// No description provided for @messageDetailReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason'**
+  String get messageDetailReason;
+
+  /// No description provided for @messageDetailInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Input'**
+  String get messageDetailInput;
+
+  /// No description provided for @messageDetailOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Output'**
+  String get messageDetailOutput;
+
+  /// No description provided for @messageDetailSubagentTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub-agent Tools'**
+  String get messageDetailSubagentTools;
+
+  /// No description provided for @messageDetailTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool'**
+  String get messageDetailTool;
+
+  /// No description provided for @messageDetailState.
+  ///
+  /// In en, this message translates to:
+  /// **'State'**
+  String get messageDetailState;
+
+  /// No description provided for @messageDetailAgentType.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent type'**
+  String get messageDetailAgentType;
+
+  /// No description provided for @messageDetailDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get messageDetailDescription;
+
+  /// No description provided for @messageDetailShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get messageDetailShare;
+
+  /// No description provided for @messageDetailBookmark.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark'**
+  String get messageDetailBookmark;
+
+  /// No description provided for @commonCopiedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard'**
+  String get commonCopiedToClipboard;
+
+  /// No description provided for @accountBackupKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup Key'**
+  String get accountBackupKeyLabel;
+
+  /// No description provided for @accountBackupKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX'**
+  String get accountBackupKeyHint;
+
+  /// No description provided for @accountEnterBackupKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your backup key'**
+  String get accountEnterBackupKey;
+
+  /// No description provided for @commonUnsavedChangesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved Changes'**
+  String get commonUnsavedChangesTitle;
+
+  /// No description provided for @chatUnsentMessageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsent Message'**
+  String get chatUnsentMessageTitle;
+
+  /// No description provided for @chatStay.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay'**
+  String get chatStay;
+
+  /// No description provided for @chatLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave'**
+  String get chatLeave;
+
+  /// No description provided for @sessionsGroupByDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Group by date'**
+  String get sessionsGroupByDate;
+
+  /// No description provided for @pickSelectMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Machine'**
+  String get pickSelectMachine;
+
+  /// No description provided for @pickSelectProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Profile'**
+  String get pickSelectProfile;
+
+  /// No description provided for @pickSelectPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Path'**
+  String get pickSelectPath;
+
+  /// No description provided for @pickNoMachinesAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No machines available'**
+  String get pickNoMachinesAvailable;
+
+  /// No description provided for @pickRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get pickRecent;
+
+  /// No description provided for @pickAllMachines.
+  ///
+  /// In en, this message translates to:
+  /// **'All Machines'**
+  String get pickAllMachines;
+
+  /// No description provided for @chatInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Message...'**
+  String get chatInputHint;
+
+  /// No description provided for @chatInputProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get chatInputProfileTitle;
+
+  /// No description provided for @chatInputProfileDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get chatInputProfileDefault;
+
+  /// No description provided for @chatInputProfileDefaultSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Server-configured defaults'**
+  String get chatInputProfileDefaultSubtitle;
+
+  /// No description provided for @chatEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a conversation'**
+  String get chatEmpty;
+
+  /// No description provided for @chatSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get chatSend;
+
+  /// No description provided for @chatCopyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get chatCopyMessage;
+
+  /// No description provided for @chatDeleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get chatDeleteMessage;
+
+  /// No description provided for @chatClearSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Session'**
+  String get chatClearSession;
+
+  /// No description provided for @chatConfirmClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to clear this session?'**
+  String get chatConfirmClear;
+
+  /// No description provided for @chatActionConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Action'**
+  String get chatActionConfirm;
+
+  /// No description provided for @chatActionReject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get chatActionReject;
+
+  /// No description provided for @chatActionAccept.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept'**
+  String get chatActionAccept;
+
+  /// No description provided for @chatChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat'**
+  String get chatChat;
+
+  /// No description provided for @chatChatLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading...'**
+  String get chatChatLoading;
+
+  /// No description provided for @chatFailedToLoadMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load messages'**
+  String get chatFailedToLoadMessages;
+
+  /// No description provided for @settingsTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get settingsTheme;
+
+  /// No description provided for @settingsThemeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get settingsThemeLight;
+
+  /// No description provided for @settingsThemeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get settingsThemeDark;
+
+  /// No description provided for @settingsThemeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get settingsThemeSystem;
+
+  /// No description provided for @noLanguagesFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No languages found'**
+  String get noLanguagesFound;
+
+  /// No description provided for @settingsServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Server'**
+  String get settingsServer;
+
+  /// No description provided for @settingsServerNotReachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Server not reachable'**
+  String get settingsServerNotReachable;
+
+  /// No description provided for @settingsVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get settingsVoice;
+
+  /// No description provided for @settingsLogout.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout'**
+  String get settingsLogout;
+
+  /// No description provided for @settingsLogoutConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to logout?'**
+  String get settingsLogoutConfirm;
+
+  /// No description provided for @settingsLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs'**
+  String get settingsLogs;
+
+  /// No description provided for @settingsVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get settingsVersion;
+
+  /// No description provided for @profilesDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Profile'**
+  String get profilesDeleteTitle;
+
+  /// No description provided for @profilesFailedToSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save profile'**
+  String get profilesFailedToSave;
+
+  /// No description provided for @profilesDuplicated.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile \"{name}\" duplicated'**
+  String profilesDuplicated(String name);
+
+  /// No description provided for @usageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get usageTitle;
+
+  /// No description provided for @timePeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Time Period'**
+  String get timePeriod;
+
+  /// No description provided for @totals.
+  ///
+  /// In en, this message translates to:
+  /// **'Totals'**
+  String get totals;
+
+  /// No description provided for @byModel.
+  ///
+  /// In en, this message translates to:
+  /// **'By Model'**
+  String get byModel;
+
+  /// No description provided for @statistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics'**
+  String get statistics;
+
+  /// No description provided for @today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get today;
+
+  /// No description provided for @sevenDays.
+  ///
+  /// In en, this message translates to:
+  /// **'7 Days'**
+  String get sevenDays;
+
+  /// No description provided for @thirtyDays.
+  ///
+  /// In en, this message translates to:
+  /// **'30 Days'**
+  String get thirtyDays;
+
+  /// No description provided for @totalTokens.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Tokens'**
+  String get totalTokens;
+
+  /// No description provided for @totalCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Cost'**
+  String get totalCost;
+
+  /// No description provided for @reports.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports'**
+  String get reports;
+
+  /// No description provided for @avgCostPerDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg. Cost/Day'**
+  String get avgCostPerDay;
+
+  /// No description provided for @avgTokensPerDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg. Tokens/Day'**
+  String get avgTokensPerDay;
+
+  /// No description provided for @noUsageData.
+  ///
+  /// In en, this message translates to:
+  /// **'No usage data'**
+  String get noUsageData;
+
+  /// No description provided for @noUsageDataSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Start using Happy to see your usage stats'**
+  String get noUsageDataSubtitle;
+
+  /// No description provided for @failedToLoad.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load usage data'**
+  String get failedToLoad;
+
+  /// No description provided for @claudeCodeLimits.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Code Limits'**
+  String get claudeCodeLimits;
+
+  /// No description provided for @claudeLimitsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Code Limits'**
+  String get claudeLimitsTitle;
+
+  /// No description provided for @claudeLimitsUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get claudeLimitsUsage;
+
+  /// No description provided for @claudeLimitsResetsAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Resets'**
+  String get claudeLimitsResetsAt;
+
+  /// No description provided for @claudeLimitsExtraUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra Usage'**
+  String get claudeLimitsExtraUsage;
+
+  /// No description provided for @claudeLimitsMonthlyLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly Limit'**
+  String get claudeLimitsMonthlyLimit;
+
+  /// No description provided for @claudeLimitsUsedCredits.
+  ///
+  /// In en, this message translates to:
+  /// **'Used Credits'**
+  String get claudeLimitsUsedCredits;
+
+  /// No description provided for @claudeLimitsNoMachines.
+  ///
+  /// In en, this message translates to:
+  /// **'No machines available'**
+  String get claudeLimitsNoMachines;
+
+  /// No description provided for @claudeLimitsSelectMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'Machine'**
+  String get claudeLimitsSelectMachine;
+
+  /// No description provided for @featuresExperiments.
+  ///
+  /// In en, this message translates to:
+  /// **'Experiments'**
+  String get featuresExperiments;
+
+  /// No description provided for @featuresExperimentsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Try experimental features'**
+  String get featuresExperimentsDesc;
+
+  /// No description provided for @settingsServerResetSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL reset to default'**
+  String get settingsServerResetSuccess;
+
+  /// No description provided for @settingsServerSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL saved'**
+  String get settingsServerSaved;
+
+  /// No description provided for @settingsServerSaveVerify.
+  ///
+  /// In en, this message translates to:
+  /// **'Save & Verify'**
+  String get settingsServerSaveVerify;
+
+  /// No description provided for @settingsOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'Online'**
+  String get settingsOnline;
+
+  /// No description provided for @settingsOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get settingsOffline;
+
+  /// No description provided for @toolViewFullContent.
+  ///
+  /// In en, this message translates to:
+  /// **'View full content'**
+  String get toolViewFullContent;
+
+  /// No description provided for @toolEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get toolEdit;
+
+  /// No description provided for @toolRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read'**
+  String get toolRead;
+
+  /// No description provided for @toolWrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Write'**
+  String get toolWrite;
+
+  /// No description provided for @toolBash.
+  ///
+  /// In en, this message translates to:
+  /// **'Bash'**
+  String get toolBash;
+
+  /// No description provided for @toolGlob.
+  ///
+  /// In en, this message translates to:
+  /// **'Glob'**
+  String get toolGlob;
+
+  /// No description provided for @toolGrep.
+  ///
+  /// In en, this message translates to:
+  /// **'Grep'**
+  String get toolGrep;
+
+  /// No description provided for @toolLs.
+  ///
+  /// In en, this message translates to:
+  /// **'List Files'**
+  String get toolLs;
+
+  /// No description provided for @toolPatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Patch'**
+  String get toolPatch;
+
+  /// No description provided for @toolDiff.
+  ///
+  /// In en, this message translates to:
+  /// **'Diff'**
+  String get toolDiff;
+
+  /// No description provided for @toolSectionDiff.
+  ///
+  /// In en, this message translates to:
+  /// **'DIFF'**
+  String get toolSectionDiff;
+
+  /// No description provided for @toolSectionContent.
+  ///
+  /// In en, this message translates to:
+  /// **'CONTENT'**
+  String get toolSectionContent;
+
+  /// No description provided for @toolSectionCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'COMMAND'**
+  String get toolSectionCommand;
+
+  /// No description provided for @toolSectionReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading'**
+  String get toolSectionReading;
+
+  /// No description provided for @toolSectionWriting.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing'**
+  String get toolSectionWriting;
+
+  /// No description provided for @toolSectionInput.
+  ///
+  /// In en, this message translates to:
+  /// **'INPUT'**
+  String get toolSectionInput;
+
+  /// No description provided for @toolSectionOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'OUTPUT'**
+  String get toolSectionOutput;
+
+  /// No description provided for @toolTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Task'**
+  String get toolTask;
+
+  /// No description provided for @toolTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Todo'**
+  String get toolTodo;
+
+  /// No description provided for @toolWebFetch.
+  ///
+  /// In en, this message translates to:
+  /// **'Web Fetch'**
+  String get toolWebFetch;
+
+  /// No description provided for @toolWebSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Web Search'**
+  String get toolWebSearch;
+
+  /// No description provided for @toolExitPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit Plan'**
+  String get toolExitPlan;
+
+  /// No description provided for @toolAskUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask User'**
+  String get toolAskUser;
+
+  /// No description provided for @permissionAllow.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow'**
+  String get permissionAllow;
+
+  /// No description provided for @permissionDeny.
+  ///
+  /// In en, this message translates to:
+  /// **'Deny'**
+  String get permissionDeny;
+
+  /// No description provided for @permissionStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get permissionStop;
+
+  /// No description provided for @permissionYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get permissionYes;
+
+  /// No description provided for @permissionDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get permissionDefault;
+
+  /// No description provided for @permissionAcceptEdits.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept Edits'**
+  String get permissionAcceptEdits;
+
+  /// No description provided for @permissionPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan Mode'**
+  String get permissionPlan;
+
+  /// No description provided for @permissionYolo.
+  ///
+  /// In en, this message translates to:
+  /// **'Yolo Mode'**
+  String get permissionYolo;
+
+  /// No description provided for @permissionReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Read Only'**
+  String get permissionReadOnly;
+
+  /// No description provided for @permissionSafeYolo.
+  ///
+  /// In en, this message translates to:
+  /// **'Safe Yolo'**
+  String get permissionSafeYolo;
+
+  /// No description provided for @permissionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission required'**
+  String get permissionRequired;
+
+  /// No description provided for @permissionApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get permissionApproved;
+
+  /// No description provided for @permissionDeniedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Denied'**
+  String get permissionDeniedLabel;
+
+  /// No description provided for @permissionSessionOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Session offline'**
+  String get permissionSessionOffline;
+
+  /// No description provided for @permissionAllEdits.
+  ///
+  /// In en, this message translates to:
+  /// **'All edits'**
+  String get permissionAllEdits;
+
+  /// No description provided for @permissionForSession.
+  ///
+  /// In en, this message translates to:
+  /// **'For session'**
+  String get permissionForSession;
+
+  /// No description provided for @permissionActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission action failed'**
+  String get permissionActionFailed;
+
+  /// No description provided for @permissionModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission Mode'**
+  String get permissionModeTitle;
+
+  /// No description provided for @permissionModeDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get permissionModeDefault;
+
+  /// No description provided for @permissionModeAcceptEdits.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept Edits'**
+  String get permissionModeAcceptEdits;
+
+  /// No description provided for @permissionModePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan'**
+  String get permissionModePlan;
+
+  /// No description provided for @permissionModeBypass.
+  ///
+  /// In en, this message translates to:
+  /// **'Yolo'**
+  String get permissionModeBypass;
+
+  /// No description provided for @permissionModeReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only'**
+  String get permissionModeReadOnly;
+
+  /// No description provided for @permissionModeSafeYolo.
+  ///
+  /// In en, this message translates to:
+  /// **'Safe YOLO'**
+  String get permissionModeSafeYolo;
+
+  /// No description provided for @permissionModeYolo.
+  ///
+  /// In en, this message translates to:
+  /// **'YOLO'**
+  String get permissionModeYolo;
+
+  /// No description provided for @permissionModeDefaultDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask for permissions'**
+  String get permissionModeDefaultDesc;
+
+  /// No description provided for @permissionModeAcceptEditsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-approve edits'**
+  String get permissionModeAcceptEditsDesc;
+
+  /// No description provided for @permissionModePlanDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan before executing'**
+  String get permissionModePlanDesc;
+
+  /// No description provided for @permissionModeBypassDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip all permissions'**
+  String get permissionModeBypassDesc;
+
+  /// No description provided for @permissionModeReadOnlyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only mode'**
+  String get permissionModeReadOnlyDesc;
+
+  /// No description provided for @permissionModeSafeYoloDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Safe YOLO mode'**
+  String get permissionModeSafeYoloDesc;
+
+  /// No description provided for @permissionModeYoloDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'YOLO mode'**
+  String get permissionModeYoloDesc;
+
+  /// No description provided for @voiceAssistantActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice assistant active'**
+  String get voiceAssistantActive;
+
+  /// No description provided for @voiceAssistantConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting...'**
+  String get voiceAssistantConnecting;
+
+  /// No description provided for @voiceAssistantDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get voiceAssistantDefault;
+
+  /// No description provided for @voiceAssistantTapToEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to end'**
+  String get voiceAssistantTapToEnd;
+
+  /// No description provided for @authClientError.
+  ///
+  /// In en, this message translates to:
+  /// **'Client Error'**
+  String get authClientError;
+
+  /// No description provided for @authServerError.
+  ///
+  /// In en, this message translates to:
+  /// **'Server Error'**
+  String get authServerError;
+
+  /// No description provided for @authCertificateError.
+  ///
+  /// In en, this message translates to:
+  /// **'Certificate Error'**
+  String get authCertificateError;
+
+  /// No description provided for @authConnectionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection Failed'**
+  String get authConnectionFailed;
+
+  /// No description provided for @authServerSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Server Settings'**
+  String get authServerSettings;
+
+  /// No description provided for @authLinkAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Link Account'**
+  String get authLinkAccount;
+
+  /// No description provided for @authTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try Again'**
+  String get authTryAgain;
+
+  /// No description provided for @authSecretKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret Key'**
+  String get authSecretKeyLabel;
+
+  /// No description provided for @authPaste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get authPaste;
+
+  /// No description provided for @authSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign In'**
+  String get authSignIn;
+
+  /// No description provided for @errorGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong'**
+  String get errorGeneric;
+
+  /// No description provided for @errorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Network error. Please check your connection.'**
+  String get errorNetwork;
+
+  /// No description provided for @errorServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Server error. Please try again later.'**
+  String get errorServer;
+
+  /// No description provided for @errorNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Not found'**
+  String get errorNotFound;
+
+  /// No description provided for @voiceAssistantError.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice assistant error'**
+  String get voiceAssistantError;
+
+  /// No description provided for @appearanceTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get appearanceTheme;
+
+  /// No description provided for @appearanceThemeAdaptive.
+  ///
+  /// In en, this message translates to:
+  /// **'Adaptive'**
+  String get appearanceThemeAdaptive;
+
+  /// No description provided for @appearanceThemeAdaptiveDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Match system settings'**
+  String get appearanceThemeAdaptiveDesc;
+
+  /// No description provided for @appearanceThemeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get appearanceThemeLight;
+
+  /// No description provided for @appearanceThemeLightDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Always use light theme'**
+  String get appearanceThemeLightDesc;
+
+  /// No description provided for @appearanceThemeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get appearanceThemeDark;
+
+  /// No description provided for @appearanceThemeDarkDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Always use dark theme'**
+  String get appearanceThemeDarkDesc;
+
+  /// No description provided for @appearanceThemeApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'{theme} theme applied'**
+  String appearanceThemeApplied(String theme);
+
+  /// No description provided for @appearanceThemePreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get appearanceThemePreview;
+
+  /// No description provided for @appearanceThemeDarkModeActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark mode active'**
+  String get appearanceThemeDarkModeActive;
+
+  /// No description provided for @appearanceThemeLightModeActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Light mode active'**
+  String get appearanceThemeLightModeActive;
+
+  /// No description provided for @appearanceThemeSampleContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sample content'**
+  String get appearanceThemeSampleContent;
+
+  /// No description provided for @appearanceThemeColorPrimary.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary'**
+  String get appearanceThemeColorPrimary;
+
+  /// No description provided for @appearanceThemeColorSecondary.
+  ///
+  /// In en, this message translates to:
+  /// **'Secondary'**
+  String get appearanceThemeColorSecondary;
+
+  /// No description provided for @searchLanguages.
+  ///
+  /// In en, this message translates to:
+  /// **'Search languages'**
+  String get searchLanguages;
+
+  /// No description provided for @settingsBehavior.
+  ///
+  /// In en, this message translates to:
+  /// **'Behavior'**
+  String get settingsBehavior;
+
+  /// No description provided for @settingsViewInline.
+  ///
+  /// In en, this message translates to:
+  /// **'View Inline'**
+  String get settingsViewInline;
+
+  /// No description provided for @settingsViewInlineSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show tool calls inline in chat'**
+  String get settingsViewInlineSubtitle;
+
+  /// No description provided for @settingsExpandTodos.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand Todos'**
+  String get settingsExpandTodos;
+
+  /// No description provided for @settingsShowLineNumbers.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Line Numbers'**
+  String get settingsShowLineNumbers;
+
+  /// No description provided for @settingsCompactSessionView.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact Session View'**
+  String get settingsCompactSessionView;
+
+  /// No description provided for @settingsShowFlavorIcons.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Flavor Icons'**
+  String get settingsShowFlavorIcons;
+
+  /// No description provided for @settingsAvatarStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Avatar Style'**
+  String get settingsAvatarStyle;
+
+  /// No description provided for @settingsWrapLinesInDiffs.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrap Lines in Diffs'**
+  String get settingsWrapLinesInDiffs;
+
+  /// No description provided for @zenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Zen'**
+  String get zenTitle;
+
+  /// No description provided for @zenNewTask.
+  ///
+  /// In en, this message translates to:
+  /// **'New Task'**
+  String get zenNewTask;
+
+  /// No description provided for @zenAddTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Task'**
+  String get zenAddTask;
+
+  /// No description provided for @zenDescriptionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What needs to be done?'**
+  String get zenDescriptionHint;
+
+  /// No description provided for @zenPriorityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority'**
+  String get zenPriorityLabel;
+
+  /// No description provided for @zenStatusLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get zenStatusLabel;
+
+  /// No description provided for @zenCreatedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Created'**
+  String get zenCreatedLabel;
+
+  /// No description provided for @zenCompletedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get zenCompletedLabel;
+
+  /// No description provided for @zenMarkDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark Done'**
+  String get zenMarkDone;
+
+  /// No description provided for @zenTaskTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Task'**
+  String get zenTaskTitle;
+
+  /// No description provided for @zenTaskNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Task not found'**
+  String get zenTaskNotFound;
+
+  /// No description provided for @zenDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Task'**
+  String get zenDeleteTitle;
+
+  /// No description provided for @zenDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this task?'**
+  String get zenDeleteConfirm;
+
+  /// No description provided for @zenEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No Tasks Yet'**
+  String get zenEmptyTitle;
+
+  /// No description provided for @zenEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap + to add your first task.'**
+  String get zenEmptySubtitle;
+
+  /// No description provided for @zenSectionActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get zenSectionActive;
+
+  /// No description provided for @zenSectionCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get zenSectionCompleted;
+
+  /// No description provided for @userProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'User Profile'**
+  String get userProfileTitle;
+
+  /// No description provided for @userNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'User not found'**
+  String get userNotFound;
+
+  /// No description provided for @friendsStatusFriends.
+  ///
+  /// In en, this message translates to:
+  /// **'Friends'**
+  String get friendsStatusFriends;
+
+  /// No description provided for @friendsStatusRequestSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Request Sent'**
+  String get friendsStatusRequestSent;
+
+  /// No description provided for @friendsStatusWantsToConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Wants to Connect'**
+  String get friendsStatusWantsToConnect;
+
+  /// No description provided for @friendsAddFriendAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Friend'**
+  String get friendsAddFriendAction;
+
+  /// No description provided for @friendsFailedToAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to add friend'**
+  String get friendsFailedToAdd;
+
+  /// No description provided for @friendsFailedToUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update friendship'**
+  String get friendsFailedToUpdate;
+
+  /// No description provided for @friendsTabFriends.
+  ///
+  /// In en, this message translates to:
+  /// **'Friends'**
+  String get friendsTabFriends;
+
+  /// No description provided for @friendsTabRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Requests'**
+  String get friendsTabRequests;
+
+  /// No description provided for @friendsEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No Friends Yet'**
+  String get friendsEmptyTitle;
+
+  /// No description provided for @friendsNoRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No Incoming Requests'**
+  String get friendsNoRequests;
+
+  /// No description provided for @friendsRemoveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Friend'**
+  String get friendsRemoveTitle;
+
+  /// No description provided for @friendsRemoveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get friendsRemoveAction;
+
+  /// No description provided for @friendsRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Friend removed'**
+  String get friendsRemoved;
+
+  /// No description provided for @friendsWantsToConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Wants to connect'**
+  String get friendsWantsToConnect;
+
+  /// No description provided for @friendsSearchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Search failed'**
+  String get friendsSearchFailed;
+
+  /// No description provided for @friendsActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Action failed'**
+  String get friendsActionFailed;
+
+  /// No description provided for @friendsSearchByUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by username'**
+  String get friendsSearchByUsername;
+
+  /// No description provided for @friendsSearchEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search for friends'**
+  String get friendsSearchEmptyTitle;
+
+  /// No description provided for @friendsSearchEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search for a username to connect'**
+  String get friendsSearchEmptySubtitle;
+
+  /// No description provided for @friendsIncomingRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Incoming request'**
+  String get friendsIncomingRequest;
+
+  /// No description provided for @friendsNotConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get friendsNotConnected;
+
+  /// No description provided for @inboxPendingRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Requests'**
+  String get inboxPendingRequests;
+
+  /// No description provided for @inboxSentRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent Requests'**
+  String get inboxSentRequests;
+
+  /// No description provided for @inboxMyFriends.
+  ///
+  /// In en, this message translates to:
+  /// **'My Friends'**
+  String get inboxMyFriends;
+
+  /// No description provided for @inboxRequestPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Request pending'**
+  String get inboxRequestPending;
+
+  /// No description provided for @inboxRequestCanceled.
+  ///
+  /// In en, this message translates to:
+  /// **'Request canceled'**
+  String get inboxRequestCanceled;
+
+  /// No description provided for @inboxFriendSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Friend'**
+  String get inboxFriendSubtitle;
+
+  /// No description provided for @inboxNoNotificationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No notifications yet'**
+  String get inboxNoNotificationsTitle;
+
+  /// No description provided for @inboxFeedFriendRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Friend request'**
+  String get inboxFeedFriendRequest;
+
+  /// No description provided for @inboxFeedFriendAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Friend accepted'**
+  String get inboxFeedFriendAccepted;
+
+  /// No description provided for @inboxFeedUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get inboxFeedUpdate;
+
+  /// No description provided for @inboxTimeNow.
+  ///
+  /// In en, this message translates to:
+  /// **'now'**
+  String get inboxTimeNow;
+
+  /// No description provided for @inboxTimeMinutesAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n}m ago'**
+  String inboxTimeMinutesAgo(int n);
+
+  /// No description provided for @inboxTimeHoursAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n}h ago'**
+  String inboxTimeHoursAgo(int n);
+
+  /// No description provided for @inboxTimeYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get inboxTimeYesterday;
+
+  /// No description provided for @accountAccountSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Settings'**
+  String get accountAccountSettings;
+
+  /// No description provided for @accountProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get accountProfile;
+
+  /// No description provided for @accountBackupKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup Key'**
+  String get accountBackupKey;
+
+  /// No description provided for @accountShowBackupKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Backup Key'**
+  String get accountShowBackupKey;
+
+  /// No description provided for @accountCopyBackupKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Backup Key'**
+  String get accountCopyBackupKey;
+
+  /// No description provided for @accountCopyToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy to clipboard'**
+  String get accountCopyToClipboard;
+
+  /// No description provided for @accountRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get accountRestore;
+
+  /// No description provided for @accountRestoreAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore Account'**
+  String get accountRestoreAccount;
+
+  /// No description provided for @accountDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Devices'**
+  String get accountDevices;
+
+  /// No description provided for @accountLinkedDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked Devices'**
+  String get accountLinkedDevices;
+
+  /// No description provided for @accountLinkNewDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Link New Device'**
+  String get accountLinkNewDevice;
+
+  /// No description provided for @accountConnectedServices.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected Services'**
+  String get accountConnectedServices;
+
+  /// No description provided for @accountBackupKeyCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup key copied'**
+  String get accountBackupKeyCopied;
+
+  /// No description provided for @accountNotConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get accountNotConnected;
+
+  /// No description provided for @accountName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get accountName;
+
+  /// No description provided for @accountEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get accountEmail;
+
+  /// No description provided for @accountPasteFromClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste from Clipboard'**
+  String get accountPasteFromClipboard;
+
+  /// No description provided for @accountRestoredSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Account restored successfully'**
+  String get accountRestoredSuccess;
+
+  /// No description provided for @accountLinkDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Link Device'**
+  String get accountLinkDevice;
+
+  /// No description provided for @accountScanQR.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR'**
+  String get accountScanQR;
+
+  /// No description provided for @accountShowQR.
+  ///
+  /// In en, this message translates to:
+  /// **'Show QR'**
+  String get accountShowQR;
+
+  /// No description provided for @accountEnterUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter URL'**
+  String get accountEnterUrl;
+
+  /// No description provided for @accountApproveLinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve Linking'**
+  String get accountApproveLinking;
+
+  /// No description provided for @accountUnlinkDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlink Device'**
+  String get accountUnlinkDevice;
+
+  /// No description provided for @accountUnlink.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlink'**
+  String get accountUnlink;
+
+  /// No description provided for @accountFailedToUnlink.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to unlink device'**
+  String get accountFailedToUnlink;
+
+  /// No description provided for @accountScanHint.
+  ///
+  /// In en, this message translates to:
+  /// **'New device: tap \"Link or Restore Account\"'**
+  String get accountScanHint;
+
+  /// No description provided for @accountThisDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'This Device'**
+  String get accountThisDevice;
+
+  /// No description provided for @settingsCertificates.
+  ///
+  /// In en, this message translates to:
+  /// **'Certificates'**
+  String get settingsCertificates;
+
+  /// No description provided for @settingsUserCaCertificates.
+  ///
+  /// In en, this message translates to:
+  /// **'User CA Certificates'**
+  String get settingsUserCaCertificates;
+
+  /// No description provided for @settingsNoUserCertificates.
+  ///
+  /// In en, this message translates to:
+  /// **'No user certificates installed'**
+  String get settingsNoUserCertificates;
+
+  /// No description provided for @chatOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'Online'**
+  String get chatOnline;
+
+  /// No description provided for @chatConversationCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation cleared'**
+  String get chatConversationCleared;
+
+  /// No description provided for @chatMoreOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'More options'**
+  String get chatMoreOptions;
+
+  /// No description provided for @settingsClaudeCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Code'**
+  String get settingsClaudeCode;
+
+  /// No description provided for @settingsConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get settingsConnected;
+
+  /// No description provided for @settingsTextToSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'Text-to-Speech'**
+  String get settingsTextToSpeech;
+
+  /// No description provided for @settingsGitHub.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub'**
+  String get settingsGitHub;
+
+  /// No description provided for @settingsFindFriends.
+  ///
+  /// In en, this message translates to:
+  /// **'Find Friends'**
+  String get settingsFindFriends;
+
+  /// No description provided for @settingsOpenInbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Inbox'**
+  String get settingsOpenInbox;
+
+  /// No description provided for @settingsDeveloperEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get settingsDeveloperEnabled;
+
+  /// No description provided for @featuresTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Features'**
+  String get featuresTitle;
+
+  /// No description provided for @devLogsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs'**
+  String get devLogsTitle;
+
+  /// No description provided for @devLogsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs ({count})'**
+  String devLogsCount(int count);
+
+  /// No description provided for @devLogsCountFiltered.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs ({count} filtered)'**
+  String devLogsCountFiltered(int count);
+
+  /// No description provided for @devLogsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No logs yet'**
+  String get devLogsEmpty;
+
+  /// No description provided for @devLogsClearFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Filter'**
+  String get devLogsClearFilter;
+
+  /// No description provided for @devLogsNoLogsToCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'No logs to copy'**
+  String get devLogsNoLogsToCopy;
+
+  /// No description provided for @devLogsClearTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Logs'**
+  String get devLogsClearTitle;
+
+  /// No description provided for @devLogsClearAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get devLogsClearAction;
+
+  /// No description provided for @devLogsSearchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search Logs'**
+  String get devLogsSearchTitle;
+
+  /// No description provided for @devLogsSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter search term...'**
+  String get devLogsSearchHint;
+
+  /// No description provided for @devLogsAllLevels.
+  ///
+  /// In en, this message translates to:
+  /// **'All Levels'**
+  String get devLogsAllLevels;
+
+  /// No description provided for @devLogsLevelDebug.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug'**
+  String get devLogsLevelDebug;
+
+  /// No description provided for @devLogsLevelInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Info'**
+  String get devLogsLevelInfo;
+
+  /// No description provided for @devLogsLevelWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning'**
+  String get devLogsLevelWarning;
+
+  /// No description provided for @devLogsLevelError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get devLogsLevelError;
+
+  /// No description provided for @devLogsLogEntryCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Log entry copied'**
+  String get devLogsLogEntryCopied;
+
+  /// No description provided for @devLogsCopyEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Entry'**
+  String get devLogsCopyEntry;
+
+  /// No description provided for @devLogsAddTestLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Test Log'**
+  String get devLogsAddTestLog;
+
+  /// No description provided for @devLogsCopyAllLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy All Logs'**
+  String get devLogsCopyAllLogs;
+
+  /// No description provided for @devLogsFilterByLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by Level'**
+  String get devLogsFilterByLevel;
+
+  /// No description provided for @devLogsSearchLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Search Logs'**
+  String get devLogsSearchLogs;
+
+  /// No description provided for @networkInspectorClearTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Request Log'**
+  String get networkInspectorClearTitle;
+
+  /// No description provided for @networkInspectorEntryCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Entry copied'**
+  String get networkInspectorEntryCopied;
+
+  /// No description provided for @developerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer'**
+  String get developerTitle;
+
+  /// No description provided for @developerClearCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Cache'**
+  String get developerClearCache;
+
+  /// No description provided for @developerResetSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset Settings'**
+  String get developerResetSettings;
+
+  /// No description provided for @developerModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer Mode'**
+  String get developerModeTitle;
+
+  /// No description provided for @developerModeEnabledDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled - Debug tools are visible'**
+  String get developerModeEnabledDesc;
+
+  /// No description provided for @developerNotYetImplemented.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet implemented'**
+  String get developerNotYetImplemented;
+
+  /// No description provided for @developerClearCacheAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get developerClearCacheAction;
+
+  /// No description provided for @developerCacheCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache cleared'**
+  String get developerCacheCleared;
+
+  /// No description provided for @developerResetAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get developerResetAction;
+
+  /// No description provided for @developerSettingsReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings reset'**
+  String get developerSettingsReset;
+
+  /// No description provided for @developerSectionDebugTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug Tools'**
+  String get developerSectionDebugTools;
+
+  /// No description provided for @developerSectionTesting.
+  ///
+  /// In en, this message translates to:
+  /// **'Testing'**
+  String get developerSectionTesting;
+
+  /// No description provided for @developerSectionCacheStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache & Storage'**
+  String get developerSectionCacheStorage;
+
+  /// No description provided for @developerSectionBuildInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Build Info'**
+  String get developerSectionBuildInfo;
+
+  /// No description provided for @developerNetworkInspector.
+  ///
+  /// In en, this message translates to:
+  /// **'Network Inspector'**
+  String get developerNetworkInspector;
+
+  /// No description provided for @developerLogsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'View application logs'**
+  String get developerLogsDesc;
+
+  /// No description provided for @developerEncryptionDebug.
+  ///
+  /// In en, this message translates to:
+  /// **'Encryption Debug'**
+  String get developerEncryptionDebug;
+
+  /// No description provided for @developerSessionDebug.
+  ///
+  /// In en, this message translates to:
+  /// **'Session Debug'**
+  String get developerSessionDebug;
+
+  /// No description provided for @developerTestNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Test Notifications'**
+  String get developerTestNotifications;
+
+  /// No description provided for @developerTestSentryException.
+  ///
+  /// In en, this message translates to:
+  /// **'Test Sentry (Exception)'**
+  String get developerTestSentryException;
+
+  /// No description provided for @developerTestSentryUnhandled.
+  ///
+  /// In en, this message translates to:
+  /// **'Test Sentry (Unhandled)'**
+  String get developerTestSentryUnhandled;
+
+  /// No description provided for @developerTestSentryUnhandledDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Throw an unhandled error'**
+  String get developerTestSentryUnhandledDesc;
+
+  /// No description provided for @developerClearCacheDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear cached data'**
+  String get developerClearCacheDesc;
+
+  /// No description provided for @developerResetSettingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all settings to defaults'**
+  String get developerResetSettingsDesc;
+
+  /// No description provided for @developerAppVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'App Version'**
+  String get developerAppVersion;
+
+  /// No description provided for @developerBuildNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Build Number'**
+  String get developerBuildNumber;
+
+  /// No description provided for @developerFlutterVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Flutter Version'**
+  String get developerFlutterVersion;
+
+  /// No description provided for @developerDartVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Dart Version'**
+  String get developerDartVersion;
+
+  /// No description provided for @profilesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Profiles'**
+  String get profilesTitle;
+
+  /// No description provided for @profilesNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get profilesNone;
+
+  /// No description provided for @profilesDefaultDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use default configuration'**
+  String get profilesDefaultDescription;
+
+  /// No description provided for @profilesCustomTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Profiles'**
+  String get profilesCustomTitle;
+
+  /// No description provided for @profilesProfileName.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile Name'**
+  String get profilesProfileName;
+
+  /// No description provided for @profilesAddProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Profile'**
+  String get profilesAddProfile;
+
+  /// No description provided for @profilesEditProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Profile'**
+  String get profilesEditProfile;
+
+  /// No description provided for @profilesDeleteProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Profile'**
+  String get profilesDeleteProfile;
+
+  /// No description provided for @profilesNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. MiniMax, Kimi Code, DeepSeek'**
+  String get profilesNameHint;
+
+  /// No description provided for @profilesNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Name is required'**
+  String get profilesNameRequired;
+
+  /// No description provided for @profilesDescriptionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Description (optional)'**
+  String get profilesDescriptionLabel;
+
+  /// No description provided for @profilesEnvVarsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Environment Variables'**
+  String get profilesEnvVarsTitle;
+
+  /// No description provided for @profilesEnvKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Key'**
+  String get profilesEnvKeyLabel;
+
+  /// No description provided for @profilesEnvKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'VARIABLE_NAME'**
+  String get profilesEnvKeyHint;
+
+  /// No description provided for @profilesEnvValueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Value'**
+  String get profilesEnvValueLabel;
+
+  /// No description provided for @profilesScriptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Startup Shell Script'**
+  String get profilesScriptTitle;
+
+  /// No description provided for @profilesScriptLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Bash script'**
+  String get profilesScriptLabel;
+
+  /// No description provided for @profilesImportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from Shell Script'**
+  String get profilesImportTitle;
+
+  /// No description provided for @profilesImportButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get profilesImportButton;
+
+  /// No description provided for @profilesImportLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Shell script content'**
+  String get profilesImportLabel;
+
+  /// No description provided for @profilesImportParsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Parsed environment variables'**
+  String get profilesImportParsed;
+
+  /// No description provided for @profilesImportLabelShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from script'**
+  String get profilesImportLabelShort;
+
+  /// No description provided for @profilesQuickSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Setup'**
+  String get profilesQuickSetup;
+
+  /// No description provided for @profilesWizardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New AI Profile'**
+  String get profilesWizardTitle;
+
+  /// No description provided for @profilesWizardStep1.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Provider'**
+  String get profilesWizardStep1;
+
+  /// No description provided for @profilesWizardStep1Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select your AI provider'**
+  String get profilesWizardStep1Subtitle;
+
+  /// No description provided for @profilesWizardStep2.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure'**
+  String get profilesWizardStep2;
+
+  /// No description provided for @profilesWizardStep2Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter API key and settings'**
+  String get profilesWizardStep2Subtitle;
+
+  /// No description provided for @profilesWizardStep3.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get profilesWizardStep3;
+
+  /// No description provided for @profilesWizardStep3Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm your settings'**
+  String get profilesWizardStep3Subtitle;
+
+  /// No description provided for @profilesWizardSelectProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a provider to get started'**
+  String get profilesWizardSelectProvider;
+
+  /// No description provided for @profilesWizardBaseUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get profilesWizardBaseUrl;
+
+  /// No description provided for @profilesWizardModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get profilesWizardModel;
+
+  /// No description provided for @profilesWizardSmallFastModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Small Fast Model'**
+  String get profilesWizardSmallFastModel;
+
+  /// No description provided for @profilesWizardTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Timeout (ms)'**
+  String get profilesWizardTimeout;
+
+  /// No description provided for @profilesWizardTimeoutHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional - defaults to 300000ms'**
+  String get profilesWizardTimeoutHelp;
+
+  /// No description provided for @changelogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s New'**
+  String get changelogTitle;
+
+  /// No description provided for @changelogOpenGitHub.
+  ///
+  /// In en, this message translates to:
+  /// **'Open GitHub Releases'**
+  String get changelogOpenGitHub;
+
+  /// No description provided for @serverTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Server'**
+  String get serverTitle;
+
+  /// No description provided for @voiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get voiceTitle;
+
+  /// No description provided for @voiceLanguageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice Language'**
+  String get voiceLanguageTitle;
+
+  /// No description provided for @voiceTtsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Text-to-Speech'**
+  String get voiceTtsTitle;
+
+  /// No description provided for @voiceTtsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Read assistant messages aloud'**
+  String get voiceTtsSubtitle;
+
+  /// No description provided for @voiceTestTts.
+  ///
+  /// In en, this message translates to:
+  /// **'Test TTS'**
+  String get voiceTestTts;
+
+  /// No description provided for @voiceTestTtsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to hear a test phrase'**
+  String get voiceTestTtsSubtitle;
+
+  /// No description provided for @voiceSelectEngineHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select the TTS engine.'**
+  String get voiceSelectEngineHint;
+
+  /// No description provided for @voiceDefaultEngine.
+  ///
+  /// In en, this message translates to:
+  /// **'Default Engine'**
+  String get voiceDefaultEngine;
+
+  /// No description provided for @voiceDefaultEngineSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use system default'**
+  String get voiceDefaultEngineSubtitle;
+
+  /// No description provided for @voiceSelectLanguageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Language'**
+  String get voiceSelectLanguageTitle;
+
+  /// No description provided for @voiceLanguagesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} languages available'**
+  String voiceLanguagesCount(int count);
+
+  /// No description provided for @claudeConnectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Claude API'**
+  String get claudeConnectTitle;
+
+  /// No description provided for @claudeConnectTerminalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Claude'**
+  String get claudeConnectTerminalTitle;
+
+  /// No description provided for @claudeConnectManualLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'MANUAL API KEY ENTRY'**
+  String get claudeConnectManualLabel;
+
+  /// No description provided for @claudeConnectApiKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key'**
+  String get claudeConnectApiKeyLabel;
+
+  /// No description provided for @claudeConnectApiKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'sk-ant-...'**
+  String get claudeConnectApiKeyHint;
+
+  /// No description provided for @claudeConnectBaseUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL (optional)'**
+  String get claudeConnectBaseUrlLabel;
+
+  /// No description provided for @claudeConnectBaseUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://api.anthropic.com'**
+  String get claudeConnectBaseUrlHint;
+
+  /// No description provided for @claudeConnectButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get claudeConnectButton;
+
+  /// No description provided for @sessionFilesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Files'**
+  String get sessionFilesTitle;
+
+  /// No description provided for @sessionFilesNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Session not found'**
+  String get sessionFilesNotFound;
+
+  /// No description provided for @sessionFilesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No files yet'**
+  String get sessionFilesEmpty;
+
+  /// No description provided for @sessionInfoCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard'**
+  String get sessionInfoCopied;
+
+  /// No description provided for @sessionInfoUpdateCommandCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Update command copied'**
+  String get sessionInfoUpdateCommandCopied;
+
+  /// No description provided for @sessionInfoCliOutdated.
+  ///
+  /// In en, this message translates to:
+  /// **'CLI Version Outdated'**
+  String get sessionInfoCliOutdated;
+
+  /// No description provided for @sessionInfoSectionDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Session Details'**
+  String get sessionInfoSectionDetails;
+
+  /// No description provided for @sessionInfoLabelSessionId.
+  ///
+  /// In en, this message translates to:
+  /// **'Session ID'**
+  String get sessionInfoLabelSessionId;
+
+  /// No description provided for @sessionInfoLabelCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Created'**
+  String get sessionInfoLabelCreated;
+
+  /// No description provided for @sessionInfoLabelLastUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Last Updated'**
+  String get sessionInfoLabelLastUpdated;
+
+  /// No description provided for @sessionInfoLabelSequence.
+  ///
+  /// In en, this message translates to:
+  /// **'Sequence'**
+  String get sessionInfoLabelSequence;
+
+  /// No description provided for @sessionInfoSectionQuickActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Actions'**
+  String get sessionInfoSectionQuickActions;
+
+  /// No description provided for @sessionInfoActionViewMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'View Machine'**
+  String get sessionInfoActionViewMachine;
+
+  /// No description provided for @sessionInfoActionArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive Session'**
+  String get sessionInfoActionArchive;
+
+  /// No description provided for @sessionInfoActionDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Session'**
+  String get sessionInfoActionDelete;
+
+  /// No description provided for @sessionInfoSectionMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Metadata'**
+  String get sessionInfoSectionMetadata;
+
+  /// No description provided for @sessionInfoLabelHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Host'**
+  String get sessionInfoLabelHost;
+
+  /// No description provided for @sessionInfoLabelPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Path'**
+  String get sessionInfoLabelPath;
+
+  /// No description provided for @sessionInfoLabelMachineId.
+  ///
+  /// In en, this message translates to:
+  /// **'Machine ID'**
+  String get sessionInfoLabelMachineId;
+
+  /// No description provided for @sessionInfoLabelCliVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'CLI Version'**
+  String get sessionInfoLabelCliVersion;
+
+  /// No description provided for @sessionInfoLabelAiProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Provider'**
+  String get sessionInfoLabelAiProvider;
+
+  /// No description provided for @sessionInfoLabelClaudeSessionId.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Code Session ID'**
+  String get sessionInfoLabelClaudeSessionId;
+
+  /// No description provided for @sessionInfoLabelProcessId.
+  ///
+  /// In en, this message translates to:
+  /// **'Process ID'**
+  String get sessionInfoLabelProcessId;
+
+  /// No description provided for @sessionInfoLabelHappyHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Happy Home'**
+  String get sessionInfoLabelHappyHome;
+
+  /// No description provided for @sessionInfoLabelOs.
+  ///
+  /// In en, this message translates to:
+  /// **'OS'**
+  String get sessionInfoLabelOs;
+
+  /// No description provided for @sessionInfoActionCopyMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Metadata'**
+  String get sessionInfoActionCopyMetadata;
+
+  /// No description provided for @sessionInfoSectionAgentState.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent State'**
+  String get sessionInfoSectionAgentState;
+
+  /// No description provided for @sessionInfoLabelControlledByUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Controlled by user'**
+  String get sessionInfoLabelControlledByUser;
+
+  /// No description provided for @sessionInfoLabelPendingRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending requests'**
+  String get sessionInfoLabelPendingRequests;
+
+  /// No description provided for @sessionInfoSectionActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity'**
+  String get sessionInfoSectionActivity;
+
+  /// No description provided for @sessionInfoLabelThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking'**
+  String get sessionInfoLabelThinking;
+
+  /// No description provided for @sessionInfoLabelThinkingSince.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking since'**
+  String get sessionInfoLabelThinkingSince;
+
+  /// No description provided for @sessionInfoSectionTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools'**
+  String get sessionInfoSectionTools;
+
+  /// No description provided for @sessionInfoActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get sessionInfoActive;
+
+  /// No description provided for @sessionInfoInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get sessionInfoInactive;
+
+  /// No description provided for @commonId.
+  ///
+  /// In en, this message translates to:
+  /// **'ID'**
+  String get commonId;
+
+  /// No description provided for @commonCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Created'**
+  String get commonCreated;
+
+  /// No description provided for @commonUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated'**
+  String get commonUpdated;
+
+  /// No description provided for @commonSequence.
+  ///
+  /// In en, this message translates to:
+  /// **'Sequence'**
+  String get commonSequence;
+
+  /// No description provided for @artifactsContentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'CONTENT'**
+  String get artifactsContentLabel;
+
+  /// No description provided for @artifactsDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Artifact'**
+  String get artifactsDetail;
+
+  /// No description provided for @artifactsStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get artifactsStatus;
+
+  /// No description provided for @artifactsDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft'**
+  String get artifactsDraft;
+
+  /// No description provided for @artifactsFailedToDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete artifact'**
+  String get artifactsFailedToDelete;
+
+  /// No description provided for @artifactsFailedToSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save artifact'**
+  String get artifactsFailedToSave;
+
+  /// No description provided for @artifactsFailedToCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to create artifact'**
+  String get artifactsFailedToCreate;
+
+  /// No description provided for @artifactsSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search artifacts...'**
+  String get artifactsSearchHint;
+
+  /// No description provided for @artifactsNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching artifacts'**
+  String get artifactsNoResults;
+
+  /// No description provided for @machineHomeDir.
+  ///
+  /// In en, this message translates to:
+  /// **'Home Dir'**
+  String get machineHomeDir;
+
+  /// No description provided for @machineInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Info'**
+  String get machineInfo;
+
+  /// No description provided for @machineRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get machineRunning;
+
+  /// No description provided for @machineStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get machineStopped;
+
+  /// No description provided for @machineRemoveMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Machine'**
+  String get machineRemoveMachine;
+
+  /// No description provided for @machineOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'Online'**
+  String get machineOnline;
+
+  /// No description provided for @machineOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get machineOffline;
+
+  /// No description provided for @machineConnectedNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected now'**
+  String get machineConnectedNow;
+
+  /// No description provided for @machineLastSeenAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Last seen {time}'**
+  String machineLastSeenAt(String time);
+
+  /// No description provided for @machineSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions ({count})'**
+  String machineSessions(int count);
+
+  /// No description provided for @terminalSelectMachineHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select machine'**
+  String get terminalSelectMachineHint;
+
+  /// No description provided for @terminalSelectMachineError.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a machine'**
+  String get terminalSelectMachineError;
+
+  /// No description provided for @terminalIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'TERMINAL / SESSION ID'**
+  String get terminalIdLabel;
+
+  /// No description provided for @terminalIdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. main, dev, 1234'**
+  String get terminalIdHint;
+
+  /// No description provided for @terminalDisconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get terminalDisconnect;
+
+  /// No description provided for @terminalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal'**
+  String get terminalTitle;
+
+  /// No description provided for @terminalSendCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'Send command'**
+  String get terminalSendCommand;
+
+  /// No description provided for @commonClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get commonClear;
+
+  /// No description provided for @sessionsClearSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get sessionsClearSearch;
+
+  /// No description provided for @commonUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'unknown'**
+  String get commonUnknown;
+
+  /// No description provided for @commonTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try Again'**
+  String get commonTryAgain;
+
+  /// No description provided for @commonGoHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Go Home'**
+  String get commonGoHome;
+
+  /// No description provided for @commonPressBackAgainToExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Press back again to exit'**
+  String get commonPressBackAgainToExit;
+
+  /// No description provided for @commonUnsavedChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved Changes'**
+  String get commonUnsavedChanges;
+
+  /// No description provided for @commonLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave'**
+  String get commonLeave;
+
+  /// No description provided for @commonStay.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay'**
+  String get commonStay;
+
+  /// No description provided for @commonUnsentMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsent Message'**
+  String get commonUnsentMessage;
+
+  /// No description provided for @commonOperationInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation In Progress'**
+  String get commonOperationInProgress;
+
+  /// No description provided for @terminalEnterCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter command...'**
+  String get terminalEnterCommand;
+
+  /// No description provided for @commandSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search commands...'**
+  String get commandSearchHint;
+
+  /// No description provided for @commandCategorySessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions'**
+  String get commandCategorySessions;
+
+  /// No description provided for @commandCategoryNavigation.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigation'**
+  String get commandCategoryNavigation;
+
+  /// No description provided for @commandNewSessionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Session'**
+  String get commandNewSessionTitle;
+
+  /// No description provided for @commandNewSessionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a new chat session'**
+  String get commandNewSessionSubtitle;
+
+  /// No description provided for @commandViewSessionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'View All Sessions'**
+  String get commandViewSessionsTitle;
+
+  /// No description provided for @commandViewSessionsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse your chat history'**
+  String get commandViewSessionsSubtitle;
+
+  /// No description provided for @commandSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get commandSettingsTitle;
+
+  /// No description provided for @commandSettingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure your preferences'**
+  String get commandSettingsSubtitle;
+
+  /// No description provided for @commandAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get commandAccountTitle;
+
+  /// No description provided for @commandAccountSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage your account'**
+  String get commandAccountSubtitle;
+
+  /// No description provided for @commandConnectDeviceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Device'**
+  String get commandConnectDeviceTitle;
+
+  /// No description provided for @commandConnectDeviceSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect a new device via web'**
+  String get commandConnectDeviceSubtitle;
+
+  /// No description provided for @commandInboxTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox'**
+  String get commandInboxTitle;
+
+  /// No description provided for @commandInboxSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'View your notifications'**
+  String get commandInboxSubtitle;
+
+  /// No description provided for @commandArtifactsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Artifacts'**
+  String get commandArtifactsTitle;
+
+  /// No description provided for @commandArtifactsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse your artifacts'**
+  String get commandArtifactsSubtitle;
+
+  /// No description provided for @commandZenModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Zen Mode'**
+  String get commandZenModeTitle;
+
+  /// No description provided for @commandZenModeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus mode with todos'**
+  String get commandZenModeSubtitle;
+
+  /// No description provided for @commandTerminalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal'**
+  String get commandTerminalTitle;
+
+  /// No description provided for @commandTerminalSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Access terminal sessions'**
+  String get commandTerminalSubtitle;
+
+  /// No description provided for @commandFriendsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Friends'**
+  String get commandFriendsTitle;
+
+  /// No description provided for @commandFriendsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage your friends'**
+  String get commandFriendsSubtitle;
+
+  /// No description provided for @networkInspectorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Network Inspector ({count})'**
+  String networkInspectorTitle(int count);
+
+  /// No description provided for @networkInspectorCopyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy all'**
+  String get networkInspectorCopyAll;
+
+  /// No description provided for @networkInspectorNoRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No requests yet'**
+  String get networkInspectorNoRequests;
+
+  /// No description provided for @networkInspectorLabelRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Requests'**
+  String get networkInspectorLabelRequests;
+
+  /// No description provided for @networkInspectorLabelSent.
+  ///
+  /// In en, this message translates to:
+  /// **'↑ Sent'**
+  String get networkInspectorLabelSent;
+
+  /// No description provided for @networkInspectorLabelReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'↓ Received'**
+  String get networkInspectorLabelReceived;
+
+  /// No description provided for @networkInspectorLabelDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get networkInspectorLabelDuration;
+
+  /// No description provided for @networkInspectorLabelSentBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent (body)'**
+  String get networkInspectorLabelSentBody;
+
+  /// No description provided for @networkInspectorLabelReceivedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Received (body)'**
+  String get networkInspectorLabelReceivedBody;
+
+  /// No description provided for @developerSentToSentry.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent to Sentry: {eventId}'**
+  String developerSentToSentry(String eventId);
+
+  /// No description provided for @chatHowCanIHelpToday.
+  ///
+  /// In en, this message translates to:
+  /// **'How can I help you today?'**
+  String get chatHowCanIHelpToday;
+
+  /// No description provided for @chatSuggestionWriteCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Write code'**
+  String get chatSuggestionWriteCode;
+
+  /// No description provided for @chatSuggestionDebugIssue.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug an issue'**
+  String get chatSuggestionDebugIssue;
+
+  /// No description provided for @chatSuggestionExplainCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Explain code'**
+  String get chatSuggestionExplainCode;
+
+  /// No description provided for @chatSuggestionReviewPr.
+  ///
+  /// In en, this message translates to:
+  /// **'Review PR'**
+  String get chatSuggestionReviewPr;
+
+  /// No description provided for @pickRecentPaths.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Paths'**
+  String get pickRecentPaths;
+
+  /// No description provided for @pickSuggestedPaths.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested Paths'**
+  String get pickSuggestedPaths;
+
+  /// No description provided for @pickProfileNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get pickProfileNone;
+
+  /// No description provided for @pickProfileNoneDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Use default configuration'**
+  String get pickProfileNoneDesc;
+
+  /// No description provided for @pickProfileBuiltInSection.
+  ///
+  /// In en, this message translates to:
+  /// **'BUILT-IN'**
+  String get pickProfileBuiltInSection;
+
+  /// No description provided for @pickProfileCustomSection.
+  ///
+  /// In en, this message translates to:
+  /// **'CUSTOM'**
+  String get pickProfileCustomSection;
+
+  /// No description provided for @pickProfileCustomDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom profile'**
+  String get pickProfileCustomDescription;
+
+  /// No description provided for @agentFallbackDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent'**
+  String get agentFallbackDescription;
+
+  /// No description provided for @agentNoMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet'**
+  String get agentNoMessages;
+
+  /// No description provided for @agentFallbackTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Task'**
+  String get agentFallbackTask;
+
+  /// No description provided for @agentsListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Agents'**
+  String get agentsListTitle;
+
+  /// No description provided for @agentsListEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No agents running'**
+  String get agentsListEmpty;
+
+  /// No description provided for @fileViewerNoContent.
+  ///
+  /// In en, this message translates to:
+  /// **'No content available'**
+  String get fileViewerNoContent;
+
+  /// No description provided for @artifactsJustNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Just now'**
+  String get artifactsJustNow;
+
+  /// No description provided for @artifactsYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get artifactsYesterday;
+
+  /// No description provided for @artifactsMinutesAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n}m ago'**
+  String artifactsMinutesAgo(int n);
+
+  /// No description provided for @artifactsHoursAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n}h ago'**
+  String artifactsHoursAgo(int n);
+
+  /// No description provided for @artifactsDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n}d ago'**
+  String artifactsDaysAgo(int n);
+
+  /// No description provided for @userFallbackName.
+  ///
+  /// In en, this message translates to:
+  /// **'this user'**
+  String get userFallbackName;
+
+  /// No description provided for @commandCategoryRecentSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Sessions'**
+  String get commandCategoryRecentSessions;
+
+  /// No description provided for @featuresSectionExperiments.
+  ///
+  /// In en, this message translates to:
+  /// **'Experiments'**
+  String get featuresSectionExperiments;
+
+  /// No description provided for @featuresSectionDisplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Display'**
+  String get featuresSectionDisplay;
+
+  /// No description provided for @featuresCompactMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact Mode'**
+  String get featuresCompactMode;
+
+  /// No description provided for @featuresShowLineNumbers.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Line Numbers'**
+  String get featuresShowLineNumbers;
+
+  /// No description provided for @featuresWrapLinesInDiffs.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrap Lines in Diffs'**
+  String get featuresWrapLinesInDiffs;
+
+  /// No description provided for @serverCheckingConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking connection...'**
+  String get serverCheckingConnection;
+
+  /// No description provided for @serverConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get serverConnected;
+
+  /// No description provided for @serverConnectionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection failed'**
+  String get serverConnectionFailed;
+
+  /// No description provided for @serverVerifyingServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Verifying server...'**
+  String get serverVerifyingServer;
+
+  /// No description provided for @serverCustomUrlSectionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'CUSTOM SERVER URL'**
+  String get serverCustomUrlSectionLabel;
+
+  /// No description provided for @machinesNoMachines.
+  ///
+  /// In en, this message translates to:
+  /// **'No machines'**
+  String get machinesNoMachines;
+
+  /// No description provided for @voiceAutoDetect.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-detect'**
+  String get voiceAutoDetect;
+
+  /// No description provided for @inboxTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox'**
+  String get inboxTitle;
+
+  /// No description provided for @accountBackupKeyCopiedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup key copied to clipboard'**
+  String get accountBackupKeyCopiedToClipboard;
+
+  /// No description provided for @accountBackupKeyDialogContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Save this key in a safe place. You can use it to restore your account.'**
+  String get accountBackupKeyDialogContent;
+
+  /// No description provided for @accountInvalidKeyFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid key format. Use XXXXX-XXXXX-XXXXX-XXXXX-XXXXX'**
+  String get accountInvalidKeyFormat;
+
+  /// No description provided for @accountLinkedDevicesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage devices linked to your account'**
+  String get accountLinkedDevicesSubtitle;
+
+  /// No description provided for @accountLinkNewDeviceSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate QR code for another device'**
+  String get accountLinkNewDeviceSubtitle;
+
+  /// No description provided for @accountRestoreAccountSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recover account from backup key'**
+  String get accountRestoreAccountSubtitle;
+
+  /// No description provided for @accountRestoreInstruction.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your backup key to restore your account.'**
+  String get accountRestoreInstruction;
+
+  /// No description provided for @accountScanInstruction.
+  ///
+  /// In en, this message translates to:
+  /// **'Point your camera at the QR code displayed on the new device'**
+  String get accountScanInstruction;
+
+  /// No description provided for @accountShowBackupKeySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'View your account recovery key'**
+  String get accountShowBackupKeySubtitle;
+
+  /// No description provided for @accountShowQRInstructions.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Open Happy on the new device\n2. Tap \"Link or Restore Account\"\n3. Scan this QR code'**
+  String get accountShowQRInstructions;
+
+  /// No description provided for @accountUnlinkConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to unlink this device?'**
+  String get accountUnlinkConfirm;
+
+  /// No description provided for @artifactsEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create your first artifact using the + button.'**
+  String get artifactsEmptySubtitle;
+
+  /// No description provided for @artifactsEnterContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter new content'**
+  String get artifactsEnterContent;
+
+  /// No description provided for @artifactsEnterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a new title'**
+  String get artifactsEnterTitle;
+
+  /// No description provided for @artifactsEnterTitleOrContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a title or content.'**
+  String get artifactsEnterTitleOrContent;
+
+  /// No description provided for @artifactsNoResultsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Try a different search term.'**
+  String get artifactsNoResultsSubtitle;
+
+  /// No description provided for @authConnectionError.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection failed. Please check your server URL and try again.'**
+  String get authConnectionError;
+
+  /// No description provided for @authDeviceLinkedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Device linked successfully!'**
+  String get authDeviceLinkedSuccess;
+
+  /// No description provided for @authErrorDetailsCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Error details copied'**
+  String get authErrorDetailsCopied;
+
+  /// No description provided for @authFailedToLinkDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to link device'**
+  String get authFailedToLinkDevice;
+
+  /// No description provided for @authInvalidKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid key. Use backup key (11 groups), base64, base64url, or 64-char hex.'**
+  String get authInvalidKey;
+
+  /// No description provided for @authPleaseEnterSecretKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a secret key'**
+  String get authPleaseEnterSecretKey;
+
+  /// No description provided for @authProcessingDeviceLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing device link...'**
+  String get authProcessingDeviceLink;
+
+  /// No description provided for @authSecretKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup key / base64 / hex'**
+  String get authSecretKeyHint;
+
+  /// No description provided for @authSecretKeyInstruction.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter backup key (11 groups like XXXXX-XXXXX...), base64/base64url, or 64-char hex key.'**
+  String get authSecretKeyInstruction;
+
+  /// No description provided for @authServerUrlSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL saved and applied.'**
+  String get authServerUrlSaved;
+
+  /// No description provided for @authSignInFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Please sign in first to approve device linking'**
+  String get authSignInFirst;
+
+  /// No description provided for @authSignInWithSecretKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign In with Secret Key'**
+  String get authSignInWithSecretKey;
+
+  /// No description provided for @authSomethingWentWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please sign in again.'**
+  String get authSomethingWentWrong;
+
+  /// No description provided for @authWaitingForApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for approval...'**
+  String get authWaitingForApproval;
+
+  /// No description provided for @chatBeginningOfConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Beginning of conversation'**
+  String get chatBeginningOfConversation;
+
+  /// No description provided for @chatFailedToDeleteSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete session'**
+  String get chatFailedToDeleteSession;
+
+  /// No description provided for @chatLastSeenJustNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Last seen just now'**
+  String get chatLastSeenJustNow;
+
+  /// No description provided for @chatPermissionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission required'**
+  String get chatPermissionRequired;
+
+  /// No description provided for @chatSuggestionDebugIssueDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Find and fix a bug in your code'**
+  String get chatSuggestionDebugIssueDesc;
+
+  /// No description provided for @chatSuggestionExplainCodeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Understand how something works'**
+  String get chatSuggestionExplainCodeDesc;
+
+  /// No description provided for @chatSuggestionReviewPrDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Get feedback on your changes'**
+  String get chatSuggestionReviewPrDesc;
+
+  /// No description provided for @chatSuggestionWriteCodeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate a function or component'**
+  String get chatSuggestionWriteCodeDesc;
+
+  /// No description provided for @chatUnsentMessageContent.
+  ///
+  /// In en, this message translates to:
+  /// **'You have an unsent message. Are you sure you want to leave?'**
+  String get chatUnsentMessageContent;
+
+  /// No description provided for @claudeCodeLimitsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate limits for Claude Code on your machines'**
+  String get claudeCodeLimitsSubtitle;
+
+  /// No description provided for @claudeConnectCliInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'API key management is handled via the CLI. Run: happy connect claude'**
+  String get claudeConnectCliInfo;
+
+  /// No description provided for @claudeConnectDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'Your API key is stored locally on this device only.'**
+  String get claudeConnectDisclaimer;
+
+  /// No description provided for @claudeConnectManualDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Alternatively, enter your Anthropic API key directly.'**
+  String get claudeConnectManualDesc;
+
+  /// No description provided for @claudeConnectTerminalSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Run the following command in your terminal:'**
+  String get claudeConnectTerminalSubtitle;
+
+  /// No description provided for @claudeLimitsNoMachinesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect a machine to check Claude Code limits'**
+  String get claudeLimitsNoMachinesSubtitle;
+
+  /// No description provided for @claudeLimitsNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Code limits not available'**
+  String get claudeLimitsNotAvailable;
+
+  /// No description provided for @claudeLimitsNotAvailableSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Make sure Claude Code is installed and authenticated on the selected machine'**
+  String get claudeLimitsNotAvailableSubtitle;
+
+  /// No description provided for @commonOperationInProgressConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'An operation is in progress. Are you sure you want to leave?'**
+  String get commonOperationInProgressConfirm;
+
+  /// No description provided for @commonUnsavedChangesContent.
+  ///
+  /// In en, this message translates to:
+  /// **'You have unsaved changes. Are you sure you want to leave?'**
+  String get commonUnsavedChangesContent;
+
+  /// No description provided for @commonUnsavedChangesMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You have unsaved changes. Are you sure you want to leave?'**
+  String get commonUnsavedChangesMessage;
+
+  /// No description provided for @commonUnsentMessageConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'You have an unsent message. Are you sure you want to leave?'**
+  String get commonUnsentMessageConfirm;
+
+  /// No description provided for @developerClearCacheConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to clear all cached data?'**
+  String get developerClearCacheConfirm;
+
+  /// No description provided for @developerEncryptionDebugDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'View encryption keys and certificates'**
+  String get developerEncryptionDebugDesc;
+
+  /// No description provided for @developerModeDisabledDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled - Tap 10 times to enable'**
+  String get developerModeDisabledDesc;
+
+  /// No description provided for @developerNetworkInspectorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'View API requests and responses'**
+  String get developerNetworkInspectorDesc;
+
+  /// No description provided for @developerResetSettingsConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to reset all settings to defaults?'**
+  String get developerResetSettingsConfirm;
+
+  /// No description provided for @developerSessionDebugDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'View active sessions and connections'**
+  String get developerSessionDebugDesc;
+
+  /// No description provided for @developerTestNotificationsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Send a test push notification'**
+  String get developerTestNotificationsDesc;
+
+  /// No description provided for @developerTestSentryExceptionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture a test exception via Sentry'**
+  String get developerTestSentryExceptionDesc;
+
+  /// No description provided for @devLogsClearConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to clear all logs?'**
+  String get devLogsClearConfirm;
+
+  /// No description provided for @devLogsEmptyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs will appear here as they are generated'**
+  String get devLogsEmptyDesc;
+
+  /// No description provided for @devLogsOnlyAvailableInDevMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs are only available when Developer Mode is enabled.\n\nGo to Settings and enable Developer Mode to view logs.'**
+  String get devLogsOnlyAvailableInDevMode;
+
+  /// No description provided for @featuresAlwaysShowContextSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Always Show Context Size'**
+  String get featuresAlwaysShowContextSize;
+
+  /// No description provided for @featuresAlwaysShowContextSizeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Show context window usage'**
+  String get featuresAlwaysShowContextSizeDesc;
+
+  /// No description provided for @featuresCompactModeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Reduce spacing in chat messages'**
+  String get featuresCompactModeDesc;
+
+  /// No description provided for @featuresEnhancedSessionWizard.
+  ///
+  /// In en, this message translates to:
+  /// **'Enhanced Session Wizard'**
+  String get featuresEnhancedSessionWizard;
+
+  /// No description provided for @featuresEnhancedSessionWizardDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the improved session creation flow'**
+  String get featuresEnhancedSessionWizardDesc;
+
+  /// No description provided for @featuresExperimentalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Experimental Features'**
+  String get featuresExperimentalTitle;
+
+  /// No description provided for @featuresHideInactiveSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide Inactive Sessions'**
+  String get featuresHideInactiveSessions;
+
+  /// No description provided for @featuresHideInactiveSessionsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide sessions not used recently'**
+  String get featuresHideInactiveSessionsDesc;
+
+  /// No description provided for @featuresShowLineNumbersDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Display line numbers in code blocks'**
+  String get featuresShowLineNumbersDesc;
+
+  /// No description provided for @featuresWrapLinesInDiffsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrap long lines in diff views'**
+  String get featuresWrapLinesInDiffsDesc;
+
+  /// No description provided for @fileViewerContentError.
+  ///
+  /// In en, this message translates to:
+  /// **'The file content could not be loaded.'**
+  String get fileViewerContentError;
+
+  /// No description provided for @friendsEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search for people to connect with.'**
+  String get friendsEmptySubtitle;
+
+  /// No description provided for @friendsNoRequestsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Friend requests will appear here'**
+  String get friendsNoRequestsSubtitle;
+
+  /// No description provided for @inboxConnectFriendsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect with friends to start sharing sessions.'**
+  String get inboxConnectFriendsSubtitle;
+
+  /// No description provided for @machineLastKnownStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Last Known Status'**
+  String get machineLastKnownStatus;
+
+  /// No description provided for @networkInspectorClearConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to clear all requests?'**
+  String get networkInspectorClearConfirm;
+
+  /// No description provided for @networkInspectorCopyInstruction.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy the log and send it to developers to investigate network usage.'**
+  String get networkInspectorCopyInstruction;
+
+  /// No description provided for @networkInspectorNoRequestsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'HTTP requests will appear here as they happen.'**
+  String get networkInspectorNoRequestsSubtitle;
+
+  /// No description provided for @permissionExpiredNoPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission expired \\u2014 no longer pending'**
+  String get permissionExpiredNoPending;
+
+  /// No description provided for @permissionExpiredRestarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission expired \\u2014 session was restarted'**
+  String get permissionExpiredRestarted;
+
+  /// No description provided for @pickPathHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter path (e.g. /home/user/projects)'**
+  String get pickPathHint;
+
+  /// No description provided for @pickProfileChooseBackend.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an AI backend profile for your session.'**
+  String get pickProfileChooseBackend;
+
+  /// No description provided for @profilesAddProfileSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Start from scratch with empty configuration'**
+  String get profilesAddProfileSubtitle;
+
+  /// No description provided for @profilesDescriptionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. MiniMax via OpenAI-compatible API'**
+  String get profilesDescriptionHint;
+
+  /// No description provided for @profilesEnvVarsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No environment variables. Tap Add to set one.'**
+  String get profilesEnvVarsEmpty;
+
+  /// No description provided for @profilesEnvVarsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Set ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN, ANTHROPIC_MODEL, etc.'**
+  String get profilesEnvVarsHint;
+
+  /// No description provided for @profilesImportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the contents of a shell script containing export statements (e.g., setup-hunter-alpha.sh)'**
+  String get profilesImportHint;
+
+  /// No description provided for @profilesImportNoVars.
+  ///
+  /// In en, this message translates to:
+  /// **'No environment variables found in the script.'**
+  String get profilesImportNoVars;
+
+  /// No description provided for @profilesQuickSetupHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a provider to pre-fill configuration'**
+  String get profilesQuickSetupHint;
+
+  /// No description provided for @profilesScriptDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs before each session starts. Use to export variables or configure the environment.'**
+  String get profilesScriptDescription;
+
+  /// No description provided for @profilesWizardReviewHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Review your settings and tap Save to create the profile.'**
+  String get profilesWizardReviewHint;
+
+  /// No description provided for @profilesWizardSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Step-by-step setup with guided configuration'**
+  String get profilesWizardSubtitle;
+
+  /// No description provided for @serverCurrentlyUsingCustomUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently using a custom server URL.'**
+  String get serverCurrentlyUsingCustomUrl;
+
+  /// No description provided for @serverUrlCannotBeEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL cannot be empty'**
+  String get serverUrlCannotBeEmpty;
+
+  /// No description provided for @sessionFilesEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Files modified during the session will appear here.'**
+  String get sessionFilesEmptySubtitle;
+
+  /// No description provided for @sessionsArchiveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This will stop the running session. Are you sure?'**
+  String get sessionsArchiveConfirm;
+
+  /// No description provided for @sessionsDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This will permanently delete the session and all its messages.'**
+  String get sessionsDeleteConfirm;
+
+  /// No description provided for @sessionsGroupByFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Group by folder'**
+  String get sessionsGroupByFolder;
+
+  /// No description provided for @sessionsNewDialogPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'New session dialog would go here'**
+  String get sessionsNewDialogPlaceholder;
+
+  /// No description provided for @sessionsNoSearchResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No sessions match your search'**
+  String get sessionsNoSearchResults;
+
+  /// No description provided for @settingsClaudeDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude disconnected'**
+  String get settingsClaudeDisconnected;
+
+  /// No description provided for @settingsCompactSessionViewSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use smaller cards for sessions'**
+  String get settingsCompactSessionViewSubtitle;
+
+  /// No description provided for @settingsConfigureVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure ElevenLabs voice'**
+  String get settingsConfigureVoice;
+
+  /// No description provided for @settingsConfigureVoiceAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure voice assistant'**
+  String get settingsConfigureVoiceAssistant;
+
+  /// No description provided for @settingsDeveloperOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer Options'**
+  String get settingsDeveloperOptions;
+
+  /// No description provided for @settingsDeveloperTapToEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap 10 times to enable'**
+  String get settingsDeveloperTapToEnable;
+
+  /// No description provided for @settingsFindFriendsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search and send friend requests'**
+  String get settingsFindFriendsSubtitle;
+
+  /// No description provided for @settingsGitHubDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'GitHub disconnected'**
+  String get settingsGitHubDisconnected;
+
+  /// No description provided for @settingsNotConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get settingsNotConnected;
+
+  /// No description provided for @settingsOpenInboxSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'View updates and requests'**
+  String get settingsOpenInboxSubtitle;
+
+  /// No description provided for @settingsServerResetConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset the server URL to the default? This cannot be undone.'**
+  String get settingsServerResetConfirm;
+
+  /// No description provided for @settingsShowFlavorIconsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show AI provider icons in avatars'**
+  String get settingsShowFlavorIconsSubtitle;
+
+  /// No description provided for @settingsTextToSpeechSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Read assistant messages aloud'**
+  String get settingsTextToSpeechSubtitle;
+
+  /// No description provided for @settingsUserCertificatesInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'User certificates are installed'**
+  String get settingsUserCertificatesInstalled;
+
+  /// No description provided for @settingsVoiceSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice Settings'**
+  String get settingsVoiceSettings;
+
+  /// No description provided for @terminalConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Terminal'**
+  String get terminalConnect;
+
+  /// No description provided for @terminalConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal connected.'**
+  String get terminalConnected;
+
+  /// No description provided for @terminalConnectInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to a terminal session running on one of your machines.'**
+  String get terminalConnectInfo;
+
+  /// No description provided for @terminalDisconnectConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to disconnect from the terminal?'**
+  String get terminalDisconnectConfirm;
+
+  /// No description provided for @terminalIdError.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a terminal or session ID'**
+  String get terminalIdError;
+
+  /// No description provided for @terminalNoMachines.
+  ///
+  /// In en, this message translates to:
+  /// **'No machines connected. Start the Happy CLI on a machine first.'**
+  String get terminalNoMachines;
+
+  /// No description provided for @terminalOutputPending.
+  ///
+  /// In en, this message translates to:
+  /// **'[output pending]'**
+  String get terminalOutputPending;
+
+  /// No description provided for @voiceSelectLanguageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select the language for voice output.'**
+  String get voiceSelectLanguageHint;
+
+  /// No description provided for @featuresMarkdownCopyV2.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown Copy V2'**
+  String get featuresMarkdownCopyV2;
+
+  /// No description provided for @featuresMarkdownCopyV2Desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Use improved markdown copying'**
+  String get featuresMarkdownCopyV2Desc;
+
+  /// No description provided for @artifactsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 artifact} other{{count} artifacts}}'**
+  String artifactsCount(int count);
+
+  /// No description provided for @authErrorLinkingDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Error linking device: {error}'**
+  String authErrorLinkingDevice(String error);
+
+  /// No description provided for @chatLastSeenMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Last seen {minutes}m ago'**
+  String chatLastSeenMinutes(int minutes);
+
+  /// No description provided for @chatLastSeenHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Last seen {hours}h ago'**
+  String chatLastSeenHours(int hours);
+
+  /// No description provided for @chatLastSeenDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Last seen {days}d ago'**
+  String chatLastSeenDays(int days);
+
+  /// No description provided for @chatFailedToClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to clear: {error}'**
+  String chatFailedToClear(String error);
+
+  /// No description provided for @devLogsCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} log entries copied'**
+  String devLogsCopied(int count);
+
+  /// No description provided for @friendsRemoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name} from your friends?'**
+  String friendsRemoveConfirm(String name);
+
+  /// No description provided for @machineRemoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to remove \"{name}\"?'**
+  String machineRemoveConfirm(String name);
+
+  /// No description provided for @machineDeleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete machine ({statusCode})'**
+  String machineDeleteFailed(int statusCode);
+
+  /// No description provided for @sessionsSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 selected} other{{count} selected}}'**
+  String sessionsSelectedCount(int count);
+
+  /// No description provided for @sessionsArchiveNConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Archive 1 session?} other{Archive {count} sessions?}}'**
+  String sessionsArchiveNConfirm(int count);
+
+  /// No description provided for @sessionsArchivePartialFail.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 session} other{{count} sessions}} failed to archive'**
+  String sessionsArchivePartialFail(int count);
+
+  /// No description provided for @sessionsDeleteNConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Delete 1 session?} other{Delete {count} sessions?}} This cannot be undone.'**
+  String sessionsDeleteNConfirm(int count);
+
+  /// No description provided for @sessionsDeletePartialFail.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 session} other{{count} sessions}} failed to delete'**
+  String sessionsDeletePartialFail(int count);
+
+  /// No description provided for @accountLastActive.
+  ///
+  /// In en, this message translates to:
+  /// **'{platform} • Last active {time}'**
+  String accountLastActive(String platform, String time);
+
+  /// No description provided for @profilesDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete \"{name}\"?'**
+  String profilesDeleteConfirm(String name);
+
+  /// No description provided for @settingsFailedToDisconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to disconnect: {error}'**
+  String settingsFailedToDisconnect(String error);
+
+  /// No description provided for @settingsConnectedAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected as @{login}'**
+  String settingsConnectedAs(String login);
+
+  /// No description provided for @settingsFailedToStartOAuth.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to start OAuth: {error}'**
+  String settingsFailedToStartOAuth(String error);
+
+  /// No description provided for @appearanceThemeBasedOnDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Based on your device\'s {mode} appearance setting.'**
+  String appearanceThemeBasedOnDevice(String mode);
 }
 
 class _AppLocalizationsDelegate
@@ -4167,7 +8689,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['de', 'en', 'es', 'fr'].contains(locale.languageCode);
+      <String>['en'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -4176,14 +8698,8 @@ class _AppLocalizationsDelegate
 AppLocalizations lookupAppLocalizations(Locale locale) {
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'de':
-      return AppLocalizationsDe();
     case 'en':
       return AppLocalizationsEn();
-    case 'es':
-      return AppLocalizationsEs();
-    case 'fr':
-      return AppLocalizationsFr();
   }
 
   throw FlutterError(

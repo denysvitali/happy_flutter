@@ -177,7 +177,7 @@ Widget _buildApp(
       theme: _testLightTheme(),
       darkTheme: _testDarkTheme(),
       themeMode: dark ? ThemeMode.dark : ThemeMode.light,
-      localizationsDelegates: const [AppLocalizationsDelegate()],
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       debugShowCheckedModeBanner: false,
       home: child,
     ),
@@ -661,7 +661,7 @@ void main() {
         theme: _testLightTheme(),
         darkTheme: _testDarkTheme(),
         themeMode: dark ? ThemeMode.dark : ThemeMode.light,
-        localizationsDelegates: const [AppLocalizationsDelegate()],
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
         debugShowCheckedModeBanner: false,
         home: const _MockChatView(),
       );

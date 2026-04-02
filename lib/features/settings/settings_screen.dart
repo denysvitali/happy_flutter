@@ -33,7 +33,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final themeMode = ref.watch(
       settingsNotifierProvider.select((s) => s.themeMode),
     );
-    final locale = ref.watch(settingsNotifierProvider.select((s) => s.locale));
     final showFlavorIcons = ref.watch(
       settingsNotifierProvider.select((s) => s.showFlavorIcons),
     );
@@ -80,7 +79,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _buildAppearanceSection(
             context,
             themeMode: themeMode,
-            locale: locale,
             showFlavorIcons: showFlavorIcons,
             avatarStyle: avatarStyle,
             ref: ref,
@@ -227,7 +225,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildAppearanceSection(
     BuildContext context, {
     required String themeMode,
-    required String locale,
     required bool showFlavorIcons,
     required String avatarStyle,
     required WidgetRef ref,
@@ -242,14 +239,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           onChanged: (mode) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('themeMode', mode),
-        ),
-        SettingsNavRow(
-          icon: Icons.language,
-          title: l10n.settingsLanguage,
-          subtitle: locale.isEmpty
-              ? l10n.settingsLanguageAutomatic
-              : _getLocaleDisplayName(locale),
-          onTap: () => context.pushNamed('language'),
         ),
         SettingsToggleRow(
           icon: Icons.emoji_emotions_outlined,
@@ -268,16 +257,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ],
     );
-  }
-
-  String _getLocaleDisplayName(String localeString) {
-    if (localeString.isEmpty) return '';
-    final parts = localeString.split('_');
-    if (parts.length == 2) {
-      final first = '${parts[0][0].toUpperCase()}${parts[0].substring(1)}';
-      return '$first (${parts[1]})';
-    }
-    return '${parts[0][0].toUpperCase()}${parts[0].substring(1)}';
   }
 
   Widget _buildBehaviorSection(

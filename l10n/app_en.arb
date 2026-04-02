@@ -4,11 +4,9 @@
   "appVersion": "Version",
   "appLoading": "Loading...",
   "appRetry": "Retry",
-
   "@appTitle": {
     "description": "App title"
   },
-
   "commonCancel": "Cancel",
   "commonOk": "OK",
   "commonYes": "Yes",
@@ -37,23 +35,18 @@
   "commonLoading": "Loading...",
   "commonDeleteConfirmTitle": "Confirm Deletion",
   "commonDeleteConfirmMessage": "Are you sure you want to delete this?",
-
   "@commonCancel": {
     "description": "Common cancel button"
   },
-
   "tabsInbox": "Inbox",
   "tabsSessions": "Terminals",
   "tabsSettings": "Settings",
-
   "@tabsInbox": {
     "description": "Tab navigation label for Inbox"
   },
-
   "inboxEmptyTitle": "Empty Inbox",
   "inboxEmptyDescription": "Connect with friends to start sharing sessions",
   "inboxUpdates": "Updates",
-
   "statusConnected": "Connected",
   "statusConnecting": "Connecting",
   "statusDisconnected": "Disconnected",
@@ -64,7 +57,6 @@
   "statusUnknown": "Unknown",
   "statusPermissionRequired": "Permission required",
   "statusLastSeen": "Last seen {time}",
-
   "@statusConnected": {
     "description": "Connection status",
     "placeholders": {
@@ -73,11 +65,9 @@
       }
     }
   },
-
   "timeJustNow": "just now",
   "timeMinutesAgo": "{count, plural, =1 {1 minute ago} other {{count} minutes ago}}",
   "timeHoursAgo": "{count, plural, =1 {1 hour ago} other {{count} hours ago}}",
-
   "@timeMinutesAgo": {
     "description": "Time ago in minutes",
     "placeholders": {
@@ -86,7 +76,6 @@
       }
     }
   },
-
   "authTitle": "Authenticate",
   "authAccessDenied": "Access denied",
   "authAuthenticationFailed": "Authentication failed",
@@ -100,17 +89,14 @@
   "authCameraPermissionsRequired": "Camera permissions are required to scan QR codes",
   "authExchangingTokens": "Exchanging tokens...",
   "authClaudeAuthSuccess": "Successfully connected to Claude",
-
   "@authTitle": {
     "description": "Authentication screen title"
   },
-
   "welcomeTitle": "Codex and Claude Code mobile client",
   "welcomeSubtitle": "End-to-end encrypted and your account is stored only on your device.",
   "welcomeCreateAccount": "Create account",
   "welcomeLinkOrRestoreAccount": "Link or restore account",
   "welcomeLoginWithMobileApp": "Login with mobile app",
-
   "sessionTitle": "Sessions",
   "sessionNewSession": "New Session",
   "sessionStartNewToGetStarted": "Start a new session to get started",
@@ -133,49 +119,28 @@
   "sessionNotConnectedToServer": "Not connected to server. Check your internet connection.",
   "sessionNoMachineSelected": "Please select a machine to start the session",
   "sessionNoPathSelected": "Please select a directory to start the session in",
-
   "@sessionTitle": {
     "description": "Sessions screen title"
   },
-
   "sessionTypeTitle": "Session Type",
   "sessionTypeSimple": "Simple",
   "sessionTypeWorktree": "Worktree",
   "sessionTypeComingSoon": "Coming soon",
-
-  "newSessionTitle": "Start New Session",
+  "newSessionTitle": "New Session",
   "newSessionNoMachinesFound": "No machines found. Start a Happy session on your computer first.",
   "newSessionAllMachinesOffline": "All machines appear offline",
   "newSessionMachineDetails": "View machine details →",
   "newSessionDirectoryDoesNotExist": "Directory Not Found",
   "newSessionCreateDirectoryConfirm": "The directory {directory} does not exist. Do you want to create it?",
   "newSessionSessionSpawningFailed": "Session spawning failed - no session ID returned.",
-
-  "@newSessionTitle": {
-    "description": "New session screen title",
-    "placeholders": {
-      "directory": {
-        "type": "String"
-      }
-    }
-  },
-
-  "sessionHistoryTitle": "Session History",
+  "@newSessionTitle": {},
+  "sessionHistoryTitle": "Sessions",
   "sessionHistoryEmpty": "No sessions found",
   "sessionHistoryToday": "Today",
   "sessionHistoryYesterday": "Yesterday",
   "sessionHistoryDaysAgo": "{count, plural, =1 {1 day ago} other {{count} days ago}}",
   "sessionHistoryViewAll": "View all sessions",
-
-  "@sessionHistoryTitle": {
-    "description": "Session history screen title",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-
+  "@sessionHistoryTitle": {},
   "sessionInfoTitle": "Session Info",
   "sessionInfoHappySessionId": "Happy Session ID",
   "sessionInfoClaudeCodeSessionId": "Claude Code Session ID",
@@ -222,19 +187,7 @@
   "sessionInfoFailedToArchiveSession": "Failed to archive session",
   "sessionInfoFailedToDeleteSession": "Failed to delete session",
   "sessionInfoSessionDeleted": "Session deleted successfully",
-
-  "@sessionInfoTitle": {
-    "description": "Session info screen title",
-    "placeholders": {
-      "currentVersion": {
-        "type": "String"
-      },
-      "requiredVersion": {
-        "type": "String"
-      }
-    }
-  },
-
+  "@sessionInfoTitle": {},
   "machineTitle": "Machine",
   "machineLaunchNewSessionInDirectory": "Launch New Session in Directory",
   "machineOfflineUnableToSpawn": "Launcher disabled while machine is offline",
@@ -264,7 +217,6 @@
   "machineShowAll": "Show all ({count} paths)",
   "machineEnterCustomPath": "Enter custom path",
   "machineOfflineUnableToSpawnNew": "Unable to spawn new session, offline",
-
   "@machineTitle": {
     "description": "Machine screen title",
     "placeholders": {
@@ -273,7 +225,6 @@
       }
     }
   },
-
   "chatTitle": "Chat",
   "chatStartConversation": "Start a conversation",
   "chatSendMessageToBegin": "Send a message to begin",
@@ -283,7 +234,6 @@
   "chatFailedToSend": "Failed to send message",
   "chatThinking": "Claude is thinking...",
   "chatToolRunning": "Running: {toolName}",
-
   "@chatTitle": {
     "description": "Chat screen title",
     "placeholders": {
@@ -292,7 +242,6 @@
       }
     }
   },
-
   "settingsTitle": "Settings",
   "settingsConnectedAccounts": "Connected Accounts",
   "settingsConnectAccount": "Connect account",
@@ -330,16 +279,7 @@
   "settingsProfilesSubtitle": "Manage environment variable profiles for sessions",
   "settingsSignOut": "Sign out",
   "settingsSignOutConfirm": "Are you sure you want to sign out? Make sure you have backed up your secret key!",
-
-  "@settingsTitle": {
-    "description": "Settings screen title",
-    "placeholders": {
-      "login": {
-        "type": "String"
-      }
-    }
-  },
-
+  "@settingsTitle": {},
   "settingsLanguage": "Language",
   "settingsLanguageSubtitle": "Choose your preferred language for the app interface",
   "settingsLanguageCurrent": "Current Language",
@@ -349,7 +289,6 @@
   "settingsLanguageNeedsRestartMessage": "The app needs to restart to apply the new language setting.",
   "settingsLanguageRestartNow": "Restart Now",
   "settingsLanguageSearchPlaceholder": "Search languages...",
-
   "settingsAppearanceTheme": "Theme",
   "settingsAppearanceThemeSubtitle": "Choose your preferred color scheme",
   "settingsAppearanceThemeAdaptive": "Adaptive",
@@ -381,7 +320,6 @@
   "settingsAppearanceShowFlavorIconsSubtitle": "Display AI provider icons on session avatars",
   "settingsAppearanceCompactSessionView": "Compact Session View",
   "settingsAppearanceCompactSessionViewSubtitle": "Show active sessions in a more compact layout",
-
   "settingsFeaturesExperiments": "Experiments",
   "settingsFeaturesExperimentsSubtitle": "Enable experimental features that are still in development. These features may be unstable or change without notice.",
   "settingsFeaturesExperimentalFeatures": "Experimental Features",
@@ -402,7 +340,6 @@
   "settingsFeaturesEnhancedSessionWizard": "Enhanced Session Wizard",
   "settingsFeaturesEnhancedSessionWizardEnabled": "Profile-first session launcher active",
   "settingsFeaturesEnhancedSessionWizardDisabled": "Using standard session launcher",
-
   "settingsAccountTitle": "Account Settings",
   "settingsAccountStatus": "Status",
   "settingsAccountStatusActive": "Active",
@@ -433,7 +370,6 @@
   "settingsAccountDangerZone": "Danger Zone",
   "settingsAccountLogout": "Logout",
   "settingsAccountLogoutSubtitle": "Sign out and clear local data",
-
   "settingsServerTitle": "Server Configuration",
   "settingsServerUrl": "Server URL",
   "settingsServerUrlLabel": "Please enter a server URL",
@@ -449,7 +385,6 @@
   "settingsServerCurrentlyUsingCustomServer": "Currently using custom server",
   "settingsServerCustomServerUrlLabel": "Custom Server URL",
   "settingsServerAdvancedFeatureFooter": "This is an advanced feature. Only change the server if you know what you're doing. You will need to log out and log in again after changing servers.",
-
   "settingsVoiceTitle": "Voice Assistant",
   "settingsVoiceLanguage": "Language",
   "settingsVoiceLanguageSubtitle": "Choose your preferred language for voice assistant interactions. This setting syncs across all your devices.",
@@ -459,7 +394,6 @@
   "settingsVoiceLanguageSearchTitle": "Languages",
   "settingsVoiceLanguageFooter": "{count, plural, =1 {1 language} other {{count} languages}} available",
   "settingsVoiceLanguageAutoDetect": "Auto-detect",
-
   "@settingsVoiceLanguageFooter": {
     "description": "Voice language selection footer",
     "placeholders": {
@@ -468,9 +402,7 @@
       }
     }
   },
-
   "settingsProfilesTitle": "Profiles",
-  "settingsProfilesSubtitle": "Manage environment variable profiles for sessions",
   "settingsProfilesNoProfile": "No Profile",
   "settingsProfilesNoProfileDescription": "Use default environment settings",
   "settingsProfilesDefaultModel": "Default Model",
@@ -494,7 +426,6 @@
   "settingsProfilesDeleteMessage": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
   "settingsProfilesDeleteConfirmAction": "Delete",
   "settingsProfilesDeleteCancel": "Cancel",
-
   "@settingsProfilesDeleteConfirm": {
     "description": "Profile deletion confirmation",
     "placeholders": {
@@ -503,7 +434,6 @@
       }
     }
   },
-
   "settingsUsageTitle": "Usage",
   "settingsUsageToday": "Today",
   "settingsUsageLast7Days": "Last 7 days",
@@ -515,13 +445,10 @@
   "settingsUsageUsageOverTime": "Usage over time",
   "settingsUsageByModel": "By Model",
   "settingsUsageNoData": "No usage data available",
-
   "settingsDeveloperTitle": "Developer",
-  "settingsDeveloperTools": "Developer Tools",
   "settingsDeveloperVersion": "Version {version}",
   "settingsDeveloperCopyDebugInfo": "Copy Debug Info",
   "settingsDeveloperDebugInfoCopied": "Debug info copied to clipboard",
-
   "@settingsDeveloperVersion": {
     "description": "Developer settings version display",
     "placeholders": {
@@ -530,7 +457,6 @@
       }
     }
   },
-
   "errorsNetworkError": "Network error occurred",
   "errorsServerError": "Server error occurred",
   "errorsUnknownError": "An unknown error occurred",
@@ -567,7 +493,6 @@
   "errorsFailedToRemoveFriend": "Failed to remove friend",
   "errorsSearchFailed": "Search failed. Please try again.",
   "errorsFailedToSendRequest": "Failed to send friend request",
-
   "@errorsFieldError": {
     "description": "Field validation error",
     "placeholders": {
@@ -579,7 +504,6 @@
       }
     }
   },
-
   "@errorsValidationError": {
     "description": "Validation error with min/max",
     "placeholders": {
@@ -594,7 +518,6 @@
       }
     }
   },
-
   "@errorsRetryIn": {
     "description": "Retry countdown message",
     "placeholders": {
@@ -603,7 +526,6 @@
       }
     }
   },
-
   "terminalWebBrowserRequired": "Web Browser Required",
   "terminalWebBrowserRequiredDescription": "Terminal connection links can only be opened in a web browser for security reasons. Please use the QR code scanner or open this link on a computer.",
   "terminalProcessingConnection": "Processing connection...",
@@ -624,15 +546,12 @@
   "terminalClientSideProcessing": "Client-Side Processing",
   "terminalLinkProcessedLocally": "Link processed locally in browser",
   "terminalLinkProcessedOnDevice": "Link processed locally on device",
-
   "sidebarSessionsTitle": "Terminals",
   "sidebarStatusConnected": "Connected",
   "sidebarStatusConnecting": "Connecting...",
   "sidebarStatusDisconnected": "Disconnected",
   "sidebarStatusError": "Error",
-
   "commandPalettePlaceholder": "Type a command or search...",
-
   "toolViewInput": "Input",
   "toolViewOutput": "Output",
   "toolViewDescription": "Description",
@@ -642,7 +561,6 @@
   "toolViewNoOutput": "No output was produced",
   "toolViewRunning": "Tool is running...",
   "toolViewRawJsonDevMode": "Raw JSON (Dev Mode)",
-
   "toolNamesTask": "Task",
   "toolNamesTerminal": "Terminal",
   "toolNamesSearchFiles": "Search Files",
@@ -662,7 +580,6 @@
   "toolNamesApplyChanges": "Update file",
   "toolNamesViewDiff": "Current file changes",
   "toolNamesQuestion": "Question",
-
   "toolDescTerminalCmd": "Terminal(cmd: {cmd})",
   "toolDescSearchPattern": "Search(pattern: {pattern})",
   "toolDescSearchPath": "Search(path: {basename})",
@@ -678,7 +595,6 @@
   "toolDescModifyingFiles": "Modifying {count} files",
   "toolDescModifyingMultipleFiles": "{file} and {count} more",
   "toolDescShowingDiff": "Showing changes",
-
   "@toolDescTerminalCmd": {
     "description": "Terminal tool description",
     "placeholders": {
@@ -687,7 +603,6 @@
       }
     }
   },
-
   "filesSearchPlaceholder": "Search files...",
   "filesDetachedHead": "detached HEAD",
   "filesSummary": "{staged} staged • {unstaged} unstaged",
@@ -708,7 +623,6 @@
   "filesFile": "File",
   "filesFileEmpty": "File is empty",
   "filesNoChanges": "No changes to display",
-
   "@filesSearchResults": {
     "description": "File search results count",
     "placeholders": {
@@ -717,14 +631,12 @@
       }
     }
   },
-
   "profileUserProfile": "User Profile",
   "profileDetails": "Details",
   "profileFirstName": "First Name",
   "profileLastName": "Last Name",
   "profileUsername": "Username",
   "profileStatus": "Status",
-
   "agentPermissionModeTitle": "PERMISSION MODE",
   "agentPermissionModeDefault": "Default",
   "agentPermissionModeAcceptEdits": "Accept Edits",
@@ -742,7 +654,6 @@
   "agentSuggestionFileLabel": "FILE",
   "agentSuggestionFolderLabel": "FOLDER",
   "agentNoMachinesAvailable": "No machines",
-
   "@agentContextRemaining": {
     "description": "Context usage remaining",
     "placeholders": {
@@ -751,7 +662,6 @@
       }
     }
   },
-
   "updateBannerUpdateAvailable": "Update available",
   "updateBannerPressToApply": "Press to apply the update",
   "updateBannerWhatsNew": "What's new",
@@ -759,10 +669,8 @@
   "updateBannerNativeUpdateAvailable": "App Update Available",
   "updateBannerTapToUpdateAppStore": "Tap to update in App Store",
   "updateBannerTapToUpdatePlayStore": "Tap to update in Play Store",
-
   "changelogVersion": "Version {version}",
   "changelogNoEntriesAvailable": "No changelog entries available.",
-
   "@changelogVersion": {
     "description": "Changelog version header",
     "placeholders": {
@@ -771,7 +679,6 @@
       }
     }
   },
-
   "modalsAuthenticateTerminal": "Authenticate Terminal",
   "modalsPasteUrlFromTerminal": "Paste the authentication URL from your terminal",
   "modalsDeviceLinkedSuccessfully": "Device linked successfully",
@@ -788,7 +695,6 @@
   "modalsFailedToConnectTerminal": "Failed to connect terminal",
   "modalsCameraPermissionsRequiredToConnectTerminal": "Camera permissions are required to connect terminal",
   "modalsFailedToLinkDevice": "Failed to link device",
-
   "@modalsDisconnectService": {
     "description": "Disconnect service dialog",
     "placeholders": {
@@ -797,26 +703,21 @@
       }
     }
   },
-
   "navigationConnectTerminal": "Connect Terminal",
   "navigationLinkNewDevice": "Link New Device",
   "navigationRestoreWithSecretKey": "Restore with Secret Key",
   "navigationWhatsNew": "What's New",
   "navigationFriends": "Friends",
-
   "emptyMainScreenReadyToCode": "Ready to code?",
   "emptyMainScreenInstallCli": "Install the Happy CLI",
   "emptyMainScreenRunIt": "Run it",
   "emptyMainScreenScanQrCode": "Scan the QR code",
   "emptyMainScreenOpenCamera": "Open Camera",
-
   "reviewEnjoyingApp": "Enjoying the app?",
   "reviewFeedbackPrompt": "We'd love to hear your feedback!",
   "reviewYesILoveIt": "Yes, I love it!",
   "reviewNotReally": "Not really",
-
   "itemsCopiedToClipboard": "{label} copied to clipboard",
-
   "@itemsCopiedToClipboard": {
     "description": "Copy toast message",
     "placeholders": {
@@ -825,12 +726,10 @@
       }
     }
   },
-
   "messageSwitchedToMode": "Switched to {mode} mode",
   "messageUnknownEvent": "Unknown event",
   "messageUsageLimitUntil": "Usage limit reached until {time}",
   "messageUnknownTime": "unknown time",
-
   "@messageSwitchedToMode": {
     "description": "Permission mode switch message",
     "placeholders": {
@@ -839,14 +738,11 @@
       }
     }
   },
-
   "codexPermissionsYesForSession": "Yes, and don't ask for a session",
   "codexPermissionsStopAndExplain": "Stop, and explain what to do",
-
   "claudePermissionsYesAllowAllEdits": "Yes, allow all edits during this session",
   "claudePermissionsYesForTool": "Yes, don't ask again for this tool",
   "claudePermissionsNoTellClaude": "No, and provide feedback",
-
   "textSelectionSelectText": "Select text range",
   "textSelectionTitle": "Select Text",
   "textSelectionNoTextProvided": "No text provided",
@@ -854,11 +750,9 @@
   "textSelectionTextCopied": "Text copied to clipboard",
   "textSelectionFailedToCopy": "Failed to copy text to clipboard",
   "textSelectionNoTextToCopy": "No text available to copy",
-
   "markdownCodeCopied": "Code copied",
   "markdownCopyFailed": "Copy failed",
   "markdownMermaidRenderFailed": "Failed to render mermaid diagram",
-
   "artifactsTitle": "Artifacts",
   "artifactsCountSingular": "1 artifact",
   "artifactsCountPlural": "{count} artifacts",
@@ -883,7 +777,6 @@
   "artifactsSaving": "Saving...",
   "artifactsLoading": "Loading artifacts...",
   "artifactsError": "Failed to load artifact",
-
   "@artifactsCountPlural": {
     "description": "Artifact count plural form",
     "placeholders": {
@@ -892,7 +785,6 @@
       }
     }
   },
-
   "friendsTitle": "Friends",
   "friendsManageFriends": "Manage your friends and connections",
   "friendsSearchTitle": "Find Friends",
@@ -938,7 +830,6 @@
   "friendsCancelRequestConfirm": "Cancel your friendship request to {name}?",
   "friendsDenyRequest": "Deny friendship",
   "friendsNowFriendsWith": "You are now friends with {name}",
-
   "@friendsSentOn": {
     "description": "Friend request sent date",
     "placeholders": {
@@ -947,12 +838,10 @@
       }
     }
   },
-
   "feedFriendRequestFrom": "{name} sent you a friend request",
   "feedFriendRequestGeneric": "New friend request",
   "feedFriendAccepted": "You are now friends with {name}",
   "feedFriendAcceptedGeneric": "Friend request accepted",
-
   "@feedFriendRequestFrom": {
     "description": "Feed notification for friend request",
     "placeholders": {
@@ -961,7 +850,6 @@
       }
     }
   },
-
   "usageToday": "Today",
   "usageLast7Days": "Last 7 days",
   "usageLast30Days": "Last 30 days",
@@ -973,5 +861,1008 @@
   "usageByModel": "By Model",
   "usageNoData": "No usage data available",
   "offlineBannerNoConnection": "No internet connection",
-  "offlineBannerReconnecting": "Reconnecting..."
+  "offlineBannerReconnecting": "Reconnecting...",
+  "commonVersion": "Version",
+  "commonDone": "Done",
+  "commonEdit": "Edit",
+  "commonClose": "Close",
+  "commonConfirm": "Confirm",
+  "commonRetry": "Retry",
+  "commonSearch": "Search",
+  "commonSettings": "Settings",
+  "commonCopyCode": "Copy code",
+  "commonFile": "File",
+  "commonFolder": "Folder",
+  "commonCmd": "Cmd",
+  "authSubtitle": "Scan QR code to connect",
+  "authScanQR": "Scan QR Code",
+  "authEnterToken": "Enter Token Manually",
+  "authServerUrlHint": "Server URL",
+  "authTokenHint": "Authentication Token",
+  "authConnect": "Connect",
+  "authConnecting": "Connecting...",
+  "authInvalidQR": "Invalid QR code",
+  "authServerConnectionError": "Cannot connect to server",
+  "sessionsTitle": "Sessions",
+  "sessionsNew": "New Session",
+  "sessionsEmpty": "No sessions yet",
+  "sessionsCreateFirst": "Create your first session to get started",
+  "sessionsToday": "Today",
+  "sessionsYesterday": "Yesterday",
+  "sessionsThisWeek": "This Week",
+  "sessionsThisMonth": "This Month",
+  "sessionsOlder": "Older",
+  "dateGroupToday": "Today",
+  "dateGroupYesterday": "Yesterday",
+  "dateGroupThisWeek": "This Week",
+  "dateGroupThisMonth": "This Month",
+  "dateGroupOlder": "Older",
+  "sessionsActiveSessions": "ACTIVE SESSIONS",
+  "sessionsArchive": "Archive",
+  "sessionsArchiveSession": "Archive Session",
+  "sessionsSimple": "Simple",
+  "sessionsWorktree": "Worktree",
+  "sessionsClaude": "Claude",
+  "sessionsCodex": "Codex",
+  "sessionsGemini": "Gemini",
+  "sessionsType": "Type",
+  "sessionsAgent": "Agent",
+  "sessionsSelectAll": "Select All",
+  "sessionsDeselectAll": "Deselect All",
+  "sessionsRecentTitle": "Recent Sessions",
+  "sessionsRecentEmpty": "No recent sessions",
+  "sessionsPressBackToExit": "Press back again to exit",
+  "sessionsFailedToArchive": "Failed to archive session",
+  "sessionsFailedToDelete": "Failed to delete session",
+  "messageDetailTitle": "Message",
+  "toolDetailsTitle": "Tool Details",
+  "sessionInfoNotFound": "Session not found",
+  "messageNotFound": "Message not found",
+  "messageDetailContent": "Content",
+  "messageDetailDetails": "Message Details",
+  "messageDetailNoDetails": "No details available",
+  "messageDetailModel": "Model",
+  "messageDetailSent": "Sent",
+  "messageDetailMessageId": "Message ID",
+  "messageDetailSeq": "Seq",
+  "messageDetailTimestamp": "Timestamp",
+  "messageDetailDebugData": "Debug Data",
+  "commonNA": "N/A",
+  "messageDetailPermission": "Permission",
+  "messageDetailStatus": "Status",
+  "messageDetailReason": "Reason",
+  "messageDetailInput": "Input",
+  "messageDetailOutput": "Output",
+  "messageDetailSubagentTools": "Sub-agent Tools",
+  "messageDetailTool": "Tool",
+  "messageDetailState": "State",
+  "messageDetailAgentType": "Agent type",
+  "messageDetailDescription": "Description",
+  "messageDetailShare": "Share",
+  "messageDetailBookmark": "Bookmark",
+  "commonCopiedToClipboard": "Copied to clipboard",
+  "accountBackupKeyLabel": "Backup Key",
+  "accountBackupKeyHint": "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX",
+  "accountEnterBackupKey": "Please enter your backup key",
+  "commonUnsavedChangesTitle": "Unsaved Changes",
+  "chatUnsentMessageTitle": "Unsent Message",
+  "chatStay": "Stay",
+  "chatLeave": "Leave",
+  "sessionsGroupByDate": "Group by date",
+  "pickSelectMachine": "Select Machine",
+  "pickSelectProfile": "Select Profile",
+  "pickSelectPath": "Select Path",
+  "pickNoMachinesAvailable": "No machines available",
+  "pickRecent": "Recent",
+  "pickAllMachines": "All Machines",
+  "chatInputHint": "Message...",
+  "chatInputProfileTitle": "Profile",
+  "chatInputProfileDefault": "Default",
+  "chatInputProfileDefaultSubtitle": "Server-configured defaults",
+  "chatEmpty": "Start a conversation",
+  "chatSend": "Send",
+  "chatCopyMessage": "Copy",
+  "chatDeleteMessage": "Delete",
+  "chatClearSession": "Clear Session",
+  "chatConfirmClear": "Are you sure you want to clear this session?",
+  "chatActionConfirm": "Confirm Action",
+  "chatActionReject": "Reject",
+  "chatActionAccept": "Accept",
+  "chatChat": "Chat",
+  "chatChatLoading": "Loading...",
+  "chatFailedToLoadMessages": "Failed to load messages",
+  "settingsTheme": "Theme",
+  "settingsThemeLight": "Light",
+  "settingsThemeDark": "Dark",
+  "settingsThemeSystem": "System",
+  "noLanguagesFound": "No languages found",
+  "settingsServer": "Server",
+  "settingsServerNotReachable": "Server not reachable",
+  "settingsVoice": "Voice",
+  "settingsLogout": "Logout",
+  "settingsLogoutConfirm": "Are you sure you want to logout?",
+  "settingsLogs": "Logs",
+  "settingsVersion": "Version",
+  "profilesDeleteTitle": "Delete Profile",
+  "profilesFailedToSave": "Failed to save profile",
+  "profilesDuplicated": "Profile \"{name}\" duplicated",
+  "@profilesDuplicated": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "usageTitle": "Usage",
+  "timePeriod": "Time Period",
+  "totals": "Totals",
+  "byModel": "By Model",
+  "statistics": "Statistics",
+  "today": "Today",
+  "sevenDays": "7 Days",
+  "thirtyDays": "30 Days",
+  "totalTokens": "Total Tokens",
+  "totalCost": "Total Cost",
+  "reports": "Reports",
+  "avgCostPerDay": "Avg. Cost/Day",
+  "avgTokensPerDay": "Avg. Tokens/Day",
+  "noUsageData": "No usage data",
+  "noUsageDataSubtitle": "Start using Happy to see your usage stats",
+  "failedToLoad": "Failed to load usage data",
+  "claudeCodeLimits": "Claude Code Limits",
+  "claudeLimitsTitle": "Claude Code Limits",
+  "claudeLimitsUsage": "Usage",
+  "claudeLimitsResetsAt": "Resets",
+  "claudeLimitsExtraUsage": "Extra Usage",
+  "claudeLimitsMonthlyLimit": "Monthly Limit",
+  "claudeLimitsUsedCredits": "Used Credits",
+  "claudeLimitsNoMachines": "No machines available",
+  "claudeLimitsSelectMachine": "Machine",
+  "featuresExperiments": "Experiments",
+  "featuresExperimentsDesc": "Try experimental features",
+  "settingsServerResetSuccess": "Server URL reset to default",
+  "settingsServerSaved": "Server URL saved",
+  "settingsServerSaveVerify": "Save & Verify",
+  "settingsOnline": "Online",
+  "settingsOffline": "Offline",
+  "toolViewFullContent": "View full content",
+  "toolEdit": "Edit",
+  "toolRead": "Read",
+  "toolWrite": "Write",
+  "toolBash": "Bash",
+  "toolGlob": "Glob",
+  "toolGrep": "Grep",
+  "toolLs": "List Files",
+  "toolPatch": "Patch",
+  "toolDiff": "Diff",
+  "toolSectionDiff": "DIFF",
+  "toolSectionContent": "CONTENT",
+  "toolSectionCommand": "COMMAND",
+  "toolSectionReading": "Reading",
+  "toolSectionWriting": "Writing",
+  "toolSectionInput": "INPUT",
+  "toolSectionOutput": "OUTPUT",
+  "toolTask": "Task",
+  "toolTodo": "Todo",
+  "toolWebFetch": "Web Fetch",
+  "toolWebSearch": "Web Search",
+  "toolExitPlan": "Exit Plan",
+  "toolAskUser": "Ask User",
+  "permissionAllow": "Allow",
+  "permissionDeny": "Deny",
+  "permissionStop": "Stop",
+  "permissionYes": "Yes",
+  "permissionDefault": "Default",
+  "permissionAcceptEdits": "Accept Edits",
+  "permissionPlan": "Plan Mode",
+  "permissionYolo": "Yolo Mode",
+  "permissionReadOnly": "Read Only",
+  "permissionSafeYolo": "Safe Yolo",
+  "permissionRequired": "Permission required",
+  "permissionApproved": "Approved",
+  "permissionDeniedLabel": "Denied",
+  "permissionSessionOffline": "Session offline",
+  "permissionAllEdits": "All edits",
+  "permissionForSession": "For session",
+  "permissionActionFailed": "Permission action failed",
+  "permissionModeTitle": "Permission Mode",
+  "permissionModeDefault": "Default",
+  "permissionModeAcceptEdits": "Accept Edits",
+  "permissionModePlan": "Plan",
+  "permissionModeBypass": "Yolo",
+  "permissionModeReadOnly": "Read-only",
+  "permissionModeSafeYolo": "Safe YOLO",
+  "permissionModeYolo": "YOLO",
+  "permissionModeDefaultDesc": "Ask for permissions",
+  "permissionModeAcceptEditsDesc": "Auto-approve edits",
+  "permissionModePlanDesc": "Plan before executing",
+  "permissionModeBypassDesc": "Skip all permissions",
+  "permissionModeReadOnlyDesc": "Read-only mode",
+  "permissionModeSafeYoloDesc": "Safe YOLO mode",
+  "permissionModeYoloDesc": "YOLO mode",
+  "voiceAssistantActive": "Voice assistant active",
+  "voiceAssistantConnecting": "Connecting...",
+  "voiceAssistantDefault": "Voice",
+  "voiceAssistantTapToEnd": "Tap to end",
+  "authClientError": "Client Error",
+  "authServerError": "Server Error",
+  "authCertificateError": "Certificate Error",
+  "authConnectionFailed": "Connection Failed",
+  "authServerSettings": "Server Settings",
+  "authLinkAccount": "Link Account",
+  "authTryAgain": "Try Again",
+  "authSecretKeyLabel": "Secret Key",
+  "authPaste": "Paste",
+  "authSignIn": "Sign In",
+  "errorGeneric": "Something went wrong",
+  "errorNetwork": "Network error. Please check your connection.",
+  "errorServer": "Server error. Please try again later.",
+  "errorNotFound": "Not found",
+  "voiceAssistantError": "Voice assistant error",
+  "appearanceTheme": "Theme",
+  "appearanceThemeAdaptive": "Adaptive",
+  "appearanceThemeAdaptiveDesc": "Match system settings",
+  "appearanceThemeLight": "Light",
+  "appearanceThemeLightDesc": "Always use light theme",
+  "appearanceThemeDark": "Dark",
+  "appearanceThemeDarkDesc": "Always use dark theme",
+  "appearanceThemeApplied": "{theme} theme applied",
+  "@appearanceThemeApplied": {
+    "placeholders": {
+      "theme": {
+        "type": "String"
+      }
+    }
+  },
+  "appearanceThemePreview": "Preview",
+  "appearanceThemeDarkModeActive": "Dark mode active",
+  "appearanceThemeLightModeActive": "Light mode active",
+  "appearanceThemeSampleContent": "Sample content",
+  "appearanceThemeColorPrimary": "Primary",
+  "appearanceThemeColorSecondary": "Secondary",
+  "searchLanguages": "Search languages",
+  "settingsBehavior": "Behavior",
+  "settingsViewInline": "View Inline",
+  "settingsViewInlineSubtitle": "Show tool calls inline in chat",
+  "settingsExpandTodos": "Expand Todos",
+  "settingsShowLineNumbers": "Show Line Numbers",
+  "settingsCompactSessionView": "Compact Session View",
+  "settingsShowFlavorIcons": "Show Flavor Icons",
+  "settingsAvatarStyle": "Avatar Style",
+  "settingsWrapLinesInDiffs": "Wrap Lines in Diffs",
+  "zenTitle": "Zen",
+  "zenNewTask": "New Task",
+  "zenAddTask": "Add Task",
+  "zenDescriptionHint": "What needs to be done?",
+  "zenPriorityLabel": "Priority",
+  "zenStatusLabel": "Status",
+  "zenCreatedLabel": "Created",
+  "zenCompletedLabel": "Completed",
+  "zenMarkDone": "Mark Done",
+  "zenTaskTitle": "Task",
+  "zenTaskNotFound": "Task not found",
+  "zenDeleteTitle": "Delete Task",
+  "zenDeleteConfirm": "Are you sure you want to delete this task?",
+  "zenEmptyTitle": "No Tasks Yet",
+  "zenEmptySubtitle": "Tap + to add your first task.",
+  "zenSectionActive": "Active",
+  "zenSectionCompleted": "Completed",
+  "userProfileTitle": "User Profile",
+  "userNotFound": "User not found",
+  "friendsStatusFriends": "Friends",
+  "friendsStatusRequestSent": "Request Sent",
+  "friendsStatusWantsToConnect": "Wants to Connect",
+  "friendsAddFriendAction": "Add Friend",
+  "friendsFailedToAdd": "Failed to add friend",
+  "friendsFailedToUpdate": "Failed to update friendship",
+  "friendsTabFriends": "Friends",
+  "friendsTabRequests": "Requests",
+  "friendsEmptyTitle": "No Friends Yet",
+  "friendsNoRequests": "No Incoming Requests",
+  "friendsRemoveTitle": "Remove Friend",
+  "friendsRemoveAction": "Remove",
+  "friendsRemoved": "Friend removed",
+  "friendsWantsToConnect": "Wants to connect",
+  "friendsSearchFailed": "Search failed",
+  "friendsActionFailed": "Action failed",
+  "friendsSearchByUsername": "Search by username",
+  "friendsSearchEmptyTitle": "Search for friends",
+  "friendsSearchEmptySubtitle": "Search for a username to connect",
+  "friendsIncomingRequest": "Incoming request",
+  "friendsNotConnected": "Not connected",
+  "inboxPendingRequests": "Pending Requests",
+  "inboxSentRequests": "Sent Requests",
+  "inboxMyFriends": "My Friends",
+  "inboxRequestPending": "Request pending",
+  "inboxRequestCanceled": "Request canceled",
+  "inboxFriendSubtitle": "Friend",
+  "inboxNoNotificationsTitle": "No notifications yet",
+  "inboxFeedFriendRequest": "Friend request",
+  "inboxFeedFriendAccepted": "Friend accepted",
+  "inboxFeedUpdate": "Update",
+  "inboxTimeNow": "now",
+  "inboxTimeMinutesAgo": "{n}m ago",
+  "@inboxTimeMinutesAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "inboxTimeHoursAgo": "{n}h ago",
+  "@inboxTimeHoursAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "inboxTimeYesterday": "Yesterday",
+  "accountAccountSettings": "Account Settings",
+  "accountProfile": "Profile",
+  "accountBackupKey": "Backup Key",
+  "accountShowBackupKey": "Show Backup Key",
+  "accountCopyBackupKey": "Copy Backup Key",
+  "accountCopyToClipboard": "Copy to clipboard",
+  "accountRestore": "Restore",
+  "accountRestoreAccount": "Restore Account",
+  "accountDevices": "Devices",
+  "accountLinkedDevices": "Linked Devices",
+  "accountLinkNewDevice": "Link New Device",
+  "accountConnectedServices": "Connected Services",
+  "accountBackupKeyCopied": "Backup key copied",
+  "accountNotConnected": "Not connected",
+  "accountName": "Name",
+  "accountEmail": "Email",
+  "accountPasteFromClipboard": "Paste from Clipboard",
+  "accountRestoredSuccess": "Account restored successfully",
+  "accountLinkDevice": "Link Device",
+  "accountScanQR": "Scan QR",
+  "accountShowQR": "Show QR",
+  "accountEnterUrl": "Enter URL",
+  "accountApproveLinking": "Approve Linking",
+  "accountUnlinkDevice": "Unlink Device",
+  "accountUnlink": "Unlink",
+  "accountFailedToUnlink": "Failed to unlink device",
+  "accountScanHint": "New device: tap \"Link or Restore Account\"",
+  "accountThisDevice": "This Device",
+  "settingsCertificates": "Certificates",
+  "settingsUserCaCertificates": "User CA Certificates",
+  "settingsNoUserCertificates": "No user certificates installed",
+  "chatOnline": "Online",
+  "chatConversationCleared": "Conversation cleared",
+  "chatMoreOptions": "More options",
+  "settingsClaudeCode": "Claude Code",
+  "settingsConnected": "Connected",
+  "settingsTextToSpeech": "Text-to-Speech",
+  "settingsGitHub": "GitHub",
+  "settingsFindFriends": "Find Friends",
+  "settingsOpenInbox": "Open Inbox",
+  "settingsDeveloperEnabled": "Enabled",
+  "featuresTitle": "Features",
+  "devLogsTitle": "Logs",
+  "devLogsCount": "Logs ({count})",
+  "@devLogsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "devLogsCountFiltered": "Logs ({count} filtered)",
+  "@devLogsCountFiltered": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "devLogsEmpty": "No logs yet",
+  "devLogsClearFilter": "Clear Filter",
+  "devLogsNoLogsToCopy": "No logs to copy",
+  "devLogsClearTitle": "Clear Logs",
+  "devLogsClearAction": "Clear",
+  "devLogsSearchTitle": "Search Logs",
+  "devLogsSearchHint": "Enter search term...",
+  "devLogsAllLevels": "All Levels",
+  "devLogsLevelDebug": "Debug",
+  "devLogsLevelInfo": "Info",
+  "devLogsLevelWarning": "Warning",
+  "devLogsLevelError": "Error",
+  "devLogsLogEntryCopied": "Log entry copied",
+  "devLogsCopyEntry": "Copy Entry",
+  "devLogsAddTestLog": "Add Test Log",
+  "devLogsCopyAllLogs": "Copy All Logs",
+  "devLogsFilterByLevel": "Filter by Level",
+  "devLogsSearchLogs": "Search Logs",
+  "networkInspectorClearTitle": "Clear Request Log",
+  "networkInspectorEntryCopied": "Entry copied",
+  "developerTitle": "Developer",
+  "developerClearCache": "Clear Cache",
+  "developerResetSettings": "Reset Settings",
+  "developerModeTitle": "Developer Mode",
+  "developerModeEnabledDesc": "Enabled - Debug tools are visible",
+  "developerNotYetImplemented": "Not yet implemented",
+  "developerClearCacheAction": "Clear",
+  "developerCacheCleared": "Cache cleared",
+  "developerResetAction": "Reset",
+  "developerSettingsReset": "Settings reset",
+  "developerSectionDebugTools": "Debug Tools",
+  "developerSectionTesting": "Testing",
+  "developerSectionCacheStorage": "Cache & Storage",
+  "developerSectionBuildInfo": "Build Info",
+  "developerNetworkInspector": "Network Inspector",
+  "developerLogsDesc": "View application logs",
+  "developerEncryptionDebug": "Encryption Debug",
+  "developerSessionDebug": "Session Debug",
+  "developerTestNotifications": "Test Notifications",
+  "developerTestSentryException": "Test Sentry (Exception)",
+  "developerTestSentryUnhandled": "Test Sentry (Unhandled)",
+  "developerTestSentryUnhandledDesc": "Throw an unhandled error",
+  "developerClearCacheDesc": "Clear cached data",
+  "developerResetSettingsDesc": "Reset all settings to defaults",
+  "developerAppVersion": "App Version",
+  "developerBuildNumber": "Build Number",
+  "developerFlutterVersion": "Flutter Version",
+  "developerDartVersion": "Dart Version",
+  "profilesTitle": "Profiles",
+  "profilesNone": "None",
+  "profilesDefaultDescription": "Use default configuration",
+  "profilesCustomTitle": "Custom Profiles",
+  "profilesProfileName": "Profile Name",
+  "profilesAddProfile": "Add Profile",
+  "profilesEditProfile": "Edit Profile",
+  "profilesDeleteProfile": "Delete Profile",
+  "profilesNameHint": "e.g. MiniMax, Kimi Code, DeepSeek",
+  "profilesNameRequired": "Name is required",
+  "profilesDescriptionLabel": "Description (optional)",
+  "profilesEnvVarsTitle": "Environment Variables",
+  "profilesEnvKeyLabel": "Key",
+  "profilesEnvKeyHint": "VARIABLE_NAME",
+  "profilesEnvValueLabel": "Value",
+  "profilesScriptTitle": "Startup Shell Script",
+  "profilesScriptLabel": "Bash script",
+  "profilesImportTitle": "Import from Shell Script",
+  "profilesImportButton": "Import",
+  "profilesImportLabel": "Shell script content",
+  "profilesImportParsed": "Parsed environment variables",
+  "profilesImportLabelShort": "Import from script",
+  "profilesQuickSetup": "Quick Setup",
+  "profilesWizardTitle": "New AI Profile",
+  "profilesWizardStep1": "Choose Provider",
+  "profilesWizardStep1Subtitle": "Select your AI provider",
+  "profilesWizardStep2": "Configure",
+  "profilesWizardStep2Subtitle": "Enter API key and settings",
+  "profilesWizardStep3": "Review",
+  "profilesWizardStep3Subtitle": "Confirm your settings",
+  "profilesWizardSelectProvider": "Select a provider to get started",
+  "profilesWizardBaseUrl": "Base URL",
+  "profilesWizardModel": "Model",
+  "profilesWizardSmallFastModel": "Small Fast Model",
+  "profilesWizardTimeout": "Timeout (ms)",
+  "profilesWizardTimeoutHelp": "Optional - defaults to 300000ms",
+  "changelogTitle": "What's New",
+  "changelogOpenGitHub": "Open GitHub Releases",
+  "serverTitle": "Server",
+  "voiceTitle": "Voice",
+  "voiceLanguageTitle": "Voice Language",
+  "voiceTtsTitle": "Text-to-Speech",
+  "voiceTtsSubtitle": "Read assistant messages aloud",
+  "voiceTestTts": "Test TTS",
+  "voiceTestTtsSubtitle": "Tap to hear a test phrase",
+  "voiceSelectEngineHint": "Select the TTS engine.",
+  "voiceDefaultEngine": "Default Engine",
+  "voiceDefaultEngineSubtitle": "Use system default",
+  "voiceSelectLanguageTitle": "Select Language",
+  "voiceLanguagesCount": "{count} languages available",
+  "@voiceLanguagesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "claudeConnectTitle": "Connect Claude API",
+  "claudeConnectTerminalTitle": "Connect Claude",
+  "claudeConnectManualLabel": "MANUAL API KEY ENTRY",
+  "claudeConnectApiKeyLabel": "API Key",
+  "claudeConnectApiKeyHint": "sk-ant-...",
+  "claudeConnectBaseUrlLabel": "Base URL (optional)",
+  "claudeConnectBaseUrlHint": "https://api.anthropic.com",
+  "claudeConnectButton": "Connect",
+  "sessionFilesTitle": "Files",
+  "sessionFilesNotFound": "Session not found",
+  "sessionFilesEmpty": "No files yet",
+  "sessionInfoCopied": "Copied to clipboard",
+  "sessionInfoUpdateCommandCopied": "Update command copied",
+  "sessionInfoCliOutdated": "CLI Version Outdated",
+  "sessionInfoSectionDetails": "Session Details",
+  "sessionInfoLabelSessionId": "Session ID",
+  "sessionInfoLabelCreated": "Created",
+  "sessionInfoLabelLastUpdated": "Last Updated",
+  "sessionInfoLabelSequence": "Sequence",
+  "sessionInfoSectionQuickActions": "Quick Actions",
+  "sessionInfoActionViewMachine": "View Machine",
+  "sessionInfoActionArchive": "Archive Session",
+  "sessionInfoActionDelete": "Delete Session",
+  "sessionInfoSectionMetadata": "Metadata",
+  "sessionInfoLabelHost": "Host",
+  "sessionInfoLabelPath": "Path",
+  "sessionInfoLabelMachineId": "Machine ID",
+  "sessionInfoLabelCliVersion": "CLI Version",
+  "sessionInfoLabelAiProvider": "AI Provider",
+  "sessionInfoLabelClaudeSessionId": "Claude Code Session ID",
+  "sessionInfoLabelProcessId": "Process ID",
+  "sessionInfoLabelHappyHome": "Happy Home",
+  "sessionInfoLabelOs": "OS",
+  "sessionInfoActionCopyMetadata": "Copy Metadata",
+  "sessionInfoSectionAgentState": "Agent State",
+  "sessionInfoLabelControlledByUser": "Controlled by user",
+  "sessionInfoLabelPendingRequests": "Pending requests",
+  "sessionInfoSectionActivity": "Activity",
+  "sessionInfoLabelThinking": "Thinking",
+  "sessionInfoLabelThinkingSince": "Thinking since",
+  "sessionInfoSectionTools": "Tools",
+  "sessionInfoActive": "Active",
+  "sessionInfoInactive": "Inactive",
+  "commonId": "ID",
+  "commonCreated": "Created",
+  "commonUpdated": "Updated",
+  "commonSequence": "Sequence",
+  "artifactsContentLabel": "CONTENT",
+  "artifactsDetail": "Artifact",
+  "artifactsStatus": "Status",
+  "artifactsDraft": "Draft",
+  "artifactsFailedToDelete": "Failed to delete artifact",
+  "artifactsFailedToSave": "Failed to save artifact",
+  "artifactsFailedToCreate": "Failed to create artifact",
+  "artifactsSearchHint": "Search artifacts...",
+  "artifactsNoResults": "No matching artifacts",
+  "machineHomeDir": "Home Dir",
+  "machineInfo": "Info",
+  "machineRunning": "Running",
+  "machineStopped": "Stopped",
+  "machineRemoveMachine": "Remove Machine",
+  "machineOnline": "Online",
+  "machineOffline": "Offline",
+  "machineConnectedNow": "Connected now",
+  "machineLastSeenAt": "Last seen {time}",
+  "@machineLastSeenAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "machineSessions": "Sessions ({count})",
+  "@machineSessions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "terminalSelectMachineHint": "Select machine",
+  "terminalSelectMachineError": "Please select a machine",
+  "terminalIdLabel": "TERMINAL / SESSION ID",
+  "terminalIdHint": "e.g. main, dev, 1234",
+  "terminalDisconnect": "Disconnect",
+  "terminalTitle": "Terminal",
+  "terminalSendCommand": "Send command",
+  "commonClear": "Clear",
+  "sessionsClearSearch": "Clear search",
+  "commonUnknown": "unknown",
+  "commonTryAgain": "Try Again",
+  "commonGoHome": "Go Home",
+  "commonPressBackAgainToExit": "Press back again to exit",
+  "commonUnsavedChanges": "Unsaved Changes",
+  "commonLeave": "Leave",
+  "commonStay": "Stay",
+  "commonUnsentMessage": "Unsent Message",
+  "commonOperationInProgress": "Operation In Progress",
+  "terminalEnterCommand": "Enter command...",
+  "commandSearchHint": "Search commands...",
+  "commandCategorySessions": "Sessions",
+  "commandCategoryNavigation": "Navigation",
+  "commandNewSessionTitle": "New Session",
+  "commandNewSessionSubtitle": "Start a new chat session",
+  "commandViewSessionsTitle": "View All Sessions",
+  "commandViewSessionsSubtitle": "Browse your chat history",
+  "commandSettingsTitle": "Settings",
+  "commandSettingsSubtitle": "Configure your preferences",
+  "commandAccountTitle": "Account",
+  "commandAccountSubtitle": "Manage your account",
+  "commandConnectDeviceTitle": "Connect Device",
+  "commandConnectDeviceSubtitle": "Connect a new device via web",
+  "commandInboxTitle": "Inbox",
+  "commandInboxSubtitle": "View your notifications",
+  "commandArtifactsTitle": "Artifacts",
+  "commandArtifactsSubtitle": "Browse your artifacts",
+  "commandZenModeTitle": "Zen Mode",
+  "commandZenModeSubtitle": "Focus mode with todos",
+  "commandTerminalTitle": "Terminal",
+  "commandTerminalSubtitle": "Access terminal sessions",
+  "commandFriendsTitle": "Friends",
+  "commandFriendsSubtitle": "Manage your friends",
+  "networkInspectorTitle": "Network Inspector ({count})",
+  "@networkInspectorTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "networkInspectorCopyAll": "Copy all",
+  "networkInspectorNoRequests": "No requests yet",
+  "networkInspectorLabelRequests": "Requests",
+  "networkInspectorLabelSent": "\u2191 Sent",
+  "networkInspectorLabelReceived": "\u2193 Received",
+  "networkInspectorLabelDuration": "Duration",
+  "networkInspectorLabelSentBody": "Sent (body)",
+  "networkInspectorLabelReceivedBody": "Received (body)",
+  "developerSentToSentry": "Sent to Sentry: {eventId}",
+  "@developerSentToSentry": {
+    "placeholders": {
+      "eventId": {
+        "type": "String"
+      }
+    }
+  },
+  "chatHowCanIHelpToday": "How can I help you today?",
+  "chatSuggestionWriteCode": "Write code",
+  "chatSuggestionDebugIssue": "Debug an issue",
+  "chatSuggestionExplainCode": "Explain code",
+  "chatSuggestionReviewPr": "Review PR",
+  "pickRecentPaths": "Recent Paths",
+  "pickSuggestedPaths": "Suggested Paths",
+  "pickProfileNone": "None",
+  "pickProfileNoneDesc": "Use default configuration",
+  "pickProfileBuiltInSection": "BUILT-IN",
+  "pickProfileCustomSection": "CUSTOM",
+  "pickProfileCustomDescription": "Custom profile",
+  "agentFallbackDescription": "Agent",
+  "agentNoMessages": "No messages yet",
+  "agentFallbackTask": "Task",
+  "agentsListTitle": "Agents",
+  "agentsListEmpty": "No agents running",
+  "fileViewerNoContent": "No content available",
+  "artifactsJustNow": "Just now",
+  "artifactsYesterday": "Yesterday",
+  "artifactsMinutesAgo": "{n}m ago",
+  "@artifactsMinutesAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "artifactsHoursAgo": "{n}h ago",
+  "@artifactsHoursAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "artifactsDaysAgo": "{n}d ago",
+  "@artifactsDaysAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "userFallbackName": "this user",
+  "commandCategoryRecentSessions": "Recent Sessions",
+  "featuresSectionExperiments": "Experiments",
+  "featuresSectionDisplay": "Display",
+  "featuresCompactMode": "Compact Mode",
+  "featuresShowLineNumbers": "Show Line Numbers",
+  "featuresWrapLinesInDiffs": "Wrap Lines in Diffs",
+  "serverCheckingConnection": "Checking connection...",
+  "serverConnected": "Connected",
+  "serverConnectionFailed": "Connection failed",
+  "serverVerifyingServer": "Verifying server...",
+  "serverCustomUrlSectionLabel": "CUSTOM SERVER URL",
+  "machinesNoMachines": "No machines",
+  "voiceAutoDetect": "Auto-detect",
+  "inboxTitle": "Inbox",
+  "accountBackupKeyCopiedToClipboard": "Backup key copied to clipboard",
+  "accountBackupKeyDialogContent": "Save this key in a safe place. You can use it to restore your account.",
+  "accountInvalidKeyFormat": "Invalid key format. Use XXXXX-XXXXX-XXXXX-XXXXX-XXXXX",
+  "accountLinkedDevicesSubtitle": "Manage devices linked to your account",
+  "accountLinkNewDeviceSubtitle": "Generate QR code for another device",
+  "accountRestoreAccountSubtitle": "Recover account from backup key",
+  "accountRestoreInstruction": "Enter your backup key to restore your account.",
+  "accountScanInstruction": "Point your camera at the QR code displayed on the new device",
+  "accountShowBackupKeySubtitle": "View your account recovery key",
+  "accountShowQRInstructions": "1. Open Happy on the new device\n2. Tap \"Link or Restore Account\"\n3. Scan this QR code",
+  "accountUnlinkConfirm": "Are you sure you want to unlink this device?",
+  "artifactsEmptySubtitle": "Create your first artifact using the + button.",
+  "artifactsEnterContent": "Enter new content",
+  "artifactsEnterTitle": "Enter a new title",
+  "artifactsEnterTitleOrContent": "Please enter a title or content.",
+  "artifactsNoResultsSubtitle": "Try a different search term.",
+  "authConnectionError": "Connection failed. Please check your server URL and try again.",
+  "authDeviceLinkedSuccess": "Device linked successfully!",
+  "authErrorDetailsCopied": "Error details copied",
+  "authFailedToLinkDevice": "Failed to link device",
+  "authInvalidKey": "Invalid key. Use backup key (11 groups), base64, base64url, or 64-char hex.",
+  "authPleaseEnterSecretKey": "Please enter a secret key",
+  "authProcessingDeviceLink": "Processing device link...",
+  "authSecretKeyHint": "Backup key / base64 / hex",
+  "authSecretKeyInstruction": "Enter backup key (11 groups like XXXXX-XXXXX...), base64/base64url, or 64-char hex key.",
+  "authServerUrlSaved": "Server URL saved and applied.",
+  "authSignInFirst": "Please sign in first to approve device linking",
+  "authSignInWithSecretKey": "Sign In with Secret Key",
+  "authSomethingWentWrong": "Something went wrong. Please sign in again.",
+  "authWaitingForApproval": "Waiting for approval...",
+  "chatBeginningOfConversation": "Beginning of conversation",
+  "chatFailedToDeleteSession": "Failed to delete session",
+  "chatLastSeenJustNow": "Last seen just now",
+  "chatPermissionRequired": "Permission required",
+  "chatSuggestionDebugIssueDesc": "Find and fix a bug in your code",
+  "chatSuggestionExplainCodeDesc": "Understand how something works",
+  "chatSuggestionReviewPrDesc": "Get feedback on your changes",
+  "chatSuggestionWriteCodeDesc": "Generate a function or component",
+  "chatUnsentMessageContent": "You have an unsent message. Are you sure you want to leave?",
+  "claudeCodeLimitsSubtitle": "Rate limits for Claude Code on your machines",
+  "claudeConnectCliInfo": "API key management is handled via the CLI. Run: happy connect claude",
+  "claudeConnectDisclaimer": "Your API key is stored locally on this device only.",
+  "claudeConnectManualDesc": "Alternatively, enter your Anthropic API key directly.",
+  "claudeConnectTerminalSubtitle": "Run the following command in your terminal:",
+  "claudeLimitsNoMachinesSubtitle": "Connect a machine to check Claude Code limits",
+  "claudeLimitsNotAvailable": "Claude Code limits not available",
+  "claudeLimitsNotAvailableSubtitle": "Make sure Claude Code is installed and authenticated on the selected machine",
+  "commonOperationInProgressConfirm": "An operation is in progress. Are you sure you want to leave?",
+  "commonUnsavedChangesContent": "You have unsaved changes. Are you sure you want to leave?",
+  "commonUnsavedChangesMessage": "You have unsaved changes. Are you sure you want to leave?",
+  "commonUnsentMessageConfirm": "You have an unsent message. Are you sure you want to leave?",
+  "developerClearCacheConfirm": "Are you sure you want to clear all cached data?",
+  "developerEncryptionDebugDesc": "View encryption keys and certificates",
+  "developerModeDisabledDesc": "Disabled - Tap 10 times to enable",
+  "developerNetworkInspectorDesc": "View API requests and responses",
+  "developerResetSettingsConfirm": "Are you sure you want to reset all settings to defaults?",
+  "developerSessionDebugDesc": "View active sessions and connections",
+  "developerTestNotificationsDesc": "Send a test push notification",
+  "developerTestSentryExceptionDesc": "Capture a test exception via Sentry",
+  "devLogsClearConfirm": "Are you sure you want to clear all logs?",
+  "devLogsEmptyDesc": "Logs will appear here as they are generated",
+  "devLogsOnlyAvailableInDevMode": "Logs are only available when Developer Mode is enabled.\n\nGo to Settings and enable Developer Mode to view logs.",
+  "featuresAlwaysShowContextSize": "Always Show Context Size",
+  "featuresAlwaysShowContextSizeDesc": "Show context window usage",
+  "featuresCompactModeDesc": "Reduce spacing in chat messages",
+  "featuresEnhancedSessionWizard": "Enhanced Session Wizard",
+  "featuresEnhancedSessionWizardDesc": "Use the improved session creation flow",
+  "featuresExperimentalTitle": "Experimental Features",
+  "featuresHideInactiveSessions": "Hide Inactive Sessions",
+  "featuresHideInactiveSessionsDesc": "Hide sessions not used recently",
+  "featuresShowLineNumbersDesc": "Display line numbers in code blocks",
+  "featuresWrapLinesInDiffsDesc": "Wrap long lines in diff views",
+  "fileViewerContentError": "The file content could not be loaded.",
+  "friendsEmptySubtitle": "Search for people to connect with.",
+  "friendsNoRequestsSubtitle": "Friend requests will appear here",
+  "inboxConnectFriendsSubtitle": "Connect with friends to start sharing sessions.",
+  "machineLastKnownStatus": "Last Known Status",
+  "networkInspectorClearConfirm": "Are you sure you want to clear all requests?",
+  "networkInspectorCopyInstruction": "Copy the log and send it to developers to investigate network usage.",
+  "networkInspectorNoRequestsSubtitle": "HTTP requests will appear here as they happen.",
+  "permissionExpiredNoPending": "Permission expired \\u2014 no longer pending",
+  "permissionExpiredRestarted": "Permission expired \\u2014 session was restarted",
+  "pickPathHint": "Enter path (e.g. /home/user/projects)",
+  "pickProfileChooseBackend": "Choose an AI backend profile for your session.",
+  "profilesAddProfileSubtitle": "Start from scratch with empty configuration",
+  "profilesDescriptionHint": "e.g. MiniMax via OpenAI-compatible API",
+  "profilesEnvVarsEmpty": "No environment variables. Tap Add to set one.",
+  "profilesEnvVarsHint": "Set ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN, ANTHROPIC_MODEL, etc.",
+  "profilesImportHint": "Paste the contents of a shell script containing export statements (e.g., setup-hunter-alpha.sh)",
+  "profilesImportNoVars": "No environment variables found in the script.",
+  "profilesQuickSetupHint": "Select a provider to pre-fill configuration",
+  "profilesScriptDescription": "Runs before each session starts. Use to export variables or configure the environment.",
+  "profilesWizardReviewHint": "Review your settings and tap Save to create the profile.",
+  "profilesWizardSubtitle": "Step-by-step setup with guided configuration",
+  "serverCurrentlyUsingCustomUrl": "Currently using a custom server URL.",
+  "serverUrlCannotBeEmpty": "Server URL cannot be empty",
+  "sessionFilesEmptySubtitle": "Files modified during the session will appear here.",
+  "sessionsArchiveConfirm": "This will stop the running session. Are you sure?",
+  "sessionsDeleteConfirm": "This will permanently delete the session and all its messages.",
+  "sessionsGroupByFolder": "Group by folder",
+  "sessionsNewDialogPlaceholder": "New session dialog would go here",
+  "sessionsNoSearchResults": "No sessions match your search",
+  "settingsClaudeDisconnected": "Claude disconnected",
+  "settingsCompactSessionViewSubtitle": "Use smaller cards for sessions",
+  "settingsConfigureVoice": "Configure ElevenLabs voice",
+  "settingsConfigureVoiceAssistant": "Configure voice assistant",
+  "settingsDeveloperOptions": "Developer Options",
+  "settingsDeveloperTapToEnable": "Tap 10 times to enable",
+  "settingsFindFriendsSubtitle": "Search and send friend requests",
+  "settingsGitHubDisconnected": "GitHub disconnected",
+  "settingsNotConnected": "Not connected",
+  "settingsOpenInboxSubtitle": "View updates and requests",
+  "settingsServerResetConfirm": "Reset the server URL to the default? This cannot be undone.",
+  "settingsShowFlavorIconsSubtitle": "Show AI provider icons in avatars",
+  "settingsTextToSpeechSubtitle": "Read assistant messages aloud",
+  "settingsUserCertificatesInstalled": "User certificates are installed",
+  "settingsVoiceSettings": "Voice Settings",
+  "terminalConnect": "Connect Terminal",
+  "terminalConnected": "Terminal connected.",
+  "terminalConnectInfo": "Connect to a terminal session running on one of your machines.",
+  "terminalDisconnectConfirm": "Are you sure you want to disconnect from the terminal?",
+  "terminalIdError": "Please enter a terminal or session ID",
+  "terminalNoMachines": "No machines connected. Start the Happy CLI on a machine first.",
+  "terminalOutputPending": "[output pending]",
+  "voiceSelectLanguageHint": "Select the language for voice output.",
+  "featuresMarkdownCopyV2": "Markdown Copy V2",
+  "featuresMarkdownCopyV2Desc": "Use improved markdown copying",
+  "artifactsCount": "{count, plural, =1{1 artifact} other{{count} artifacts}}",
+  "@artifactsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "authErrorLinkingDevice": "Error linking device: {error}",
+  "@authErrorLinkingDevice": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "chatLastSeenMinutes": "Last seen {minutes}m ago",
+  "@chatLastSeenMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "chatLastSeenHours": "Last seen {hours}h ago",
+  "@chatLastSeenHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "chatLastSeenDays": "Last seen {days}d ago",
+  "@chatLastSeenDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "chatFailedToClear": "Failed to clear: {error}",
+  "@chatFailedToClear": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "devLogsCopied": "{count} log entries copied",
+  "@devLogsCopied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "friendsRemoveConfirm": "Remove {name} from your friends?",
+  "@friendsRemoveConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "machineRemoveConfirm": "Are you sure you want to remove \"{name}\"?",
+  "@machineRemoveConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "machineDeleteFailed": "Failed to delete machine ({statusCode})",
+  "@machineDeleteFailed": {
+    "placeholders": {
+      "statusCode": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsSelectedCount": "{count, plural, =1{1 selected} other{{count} selected}}",
+  "@sessionsSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsArchiveNConfirm": "{count, plural, =1{Archive 1 session?} other{Archive {count} sessions?}}",
+  "@sessionsArchiveNConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsArchivePartialFail": "{count, plural, =1{1 session} other{{count} sessions}} failed to archive",
+  "@sessionsArchivePartialFail": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsDeleteNConfirm": "{count, plural, =1{Delete 1 session?} other{Delete {count} sessions?}} This cannot be undone.",
+  "@sessionsDeleteNConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsDeletePartialFail": "{count, plural, =1{1 session} other{{count} sessions}} failed to delete",
+  "@sessionsDeletePartialFail": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "accountLastActive": "{platform} \u2022 Last active {time}",
+  "@accountLastActive": {
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "profilesDeleteConfirm": "Are you sure you want to delete \"{name}\"?",
+  "@profilesDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsFailedToDisconnect": "Failed to disconnect: {error}",
+  "@settingsFailedToDisconnect": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsConnectedAs": "Connected as @{login}",
+  "@settingsConnectedAs": {
+    "placeholders": {
+      "login": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsFailedToStartOAuth": "Failed to start OAuth: {error}",
+  "@settingsFailedToStartOAuth": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "appearanceThemeBasedOnDevice": "Based on your device's {mode} appearance setting.",
+  "@appearanceThemeBasedOnDevice": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  }
 }

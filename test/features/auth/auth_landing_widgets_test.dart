@@ -7,6 +7,14 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/features/auth/widgets/auth_landing_widgets.dart';
 import 'package:happy_flutter/features/auth/widgets/qr_code_display.dart';
 
+Widget _wrap(Widget child) {
+  return MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: child),
+  );
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -15,15 +23,9 @@ void main() {
   group('AnimatedGradientBackground', () {
     testWidgets('renders child widget', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-
-                       Scaffold(
-            body: AnimatedGradientBackground(
-              child: Text('Child Content'),
-            ),
+        _wrap(
+          AnimatedGradientBackground(
+            child: Text('Child Content'),
           ),
         ),
       );
@@ -35,15 +37,9 @@ void main() {
 
     testWidgets('disposes animation controller', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-
-                       Scaffold(
-            body: AnimatedGradientBackground(
-              child: Text('Test'),
-            ),
+        _wrap(
+          AnimatedGradientBackground(
+            child: Text('Test'),
           ),
         ),
       );
@@ -53,11 +49,11 @@ void main() {
       // Remove widget to trigger dispose
       await tester.pumpWidget(
         MaterialApp(
-
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-
-            home: Scaffold(body: SizedBox())),
+          localizationsDelegates:
+              AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SizedBox()),
+        ),
       );
 
       await tester.pump();
@@ -70,11 +66,7 @@ void main() {
   group('AuthHeader', () {
     testWidgets('renders logo icon', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AuthHeader(theme: ThemeData()),
-          ),
-        ),
+        _wrap(AuthHeader(theme: ThemeData())),
       );
 
       await tester.pump();
@@ -84,11 +76,7 @@ void main() {
 
     testWidgets('renders title text', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AuthHeader(theme: ThemeData()),
-          ),
-        ),
+        _wrap(AuthHeader(theme: ThemeData())),
       );
 
       await tester.pump();
@@ -99,16 +87,17 @@ void main() {
 
     testWidgets('renders subtitle text', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AuthHeader(theme: ThemeData()),
-          ),
-        ),
+        _wrap(AuthHeader(theme: ThemeData())),
       );
 
       await tester.pump();
 
-      expect(find.text('Your AI coding assistant'), findsOneWidget);
+      expect(
+        find.text(
+          'Mobile client for Claude Code & Codex',
+        ),
+        findsOneWidget,
+      );
     });
   });
 
@@ -117,15 +106,7 @@ void main() {
   group('LandingLogoMark', () {
     testWidgets('renders logo icon', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-
-                       Scaffold(
-            body: LandingLogoMark(),
-          ),
-        ),
+        _wrap(const LandingLogoMark()),
       );
 
       await tester.pump();
@@ -142,14 +123,12 @@ void main() {
   group('StatusBanner', () {
     testWidgets('renders message text', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: StatusBanner(
-              message: 'Test message',
-              color: Colors.red,
-              isLoading: false,
-              onDismiss: null,
-            ),
+        _wrap(
+          StatusBanner(
+            message: 'Test message',
+            color: Colors.red,
+            isLoading: false,
+            onDismiss: null,
           ),
         ),
       );
@@ -163,14 +142,12 @@ void main() {
     testWidgets('shows loading indicator when isLoading',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: StatusBanner(
-              message: 'Loading...',
-              color: Colors.blue,
-              isLoading: true,
-              onDismiss: null,
-            ),
+        _wrap(
+          StatusBanner(
+            message: 'Loading...',
+            color: Colors.blue,
+            isLoading: true,
+            onDismiss: null,
           ),
         ),
       );
@@ -187,15 +164,13 @@ void main() {
     testWidgets('shows icon when not loading and icon provided',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: StatusBanner(
-              message: 'With icon',
-              color: Colors.green,
-              isLoading: false,
-              onDismiss: () {},
-              icon: Icons.check,
-            ),
+        _wrap(
+          StatusBanner(
+            message: 'With icon',
+            color: Colors.green,
+            isLoading: false,
+            onDismiss: () {},
+            icon: Icons.check,
           ),
         ),
       );
@@ -210,14 +185,12 @@ void main() {
         (tester) async {
       var dismissed = false;
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: StatusBanner(
-              message: 'Dismissible',
-              color: Colors.orange,
-              isLoading: false,
-              onDismiss: () => dismissed = true,
-            ),
+        _wrap(
+          StatusBanner(
+            message: 'Dismissible',
+            color: Colors.orange,
+            isLoading: false,
+            onDismiss: () => dismissed = true,
           ),
         ),
       );
@@ -234,14 +207,12 @@ void main() {
     testWidgets('no dismiss button when onDismiss is null',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: StatusBanner(
-              message: 'Not dismissible',
-              color: Colors.red,
-              isLoading: false,
-              onDismiss: null,
-            ),
+        _wrap(
+          StatusBanner(
+            message: 'Not dismissible',
+            color: Colors.red,
+            isLoading: false,
+            onDismiss: null,
           ),
         ),
       );
@@ -255,14 +226,12 @@ void main() {
     testWidgets('shows Error label for error-colored banners',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: StatusBanner(
-              message: 'Something failed',
-              color: Colors.red,
-              isLoading: false,
-              onDismiss: null,
-            ),
+        _wrap(
+          StatusBanner(
+            message: 'Something failed',
+            color: Colors.red,
+            isLoading: false,
+            onDismiss: null,
           ),
         ),
       );
@@ -276,14 +245,12 @@ void main() {
     testWidgets('does not show Error label for non-error banners',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: StatusBanner(
-              message: 'Success message',
-              color: Colors.blue,
-              isLoading: false,
-              onDismiss: null,
-            ),
+        _wrap(
+          StatusBanner(
+            message: 'Success message',
+            color: Colors.blue,
+            isLoading: false,
+            onDismiss: null,
           ),
         ),
       );
@@ -300,11 +267,7 @@ void main() {
   group('QRInstructions', () {
     testWidgets('renders instruction title', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: QRInstructions(theme: ThemeData()),
-          ),
-        ),
+        _wrap(QRInstructions(theme: ThemeData())),
       );
 
       await tester.pump();
@@ -317,11 +280,9 @@ void main() {
 
     testWidgets('renders all 4 step numbers', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: QRInstructions(theme: ThemeData()),
-            ),
+        _wrap(
+          SingleChildScrollView(
+            child: QRInstructions(theme: ThemeData()),
           ),
         ),
       );
@@ -335,11 +296,9 @@ void main() {
 
     testWidgets('renders step text', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: QRInstructions(theme: ThemeData()),
-            ),
+        _wrap(
+          SingleChildScrollView(
+            child: QRInstructions(theme: ThemeData()),
           ),
         ),
       );
@@ -360,15 +319,13 @@ void main() {
     testWidgets('shows waiting indicator when polling',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: PollingView(
-              isPolling: true,
-              hasError: false,
-              onTryAgain: () {},
-              onBack: () {},
-              theme: ThemeData(),
-            ),
+        _wrap(
+          PollingView(
+            isPolling: true,
+            hasError: false,
+            onTryAgain: () {},
+            onBack: () {},
+            theme: ThemeData(),
           ),
         ),
       );
@@ -384,15 +341,13 @@ void main() {
     testWidgets('hides waiting indicator when not polling',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: PollingView(
-              isPolling: false,
-              hasError: false,
-              onTryAgain: () {},
-              onBack: () {},
-              theme: ThemeData(),
-            ),
+        _wrap(
+          PollingView(
+            isPolling: false,
+            hasError: false,
+            onTryAgain: () {},
+            onBack: () {},
+            theme: ThemeData(),
           ),
         ),
       );
@@ -407,15 +362,13 @@ void main() {
 
     testWidgets('renders Try Again button', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: PollingView(
-              isPolling: false,
-              hasError: false,
-              onTryAgain: () {},
-              onBack: () {},
-              theme: ThemeData(),
-            ),
+        _wrap(
+          PollingView(
+            isPolling: false,
+            hasError: false,
+            onTryAgain: () {},
+            onBack: () {},
+            theme: ThemeData(),
           ),
         ),
       );
@@ -427,15 +380,13 @@ void main() {
 
     testWidgets('renders Back button', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: PollingView(
-              isPolling: false,
-              hasError: false,
-              onTryAgain: () {},
-              onBack: () {},
-              theme: ThemeData(),
-            ),
+        _wrap(
+          PollingView(
+            isPolling: false,
+            hasError: false,
+            onTryAgain: () {},
+            onBack: () {},
+            theme: ThemeData(),
           ),
         ),
       );
@@ -449,15 +400,13 @@ void main() {
         (tester) async {
       var retried = false;
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: PollingView(
-              isPolling: false,
-              hasError: false,
-              onTryAgain: () => retried = true,
-              onBack: () {},
-              theme: ThemeData(),
-            ),
+        _wrap(
+          PollingView(
+            isPolling: false,
+            hasError: false,
+            onTryAgain: () => retried = true,
+            onBack: () {},
+            theme: ThemeData(),
           ),
         ),
       );
@@ -472,15 +421,13 @@ void main() {
     testWidgets('calls onBack when Back is tapped', (tester) async {
       var wentBack = false;
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: PollingView(
-              isPolling: false,
-              hasError: false,
-              onTryAgain: () {},
-              onBack: () => wentBack = true,
-              theme: ThemeData(),
-            ),
+        _wrap(
+          PollingView(
+            isPolling: false,
+            hasError: false,
+            onTryAgain: () {},
+            onBack: () => wentBack = true,
+            theme: ThemeData(),
           ),
         ),
       );
@@ -499,15 +446,13 @@ void main() {
     testWidgets('shows loading placeholder when polling without key',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: QRCodeSection(
-              isPolling: true,
-              publicKey: null,
-              error: null,
-              onDismissError: () {},
-              theme: ThemeData(),
-            ),
+        _wrap(
+          QRCodeSection(
+            isPolling: true,
+            publicKey: null,
+            error: null,
+            onDismissError: () {},
+            theme: ThemeData(),
           ),
         ),
       );
@@ -522,15 +467,13 @@ void main() {
 
     testWidgets('shows nothing when not polling', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: QRCodeSection(
-              isPolling: false,
-              publicKey: null,
-              error: null,
-              onDismissError: () {},
-              theme: ThemeData(),
-            ),
+        _wrap(
+          QRCodeSection(
+            isPolling: false,
+            publicKey: null,
+            error: null,
+            onDismissError: () {},
+            theme: ThemeData(),
           ),
         ),
       );
@@ -546,15 +489,13 @@ void main() {
     testWidgets('shows error banner when error is present',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: QRCodeSection(
-              isPolling: false,
-              publicKey: null,
-              error: 'Connection failed',
-              onDismissError: () {},
-              theme: ThemeData(),
-            ),
+        _wrap(
+          QRCodeSection(
+            isPolling: false,
+            publicKey: null,
+            error: 'Connection failed',
+            onDismissError: () {},
+            theme: ThemeData(),
           ),
         ),
       );
@@ -581,17 +522,15 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: Center(
-                child: QRCodeSection(
-                  isPolling: true,
-                  publicKey: publicKey,
-                  error: null,
-                  onDismissError: () {},
-                  theme: ThemeData(),
-                ),
+        _wrap(
+          SingleChildScrollView(
+            child: Center(
+              child: QRCodeSection(
+                isPolling: true,
+                publicKey: publicKey,
+                error: null,
+                onDismissError: () {},
+                theme: ThemeData(),
               ),
             ),
           ),
@@ -609,15 +548,13 @@ void main() {
   group('AuthButtonGroup', () {
     testWidgets('renders create account button', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AuthButtonGroup(
-              onCreateAccount: () {},
-              onLinkAccount: () {},
-              onRestoreKey: () {},
-              isLoadingCreate: false,
-              l10n: _FakeL10n(),
-            ),
+        _wrap(
+          AuthButtonGroup(
+            onCreateAccount: () {},
+            onLinkAccount: () {},
+            onRestoreKey: () {},
+            isLoadingCreate: false,
+            l10n: _FakeL10n(),
           ),
         ),
       );
@@ -629,15 +566,13 @@ void main() {
 
     testWidgets('renders link account button', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AuthButtonGroup(
-              onCreateAccount: () {},
-              onLinkAccount: () {},
-              onRestoreKey: () {},
-              isLoadingCreate: false,
-              l10n: _FakeL10n(),
-            ),
+        _wrap(
+          AuthButtonGroup(
+            onCreateAccount: () {},
+            onLinkAccount: () {},
+            onRestoreKey: () {},
+            isLoadingCreate: false,
+            l10n: _FakeL10n(),
           ),
         ),
       );
@@ -649,15 +584,13 @@ void main() {
 
     testWidgets('renders restore key button', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AuthButtonGroup(
-              onCreateAccount: () {},
-              onLinkAccount: () {},
-              onRestoreKey: () {},
-              isLoadingCreate: false,
-              l10n: _FakeL10n(),
-            ),
+        _wrap(
+          AuthButtonGroup(
+            onCreateAccount: () {},
+            onLinkAccount: () {},
+            onRestoreKey: () {},
+            isLoadingCreate: false,
+            l10n: _FakeL10n(),
           ),
         ),
       );
@@ -670,15 +603,13 @@ void main() {
     testWidgets('create account button shows loading when creating',
         (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AuthButtonGroup(
-              onCreateAccount: () {},
-              onLinkAccount: () {},
-              onRestoreKey: () {},
-              isLoadingCreate: true,
-              l10n: _FakeL10n(),
-            ),
+        _wrap(
+          AuthButtonGroup(
+            onCreateAccount: () {},
+            onLinkAccount: () {},
+            onRestoreKey: () {},
+            isLoadingCreate: true,
+            l10n: _FakeL10n(),
           ),
         ),
       );

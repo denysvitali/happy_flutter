@@ -358,7 +358,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Thinking...'), findsOneWidget);
+      expect(find.text('Claude is thinking...'), findsOneWidget);
     });
 
     testWidgets('skips empty text content', (tester) async {

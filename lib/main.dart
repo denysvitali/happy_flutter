@@ -13,7 +13,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'core/api/api_client.dart';
 import 'core/encryption/sodium_singleton.dart';
 import 'core/i18n/app_localizations.dart';
-import 'core/i18n/supported_locales.dart';
 import 'core/providers/app_providers.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/logger_service.dart';
@@ -289,9 +288,6 @@ class _HappyAppState extends ConsumerState<HappyApp>
         final themeModeString = ref.watch(
           settingsNotifierProvider.select((s) => s.themeMode),
         );
-        final preferredLanguage = ref.watch(
-          settingsNotifierProvider.select((s) => s.preferredLanguage),
-        );
         final themeMode = AppThemeMode.fromString(themeModeString);
 
         // Apply system chrome only when theme mode actually changes.
@@ -313,10 +309,10 @@ class _HappyAppState extends ConsumerState<HappyApp>
                   theme: ThemeHelper.buildLightTheme(),
                   darkTheme: ThemeHelper.buildDarkTheme(),
                   themeMode: _getThemeMode(themeMode),
-                  locale: _resolveLocale(preferredLanguage),
                   localizationsDelegates:
                       AppLocalizations.localizationsDelegates,
-                  supportedLocales: supportedLocales,
+                  supportedLocales:
+                      AppLocalizations.supportedLocales,
                   routerConfig: _router,
                 ),
                 // Command palette overlay
@@ -337,21 +333,4 @@ class _HappyAppState extends ConsumerState<HappyApp>
     };
   }
 
-  /// Resolves a preferred language code (e.g. 'en-US', 'fr-FR', 'zh-CN')
-  /// to a [Locale], but only if it matches a supported locale.
-  /// Returns null to fall back to the system locale.
-  Locale? _resolveLocale(String? preferredLanguage) {
-    if (preferredLanguage == null || preferredLanguage.isEmpty) {
-      return null;
-    }
-    // Language codes are stored in BCP 47 hyphen format (e.g. 'en-US').
-    // Convert to underscore format for parseLocaleString (e.g. 'en_US').
-    final normalized = preferredLanguage.replaceAll('-', '_');
-    final candidate = parseLocaleString(normalized);
-    // Only apply if the candidate language is among the supported locales.
-    final isSupported = supportedLocales.any(
-      (l) => l.languageCode == candidate.languageCode,
-    );
-    return isSupported ? candidate : null;
-  }
 }

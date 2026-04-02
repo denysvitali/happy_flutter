@@ -759,10 +759,27 @@ extension _SyncData on Sync {
         };
 
         final decryptedMachines = <Machine>[];
+        final now = DateTime.now().millisecondsSinceEpoch;
         for (final machine in data) {
           final machineId = machine['id'] as String;
           final result = machineResultById[machineId];
           if (result == null) continue;
+
+          // If the server says the machine is active, use the server's
+          // activeAt but clamp it to a reasonable window.  The server's
+          // activeAt can be stale (cached snapshot from minutes ago), and
+          // using it directly fails the 120 s threshold in createSession()
+          // — the "Machine is offline" false positive.  When active is true
+          // but activeAt is older than 60 s, treat it as now.
+          final isActive = machine['active'] as bool? ?? false;
+          final serverActiveAt = _asSessionInt(machine['activeAt']);
+          int activeAt;
+          if (isActive) {
+            final fallback = serverActiveAt ?? now;
+            activeAt = now - fallback > 60000 ? now : fallback;
+          } else {
+            activeAt = serverActiveAt ?? 0;
+          }
 
           decryptedMachines.add(
             Machine(
@@ -770,8 +787,8 @@ extension _SyncData on Sync {
               seq: _asSessionInt(machine['seq']) ?? 0,
               createdAt: _asSessionInt(machine['createdAt']) ?? 0,
               updatedAt: _asSessionInt(machine['updatedAt']) ?? 0,
-              active: machine['active'] as bool? ?? false,
-              activeAt: _asSessionInt(machine['activeAt']) ?? 0,
+              active: isActive,
+              activeAt: activeAt,
               metadata: result.metadata != null
                   ? MachineMetadata.fromJson(result.metadata!)
                   : null,
