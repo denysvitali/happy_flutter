@@ -289,10 +289,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     setState(() {
       _permissionMode = permissionMode;
-      _modelMode = modelMode;
-      _rawModelModeString = rawModelModeString;
+      // Guard: only apply model/profile if the user hasn't already interacted
+      // with the model or profile pickers before this async load completed.
+      // _rawModelModeString starts null; once the user picks a model via
+      // _onModelModeChanged or a profile via _onProfileChanged, it becomes
+      // non-null. We must not overwrite their choice here.
+      if (_rawModelModeString == null) {
+        _modelMode = modelMode;
+        _rawModelModeString = rawModelModeString;
+      }
       _availableProfiles = deduped;
-      _selectedProfile = selectedProfile;
+      _selectedProfile ??= selectedProfile;
     });
   }
 

@@ -6,20 +6,12 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import '../api/api_client.dart';
 import '../api/socket_io_client.dart' as socket_io;
 import '../models/auth.dart';
+import '../providers/profile_notifier.dart';
+import '../services/app_lifecycle_service.dart';
 import '../services/auth_service.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
-import 'artifacts_notifier.dart';
-import 'current_session_notifier.dart';
-import 'feed_notifier.dart';
-import 'friends_notifier.dart';
-import 'machines_notifier.dart';
-import 'profile_notifier.dart';
-import 'session_git_status_notifier.dart';
-import 'sessions_notifier.dart';
-import 'settings_notifier.dart';
-import 'todo_notifier.dart';
 
 final authStateNotifierProvider =
     NotifierProvider<AuthStateNotifier, AuthState>(() {
@@ -65,19 +57,11 @@ class AuthStateNotifier extends Notifier<AuthState> {
               sync.artifactsSync.awaitQueue(),
               sync.todosSync.awaitQueue(),
             ], eagerError: false).then((_) {
-              ref.read(sessionsNotifierProvider.notifier).loadFromSync();
-              ref.read(machinesNotifierProvider.notifier).loadFromSync();
-              ref.read(settingsNotifierProvider.notifier).loadFromSync();
-              ref.read(profileNotifierProvider.notifier).loadFromSync();
-              ref.read(friendsNotifierProvider.notifier).loadFromSync();
-              ref.read(feedNotifierProvider.notifier).loadFromSync();
-              ref.read(artifactsNotifierProvider.notifier).loadFromSync();
-              ref.read(todoStateNotifierProvider.notifier).loadFromSync();
+              AppLifecycleService.loadAll(ref);
               final profile = ref.read(profileNotifierProvider);
               if (profile != null) {
                 Sentry.configureScope(
-                  (scope) =>
-                      scope.setUser(SentryUser(id: profile.id)),
+                  (scope) => scope.setUser(SentryUser(id: profile.id)),
                 );
               }
             }),
@@ -113,16 +97,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
   Future<void> signOut() async {
     await syncShutdown();
     await _authService.signOut();
-    ref.read(sessionsNotifierProvider.notifier).clear();
-    ref.read(machinesNotifierProvider.notifier).clear();
-    ref.read(profileNotifierProvider.notifier).clear();
-    ref.read(friendsNotifierProvider.notifier).clear();
-    ref.read(feedNotifierProvider.notifier).clear();
-    ref.read(settingsNotifierProvider.notifier).clear();
-    ref.read(currentSessionNotifierProvider.notifier).clear();
-    ref.read(artifactsNotifierProvider.notifier).clear();
-    ref.read(todoStateNotifierProvider.notifier).clear();
-    ref.read(sessionGitStatusNotifierProvider.notifier).clear();
+    AppLifecycleService.clearAll(ref);
     state = AuthState.unauthenticated;
     Sentry.configureScope((scope) => scope.setUser(null));
   }

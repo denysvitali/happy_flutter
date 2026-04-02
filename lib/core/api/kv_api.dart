@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
+
 import '../models/kv.dart';
 import 'api_client.dart';
 import 'base_api_exception.dart';
@@ -17,7 +19,10 @@ class KvApi {
   /// Returns null if key doesn't exist (404)
   Future<KvItem?> get(String key) async {
     final encodedKey = Uri.encodeComponent(key);
-    final response = await _client.get('/v1/kv/$encodedKey');
+    final response = await _client.get(
+      '/v1/kv/$encodedKey',
+      options: Options(validateStatus: (_) => true),
+    );
 
     if (response.statusCode == 404) {
       return null;
@@ -118,6 +123,7 @@ class KvApi {
     final response = await _client.post(
       '/v1/kv',
       data: request.toJson(),
+      options: Options(validateStatus: (_) => true),
     );
 
     // Handle version mismatch (409 Conflict)

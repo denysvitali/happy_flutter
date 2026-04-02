@@ -1,20 +1,18 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'auth.freezed.dart';
+part 'auth.g.dart';
+
 /// Authentication credentials stored securely
-class AuthCredentials {
-  const AuthCredentials({required this.token, required this.secret});
+@freezed
+abstract class AuthCredentials with _$AuthCredentials {
+  const factory AuthCredentials({
+    required String token,
+    required String secret,
+  }) = _AuthCredentials;
 
-  factory AuthCredentials.fromJson(Map<String, dynamic> json) {
-    return AuthCredentials(
-      token: json['token'] as String,
-      secret: json['secret'] as String,
-    );
-  }
-
-  final String token;
-  final String secret;
-
-  Map<String, dynamic> toJson() {
-    return {'token': token, 'secret': secret};
-  }
+  factory AuthCredentials.fromJson(Map<String, dynamic> json) =>
+      _$AuthCredentialsFromJson(json);
 }
 
 /// Authentication state

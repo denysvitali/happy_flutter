@@ -1,72 +1,25 @@
-/// Settings model matching the original Zod schema
+// Settings model matching the original Zod schema
+import 'package:json_annotation/json_annotation.dart';
+
+part 'settings.g.dart';
+
+/// Settings model — mutable fields, not freezed.
+/// Uses @JsonSerializable for fromJson/toJson generation only.
+///
+/// Note: inferenceOpenAIKey is intentionally excluded from toJson
+/// (stored in secure storage). API keys in nested configs are also
+/// excluded via toJsonWithoutApiKeys().
+@JsonSerializable(explicitToJson: true, includeIfNull: true)
 class Settings {
   Settings();
 
-  factory Settings.fromJson(Map<String, dynamic> json) {
-    return Settings()
-      ..schemaVersion = json['schemaVersion'] as int? ?? 2
-      ..themeMode = json['themeMode'] as String? ?? 'system'
-      ..viewInline = json['viewInline'] as bool? ?? false
-      ..inferenceOpenAIKey = json['inferenceOpenAIKey'] as String?
-      ..expandTodos = json['expandTodos'] as bool? ?? true
-      ..showLineNumbers = json['showLineNumbers'] as bool? ?? true
-      ..showLineNumbersInToolViews =
-          json['showLineNumbersInToolViews'] as bool? ?? false
-      ..wrapLinesInDiffs = json['wrapLinesInDiffs'] as bool? ?? false
-      ..analyticsOptOut = json['analyticsOptOut'] as bool? ?? false
-      ..experiments = json['experiments'] as bool? ?? false
-      ..markdownCopyV2 = json['markdownCopyV2'] as bool? ?? false
-      ..useEnhancedSessionWizard =
-          json['useEnhancedSessionWizard'] as bool? ?? false
-      ..alwaysShowContextSize = json['alwaysShowContextSize'] as bool? ?? false
-      ..agentInputEnterToSend = json['agentInputEnterToSend'] as bool? ?? true
-      ..developerModeEnabled = json['developerModeEnabled'] as bool? ?? false
-      ..avatarStyle = json['avatarStyle'] as String? ?? 'brutalist'
-      ..showFlavorIcons = json['showFlavorIcons'] as bool? ?? false
-      ..compactSessionView = json['compactSessionView'] as bool? ?? false
-      ..hideInactiveSessions = json['hideInactiveSessions'] as bool? ?? false
-      ..reviewPromptAnswered = json['reviewPromptAnswered'] as bool? ?? false
-      ..reviewPromptLikedApp = json['reviewPromptLikedApp'] as bool?
-      ..ttsEnabled = json['ttsEnabled'] as bool? ?? false
-      ..voiceAssistantLanguage = json['voiceAssistantLanguage'] as String?
-      ..ttsEngine = json['ttsEngine'] as String?
-      ..preferredLanguage = json['preferredLanguage'] as String?
-      ..usagePeriod = json['usagePeriod'] as String? ?? 'thirtyDays'
-      ..recentMachinePaths =
-          (json['recentMachinePaths'] as List<dynamic>?)
-              ?.map(
-                (e) => RecentMachinePath.fromJson(e as Map<String, dynamic>),
-              )
-              .toList() ??
-          []
-      ..lastUsedAgent = json['lastUsedAgent'] as String?
-      ..lastUsedPermissionMode = json['lastUsedPermissionMode'] as String?
-      ..lastUsedModelMode = json['lastUsedModelMode'] as String?
-      ..profiles =
-          (json['profiles'] as List<dynamic>?)
-              ?.map((e) => AIBackendProfile.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          []
-      ..lastUsedProfile = json['lastUsedProfile'] as String?
-      ..favoriteDirectories =
-          (json['favoriteDirectories'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          ['~/src', '~/Desktop', '~/Documents']
-      ..favoriteMachines =
-          (json['favoriteMachines'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          []
-      ..dismissedCLIWarnings = json['dismissedCLIWarnings'] != null
-          ? DismissedCLIWarnings.fromJson(
-              json['dismissedCLIWarnings'] as Map<String, dynamic>,
-            )
-          : DismissedCLIWarnings();
-  }
+  factory Settings.fromJson(Map<String, dynamic> json) =>
+      _$SettingsFromJson(json);
+
   int schemaVersion = 2;
   String themeMode = 'system';
   bool viewInline = false;
+  @JsonKey(includeToJson: false)
   String? inferenceOpenAIKey;
   bool expandTodos = true;
   bool showLineNumbers = true;
@@ -92,6 +45,7 @@ class Settings {
   String usagePeriod = 'thirtyDays';
 
   /// Alias for preferredLanguage to maintain compatibility
+  @JsonKey(includeFromJson: false, includeToJson: false)
   String get locale => preferredLanguage ?? '';
   set locale(String value) {
     preferredLanguage = value.isEmpty ? null : value;
@@ -101,6 +55,7 @@ class Settings {
   String? lastUsedAgent;
   String? lastUsedPermissionMode;
   String? lastUsedModelMode;
+  // Profile API keys excluded from serialization via toJsonWithoutApiKeys()
   List<AIBackendProfile> profiles = [];
   String? lastUsedProfile;
   List<String> favoriteDirectories = ['~/src', '~/Desktop', '~/Documents'];
@@ -162,45 +117,12 @@ class Settings {
     Object.hashAll(profiles),
   );
 
+  /// Custom toJson that excludes API keys from profiles
   Map<String, dynamic> toJson() {
-    return {
-      'schemaVersion': schemaVersion,
-      'themeMode': themeMode,
-      'viewInline': viewInline,
-      // inferenceOpenAIKey intentionally excluded - stored in secure storage
-      'expandTodos': expandTodos,
-      'showLineNumbers': showLineNumbers,
-      'showLineNumbersInToolViews': showLineNumbersInToolViews,
-      'wrapLinesInDiffs': wrapLinesInDiffs,
-      'analyticsOptOut': analyticsOptOut,
-      'experiments': experiments,
-      'markdownCopyV2': markdownCopyV2,
-      'useEnhancedSessionWizard': useEnhancedSessionWizard,
-      'alwaysShowContextSize': alwaysShowContextSize,
-      'agentInputEnterToSend': agentInputEnterToSend,
-      'developerModeEnabled': developerModeEnabled,
-      'avatarStyle': avatarStyle,
-      'showFlavorIcons': showFlavorIcons,
-      'compactSessionView': compactSessionView,
-      'hideInactiveSessions': hideInactiveSessions,
-      'reviewPromptAnswered': reviewPromptAnswered,
-      'reviewPromptLikedApp': reviewPromptLikedApp,
-      'ttsEnabled': ttsEnabled,
-      'voiceAssistantLanguage': voiceAssistantLanguage,
-      'ttsEngine': ttsEngine,
-      'preferredLanguage': preferredLanguage,
-      'usagePeriod': usagePeriod,
-      'recentMachinePaths': recentMachinePaths.map((e) => e.toJson()).toList(),
-      'lastUsedAgent': lastUsedAgent,
-      'lastUsedPermissionMode': lastUsedPermissionMode,
-      'lastUsedModelMode': lastUsedModelMode,
-      // Profile API keys intentionally excluded - stored in secure storage
-      'profiles': profiles.map((e) => e.toJsonWithoutApiKeys()).toList(),
-      'lastUsedProfile': lastUsedProfile,
-      'favoriteDirectories': favoriteDirectories,
-      'favoriteMachines': favoriteMachines,
-      'dismissedCLIWarnings': dismissedCLIWarnings.toJson(),
-    };
+    final json = _$SettingsToJson(this);
+    // Replace profiles with API-key-stripped versions
+    json['profiles'] = profiles.map((e) => e.toJsonWithoutApiKeys()).toList();
+    return json;
   }
 
   Settings copyWith({
@@ -294,90 +216,62 @@ class Settings {
   }
 }
 
+@JsonSerializable(explicitToJson: true)
 class RecentMachinePath {
   RecentMachinePath({required this.machineId, required this.path});
 
-  factory RecentMachinePath.fromJson(Map<String, dynamic> json) {
-    return RecentMachinePath(
-      machineId: json['machineId'] as String,
-      path: json['path'] as String,
-    );
-  }
+  factory RecentMachinePath.fromJson(Map<String, dynamic> json) =>
+      _$RecentMachinePathFromJson(json);
+
   final String machineId;
   final String path;
 
-  Map<String, dynamic> toJson() {
-    return {'machineId': machineId, 'path': path};
-  }
+  Map<String, dynamic> toJson() => _$RecentMachinePathToJson(this);
 }
 
+@JsonSerializable(explicitToJson: true)
 class DismissedCLIWarnings {
   DismissedCLIWarnings();
 
-  factory DismissedCLIWarnings.fromJson(Map<String, dynamic> json) {
-    return DismissedCLIWarnings()
-      ..perMachine =
-          (json['perMachine'] as Map<String, dynamic>?)?.map(
-            (k, v) => MapEntry(
-              k,
-              PerMachineWarnings.fromJson(v as Map<String, dynamic>),
-            ),
-          ) ??
-          {}
-      ..global = json['global'] != null
-          ? GlobalWarnings.fromJson(json['global'] as Map<String, dynamic>)
-          : GlobalWarnings();
-  }
+  factory DismissedCLIWarnings.fromJson(Map<String, dynamic> json) =>
+      _$DismissedCLIWarningsFromJson(json);
+
   Map<String, PerMachineWarnings> perMachine = {};
   GlobalWarnings global = GlobalWarnings();
 
-  Map<String, dynamic> toJson() {
-    return {
-      'perMachine': perMachine.map((k, v) => MapEntry(k, v.toJson())),
-      'global': global.toJson(),
-    };
-  }
+  Map<String, dynamic> toJson() => _$DismissedCLIWarningsToJson(this);
 }
 
+@JsonSerializable()
 class PerMachineWarnings {
   PerMachineWarnings({this.claude, this.codex, this.gemini});
 
-  factory PerMachineWarnings.fromJson(Map<String, dynamic> json) {
-    return PerMachineWarnings(
-      claude: json['claude'] as bool?,
-      codex: json['codex'] as bool?,
-      gemini: json['gemini'] as bool?,
-    );
-  }
+  factory PerMachineWarnings.fromJson(Map<String, dynamic> json) =>
+      _$PerMachineWarningsFromJson(json);
+
   bool? claude;
   bool? codex;
   bool? gemini;
 
-  Map<String, dynamic> toJson() {
-    return {'claude': claude, 'codex': codex, 'gemini': gemini};
-  }
+  Map<String, dynamic> toJson() => _$PerMachineWarningsToJson(this);
 }
 
+@JsonSerializable()
 class GlobalWarnings {
   GlobalWarnings({this.claude, this.codex, this.gemini});
 
-  factory GlobalWarnings.fromJson(Map<String, dynamic> json) {
-    return GlobalWarnings(
-      claude: json['claude'] as bool?,
-      codex: json['codex'] as bool?,
-      gemini: json['gemini'] as bool?,
-    );
-  }
+  factory GlobalWarnings.fromJson(Map<String, dynamic> json) =>
+      _$GlobalWarningsFromJson(json);
+
   bool? claude;
   bool? codex;
   bool? gemini;
 
-  Map<String, dynamic> toJson() {
-    return {'claude': claude, 'codex': codex, 'gemini': gemini};
-  }
+  Map<String, dynamic> toJson() => _$GlobalWarningsToJson(this);
 }
 
 /// AI backend profile for environment configuration
+@JsonSerializable(explicitToJson: true)
 class AIBackendProfile {
   AIBackendProfile({
     required this.id,
@@ -404,54 +298,9 @@ class AIBackendProfile {
     this.version = '1.0.0',
   });
 
-  factory AIBackendProfile.fromJson(Map<String, dynamic> json) {
-    return AIBackendProfile(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      description: json['description'] as String?,
-      anthropicConfig: json['anthropicConfig'] != null
-          ? AnthropicConfig.fromJson(
-              json['anthropicConfig'] as Map<String, dynamic>,
-            )
-          : null,
-      openaiConfig: json['openaiConfig'] != null
-          ? OpenAIConfig.fromJson(json['openaiConfig'] as Map<String, dynamic>)
-          : null,
-      azureOpenAIConfig: json['azureOpenAIConfig'] != null
-          ? AzureOpenAIConfig.fromJson(
-              json['azureOpenAIConfig'] as Map<String, dynamic>,
-            )
-          : null,
-      togetherAIConfig: json['togetherAIConfig'] != null
-          ? TogetherAIConfig.fromJson(
-              json['togetherAIConfig'] as Map<String, dynamic>,
-            )
-          : null,
-      tmuxConfig: json['tmuxConfig'] != null
-          ? TmuxConfig.fromJson(json['tmuxConfig'] as Map<String, dynamic>)
-          : null,
-      startupBashScript: json['startupBashScript'] as String?,
-      environmentVariables:
-          (json['environmentVariables'] as List<dynamic>?)
-              ?.map(
-                (e) => EnvironmentVariable.fromJson(e as Map<String, dynamic>),
-              )
-              .toList() ??
-          [],
-      defaultSessionType: json['defaultSessionType'] as String?,
-      defaultPermissionMode: json['defaultPermissionMode'] as String?,
-      defaultModelMode: json['defaultModelMode'] as String?,
-      compatibility: json['compatibility'] != null
-          ? ProfileCompatibility.fromJson(
-              json['compatibility'] as Map<String, dynamic>,
-            )
-          : ProfileCompatibility(),
-      isBuiltIn: json['isBuiltIn'] as bool? ?? false,
-      createdAt: json['createdAt'] as int? ?? 0,
-      updatedAt: json['updatedAt'] as int? ?? 0,
-      version: json['version'] as String? ?? '1.0.0',
-    );
-  }
+  factory AIBackendProfile.fromJson(Map<String, dynamic> json) =>
+      _$AIBackendProfileFromJson(json);
+
   final String id;
   final String name;
   final String? description;
@@ -471,30 +320,7 @@ class AIBackendProfile {
   final int updatedAt;
   final String version;
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'description': description,
-      'anthropicConfig': anthropicConfig?.toJson(),
-      'openaiConfig': openaiConfig?.toJson(),
-      'azureOpenAIConfig': azureOpenAIConfig?.toJson(),
-      'togetherAIConfig': togetherAIConfig?.toJson(),
-      'tmuxConfig': tmuxConfig?.toJson(),
-      'startupBashScript': startupBashScript,
-      'environmentVariables': environmentVariables
-          .map((e) => e.toJson())
-          .toList(),
-      'defaultSessionType': defaultSessionType,
-      'defaultPermissionMode': defaultPermissionMode,
-      'defaultModelMode': defaultModelMode,
-      'compatibility': compatibility.toJson(),
-      'isBuiltIn': isBuiltIn,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
-      'version': version,
-    };
-  }
+  Map<String, dynamic> toJson() => _$AIBackendProfileToJson(this);
 
   /// Serialize to JSON without API keys (for secure storage)
   Map<String, dynamic> toJsonWithoutApiKeys() {
@@ -568,42 +394,32 @@ class AIBackendProfile {
   }
 }
 
+@JsonSerializable()
 class AnthropicConfig {
   AnthropicConfig({this.baseUrl, this.authToken, this.model});
 
-  factory AnthropicConfig.fromJson(Map<String, dynamic> json) {
-    return AnthropicConfig(
-      baseUrl: json['baseUrl'] as String?,
-      authToken: json['authToken'] as String?,
-      model: json['model'] as String?,
-    );
-  }
+  factory AnthropicConfig.fromJson(Map<String, dynamic> json) =>
+      _$AnthropicConfigFromJson(json);
+
   final String? baseUrl;
   final String? authToken;
   final String? model;
 
-  Map<String, dynamic> toJson() {
-    return {'baseUrl': baseUrl, 'authToken': authToken, 'model': model};
-  }
+  Map<String, dynamic> toJson() => _$AnthropicConfigToJson(this);
 }
 
+@JsonSerializable()
 class OpenAIConfig {
   OpenAIConfig({this.apiKey, this.baseUrl, this.model});
 
-  factory OpenAIConfig.fromJson(Map<String, dynamic> json) {
-    return OpenAIConfig(
-      apiKey: json['apiKey'] as String?,
-      baseUrl: json['baseUrl'] as String?,
-      model: json['model'] as String?,
-    );
-  }
+  factory OpenAIConfig.fromJson(Map<String, dynamic> json) =>
+      _$OpenAIConfigFromJson(json);
+
   final String? apiKey;
   final String? baseUrl;
   final String? model;
 
-  Map<String, dynamic> toJson() {
-    return {'apiKey': apiKey, 'baseUrl': baseUrl, 'model': model};
-  }
+  Map<String, dynamic> toJson() => _$OpenAIConfigToJson(this);
 
   /// Serialize to JSON without API key (for secure storage)
   Map<String, dynamic> toJsonWithoutApiKey() {
@@ -611,6 +427,7 @@ class OpenAIConfig {
   }
 }
 
+@JsonSerializable()
 class AzureOpenAIConfig {
   AzureOpenAIConfig({
     this.apiKey,
@@ -619,27 +436,15 @@ class AzureOpenAIConfig {
     this.deploymentName,
   });
 
-  factory AzureOpenAIConfig.fromJson(Map<String, dynamic> json) {
-    return AzureOpenAIConfig(
-      apiKey: json['apiKey'] as String?,
-      endpoint: json['endpoint'] as String?,
-      apiVersion: json['apiVersion'] as String?,
-      deploymentName: json['deploymentName'] as String?,
-    );
-  }
+  factory AzureOpenAIConfig.fromJson(Map<String, dynamic> json) =>
+      _$AzureOpenAIConfigFromJson(json);
+
   final String? apiKey;
   final String? endpoint;
   final String? apiVersion;
   final String? deploymentName;
 
-  Map<String, dynamic> toJson() {
-    return {
-      'apiKey': apiKey,
-      'endpoint': endpoint,
-      'apiVersion': apiVersion,
-      'deploymentName': deploymentName,
-    };
-  }
+  Map<String, dynamic> toJson() => _$AzureOpenAIConfigToJson(this);
 
   /// Serialize to JSON without API key (for secure storage)
   Map<String, dynamic> toJsonWithoutApiKey() {
@@ -651,21 +456,17 @@ class AzureOpenAIConfig {
   }
 }
 
+@JsonSerializable()
 class TogetherAIConfig {
   TogetherAIConfig({this.apiKey, this.model});
 
-  factory TogetherAIConfig.fromJson(Map<String, dynamic> json) {
-    return TogetherAIConfig(
-      apiKey: json['apiKey'] as String?,
-      model: json['model'] as String?,
-    );
-  }
+  factory TogetherAIConfig.fromJson(Map<String, dynamic> json) =>
+      _$TogetherAIConfigFromJson(json);
+
   final String? apiKey;
   final String? model;
 
-  Map<String, dynamic> toJson() {
-    return {'apiKey': apiKey, 'model': model};
-  }
+  Map<String, dynamic> toJson() => _$TogetherAIConfigToJson(this);
 
   /// Serialize to JSON without API key (for secure storage)
   Map<String, dynamic> toJsonWithoutApiKey() {
@@ -673,46 +474,34 @@ class TogetherAIConfig {
   }
 }
 
+@JsonSerializable()
 class TmuxConfig {
   TmuxConfig({this.sessionName, this.tmpDir, this.updateEnvironment});
 
-  factory TmuxConfig.fromJson(Map<String, dynamic> json) {
-    return TmuxConfig(
-      sessionName: json['sessionName'] as String?,
-      tmpDir: json['tmpDir'] as String?,
-      updateEnvironment: json['updateEnvironment'] as bool?,
-    );
-  }
+  factory TmuxConfig.fromJson(Map<String, dynamic> json) =>
+      _$TmuxConfigFromJson(json);
+
   final String? sessionName;
   final String? tmpDir;
   final bool? updateEnvironment;
 
-  Map<String, dynamic> toJson() {
-    return {
-      'sessionName': sessionName,
-      'tmpDir': tmpDir,
-      'updateEnvironment': updateEnvironment,
-    };
-  }
+  Map<String, dynamic> toJson() => _$TmuxConfigToJson(this);
 }
 
+@JsonSerializable()
 class EnvironmentVariable {
   EnvironmentVariable({required this.name, required this.value});
 
-  factory EnvironmentVariable.fromJson(Map<String, dynamic> json) {
-    return EnvironmentVariable(
-      name: json['name'] as String,
-      value: json['value'] as String,
-    );
-  }
+  factory EnvironmentVariable.fromJson(Map<String, dynamic> json) =>
+      _$EnvironmentVariableFromJson(json);
+
   final String name;
   final String value;
 
-  Map<String, dynamic> toJson() {
-    return {'name': name, 'value': value};
-  }
+  Map<String, dynamic> toJson() => _$EnvironmentVariableToJson(this);
 }
 
+@JsonSerializable()
 class ProfileCompatibility {
   const ProfileCompatibility({
     this.claude = true,
@@ -720,18 +509,12 @@ class ProfileCompatibility {
     this.gemini = true,
   });
 
-  factory ProfileCompatibility.fromJson(Map<String, dynamic> json) {
-    return ProfileCompatibility(
-      claude: json['claude'] as bool? ?? true,
-      codex: json['codex'] as bool? ?? true,
-      gemini: json['gemini'] as bool? ?? true,
-    );
-  }
+  factory ProfileCompatibility.fromJson(Map<String, dynamic> json) =>
+      _$ProfileCompatibilityFromJson(json);
+
   final bool claude;
   final bool codex;
   final bool gemini;
 
-  Map<String, dynamic> toJson() {
-    return {'claude': claude, 'codex': codex, 'gemini': gemini};
-  }
+  Map<String, dynamic> toJson() => _$ProfileCompatibilityToJson(this);
 }

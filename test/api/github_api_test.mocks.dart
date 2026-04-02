@@ -71,12 +71,13 @@ class MockApiClient extends _i1.Mock implements _i3.ApiClient {
   _i4.Future<_i2.Response<dynamic>> get(
     String? path, {
     Map<String, dynamic>? queryParameters,
+    _i2.Options? options,
   }) =>
       (super.noSuchMethod(
             Invocation.method(
               #get,
               [path],
-              {#queryParameters: queryParameters},
+              {#queryParameters: queryParameters, #options: options},
             ),
             returnValue: _i4.Future<_i2.Response<dynamic>>.value(
               _FakeResponse_0<dynamic>(
@@ -84,7 +85,7 @@ class MockApiClient extends _i1.Mock implements _i3.ApiClient {
                 Invocation.method(
                   #get,
                   [path],
-                  {#queryParameters: queryParameters},
+                  {#queryParameters: queryParameters, #options: options},
                 ),
               ),
             ),
@@ -92,39 +93,58 @@ class MockApiClient extends _i1.Mock implements _i3.ApiClient {
           as _i4.Future<_i2.Response<dynamic>>);
 
   @override
-  _i4.Future<_i2.Response<dynamic>> post(String? path, {dynamic data}) =>
+  _i4.Future<_i2.Response<dynamic>> post(
+    String? path, {
+    dynamic data,
+    _i2.Options? options,
+  }) =>
       (super.noSuchMethod(
-            Invocation.method(#post, [path], {#data: data}),
+            Invocation.method(#post, [path], {#data: data, #options: options}),
             returnValue: _i4.Future<_i2.Response<dynamic>>.value(
               _FakeResponse_0<dynamic>(
                 this,
-                Invocation.method(#post, [path], {#data: data}),
+                Invocation.method(
+                  #post,
+                  [path],
+                  {#data: data, #options: options},
+                ),
               ),
             ),
           )
           as _i4.Future<_i2.Response<dynamic>>);
 
   @override
-  _i4.Future<_i2.Response<dynamic>> put(String? path, {dynamic data}) =>
+  _i4.Future<_i2.Response<dynamic>> put(
+    String? path, {
+    dynamic data,
+    _i2.Options? options,
+  }) =>
       (super.noSuchMethod(
-            Invocation.method(#put, [path], {#data: data}),
+            Invocation.method(#put, [path], {#data: data, #options: options}),
             returnValue: _i4.Future<_i2.Response<dynamic>>.value(
               _FakeResponse_0<dynamic>(
                 this,
-                Invocation.method(#put, [path], {#data: data}),
+                Invocation.method(
+                  #put,
+                  [path],
+                  {#data: data, #options: options},
+                ),
               ),
             ),
           )
           as _i4.Future<_i2.Response<dynamic>>);
 
   @override
-  _i4.Future<_i2.Response<dynamic>> delete(String? path) =>
+  _i4.Future<_i2.Response<dynamic>> delete(
+    String? path, {
+    _i2.Options? options,
+  }) =>
       (super.noSuchMethod(
-            Invocation.method(#delete, [path]),
+            Invocation.method(#delete, [path], {#options: options}),
             returnValue: _i4.Future<_i2.Response<dynamic>>.value(
               _FakeResponse_0<dynamic>(
                 this,
-                Invocation.method(#delete, [path]),
+                Invocation.method(#delete, [path], {#options: options}),
               ),
             ),
           )
@@ -203,6 +223,26 @@ class MockApiClient extends _i1.Mock implements _i3.ApiClient {
             returnValue: false,
           )
           as bool);
+
+  @override
+  void clearCache(String? pathPattern) => super.noSuchMethod(
+    Invocation.method(#clearCache, [pathPattern]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void clearAllCache() => super.noSuchMethod(
+    Invocation.method(#clearAllCache, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  Map<String, int> getCacheStats() =>
+      (super.noSuchMethod(
+            Invocation.method(#getCacheStats, []),
+            returnValue: <String, int>{},
+          )
+          as Map<String, int>);
 
   @override
   void dispose() => super.noSuchMethod(

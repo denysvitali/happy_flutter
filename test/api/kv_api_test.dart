@@ -27,8 +27,10 @@ void main() {
           'version': 1,
         };
 
-        when(mockClient.get('/v1/kv/test-key'))
-            .thenAnswer((_) async => Response(
+        when(mockClient.get(
+          '/v1/kv/test-key',
+          options: anyNamed('options'),
+        )).thenAnswer((_) async => Response(
           data: mockResponse,
           statusCode: 200,
           requestOptions: RequestOptions(path: ''),
@@ -43,8 +45,10 @@ void main() {
       });
 
       test('returns null when key not found (404)', () async {
-        when(mockClient.get('/v1/kv/non-existent'))
-            .thenAnswer((_) async => Response(
+        when(mockClient.get(
+          '/v1/kv/non-existent',
+          options: anyNamed('options'),
+        )).thenAnswer((_) async => Response(
           data: {},
           statusCode: 404,
           requestOptions: RequestOptions(path: ''),
@@ -56,8 +60,10 @@ void main() {
       });
 
       test('throws exception on non-200/404 response', () async {
-        when(mockClient.get(any))
-            .thenAnswer((_) async => Response(
+        when(mockClient.get(
+          any,
+          options: anyNamed('options'),
+        )).thenAnswer((_) async => Response(
           data: {},
           statusCode: 500,
           requestOptions: RequestOptions(path: ''),
@@ -73,8 +79,10 @@ void main() {
       });
 
       test('encodes key properly', () async {
-        when(mockClient.get(any))
-            .thenAnswer((_) async => Response(
+        when(mockClient.get(
+          any,
+          options: anyNamed('options'),
+        )).thenAnswer((_) async => Response(
           data: {'key': 'test key', 'value': 'value', 'version': 1},
           statusCode: 200,
           requestOptions: RequestOptions(path: ''),
@@ -82,12 +90,17 @@ void main() {
 
         await kvApi.get('test key');
 
-        verify(mockClient.get('/v1/kv/test%20key')).called(1);
+        verify(mockClient.get(
+          '/v1/kv/test%20key',
+          options: anyNamed('options'),
+        )).called(1);
       });
 
       test('throws exception on invalid response data', () async {
-        when(mockClient.get(any))
-            .thenAnswer((_) async => Response(
+        when(mockClient.get(
+          any,
+          options: anyNamed('options'),
+        )).thenAnswer((_) async => Response(
           data: {'invalid': 'data'},
           statusCode: 200,
           requestOptions: RequestOptions(path: ''),
@@ -281,6 +294,7 @@ void main() {
         when(mockClient.post(
           '/v1/kv',
           data: anyNamed('data'),
+          options: anyNamed('options'),
         )).thenAnswer((_) async => Response(
           data: mockResponse,
           statusCode: 200,
@@ -310,6 +324,7 @@ void main() {
         when(mockClient.post(
           '/v1/kv',
           data: anyNamed('data'),
+          options: anyNamed('options'),
         )).thenAnswer((_) async => Response(
           data: mockResponse,
           statusCode: 200,
@@ -342,6 +357,7 @@ void main() {
         when(mockClient.post(
           '/v1/kv',
           data: anyNamed('data'),
+          options: anyNamed('options'),
         )).thenAnswer((_) async => Response(
           data: mockResponse,
           statusCode: 409,
@@ -388,6 +404,7 @@ void main() {
         when(mockClient.post(
           any,
           data: anyNamed('data'),
+          options: anyNamed('options'),
         )).thenAnswer((_) async => Response(
           data: {},
           statusCode: 500,
@@ -413,8 +430,12 @@ void main() {
         when(mockClient.post(
           '/v1/kv',
           data: anyNamed('data'),
+          options: anyNamed('options'),
         )).thenAnswer((_) async => Response(
-          data: {'success': true, 'results': [{'key': 'key', 'version': 1}]},
+          data: {
+            'success': true,
+            'results': [{'key': 'key', 'version': 1}],
+          },
           statusCode: 200,
           requestOptions: RequestOptions(path: ''),
         ));
@@ -430,6 +451,7 @@ void main() {
               containsPair('mutations', isList),
             ]),
             named: 'data'),
+          options: anyNamed('options'),
         )).called(1);
       });
 
@@ -437,12 +459,13 @@ void main() {
         when(mockClient.post(
           '/v1/kv',
           data: anyNamed('data'),
+          options: anyNamed('options'),
         )).thenAnswer((_) async => Response(
           data: {
             'success': false,
             'errors': [
-              {'key': 'key', 'error': 'version-mismatch', 'version': 5}
-            ]
+              {'key': 'key', 'error': 'version-mismatch', 'version': 5},
+            ],
           },
           statusCode: 409,
           requestOptions: RequestOptions(path: ''),
@@ -463,8 +486,12 @@ void main() {
         when(mockClient.post(
           '/v1/kv',
           data: anyNamed('data'),
+          options: anyNamed('options'),
         )).thenAnswer((_) async => Response(
-          data: {'success': true, 'results': [{'key': 'key', 'version': 2}]},
+          data: {
+            'success': true,
+            'results': [{'key': 'key', 'version': 2}],
+          },
           statusCode: 200,
           requestOptions: RequestOptions(path: ''),
         ));
@@ -478,6 +505,7 @@ void main() {
               containsPair('mutations', isList),
             ]),
             named: 'data'),
+          options: anyNamed('options'),
         )).called(1);
       });
 
@@ -485,12 +513,13 @@ void main() {
         when(mockClient.post(
           '/v1/kv',
           data: anyNamed('data'),
+          options: anyNamed('options'),
         )).thenAnswer((_) async => Response(
           data: {
             'success': false,
             'errors': [
-              {'key': 'key', 'error': 'version-mismatch', 'version': 5}
-            ]
+              {'key': 'key', 'error': 'version-mismatch', 'version': 5},
+            ],
           },
           statusCode: 409,
           requestOptions: RequestOptions(path: ''),

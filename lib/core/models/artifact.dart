@@ -2,240 +2,104 @@
 /// Matches React Native implementation in ../happy/sources/sync/artifactTypes.ts
 library;
 
-String _asApiString(dynamic value, String fieldName) {
-  if (value is String) return value;
-  throw FormatException(
-    'Expected String for $fieldName, got ${value.runtimeType}',
-  );
-}
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-int _asApiInt(dynamic value, String fieldName) {
+part 'artifact.freezed.dart';
+part 'artifact.g.dart';
+
+int _asApiInt(dynamic value) {
   if (value is int) return value;
   if (value is double) return value.toInt();
   if (value is num) return value.toInt();
   throw FormatException(
-    'Expected int for $fieldName, got ${value.runtimeType}',
+    'Expected int, got ${value.runtimeType}',
   );
 }
 
-String? _asApiStringOptional(dynamic value) {
-  if (value == null) return null;
+String _asRequiredString(dynamic value) {
   if (value is String) return value;
+  throw FormatException('Expected String, got ${value.runtimeType}');
+}
+
+int? _asApiIntNullable(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
   return null;
 }
 
-int? _asApiIntOptional(dynamic value) {
-  if (value == null) return null;
-  if (value is int) return value;
-  if (value is double) return value.toInt();
-  if (value is num) return value.toInt();
+List<String>? _stringListOrNull(dynamic value) {
+  if (value is List) {
+    final list = value.whereType<String>().toList();
+    return list.isEmpty ? null : list;
+  }
   return null;
 }
 
 /// Encrypted artifact from API (matches React Native Artifact interface)
-class Artifact {
+@freezed
+abstract class Artifact with _$Artifact {
+  const factory Artifact({
+    @JsonKey(fromJson: _asRequiredString) required String id,
+    @JsonKey(fromJson: _asRequiredString) required String header, // Base64 encoded encrypted JSON
+    @JsonKey(fromJson: _asApiInt) required int headerVersion,
+    @JsonKey(fromJson: _asRequiredString) required String dataEncryptionKey, // Base64 encoded encryption key
+    @JsonKey(fromJson: _asApiInt) required int seq,
+    @JsonKey(fromJson: _asApiInt) required int createdAt,
+    @JsonKey(fromJson: _asApiInt) required int updatedAt,
+    String? body, // Base64 encoded encrypted JSON
+    @JsonKey(fromJson: _asApiIntNullable) int? bodyVersion,
+  }) = _Artifact;
 
-  Artifact({
-    required this.id,
-    required this.header,
-    required this.headerVersion,
-    required this.dataEncryptionKey,
-    required this.seq,
-    required this.createdAt,
-    required this.updatedAt,
-    this.body,
-    this.bodyVersion,
-  });
-
-  factory Artifact.fromJson(Map<String, dynamic> json) {
-    return Artifact(
-      id: _asApiString(json['id'], 'id'),
-      header: _asApiString(json['header'], 'header'),
-      headerVersion: _asApiInt(json['headerVersion'], 'headerVersion'),
-      body: _asApiStringOptional(json['body']),
-      bodyVersion: _asApiIntOptional(json['bodyVersion']),
-      dataEncryptionKey: _asApiString(
-        json['dataEncryptionKey'],
-        'dataEncryptionKey',
-      ),
-      seq: _asApiInt(json['seq'], 'seq'),
-      createdAt: _asApiInt(json['createdAt'], 'createdAt'),
-      updatedAt: _asApiInt(json['updatedAt'], 'updatedAt'),
-    );
-  }
-  final String id;
-  final String header; // Base64 encoded encrypted JSON
-  final int headerVersion;
-  final String? body; // Base64 encoded encrypted JSON
-  final int? bodyVersion; // Only in full fetch
-  final String dataEncryptionKey; // Base64 encoded encryption key
-  final int seq;
-  final int createdAt;
-  final int updatedAt;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'header': header,
-      'headerVersion': headerVersion,
-      'body': body,
-      'bodyVersion': bodyVersion,
-      'dataEncryptionKey': dataEncryptionKey,
-      'seq': seq,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
-    };
-  }
-
-  Artifact copyWith({
-    String? id,
-    String? header,
-    int? headerVersion,
-    String? body,
-    int? bodyVersion,
-    String? dataEncryptionKey,
-    int? seq,
-    int? createdAt,
-    int? updatedAt,
-  }) {
-    return Artifact(
-      id: id ?? this.id,
-      header: header ?? this.header,
-      headerVersion: headerVersion ?? this.headerVersion,
-      body: body ?? this.body,
-      bodyVersion: bodyVersion ?? this.bodyVersion,
-      dataEncryptionKey: dataEncryptionKey ?? this.dataEncryptionKey,
-      seq: seq ?? this.seq,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Artifact &&
-          runtimeType == other.runtimeType &&
-          id == other.id &&
-          header == other.header &&
-          headerVersion == other.headerVersion &&
-          body == other.body &&
-          bodyVersion == other.bodyVersion &&
-          dataEncryptionKey == other.dataEncryptionKey &&
-          seq == other.seq &&
-          createdAt == other.createdAt &&
-          updatedAt == other.updatedAt;
-
-  @override
-  int get hashCode => Object.hash(
-        id,
-        header,
-        headerVersion,
-        body,
-        bodyVersion,
-        dataEncryptionKey,
-        seq,
-        createdAt,
-        updatedAt,
-      );
+  factory Artifact.fromJson(Map<String, dynamic> json) =>
+      _$ArtifactFromJson(json);
 }
 
 /// Decrypted artifact header (matches React Native ArtifactHeader interface)
-class ArtifactHeader {
+@freezed
+abstract class ArtifactHeader with _$ArtifactHeader {
+  const factory ArtifactHeader({
+    String? title,
+    @JsonKey(fromJson: _stringListOrNull) List<String>? sessions,
+    bool? draft,
+  }) = _ArtifactHeader;
 
-  ArtifactHeader({
-    this.title,
-    this.sessions,
-    this.draft,
-  });
-
-  factory ArtifactHeader.fromJson(Map<String, dynamic> json) {
-    return ArtifactHeader(
-      title: json['title'] as String?,
-      sessions: (json['sessions'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList(),
-      draft: json['draft'] as bool?,
-    );
-  }
-  final String? title;
-  final List<String>? sessions; // Optional array of session IDs
-  final bool? draft;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'title': title,
-      'sessions': sessions,
-      'draft': draft,
-    };
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ArtifactHeader &&
-          runtimeType == other.runtimeType &&
-          title == other.title &&
-          sessions == other.sessions &&
-          draft == other.draft;
-
-  @override
-  int get hashCode => Object.hash(title, sessions, draft);
+  factory ArtifactHeader.fromJson(Map<String, dynamic> json) =>
+      _$ArtifactHeaderFromJson(json);
 }
 
 /// Decrypted artifact body (matches React Native ArtifactBody interface)
-class ArtifactBody {
+@freezed
+abstract class ArtifactBody with _$ArtifactBody {
+  const factory ArtifactBody({
+    String? body,
+  }) = _ArtifactBody;
 
-  ArtifactBody({this.body});
-
-  factory ArtifactBody.fromJson(Map<String, dynamic> json) {
-    return ArtifactBody(
-      body: json['body'] as String?,
-    );
-  }
-  final String? body;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'body': body,
-    };
-  }
+  factory ArtifactBody.fromJson(Map<String, dynamic> json) =>
+      _$ArtifactBodyFromJson(json);
 }
 
 /// Decrypted artifact for UI (matches React Native DecryptedArtifact interface)
-class DecryptedArtifact { // Whether decryption was successful
+@freezed
+abstract class DecryptedArtifact with _$DecryptedArtifact {
+  const factory DecryptedArtifact({
+    required String id,
+    @JsonKey(fromJson: _asApiInt) required int headerVersion,
+    @JsonKey(fromJson: _asApiInt) required int seq,
+    @JsonKey(fromJson: _asApiInt) required int createdAt,
+    @JsonKey(fromJson: _asApiInt) required int updatedAt,
+    String? title,
+    @JsonKey(fromJson: _stringListOrNull)
+    List<String>? sessions, // Optional array of session IDs
+    bool? draft, // Optional draft flag - hides artifact from list
+    String? body, // Only loaded when viewing full artifact
+    @JsonKey(fromJson: _asApiIntNullable) int? bodyVersion,
+    @Default(true) bool isDecrypted,
+  }) = _DecryptedArtifact;
 
-  DecryptedArtifact({
-    required this.id,
-    required this.headerVersion,
-    required this.seq,
-    required this.createdAt,
-    required this.updatedAt,
-    this.title,
-    this.sessions,
-    this.draft,
-    this.body,
-    this.bodyVersion,
-    this.isDecrypted = true,
-  });
-
-  factory DecryptedArtifact.fromJson(Map<String, dynamic> json) {
-    return DecryptedArtifact(
-      id: _asApiString(json['id'], 'id'),
-      title: _asApiStringOptional(json['title']),
-      sessions: (json['sessions'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList(),
-      draft: json['draft'] as bool?,
-      body: _asApiStringOptional(json['body']),
-      headerVersion: _asApiInt(json['headerVersion'], 'headerVersion'),
-      bodyVersion: _asApiIntOptional(json['bodyVersion']),
-      seq: _asApiInt(json['seq'], 'seq'),
-      createdAt: _asApiInt(json['createdAt'], 'createdAt'),
-      updatedAt: _asApiInt(json['updatedAt'], 'updatedAt'),
-      isDecrypted: json['isDecrypted'] as bool? ?? true,
-    );
-  }
+  factory DecryptedArtifact.fromJson(Map<String, dynamic> json) =>
+      _$DecryptedArtifactFromJson(json);
 
   /// Create a decrypted artifact from encrypted artifact
   factory DecryptedArtifact.fromArtifact(
@@ -257,139 +121,40 @@ class DecryptedArtifact { // Whether decryption was successful
       isDecrypted: true,
     );
   }
-  final String id;
-  final String? title;
-  final List<String>? sessions; // Optional array of session IDs
-  final bool? draft; // Optional draft flag - hides artifact from list
-  final String? body; // Only loaded when viewing full artifact
-  final int headerVersion;
-  final int? bodyVersion;
-  final int seq;
-  final int createdAt;
-  final int updatedAt;
-  final bool isDecrypted;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'sessions': sessions,
-      'draft': draft,
-      'body': body,
-      'headerVersion': headerVersion,
-      'bodyVersion': bodyVersion,
-      'seq': seq,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
-      'isDecrypted': isDecrypted,
-    };
-  }
-
-  DecryptedArtifact copyWith({
-    String? id,
-    String? title,
-    List<String>? sessions,
-    bool? draft,
-    String? body,
-    int? headerVersion,
-    int? bodyVersion,
-    int? seq,
-    int? createdAt,
-    int? updatedAt,
-    bool? isDecrypted,
-  }) {
-    return DecryptedArtifact(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      sessions: sessions != null
-          ? List<String>.from(sessions)
-          : (this.sessions != null
-              ? List<String>.from(this.sessions!)
-              : null),
-      draft: draft ?? this.draft,
-      body: body ?? this.body,
-      headerVersion: headerVersion ?? this.headerVersion,
-      bodyVersion: bodyVersion ?? this.bodyVersion,
-      seq: seq ?? this.seq,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      isDecrypted: isDecrypted ?? this.isDecrypted,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DecryptedArtifact &&
-          runtimeType == other.runtimeType &&
-          id == other.id &&
-          title == other.title &&
-          sessions == other.sessions &&
-          draft == other.draft &&
-          body == other.body &&
-          headerVersion == other.headerVersion &&
-          bodyVersion == other.bodyVersion &&
-          seq == other.seq &&
-          createdAt == other.createdAt &&
-          updatedAt == other.updatedAt &&
-          isDecrypted == other.isDecrypted;
-
-  @override
-  int get hashCode => Object.hash(
-        id,
-        title,
-        sessions,
-        draft,
-        body,
-        headerVersion,
-        bodyVersion,
-        seq,
-        createdAt,
-        updatedAt,
-        isDecrypted,
-      );
 }
 
 /// Request to create a new artifact
 /// (matches React Native ArtifactCreateRequest)
-class ArtifactCreateRequest {
+@freezed
+abstract class ArtifactCreateRequest with _$ArtifactCreateRequest {
+  const factory ArtifactCreateRequest({
+    required String id, // UUID generated client-side
+    required String header, // Base64 encoded encrypted header
+    required String body, // Base64 encoded encrypted body
+    required String dataEncryptionKey,
+  }) = _ArtifactCreateRequest;
 
-  ArtifactCreateRequest({
-    required this.id,
-    required this.header,
-    required this.body,
-    required this.dataEncryptionKey,
-  });
-  final String id; // UUID generated client-side
-  final String header; // Base64 encoded encrypted header
-  final String body; // Base64 encoded encrypted body
-  final String dataEncryptionKey;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'header': header,
-      'body': body,
-      'dataEncryptionKey': dataEncryptionKey,
-    };
-  }
+  factory ArtifactCreateRequest.fromJson(Map<String, dynamic> json) =>
+      _$ArtifactCreateRequestFromJson(json);
 }
 
 /// Request to update an existing artifact
-class ArtifactUpdateRequest {
+@freezed
+abstract class ArtifactUpdateRequest with _$ArtifactUpdateRequest {
+  const factory ArtifactUpdateRequest({
+    String? header, // Base64 encoded encrypted header
+    int? expectedHeaderVersion,
+    String? body, // Base64 encoded encrypted body
+    int? expectedBodyVersion,
+  }) = _ArtifactUpdateRequest;
 
-  ArtifactUpdateRequest({
-    this.header,
-    this.expectedHeaderVersion,
-    this.body,
-    this.expectedBodyVersion,
-  });
-  final String? header; // Base64 encoded encrypted header
-  final int? expectedHeaderVersion;
-  final String? body; // Base64 encoded encrypted body
-  final int? expectedBodyVersion;
+  const ArtifactUpdateRequest._();
 
-  Map<String, dynamic> toJson() {
+  factory ArtifactUpdateRequest.fromJson(Map<String, dynamic> json) =>
+      _$ArtifactUpdateRequestFromJson(json);
+
+  /// Conditional serialization: only include keys when values are present
+  Map<String, dynamic> toConditionalJson() {
     final json = <String, dynamic>{};
     if (header != null) {
       json['header'] = header;
@@ -404,92 +169,35 @@ class ArtifactUpdateRequest {
 }
 
 /// Response from update operation (matches React Native ArtifactUpdateResponse)
-class ArtifactUpdateResponse {
+@freezed
+abstract class ArtifactUpdateResponse with _$ArtifactUpdateResponse {
+  const factory ArtifactUpdateResponse({
+    @Default(false) bool success,
+    int? headerVersion,
+    int? bodyVersion,
+    String? error,
+    int? currentHeaderVersion,
+    int? currentBodyVersion,
+    String? currentHeader,
+    String? currentBody,
+  }) = _ArtifactUpdateResponse;
 
-  ArtifactUpdateResponse({
-    required this.success,
-    this.headerVersion,
-    this.bodyVersion,
-    this.error,
-    this.currentHeaderVersion,
-    this.currentBodyVersion,
-    this.currentHeader,
-    this.currentBody,
-  });
-
-  factory ArtifactUpdateResponse.fromJson(Map<String, dynamic> json) {
-    final success = json['success'] as bool? ?? false;
-    return ArtifactUpdateResponse(
-      success: success,
-      headerVersion: json['headerVersion'] as int?,
-      bodyVersion: json['bodyVersion'] as int?,
-      error: json['error'] as String?,
-      currentHeaderVersion: json['currentHeaderVersion'] as int?,
-      currentBodyVersion: json['currentBodyVersion'] as int?,
-      currentHeader: json['currentHeader'] as String?,
-      currentBody: json['currentBody'] as String?,
-    );
-  }
-  final bool success;
-  final int? headerVersion;
-  final int? bodyVersion;
-  final String? error;
-  final int? currentHeaderVersion;
-  final int? currentBodyVersion;
-  final String? currentHeader;
-  final String? currentBody;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'success': success,
-      'headerVersion': headerVersion,
-      'bodyVersion': bodyVersion,
-      'error': error,
-      'currentHeaderVersion': currentHeaderVersion,
-      'currentBodyVersion': currentBodyVersion,
-      'currentHeader': currentHeader,
-      'currentBody': currentBody,
-    };
-  }
+  factory ArtifactUpdateResponse.fromJson(Map<String, dynamic> json) =>
+      _$ArtifactUpdateResponseFromJson(json);
 }
 
 /// Artifact folder for organization
-class ArtifactFolder {
+@freezed
+abstract class ArtifactFolder with _$ArtifactFolder {
+  const factory ArtifactFolder({
+    @JsonKey(fromJson: _asRequiredString) required String id,
+    @JsonKey(fromJson: _asRequiredString) required String sessionId,
+    @JsonKey(fromJson: _asRequiredString) required String name,
+    required int createdAt,
+    required int updatedAt,
+    String? parentId,
+  }) = _ArtifactFolder;
 
-  ArtifactFolder({
-    required this.id,
-    required this.sessionId,
-    required this.name,
-    required this.createdAt,
-    required this.updatedAt,
-    this.parentId,
-  });
-
-  factory ArtifactFolder.fromJson(Map<String, dynamic> json) {
-    return ArtifactFolder(
-      id: _asApiString(json['id'], 'id'),
-      sessionId: _asApiString(json['sessionId'], 'sessionId'),
-      parentId: _asApiStringOptional(json['parentId']),
-      name: _asApiString(json['name'], 'name'),
-      createdAt: _asApiInt(json['createdAt'], 'createdAt'),
-      updatedAt: _asApiInt(json['updatedAt'], 'updatedAt'),
-    );
-  }
-  final String id;
-  final String sessionId;
-  final String? parentId;
-  final String name;
-  final int createdAt;
-  final int updatedAt;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'sessionId': sessionId,
-      'parentId': parentId,
-      'name': name,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
-    };
-  }
+  factory ArtifactFolder.fromJson(Map<String, dynamic> json) =>
+      _$ArtifactFolderFromJson(json);
 }

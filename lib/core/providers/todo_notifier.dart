@@ -106,12 +106,16 @@ class TodoStateNotifier extends Notifier<TodoListState> {
       final resolvedParentId = parentChanged ? newParentId as String? : null;
       final updatedItems = list.items.map((item) {
         if (item.id == todoId) {
+          if (parentChanged && resolvedParentId == null) {
+            return item.copyWith(
+              order: newOrder,
+              clearParentId: true,
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            );
+          }
           return item.copyWith(
             order: newOrder,
-            clearParentId: parentChanged && resolvedParentId == null,
-            parentId: parentChanged && resolvedParentId != null
-                ? resolvedParentId
-                : null,
+            parentId: parentChanged ? resolvedParentId : item.parentId,
             updatedAt: DateTime.now().millisecondsSinceEpoch,
           );
         }

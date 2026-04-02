@@ -331,7 +331,6 @@ class ApiClient {
       sendTimeout: const Duration(seconds: 30),
       contentType: 'application/json',
       responseType: ResponseType.json,
-      validateStatus: (status) => true,
     );
 
     _dio = Dio(baseOptions);
@@ -604,6 +603,7 @@ class ApiClient {
   Future<Response> get(
     String path, {
     Map<String, dynamic>? queryParameters,
+    Options? options,
   }) async {
     _ensureInitialized();
     // Generate deduplication key
@@ -616,7 +616,11 @@ class ApiClient {
     }
 
     // Start the request and store it
-    final requestFuture = _dio!.get(path, queryParameters: queryParameters);
+    final requestFuture = _dio!.get(
+      path,
+      queryParameters: queryParameters,
+      options: options,
+    );
     _activeRequests[key] = requestFuture;
 
     try {
@@ -629,7 +633,7 @@ class ApiClient {
   }
 
   /// POST request
-  Future<Response> post(String path, {dynamic data}) async {
+  Future<Response> post(String path, {dynamic data, Options? options}) async {
     _ensureInitialized();
     // Generate deduplication key (includes data hash for mutations)
     final key = _generateRequestKey('POST', path, null, data);
@@ -641,7 +645,7 @@ class ApiClient {
     }
 
     // Start the request and store it
-    final requestFuture = _dio!.post(path, data: data);
+    final requestFuture = _dio!.post(path, data: data, options: options);
     _activeRequests[key] = requestFuture;
 
     try {
@@ -655,7 +659,7 @@ class ApiClient {
   }
 
   /// PUT request
-  Future<Response> put(String path, {dynamic data}) async {
+  Future<Response> put(String path, {dynamic data, Options? options}) async {
     _ensureInitialized();
     // Generate deduplication key (includes data hash for mutations)
     final key = _generateRequestKey('PUT', path, null, data);
@@ -667,7 +671,7 @@ class ApiClient {
     }
 
     // Start the request and store it
-    final requestFuture = _dio!.put(path, data: data);
+    final requestFuture = _dio!.put(path, data: data, options: options);
     _activeRequests[key] = requestFuture;
 
     try {
@@ -681,7 +685,7 @@ class ApiClient {
   }
 
   /// DELETE request
-  Future<Response> delete(String path) async {
+  Future<Response> delete(String path, {Options? options}) async {
     _ensureInitialized();
     // Generate deduplication key for DELETE
     final key = _generateRequestKey('DELETE', path);
@@ -693,7 +697,7 @@ class ApiClient {
     }
 
     // Start the request and store it
-    final requestFuture = _dio!.delete(path);
+    final requestFuture = _dio!.delete(path, options: options);
     _activeRequests[key] = requestFuture;
 
     try {

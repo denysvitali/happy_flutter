@@ -209,17 +209,21 @@ class AuthService {
 
   /// Verify token with server
   Future<void> _verifyToken(String token) async {
-    final response = await _apiClient.get(
-      '/v1/auth/verify',
-      queryParameters: {'token': token},
-    );
-
-    if (response.statusCode == 403) {
-      throw AuthForbiddenError('Token is invalid or has been revoked');
-    }
-
-    if (!_apiClient.isSuccess(response)) {
-      throw Exception('Token verification failed: ${response.statusCode}');
+    try {
+      final response = await _apiClient.get(
+        '/v1/auth/verify',
+        queryParameters: {'token': token},
+      );
+      if (!_apiClient.isSuccess(response)) {
+        throw Exception(
+          'Token verification failed: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        throw AuthForbiddenError('Token is invalid or has been revoked');
+      }
+      rethrow;
     }
   }
 
@@ -596,6 +600,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
         final response = await _apiClient.post(
           '/v1/auth/account/request',
           data: config.requestData,
+          options: Options(validateStatus: (_) => true),
         );
 
         if (response.statusCode == 403) {

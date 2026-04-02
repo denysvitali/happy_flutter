@@ -50,6 +50,7 @@ import 'notification_service.dart';
 import 'sidechain_grouper.dart';
 import 'tool_result_processor.dart';
 
+part '_sync_messaging.dart';
 // ── Isolate helpers: machine payload decryption ───────────────────────
 
 class _MachineIsolateItem {
@@ -2321,8 +2322,8 @@ what you have, you must use the options mode.
         _machines[machineId] = machine.copyWith(
           active: active ?? machine.active,
           activeAt: activeAt ?? machine.activeAt,
-          updatedAt: updatedAt,
-          seq: seq,
+          updatedAt: updatedAt ?? machine.updatedAt,
+          seq: seq ?? machine.seq,
         );
         _notifyDataChanged();
       }
@@ -2557,7 +2558,7 @@ what you have, you must use the options mode.
         // use the current time so the client-side 120 s window stays fresh.
         final now = DateTime.now().millisecondsSinceEpoch;
         final activeAt =
-            eventActiveAt ?? (active == true ? now : null);
+            eventActiveAt ?? ((active ?? false) ? now : null);
         logger.debug(
           '[machine-activity] machineId=$machineId '
           'active=$active activeAt=$activeAt '

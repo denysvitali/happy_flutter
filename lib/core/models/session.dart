@@ -1,38 +1,20 @@
 /// Session metadata from storage types
 library;
 
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:happy_flutter/core/models/todo.dart' show TodoItem;
 
-String _asApiString(dynamic value, String fieldName) {
-  if (value is String) return value;
-  throw FormatException(
-    'Expected String for $fieldName, got ${value.runtimeType}',
-  );
-}
+part 'session.freezed.dart';
+part 'session.g.dart';
 
-int _asApiInt(dynamic value, String fieldName) {
+int _asApiInt(dynamic value) {
   if (value is int) return value;
   if (value is double) return value.toInt();
   if (value is num) return value.toInt();
-  throw FormatException(
-    'Expected int for $fieldName, got ${value.runtimeType}',
-  );
+  return 0;
 }
 
-bool _asApiBool(dynamic value, String fieldName) {
-  if (value is bool) return value;
-  throw FormatException(
-    'Expected bool for $fieldName, got ${value.runtimeType}',
-  );
-}
-
-String? _asApiStringOptional(dynamic value) {
-  if (value == null) return null;
-  if (value is String) return value;
-  return null;
-}
-
-int? _asApiIntOptional(dynamic value) {
+int? _asApiIntNullable(dynamic value) {
   if (value == null) return null;
   if (value is int) return value;
   if (value is double) return value.toInt();
@@ -40,38 +22,49 @@ int? _asApiIntOptional(dynamic value) {
   return null;
 }
 
-bool? _asApiBoolOptional(dynamic value) {
+String? _asApiStringNullable(dynamic value) {
+  if (value == null) return null;
+  if (value is String) return value;
+  return null;
+}
+
+bool? _asApiBoolNullable(dynamic value) {
   if (value == null) return null;
   if (value is bool) return value;
   return null;
 }
 
-List<String>? _asApiStringListOptional(dynamic value) {
+List<String>? _asApiStringListNullable(dynamic value) {
   if (value is! List) return null;
   final strings = value.whereType<String>().toList();
   if (strings.isEmpty) return null;
   return strings;
 }
 
-Summary? _asSummaryOptional(dynamic value) {
+Summary? _summaryFromJson(dynamic value) {
+  Map<String, dynamic>? map;
   if (value is Map<String, dynamic>) {
+    map = value;
+  } else if (value is Map) {
     try {
-      return Summary.fromJson(value);
+      map = Map<String, dynamic>.from(value);
     } catch (_) {
       return null;
     }
+  } else {
+    return null;
   }
-  if (value is Map) {
-    try {
-      return Summary.fromJson(Map<String, dynamic>.from(value));
-    } catch (_) {
-      return null;
-    }
+  // Require updatedAt to be numeric — reject string values like 'invalid-int'
+  final updatedAt = map['updatedAt'];
+  if (updatedAt != null && updatedAt is! num) return null;
+  try {
+    return Summary.fromJson(map);
+  } catch (_) {
+    return null;
   }
-  return null;
 }
 
-bool? _sandboxEnabledFromMetadata(dynamic value) {
+bool? _sandboxEnabledFromJson(dynamic value) {
   if (value is Map<String, dynamic>) {
     return value['enabled'] == true;
   }
@@ -81,149 +74,83 @@ bool? _sandboxEnabledFromMetadata(dynamic value) {
   return null;
 }
 
-class Metadata {
-  Metadata({
-    required this.host,
-    this.path,
-    this.version,
-    this.name,
-    this.os,
-    this.summary,
-    this.machineId,
-    this.claudeSessionId,
-    this.tools,
-    this.slashCommands,
-    this.homeDir,
-    this.happyHomeDir,
-    this.hostPid,
-    this.flavor,
-    this.lifecycleState,
-    this.lifecycleStateSince,
-    this.sandboxEnabled,
-  });
-
-  factory Metadata.fromJson(Map<String, dynamic> json) {
-    return Metadata(
-      path: _asApiStringOptional(json['path']),
-      // Keep sessions visible even if legacy metadata has no host.
-      host: _asApiStringOptional(json['host']) ?? '',
-      version: _asApiStringOptional(json['version']),
-      name: _asApiStringOptional(json['name']),
-      os: _asApiStringOptional(json['os']),
-      summary: _asSummaryOptional(json['summary']),
-      machineId: _asApiStringOptional(json['machineId']),
-      claudeSessionId: _asApiStringOptional(json['claudeSessionId']),
-      tools: _asApiStringListOptional(json['tools']),
-      slashCommands: _asApiStringListOptional(json['slashCommands']),
-      homeDir: _asApiStringOptional(json['homeDir']),
-      happyHomeDir: _asApiStringOptional(json['happyHomeDir']),
-      hostPid: _asApiIntOptional(json['hostPid']),
-      flavor: _asApiStringOptional(json['flavor']),
-      lifecycleState: _asApiStringOptional(json['lifecycleState']),
-      lifecycleStateSince: _asApiIntOptional(json['lifecycleStateSince']),
-      sandboxEnabled: _sandboxEnabledFromMetadata(json['sandbox']),
-    );
-  }
-  final String? path;
-  final String host;
-  final String? version;
-  final String? name;
-  final String? os;
-  final Summary? summary;
-  final String? machineId;
-  final String? claudeSessionId;
-  final List<String>? tools;
-  final List<String>? slashCommands;
-  final String? homeDir;
-  final String? happyHomeDir;
-  final int? hostPid;
-  final String? flavor;
-  final String? lifecycleState;
-  final int? lifecycleStateSince;
-  final bool? sandboxEnabled;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'path': path,
-      'host': host,
-      'version': version,
-      'name': name,
-      'os': os,
-      'summary': summary?.toJson(),
-      'machineId': machineId,
-      'claudeSessionId': claudeSessionId,
-      'tools': tools,
-      'slashCommands': slashCommands,
-      'homeDir': homeDir,
-      'happyHomeDir': happyHomeDir,
-      'hostPid': hostPid,
-      'flavor': flavor,
-      'lifecycleState': lifecycleState,
-      'lifecycleStateSince': lifecycleStateSince,
-      if (sandboxEnabled != null) 'sandbox': {'enabled': sandboxEnabled},
-    };
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Metadata &&
-          runtimeType == other.runtimeType &&
-          path == other.path &&
-          host == other.host &&
-          version == other.version &&
-          name == other.name &&
-          os == other.os &&
-          summary == other.summary &&
-          machineId == other.machineId &&
-          claudeSessionId == other.claudeSessionId &&
-          tools == other.tools &&
-          slashCommands == other.slashCommands &&
-          homeDir == other.homeDir &&
-          happyHomeDir == other.happyHomeDir &&
-          hostPid == other.hostPid &&
-          flavor == other.flavor &&
-          lifecycleState == other.lifecycleState &&
-          lifecycleStateSince == other.lifecycleStateSince &&
-          sandboxEnabled == other.sandboxEnabled;
-
-  @override
-  int get hashCode => Object.hash(
-    path,
-    host,
-    version,
-    name,
-    os,
-    summary,
-    machineId,
-    claudeSessionId,
-    tools,
-    slashCommands,
-    homeDir,
-    happyHomeDir,
-    hostPid,
-    flavor,
-    lifecycleState,
-    lifecycleStateSince,
-    sandboxEnabled,
-  );
+/// Serialize sandboxEnabled back to `{enabled: bool}` format or null
+dynamic _sandboxEnabledToJson(bool? sandboxEnabled) {
+  if (sandboxEnabled == null) return null;
+  return {'enabled': sandboxEnabled};
 }
 
-class Summary {
-  Summary({required this.text, required this.updatedAt});
+Metadata? _metadataFromJson(dynamic value) {
+  if (value is Map<String, dynamic>) return Metadata.fromJson(value);
+  return null;
+}
 
-  factory Summary.fromJson(Map<String, dynamic> json) {
-    return Summary(
-      text: _asApiString(json['text'], 'text'),
-      updatedAt: _asApiInt(json['updatedAt'], 'updatedAt'),
-    );
-  }
-  final String text;
-  final int updatedAt;
+AgentState? _agentStateFromJson(dynamic value) {
+  if (value is Map<String, dynamic>) return AgentState.fromJson(value);
+  return null;
+}
 
-  Map<String, dynamic> toJson() {
-    return {'text': text, 'updatedAt': updatedAt};
+List<TodoItem>? _todoListFromJson(dynamic value) {
+  if (value is List) {
+    return value
+        .whereType<Map<String, dynamic>>()
+        .map(TodoItem.fromJson)
+        .toList();
   }
+  return null;
+}
+
+String _presenceFromJson(dynamic value) {
+  if (value is String) return value;
+  return 'offline';
+}
+
+UsageData? _usageDataFromJson(dynamic value) {
+  if (value is Map<String, dynamic>) return UsageData.fromJson(value);
+  return null;
+}
+
+@freezed
+abstract class Metadata with _$Metadata {
+  const factory Metadata({
+    @JsonKey(fromJson: _asApiStringNullable) String? path,
+    @Default('') String host,
+    @JsonKey(fromJson: _asApiStringNullable) String? version,
+    @JsonKey(fromJson: _asApiStringNullable) String? name,
+    @JsonKey(fromJson: _asApiStringNullable) String? os,
+    @JsonKey(fromJson: _summaryFromJson) Summary? summary,
+    @JsonKey(fromJson: _asApiStringNullable) String? machineId,
+    @JsonKey(fromJson: _asApiStringNullable) String? claudeSessionId,
+    @JsonKey(fromJson: _asApiStringListNullable) List<String>? tools,
+    @JsonKey(fromJson: _asApiStringListNullable) List<String>? slashCommands,
+    @JsonKey(fromJson: _asApiStringNullable) String? homeDir,
+    @JsonKey(fromJson: _asApiStringNullable) String? happyHomeDir,
+    @JsonKey(fromJson: _asApiIntNullable) int? hostPid,
+    @JsonKey(fromJson: _asApiStringNullable) String? flavor,
+    @JsonKey(fromJson: _asApiStringNullable) String? lifecycleState,
+    @JsonKey(fromJson: _asApiIntNullable) int? lifecycleStateSince,
+    // sandbox field is stored as {enabled: bool} but we keep bool? in model
+    @JsonKey(
+      name: 'sandbox',
+      fromJson: _sandboxEnabledFromJson,
+      toJson: _sandboxEnabledToJson,
+    )
+    bool? sandboxEnabled,
+  }) = _Metadata;
+
+  factory Metadata.fromJson(Map<String, dynamic> json) =>
+      _$MetadataFromJson(json);
+}
+
+@freezed
+abstract class Summary with _$Summary {
+  const factory Summary({
+    required String text,
+    @JsonKey(fromJson: _asApiInt) required int updatedAt,
+  }) = _Summary;
+
+  factory Summary.fromJson(Map<String, dynamic> json) =>
+      _$SummaryFromJson(json);
 }
 
 /// Agent state for a session
@@ -290,11 +217,12 @@ class AgentState {
     }
 
     return AgentState(
-      controlledByUser: _asApiBoolOptional(json['controlledByUser']),
+      controlledByUser: _asApiBoolNullable(json['controlledByUser']),
       requests: requests,
       completedRequests: completedRequests,
     );
   }
+
   final bool? controlledByUser;
   final Map<String, RequestInfo>? requests;
   final Map<String, CompletedRequestInfo>? completedRequests;
@@ -324,354 +252,120 @@ class AgentState {
       ),
     };
   }
-}
-
-class RequestInfo {
-  RequestInfo({required this.tool, this.arguments, this.createdAt});
-
-  factory RequestInfo.fromJson(Map<String, dynamic> json) {
-    return RequestInfo(
-      tool: _asApiString(json['tool'], 'tool'),
-      arguments: json['arguments'],
-      createdAt: _asApiIntOptional(json['createdAt']),
-    );
-  }
-  final String tool;
-  final dynamic arguments;
-  final int? createdAt;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is RequestInfo &&
+      other is AgentState &&
           runtimeType == other.runtimeType &&
-          tool == other.tool &&
-          arguments == other.arguments &&
-          createdAt == other.createdAt;
+          controlledByUser == other.controlledByUser &&
+          requests == other.requests &&
+          completedRequests == other.completedRequests;
 
   @override
-  int get hashCode => Object.hash(tool, arguments, createdAt);
+  int get hashCode =>
+      Object.hash(controlledByUser, requests, completedRequests);
 }
 
-class CompletedRequestInfo {
-  CompletedRequestInfo({
-    required this.tool,
-    required this.status,
-    this.arguments,
-    this.createdAt,
-    this.completedAt,
-    this.reason,
-    this.mode,
-    this.allowedTools,
-    this.decision,
-  });
+@freezed
+abstract class RequestInfo with _$RequestInfo {
+  const factory RequestInfo({
+    required String tool,
+    @JsonKey(includeFromJson: true, includeToJson: true) dynamic arguments,
+    @JsonKey(fromJson: _asApiIntNullable) int? createdAt,
+  }) = _RequestInfo;
 
-  factory CompletedRequestInfo.fromJson(Map<String, dynamic> json) {
-    return CompletedRequestInfo(
-      tool: _asApiString(json['tool'], 'tool'),
-      arguments: json['arguments'],
-      createdAt: _asApiIntOptional(json['createdAt']),
-      completedAt: _asApiIntOptional(json['completedAt']),
-      status: _asApiString(json['status'], 'status'),
-      reason: _asApiStringOptional(json['reason']),
-      mode: _asApiStringOptional(json['mode']),
-      allowedTools: _asApiStringListOptional(json['allowedTools']),
-      decision: _asApiStringOptional(json['decision']),
-    );
+  factory RequestInfo.fromJson(Map<String, dynamic> json) =>
+      _$RequestInfoFromJson(json);
+}
+
+List<String>? _stringListNullable(dynamic value) {
+  if (value is List) {
+    final list = value.whereType<String>().toList();
+    return list.isEmpty ? null : list;
   }
-  final String tool;
-  final dynamic arguments;
-  final int? createdAt;
-  final int? completedAt;
-  final String status;
-  final String? reason;
-  final String? mode;
-  final List<String>? allowedTools;
-  final String? decision;
+  return null;
+}
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is CompletedRequestInfo &&
-          runtimeType == other.runtimeType &&
-          tool == other.tool &&
-          arguments == other.arguments &&
-          createdAt == other.createdAt &&
-          completedAt == other.completedAt &&
-          status == other.status &&
-          reason == other.reason &&
-          mode == other.mode &&
-          allowedTools == other.allowedTools &&
-          decision == other.decision;
+@freezed
+abstract class CompletedRequestInfo with _$CompletedRequestInfo {
+  const factory CompletedRequestInfo({
+    required String tool,
+    required String status,
+    @JsonKey(includeFromJson: true, includeToJson: true) dynamic arguments,
+    @JsonKey(fromJson: _asApiIntNullable) int? createdAt,
+    @JsonKey(fromJson: _asApiIntNullable) int? completedAt,
+    @JsonKey(fromJson: _asApiStringNullable) String? reason,
+    @JsonKey(fromJson: _asApiStringNullable) String? mode,
+    @JsonKey(fromJson: _stringListNullable) List<String>? allowedTools,
+    @JsonKey(fromJson: _asApiStringNullable) String? decision,
+  }) = _CompletedRequestInfo;
 
-  @override
-  int get hashCode => Object.hash(
-    tool,
-    arguments,
-    createdAt,
-    completedAt,
-    status,
-    reason,
-    mode,
-    allowedTools,
-    decision,
-  );
+  factory CompletedRequestInfo.fromJson(Map<String, dynamic> json) =>
+      _$CompletedRequestInfoFromJson(json);
 }
 
 /// Main Session model
-class Session {
-  Session({
-    required this.id,
-    required this.seq,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.active,
-    required this.activeAt,
-    required this.metadataVersion,
-    required this.agentStateVersion,
-    required this.thinking,
-    required this.presence,
-    this.archived = false,
-    this.metadata,
-    this.agentState,
-    this.thinkingAt,
-    this.todos,
-    this.draft,
-    this.permissionMode,
-    this.modelMode,
-    this.latestUsage,
-    this.lastSeq,
-  });
+@freezed
+abstract class Session with _$Session {
+  const factory Session({
+    @JsonKey(fromJson: _sessionIdFromJson) required String id,
+    @JsonKey(fromJson: _asApiInt) required int seq,
+    @JsonKey(fromJson: _asApiInt) required int createdAt,
+    @JsonKey(fromJson: _asApiInt) required int updatedAt,
+    required bool active,
+    @JsonKey(fromJson: _asApiInt) required int activeAt,
+    @JsonKey(fromJson: _asApiInt) required int metadataVersion,
+    @JsonKey(fromJson: _asApiInt) required int agentStateVersion,
+    required bool thinking,
+    @Default(false) bool archived,
+    @JsonKey(fromJson: _metadataFromJson) Metadata? metadata,
+    @JsonKey(fromJson: _agentStateFromJson) AgentState? agentState,
+    @JsonKey(fromJson: _asApiIntNullable) int? thinkingAt,
 
-  factory Session.fromJson(Map<String, dynamic> json) {
-    return Session(
-      id: _asApiString(json['id'], 'id'),
-      seq: _asApiInt(json['seq'], 'seq'),
-      createdAt: _asApiInt(json['createdAt'], 'createdAt'),
-      updatedAt: _asApiInt(json['updatedAt'], 'updatedAt'),
-      active: _asApiBool(json['active'], 'active'),
-      activeAt: _asApiInt(json['activeAt'], 'activeAt'),
-      archived: _asApiBool(json['archived'], 'archived'),
-      metadata: json['metadata'] != null
-          ? Metadata.fromJson(json['metadata'] as Map<String, dynamic>)
-          : null,
-      metadataVersion: _asApiInt(json['metadataVersion'], 'metadataVersion'),
-      agentState: json['agentState'] != null
-          ? AgentState.fromJson(json['agentState'] as Map<String, dynamic>)
-          : null,
-      agentStateVersion: _asApiInt(
-        json['agentStateVersion'],
-        'agentStateVersion',
-      ),
-      thinking: _asApiBool(json['thinking'], 'thinking'),
-      thinkingAt: _asApiIntOptional(json['thinkingAt']),
-      presence: json['presence'] is String
-          ? json['presence'] as String
-          : 'offline',
-      todos: (json['todos'] as List<dynamic>?)
-          ?.map((e) => TodoItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      draft: _asApiStringOptional(json['draft']),
-      permissionMode: _asApiStringOptional(json['permissionMode']),
-      modelMode: _asApiStringOptional(json['modelMode']),
-      latestUsage: json['latestUsage'] != null
-          ? UsageData.fromJson(json['latestUsage'] as Map<String, dynamic>)
-          : null,
-      lastSeq: _asApiIntOptional(json['lastSeq']),
-    );
-  }
-  final String id;
-  final int seq;
-  final int createdAt;
-  final int updatedAt;
-  final bool active;
-  final int activeAt;
-  final bool archived;
-  final Metadata? metadata;
-  final int metadataVersion;
-  final AgentState? agentState;
-  final int agentStateVersion;
-  final bool thinking;
-  final int? thinkingAt;
+    /// Either the string `'online'` or an integer timestamp of last seen.
+    @JsonKey(fromJson: _presenceFromJson) @Default('offline') String presence,
+    @JsonKey(fromJson: _todoListFromJson) List<TodoItem>? todos,
+    @JsonKey(fromJson: _asApiStringNullable) String? draft,
+    @JsonKey(fromJson: _asApiStringNullable) String? permissionMode,
+    @JsonKey(fromJson: _asApiStringNullable) String? modelMode,
+    @JsonKey(fromJson: _usageDataFromJson) UsageData? latestUsage,
 
-  /// Either the string `'online'` or an integer timestamp of last seen.
-  final String presence;
-  final List<TodoItem>? todos;
-  final String? draft;
-  final String? permissionMode;
-  final String? modelMode;
-  final UsageData? latestUsage;
+    /// The highest message seq number in the session, as reported by the
+    /// server. Used for lazy tail-loading to avoid fetching all history.
+    @JsonKey(fromJson: _asApiIntNullable) int? lastSeq,
+  }) = _Session;
 
-  /// The highest message seq number in the session, as reported by the
-  /// server. Used for lazy tail-loading to avoid fetching all history.
-  final int? lastSeq;
+  const Session._();
+
+  factory Session.fromJson(Map<String, dynamic> json) =>
+      _$SessionFromJson(json);
 
   /// Returns `true` when presence is the string `'online'`.
   bool get isPresenceOnline => presence == 'online';
 
   /// Returns `true` when presence is the string `'online'`.
   bool get isOnline => presence == 'online';
+}
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'seq': seq,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
-      'active': active,
-      'activeAt': activeAt,
-      'archived': archived,
-      'metadata': metadata?.toJson(),
-      'metadataVersion': metadataVersion,
-      'agentState': agentState?.toJson(),
-      'agentStateVersion': agentStateVersion,
-      'thinking': thinking,
-      'thinkingAt': thinkingAt,
-      'presence': presence,
-      'todos': todos?.map((e) => e.toJson()).toList(),
-      'draft': draft,
-      'permissionMode': permissionMode,
-      'modelMode': modelMode,
-      'latestUsage': latestUsage?.toJson(),
-      'lastSeq': lastSeq,
-    };
-  }
-
-  Session copyWith({
-    String? id,
-    int? seq,
-    int? createdAt,
-    int? updatedAt,
-    bool? active,
-    int? activeAt,
-    bool? archived,
-    Metadata? metadata,
-    int? metadataVersion,
-    AgentState? agentState,
-    int? agentStateVersion,
-    bool? thinking,
-    int? thinkingAt,
-    String? presence,
-    List<TodoItem>? todos,
-    String? draft,
-    String? permissionMode,
-    bool clearPermissionMode = false,
-    String? modelMode,
-    bool clearModelMode = false,
-    UsageData? latestUsage,
-    int? lastSeq,
-  }) {
-    return Session(
-      id: id ?? this.id,
-      seq: seq ?? this.seq,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      active: active ?? this.active,
-      activeAt: activeAt ?? this.activeAt,
-      archived: archived ?? this.archived,
-      metadata: metadata ?? this.metadata,
-      metadataVersion: metadataVersion ?? this.metadataVersion,
-      agentState: agentState ?? this.agentState,
-      agentStateVersion: agentStateVersion ?? this.agentStateVersion,
-      thinking: thinking ?? this.thinking,
-      thinkingAt: thinkingAt ?? this.thinkingAt,
-      presence: presence ?? this.presence,
-      todos: todos != null ? List<TodoItem>.from(todos) : this.todos,
-      draft: draft ?? this.draft,
-      permissionMode:
-          clearPermissionMode ? null : (permissionMode ?? this.permissionMode),
-      modelMode: clearModelMode ? null : (modelMode ?? this.modelMode),
-      latestUsage: latestUsage ?? this.latestUsage,
-      lastSeq: lastSeq ?? this.lastSeq,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Session &&
-          runtimeType == other.runtimeType &&
-          id == other.id &&
-          seq == other.seq &&
-          createdAt == other.createdAt &&
-          updatedAt == other.updatedAt &&
-          active == other.active &&
-          activeAt == other.activeAt &&
-          archived == other.archived &&
-          metadata == other.metadata &&
-          metadataVersion == other.metadataVersion &&
-          agentState == other.agentState &&
-          agentStateVersion == other.agentStateVersion &&
-          thinking == other.thinking &&
-          thinkingAt == other.thinkingAt &&
-          presence == other.presence &&
-          todos == other.todos &&
-          draft == other.draft &&
-          permissionMode == other.permissionMode &&
-          modelMode == other.modelMode &&
-          latestUsage == other.latestUsage &&
-          lastSeq == other.lastSeq;
-
-  @override
-  int get hashCode => Object.hash(
-    id,
-    seq,
-    createdAt,
-    updatedAt,
-    active,
-    activeAt,
-    archived,
-    metadata,
-    metadataVersion,
-    agentState,
-    agentStateVersion,
-    thinking,
-    thinkingAt,
-    presence,
-    todos,
-    draft,
-    permissionMode,
-    modelMode,
-    latestUsage,
-    lastSeq,
+String _sessionIdFromJson(dynamic value) {
+  if (value is String) return value;
+  throw FormatException(
+    'Expected String for id, got ${value.runtimeType}',
   );
 }
 
-class UsageData {
-  UsageData({
-    required this.inputTokens,
-    required this.outputTokens,
-    required this.cacheCreation,
-    required this.cacheRead,
-    required this.contextSize,
-    required this.timestamp,
-  });
+@freezed
+abstract class UsageData with _$UsageData {
+  const factory UsageData({
+    @JsonKey(fromJson: _asApiInt) required int inputTokens,
+    @JsonKey(fromJson: _asApiInt) required int outputTokens,
+    @JsonKey(fromJson: _asApiInt) required int cacheCreation,
+    @JsonKey(fromJson: _asApiInt) required int cacheRead,
+    @JsonKey(fromJson: _asApiInt) required int contextSize,
+    @JsonKey(fromJson: _asApiInt) required int timestamp,
+  }) = _UsageData;
 
-  factory UsageData.fromJson(Map<String, dynamic> json) {
-    return UsageData(
-      inputTokens: _asApiInt(json['inputTokens'], 'inputTokens'),
-      outputTokens: _asApiInt(json['outputTokens'], 'outputTokens'),
-      cacheCreation: _asApiInt(json['cacheCreation'], 'cacheCreation'),
-      cacheRead: _asApiInt(json['cacheRead'], 'cacheRead'),
-      contextSize: _asApiInt(json['contextSize'], 'contextSize'),
-      timestamp: _asApiInt(json['timestamp'], 'timestamp'),
-    );
-  }
-  final int inputTokens;
-  final int outputTokens;
-  final int cacheCreation;
-  final int cacheRead;
-  final int contextSize;
-  final int timestamp;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'inputTokens': inputTokens,
-      'outputTokens': outputTokens,
-      'cacheCreation': cacheCreation,
-      'cacheRead': cacheRead,
-      'contextSize': contextSize,
-      'timestamp': timestamp,
-    };
-  }
+  factory UsageData.fromJson(Map<String, dynamic> json) =>
+      _$UsageDataFromJson(json);
 }

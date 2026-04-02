@@ -1,48 +1,21 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'purchases.freezed.dart';
+part 'purchases.g.dart';
+
 /// Purchases model
 /// Tracks active subscriptions and entitlements
-class Purchases {
+@freezed
+abstract class Purchases with _$Purchases {
+  const factory Purchases({
+    @Default(<String>[]) List<String> activeSubscriptions,
+    @Default(<String, bool>{}) Map<String, bool> entitlements,
+  }) = _Purchases;
 
-  const Purchases({
-    this.activeSubscriptions = const [],
-    this.entitlements = const {},
-  });
+  const Purchases._();
 
-  factory Purchases.fromJson(Map<String, dynamic> json) {
-    return Purchases(
-      activeSubscriptions:
-          (json['activeSubscriptions'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          [],
-      entitlements: (json['entitlements'] as Map<String, dynamic>?)?.map(
-            (k, v) => MapEntry(k, v as bool),
-          ) ??
-          {},
-    );
-  }
-  final List<String> activeSubscriptions;
-  final Map<String, bool> entitlements;
-
-  Purchases copyWith({
-    List<String>? activeSubscriptions,
-    Map<String, bool>? entitlements,
-  }) {
-    return Purchases(
-      activeSubscriptions: activeSubscriptions != null
-          ? List<String>.from(activeSubscriptions)
-          : List<String>.from(this.activeSubscriptions),
-      entitlements: entitlements != null
-          ? Map<String, bool>.from(entitlements)
-          : Map<String, bool>.from(this.entitlements),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'activeSubscriptions': activeSubscriptions,
-      'entitlements': entitlements,
-    };
-  }
+  factory Purchases.fromJson(Map<String, dynamic> json) =>
+      _$PurchasesFromJson(json);
 
   /// Default purchases
   static const defaults = Purchases();

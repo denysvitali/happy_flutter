@@ -18,16 +18,13 @@ class CurrentSessionNotifier extends Notifier<Session?> {
 
   void updatePermissionMode(String? mode) {
     if (state != null) {
-      state = state!.copyWith(
-        permissionMode: mode,
-        clearPermissionMode: mode == null,
-      );
+      state = state!.copyWith(permissionMode: mode);
     }
   }
 
   void updateModelMode(String? mode) {
     if (state != null) {
-      state = state!.copyWith(modelMode: mode, clearModelMode: mode == null);
+      state = state!.copyWith(modelMode: mode);
     }
   }
 

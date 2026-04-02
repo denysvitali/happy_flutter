@@ -4,94 +4,96 @@
 /// utilization percentages and reset timestamps.
 library;
 
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'claude_usage_limits.freezed.dart';
+part 'claude_usage_limits.g.dart';
+
 /// A single usage window (e.g. 5-hour rate limit, 7-day quota).
-class ClaudeUsageWindow {
-  const ClaudeUsageWindow({
-    required this.utilization,
-    this.resetsAt,
-  });
+@freezed
+abstract class ClaudeUsageWindow with _$ClaudeUsageWindow {
+  const factory ClaudeUsageWindow({
+    @JsonKey(fromJson: _utilizationFromJson)
+    @Default(0.0)
+    double utilization,
+    @JsonKey(name: 'resets_at') String? resetsAt,
+  }) = _ClaudeUsageWindow;
+
+  const ClaudeUsageWindow._();
 
   factory ClaudeUsageWindow.fromJson(Map<String, dynamic> json) =>
-      ClaudeUsageWindow(
-        utilization:
-            (json['utilization'] as num?)?.toDouble() ?? 0.0,
-        resetsAt: json['resets_at'] as String?,
-      );
-
-  /// Usage percentage (0–100).
-  final double utilization;
-
-  /// ISO-8601 timestamp when this window resets.
-  final String? resetsAt;
+      _$ClaudeUsageWindowFromJson(json);
 
   /// Convenience: utilization as a 0.0–1.0 fraction.
   double get fraction => (utilization / 100).clamp(0.0, 1.0);
 }
 
+double _utilizationFromJson(dynamic value) {
+  if (value is num) return value.toDouble();
+  return 0.0;
+}
+
+double? _optionalDoubleFromJson(dynamic value) {
+  if (value is num) return value.toDouble();
+  return null;
+}
+
 /// Extra usage / credits information.
-class ClaudeExtraUsage {
-  const ClaudeExtraUsage({
-    required this.isEnabled,
-    this.monthlyLimit,
-    this.usedCredits,
-    this.utilization,
-  });
+@freezed
+abstract class ClaudeExtraUsage with _$ClaudeExtraUsage {
+  const factory ClaudeExtraUsage({
+    @JsonKey(name: 'is_enabled') @Default(false) bool isEnabled,
+    @JsonKey(name: 'monthly_limit', fromJson: _optionalDoubleFromJson)
+    double? monthlyLimit,
+    @JsonKey(name: 'used_credits', fromJson: _optionalDoubleFromJson)
+    double? usedCredits,
+    @JsonKey(fromJson: _optionalDoubleFromJson) double? utilization,
+  }) = _ClaudeExtraUsage;
 
   factory ClaudeExtraUsage.fromJson(Map<String, dynamic> json) =>
-      ClaudeExtraUsage(
-        isEnabled: json['is_enabled'] as bool? ?? false,
-        monthlyLimit:
-            (json['monthly_limit'] as num?)?.toDouble(),
-        usedCredits:
-            (json['used_credits'] as num?)?.toDouble(),
-        utilization:
-            (json['utilization'] as num?)?.toDouble(),
-      );
+      _$ClaudeExtraUsageFromJson(json);
+}
 
-  final bool isEnabled;
-  final double? monthlyLimit;
-  final double? usedCredits;
-  final double? utilization;
+ClaudeUsageWindow? _windowOrNull(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return ClaudeUsageWindow.fromJson(value);
+  }
+  return null;
+}
+
+ClaudeExtraUsage? _extraUsageFromJson(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return ClaudeExtraUsage.fromJson(value);
+  }
+  return null;
 }
 
 /// Top-level Claude usage limits response.
-class ClaudeUsageLimits {
-  const ClaudeUsageLimits({
-    this.fiveHour,
-    this.sevenDay,
-    this.sevenDaySonnet,
-    this.sevenDayOpus,
-    this.sevenDayOauthApps,
-    this.sevenDayCowork,
-    this.iguanaNecktie,
-    this.extraUsage,
-  });
+@freezed
+abstract class ClaudeUsageLimits with _$ClaudeUsageLimits {
+  const factory ClaudeUsageLimits({
+    @JsonKey(name: 'five_hour', fromJson: _windowOrNull)
+    ClaudeUsageWindow? fiveHour,
+    @JsonKey(name: 'seven_day', fromJson: _windowOrNull)
+    ClaudeUsageWindow? sevenDay,
+    @JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull)
+    ClaudeUsageWindow? sevenDaySonnet,
+    @JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull)
+    ClaudeUsageWindow? sevenDayOpus,
+    @JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull)
+    ClaudeUsageWindow? sevenDayOauthApps,
+    @JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull)
+    ClaudeUsageWindow? sevenDayCowork,
+    @JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull)
+    ClaudeUsageWindow? iguanaNecktie,
+    @JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson)
+    ClaudeExtraUsage? extraUsage,
+  }) = _ClaudeUsageLimits;
+
+  const ClaudeUsageLimits._();
 
   factory ClaudeUsageLimits.fromJson(Map<String, dynamic> json) =>
-      ClaudeUsageLimits(
-        fiveHour: _windowOrNull(json['five_hour']),
-        sevenDay: _windowOrNull(json['seven_day']),
-        sevenDaySonnet: _windowOrNull(json['seven_day_sonnet']),
-        sevenDayOpus: _windowOrNull(json['seven_day_opus']),
-        sevenDayOauthApps:
-            _windowOrNull(json['seven_day_oauth_apps']),
-        sevenDayCowork: _windowOrNull(json['seven_day_cowork']),
-        iguanaNecktie: _windowOrNull(json['iguana_necktie']),
-        extraUsage: json['extra_usage'] is Map<String, dynamic>
-            ? ClaudeExtraUsage.fromJson(
-                json['extra_usage'] as Map<String, dynamic>,
-              )
-            : null,
-      );
-
-  final ClaudeUsageWindow? fiveHour;
-  final ClaudeUsageWindow? sevenDay;
-  final ClaudeUsageWindow? sevenDaySonnet;
-  final ClaudeUsageWindow? sevenDayOpus;
-  final ClaudeUsageWindow? sevenDayOauthApps;
-  final ClaudeUsageWindow? sevenDayCowork;
-  final ClaudeUsageWindow? iguanaNecktie;
-  final ClaudeExtraUsage? extraUsage;
+      _$ClaudeUsageLimitsFromJson(json);
 
   /// All non-null windows as labelled pairs for UI display.
   List<(String, ClaudeUsageWindow)> get activeWindows {
@@ -114,12 +116,5 @@ class ClaudeUsageLimits {
       list.add(('Iguana Necktie', iguanaNecktie!));
     }
     return list;
-  }
-
-  static ClaudeUsageWindow? _windowOrNull(dynamic value) {
-    if (value is Map<String, dynamic>) {
-      return ClaudeUsageWindow.fromJson(value);
-    }
-    return null;
   }
 }

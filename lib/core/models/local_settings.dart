@@ -1,68 +1,25 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'local_settings.freezed.dart';
+part 'local_settings.g.dart';
+
 /// LocalSettings model
 /// Device-specific settings that should NOT be synced across devices
-class LocalSettings {
+@freezed
+abstract class LocalSettings with _$LocalSettings {
+  const factory LocalSettings({
+    @Default(false) bool debugMode,
+    @Default(false) bool devModeEnabled,
+    @Default(false) bool commandPaletteEnabled,
+    @Default('adaptive') String themePreference,
+    @Default(false) bool markdownCopyV2,
+    @Default(<String, String>{}) Map<String, String> acknowledgedCliVersions,
+  }) = _LocalSettings;
 
-  const LocalSettings({
-    this.debugMode = false,
-    this.devModeEnabled = false,
-    this.commandPaletteEnabled = false,
-    this.themePreference = 'adaptive',
-    this.markdownCopyV2 = false,
-    this.acknowledgedCliVersions = const {},
-  });
+  const LocalSettings._();
 
-  factory LocalSettings.fromJson(Map<String, dynamic> json) {
-    return LocalSettings(
-      debugMode: json['debugMode'] as bool? ?? false,
-      devModeEnabled: json['devModeEnabled'] as bool? ?? false,
-      commandPaletteEnabled: json['commandPaletteEnabled'] as bool? ?? false,
-      themePreference: json['themePreference'] as String? ?? 'adaptive',
-      markdownCopyV2: json['markdownCopyV2'] as bool? ?? false,
-      acknowledgedCliVersions:
-          (json['acknowledgedCliVersions'] as Map<String, dynamic>?)?.map(
-                (k, v) => MapEntry(k, v as String),
-              ) ??
-              {},
-    );
-  }
-  final bool debugMode;
-  final bool devModeEnabled;
-  final bool commandPaletteEnabled;
-  final String themePreference; // 'light', 'dark', or 'adaptive'
-  final bool markdownCopyV2;
-  final Map<String, String> acknowledgedCliVersions;
-
-  LocalSettings copyWith({
-    bool? debugMode,
-    bool? devModeEnabled,
-    bool? commandPaletteEnabled,
-    String? themePreference,
-    bool? markdownCopyV2,
-    Map<String, String>? acknowledgedCliVersions,
-  }) {
-    return LocalSettings(
-      debugMode: debugMode ?? this.debugMode,
-      devModeEnabled: devModeEnabled ?? this.devModeEnabled,
-      commandPaletteEnabled:
-          commandPaletteEnabled ?? this.commandPaletteEnabled,
-      themePreference: themePreference ?? this.themePreference,
-      markdownCopyV2: markdownCopyV2 ?? this.markdownCopyV2,
-      acknowledgedCliVersions: acknowledgedCliVersions != null
-          ? Map<String, String>.from(acknowledgedCliVersions)
-          : Map<String, String>.from(this.acknowledgedCliVersions),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'debugMode': debugMode,
-      'devModeEnabled': devModeEnabled,
-      'commandPaletteEnabled': commandPaletteEnabled,
-      'themePreference': themePreference,
-      'markdownCopyV2': markdownCopyV2,
-      'acknowledgedCliVersions': acknowledgedCliVersions,
-    };
-  }
+  factory LocalSettings.fromJson(Map<String, dynamic> json) =>
+      _$LocalSettingsFromJson(json);
 
   /// Default settings
   static const defaults = LocalSettings();

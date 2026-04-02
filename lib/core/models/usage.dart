@@ -2,94 +2,79 @@
 /// Based on React Native's apiUsage.ts
 library;
 
-int? _asUsageInt(dynamic value) {
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'usage.freezed.dart';
+part 'usage.g.dart';
+
+int _asUsageInt(dynamic value) {
   if (value is int) return value;
   if (value is double) return value.toInt();
   if (value is num) return value.toInt();
-  return null;
+  return 0;
 }
 
-double? _asUsageDouble(dynamic value) {
-  if (value is double) return value;
-  if (value is int) return value.toDouble();
-  if (value is num) return value.toDouble();
-  return null;
+Map<String, int> _tokensFromJson(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value.map((k, v) => MapEntry(k, _asUsageInt(v)));
+  }
+  return {};
+}
+
+Map<String, double> _costFromJson(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value.map(
+      (k, v) => MapEntry(k, v is num ? v.toDouble() : 0.0),
+    );
+  }
+  return {};
 }
 
 /// A single usage data point
-class UsageDataPoint {
+@freezed
+abstract class UsageDataPoint with _$UsageDataPoint {
+  const factory UsageDataPoint({
+    @JsonKey(fromJson: _asUsageInt) @Default(0) int timestamp,
+    @JsonKey(fromJson: _tokensFromJson)
+    @Default(<String, int>{})
+    Map<String, int> tokens,
+    @JsonKey(fromJson: _costFromJson)
+    @Default(<String, double>{})
+    Map<String, double> cost,
+    @JsonKey(fromJson: _asUsageInt) @Default(0) int reportCount,
+  }) = _UsageDataPoint;
 
-  UsageDataPoint({
-    required this.timestamp,
-    required this.tokens,
-    required this.cost,
-    required this.reportCount,
-  });
-
-  factory UsageDataPoint.fromJson(Map<String, dynamic> json) {
-    final tokensRaw = json['tokens'];
-    final costRaw = json['cost'];
-    return UsageDataPoint(
-      timestamp: _asUsageInt(json['timestamp']) ?? 0,
-      tokens: tokensRaw is Map<String, dynamic>
-          ? tokensRaw.map((k, v) => MapEntry(k, _asUsageInt(v) ?? 0))
-          : {},
-      cost: costRaw is Map<String, dynamic>
-          ? costRaw.map((k, v) => MapEntry(k, _asUsageDouble(v) ?? 0.0))
-          : {},
-      reportCount: _asUsageInt(json['reportCount']) ?? 0,
-    );
-  }
-  final int timestamp;
-  final Map<String, int> tokens;
-  final Map<String, double> cost;
-  final int reportCount;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'timestamp': timestamp,
-      'tokens': tokens,
-      'cost': cost,
-      'reportCount': reportCount,
-    };
-  }
+  factory UsageDataPoint.fromJson(Map<String, dynamic> json) =>
+      _$UsageDataPointFromJson(json);
 }
 
 /// Response for usage query
-class UsageResponse {
+@freezed
+abstract class UsageResponse with _$UsageResponse {
+  const factory UsageResponse({
+    required List<UsageDataPoint> usage,
+  }) = _UsageResponse;
 
-  UsageResponse({required this.usage});
-
-  factory UsageResponse.fromJson(Map<String, dynamic> json) {
-    final usage = (json['usage'] as List<dynamic>)
-        .map((e) => UsageDataPoint.fromJson(e as Map<String, dynamic>))
-        .toList();
-    return UsageResponse(usage: usage);
-  }
-  final List<UsageDataPoint> usage;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'usage': usage.map((e) => e.toJson()).toList(),
-    };
-  }
+  factory UsageResponse.fromJson(Map<String, dynamic> json) =>
+      _$UsageResponseFromJson(json);
 }
 
 /// Usage query parameters
-class UsageQueryParams {
+@freezed
+abstract class UsageQueryParams with _$UsageQueryParams {
+  const factory UsageQueryParams({
+    String? sessionId,
+    int? startTime, // Unix timestamp in seconds
+    int? endTime, // Unix timestamp in seconds
+    UsageGroupBy? groupBy,
+  }) = _UsageQueryParams;
 
-  UsageQueryParams({
-    this.sessionId,
-    this.startTime,
-    this.endTime,
-    this.groupBy,
-  });
-  final String? sessionId;
-  final int? startTime; // Unix timestamp in seconds
-  final int? endTime; // Unix timestamp in seconds
-  final UsageGroupBy? groupBy;
+  const UsageQueryParams._();
 
-  Map<String, dynamic> toJson() {
+  factory UsageQueryParams.fromJson(Map<String, dynamic> json) =>
+      _$UsageQueryParamsFromJson(json);
+
+  Map<String, dynamic> toQueryJson() {
     final json = <String, dynamic>{};
     if (sessionId != null) json['sessionId'] = sessionId;
     if (startTime != null) json['startTime'] = startTime;
@@ -107,7 +92,6 @@ enum UsageGroupBy {
 
 /// Aggregated totals from usage data
 class UsageTotals {
-
   UsageTotals({
     required this.totalTokens,
     required this.totalCost,
@@ -132,7 +116,8 @@ class UsageTotals {
       // Sum costs
       for (final entry in dataPoint.cost.entries) {
         totalCost += entry.value;
-        costByModel[entry.key] = (costByModel[entry.key] ?? 0.0) + entry.value;
+        costByModel[entry.key] =
+            (costByModel[entry.key] ?? 0.0) + entry.value;
       }
     }
 

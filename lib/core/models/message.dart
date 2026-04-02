@@ -1,4 +1,16 @@
-int? _asApiInt(dynamic value) {
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'message.freezed.dart';
+part 'message.g.dart';
+
+int _asApiInt(dynamic value) {
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
+  return 0;
+}
+
+int? _asApiIntNullable(dynamic value) {
   if (value is int) return value;
   if (value is double) return value.toInt();
   if (value is num) return value.toInt();
@@ -18,252 +30,112 @@ abstract final class MessageRole {
   static const session = 'session';
 }
 
-/// API message schema
-class ApiMessage {
-  ApiMessage({
-    required this.id,
-    required this.seq,
-    required this.content,
-    required this.createdAt,
-    this.localId,
-    this.updatedAt,
-  });
-
-  factory ApiMessage.fromJson(Map<String, dynamic> json) {
-    final contentRaw = json['content'];
-    final content = contentRaw is Map<String, dynamic>
-        ? ApiMessageContent.fromJson(contentRaw)
-        : ApiMessageContent(t: '', c: '');
-    return ApiMessage(
-      id: json['id'] as String? ?? '',
-      seq: _asApiInt(json['seq']) ?? 0,
-      localId: json['localId'] as String?,
-      content: content,
-      createdAt: _asApiInt(json['createdAt']) ?? 0,
-      updatedAt: _asApiInt(json['updatedAt']),
-    );
+ApiMessageContent _contentFromJson(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return ApiMessageContent.fromJson(value);
   }
-  final String id;
-  final int seq;
-  final String? localId;
-  final ApiMessageContent content;
-  final int createdAt;
-  final int? updatedAt;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'seq': seq,
-      'localId': localId,
-      'content': content.toJson(),
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
-    };
-  }
+  return const ApiMessageContent(t: '', c: '');
 }
 
-class ApiMessageContent {
-  ApiMessageContent({required this.t, required this.c});
+/// API message schema
+@freezed
+abstract class ApiMessage with _$ApiMessage {
+  const factory ApiMessage({
+    @JsonKey(fromJson: _contentFromJson)
+    required ApiMessageContent content,
+    @Default('') String id,
+    @JsonKey(fromJson: _asApiInt) @Default(0) int seq,
+    String? localId,
+    @JsonKey(fromJson: _asApiInt) @Default(0) int createdAt,
+    @JsonKey(fromJson: _asApiIntNullable) int? updatedAt,
+  }) = _ApiMessage;
 
-  factory ApiMessageContent.fromJson(Map<String, dynamic> json) {
-    return ApiMessageContent(
-      t: json['t'] as String? ?? '',
-      c: json['c'] as String? ?? '',
-    );
-  }
-  final String t;
-  final String c;
+  factory ApiMessage.fromJson(Map<String, dynamic> json) =>
+      _$ApiMessageFromJson(json);
+}
 
-  Map<String, dynamic> toJson() {
-    return {'t': t, 'c': c};
+@freezed
+abstract class ApiMessageContent with _$ApiMessageContent {
+  const factory ApiMessageContent({
+    @Default('') String t,
+    @Default('') String c,
+  }) = _ApiMessageContent;
+
+  factory ApiMessageContent.fromJson(Map<String, dynamic> json) =>
+      _$ApiMessageContentFromJson(json);
+}
+
+Map<String, dynamic>? _mapOrNull(dynamic value) {
+  if (value is Map<String, dynamic>) return value;
+  return null;
+}
+
+Permission? _permissionOrNull(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return Permission.fromJson(value);
   }
+  return null;
 }
 
 /// Tool call information
-class ToolCall {
-  ToolCall({
-    required this.name,
-    required this.state,
-    required this.createdAt,
-    this.input,
-    this.startedAt,
-    this.completedAt,
-    this.description,
-    this.result,
-    this.permission,
-  });
+@freezed
+abstract class ToolCall with _$ToolCall {
+  const factory ToolCall({
+    required String name,
+    required String state,
+    required int createdAt,
+    @JsonKey(fromJson: _mapOrNull) Map<String, dynamic>? input,
+    int? startedAt,
+    int? completedAt,
+    String? description,
+    @JsonKey(fromJson: _mapOrNull) Map<String, dynamic>? result,
+    @JsonKey(fromJson: _permissionOrNull) Permission? permission,
+  }) = _ToolCall;
 
-  factory ToolCall.fromJson(Map<String, dynamic> json) {
-    return ToolCall(
-      name: json['name'] as String,
-      state: json['state'] as String,
-      input: json['input'] is Map<String, dynamic>
-          ? json['input'] as Map<String, dynamic>
-          : null,
-      createdAt: json['createdAt'] as int,
-      startedAt: json['startedAt'] as int?,
-      completedAt: json['completedAt'] as int?,
-      description: json['description'] as String?,
-      result: json['result'] is Map<String, dynamic>
-          ? json['result'] as Map<String, dynamic>
-          : null,
-      permission: json['permission'] is Map<String, dynamic>
-          ? Permission.fromJson(json['permission'] as Map<String, dynamic>)
-          : null,
-    );
-  }
-  final String name;
-  final String state;
-  final Map<String, dynamic>? input;
-  final int createdAt;
-  final int? startedAt;
-  final int? completedAt;
-  final String? description;
-  final Map<String, dynamic>? result;
-  final Permission? permission;
+  factory ToolCall.fromJson(Map<String, dynamic> json) =>
+      _$ToolCallFromJson(json);
 }
 
-class Permission {
-  Permission({
-    required this.id,
-    required this.status,
-    this.reason,
-    this.mode,
-    this.allowedTools,
-    this.decision,
-    this.date,
-  });
-
-  factory Permission.fromJson(Map<String, dynamic> json) {
-    return Permission(
-      id: json['id'] as String,
-      status: json['status'] as String,
-      reason: json['reason'] as String?,
-      mode: json['mode'] as String?,
-      allowedTools: (json['allowedTools'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList(),
-      decision: json['decision'] as String?,
-      date: json['date'] as int?,
-    );
+List<String>? _stringListOrNull(dynamic value) {
+  if (value is List) {
+    return value.whereType<String>().toList();
   }
-  final String id;
-  final String status;
-  final String? reason;
-  final String? mode;
-  final List<String>? allowedTools;
-  final String? decision;
-  final int? date;
+  return null;
+}
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'status': status,
-      if (reason != null) 'reason': reason,
-      if (mode != null) 'mode': mode,
-      if (allowedTools != null) 'allowedTools': allowedTools,
-      if (decision != null) 'decision': decision,
-      if (date != null) 'date': date,
-    };
-  }
-
-  Permission copyWith({
-    String? id,
-    String? status,
+@freezed
+abstract class Permission with _$Permission {
+  const factory Permission({
+    required String id,
+    required String status,
     String? reason,
     String? mode,
-    List<String>? allowedTools,
+    @JsonKey(fromJson: _stringListOrNull) List<String>? allowedTools,
     String? decision,
     int? date,
-  }) {
-    return Permission(
-      id: id ?? this.id,
-      status: status ?? this.status,
-      reason: reason ?? this.reason,
-      mode: mode ?? this.mode,
-      allowedTools: allowedTools != null
-          ? List<String>.from(allowedTools)
-          : (this.allowedTools != null
-                ? List<String>.from(this.allowedTools!)
-                : null),
-      decision: decision ?? this.decision,
-      date: date ?? this.date,
-    );
-  }
+  }) = _Permission;
+
+  factory Permission.fromJson(Map<String, dynamic> json) =>
+      _$PermissionFromJson(json);
 }
 
 /// Message metadata
-class MessageMeta {
-  const MessageMeta({
-    this.sentFrom,
-    this.permissionMode,
-    this.model,
-    this.fallbackModel,
-    this.customSystemPrompt,
-    this.appendSystemPrompt,
-    this.allowedTools,
-    this.disallowedTools,
-    this.displayText,
-  });
+@freezed
+abstract class MessageMeta with _$MessageMeta {
+  const factory MessageMeta({
+    String? sentFrom,
+    String? permissionMode,
+    String? model,
+    String? fallbackModel,
+    String? customSystemPrompt,
+    String? appendSystemPrompt,
+    @JsonKey(fromJson: _stringListOrNull) List<String>? allowedTools,
+    @JsonKey(fromJson: _stringListOrNull) List<String>? disallowedTools,
+    String? displayText,
+  }) = _MessageMeta;
 
-  factory MessageMeta.fromJson(Map<String, dynamic> json) {
-    return MessageMeta(
-      sentFrom: json['sentFrom'] as String?,
-      permissionMode: json['permissionMode'] as String?,
-      model: json['model'] as String?,
-      fallbackModel: json['fallbackModel'] as String?,
-      customSystemPrompt: json['customSystemPrompt'] as String?,
-      appendSystemPrompt: json['appendSystemPrompt'] as String?,
-      allowedTools: (json['allowedTools'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList(),
-      disallowedTools: (json['disallowedTools'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList(),
-      displayText: json['displayText'] as String?,
-    );
-  }
-
-  /// Who sent the message (e.g. 'user', 'agent').
-  final String? sentFrom;
-
-  /// Permission mode at time of send.
-  final String? permissionMode;
-
-  /// Model used for this message.
-  final String? model;
-
-  /// Fallback model, if any.
-  final String? fallbackModel;
-
-  /// Custom system prompt override.
-  final String? customSystemPrompt;
-
-  /// Appended system prompt.
-  final String? appendSystemPrompt;
-
-  /// Tools allowed for this request.
-  final List<String>? allowedTools;
-
-  /// Tools disallowed for this request.
-  final List<String>? disallowedTools;
-
-  /// Display text for the message.
-  final String? displayText;
-
-  Map<String, dynamic> toJson() {
-    return {
-      if (sentFrom != null) 'sentFrom': sentFrom,
-      if (permissionMode != null) 'permissionMode': permissionMode,
-      if (model != null) 'model': model,
-      if (fallbackModel != null) 'fallbackModel': fallbackModel,
-      if (customSystemPrompt != null) 'customSystemPrompt': customSystemPrompt,
-      if (appendSystemPrompt != null) 'appendSystemPrompt': appendSystemPrompt,
-      if (allowedTools != null) 'allowedTools': allowedTools,
-      if (disallowedTools != null) 'disallowedTools': disallowedTools,
-      if (displayText != null) 'displayText': displayText,
-    };
-  }
+  factory MessageMeta.fromJson(Map<String, dynamic> json) =>
+      _$MessageMetaFromJson(json);
 }
 
 /// Agent event types - using sealed class pattern with implementations
