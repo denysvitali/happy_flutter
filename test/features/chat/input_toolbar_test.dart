@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/widgets/claude_model.dart';
 import 'package:happy_flutter/features/chat/widgets/input_toolbar.dart';
 
@@ -7,7 +8,11 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   Widget wrap(Widget child) {
-    return MaterialApp(home: Scaffold(body: child));
+    return MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(body: child),
+    );
   }
 
   testWidgets('single-model sessions hide the dropdown affordance', (

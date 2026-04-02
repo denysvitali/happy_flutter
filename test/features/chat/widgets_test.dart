@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_loading_shimmer.dart';
 import 'package:happy_flutter/features/chat/widgets/path_chip.dart';
 import 'package:happy_flutter/features/chat/widgets/scroll_to_bottom_pill.dart';
@@ -8,7 +9,11 @@ import 'package:happy_flutter/features/chat/widgets/typing_indicator.dart';
 import 'package:happy_flutter/features/chat/widgets/empty_chat_view.dart';
 
 Widget _wrap(Widget child) {
-  return MaterialApp(home: Scaffold(body: child));
+  return MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: child),
+  );
 }
 
 void main() {

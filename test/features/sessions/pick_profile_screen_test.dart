@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/built_in_profiles.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
@@ -18,8 +19,10 @@ void main() {
               () => _StubSettingsNotifier(Settings()),
             ),
           ],
-          child: const MaterialApp(
-            home: PickProfileScreen(),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const PickProfileScreen(),
           ),
         ),
       );
@@ -38,8 +41,10 @@ void main() {
               () => _StubSettingsNotifier(Settings()),
             ),
           ],
-          child: const MaterialApp(
-            home: PickProfileScreen(),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const PickProfileScreen(),
           ),
         ),
       );
@@ -62,8 +67,10 @@ void main() {
               () => _StubSettingsNotifier(Settings()),
             ),
           ],
-          child: const MaterialApp(
-            home: PickProfileScreen(),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const PickProfileScreen(),
           ),
         ),
       );
@@ -91,8 +98,10 @@ void main() {
               () => _StubSettingsNotifier(settings),
             ),
           ],
-          child: const MaterialApp(
-            home: PickProfileScreen(),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const PickProfileScreen(),
           ),
         ),
       );
@@ -115,8 +124,10 @@ void main() {
               () => _StubSettingsNotifier(Settings()),
             ),
           ],
-          child: const MaterialApp(
-            home: PickProfileScreen(),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const PickProfileScreen(),
           ),
         ),
       );
@@ -145,8 +156,10 @@ void main() {
               () => _StubSettingsNotifier(settings),
             ),
           ],
-          child: const MaterialApp(
-            home: PickProfileScreen(),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const PickProfileScreen(),
           ),
         ),
       );
@@ -173,8 +186,10 @@ void main() {
               () => _StubSettingsNotifier(Settings()),
             ),
           ],
-          child: const MaterialApp(
-            home: PickProfileScreen(),
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const PickProfileScreen(),
           ),
         ),
       );

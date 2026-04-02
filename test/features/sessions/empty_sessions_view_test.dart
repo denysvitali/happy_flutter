@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/sessions/widgets/empty_sessions_view.dart';
 
 void main() {
@@ -8,8 +9,10 @@ void main() {
   group('EmptySessionsView', () {
     testWidgets('renders computer icon', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(
             body: EmptySessionsView(),
           ),
         ),
@@ -24,8 +27,10 @@ void main() {
     testWidgets('renders "New Session" button',
         (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(
             body: EmptySessionsView(),
           ),
         ),
@@ -40,8 +45,10 @@ void main() {
     testWidgets('renders instructional text lines',
         (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(
             body: EmptySessionsView(),
           ),
         ),
@@ -56,8 +63,10 @@ void main() {
 
     testWidgets('renders as a centered view', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(
             body: EmptySessionsView(),
           ),
         ),
@@ -69,8 +78,10 @@ void main() {
     testWidgets('button is a FilledButton.tonal',
         (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(
             body: EmptySessionsView(),
           ),
         ),
