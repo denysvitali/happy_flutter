@@ -36,7 +36,9 @@ class ChatActionNotifier extends Notifier<void> {
     String sessionId, {
     String reason = '',
   }) async {
-    if (!sync.isInitialized) return;
+    if (!sync.isInitialized) {
+      throw StateError('Sync is not initialized');
+    }
     await sync.abortSession(sessionId, reason: reason);
   }
 
