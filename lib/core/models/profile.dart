@@ -37,6 +37,7 @@ class Profile {
           : const <String>[],
     );
   }
+
   final String id;
   final int timestamp;
   final String? firstName;
@@ -134,6 +135,7 @@ class ImageRef {
       url: WireParsers.parseString(json['url']) ?? '',
     );
   }
+
   final int width;
   final int height;
   final String thumbhash;
@@ -194,6 +196,7 @@ class GitHubProfile {
       bio: _nullableString(json['bio']),
     );
   }
+
   final int id;
   final String login;
   final String name;
@@ -283,6 +286,7 @@ class ConnectedServiceInfo {
           : null,
     );
   }
+
   final ConnectedService service;
   final String? accountId;
   final String? accountName;
@@ -331,6 +335,7 @@ class DeviceInfo {
       isCurrentDevice: json['is_current_device'] as bool? ?? false,
     );
   }
+
   final String id;
   final String name;
   final String platform;
@@ -384,6 +389,7 @@ class AccountBackupInfo {
       backupDeviceId: json['backup_device_id'] as String?,
     );
   }
+
   final bool hasBackup;
   final DateTime? lastBackupAt;
   final String? backupDeviceId;

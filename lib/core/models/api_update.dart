@@ -1,109 +1,100 @@
-/// API update types for WebSocket messages
-class ApiUpdateNewMessage {
+// API update types for WebSocket messages
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  ApiUpdateNewMessage(
-      {required this.t, required this.sid, required this.message});
+part 'api_update.freezed.dart';
+part 'api_update.g.dart';
 
-  factory ApiUpdateNewMessage.fromJson(Map<String, dynamic> json) {
-    return ApiUpdateNewMessage(
-      t: json['t'] as String? ?? '',
-      sid: json['sid'] as String? ?? '',
-      message: json['message'] as Map<String, dynamic>? ?? {},
-    );
-  }
-  final String t;
-  final String sid;
-  final Map<String, dynamic> message;
+int _asInt(dynamic value) {
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is num) return value.toInt();
+  return 0;
 }
 
-class ApiUpdateNewSession {
+@freezed
+abstract class ApiUpdateNewMessage with _$ApiUpdateNewMessage {
+  const factory ApiUpdateNewMessage({
+    @Default('') String t,
+    @Default('') String sid,
+    @Default(<String, dynamic>{}) Map<String, dynamic> message,
+  }) = _ApiUpdateNewMessage;
 
-  ApiUpdateNewSession(
-      {required this.t,
-      required this.id,
-      required this.createdAt,
-      required this.updatedAt});
-
-  factory ApiUpdateNewSession.fromJson(Map<String, dynamic> json) {
-    return ApiUpdateNewSession(
-      t: json['t'] as String? ?? '',
-      id: json['id'] as String? ?? '',
-      createdAt: _asInt(json['createdAt']) ?? 0,
-      updatedAt: _asInt(json['updatedAt']) ?? 0,
-    );
-  }
-  final String t;
-  final String id;
-  final int createdAt;
-  final int updatedAt;
+  factory ApiUpdateNewMessage.fromJson(Map<String, dynamic> json) =>
+      _$ApiUpdateNewMessageFromJson(json);
 }
 
-class ApiDeleteSession {
+@freezed
+abstract class ApiUpdateNewSession with _$ApiUpdateNewSession {
+  const factory ApiUpdateNewSession({
+    @Default('') String t,
+    @Default('') String id,
+    @JsonKey(fromJson: _asInt) @Default(0) int createdAt,
+    @JsonKey(fromJson: _asInt) @Default(0) int updatedAt,
+  }) = _ApiUpdateNewSession;
 
-  ApiDeleteSession({required this.t, required this.sid});
-
-  factory ApiDeleteSession.fromJson(Map<String, dynamic> json) {
-    return ApiDeleteSession(
-      t: json['t'] as String? ?? '',
-      sid: json['sid'] as String? ?? '',
-    );
-  }
-  final String t;
-  final String sid;
+  factory ApiUpdateNewSession.fromJson(Map<String, dynamic> json) =>
+      _$ApiUpdateNewSessionFromJson(json);
 }
 
-class ApiUpdateSessionState {
+@freezed
+abstract class ApiDeleteSession with _$ApiDeleteSession {
+  const factory ApiDeleteSession({
+    @Default('') String t,
+    @Default('') String sid,
+  }) = _ApiDeleteSession;
 
-  ApiUpdateSessionState(
-      {required this.t, required this.id, this.agentState, this.metadata});
-
-  factory ApiUpdateSessionState.fromJson(Map<String, dynamic> json) {
-    return ApiUpdateSessionState(
-      t: json['t'] as String? ?? '',
-      id: json['id'] as String? ?? '',
-      agentState: json['agentState'] is Map<String, dynamic>
-          ? VersionedValue.fromJson(json['agentState'] as Map<String, dynamic>)
-          : null,
-      metadata: json['metadata'] is Map<String, dynamic>
-          ? VersionedValue.fromJson(json['metadata'] as Map<String, dynamic>)
-          : null,
-    );
-  }
-  final String t;
-  final String id;
-  final VersionedValue? agentState;
-  final VersionedValue? metadata;
+  factory ApiDeleteSession.fromJson(Map<String, dynamic> json) =>
+      _$ApiDeleteSessionFromJson(json);
 }
 
-class VersionedValue {
-
-  VersionedValue({required this.version, this.value});
-
-  factory VersionedValue.fromJson(Map<String, dynamic> json) {
-    return VersionedValue(
-      version: _asInt(json['version']) ?? 0,
-      value: json['value'] as String? ?? '',
-    );
+VersionedValue? _versionedValueFromJson(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return VersionedValue.fromJson(value);
   }
-  final int version;
+  return null;
+}
 
-  /// The serialised value string, or `null` when the server sends a null
-  /// value (e.g. for cleared agentState).
-  final String? value;
+@freezed
+abstract class ApiUpdateSessionState with _$ApiUpdateSessionState {
+  const factory ApiUpdateSessionState({
+    @Default('') String t,
+    @Default('') String id,
+    @JsonKey(fromJson: _versionedValueFromJson) VersionedValue? agentState,
+    @JsonKey(fromJson: _versionedValueFromJson) VersionedValue? metadata,
+  }) = _ApiUpdateSessionState;
+
+  factory ApiUpdateSessionState.fromJson(Map<String, dynamic> json) =>
+      _$ApiUpdateSessionStateFromJson(json);
+}
+
+String _vvValueFromJson(dynamic value) {
+  if (value is String) return value;
+  return '';
+}
+
+@freezed
+abstract class VersionedValue with _$VersionedValue {
+  const factory VersionedValue({
+    @JsonKey(fromJson: _asInt) @Default(0) int version,
+
+    /// The serialised value string. Null on the wire is normalised to `''`.
+    @JsonKey(fromJson: _vvValueFromJson) @Default('') String value,
+  }) = _VersionedValue;
+
+  factory VersionedValue.fromJson(Map<String, dynamic> json) =>
+      _$VersionedValueFromJson(json);
 }
 
 // ── New payload classes for additional update types ──────────────────────────
 
 /// `update-account` — profile / account data changed.
 class ApiUpdateAccount {
-
   const ApiUpdateAccount({required this.data});
   final Map<String, dynamic> data;
 }
 
 /// `update-machine` — a machine's state changed.
 class ApiUpdateMachine {
-
   const ApiUpdateMachine({required this.id, required this.data});
   final String id;
   final Map<String, dynamic> data;
@@ -111,49 +102,36 @@ class ApiUpdateMachine {
 
 /// `new-artifact` — a new artifact was created.
 class ApiNewArtifact {
-
   const ApiNewArtifact({required this.data});
   final Map<String, dynamic> data;
 }
 
 /// `update-artifact` — an existing artifact was updated.
 class ApiUpdateArtifact {
-
   const ApiUpdateArtifact({required this.data});
   final Map<String, dynamic> data;
 }
 
 /// `delete-artifact` — an artifact was deleted.
 class ApiDeleteArtifact {
-
   const ApiDeleteArtifact({required this.id});
   final String id;
 }
 
 /// `relationship-updated` — a social relationship changed.
 class ApiRelationshipUpdated {
-
   const ApiRelationshipUpdated({required this.data});
   final Map<String, dynamic> data;
 }
 
 /// `kv-batch-update` — one or more KV entries changed.
 class ApiKvBatchUpdate {
-
   const ApiKvBatchUpdate({required this.data});
   final Map<String, dynamic> data;
 }
 
-int? _asInt(dynamic value) {
-  if (value is int) return value;
-  if (value is double) return value.toInt();
-  if (value is num) return value.toInt();
-  return null;
-}
-
 /// API update type discriminator
 class ApiUpdate {
-
   ApiUpdate({required this.type, required this.data});
 
   factory ApiUpdate.fromJson(Map<String, dynamic> json) {

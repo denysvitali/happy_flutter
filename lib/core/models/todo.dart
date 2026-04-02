@@ -53,14 +53,15 @@ enum TodoState {
 
 /// Task item with ordering
 class TodoItem {
-
   TodoItem({
     required this.id,
     required this.content,
     required this.status,
     required this.priority,
     required this.order,
-    required this.createdAt, required this.updatedAt, this.parentId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.parentId,
     this.dependencies = const [],
     this.dueAt,
     this.sessionId,
@@ -86,6 +87,7 @@ class TodoItem {
       completedAt: json['completedAt'] as int?,
     );
   }
+
   final String id;
   final String content;
   final TodoState status;
@@ -152,9 +154,10 @@ class TodoItem {
 
 /// Task list grouping by session
 class TodoList {
-
   TodoList({
-    required this.items, required this.updatedAt, this.sessionId,
+    required this.items,
+    required this.updatedAt,
+    this.sessionId,
   });
 
   factory TodoList.fromJson(Map<String, dynamic> json) {
@@ -167,6 +170,7 @@ class TodoList {
       updatedAt: json['updatedAt'] as int,
     );
   }
+
   final String? sessionId;
   final List<TodoItem> items;
   final int updatedAt;
@@ -220,12 +224,12 @@ class TodoList {
 
 /// Reorder operation for drag-and-drop
 class TodoReorder {
-
   TodoReorder({
     required this.todoId,
     required this.newOrder,
     this.newParentId,
   });
+
   final String todoId;
   final int newOrder;
   final String? newParentId;
