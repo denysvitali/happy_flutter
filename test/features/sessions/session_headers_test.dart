@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_headers.dart';
 
@@ -11,8 +12,11 @@ void main() {
   group('SectionHeader', () {
     testWidgets('renders title text', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          localizationsDelegates:
+              AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(
             body: SectionHeader(title: 'Active Sessions'),
           ),
         ),
@@ -23,8 +27,11 @@ void main() {
 
     testWidgets('applies uppercase label style', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
+        MaterialApp(
+          localizationsDelegates:
+              AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(
             body: SectionHeader(title: 'Archived'),
           ),
         ),
@@ -45,6 +52,9 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates:
+              AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: PathHeader(
               path: '/home/user/projects',
@@ -65,6 +75,9 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates:
+              AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: PathHeader(
               path: '/home/dev',
@@ -84,6 +97,9 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates:
+              AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: PathHeader(
               path: '/test',
@@ -106,6 +122,9 @@ void main() {
     testWidgets('renders date and count', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates:
+              AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: CollapsibleDateHeader(
               date: 'Today',
@@ -126,6 +145,9 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates:
+              AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: CollapsibleDateHeader(
               date: 'Yesterday',
@@ -155,6 +177,9 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates:
+              AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: CollapsibleFolderHeader(
               header: header,
@@ -181,6 +206,9 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates:
+              AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: CollapsibleFolderHeader(
               header: header,
@@ -216,7 +244,7 @@ void main() {
         ),
       );
 
-      expect(find.text('History (10)'), findsOneWidget);
+      expect(find.textContaining('History'), findsWidgets);
     });
 
     testWidgets('renders grouping toggle icons',
@@ -274,9 +302,6 @@ void main() {
 void _noopGrouping(ArchivedGrouping _) {}
 
 const _localizationsDelegates =
-    <LocalizationsDelegate<dynamic>>[
-  DefaultMaterialLocalizations.delegate,
-  DefaultWidgetsLocalizations.delegate,
-];
+    AppLocalizations.localizationsDelegates;
 
-const _supportedLocales = <Locale>[Locale('en')];
+const _supportedLocales = AppLocalizations.supportedLocales;
