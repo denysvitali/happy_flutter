@@ -12,6 +12,7 @@ extension _SyncMessaging on Sync {
   /// - `'sending'` — immediately after insert
   /// - `'sent'`    — after server ACK
   /// - `'failed'`  — on error (message is kept so the user can see it)
+  // ignore: unused_element
   Future<String> sendMessage(
     String sessionId,
     String text, {
@@ -92,7 +93,7 @@ extension _SyncMessaging on Sync {
     sessionEncryption = sendTarget.sessionEncryption;
 
     final wirePermissionMode =
-        _supportedPermissionModes.contains(effectivePermissionMode)
+        Sync._supportedPermissionModes.contains(effectivePermissionMode)
         ? effectivePermissionMode
         : 'default';
     if (wirePermissionMode != effectivePermissionMode) {
@@ -128,7 +129,7 @@ extension _SyncMessaging on Sync {
         'permissionMode': wirePermissionMode,
         'model': model,
         'fallbackModel': null,
-        'appendSystemPrompt': _appendSystemPrompt,
+        'appendSystemPrompt': Sync._appendSystemPrompt,
         'displayText': ?displayText,
       },
     };
@@ -236,7 +237,7 @@ extension _SyncMessaging on Sync {
           DateTime.now().millisecondsSinceEpoch - spawnedAt < 30000;
       final ready = await waitForAgentReady(
         targetSessionId,
-        recentlySpawned ? 15000 : sessionReadyTimeoutMs,
+        recentlySpawned ? 15000 : Sync.sessionReadyTimeoutMs,
       );
       waitSpan
         ..setData('ready', ready)
@@ -429,6 +430,7 @@ extension _SyncMessaging on Sync {
   /// Outbox delivery callback: re-attempt a single queued message.
   ///
   /// Returns `true` on success, `false` to schedule a retry.
+  // ignore: unused_element
   Future<bool> _deliverOutboxEntry(OutboxEntry entry) async {
     if (!isInitialized) return false;
 
@@ -559,6 +561,7 @@ extension _SyncMessaging on Sync {
   /// Re-queues the message in the outbox with reset retry count.
   /// The message must have a 'raw' field containing the original
   /// unencrypted message record.
+  // ignore: unused_element
   Future<void> retryFailedMessage(
     String sessionId,
     String localId,
@@ -903,7 +906,7 @@ extension _SyncMessaging on Sync {
         'error=${result.errorMessage ?? 'unknown'}',
       );
     } catch (error) {
-      if (_isTransientConnectionError(error)) {
+      if (Sync._isTransientConnectionError(error)) {
         logger.info(
           '[permission] auto-restore failed (transient) '
           'session=$sessionId: $error',
@@ -923,6 +926,7 @@ extension _SyncMessaging on Sync {
   ///
   /// Called after [fetchSessions] merges updated sessions and
   /// after inline socket updates apply new agent state.
+  // ignore: unused_element
   void _checkForNewPermissionRequests(
     Iterable<Session> sessions,
   ) {
@@ -938,7 +942,7 @@ extension _SyncMessaging on Sync {
         final permId = entry.key;
         if (_notifiedPermissionIds.contains(permId)) continue;
         // Evict oldest entries when the cap is reached to bound memory.
-        if (_notifiedPermissionIds.length >= _maxNotifiedPermissionIds) {
+        if (_notifiedPermissionIds.length >= Sync._maxNotifiedPermissionIds) {
           _notifiedPermissionIds
               .remove(_notifiedPermissionIds.first);
         }
@@ -1027,6 +1031,7 @@ extension _SyncMessaging on Sync {
   /// The server acknowledges with `ok: true` but the response
   /// payload shape varies — the RN app ignores it entirely, so
   /// we just fire-and-forget the RPC without deserialising.
+  // ignore: unused_element
   Future<void> sessionAllow(
     String sessionId,
     String permissionId, {
@@ -1073,6 +1078,7 @@ extension _SyncMessaging on Sync {
   /// Deny a permission request for a session.
   ///
   /// See [sessionAllow] — response payload is ignored.
+  // ignore: unused_element
   Future<void> sessionDeny(
     String sessionId,
     String permissionId, {
@@ -1121,6 +1127,7 @@ extension _SyncMessaging on Sync {
   }
 
   /// Kill a session's agent process.
+  // ignore: unused_element
   Future<KillSessionResponse> killSession(String sessionId) async {
     return _typedSessionRPC(
       sessionId,
@@ -1131,6 +1138,7 @@ extension _SyncMessaging on Sync {
   }
 
   /// Abort the current agent turn without killing the session.
+  // ignore: unused_element
   Future<AbortResponse> abortSession(
     String sessionId, {
     String reason = '',
@@ -1141,6 +1149,7 @@ extension _SyncMessaging on Sync {
   }
 
   /// Apply settings delta
+  // ignore: unused_element
   Future<void> applySettings(Map<String, dynamic> delta) async {
     _settingsSnapshot = Settings.fromJson({
       ..._settingsSnapshot.toJson(),
@@ -1151,16 +1160,19 @@ extension _SyncMessaging on Sync {
   }
 
   /// Refresh purchases data
+  // ignore: unused_element
   Future<void> refreshPurchases() async {
     purchasesSync.invalidate();
   }
 
   /// Refresh profile data
+  // ignore: unused_element
   Future<void> refreshProfile() async {
     await profileSync.invalidateAndAwait();
   }
 
   /// Get authentication credentials
+  // ignore: unused_element
   AuthCredentials getCredentials() {
     return credentials;
   }
@@ -1299,7 +1311,7 @@ extension _SyncMessaging on Sync {
     if (!messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId] = InvalidateSync(
         () => fetchMessages(sessionId),
-        minInterval: _messagesSyncMinInterval,
+        minInterval: Sync._messagesSyncMinInterval,
         name: 'fetchMessages:$sessionId',
       );
     }
@@ -1315,7 +1327,7 @@ extension _SyncMessaging on Sync {
       sessionId,
       serverLastSeq:
           _sessions[sessionId]?.lastSeq ?? 0,
-      initialLoad: initialLoad,
+      initialLoad: Sync.initialLoad,
     );
   }
 
@@ -1413,7 +1425,7 @@ extension _SyncMessaging on Sync {
           !forceTailRefresh &&
           serverLastSeq > 0 &&
           cursorSeq <= serverLastSeq &&
-          (serverLastSeq - cursorSeq) > initialLoad;
+          (serverLastSeq - cursorSeq) > Sync.initialLoad;
 
       logger.info(
         '[fetchMessages] $sessionId '
@@ -1433,7 +1445,7 @@ extension _SyncMessaging on Sync {
       // that indicates socket events may have outpaced the server and we
       // should fetch to ensure no messages were missed.
       final hasGap = serverLastSeq > 0 && cursorSeq <= serverLastSeq &&
-          (serverLastSeq - cursorSeq) > initialLoad;
+          (serverLastSeq - cursorSeq) > Sync.initialLoad;
       if (!isFirstLoad &&
           cursorSeq > 0 &&
           serverLastSeq > 0 &&
@@ -1466,9 +1478,9 @@ extension _SyncMessaging on Sync {
         // window from the known max seq, ignoring the cursor.
         if (isFirstLoad || forceTailRefresh) {
           final knownMax = max(cursorSeq, serverLastSeq);
-          afterSeq = knownMax <= initialLoad
+          afterSeq = knownMax <= Sync.initialLoad
               ? 0
-              : knownMax - initialLoad;
+              : knownMax - Sync.initialLoad;
           // after_seq=N returns messages with seq > N, so small
           // non-zero values (1-10) would skip the very first
           // message(s) of the conversation.  Round down to 0 when
@@ -1845,6 +1857,7 @@ extension _SyncMessaging on Sync {
   /// Fetch the page of messages that precedes what has already been loaded
   /// for [sessionId].  Call [hasOlderMessages] first to guard against
   /// unnecessary requests.
+  // ignore: unused_element
   Future<void> fetchOlderMessages(String sessionId) async {
     if (isLoadingOlderMessages(sessionId)) return;
     final firstLoaded = _sessionFirstLoadedSeq[sessionId] ?? 0;
@@ -1988,7 +2001,7 @@ extension _SyncMessaging on Sync {
   /// stale sessions to appear ready when the daemon is offline.
   Future<bool> waitForAgentReady(
     String sessionId, [
-    int timeoutMs = sessionReadyTimeoutMs,
+    int timeoutMs = Sync.sessionReadyTimeoutMs,
   ]) async {
     // Fast path: already online or lifecycle running
     final session = _sessions[sessionId];
@@ -2032,6 +2045,7 @@ extension _SyncMessaging on Sync {
   /// Test helper for [_processDecryptedMessage].
   @visibleForTesting
   (List<Map<String, dynamic>>, List<Map<String, dynamic>>)
+  // ignore: unused_element
   testProcessDecryptedMessage({
     required String id,
     required int seq,
@@ -3296,6 +3310,7 @@ extension _SyncMessaging on Sync {
   }
 
   /// @visibleForTesting
+  // ignore: unused_element
   void testUpsertSessionMessages(
     String sessionId,
     List<Map<String, dynamic>> messages,
