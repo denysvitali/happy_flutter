@@ -2327,8 +2327,8 @@ what you have, you must use the options mode.
         _machines[machineId] = machine.copyWith(
           active: active ?? machine.active,
           activeAt: activeAt ?? machine.activeAt,
-          updatedAt: updatedAt,
-          seq: seq,
+          updatedAt: updatedAt ?? machine.updatedAt,
+          seq: seq ?? machine.seq,
         );
         _notifyDataChanged();
       }
