@@ -11,6 +11,7 @@
 
   env = {
     DART_SDK = "${pkgs.flutter.out}/bin/cache/dart-sdk";
+    PKG_CONFIG_PATH = "/usr/lib/pkgconfig";
   };
 
   enterShell = ''
