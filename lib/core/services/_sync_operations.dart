@@ -1,6 +1,6 @@
 part of 'sync_service.dart';
 
-extension _SyncOperations on Sync {
+extension SyncOperations on Sync {
   Future<void> syncSettings() async {
     logger.info('Syncing settings...');
 
@@ -604,12 +604,12 @@ extension _SyncOperations on Sync {
         BashRequest(command: command, cwd: cwd).toJson(),
         BashResponse.fromJson,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
       if (error is StateError &&
           error.message.contains('not connected')) {
         logger.info('machineBash: socket not connected');
       } else {
-        logger.error('machineBash error', error);
+        logger.error('machineBash error', error, stackTrace);
       }
     }
     return const BashResponse(success: false, stderr: 'RPC call failed');
@@ -627,12 +627,12 @@ extension _SyncOperations on Sync {
         ReadFileRequest(path: filePath).toJson(),
         ReadFileResponse.fromJson,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
       if (error is StateError &&
           error.message.contains('not connected')) {
         logger.info('machineReadFile: socket not connected');
       } else {
-        logger.error('machineReadFile error', error);
+        logger.error('machineReadFile error', error, stackTrace);
       }
     }
     return const ReadFileResponse(
@@ -655,16 +655,17 @@ extension _SyncOperations on Sync {
         <String, dynamic>{},
         ClaudeUsageLimitsResponse.fromJson,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
       if (error is StateError &&
           error.message.contains('not connected')) {
         logger.info(
           'machineGetClaudeUsageLimits: socket not connected',
         );
       } else {
-        logger.warning(
+        logger.error(
           'machineGetClaudeUsageLimits error',
           error,
+          stackTrace,
         );
       }
     }

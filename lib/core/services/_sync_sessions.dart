@@ -1,6 +1,6 @@
 part of 'sync_service.dart';
 
-extension _SyncSessions on Sync {
+extension SyncSessions on Sync {
   void _scheduleSessionsRefresh() {
     _sessionsRefreshDebounceTimer?.cancel();
     _sessionsRefreshDebounceTimer = Timer(

@@ -1,6 +1,6 @@
 part of 'sync_service.dart';
 
-extension _SyncMessaging on Sync {
+extension SyncMessaging on Sync {
   /// Send message to session.
   ///
   /// Returns the target session ID synchronously after the optimistic
@@ -1702,7 +1702,7 @@ extension _SyncMessaging on Sync {
         if (processed.droppedReasons.isNotEmpty) {
           for (final reason in processed.droppedReasons) {
             logger.warning(
-              '[fetchMessages] $sessionId dropped: $reason',
+              '[fetchMessages] dropped: $reason',
             );
           }
         }

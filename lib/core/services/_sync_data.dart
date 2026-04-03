@@ -1,6 +1,6 @@
 part of 'sync_service.dart';
 
-extension _SyncData on Sync {
+extension SyncData on Sync {
   void handleEphemeralUpdate(dynamic data) {
     final payload = _normalizeSocketPayload(
       data,

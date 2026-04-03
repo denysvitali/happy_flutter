@@ -1,6 +1,6 @@
 part of 'sync_service.dart';
 
-extension _SyncSocket on Sync {
+extension SyncSocket on Sync {
   void _socketSend(String event, dynamic data) {
     if (testSocketSendOverride != null) {
       testSocketSendOverride!(event, data);
@@ -902,7 +902,7 @@ extension _SyncSocket on Sync {
         if (processed.droppedReasons.isNotEmpty) {
           for (final reason in processed.droppedReasons) {
             logger.warning(
-              '[inline] $sessionId dropped: $reason',
+              '[inline] dropped: $reason',
             );
           }
         }
