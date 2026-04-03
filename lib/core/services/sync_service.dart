@@ -6172,6 +6172,11 @@ what you have, you must use the options mode.
 
   /// Kill a session's agent process.
   Future<KillSessionResponse> killSession(String sessionId) async {
+    // Invalidate cached presence/spawn timestamps so the next message does not
+    // trust stale state (isOnlineTrusted / recentlySpawned) and properly
+    // triggers auto-restore with the current profile's env vars.
+    _lastEphemeralAt.remove(sessionId);
+    _sessionSpawnedAt.remove(sessionId);
     return _typedSessionRPC(
       sessionId,
       'killSession',
