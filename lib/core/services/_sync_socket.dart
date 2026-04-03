@@ -260,6 +260,15 @@ extension SyncSocket on Sync {
   /// Coalesces rapid token-level updates into one emission per 200ms window
   /// per session, preventing the chat screen from rebuilding on every token.
   void _notifySessionMessagesChanged(String sessionId) {
+    _notifySessionMessagesChangedUiOnly(sessionId);
+    // Persist updated messages to MMKV for instant cold-start load.
+    _scheduleSaveMessages(sessionId);
+  }
+
+  /// Like [_notifySessionMessagesChanged] but only emits the UI
+  /// stream event — does NOT schedule a cache save.  Use this when
+  /// no messages actually changed (e.g. fetchMessages early-exit).
+  void _notifySessionMessagesChangedUiOnly(String sessionId) {
     _sessionMessageDebounceTimers[sessionId]?.cancel();
     _sessionMessageDebounceTimers[sessionId] = Timer(
       const Duration(milliseconds: 200),
@@ -270,8 +279,6 @@ extension SyncSocket on Sync {
         }
       },
     );
-    // Persist updated messages to MMKV for instant cold-start load.
-    _scheduleSaveMessages(sessionId);
   }
 
   /// Advance the message seq cursor for [sessionId] and keep
@@ -508,7 +515,9 @@ extension SyncSocket on Sync {
           _sessionMessages[sessionId] = clean;
           _sessionMessagesViewCache.remove(sessionId);
           // Notify UI so ChatScreen refreshes with cached messages.
-          _notifySessionMessagesChanged(sessionId);
+          // Use UI-only notification — we just loaded these from MMKV,
+          // there is no reason to write them back immediately.
+          _notifySessionMessagesChangedUiOnly(sessionId);
 
           // The MMKV cache only stores the most recent ~100 messages.
           // _sessionFirstLoadedSeq may say 0 or null, telling
@@ -796,6 +805,13 @@ extension SyncSocket on Sync {
         );
       } else {
         // Visible session with no embedded message — HTTP fetch.
+        // Dedup rapid-fire duplicates: the server often broadcasts the
+        // same event 7-18 times; without this gate each duplicate
+        // triggers a wasteful fetchMessages HTTP call and logger flood.
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        final lastMs = _lastNoEmbedEventMs[sessionId] ?? 0;
+        if (nowMs - lastMs < 50) return;
+        _lastNoEmbedEventMs[sessionId] = nowMs;
         messagesSync[sessionId]?.invalidate();
       }
       logger.info('New message received: $sessionId');

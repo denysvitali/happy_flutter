@@ -490,6 +490,10 @@ what you have, you must use the options mode.
   /// subsequent retry (via HTTP fallback) can re-process it.
   final Set<String> _pendingInlineMessageKeys = {};
 
+  /// Per-session timestamp of the last no-embed new-message event,
+  /// used to collapse rapid-fire duplicate socket broadcasts.
+  final Map<String, int> _lastNoEmbedEventMs = {};
+
   /// Per-session serial queue for inline message processing.
   final InlineMessageProcessor _inlineProcessor =
       InlineMessageProcessor();
@@ -544,6 +548,7 @@ what you have, you must use the options mode.
   int? _lastSessionsFetchedAt;
   bool _forceFullFetchNext = false;
   int? _lastInvalidateAllSyncsAtMs;
+  int? _suspendedAtMs;
   /// Timestamp of last resume() call for debouncing rapid pause/resume cycles.
   int? _lastResumeAtMs;
   /// Minimum interval between resume() calls — prevents socket reconnect
@@ -2133,6 +2138,7 @@ what you have, you must use the options mode.
     // backgrounded.  Checked in InvalidateSync._run() before the
     // await _action() call.
     InvalidateSync.isBackgrounded = true;
+    _suspendedAtMs = DateTime.now().millisecondsSinceEpoch;
 
     // Cancel all InvalidateSync retry/cooldown timers.  This stops any
     // exponential-backoff network retries that would otherwise fire while
@@ -2264,14 +2270,17 @@ what you have, you must use the options mode.
           return;
         }
 
-        // Force a full session fetch (not delta) on resume so that
-        // session.lastSeq is always up-to-date. Delta fetches may miss
-        // sessions where only messages changed (no metadata update),
-        // causing fetchMessages() to skip with "already caught up"
-        // because both cursorSeq and serverLastSeq are stale.
+        // Only force a full session fetch when the app was suspended
+        // long enough for delta results to be unreliable (>5 min).
+        // Short suspends (screen-off, quick app-switch) keep the delta
+        // cursor so we avoid re-fetching all sessions.
+        final suspendDuration = _suspendedAtMs != null
+            ? DateTime.now().millisecondsSinceEpoch - _suspendedAtMs!
+            : 0;
+        final needsFullFetch = suspendDuration > 5 * 60 * 1000;
         _invalidateAllSyncs(
           force: true,
-          resetSessionDeltaCursor: true,
+          resetSessionDeltaCursor: needsFullFetch,
         );
 
         // Invalidate sessions that had pending socket messages
@@ -2376,6 +2385,7 @@ what you have, you must use the options mode.
     _recentInlineMessageKeys.clear();
     _recentInlineMessageKeyOrder.clear();
     _pendingInlineMessageKeys.clear();
+    _lastNoEmbedEventMs.clear();
     _sessionsWithPendingSocketMessages.clear();
     _notifiedPermissionIds.clear();
 

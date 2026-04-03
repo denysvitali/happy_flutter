@@ -680,6 +680,17 @@ extension SyncMessaging on Sync {
           return;
         }
 
+        // If already caught up (cursor == serverLastSeq), skip the
+        // HTTP round-trip — the agent hasn't produced a response yet,
+        // and socket events will advance the seq when it does.
+        final session = _sessions[sessionId];
+        final serverLastSeq = session?.lastSeq ?? 0;
+        if (currentSeq > 0 &&
+            serverLastSeq > 0 &&
+            currentSeq >= serverLastSeq) {
+          return;
+        }
+
         // Skip polling for non-visible sessions — socket events already
         // trigger message fetches via _handleNewMessage, so the periodic
         // poll is redundant and wastes HTTP round-trips (each returning 0
@@ -1473,8 +1484,9 @@ extension SyncMessaging on Sync {
           '(cursor=$cursorSeq server=$serverLastSeq) '
           '— skipping',
         );
-        // Notify UI so any pending loading state clears.
-        _notifySessionMessagesChanged(sessionId);
+        // Notify UI so any pending loading state clears, but do NOT
+        // trigger a message cache save — no messages changed.
+        _notifySessionMessagesChangedUiOnly(sessionId);
         return;
       }
 
