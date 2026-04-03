@@ -315,8 +315,8 @@ class AuthService {
         return Profile.fromJson(data);
       }
       return null;
-    } catch (e) {
-      logger.warning('Error fetching profile: $e');
+    } catch (e, stack) {
+      logger.error('Error fetching profile', e, stack);
       return null;
     }
   }
@@ -337,8 +337,8 @@ class AuthService {
         }
       }
       return [];
-    } catch (e) {
-      logger.warning('Error fetching connected services: $e');
+    } catch (e, stack) {
+      logger.error('Error fetching connected services', e, stack);
       return [];
     }
   }
@@ -417,8 +417,8 @@ Timestamp: ${DateTime.now().toIso8601String()}
         }
       }
       return [];
-    } catch (e) {
-      logger.warning('Error fetching devices: $e');
+    } catch (e, stack) {
+      logger.error('Error fetching devices', e, stack);
       return [];
     }
   }
@@ -428,8 +428,8 @@ Timestamp: ${DateTime.now().toIso8601String()}
     try {
       final response = await _apiClient.delete('/v1/devices/$deviceId');
       return response.statusCode == 200;
-    } catch (e) {
-      logger.warning('Error unlinking device: $e');
+    } catch (e, stack) {
+      logger.error('Error unlinking device', e, stack);
       return false;
     }
   }
@@ -454,8 +454,8 @@ Timestamp: ${DateTime.now().toIso8601String()}
         return AccountBackupInfo.fromJson(data);
       }
       return null;
-    } catch (e) {
-      logger.warning('Error fetching backup info: $e');
+    } catch (e, stack) {
+      logger.error('Error fetching backup info', e, stack);
       return null;
     }
   }

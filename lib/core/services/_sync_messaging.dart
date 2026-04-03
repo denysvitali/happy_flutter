@@ -902,16 +902,18 @@ extension SyncMessaging on Sync {
         'session=$sessionId type=${result.type ?? 'null'} '
         'error=${result.errorMessage ?? 'unknown'}',
       );
-    } catch (error) {
+    } catch (error, stack) {
       if (Sync._isTransientConnectionError(error)) {
         logger.info(
           '[permission] auto-restore failed (transient) '
           'session=$sessionId: $error',
         );
       } else {
-        logger.warning(
+        logger.error(
           '[permission] auto-restore failed '
-          'session=$sessionId: $error',
+          'session=$sessionId',
+          error,
+          stack,
         );
       }
     }

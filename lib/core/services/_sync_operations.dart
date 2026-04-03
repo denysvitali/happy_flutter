@@ -1088,16 +1088,11 @@ extension SyncOperations on Sync {
           'session=$sessionId: $error',
         );
       } else {
-        logger
-          ..warning(
-            '[sendMessage] auto-restore failed for session=$sessionId',
-            error,
-          )
-          ..warning(
-            '[sendMessage] auto-restore stacktrace '
-            'for session=$sessionId',
-            stack,
-          );
+        logger.error(
+          '[sendMessage] auto-restore failed for session=$sessionId',
+          error,
+          stack,
+        );
       }
       return (
         sessionId: sessionId,

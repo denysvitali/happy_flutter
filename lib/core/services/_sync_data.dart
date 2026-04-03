@@ -876,8 +876,8 @@ extension SyncData on Sync {
               ),
             );
           }
-        } catch (error) {
-          logger.warning('Failed to parse artifact key', error);
+        } catch (error, stack) {
+          logger.error('Failed to parse artifact key', error, stack);
         }
       }
 
@@ -1172,10 +1172,11 @@ extension SyncData on Sync {
             if (decrypted is Map<String, dynamic>) {
               return MapEntry(item.key, decrypted);
             }
-          } catch (error) {
+          } catch (error, stack) {
             logger.warning(
-              'Failed to decrypt todo item'
-              ' ${item.key}: $error',
+              'Failed to decrypt todo item ${item.key}',
+              error,
+              stack,
             );
           }
           return null;

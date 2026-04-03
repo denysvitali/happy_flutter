@@ -34,8 +34,8 @@ class TokenStorage {
       );
       _cachedCredentials = credentials;
       return credentials;
-    } catch (e) {
-      logger.warning('Error getting credentials: $e');
+    } catch (e, stack) {
+      logger.error('Error getting credentials', e, stack);
       return null;
     }
   }
@@ -47,8 +47,8 @@ class TokenStorage {
       await _secureStorage.write(key: _authKey, value: json);
       _cachedCredentials = credentials;
       return true;
-    } catch (e) {
-      logger.warning('Error setting credentials: $e');
+    } catch (e, stack) {
+      logger.error('Error setting credentials', e, stack);
       return false;
     }
   }
@@ -59,8 +59,8 @@ class TokenStorage {
       await _secureStorage.delete(key: _authKey);
       _cachedCredentials = null;
       return true;
-    } catch (e) {
-      logger.warning('Error removing credentials: $e');
+    } catch (e, stack) {
+      logger.error('Error removing credentials', e, stack);
       return false;
     }
   }
@@ -585,8 +585,8 @@ class APIKeyStorage {
         await _secureStorage.delete(key: _inferenceOpenAIKey);
       }
       return true;
-    } catch (e) {
-      logger.warning('Error storing inference OpenAI key: $e');
+    } catch (e, stack) {
+      logger.error('Error storing inference OpenAI key', e, stack);
       return false;
     }
   }
@@ -595,8 +595,8 @@ class APIKeyStorage {
   Future<String?> getInferenceOpenAIKey() async {
     try {
       return await _secureStorage.read(key: _inferenceOpenAIKey);
-    } catch (e) {
-      logger.warning('Error getting inference OpenAI key: $e');
+    } catch (e, stack) {
+      logger.error('Error getting inference OpenAI key', e, stack);
       return null;
     }
   }
@@ -611,8 +611,8 @@ class APIKeyStorage {
         await _secureStorage.delete(key: key);
       }
       return true;
-    } catch (e) {
-      logger.warning('Error storing OpenAI config key: $e');
+    } catch (e, stack) {
+      logger.error('Error storing OpenAI config key', e, stack);
       return false;
     }
   }
@@ -622,8 +622,8 @@ class APIKeyStorage {
     try {
       final key = '$_openAIConfigKeyPrefix$profileId';
       return await _secureStorage.read(key: key);
-    } catch (e) {
-      logger.warning('Error getting OpenAI config key: $e');
+    } catch (e, stack) {
+      logger.error('Error getting OpenAI config key', e, stack);
       return null;
     }
   }
@@ -638,8 +638,8 @@ class APIKeyStorage {
         await _secureStorage.delete(key: key);
       }
       return true;
-    } catch (e) {
-      logger.warning('Error storing Azure OpenAI config key: $e');
+    } catch (e, stack) {
+      logger.error('Error storing Azure OpenAI config key', e, stack);
       return false;
     }
   }
@@ -649,8 +649,8 @@ class APIKeyStorage {
     try {
       final key = '$_azureOpenAIConfigKeyPrefix$profileId';
       return await _secureStorage.read(key: key);
-    } catch (e) {
-      logger.warning('Error getting Azure OpenAI config key: $e');
+    } catch (e, stack) {
+      logger.error('Error getting Azure OpenAI config key', e, stack);
       return null;
     }
   }
@@ -665,8 +665,8 @@ class APIKeyStorage {
         await _secureStorage.delete(key: key);
       }
       return true;
-    } catch (e) {
-      logger.warning('Error storing TogetherAI config key: $e');
+    } catch (e, stack) {
+      logger.error('Error storing TogetherAI config key', e, stack);
       return false;
     }
   }
@@ -676,8 +676,8 @@ class APIKeyStorage {
     try {
       final key = '$_togetherAIConfigKeyPrefix$profileId';
       return await _secureStorage.read(key: key);
-    } catch (e) {
-      logger.warning('Error getting TogetherAI config key: $e');
+    } catch (e, stack) {
+      logger.error('Error getting TogetherAI config key', e, stack);
       return null;
     }
   }
@@ -697,8 +697,8 @@ class APIKeyStorage {
         }
       }
       return true;
-    } catch (e) {
-      logger.warning('Error clearing API keys: $e');
+    } catch (e, stack) {
+      logger.error('Error clearing API keys', e, stack);
       return false;
     }
   }
@@ -733,8 +733,8 @@ class APIKeyStorage {
       }
 
       return true;
-    } catch (e) {
-      logger.warning('Error migrating API keys: $e');
+    } catch (e, stack) {
+      logger.error('Error migrating API keys', e, stack);
       return false;
     }
   }

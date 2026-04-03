@@ -76,15 +76,7 @@ class TtsService {
         fallbackName: 'Engine',
       );
     } catch (error, stackTrace) {
-      logger.error('[TTS] Failed to fetch engines: $error');
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stackTrace,
-          library: 'tts_service',
-          context: ErrorDescription('while fetching TTS engines'),
-        ),
-      );
+      logger.error('[TTS] Failed to fetch engines', error, stackTrace);
       return [];
     }
   }
@@ -101,15 +93,7 @@ class TtsService {
         fallbackName: 'Language',
       );
     } catch (error, stackTrace) {
-      logger.error('[TTS] Failed to fetch languages: $error');
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stackTrace,
-          library: 'tts_service',
-          context: ErrorDescription('while fetching TTS languages'),
-        ),
-      );
+      logger.error('[TTS] Failed to fetch languages', error, stackTrace);
       return [];
     }
   }
