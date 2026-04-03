@@ -1,8 +1,11 @@
+import 'dart:async' show unawaited;
+
 import 'package:riverpod/riverpod.dart';
 
 import '../services/draft_storage.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
+import 'settings_notifier.dart';
 
 /// Encapsulates chat-related sync operations so screens don't
 /// call sync directly.
@@ -60,12 +63,22 @@ class ChatActionNotifier extends Notifier<void> {
   /// Save the permission mode for a session and update settings.
   void savePermissionMode(String sessionId, String modeString) {
     DraftStorage().savePermissionMode(sessionId, modeString);
+    unawaited(
+      ref
+          .read(settingsNotifierProvider.notifier)
+          .updateSetting('lastUsedPermissionMode', modeString),
+    );
     applySettings({'lastUsedPermissionMode': modeString});
   }
 
   /// Save the model mode for a session and update settings.
   void saveModelMode(String sessionId, String modeString) {
     DraftStorage().saveModelMode(sessionId, modeString);
+    unawaited(
+      ref
+          .read(settingsNotifierProvider.notifier)
+          .updateSetting('lastUsedModelMode', modeString),
+    );
     applySettings({'lastUsedModelMode': modeString});
   }
 
@@ -74,6 +87,13 @@ class ChatActionNotifier extends Notifier<void> {
     if (profileId != null) {
       DraftStorage().saveProfileId(sessionId, profileId);
     }
+    // Update the Settings notifier state so PickProfileScreen
+    // and other screens see the new selection immediately.
+    unawaited(
+      ref
+          .read(settingsNotifierProvider.notifier)
+          .updateSetting('lastUsedProfile', profileId),
+    );
     applySettings({'lastUsedProfile': profileId});
   }
 }

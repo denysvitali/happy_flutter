@@ -49,12 +49,17 @@ Uint8List _derToPem(Uint8List der) {
 }
 
 Future<void> main() async {
-  // Use conditional initialization - Sentry only on native, not on web
-  await initSentryForPlatform(_runApp);
+  // Bootstrap the Flutter binding first so everything else can proceed
+  // in parallel — Sentry, storage, network, deep link, and Firebase.
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Start Sentry init in the background; it no longer blocks first frame.
+  unawaited(initSentryForPlatform());
+
+  await _runApp();
 }
 
 Future<void> _runApp() async {
-  WidgetsFlutterBinding.ensureInitialized();
   // Installed here so Sentry's Zone and error handlers are set up first.
   remoteLoggerAutoInstall();
 
@@ -76,24 +81,18 @@ Future<void> _runApp() async {
     );
   }
 
-  if (!kIsWeb && isAndroid) {
-    final certs = await FlutterUserCertificatesAndroid().getUserCertificates();
-    for (final derBytes in (certs ?? {}).values) {
-      // Android KeyStore returns DER; Dart's SecurityContext needs PEM.
-      final pem = _derToPem(derBytes);
-      SecurityContext.defaultContext.setTrustedCertificatesBytes(pem);
-    }
-  }
-
-  final firebaseInitialization = _initializeOptionalFirebase();
+  // Start all independent startup work concurrently.
+  // These are awaited before the first frame.
   final deepLinkFuture = _getInitialDeepLink();
+  unawaited(sodiumSingleton); // FFI load overlaps with storage/network
 
-  // Pre-warm the sodium native library so Encryption.create() doesn't
-  // block on first access during checkAuth(). The FFI .so/.dylib load
-  // takes 50-200ms on Android; starting it here overlaps with storage
-  // and network init below.
-  unawaited(sodiumSingleton);
+  // Defer Android user certificates and Firebase past first frame —
+  // they provide zero value before the user sees the first screen.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_deferredInit());
+  });
 
+  // Await essentials: storage + network (server URL is needed for network).
   await storage.Storage().initialize();
   final serverUrl = getServerUrl();
   await Future.wait([
@@ -101,17 +100,37 @@ Future<void> _runApp() async {
     ApiClient().initialize(serverUrl: serverUrl),
   ]);
 
-  // Handle initial deep link if the app was opened from a link
   final deepLink = await deepLinkFuture;
-  await firebaseInitialization;
 
   runApp(
     ErrorBoundary(
       child: ProviderScope(
-        child: SentryWidget(child: HappyApp(initialDeepLink: deepLink)),
+        child: SentryWidget(
+          child: HappyApp(initialDeepLink: deepLink),
+        ),
       ),
     ),
   );
+}
+
+/// Deferred initialization that runs after first frame. Keeps heavy,
+/// non-essential work (Firebase, Android certs) off the critical path.
+Future<void> _deferredInit() async {
+  // Android user certificates — JNI calls + ASN.1 parsing.
+  if (!kIsWeb && isAndroid) {
+    try {
+      final certs = await FlutterUserCertificatesAndroid().getUserCertificates();
+      for (final derBytes in (certs ?? {}).values) {
+        final pem = _derToPem(derBytes);
+        SecurityContext.defaultContext.setTrustedCertificatesBytes(pem);
+      }
+    } catch (e) {
+      logger.warning('Failed to load Android user certificates: $e');
+    }
+  }
+
+  // Firebase push notifications — not needed for first screen.
+  await _initializeOptionalFirebase();
 }
 
 Future<void> _initializeOptionalFirebase() async {
