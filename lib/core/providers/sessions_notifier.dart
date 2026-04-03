@@ -41,8 +41,8 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     }
     try {
       await sync.refreshSessions();
-    } catch (e) {
-      logger.warning('Failed to refresh sessions: $e');
+    } catch (e, stack) {
+      logger.warning('Failed to refresh sessions', e, stack);
     }
     loadFromSync();
   }
@@ -66,11 +66,12 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
         return false;
       }
       return true;
-    } catch (e) {
+    } catch (e, stack) {
       state = snapshot;
       logger.warning(
-        'OptimisticMutation: deleteSession($id) failed,'
-        ' rolled back — error: $e',
+        'OptimisticMutation: deleteSession($id) failed, rolled back',
+        e,
+        stack,
       );
       return false;
     }

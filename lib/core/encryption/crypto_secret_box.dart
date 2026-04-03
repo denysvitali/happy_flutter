@@ -90,8 +90,8 @@ class CryptoSecretBox {
 
       final jsonString = utf8.decode(decrypted);
       return jsonDecode(jsonString);
-    } catch (e) {
-      logger.warning('CryptoSecretBox.decrypt failed', e);
+    } catch (e, stack) {
+      logger.error('CryptoSecretBox.decrypt failed', e, stack);
       return null;
     }
   }

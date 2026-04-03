@@ -1,6 +1,10 @@
+import 'dart:async' show unawaited;
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:sentry_flutter/sentry_flutter.dart';
+
+import '../services/logger_service.dart' show logger;
 import 'base64.dart';
 import 'encryptor.dart';
 
@@ -45,7 +49,9 @@ class ArtifactEncryption {
       }
 
       return Map<String, dynamic>.from(header);
-    } catch (e) {
+    } catch (e, stack) {
+      logger.error('ArtifactEncryption.decryptHeader failed', e, stack);
+      unawaited(Sentry.captureException(e, stackTrace: stack));
       return null;
     }
   }
@@ -73,7 +79,9 @@ class ArtifactEncryption {
       return {
         'body': body['body'] as String?,
       };
-    } catch (e) {
+    } catch (e, stack) {
+      logger.error('ArtifactEncryption.decryptBody failed', e, stack);
+      unawaited(Sentry.captureException(e, stackTrace: stack));
       return null;
     }
   }

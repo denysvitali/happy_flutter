@@ -27,8 +27,8 @@ class FeedNotifier extends Notifier<FeedState> {
     }
     try {
       await sync.feedSync.invalidateAndAwait();
-    } catch (e) {
-      logger.warning('Failed to refresh feed: $e');
+    } catch (e, stack) {
+      logger.warning('Failed to refresh feed', e, stack);
     }
     loadFromSync();
   }

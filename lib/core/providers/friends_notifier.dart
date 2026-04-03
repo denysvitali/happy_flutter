@@ -31,8 +31,8 @@ class FriendsNotifier extends Notifier<FriendsState> {
     }
     try {
       await sync.friendsSync.invalidateAndAwait();
-    } catch (e) {
-      logger.warning('Failed to refresh friends: $e');
+    } catch (e, stack) {
+      logger.warning('Failed to refresh friends', e, stack);
     }
     loadFromSync();
   }
@@ -97,11 +97,12 @@ class FriendsNotifier extends Notifier<FriendsState> {
     try {
       await action();
       return true;
-    } catch (e) {
+    } catch (e, stack) {
       itemsSetter(state, before);
       logger.warning(
-        'OptimisticMutation: friend action failed, rolled back'
-        ' — error: $e',
+        'OptimisticMutation: friend action failed, rolled back',
+        e,
+        stack,
       );
       return false;
     }
@@ -120,11 +121,12 @@ class FriendsNotifier extends Notifier<FriendsState> {
     try {
       await action();
       return true;
-    } catch (e) {
+    } catch (e, stack) {
       state = state.copyWith(friends: snapshot);
       logger.warning(
-        'OptimisticMutation: removeFriend($userId) failed, rolled back'
-        ' — error: $e',
+        'OptimisticMutation: removeFriend($userId) failed, rolled back',
+        e,
+        stack,
       );
       return false;
     }

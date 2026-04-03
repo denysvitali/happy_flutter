@@ -155,8 +155,8 @@ class AesGcmEncryption {
       // Decode JSON
       final jsonString = utf8.decode(decrypted);
       return jsonDecode(jsonString);
-    } catch (e) {
-      logger.warning('AesGcmEncryption.decrypt failed', e);
+    } catch (e, stack) {
+      logger.error('AesGcmEncryption.decrypt failed', e, stack);
       return null;
     }
   }
@@ -221,7 +221,9 @@ class AesGcmEncryption {
           secretKey: key,
         );
         results.add(jsonDecode(utf8.decode(decrypted)));
-      } catch (_) {
+      } catch (e) {
+        // Running inside Isolate.run — logger singleton is unavailable.
+        // The caller (AES256Encryption.decryptInIsolate) logs batch failures.
         results.add(null);
       }
     }
@@ -266,7 +268,9 @@ class AesGcmEncryption {
           secretKey: sk,
         );
         results.add(jsonDecode(utf8.decode(decrypted)));
-      } catch (_) {
+      } catch (e) {
+        // Running inside Isolate.run — logger singleton is unavailable.
+        // The caller (AES256Encryption.decryptInIsolate) logs batch failures.
         results.add(null);
       }
     }

@@ -55,8 +55,8 @@ class ChatActionNotifier extends Notifier<void> {
     if (!sync.isInitialized) return;
     try {
       sync.applySettings(settings);
-    } catch (e) {
-      logger.warning('Failed to apply settings: $e');
+    } catch (e, stack) {
+      logger.warning('Failed to apply settings', e, stack);
     }
   }
 

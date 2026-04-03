@@ -49,8 +49,8 @@ class MachineEncryption {
       final data = decrypted[0] as Map<String, dynamic>;
       _cache.setCachedMachineMetadata(_machineId, version, data);
       return data;
-    } catch (e) {
-      logger.warning('MachineEncryption.decryptMetadata failed', e);
+    } catch (e, stack) {
+      logger.error('MachineEncryption.decryptMetadata failed', e, stack);
       return null;
     }
   }
@@ -85,8 +85,8 @@ class MachineEncryption {
       // Cache result (including null)
       _cache.setCachedDaemonState(_machineId, version, result);
       return result;
-    } catch (e) {
-      logger.warning('MachineEncryption.decryptDaemonState failed', e);
+    } catch (e, stack) {
+      logger.error('MachineEncryption.decryptDaemonState failed', e, stack);
       // Cache null to avoid repeated decryption attempts
       _cache.setCachedDaemonState(_machineId, version, null);
       return null;
@@ -105,8 +105,8 @@ class MachineEncryption {
       final encryptedData = Base64Utils.decode(encrypted, Encoding.base64);
       final decrypted = await _decryptor.decrypt([encryptedData]);
       return decrypted[0];
-    } catch (e) {
-      logger.warning('MachineEncryption.decryptRaw failed', e);
+    } catch (e, stack) {
+      logger.error('MachineEncryption.decryptRaw failed', e, stack);
       return null;
     }
   }

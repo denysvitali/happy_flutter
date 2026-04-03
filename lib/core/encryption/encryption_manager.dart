@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:uuid/uuid.dart';
 
+import '../services/logger_service.dart' show logger;
 import 'base64.dart';
 import 'crypto_box.dart';
 import 'derive_key.dart';
@@ -168,7 +169,8 @@ class Encryption {
       final encryptedData = Base64Utils.decode(encrypted, Encoding.base64);
       final decrypted = await _legacyEncryption.decrypt([encryptedData]);
       return decrypted[0];
-    } catch (e) {
+    } catch (e, stack) {
+      logger.warning('Encryption.decryptRaw failed', e, stack);
       return null;
     }
   }

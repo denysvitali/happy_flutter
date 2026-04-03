@@ -34,8 +34,8 @@ class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
     }
     try {
       await sync.sessionGitStatusSync.invalidateAndAwait();
-    } catch (e) {
-      logger.warning('Failed to refresh git status: $e');
+    } catch (e, stack) {
+      logger.warning('Failed to refresh git status', e, stack);
     }
     loadFromSync();
   }

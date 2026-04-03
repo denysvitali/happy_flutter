@@ -46,8 +46,8 @@ class SettingsNotifier extends Notifier<Settings> {
     }
     try {
       await sync.settingsSync.invalidateAndAwait();
-    } catch (e) {
-      logger.warning('Failed to refresh settings: $e');
+    } catch (e, stack) {
+      logger.warning('Failed to refresh settings', e, stack);
     }
     loadFromSync();
   }

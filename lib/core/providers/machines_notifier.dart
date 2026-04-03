@@ -34,8 +34,8 @@ class MachinesNotifier extends Notifier<Map<String, Machine>> {
     }
     try {
       await sync.refreshMachines();
-    } catch (e) {
-      logger.warning('Failed to refresh machines: $e');
+    } catch (e, stack) {
+      logger.warning('Failed to refresh machines', e, stack);
     }
     loadFromSync();
   }

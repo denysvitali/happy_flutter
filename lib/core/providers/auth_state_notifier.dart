@@ -89,8 +89,8 @@ class AuthStateNotifier extends Notifier<AuthState> {
   Future<void> _handleDeepLink(String url) async {
     try {
       await _authService.approveLinkingRequest(url);
-    } catch (e) {
-      logger.warning('Failed to handle deep link: $e');
+    } catch (e, stack) {
+      logger.warning('Failed to handle deep link', e, stack);
     }
   }
 

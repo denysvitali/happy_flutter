@@ -26,8 +26,8 @@ class ProfileNotifier extends Notifier<Profile?> {
     }
     try {
       await sync.profileSync.invalidateAndAwait();
-    } catch (e) {
-      logger.warning('Failed to refresh profile: $e');
+    } catch (e, stack) {
+      logger.warning('Failed to refresh profile', e, stack);
     }
     loadFromSync();
   }

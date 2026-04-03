@@ -306,8 +306,8 @@ class SessionEncryption {
       final encryptedData = Base64Utils.decode(encrypted, Encoding.base64);
       final decrypted = await _decryptor.decrypt([encryptedData]);
       return decrypted[0];
-    } catch (e) {
-      logger.warning('SessionEncryption.decryptRaw failed', e);
+    } catch (e, stack) {
+      logger.error('SessionEncryption.decryptRaw failed', e, stack);
       return null;
     }
   }

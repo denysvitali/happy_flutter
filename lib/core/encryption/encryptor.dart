@@ -100,8 +100,8 @@ class AES256Encryption implements Encryptor {
           _secretKey,
         );
         results.add(decrypted);
-      } catch (e) {
-        logger.warning('AES256Encryption.decrypt failed', e);
+      } catch (e, stack) {
+        logger.error('AES256Encryption.decrypt failed', e, stack);
         results.add(null);
       }
     }
@@ -136,13 +136,25 @@ class AES256Encryption implements Encryptor {
           _secretKey,
         ),
       );
-    } catch (_) {
-      // Fallback: main-thread decrypt (e.g. web).
+    } catch (e, stack) {
+      // Isolate spawn failed (e.g. web platform).  Fall back to
+      // main-thread decryption and log so we know when this happens
+      // on non-web platforms.
+      logger.warning('AES256Encryption: isolate spawn failed, '
+          'falling back to main-thread decrypt', e, stack);
       return decrypt(data);
     }
     final results = List<dynamic>.filled(data.length, null);
+    var failCount = 0;
     for (var i = 0; i < validIndices.length; i++) {
       results[validIndices[i]] = isolateResults[i];
+      if (isolateResults[i] == null) failCount++;
+    }
+    if (failCount > 0) {
+      logger.warning(
+        'AES256Encryption.decryptInIsolate: $failCount of '
+        '${stripped.length} items failed to decrypt',
+      );
     }
     return results;
   }

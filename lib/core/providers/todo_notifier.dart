@@ -37,8 +37,8 @@ class TodoStateNotifier extends Notifier<TodoListState> {
     }
     try {
       await sync.todosSync.invalidateAndAwait();
-    } catch (e) {
-      logger.warning('Failed to refresh todos: $e');
+    } catch (e, stack) {
+      logger.warning('Failed to refresh todos', e, stack);
     }
     loadFromSync();
   }

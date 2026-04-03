@@ -122,8 +122,8 @@ class CryptoBox {
       );
 
       return decrypted;
-    } catch (e) {
-      logger.warning('CryptoBox.decrypt failed', e);
+    } catch (e, stack) {
+      logger.error('CryptoBox.decrypt failed', e, stack);
       return null;
     }
   }

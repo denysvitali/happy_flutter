@@ -50,8 +50,8 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
     }
     try {
       await sync.artifactsSync.invalidateAndAwait();
-    } catch (e) {
-      logger.warning('Failed to refresh artifacts: $e');
+    } catch (e, stack) {
+      logger.warning('Failed to refresh artifacts', e, stack);
     }
     loadFromSync();
   }
@@ -69,11 +69,12 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
     try {
       await sync.deleteArtifact(id);
       return true;
-    } catch (e) {
+    } catch (e, stack) {
       state = snapshot;
       logger.warning(
-        'OptimisticMutation: deleteArtifact($id) failed, rolled back'
-        ' — error: $e',
+        'OptimisticMutation: deleteArtifact($id) failed, rolled back',
+        e,
+        stack,
       );
       return false;
     }
