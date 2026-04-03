@@ -600,6 +600,7 @@ extension SyncSocket on Sync {
     socketIoClient
       ..onMessage('update', handleUpdate)
       ..onMessage('ephemeral', handleEphemeralUpdate)
+      ..onMessage('error', _handleErrorEvent)
       ..onReconnected(() {
         logger.info('Socket reconnected');
         _invalidateAllSyncs();
@@ -1047,6 +1048,28 @@ extension SyncSocket on Sync {
       'Session deletion received'
       '${sessionId != null ? ': $sessionId' : ''}',
     );
+  }
+
+  /// Handle server-side error events.
+  ///
+  /// When the server emits `{code: "session-invalid", sid: "..."}` it means
+  /// the session has been deleted server-side while the client still holds a
+  /// reference.  We treat this identically to a `delete-session` update so
+  /// all local state is cleaned up and the UI stops showing the stale session.
+  void _handleErrorEvent(dynamic data) {
+    final payload = _normalizeSocketPayload(
+      data,
+      handlerName: '_handleErrorEvent',
+    );
+    if (payload == null) return;
+    final code = payload['code'] as String?;
+    if (code == 'session-invalid') {
+      final sid = payload['sid'] as String?;
+      if (sid != null) {
+        logger.info('Received session-invalid for $sid — removing local state');
+        _handleDeleteSession({'sid': sid});
+      }
+    }
   }
 
   /// Handle archive-session WebSocket event.

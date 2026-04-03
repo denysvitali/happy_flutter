@@ -657,9 +657,15 @@ extension SyncOperations on Sync {
       );
     } catch (error, stackTrace) {
       if (error is StateError &&
-          error.message.contains('not connected')) {
+          (error.message.contains('not connected') ||
+              error.message.contains('not available') ||
+              error.message.contains('RPC method'))) {
         logger.info(
-          'machineGetClaudeUsageLimits: socket not connected',
+          'machineGetClaudeUsageLimits: machine offline or RPC unavailable',
+        );
+        return const ClaudeUsageLimitsResponse(
+          success: false,
+          error: 'machine offline',
         );
       } else {
         logger.error(

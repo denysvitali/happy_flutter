@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 import 'logger_service.dart' show logger;
@@ -117,7 +118,14 @@ class TtsService {
     }
     logger.info('[TTS] Speaking ${clean.length} chars: '
         '"${clean.substring(0, clean.length.clamp(0, 80))}..."');
-    await _tts!.stop();
+    try {
+      await _tts!.stop();
+    } on MissingPluginException {
+      _tts = null;
+      _initialized = false;
+      logger.warning('[TTS] speak skipped: MissingPluginException on stop()');
+      return;
+    }
     final result = await _tts!.speak(clean);
     logger.info('[TTS] speak() returned: $result');
   }
@@ -125,13 +133,22 @@ class TtsService {
   /// Stop any in-progress speech.
   Future<void> stop() async {
     if (kIsWeb || _tts == null) return;
-    await _tts!.stop();
+    try {
+      await _tts!.stop();
+    } on MissingPluginException {
+      _tts = null;
+      _initialized = false;
+    }
   }
 
   /// Release engine resources.
   Future<void> dispose() async {
     if (_tts != null) {
-      await _tts!.stop();
+      try {
+        await _tts!.stop();
+      } on MissingPluginException {
+        // TTS not supported on this platform; nothing to stop.
+      }
       _tts = null;
       _initialized = false;
     }
