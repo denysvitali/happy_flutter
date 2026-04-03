@@ -9,6 +9,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/feed.dart';
 import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/social_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
@@ -116,7 +117,12 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(successMessage)));
-    } catch (error) {
+    } catch (error, st) {
+      logger.warning(
+        '[InboxScreen] _runFriendAction failed: itemId=$itemId $error',
+        error,
+        st,
+      );
       if (!mounted) {
         return;
       }

@@ -8,6 +8,7 @@ import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
@@ -127,7 +128,13 @@ class _ArtifactDetailScreenState
         if (context.mounted) {
           context.pop();
         }
-      } catch (e) {
+      } catch (e, st) {
+        logger.warning(
+          '[ArtifactDetailScreen] deleteArtifact failed: '
+          'artifactId=${artifact.id} $e',
+          e,
+          st,
+        );
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(l10n.artifactsFailedToDelete)),

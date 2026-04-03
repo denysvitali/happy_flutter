@@ -4,6 +4,7 @@ import '../../core/components/avatar.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/social_service.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -33,7 +34,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       await ref
           .read(friendsNotifierProvider.notifier)
           .refreshFromSync();
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning(
+        '[UserProfileScreen] addFriend failed: userId=${user.id} $e',
+        e,
+        st,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -64,7 +70,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       await ref
           .read(friendsNotifierProvider.notifier)
           .refreshFromSync();
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning(
+        '[UserProfileScreen] removeFriend failed: userId=${user.id} $e',
+        e,
+        st,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

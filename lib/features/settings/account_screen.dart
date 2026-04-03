@@ -423,7 +423,8 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
         _isPolling = true;
       });
       unawaited(_pollForApproval());
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning('Failed to start device linking: $e', e, st);
       if (mounted) {
         setState(() {
           _error = 'Failed to start device linking: $e';
@@ -446,7 +447,8 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
           context.pop();
         }
       }
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning('Device linking approval poll failed: $e', e, st);
       if (mounted) {
         setState(() {
           _error = _formatError(e);
@@ -470,7 +472,8 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
         );
         context.pop();
       }
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning('Failed to approve linking request: $e', e, st);
       if (mounted) {
         setState(() {
           _error = _formatError(e);
@@ -810,8 +813,8 @@ class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
 
     try {
       _devices = await AuthService().getLinkedDevices();
-    } catch (e) {
-      logger.warning('Error loading devices: $e');
+    } catch (e, st) {
+      logger.warning('Error loading devices: $e', e, st);
     } finally {
       if (mounted) {
         setState(() {

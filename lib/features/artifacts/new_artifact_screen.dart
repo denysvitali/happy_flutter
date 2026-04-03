@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -57,7 +58,12 @@ class _NewArtifactScreenState
       if (mounted) {
         context.go('/artifacts/$artifactId');
       }
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning(
+        '[NewArtifactScreen] createArtifact failed: $e',
+        e,
+        st,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(failedMsg)),

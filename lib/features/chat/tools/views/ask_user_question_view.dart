@@ -553,8 +553,8 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
           lines.join('\n'),
         );
       }
-    } catch (e) {
-      logger.warning('Failed to submit answer: $e');
+    } catch (e, st) {
+      logger.warning('Failed to submit answer: $e', e, st);
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);

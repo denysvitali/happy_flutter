@@ -5,6 +5,7 @@ import '../../core/components/app_tappable.dart';
 import '../../core/components/avatar.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/friend.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/social_service.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -65,7 +66,12 @@ class _FriendsSearchScreenState
         _results = results;
         _hasSearched = true;
       });
-    } catch (error) {
+    } catch (error, st) {
+      logger.warning(
+        '[FriendsSearchScreen] _search failed: $error',
+        error,
+        st,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(searchFailedMsg)),
@@ -88,7 +94,12 @@ class _FriendsSearchScreenState
         SnackBar(content: Text(requestSentMsg)),
       );
       await _search();
-    } catch (error) {
+    } catch (error, st) {
+      logger.warning(
+        '[FriendsSearchScreen] _sendRequest failed: userId=$userId $error',
+        error,
+        st,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(actionFailedMsg)),

@@ -9,6 +9,7 @@ import '../../core/components/avatar.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/social_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
@@ -66,7 +67,12 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(successMsg)),
       );
-    } catch (error) {
+    } catch (error, st) {
+      logger.warning(
+        '[FriendsScreen] _runAction failed: $error',
+        error,
+        st,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

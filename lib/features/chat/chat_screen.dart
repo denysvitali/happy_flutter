@@ -1069,7 +1069,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 }
                 // Trigger a refresh to update the session state
                 _refreshFromSync();
-              } catch (e) {
+              } catch (e, st) {
+                logger.warning(
+                  '[ChatScreen] killSession failed: '
+                  'sessionId=${widget.sessionId} $e',
+                  e,
+                  st,
+                );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -1101,9 +1107,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       await ref
           .read(chatActionNotifierProvider.notifier)
           .abortSession(widget.sessionId, reason: _abortReason);
-    } catch (e) {
+    } catch (e, st) {
       if (mounted) {
-        logger.warning('Abort failed: $e');
+        logger.warning(
+          '[ChatScreen] _abortSession failed: '
+          'sessionId=${widget.sessionId} $e',
+          e,
+          st,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Could not abort — this feature may not be '
@@ -1316,7 +1327,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         return;
       }
       _refreshFromSync();
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning(
+        '[ChatScreen] _onOptionPress failed: '
+        'sessionId=${widget.sessionId} $e',
+        e,
+        st,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
@@ -1331,7 +1348,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     try {
       await sync.retryFailedMessage(widget.sessionId, localId);
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning(
+        '[ChatScreen] _retryMessage failed: '
+        'sessionId=${widget.sessionId} localId=$localId $e',
+        e,
+        st,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to retry message: $e')),
@@ -1368,7 +1391,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
         _refreshFromSync();
         _scrollToBottom();
-      } catch (e) {
+      } catch (e, st) {
+        logger.warning(
+          '[ChatScreen] _sendMessage /clear failed: '
+          'sessionId=${widget.sessionId} $e',
+          e,
+          st,
+        );
         if (mounted) {
           setState(() {
             _controller.text = text;
@@ -1426,7 +1455,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
       // Optimistic message will be replaced by real message via WebSocket
       _refreshFromSync();
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning(
+        '[ChatScreen] _sendMessage failed: '
+        'sessionId=${widget.sessionId} $e',
+        e,
+        st,
+      );
       if (mounted) {
         // Rollback: remove optimistic message on error
         setState(() {

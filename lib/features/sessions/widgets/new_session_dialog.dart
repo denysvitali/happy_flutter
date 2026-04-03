@@ -6,6 +6,7 @@ import '../../../core/api/socket_io_client.dart'
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/draft_storage.dart';
+import '../../../core/services/logger_service.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
 
@@ -300,7 +301,12 @@ class _NewSessionDialogState
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       if (!mounted) return;
       navigator.pop(sessionId);
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning(
+        '[NewSessionDialog] createSession failed: $e',
+        e,
+        st,
+      );
       if (!mounted) return;
       setState(() {
         _isCreating = false;

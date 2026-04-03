@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/logger_service.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Characters that stop the active word search
@@ -429,8 +430,12 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
         _selectedIndex = filtered.isNotEmpty ? 0 : -1;
         _showOverlay = filtered.isNotEmpty;
       });
-    } catch (e) {
-      // Silently handle errors
+    } catch (e, st) {
+      logger.warning(
+        '[FileAutocomplete] _fetchSuggestions failed: $e',
+        e,
+        st,
+      );
       setState(() {
         _suggestions = [];
         _showOverlay = false;

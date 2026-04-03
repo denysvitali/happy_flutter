@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 
@@ -110,7 +111,13 @@ class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
           _loading = false;
         });
       }
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning(
+        '[SessionFileViewerScreen] machineReadFile failed: '
+        'path=${widget.path} $e',
+        e,
+        st,
+      );
       if (!mounted) return;
       setState(() {
         _error = e.toString();

@@ -11,6 +11,7 @@ import '../../core/models/machine.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
@@ -162,7 +163,12 @@ class _NewSessionScreenState
         'chat',
         pathParameters: {'sessionId': sessionId},
       );
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning(
+        '[NewSessionScreen] createSession failed: $e',
+        e,
+        st,
+      );
       if (!mounted) return;
       setState(() => _isCreating = false);
       ScaffoldMessenger.of(context).showSnackBar(

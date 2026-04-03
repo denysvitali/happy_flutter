@@ -4,6 +4,7 @@ import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -67,7 +68,13 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
       if (mounted) {
         Navigator.of(context).pop();
       }
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning(
+        '[EditArtifactScreen] updateArtifact failed: '
+        'artifactId=${widget.artifactId} $e',
+        e,
+        st,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,

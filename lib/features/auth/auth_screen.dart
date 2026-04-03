@@ -135,7 +135,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           _isProcessingLink = false;
         });
       }
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning('Device linking failed: $e', e, st);
       setState(() {
         _error = context.l10n
             .authErrorLinkingDevice(e.toString());
@@ -174,13 +175,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               .checkAuth(),
         );
       }
-    } catch (e) {
-      logger.warning('Create account error: $e');
-      if (e is Error) {
-        logger.info(
-          'Stack trace: ${e.stackTrace}',
-        );
-      }
+    } catch (e, st) {
+      logger.warning('Create account error: $e', e, st);
       setState(() {
         _error =
             _formatErrorMessage(e, context);
@@ -248,7 +244,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         _publicKey = publicKey;
       });
       unawaited(_pollForApproval(publicKey));
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning('QR auth start failed: $e', e, st);
       setState(() {
         _error =
             _formatErrorMessage(e, context);
@@ -304,7 +301,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               .checkAuth(),
         );
       }
-    } catch (e) {
+    } catch (e, st) {
+      logger.warning('QR auth approval poll failed: $e', e, st);
       if (mounted) {
         setState(() {
           _error =
