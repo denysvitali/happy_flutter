@@ -116,7 +116,7 @@ extension SyncData on Sync {
         // use the current time so the client-side 120 s window stays fresh.
         final now = DateTime.now().millisecondsSinceEpoch;
         final activeAt =
-            eventActiveAt ?? (active == true ? now : null);
+            eventActiveAt ?? ((active ?? false) ? now : null);
         logger.debug(
           '[machine-activity] machineId=$machineId '
           'active=$active activeAt=$activeAt '

@@ -28,7 +28,6 @@ class InvalidateSync {
 
   /// When the last operation completed. Used by Sync to evict stale
   /// per-session InvalidateSync entries and prevent unbounded growth.
-  @visibleForTesting
   int? get lastRunEndMs => _lastRunEnd?.millisecondsSinceEpoch;
 
   // Exponential backoff configuration

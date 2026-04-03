@@ -119,7 +119,8 @@ Future<void> _deferredInit() async {
   // Android user certificates — JNI calls + ASN.1 parsing.
   if (!kIsWeb && isAndroid) {
     try {
-      final certs = await FlutterUserCertificatesAndroid().getUserCertificates();
+      final certs =
+          await FlutterUserCertificatesAndroid().getUserCertificates();
       for (final derBytes in (certs ?? {}).values) {
         final pem = _derToPem(derBytes);
         SecurityContext.defaultContext.setTrustedCertificatesBytes(pem);

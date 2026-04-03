@@ -727,8 +727,10 @@ extension SyncOperations on Sync {
 
   String _generateWorktreeName() {
     final rand = Random();
-    final adj = Sync._worktreeAdjectives[rand.nextInt(Sync._worktreeAdjectives.length)];
-    final noun = Sync._worktreeNouns[rand.nextInt(Sync._worktreeNouns.length)];
+    final adjs = Sync._worktreeAdjectives;
+    final nouns = Sync._worktreeNouns;
+    final adj = adjs[rand.nextInt(adjs.length)];
+    final noun = nouns[rand.nextInt(nouns.length)];
     return '$adj-$noun';
   }
 

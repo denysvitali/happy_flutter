@@ -1352,8 +1352,8 @@ extension SyncMessaging on Sync {
   ///
   /// On first open (no entry in [_sessionLastSeq]) this uses the session's
   /// [Session.lastSeq] hint to jump straight to the tail of the history,
-  /// fetching only the most recent [Sync.initialLoad] messages.  Subsequent calls
-  /// (incremental delta syncs) continue from [_sessionLastSeq] as before.
+  /// fetching only the most recent [Sync.initialLoad] messages.  Subsequent
+  /// calls (incremental delta syncs) continue from [_sessionLastSeq] as before.
   Future<void> fetchMessages(String sessionId) async {
     logger.info(
       'Fetching messages for session: $sessionId',
