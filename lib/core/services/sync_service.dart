@@ -3206,10 +3206,31 @@ what you have, you must use the options mode.
         };
 
         final decryptedMachines = <Machine>[];
+        final now = DateTime.now().millisecondsSinceEpoch;
+        const onlineThresholdMs = 120 * 1000;
         for (final machine in data) {
           final machineId = machine['id'] as String;
           final result = machineResultById[machineId];
           if (result == null) continue;
+
+          // The server's DB activeAt may lag the real-time machine-activity
+          // ephemeral by up to ~30 s (activity-cache throttle). If we already
+          // have a fresher in-memory value (from a recent ephemeral event),
+          // keep it so the machine doesn't momentarily flip to "offline" when
+          // fetchMachines overwrites _machines with stale REST data.
+          final serverActiveAt = _asSessionInt(machine['activeAt']) ?? 0;
+          final existingActiveAt = _machines[machineId]?.activeAt ?? 0;
+          final activeAt =
+              existingActiveAt > serverActiveAt ? existingActiveAt : serverActiveAt;
+
+          // Likewise preserve active=true when the in-memory state already
+          // reflects a live heartbeat and activeAt is still within threshold.
+          // This prevents a stale DB fetch from briefly overriding a live
+          // machine-activity ephemeral that already marked the machine online.
+          final serverActive = machine['active'] as bool? ?? false;
+          final existingActive = _machines[machineId]?.active ?? false;
+          final active = serverActive ||
+              (existingActive && activeAt > now - onlineThresholdMs);
 
           decryptedMachines.add(
             Machine(
@@ -3217,8 +3238,8 @@ what you have, you must use the options mode.
               seq: _asSessionInt(machine['seq']) ?? 0,
               createdAt: _asSessionInt(machine['createdAt']) ?? 0,
               updatedAt: _asSessionInt(machine['updatedAt']) ?? 0,
-              active: machine['active'] as bool? ?? false,
-              activeAt: _asSessionInt(machine['activeAt']) ?? 0,
+              active: active,
+              activeAt: activeAt,
               metadata: result.metadata != null
                   ? MachineMetadata.fromJson(result.metadata!)
                   : null,
