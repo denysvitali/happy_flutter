@@ -2002,9 +2002,9 @@ what you have, you must use the options mode.
         // unchanged lets the fetch retrieve the message from the server.
         if (processed.droppedReasons.isNotEmpty) {
           for (final reason in processed.droppedReasons) {
-            logger.warning(
-              '[inline] $sessionId dropped: $reason',
-            );
+            // Omit sessionId from the warning so GlitchTip groups by reason
+            // type rather than creating a unique issue per session.
+            logger.warning('[inline] dropped: $reason');
           }
         }
         messagesSync[sessionId]?.invalidate();
@@ -4511,12 +4511,12 @@ what you have, you must use the options mode.
         BashRequest(command: command, cwd: cwd).toJson(),
         BashResponse.fromJson,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
       if (error is StateError &&
           error.message.contains('not connected')) {
         logger.info('machineBash: socket not connected');
       } else {
-        logger.error('machineBash error', error);
+        logger.error('machineBash error', error, stackTrace);
       }
     }
     return const BashResponse(success: false, stderr: 'RPC call failed');
@@ -4534,12 +4534,12 @@ what you have, you must use the options mode.
         ReadFileRequest(path: filePath).toJson(),
         ReadFileResponse.fromJson,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
       if (error is StateError &&
           error.message.contains('not connected')) {
         logger.info('machineReadFile: socket not connected');
       } else {
-        logger.error('machineReadFile error', error);
+        logger.error('machineReadFile error', error, stackTrace);
       }
     }
     return const ReadFileResponse(
@@ -4562,16 +4562,17 @@ what you have, you must use the options mode.
         <String, dynamic>{},
         ClaudeUsageLimitsResponse.fromJson,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
       if (error is StateError &&
           error.message.contains('not connected')) {
         logger.info(
           'machineGetClaudeUsageLimits: socket not connected',
         );
       } else {
-        logger.warning(
+        logger.error(
           'machineGetClaudeUsageLimits error',
           error,
+          stackTrace,
         );
       }
     }
@@ -6711,9 +6712,9 @@ what you have, you must use the options mode.
         );
         if (processed.droppedReasons.isNotEmpty) {
           for (final reason in processed.droppedReasons) {
-            logger.warning(
-              '[fetchMessages] $sessionId dropped: $reason',
-            );
+            // Omit sessionId from the warning so GlitchTip groups by reason
+            // type rather than creating a unique issue per session.
+            logger.warning('[fetchMessages] dropped: $reason');
           }
         }
 

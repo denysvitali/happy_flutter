@@ -14,7 +14,7 @@ void _processAcpContent({
   final data = nestedContent['data'];
   if (data is! Map<String, dynamic>) {
     droppedReasons?.add(
-      'seq=$seq id=$id: acp data is '
+      'acp data is '
       '${data?.runtimeType ?? 'null'}, expected Map',
     );
     return;

@@ -152,7 +152,7 @@ ProcessedMessages processDecryptedMessages({
 
       if (!encrypted) {
         droppedReasons.add(
-          'seq=$seq id=$id: null content, not encrypted',
+          'null content, not encrypted',
         );
         continue;
       }

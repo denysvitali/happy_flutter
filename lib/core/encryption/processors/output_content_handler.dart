@@ -23,10 +23,9 @@ void _processOutputContent({
   }
 
   if (data['isMeta'] == true || data['isCompactSummary'] == true) {
-    droppedReasons?.add(
-      'seq=$seq id=$id: output filtered (isMeta=${data['isMeta']}, '
-      'isCompactSummary=${data['isCompactSummary']})',
-    );
+    // Expected server behaviour: compact summaries and meta messages are
+    // intentionally filtered. Do not add to droppedReasons — these are not
+    // errors and would spam GlitchTip with unique per-message entries.
     return;
   }
 
@@ -245,8 +244,9 @@ void _processOutputContent({
   }
 
   // Unrecognized dataType -- log to help diagnose silent drops.
+  // Omit seq/id from the reason so GlitchTip groups by dataType, not per-message.
   droppedReasons?.add(
-    'seq=$seq id=$id: output dataType=$dataType not handled '
+    'output dataType=$dataType not handled '
     '(keys=${data.keys.toList()})',
   );
 }

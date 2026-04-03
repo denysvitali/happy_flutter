@@ -16,7 +16,7 @@ void _processCodexContent({
   final data = nestedContent['data'];
   if (data is! Map<String, dynamic>) {
     droppedReasons?.add(
-      'seq=$seq id=$id: codex data is '
+      'codex data is '
       '${data?.runtimeType ?? 'null'}, expected Map',
     );
     return;
@@ -92,7 +92,7 @@ void _processCodexContent({
 
   // Unrecognized codex dataType
   droppedReasons?.add(
-    'seq=$seq id=$id: codex dataType=$dataType not handled '
+    'codex dataType=$dataType not handled '
     '(keys=${data.keys.toList()})',
   );
 }
