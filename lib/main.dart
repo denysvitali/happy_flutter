@@ -146,13 +146,14 @@ Future<void> _initializeOptionalFirebase() async {
     // Firebase is optional — only needed for push notifications.
     // If google-services.json is absent (e.g. unsigned builds),
     // the app still works; background push notifications won't fire.
-    logger.warning(
+    // Log at info to avoid Sentry noise — this is expected.
+    logger.info(
       'Firebase initialization failed (push notifications unavailable): '
-      '${e.message} '
-      'This is expected if Firebase is not configured.',
+      '${e.message}',
     );
   } catch (e) {
-    logger.warning(
+    // PlatformException when google-services.json is missing — also expected.
+    logger.info(
       'Firebase initialization failed (push notifications unavailable): $e',
     );
   }
