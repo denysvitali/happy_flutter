@@ -50,6 +50,8 @@ class ChatInput extends ConsumerStatefulWidget {
     this.contextSize,
     this.isSessionOnline = false,
     this.isAgentThinking = false,
+    this.onAbort,
+    this.isAborting = false,
     this.enterToSend = true,
   });
 
@@ -127,6 +129,13 @@ class ChatInput extends ConsumerStatefulWidget {
   /// Whether the agent is actively thinking /
   /// processing a request.
   final bool isAgentThinking;
+
+  /// Called when the abort button is tapped.
+  final VoidCallback? onAbort;
+
+  /// Whether the abort action is currently in
+  /// flight (disables the button, shows spinner).
+  final bool isAborting;
 
   /// Whether pressing Enter sends the message
   /// (vs inserting a newline).
@@ -507,12 +516,17 @@ class _ChatInputState extends ConsumerState<ChatInput>
           ),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.xsm),
-            child: SendButton(
-              isSending: widget.isSending,
-              isSendDisabled: widget.isSendDisabled,
-              onTap: _onSendTap,
-              scaleAnimation: _sendScale,
-            ),
+            child: widget.isAgentThinking
+                ? AbortButton(
+                    isAborting: widget.isAborting,
+                    onTap: widget.onAbort,
+                  )
+                : SendButton(
+                    isSending: widget.isSending,
+                    isSendDisabled: widget.isSendDisabled,
+                    onTap: _onSendTap,
+                    scaleAnimation: _sendScale,
+                  ),
           ),
         ],
       ),

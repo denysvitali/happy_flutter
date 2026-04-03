@@ -983,6 +983,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
               isSessionOnline: _session?.isPresenceOnline ?? false,
               isAgentThinking: _session?.thinking ?? false,
+              onAbort: _abortSession,
+              isAborting: _isAborting,
               enterToSend: enterToSend,
             ),
           ],
