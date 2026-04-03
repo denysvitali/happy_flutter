@@ -324,7 +324,10 @@ class AuthService {
   /// Get connected services
   Future<List<ConnectedServiceInfo>> getConnectedServices() async {
     try {
-      final response = await _apiClient.get('/v1/services');
+      final response = await _apiClient.get(
+        '/v1/services',
+        options: Options(validateStatus: (_) => true),
+      );
       if (response.statusCode == 200) {
         final data = response.data as Map<String, dynamic>;
         final services = data['services'] as List<dynamic>?;
