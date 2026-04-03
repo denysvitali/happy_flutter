@@ -34,10 +34,16 @@ class _FakeMMKVPlatform extends MMKVPluginPlatform {
       rootDir;
 
   @override
-  Pointer<Void> Function(int, Pointer<Utf8>, int)
+  Pointer<Void> Function(int, Pointer<Utf8>, int, int, int, int, int, int, int)
       getDefaultMMKVFunc() =>
-          (int mode, Pointer<Utf8> cryptKey, int aes256) =>
+          (int mode, Pointer<Utf8> cryptKey, int aes256, int expectedCapacity,
+              int enableKeyExpire, int expiredInSeconds,
+              int enableCompareBeforeSet, int recover, int itemSizeLimit) =>
               Pointer<Void>.fromAddress(1);
+
+  @override
+  ContentCallbackRegister registerContentLoadedHandlerFunc() =>
+      (Pointer<NativeFunction<ContentCallbackWrap>> handler) {};
 
   @override
   int Function(Pointer<Void>, Pointer<Utf8>, int) decodeBoolFunc() =>

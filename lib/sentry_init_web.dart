@@ -32,7 +32,7 @@ Future<void> initSentryForPlatform([
       ..debug = kDebugMode
       // ── Filter noisy events ──
       ..beforeSend = _beforeSend;
-  }, appRunner: appRunner != null ? () => appRunner!() : null);
+  }, appRunner: appRunner != null ? () => appRunner() : null);
 
   logger.info('[Sentry] Web SDK initialized');
 }

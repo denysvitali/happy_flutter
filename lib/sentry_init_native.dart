@@ -71,7 +71,7 @@ Future<void> initSentryForPlatform([
       ..debug = kDebugMode
       // ── Filter noisy events ──
       ..beforeSend = _beforeSend;
-  }, appRunner: appRunner != null ? () => appRunner!() : null);
+  }, appRunner: appRunner != null ? () => appRunner() : null);
 
   // Fire-and-forget: verify Sentry connectivity.
   unawaited(_pingSentry());
