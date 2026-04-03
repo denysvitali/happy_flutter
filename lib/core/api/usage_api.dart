@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../models/usage.dart';
+import '../services/logger_service.dart' show logger;
 import 'api_client.dart';
 import 'base_api_exception.dart';
 
@@ -37,7 +38,8 @@ class UsageApi {
 
     try {
       return UsageResponse.fromJson(response.data as Map<String, dynamic>);
-    } catch (e) {
+    } catch (e, s) {
+      logger.warning('Failed to parse usage response: $e', e, s);
       throw UsageApiException('Failed to parse usage response: $e');
     }
   }

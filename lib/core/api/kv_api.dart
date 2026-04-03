@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 
 import '../models/kv.dart';
+import '../services/logger_service.dart' show logger;
 import 'api_client.dart';
 import 'base_api_exception.dart';
 
@@ -37,7 +38,8 @@ class KvApi {
 
     try {
       return KvItem.fromJson(response.data as Map<String, dynamic>);
-    } catch (e) {
+    } catch (e, s) {
+      logger.warning('Failed to parse KV item: $e', e, s);
       throw KvApiException('Failed to parse KV item: $e');
     }
   }
@@ -69,7 +71,8 @@ class KvApi {
 
     try {
       return KvListResponse.fromJson(response.data as Map<String, dynamic>);
-    } catch (e) {
+    } catch (e, s) {
+      logger.warning('Failed to parse KV list response: $e', e, s);
       throw KvApiException('Failed to parse KV list response: $e');
     }
   }
@@ -100,7 +103,8 @@ class KvApi {
 
     try {
       return KvBulkGetResponse.fromJson(response.data as Map<String, dynamic>);
-    } catch (e) {
+    } catch (e, s) {
+      logger.warning('Failed to parse KV bulk get response: $e', e, s);
       throw KvApiException('Failed to parse bulk get response: $e');
     }
   }
@@ -132,7 +136,12 @@ class KvApi {
         return KvMutateErrorResponse.fromJson(
           response.data as Map<String, dynamic>,
         );
-      } catch (e) {
+      } catch (e, s) {
+        logger.warning(
+          'Failed to parse KV mutate error response: $e',
+          e,
+          s,
+        );
         throw KvApiException('Failed to parse mutate error response: $e');
       }
     }
@@ -148,7 +157,8 @@ class KvApi {
       return KvMutateSuccessResponse.fromJson(
         response.data as Map<String, dynamic>,
       );
-    } catch (e) {
+    } catch (e, s) {
+      logger.warning('Failed to parse KV mutate response: $e', e, s);
       throw KvApiException('Failed to parse mutate response: $e');
     }
   }

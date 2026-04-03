@@ -84,8 +84,8 @@ class ServicesApi {
 
       // 200 means connected, 404 means not connected
       return response.statusCode == 200;
-    } catch (e) {
-      logger.warning('Error checking $service connection: $e');
+    } catch (e, s) {
+      logger.warning('Error checking $service connection: $e', e, s);
       return false;
     }
   }
@@ -97,8 +97,8 @@ class ServicesApi {
       services.map((service) async {
         try {
           return await isServiceConnected(service);
-        } catch (e) {
-          logger.warning('Error checking $service status: $e');
+        } catch (e, s) {
+          logger.warning('Error checking $service status: $e', e, s);
           return false;
         }
       }),

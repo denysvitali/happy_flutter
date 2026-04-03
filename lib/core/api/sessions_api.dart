@@ -87,8 +87,8 @@ class SessionsApi {
 
       final data = response.data as Map<String, dynamic>;
       return data['session'] as Map<String, dynamic>?;
-    } catch (e) {
-      logger.warning('fetchSessionById failed for $sessionId: $e');
+    } catch (e, s) {
+      logger.warning('fetchSessionById failed for $sessionId: $e', e, s);
       return null;
     }
   }

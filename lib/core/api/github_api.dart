@@ -33,7 +33,8 @@ class GitHubApi {
 
     try {
       return GitHubOAuthParams.fromJson(response.data as Map<String, dynamic>);
-    } catch (e) {
+    } catch (e, s) {
+      logger.warning('Failed to parse GitHub OAuth params: $e', e, s);
       throw GitHubApiException('Failed to parse OAuth params: $e');
     }
   }
@@ -52,7 +53,8 @@ class GitHubApi {
 
     try {
       return AccountProfile.fromJson(response.data as Map<String, dynamic>);
-    } catch (e) {
+    } catch (e, s) {
+      logger.warning('Failed to parse GitHub account profile: $e', e, s);
       throw GitHubApiException('Failed to parse account profile: $e');
     }
   }
@@ -116,8 +118,8 @@ class GitHubApi {
     try {
       final profile = await getAccountProfile();
       return profile.github != null;
-    } catch (e) {
-      logger.warning('Error checking GitHub connection: $e');
+    } catch (e, s) {
+      logger.warning('Error checking GitHub connection: $e', e, s);
       return false;
     }
   }

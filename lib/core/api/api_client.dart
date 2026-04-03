@@ -258,8 +258,14 @@ class _RetryInterceptor extends Interceptor {
     } on DioException catch (e) {
       // If retry fails, pass through onError again for potential retry
       return handler.next(e);
-    } catch (e) {
-      // Non-Dio errors should not be retried
+    } catch (e, s) {
+      // Non-Dio errors should not be retried; log since this is unexpected
+      logger.warning(
+        'RetryInterceptor: unexpected non-Dio error during retry for '
+        '${err.requestOptions.method} ${err.requestOptions.path}: $e',
+        e,
+        s,
+      );
       return handler.next(
         DioException(
           requestOptions: err.requestOptions,
@@ -404,6 +410,8 @@ class ApiClient {
               'Dio error: ${error.type} - $errorMessage\n'
               '  Request: ${error.requestOptions.method} '
               '${error.requestOptions.uri}',
+              error,
+              error.stackTrace,
             );
           }
           if (error.response?.statusCode == 401) {
