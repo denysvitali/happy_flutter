@@ -10,9 +10,7 @@ import 'sentry_config.dart';
 
 const _sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
 
-Future<void> initSentryForPlatform(
-  Future<void> Function() appRunner,
-) async {
+Future<void> initSentryForPlatform() async {
   await SentryFlutter.init((options) {
     options
       ..dsn = sentryDsn
@@ -32,7 +30,7 @@ Future<void> initSentryForPlatform(
       ..debug = kDebugMode
       // ── Filter noisy events ──
       ..beforeSend = _beforeSend;
-  }, appRunner: appRunner);
+  });
 
   logger.info('[Sentry] Web SDK initialized');
 }

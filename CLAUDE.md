@@ -233,7 +233,7 @@ import 'package:flutter/material.dart' hide TabBar;
 
 ## Testing
 
-**No integration tests** — only unit and widget tests.
+**Unit, widget, and integration tests.** Integration tests in `test/integration/` cover session spawning, message deduplication, routing, pagination, cold starts, reconnection, and concurrent sends (~12 files, ~8,500 lines). They use `mock_sync_server.dart` and `fake_session_encryption.dart` helpers.
 
 **Global test config:** `test/flutter_test_config.dart` runs before every test file — calls `TestWidgetsFlutterBinding.ensureInitialized()`, disables Google Fonts runtime fetching, loads Roboto Mono for golden screenshots.
 
@@ -279,11 +279,15 @@ Then commit the updated PNGs. Do not leave stale goldens — they will cause fal
 
 - **Strict typing:** `implicit-casts: false`, `implicit-dynamic: false`
 - **Line length:** 80 characters max
+- **File size limit:** 800 lines max per `.dart` file (exclude `*.g.dart` generated files). Extract widgets, helpers, or sub-services when approaching the limit.
 - **CI-blocking errors:** `missing_required_param`, `missing_return`, `must_be_immutable`
 - **Linter:** extends `package:flutter_lints/flutter.yaml` with ~90 additional rules
 - **Prefer:** const constructors, final fields, single quotes, spread collections
 - **Avoid:** `print` — use `logger.info/warning/error()`; `unawaited()` for fire-and-forget
 - **Platform code:** Conditional exports for native vs web: `platform_io.dart`/`platform_stub.dart`, `mmkv_storage_native.dart`/`mmkv_storage_web.dart`, `sodium_loader_native.dart`/`sodium_loader_web.dart`, `sentry_*.dart`, `security_context_*.dart`, `user_certs_*.dart`
+- **Part files for Sync:** The `Sync` class uses `part` files in `lib/core/services/` prefixed with `_sync_` (`_sync_messaging.dart`, `_sync_data.dart`, `_sync_socket.dart`, `_sync_operations.dart`, `_sync_sessions.dart`). These are internal groupings of one large class — adding new methods goes in the appropriate part file.
+- **JSON convention:** Server JSON flows as `Map<String, dynamic>` into the `Sync` singleton. Convert to typed models at domain boundaries (services, providers). New models should follow the manual `fromJson`/`toJson`/`copyWith` pattern.
+- **Error handling:** Catch blocks should log via `logger.warning`/`logger.error`. For errors that could indicate data loss or corruption, also call `Sentry.captureException`.
 
 **Analysis:** `test/**/*.dart` excluded from analysis. CI runs `flutter analyze --no-fatal-infos --no-fatal-warnings` (only errors block build).
 

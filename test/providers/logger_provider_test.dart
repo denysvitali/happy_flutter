@@ -3,187 +3,119 @@ import 'package:happy_flutter/core/providers/logger_provider.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:riverpod/riverpod.dart';
 
+LoggerService get _svc => LoggerService();
+
+/// Add a log entry to the singleton service without Sentry side-effects.
+void _addEntry(String message, LogLevel level, {dynamic error}) {
+  _svc.insertEntry(LogEntry(
+    timestamp: DateTime(2026, 1, 1),
+    level: level,
+    message: message,
+    error: error,
+  ));
+}
+
+LoggerState _makeState({int? filterLevel, String searchQuery = ''}) =>
+    LoggerState(
+      service: _svc,
+      version: _svc.version,
+      filterLevel: filterLevel,
+      searchQuery: searchQuery,
+    );
+
 void main() {
   group('LoggerState', () {
-    test('should create with default values', () {
-      final state = LoggerState();
-      expect(state.logs, isEmpty);
+    setUp(() => _svc.clear());
+
+    test('should have empty filteredLogs and default field values', () {
+      final state = _makeState();
+      expect(state.filteredLogs, isEmpty);
       expect(state.filterLevel, isNull);
       expect(state.searchQuery, '');
     });
 
-    test('should create with provided values', () {
-      final entry = LogEntry(
-        timestamp: DateTime(2026, 1, 1),
-        level: LogLevel.info,
-        message: 'test',
-      );
-      final state = LoggerState(
-        logs: [entry],
-        filterLevel: 2,
-        searchQuery: 'hello',
-      );
-      expect(state.logs, hasLength(1));
+    test('should create with provided filter values', () {
+      _addEntry('test', LogLevel.info);
+      final state = _makeState(filterLevel: 2, searchQuery: 'hello');
+      // filterLevel=2 excludes info (index=1), so filteredLogs is empty
+      expect(state.filteredLogs, isEmpty);
       expect(state.filterLevel, 2);
       expect(state.searchQuery, 'hello');
     });
 
     test('copyWith should override specified fields', () {
-      final state = LoggerState(
-        searchQuery: 'old',
-        filterLevel: 1,
-      );
+      final state = _makeState(searchQuery: 'old', filterLevel: 1);
       final copied = state.copyWith(searchQuery: 'new');
       expect(copied.searchQuery, 'new');
       expect(copied.filterLevel, 1);
     });
 
     test('copyWith should preserve unspecified fields', () {
-      final entry = LogEntry(
-        timestamp: DateTime(2026, 1, 1),
-        level: LogLevel.warning,
-        message: 'warn',
-      );
-      final state = LoggerState(logs: [entry], searchQuery: 'q');
+      _addEntry('warn', LogLevel.warning);
+      final state = _makeState(searchQuery: 'q');
       final copied = state.copyWith(filterLevel: 3);
-      expect(copied.logs, state.logs);
+      // Both states read from the same service — log counts match
+      expect(copied.filteredLogs.length, state.filteredLogs.length);
       expect(copied.searchQuery, 'q');
       expect(copied.filterLevel, 3);
     });
 
-    test('copyWith clearFilterLevel should set filter to null', () {
-      final state = LoggerState(filterLevel: 2);
-      final copied = state.copyWith(clearFilterLevel: true);
+    test('copyWith filterLevel null should clear filter', () {
+      final state = _makeState(filterLevel: 2);
+      final copied = state.copyWith(filterLevel: null);
       expect(copied.filterLevel, isNull);
     });
 
     test('filteredLogs should return all logs when no filter', () {
-      final logs = [
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.debug,
-          message: 'debug msg',
-        ),
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.info,
-          message: 'info msg',
-        ),
-      ];
-      final state = LoggerState(logs: logs);
+      _addEntry('debug msg', LogLevel.debug);
+      _addEntry('info msg', LogLevel.info);
+      final state = _makeState();
       expect(state.filteredLogs, hasLength(2));
     });
 
     test('filteredLogs should filter by level', () {
-      final logs = [
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.debug,
-          message: 'debug',
-        ),
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.info,
-          message: 'info',
-        ),
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.warning,
-          message: 'warning',
-        ),
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.error,
-          message: 'error',
-        ),
-      ];
+      _addEntry('debug', LogLevel.debug);
+      _addEntry('info', LogLevel.info);
+      _addEntry('warning', LogLevel.warning);
+      _addEntry('error', LogLevel.error);
       // filterLevel = 2 means LogLevel.warning and above
-      final state = LoggerState(logs: logs, filterLevel: 2);
+      final state = _makeState(filterLevel: 2);
       expect(state.filteredLogs, hasLength(2));
       expect(state.filteredLogs[0].level, LogLevel.warning);
       expect(state.filteredLogs[1].level, LogLevel.error);
     });
 
     test('filteredLogs should filter by search query', () {
-      final logs = [
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.info,
-          message: 'hello world',
-        ),
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.info,
-          message: 'goodbye world',
-        ),
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.info,
-          message: 'HELLO there',
-        ),
-      ];
-      final state = LoggerState(logs: logs, searchQuery: 'hello');
+      _addEntry('hello world', LogLevel.info);
+      _addEntry('goodbye world', LogLevel.info);
+      _addEntry('HELLO there', LogLevel.info);
+      final state = _makeState(searchQuery: 'hello');
       // Should match "hello world" and "HELLO there" (case-insensitive)
       expect(state.filteredLogs, hasLength(2));
     });
 
     test('filteredLogs should filter by search in error', () {
-      final logs = [
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.error,
-          message: 'something failed',
-          error: 'Connection refused',
-        ),
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.error,
-          message: 'another failure',
-          error: 'Timeout',
-        ),
-      ];
-      final state = LoggerState(logs: logs, searchQuery: 'connection');
+      _addEntry('something failed', LogLevel.error,
+          error: 'Connection refused');
+      _addEntry('another failure', LogLevel.error, error: 'Timeout');
+      final state = _makeState(searchQuery: 'connection');
       expect(state.filteredLogs, hasLength(1));
       expect(state.filteredLogs[0].message, 'something failed');
     });
 
     test('filteredLogs should combine level and search filters', () {
-      final logs = [
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.debug,
-          message: 'debug test',
-        ),
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.info,
-          message: 'info test',
-        ),
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.warning,
-          message: 'warning other',
-        ),
-      ];
+      _addEntry('debug test', LogLevel.debug);
+      _addEntry('info test', LogLevel.info);
+      _addEntry('warning other', LogLevel.warning);
       // filterLevel = 1 (info+), searchQuery = 'test'
-      final state = LoggerState(
-        logs: logs,
-        filterLevel: 1,
-        searchQuery: 'test',
-      );
+      final state = _makeState(filterLevel: 1, searchQuery: 'test');
       expect(state.filteredLogs, hasLength(1));
       expect(state.filteredLogs[0].level, LogLevel.info);
     });
 
     test('filteredLogs should return empty when no matches', () {
-      final logs = [
-        LogEntry(
-          timestamp: DateTime(2026, 1, 1),
-          level: LogLevel.info,
-          message: 'hello',
-        ),
-      ];
-      final state = LoggerState(logs: logs, searchQuery: 'nonexistent');
+      _addEntry('hello', LogLevel.info);
+      final state = _makeState(searchQuery: 'nonexistent');
       expect(state.filteredLogs, isEmpty);
     });
   });
@@ -203,7 +135,7 @@ void main() {
 
     test('should initialize with current logs', () {
       final state = container.read(loggerNotifierProvider);
-      expect(state.logs, isA<List<LogEntry>>());
+      expect(state.filteredLogs, isA<List<LogEntry>>());
       expect(state.filterLevel, isNull);
       expect(state.searchQuery, '');
     });
@@ -214,9 +146,9 @@ void main() {
       notifier.info('test info message');
 
       final state = container.read(loggerNotifierProvider);
-      expect(state.logs, isNotEmpty);
+      expect(state.filteredLogs, isNotEmpty);
       expect(
-        state.logs.any((e) => e.message == 'test info message'),
+        state.filteredLogs.any((e) => e.message == 'test info message'),
         isTrue,
       );
     });
@@ -227,7 +159,7 @@ void main() {
       notifier.debug('test debug');
 
       final state = container.read(loggerNotifierProvider);
-      final entry = state.logs.firstWhere(
+      final entry = state.filteredLogs.firstWhere(
         (e) => e.message == 'test debug',
       );
       expect(entry.level, LogLevel.debug);
@@ -239,7 +171,7 @@ void main() {
       notifier.warning('test warning');
 
       final state = container.read(loggerNotifierProvider);
-      final entry = state.logs.firstWhere(
+      final entry = state.filteredLogs.firstWhere(
         (e) => e.message == 'test warning',
       );
       expect(entry.level, LogLevel.warning);
@@ -251,7 +183,7 @@ void main() {
       notifier.error('test error');
 
       final state = container.read(loggerNotifierProvider);
-      final entry = state.logs.firstWhere(
+      final entry = state.filteredLogs.firstWhere(
         (e) => e.message == 'test error',
       );
       expect(entry.level, LogLevel.error);
@@ -266,7 +198,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       final state = container.read(loggerNotifierProvider);
-      final entry = state.logs.firstWhere(
+      final entry = state.filteredLogs.firstWhere(
         (e) => e.message == 'failed',
       );
       expect(entry.error, 'SomeException');
@@ -312,14 +244,14 @@ void main() {
       notifier.info('message 1');
       notifier.info('message 2');
       expect(
-        container.read(loggerNotifierProvider).logs,
+        container.read(loggerNotifierProvider).filteredLogs,
         isNotEmpty,
       );
 
       notifier.clear();
 
       final state = container.read(loggerNotifierProvider);
-      expect(state.logs, isEmpty);
+      expect(state.filteredLogs, isEmpty);
     });
 
     test('should export logs as string', () {
@@ -339,7 +271,8 @@ void main() {
       notifier.error('third');
 
       final state = container.read(loggerNotifierProvider);
-      final messages = state.logs.map((e) => e.message).toList();
+      final messages =
+          state.filteredLogs.map((e) => e.message).toList();
       expect(messages, contains('first'));
       expect(messages, contains('second'));
       expect(messages, contains('third'));
@@ -355,19 +288,31 @@ void main() {
 
       final state = container.read(loggerNotifierProvider);
       expect(
-        state.logs.where((e) => e.message == 'debug msg').first.level,
+        state.filteredLogs
+            .where((e) => e.message == 'debug msg')
+            .first
+            .level,
         LogLevel.debug,
       );
       expect(
-        state.logs.where((e) => e.message == 'info msg').first.level,
+        state.filteredLogs
+            .where((e) => e.message == 'info msg')
+            .first
+            .level,
         LogLevel.info,
       );
       expect(
-        state.logs.where((e) => e.message == 'warn msg').first.level,
+        state.filteredLogs
+            .where((e) => e.message == 'warn msg')
+            .first
+            .level,
         LogLevel.warning,
       );
       expect(
-        state.logs.where((e) => e.message == 'error msg').first.level,
+        state.filteredLogs
+            .where((e) => e.message == 'error msg')
+            .first
+            .level,
         LogLevel.error,
       );
     });

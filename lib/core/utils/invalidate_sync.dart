@@ -26,6 +26,11 @@ class InvalidateSync {
   Timer? _cooldownTimer;
   DateTime? _lastRunEnd;
 
+  /// When the last operation completed. Used by Sync to evict stale
+  /// per-session InvalidateSync entries and prevent unbounded growth.
+  @visibleForTesting
+  int? get lastRunEndMs => _lastRunEnd?.millisecondsSinceEpoch;
+
   // Exponential backoff configuration
   static const int baseDelayMs = 1000;
   static const int maxDelayMs = 5000;

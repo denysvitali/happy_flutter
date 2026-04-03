@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -150,8 +149,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
   _ChatInputState()
     : _draftAutoSave = DraftAutoSave(sessionId: '', onSave: (_) {}),
       _draftStorage = DraftStorage();
-
-  static final _blurFilter = ImageFilter.blur(sigmaX: 16, sigmaY: 16);
 
   final DraftStorage _draftStorage;
   static final _containerRadius = BorderRadius.circular(AppRadius.xl);
@@ -429,56 +426,52 @@ class _ChatInputState extends ConsumerState<ChatInput>
   Widget _buildInputContainer(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return ClipRRect(
-      borderRadius: _containerRadius,
-      child: BackdropFilter(
-        filter: _blurFilter,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                cs.surface.withValues(alpha: 0.6),
-                cs.surface.withValues(alpha: 0.95),
-              ],
-            ),
-            border: Border(
-              top: BorderSide(
-                color: cs.outlineVariant.withValues(alpha: 0.2),
-                width: 0.5,
-              ),
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            cs.surface.withValues(alpha: 0.95),
+            cs.surface.withValues(alpha: 0.98),
+          ],
+        ),
+        borderRadius: _containerRadius,
+        border: Border(
+          top: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: 0.2),
+            width: 0.5,
           ),
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.sm,
+        ),
+        boxShadow: _cardBoxShadow,
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.sm,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildCardInputArea(context),
+              const SizedBox(height: AppSpacing.smd),
+              InputToolbar(
+                permissionMode: widget.permissionMode,
+                onPermissionModeChanged: widget.onPermissionModeChanged,
+                modelMode: widget.modelMode,
+                availableModels: widget.availableModels,
+                onShowModelPicker: () => widget.onModelModeChanged != null
+                    ? _showModelPicker(context)
+                    : null,
+                selectedProfile: widget.selectedProfile,
+                onShowProfilePicker: () => _showProfilePicker(context),
+                contextSize: widget.contextSize,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildCardInputArea(context),
-                  const SizedBox(height: AppSpacing.smd),
-                  InputToolbar(
-                    permissionMode: widget.permissionMode,
-                    onPermissionModeChanged: widget.onPermissionModeChanged,
-                    modelMode: widget.modelMode,
-                    availableModels: widget.availableModels,
-                    onShowModelPicker: () => widget.onModelModeChanged != null
-                        ? _showModelPicker(context)
-                        : null,
-                    selectedProfile: widget.selectedProfile,
-                    onShowProfilePicker: () => _showProfilePicker(context),
-                    contextSize: widget.contextSize,
-                  ),
-                ],
-              ),
-            ),
+            ],
           ),
         ),
       ),

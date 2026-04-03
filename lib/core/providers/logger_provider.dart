@@ -2,16 +2,19 @@ import 'dart:async';
 
 import 'package:riverpod/riverpod.dart';
 import '../services/logger_service.dart';
+import '_shared.dart';
 
 /// Log state for Riverpod
 class LoggerState {
   LoggerState({
-    this.logs = const [],
+    required this.service,
+    required this.version,
     this.filterLevel,
     this.searchQuery = '',
   });
 
-  final List<LogEntry> logs;
+  final LoggerService service;
+  final int version;
   final int? filterLevel;
   final String searchQuery;
 
@@ -19,15 +22,16 @@ class LoggerState {
   List<LogEntry>? _filteredLogsCache;
 
   LoggerState copyWith({
-    List<LogEntry>? logs,
-    int? filterLevel,
-    bool clearFilterLevel = false,
+    int? version,
+    Object? filterLevel = unset,
     String? searchQuery,
   }) {
     return LoggerState(
-      logs: logs ?? this.logs,
-      filterLevel:
-          clearFilterLevel ? null : (filterLevel ?? this.filterLevel),
+      service: service,
+      version: version ?? this.version,
+      filterLevel: identical(filterLevel, unset)
+          ? this.filterLevel
+          : filterLevel as int?,
       searchQuery: searchQuery ?? this.searchQuery,
     ).._filteredLogsCache = null;
   }
@@ -37,7 +41,7 @@ class LoggerState {
   }
 
   List<LogEntry> _computeFilteredLogs() {
-    var result = logs;
+    var result = service.allLogs.toList();
 
     // Apply level filter
     if (filterLevel != null) {
@@ -77,13 +81,17 @@ class LoggerNotifier extends Notifier<LoggerState> {
       unsubscribe();
     });
 
-    return LoggerState(logs: _logger.getLogs());
+    return LoggerState(
+      service: _logger,
+      version: _logger.version,
+    );
   }
 
   void _onLogChanged() {
     _logDebounceTimer?.cancel();
     _logDebounceTimer = Timer(const Duration(milliseconds: 200), () {
-      state = state.copyWith(logs: _logger.getLogs());
+      // Bump version to signal change — no list copy at write time.
+      state = state.copyWith(version: state.version + 1);
     });
   }
 
@@ -101,8 +109,8 @@ class LoggerNotifier extends Notifier<LoggerState> {
       error: error,
       stackTrace: stackTrace,
     );
-    // Trigger rebuild
-    state = state.copyWith(logs: _logger.getLogs());
+    // Trigger rebuild — bump version
+    state = state.copyWith(version: state.version + 1);
   }
 
   /// Log a debug message
@@ -129,16 +137,12 @@ class LoggerNotifier extends Notifier<LoggerState> {
   void clear() {
     _logDebounceTimer?.cancel();
     _logger.clear();
-    state = state.copyWith(logs: _logger.getLogs());
+    state = state.copyWith(version: _logger.version);
   }
 
   /// Set minimum log level filter
   void setFilterLevel(int? levelIndex) {
-    if (levelIndex == null) {
-      state = state.copyWith(clearFilterLevel: true);
-    } else {
-      state = state.copyWith(filterLevel: levelIndex);
-    }
+    state = state.copyWith(filterLevel: levelIndex);
   }
 
   /// Set search query for filtering logs

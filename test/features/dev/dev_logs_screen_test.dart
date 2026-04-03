@@ -34,6 +34,38 @@ class _StubLoggerNotifier extends LoggerNotifier {
   LoggerState build() => _seed;
 }
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+LoggerService get _svc => LoggerService();
+
+/// Clears the singleton service, inserts [logs] entries directly (bypassing
+/// Sentry forwarding), and returns a [LoggerState] backed by the singleton.
+LoggerState _stateWith(
+  List<LogEntry> logs, {
+  int? filterLevel,
+  String searchQuery = '',
+}) {
+  _svc.clear();
+  for (final e in logs) {
+    _svc.insertEntry(e);
+  }
+  return LoggerState(
+    service: _svc,
+    version: _svc.version,
+    filterLevel: filterLevel,
+    searchQuery: searchQuery,
+  );
+}
+
+LoggerState _emptyState() {
+  _svc.clear();
+  return LoggerState(service: _svc, version: _svc.version);
+}
+
+// ---------------------------------------------------------------------------
+
 Widget _buildApp({
   required Settings settings,
   LoggerState? loggerState,
@@ -78,13 +110,15 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('DevLogsScreen', () {
+    setUp(() => _svc.clear());
+
     testWidgets('shows disabled message when developer mode is off', (
       tester,
     ) async {
       await tester.pumpWidget(
         _buildApp(
           settings: _makeSettings(developerModeEnabled: false),
-          loggerState: LoggerState(),
+          loggerState: _emptyState(),
         ),
       );
       await tester.pump();
@@ -109,7 +143,7 @@ void main() {
       await tester.pumpWidget(
         _buildApp(
           settings: _makeSettings(developerModeEnabled: true),
-          loggerState: LoggerState(logs: logs),
+          loggerState: _stateWith(logs),
         ),
       );
       await tester.pump();
@@ -123,7 +157,7 @@ void main() {
       await tester.pumpWidget(
         _buildApp(
           settings: _makeSettings(developerModeEnabled: true),
-          loggerState: LoggerState(),
+          loggerState: _emptyState(),
         ),
       );
       await tester.pump();
@@ -143,7 +177,7 @@ void main() {
       await tester.pumpWidget(
         _buildApp(
           settings: _makeSettings(developerModeEnabled: true),
-          loggerState: LoggerState(logs: logs),
+          loggerState: _stateWith(logs),
         ),
       );
       await tester.pump();
@@ -158,7 +192,7 @@ void main() {
       await tester.pumpWidget(
         _buildApp(
           settings: _makeSettings(developerModeEnabled: true),
-          loggerState: LoggerState(logs: logs),
+          loggerState: _stateWith(logs),
         ),
       );
       await tester.pump();
@@ -179,8 +213,8 @@ void main() {
       await tester.pumpWidget(
         _buildApp(
           settings: _makeSettings(developerModeEnabled: true),
-          loggerState: LoggerState(
-            logs: logs,
+          loggerState: _stateWith(
+            logs,
             filterLevel: LogLevel.error.index,
           ),
         ),
@@ -196,7 +230,7 @@ void main() {
       await tester.pumpWidget(
         _buildApp(
           settings: _makeSettings(developerModeEnabled: true),
-          loggerState: LoggerState(),
+          loggerState: _emptyState(),
         ),
       );
       await tester.pump();
@@ -223,7 +257,7 @@ void main() {
       await tester.pumpWidget(
         _buildApp(
           settings: _makeSettings(developerModeEnabled: true),
-          loggerState: LoggerState(logs: [entry]),
+          loggerState: _stateWith([entry]),
         ),
       );
       await tester.pump();
@@ -248,7 +282,7 @@ void main() {
       await tester.pumpWidget(
         _buildApp(
           settings: _makeSettings(developerModeEnabled: true),
-          loggerState: LoggerState(logs: [entry]),
+          loggerState: _stateWith([entry]),
         ),
       );
       await tester.pump();
@@ -270,7 +304,7 @@ void main() {
       await tester.pumpWidget(
         _buildApp(
           settings: _makeSettings(developerModeEnabled: true),
-          loggerState: LoggerState(logs: logs),
+          loggerState: _stateWith(logs),
         ),
       );
       await tester.pump();
@@ -294,7 +328,7 @@ void main() {
       await tester.pumpWidget(
         _buildApp(
           settings: _makeSettings(developerModeEnabled: true),
-          loggerState: LoggerState(logs: [entry]),
+          loggerState: _stateWith([entry]),
         ),
       );
       await tester.pump();
@@ -321,7 +355,7 @@ void main() {
       await tester.pumpWidget(
         _buildApp(
           settings: _makeSettings(developerModeEnabled: true),
-          loggerState: LoggerState(logs: logs),
+          loggerState: _stateWith(logs),
         ),
       );
       await tester.pump();

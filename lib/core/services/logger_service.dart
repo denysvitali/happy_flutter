@@ -1,7 +1,8 @@
 import 'dart:collection';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode, debugPrint;
+import 'package:flutter/foundation.dart'
+    show kDebugMode, kReleaseMode, debugPrint, visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Log levels in increasing order of severity
@@ -128,6 +129,7 @@ class LoggerService {
         _developerModeEnabled ||
         level == LogLevel.error;
     if (shouldBuffer) {
+      _version++;
       _logs.add(entry);
 
       // Maintain circular buffer limit
@@ -251,6 +253,26 @@ class LoggerService {
     return List<LogEntry>.from(_logs);
   }
 
+  /// Insert a pre-built [LogEntry] directly into the buffer without
+  /// triggering Sentry forwarding, console output, or listener notifications.
+  ///
+  /// For use in tests only — bypasses all side effects of [log].
+  @visibleForTesting
+  void insertEntry(LogEntry entry) {
+    _version++;
+    _logs.add(entry);
+    if (_logs.length > _maxLogs) _logs.removeFirst();
+  }
+
+  /// Get an iterable view of all logs (zero-copy). Safe as long as
+  /// callers only iterate during a single synchronous build pass.
+  Iterable<LogEntry> get allLogs => _logs;
+
+  /// Monotonically increasing counter; increments on every log write.
+  /// Cheap signal that state changed without copying any log data.
+  int get version => _version;
+  int _version = 0;
+
   /// Get the current log count
   int get count => _logs.length;
 
@@ -268,6 +290,7 @@ class LoggerService {
 
   /// Clear all logs
   void clear() {
+    _version++;
     _logs.clear();
     for (final listener in _listeners) {
       try {

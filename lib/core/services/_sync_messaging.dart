@@ -1155,6 +1155,28 @@ extension _SyncMessaging on Sync {
     purchasesSync.invalidate();
   }
 
+  /// Evict stale messagesSync entries that haven't been used recently.
+  /// Each InvalidateSync holds Timers, Completer, and closures capturing
+  /// the Sync singleton — unbounded growth for 500+ sessions would leak
+  /// memory across long-lived app sessions.
+  static const int _messagesSyncEvictThresholdMs = 5 * 60 * 1000;
+  void _evictStaleMessagesSync() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final stale = messagesSync.entries
+        .where((e) {
+          final entry = e.value;
+          final lastRunEnd = entry.lastRunEndMs;
+          return lastRunEnd != null &&
+              now - lastRunEnd > _messagesSyncEvictThresholdMs;
+        })
+        .map((e) => e.key)
+        .toList();
+    for (final id in stale) {
+      messagesSync[id]?.dispose();
+      messagesSync.remove(id);
+    }
+  }
+
   /// Refresh profile data
   Future<void> refreshProfile() async {
     await profileSync.invalidateAndAwait();
@@ -1173,6 +1195,11 @@ extension _SyncMessaging on Sync {
     // Clear any residual failed Future from the inline queue so that
     // new messages can enter the inline fast path immediately.
     _inlineProcessor.clearSession(sessionId);
+
+    // Evict stale messagesSync entries that haven't been used in 5 minutes.
+    // Each InvalidateSync holds Timers, a Completer, and closures that
+    // capture the Sync singleton — unbounded growth for 500+ sessions.
+    _evictStaleMessagesSync();
     Sentry.addBreadcrumb(Breadcrumb(
       message: 'onSessionVisible',
       category: 'sync.messages',
@@ -1630,12 +1657,28 @@ extension _SyncMessaging on Sync {
         );
 
         // ── Decrypt + process (isolate for large batches) ──
+        // Pre-filter messages already decrypted and stored, so we only
+        // decrypt genuinely new ones during catch-up polling.
+        // Use a Set<String> for O(1) containment checks.
+        final existingIds = <String>{
+          for (final m
+              in _sessionMessages[sessionId] ??
+                  const <Map<String, dynamic>>[])
+            if (m['id'] is String) m['id'] as String,
+        };
+        final newMessages = existingIds.isEmpty
+            ? messages
+            : [
+                for (final m in messages)
+                  if (!existingIds.contains(m['id'])) m,
+              ];
         final decryptStart = Stopwatch()..start();
         final processed = await sessionEncryption.decryptAndProcessMessages(
-          messages,
+          newMessages,
           sessionId,
         );
         final decryptMs = decryptStart.elapsedMilliseconds;
+        final skippedCount = messages.length - newMessages.length;
         final userCount = processed.messages
             .where((message) => message['role'] == MessageRole.user)
             .length;
@@ -1647,6 +1690,8 @@ extension _SyncMessaging on Sync {
             .length;
         logger.info(
           '[fetchMessages] $sessionId page=$page '
+          'fetched=${messages.length} skipped=$skippedCount '
+          'decrypted=${newMessages.length} '
           'processedMsgs=${processed.messages.length} '
           'users=$userCount agents=$agentCount events=$eventCount '
           'toolResults=${processed.toolResults.length} '

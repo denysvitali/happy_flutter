@@ -38,9 +38,7 @@ class _SentryHttpOverrides extends HttpOverrides {
   }
 }
 
-Future<void> initSentryForPlatform(
-  Future<void> Function() appRunner,
-) async {
+Future<void> initSentryForPlatform() async {
   // Trust the self-hosted Sentry certificate before the SDK
   // creates its internal HTTP transport.
   HttpOverrides.global =
@@ -71,7 +69,7 @@ Future<void> initSentryForPlatform(
       ..debug = kDebugMode
       // ── Filter noisy events ──
       ..beforeSend = _beforeSend;
-  }, appRunner: appRunner);
+  });
 
   // Fire-and-forget: verify Sentry connectivity.
   unawaited(_pingSentry());
