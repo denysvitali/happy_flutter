@@ -504,33 +504,158 @@ void main() {
   });
 
   group('parentUuid without isSidechain flag', () {
-    test('groups message with parentUuid but no isSidechain '
-        'flag', () {
-      // The Go backend may send parentUuid without
-      // isSidechain=true.
-      final messages = [
-        _taskMsg(id: 'task-1', uuid: 'task-uuid'),
+    test('groups children for nested Task inside children list', () {
+      final children = <Map<String, dynamic>>[
+        _taskMsg(id: 'nested-1', uuid: 'nested-uuid-1'),
         _sidechainRoot(
-          id: 'root-1',
-          uuid: 'root-uuid',
-          parentUuid: 'task-uuid',
+          id: 'nested-root-1',
+          uuid: 'nr1',
+          parentUuid: 'nested-uuid-1',
         ),
-        <String, dynamic>{
-          'id': 'child-no-flag',
-          'parentUuid': 'root-uuid',
-          'uuid': 'cnf-uuid',
-          // Note: no 'isSidechain' key
-        },
+        _sidechainChild(
+          id: 'nested-child-1',
+          parentUuid: 'nr1',
+        ),
+      ];
+
+      grouper.regroupNestedTasks(children);
+
+      expect(children, hasLength(1));
+      final nestedChildren = children[0]['children']
+          as List<Map<String, dynamic>>;
+      expect(nestedChildren, hasLength(1));
+      expect(nestedChildren[0]['id'], 'nested-child-1');
+    });
+
+    test('attaches sidechain children to multiple distinct '
+        'Tasks — each gets only its own children', () {
+      final messages = [
+        _textMsg(id: 'm0'),
+        _taskMsg(
+          id: 'task-a',
+          uuid: 'task-a-uuid',
+          toolUseId: 'tool-use-a',
+          prompt: 'Task A prompt',
+        ),
+        _taskMsg(
+          id: 'task-b',
+          uuid: 'task-b-uuid',
+          toolUseId: 'tool-use-b',
+          prompt: 'Task B prompt',
+        ),
+        _textMsg(id: 'm1'),
+        // Sidechain roots + children for Task A
+        _sidechainRoot(
+          id: 'root-a',
+          uuid: 'root-a-uuid',
+          parentUuid: 'tool-use-a',
+        ),
+        _sidechainChild(
+          id: 'child-a1',
+          uuid: 'ca1',
+          parentUuid: 'root-a-uuid',
+        ),
+        _sidechainChild(
+          id: 'child-a2',
+          uuid: 'ca2',
+          parentUuid: 'ca1',
+        ),
+        // Sidechain roots + children for Task B
+        _sidechainRoot(
+          id: 'root-b',
+          uuid: 'root-b-uuid',
+          parentUuid: 'tool-use-b',
+        ),
+        _sidechainChild(
+          id: 'child-b1',
+          uuid: 'cb1',
+          parentUuid: 'root-b-uuid',
+        ),
+        // Direct sidechain children (no root) for Task A
+        _sidechainChild(
+          id: 'child-a3',
+          uuid: 'ca3',
+          parentUuid: 'tool-use-a',
+        ),
       ];
 
       final result = grouper.groupMessages(messages);
 
       expect(result, isNotNull);
-      expect(result!.messages, hasLength(1));
-      final children = result.messages[0]['children']
-          as List<Map<String, dynamic>>;
-      expect(children, hasLength(1));
-      expect(children[0]['id'], 'child-no-flag');
+      // Text messages + 2 Tasks = 4 messages in filtered list
+      expect(result!.messages, hasLength(4));
+
+      // Find each Task by id
+      final taskA = result.messages.firstWhere(
+        (m) => m['id'] == 'task-a',
+      );
+      final taskB = result.messages.firstWhere(
+        (m) => m['id'] == 'task-b',
+      );
+
+      // Task A should have child-a1, child-a2, child-a3
+      final childrenA = taskA['children'] as List<dynamic>;
+      expect(childrenA, hasLength(3));
+      final childAIds = childrenA.map((c) => c['id']).toSet();
+      expect(childAIds, contains('child-a1'));
+      expect(childAIds, contains('child-a2'));
+      expect(childAIds, contains('child-a3'));
+
+      // Task B should have only child-b1
+      final childrenB = taskB['children'] as List<dynamic>;
+      expect(childrenB, hasLength(1));
+      expect(childrenB[0]['id'], 'child-b1');
+
+      // Verify NO cross-contamination: task A shouldn't have B's kids
+      expect(childAIds.contains('child-b1'), isFalse);
+    });
+
+    // Regression: two Agent tool-calls in one assistant message,
+    // each with its own sidechain child — children must stay
+    // attached to their own Task.
+    test('attaches children to two Tasks in same msg', () {
+      final messages = [
+        _taskMsg(
+          id: 'task-a',
+          uuid: 'a-uuid',
+          toolUseId: 'a-tool',
+        ),
+        _taskMsg(
+          id: 'task-b',
+          uuid: 'b-uuid',
+          toolUseId: 'b-tool',
+        ),
+        _sidechainRoot(
+          id: 'root-a',
+          uuid: 'ra',
+          parentUuid: 'a-tool',
+        ),
+        _sidechainChild(id: 'child-a', parentUuid: 'ra'),
+        _sidechainRoot(
+          id: 'root-b',
+          uuid: 'rb',
+          parentUuid: 'b-tool',
+        ),
+        _sidechainChild(id: 'child-b', parentUuid: 'rb'),
+      ];
+
+      final result = grouper.groupMessages(messages);
+      expect(result, isNotNull);
+      expect(result!.messages, hasLength(2));
+
+      final taskA = result.messages.firstWhere(
+        (m) => m['id'] == 'task-a',
+      );
+      final taskB = result.messages.firstWhere(
+        (m) => m['id'] == 'task-b',
+      );
+
+      final aChildren = taskA['children'] as List<dynamic>;
+      final bChildren = taskB['children'] as List<dynamic>;
+      expect(aChildren, hasLength(1));
+      expect(aChildren[0]['id'], 'child-a');
+      expect(bChildren, hasLength(1));
+      expect(bChildren[0]['id'], 'child-b');
     });
   });
 }
