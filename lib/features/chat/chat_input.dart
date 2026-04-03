@@ -51,7 +51,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.isAgentThinking = false,
     this.onAbort,
     this.isAborting = false,
-    this.enterToSend = true,
+    this.enterToSend = false,
   });
 
   /// Stable identifier for the current session
