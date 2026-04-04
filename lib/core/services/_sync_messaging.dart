@@ -2432,6 +2432,7 @@ extension SyncMessaging on Sync {
       if (agentContentList is! List) return ([], []);
 
       final results = <Map<String, dynamic>>[];
+      final toolResultsList = <Map<String, dynamic>>[];
       var i = 0;
       for (final c in agentContentList) {
         if (c is! Map<String, dynamic>) {
@@ -2469,7 +2470,10 @@ extension SyncMessaging on Sync {
             'uuid': dataUuid,
             'parentUuid': ?dataParentUuid,
           });
-        } else if (type == 'tool_use') {
+        } else if (type == 'tool_use' ||
+            type == 'server_tool_use' ||
+            type == 'mcp_tool_use' ||
+            type == 'code_execution_tool_use') {
           results.add({
             'id': '${message.id}_u$i',
             'localId': message.localId,
@@ -2477,7 +2481,7 @@ extension SyncMessaging on Sync {
             'createdAt': createdAt,
             'role': 'agent',
             'kind': 'tool-call',
-            'name': c['name'],
+            'name': c['name'] ?? c['server_name'] ?? type,
             'input': c['input'],
             'toolUseId': c['id'],
             'state': 'running',
@@ -2487,10 +2491,51 @@ extension SyncMessaging on Sync {
             'uuid': dataUuid,
             'parentUuid': ?dataParentUuid,
           });
+        } else if (type == 'tool_result' ||
+            type == 'web_search_tool_result' ||
+            type == 'server_tool_result' ||
+            type == 'mcp_tool_result' ||
+            type == 'code_execution_tool_result') {
+          final toolUseId = c['tool_use_id'] as String?;
+          if (toolUseId != null && toolUseId.isNotEmpty) {
+            toolResultsList.add({
+              'toolUseId': toolUseId,
+              'result': c['content'],
+              'isError': c['is_error'] == true,
+              'createdAt': createdAt,
+              if (isSidechain) 'isSidechain': true,
+              'uuid': ?dataUuid,
+              'parentUuid': ?dataParentUuid,
+            });
+          }
         }
         i++;
       }
-      return (results, []);
+      return (results, toolResultsList);
+    }
+
+    // Handle top-level tool-result / tool-call-result envelopes.
+    if (dataType == 'tool-result' || dataType == 'tool-call-result') {
+      final result = data['output'] ?? data['content'];
+      final callId = data['callId'] as String?;
+      if (callId != null && callId.isNotEmpty) {
+        return (
+          [],
+          [
+            {
+              'toolUseId': callId,
+              'result': result,
+              'isError':
+                  data['isError'] == true || data['is_error'] == true,
+              'createdAt': createdAt,
+              if (isSidechain) 'isSidechain': true,
+              'uuid': ?dataUuid,
+              'parentUuid': ?dataParentUuid,
+            },
+          ],
+        );
+      }
+      return ([], []);
     }
 
     if (dataType == 'user') {
