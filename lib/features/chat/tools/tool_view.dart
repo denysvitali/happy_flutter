@@ -1,18 +1,18 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/sync_service.dart';
 import '../../../core/utils/tool_error_parser.dart';
-import 'elapsed_time.dart';
 import 'json_viewer.dart';
 import 'known_tools.dart';
 import 'permission_footer.dart';
 import 'tool_error.dart';
 import 'tool_section_view.dart';
-import 'tool_status_indicator.dart';
+import 'tool_status_indicator.dart' show ToolState;
+import 'tool_view_helpers.dart';
+import 'tool_view_widgets.dart';
 import 'views/ask_user_question_view.dart';
 import 'views/bash_view.dart';
 import 'views/codex_bash_view.dart';
@@ -33,132 +33,14 @@ import 'views/web_fetch_view.dart';
 import 'views/web_search_view.dart';
 import 'views/write_view.dart';
 
-/// Duration before auto-collapsing a completed/error tool.
-const _kAutoCollapseDelay = Duration(seconds: 8);
-
-/// Parses a tool state string into [ToolState].
-///
-/// Null or unknown values map to [ToolState.pending].
-ToolState parseToolState(String? state) {
-  switch (state) {
-    case 'running':
-      return ToolState.running;
-    case 'completed':
-      return ToolState.completed;
-    case 'error':
-      return ToolState.error;
-    default:
-      return ToolState.pending;
-  }
-}
-
-/// Whether a permission map represents a pending (unresolved) request.
-bool _isPermissionPending(Map<String, dynamic>? permission) {
-  if (permission == null) return false;
-  final status = permission['status'];
-  return status != 'approved' &&
-      status != 'denied' &&
-      status != 'canceled';
-}
-
-/// Whether a permission was not denied or canceled (still relevant to show).
-bool _isPermissionNotDeniedOrCanceled(Map<String, dynamic>? permission) {
-  if (permission == null) return false;
-  final status = permission['status'];
-  return status != 'denied' && status != 'canceled';
-}
-
-/// Returns the accent/background color for a given tool state.
-Color _stateColor(ToolState state, ColorScheme cs) {
-  switch (state) {
-    case ToolState.running:
-      return cs.primary;
-    case ToolState.completed:
-      return AppColors.success;
-    case ToolState.error:
-      return cs.error;
-    case ToolState.pending:
-      return cs.onSurfaceVariant;
-  }
-}
-
-/// Returns label text for the status badge.
-String _statusBadgeLabel(ToolState state) {
-  switch (state) {
-    case ToolState.running:
-      return 'Running';
-    case ToolState.completed:
-      return 'Done';
-    case ToolState.error:
-      return 'Error';
-    case ToolState.pending:
-      return 'Pending';
-  }
-}
-
-/// Accent color for permission-required state (orange).
-const Color _permissionColor = AppColors.warning;
-
-/// Map of MCP server name tokens to representative emojis.
-const Map<String, String> _mcpServerEmojis = {
-  'linear': '\u{1F4CB}',
-  'github': '\u{1F4BE}',
-  'gitlab': '\u{1F9A8}',
-  'jira': '\u{1F4DD}',
-  'slack': '\u{1F4AC}',
-  'notion': '\u{1F4D3}',
-  'postgres': '\u{1F5C3}',
-  'mysql': '\u{1F5C3}',
-  'sqlite': '\u{1F5C3}',
-  'filesystem': '\u{1F4C1}',
-  'brave': '\u{1F310}',
-  'puppeteer': '\u{1F916}',
-  'fetch': '\u{1F310}',
-  'memory': '\u{1F9E0}',
-  'everything': '\u{1F50D}',
-  'sequential': '\u{1F4BB}',
-};
-
-/// Permission action kinds emitted from [ToolView].
-enum PermissionActionKind {
-  allow,
-  deny,
-  allowAllEdits,
-  allowForSession,
-  codexApprove,
-  codexApproveForSession,
-  codexAbort,
-}
-
-/// Structured permission action payload for tool permission interactions.
-class PermissionAction {
-  const PermissionAction({
-    required this.kind,
-    required this.sessionId,
-    required this.permissionId,
-    required this.toolName,
-    this.toolInput,
-  });
-
-  final PermissionActionKind kind;
-  final String sessionId;
-  final String permissionId;
-  final String toolName;
-  final Map<String, dynamic>? toolInput;
-}
-
-/// Optional delegate for handling permission actions.
-typedef PermissionActionDelegate =
-    Future<void> Function(PermissionAction action);
-
-/// Resolves a representative emoji from an MCP server name token.
-String _mcpServerEmoji(String serverToken) {
-  final key = serverToken.toLowerCase();
-  for (final entry in _mcpServerEmojis.entries) {
-    if (key.contains(entry.key)) return entry.value;
-  }
-  return '\u{1F527}'; // wrench fallback
-}
+// Re-export public helpers so existing imports continue to work.
+export 'tool_view_helpers.dart'
+    show
+        parseToolState,
+        PermissionActionKind,
+        PermissionAction,
+        PermissionActionDelegate;
+export 'tool_view_minimal.dart' show ToolViewMinimal;
 
 /// Main ToolView component with header, status, and elapsed time.
 ///
@@ -242,13 +124,14 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       CurvedAnimation(parent: _chevronController, curve: Curves.easeInOut),
     );
 
-    final initial = _parseToolState(
+    final initial = parseToolState(
       widget.tool['state'] as String? ?? 'pending',
     );
     _prevState = initial;
 
-    final initPermission = widget.tool['permission'] as Map<String, dynamic>?;
-    final hasPermissionRequest = _isPermissionPending(initPermission);
+    final initPermission =
+        widget.tool['permission'] as Map<String, dynamic>?;
+    final hasPermissionRequest = isPermissionPending(initPermission);
 
     if (initial == ToolState.running || hasPermissionRequest) {
       _expanded = true;
@@ -265,13 +148,13 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
   void didUpdateWidget(ToolView oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    final newState = _parseToolState(
+    final newState = parseToolState(
       widget.tool['state'] as String? ?? 'pending',
     );
 
     final updatedPermission =
         widget.tool['permission'] as Map<String, dynamic>?;
-    final hasPermissionRequest = _isPermissionPending(updatedPermission);
+    final hasPermissionRequest = isPermissionPending(updatedPermission);
 
     if (hasPermissionRequest && !_expanded) {
       _setExpanded(true);
@@ -288,7 +171,8 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         if (mounted) setState(() => _showCheckFlash = false);
       });
       _scheduleAutoCollapse();
-    } else if (_prevState == ToolState.running && newState == ToolState.error) {
+    } else if (_prevState == ToolState.running &&
+        newState == ToolState.error) {
       _pulseController
         ..stop()
         ..reset();
@@ -311,7 +195,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     // Never auto-collapse plan tools — the plan must stay visible.
     if (_isPlanTool) return;
     _collapseTimer?.cancel();
-    _collapseTimer = Timer(_kAutoCollapseDelay, () {
+    _collapseTimer = Timer(kAutoCollapseDelay, () {
       if (mounted && _expanded) _setExpanded(false);
     });
   }
@@ -455,8 +339,6 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  ToolState _parseToolState(String state) => parseToolState(state);
-
   /// Format MCP tool name for display.
   ///
   /// Example: `mcp__linear__create_issue` -> `Linear: Create Issue`
@@ -533,13 +415,13 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       minimal = true;
     }
 
-    final state = _parseToolState(toolState);
+    final state = parseToolState(toolState);
 
     // Permission pending overrides accent colour
-    final hasPermissionRequest = _isPermissionPending(permission);
+    final hasPermissionRequest = isPermissionPending(permission);
     final accentColor = hasPermissionRequest
-        ? _permissionColor
-        : _stateColor(state, theme.colorScheme);
+        ? permissionColor
+        : stateColor(state, theme.colorScheme);
 
     // Check for tool-use error
     final resultStr = toolResult?.toString() ?? '';
@@ -566,7 +448,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     } else {
       switch (state) {
         case ToolState.running:
-          statusIcon = _PulsingProgressIndicator(
+          statusIcon = PulsingProgressIndicator(
             animation: _pulseAnim,
             size: 20,
           );
@@ -585,9 +467,10 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     // Build tool icon: emoji for MCP, KnownTools icon otherwise
     final Widget toolIcon;
     if (isMCP) {
-      final serverToken = toolName.replaceFirst('mcp__', '').split('__').first;
+      final serverToken =
+          toolName.replaceFirst('mcp__', '').split('__').first;
       toolIcon = Text(
-        _mcpServerEmoji(serverToken),
+        mcpServerEmoji(serverToken),
         style: const TextStyle(fontSize: 18),
       );
     } else {
@@ -621,7 +504,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
                   widget.onPress!.call();
                 }
               : null,
-          child: _ToolHeader(
+          child: ToolHeader(
             toolIcon: toolIcon,
             toolTitle: toolTitle,
             status: status,
@@ -712,9 +595,8 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         animation: _pulseAnim,
         child: invariantChild,
         builder: (context, child) {
-          final borderOpacity = state == ToolState.running
-              ? _pulseAnim.value
-              : 1.0;
+          final borderOpacity =
+              state == ToolState.running ? _pulseAnim.value : 1.0;
           final accentBorder = BorderSide(
             color: accentColor.withValues(alpha: borderOpacity),
             width: 4,
@@ -762,7 +644,9 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
 
     if (specificView != null) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm + 2,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -775,7 +659,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
             ),
             if (state == ToolState.error &&
                 toolResult != null &&
-                _isPermissionNotDeniedOrCanceled(permission) &&
+                isPermissionNotDeniedOrCanceled(permission) &&
                 !(knownTool?.hideDefaultError ?? false) &&
                 !(errorResult?.isToolUseError ?? false))
               ToolError(message: toolResult.toString()),
@@ -790,9 +674,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         widget.tool['id'] as String? ??
         toolName;
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm + 2,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -803,18 +685,16 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
               child: SmartOutputContainer(content: toolInput),
             ),
           if (state == ToolState.completed && toolResult != null)
-            _CollapsibleOutput(
+            CollapsibleOutput(
               toolId: toolId,
               child: ToolSectionView(
                 title: 'OUTPUT',
-                child: SmartOutputContainer(
-                  content: toolResult,
-                ),
+                child: SmartOutputContainer(content: toolResult),
               ),
             ),
           if (state == ToolState.error &&
               toolResult != null &&
-              _isPermissionNotDeniedOrCanceled(permission) &&
+              isPermissionNotDeniedOrCanceled(permission) &&
               !(errorResult?.isToolUseError ?? false))
             ToolError(message: toolResult.toString()),
         ],
@@ -856,86 +736,49 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
   /// The lambda map is only allocated when [toolName] is a known tool, and
   /// immediately discarded after the single lookup — avoiding repeated large
   /// allocations at 60 fps when a tool is running.
-  Widget Function(
-    Map<String, dynamic>,
-    Map<String, dynamic>?,
-    List<Map<String, dynamic>>?,
-    String?,
-  )?
-  _getToolViewComponent(String toolName) {
+  ToolViewBuilder? _getToolViewComponent(String toolName) {
     // Fast path: avoid allocating the map for unknown tool names.
     if (!_knownToolNames.contains(toolName)) return null;
 
-    final views =
-        <
-          String,
-          Widget Function(
-            Map<String, dynamic>,
-            Map<String, dynamic>?,
-            List<Map<String, dynamic>>?,
-            String?,
-          )
-        >{
-          'Glob': (t, m, _, s) => GlobView(tool: t, metadata: m),
-          'Grep': (t, m, _, s) => GrepView(tool: t, metadata: m),
-          'LS': (t, m, _, s) => LSView(tool: t, metadata: m),
-          'Read': (t, m, _, s) => ReadView(
-            tool: t,
-            metadata: m,
-            sessionId: s,
-          ),
-          'read': (t, m, _, s) => ReadView(
-            tool: t,
-            metadata: m,
-            sessionId: s,
-          ),
-          'Edit': (t, m, _, s) => EditView(
-            tool: t,
-            metadata: m,
-            sessionId: s,
-          ),
-          'MultiEdit': (t, m, _, s) => MultiEditView(tool: t, metadata: m),
-          'Write': (t, m, _, s) => WriteView(tool: t, metadata: m),
-          'edit': (t, m, _, s) => GeminiEditView(tool: t, metadata: m),
-          'Bash': (t, m, _, s) => BashView(tool: t, metadata: m),
-          'CodexBash': (t, m, _, s) => CodexBashView(tool: t, metadata: m),
-          'execute': (t, m, _, s) =>
-              GeminiExecuteView(tool: t, metadata: m),
-          'CodexPatch': (t, m, _, s) =>
-              CodexPatchView(tool: t, metadata: m),
-          'CodexDiff': (t, m, _, s) =>
-              CodexDiffView(tool: t, metadata: m),
-          'Task': (t, m, msgs, s) => TaskView(
-            tool: t,
-            metadata: m,
-            messages: msgs,
-            onNavigate: () => widget.onPress?.call(),
-          ),
-          'Agent': (t, m, msgs, s) => TaskView(
-            tool: t,
-            metadata: m,
-            messages: msgs,
-            onNavigate: () => widget.onPress?.call(),
-          ),
-          'TodoWrite': (t, m, _, s) => TodoView(tool: t, metadata: m),
-          'WebFetch': (t, m, _, s) => WebFetchView(tool: t, metadata: m),
-          'WebSearch': (t, m, _, s) => WebSearchView(tool: t, metadata: m),
-          'ExitPlanMode': (t, m, _, s) =>
-              ExitPlanToolView(tool: t, metadata: m),
-          'exit_plan_mode': (t, m, _, s) =>
-              ExitPlanToolView(tool: t, metadata: m),
-          'AskUserQuestion': _buildAskUserQuestionView,
-          'NotebookRead': (t, m, _, s) => ReadView(
-            tool: t,
-            metadata: m,
-            sessionId: s,
-          ),
-          'NotebookEdit': (t, m, _, s) => EditView(
-            tool: t,
-            metadata: m,
-            sessionId: s,
-          ),
-        };
+    final views = <String, ToolViewBuilder>{
+      'Glob': (t, m, _, s) => GlobView(tool: t, metadata: m),
+      'Grep': (t, m, _, s) => GrepView(tool: t, metadata: m),
+      'LS': (t, m, _, s) => LSView(tool: t, metadata: m),
+      'Read': (t, m, _, s) => ReadView(tool: t, metadata: m, sessionId: s),
+      'read': (t, m, _, s) => ReadView(tool: t, metadata: m, sessionId: s),
+      'Edit': (t, m, _, s) => EditView(tool: t, metadata: m, sessionId: s),
+      'MultiEdit': (t, m, _, s) => MultiEditView(tool: t, metadata: m),
+      'Write': (t, m, _, s) => WriteView(tool: t, metadata: m),
+      'edit': (t, m, _, s) => GeminiEditView(tool: t, metadata: m),
+      'Bash': (t, m, _, s) => BashView(tool: t, metadata: m),
+      'CodexBash': (t, m, _, s) => CodexBashView(tool: t, metadata: m),
+      'execute': (t, m, _, s) => GeminiExecuteView(tool: t, metadata: m),
+      'CodexPatch': (t, m, _, s) => CodexPatchView(tool: t, metadata: m),
+      'CodexDiff': (t, m, _, s) => CodexDiffView(tool: t, metadata: m),
+      'Task': (t, m, msgs, s) => TaskView(
+        tool: t,
+        metadata: m,
+        messages: msgs,
+        onNavigate: () => widget.onPress?.call(),
+      ),
+      'Agent': (t, m, msgs, s) => TaskView(
+        tool: t,
+        metadata: m,
+        messages: msgs,
+        onNavigate: () => widget.onPress?.call(),
+      ),
+      'TodoWrite': (t, m, _, s) => TodoView(tool: t, metadata: m),
+      'WebFetch': (t, m, _, s) => WebFetchView(tool: t, metadata: m),
+      'WebSearch': (t, m, _, s) => WebSearchView(tool: t, metadata: m),
+      'ExitPlanMode': (t, m, _, s) => ExitPlanToolView(tool: t, metadata: m),
+      'exit_plan_mode': (t, m, _, s) =>
+          ExitPlanToolView(tool: t, metadata: m),
+      'AskUserQuestion': _buildAskUserQuestionView,
+      'NotebookRead': (t, m, _, s) =>
+          ReadView(tool: t, metadata: m, sessionId: s),
+      'NotebookEdit': (t, m, _, s) =>
+          EditView(tool: t, metadata: m, sessionId: s),
+    };
     return views[toolName];
   }
 
@@ -953,436 +796,4 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       sessionId: widget.sessionId,
     );
   }
-}
-
-// ---------------------------------------------------------------------------
-// Extracted private widget classes for composability
-// ---------------------------------------------------------------------------
-
-/// Header row for a tool card — icon, title, status badge, elapsed time,
-/// check flash, and expand/collapse chevron.
-class _ToolHeader extends StatelessWidget {
-  const _ToolHeader({
-    required this.toolIcon,
-    required this.toolTitle,
-    required this.state,
-    required this.hasContent,
-    required this.showCheckFlash,
-    required this.chevronAnim,
-    required this.hasPermissionRequest,
-    this.status,
-    this.subtitle,
-    this.createdAt,
-    this.statusIcon,
-  });
-
-  /// The leading icon widget for this tool type.
-  final Widget toolIcon;
-
-  /// The resolved display title for this tool.
-  final String toolTitle;
-
-  /// Optional inline status text shown after the title.
-  final String? status;
-
-  /// Optional subtitle shown below the title.
-  final String? subtitle;
-
-  /// The current execution state.
-  final ToolState state;
-
-  /// Unix-ms timestamp when the tool started (for elapsed time).
-  final int? createdAt;
-
-  /// Optional status icon override (error/denied/cancelled).
-  final Widget? statusIcon;
-
-  /// Whether this tool card has expandable content.
-  final bool hasContent;
-
-  /// Whether to show the green check-circle flash animation.
-  final bool showCheckFlash;
-
-  /// The chevron rotation animation (0 = collapsed, 0.5 = expanded).
-  final Animation<double> chevronAnim;
-
-  /// Whether a permission request is currently pending.
-  final bool hasPermissionRequest;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      decoration: const BoxDecoration(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(AppRadius.sm),
-          topRight: Radius.circular(AppRadius.sm),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm + 2,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 24,
-            height: 24,
-            child: Align(alignment: Alignment.centerLeft, child: toolIcon),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        toolTitle,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'monospace',
-                          fontFamilyFallback: const ['Courier New', 'Courier'],
-                          fontSize: AppFontSize.md,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (status != null)
-                      Text(
-                        ' $status',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w400,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                  ],
-                ),
-                if (subtitle != null)
-                  Text(
-                    subtitle!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
-          ),
-          // Status badge pill
-          if (!hasPermissionRequest) ...[
-            const SizedBox(width: AppSpacing.sm - 2),
-            _ToolStatusBadge(state: state),
-          ],
-          // Elapsed time while running
-          if (state == ToolState.running && createdAt != null) ...[
-            const SizedBox(width: AppSpacing.sm - 2),
-            _ToolDuration(startTime: createdAt!),
-          ],
-          // Status icon / check flash
-          const SizedBox(width: AppSpacing.sm - 2),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder: (child, animation) => ScaleTransition(
-              scale: animation,
-              child: FadeTransition(opacity: animation, child: child),
-            ),
-            child: showCheckFlash
-                ? Icon(
-                    Icons.check_circle,
-                    key: const ValueKey('flash'),
-                    size: 20,
-                    color: AppColors.success,
-                  )
-                : (statusIcon != null
-                      ? SizedBox(
-                          key: const ValueKey('status'),
-                          child: statusIcon,
-                        )
-                      : const SizedBox.shrink(key: ValueKey('empty'))),
-          ),
-          // Expand/collapse chevron
-          if (hasContent) ...[
-            const SizedBox(width: AppSpacing.sm - 2),
-            RotationTransition(
-              turns: chevronAnim,
-              child: Icon(
-                Icons.expand_more,
-                size: 18,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Compact status pill showing Running / ✓ / ✕ / Pending.
-///
-/// 20px tall pill with 0.15-opacity background and matching colour.
-/// Completed and error states show an icon; others show text.
-class _ToolStatusBadge extends StatelessWidget {
-  const _ToolStatusBadge({required this.state});
-
-  /// The current execution state.
-  final ToolState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = _stateColor(state, Theme.of(context).colorScheme);
-
-    final Widget child;
-    if (state == ToolState.completed) {
-      child = Icon(Icons.check, size: 12, color: bg);
-    } else if (state == ToolState.error) {
-      child = Icon(Icons.close, size: 12, color: bg);
-    } else {
-      child = Text(
-        _statusBadgeLabel(state),
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: bg,
-          letterSpacing: 0.2,
-        ),
-      );
-    }
-
-    return Container(
-      height: 20,
-      width: (state == ToolState.completed || state == ToolState.error)
-          ? 20
-          : null,
-      padding: (state == ToolState.completed || state == ToolState.error)
-          ? EdgeInsets.zero
-          : const EdgeInsets.symmetric(horizontal: 7),
-      decoration: BoxDecoration(
-        color: bg.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: bg.withValues(alpha: 0.35), width: 0.5),
-      ),
-      alignment: Alignment.center,
-      child: child,
-    );
-  }
-}
-
-/// Elapsed time label — only visible while the tool is running.
-class _ToolDuration extends StatelessWidget {
-  const _ToolDuration({required this.startTime});
-
-  /// The Unix-ms timestamp when the tool started.
-  final int startTime;
-
-  @override
-  Widget build(BuildContext context) {
-    return ElapsedTimeWidget(startTime: startTime);
-  }
-}
-
-
-/// Wraps tool output in a height-constrained container with a
-/// "Show more" / "Show less" toggle button.
-///
-/// When collapsed the content is clipped at [_kCollapsedHeight]
-/// logical pixels. Tapping the toggle reveals or hides the full
-/// output with an animated transition.
-class _CollapsibleOutput extends StatefulWidget {
-  const _CollapsibleOutput({
-    required this.toolId,
-    required this.child,
-  });
-
-  /// Unique identifier used to track expansion state.
-  final String toolId;
-
-  /// The output content widget to wrap.
-  final Widget child;
-
-  @override
-  State<_CollapsibleOutput> createState() =>
-      _CollapsibleOutputState();
-}
-
-class _CollapsibleOutputState extends State<_CollapsibleOutput> {
-  static const double _kCollapsedHeight = 200;
-
-  bool _expanded = false;
-  final GlobalKey _contentKey = GlobalKey();
-  double? _contentHeight;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _measureContent();
-    });
-  }
-
-  void _measureContent() {
-    final box = _contentKey.currentContext
-        ?.findRenderObject() as RenderBox?;
-    if (box != null && mounted) {
-      setState(() {
-        _contentHeight = box.size.height;
-      });
-    }
-  }
-
-  bool get _needsCollapsing =>
-      _contentHeight != null &&
-      _contentHeight! > _kCollapsedHeight;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    // If the content fits within the threshold, render it
-    // directly without any collapse mechanism.
-    if (!_needsCollapsing) {
-      return KeyedSubtree(
-        key: _contentKey,
-        child: widget.child,
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedContainer(
-          duration: AppDuration.normal,
-          curve: AppCurve.standard,
-          constraints: BoxConstraints(
-            maxHeight: _expanded
-                ? _contentHeight!
-                : _kCollapsedHeight,
-          ),
-          clipBehavior: Clip.hardEdge,
-          decoration: const BoxDecoration(),
-          child: widget.child,
-        ),
-        GestureDetector(
-          onTap: () => setState(() => _expanded = !_expanded),
-          behavior: HitTestBehavior.opaque,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: AppSpacing.xs,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  _expanded
-                      ? Icons.expand_less
-                      : Icons.expand_more,
-                  size: 16,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  _expanded ? 'Show less' : 'Show more',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// A [CircularProgressIndicator] whose opacity pulses via [animation].
-class _PulsingProgressIndicator extends StatelessWidget {
-  const _PulsingProgressIndicator({
-    required this.animation,
-    required this.size,
-  });
-
-  /// The pulsing opacity animation (0.3 -> 1.0 loop).
-  final Animation<double> animation;
-
-  /// Diameter of the indicator in logical pixels.
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: FadeTransition(
-        opacity: animation,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: const CircularProgressIndicator(strokeWidth: 2),
-        ),
-      ),
-    );
-  }
-}
-
-/// Compact tool view for minimal mode (header only, no expandable content).
-class ToolViewMinimal extends StatelessWidget {
-  /// Creates a [ToolViewMinimal].
-  const ToolViewMinimal({required this.tool, super.key, this.metadata});
-
-  /// The tool call data.
-  final Map<String, dynamic> tool;
-
-  /// Optional metadata (e.g., working directory).
-  final Map<String, dynamic>? metadata;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final toolName = tool['name'] as String? ?? 'Unknown';
-    final state = tool['state'] as String? ?? 'pending';
-    final createdAt = tool['createdAt'] as int?;
-
-    final icon = KnownTools.iconFor(
-      toolName,
-      18,
-      theme.colorScheme.onSurfaceVariant,
-    );
-    final title = KnownTools.titleFor(toolName, tool, metadata);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      child: Row(
-        children: [
-          icon,
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              title,
-              style: theme.textTheme.bodyMedium,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (state == 'running' && createdAt != null)
-            Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.sm),
-              child: ElapsedTimeWidget(startTime: createdAt),
-            ),
-          const SizedBox(width: AppSpacing.xs),
-          ToolStatusIndicator(state: _parseState(state), size: 16),
-        ],
-      ),
-    );
-  }
-
-  ToolState _parseState(String state) => parseToolState(state);
 }
