@@ -468,7 +468,9 @@ extension SyncSocketEvents on Sync {
         );
         _saveMsgsDebounceTimers.remove(sessionId)?.cancel();
         MessageCacheService().clearMessages(sessionId);
-        encryption.removeSessionEncryption(sessionId);
+        if (_encryptionInitialized) {
+          encryption.removeSessionEncryption(sessionId);
+        }
       }
     }
     _scheduleSaveSessionsCache();

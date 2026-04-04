@@ -21,6 +21,7 @@ extension SyncSocket on Sync {
 
     this.credentials = credentials;
     this.encryption = encryption;
+    _encryptionInitialized = true;
     anonID = encryption.anonId;
     serverID = parseToken(credentials.token);
     await _init();
@@ -45,6 +46,7 @@ extension SyncSocket on Sync {
 
     this.credentials = credentials;
     this.encryption = encryption;
+    _encryptionInitialized = true;
     anonID = encryption.anonId;
     serverID = parseToken(credentials.token);
     await _init();

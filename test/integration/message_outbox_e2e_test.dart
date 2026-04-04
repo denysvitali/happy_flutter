@@ -36,6 +36,18 @@ void main() {
       sync.testIsInitialized = true;
       sync.testSocketConnectedOverride = true;
       sync.testSocketSendOverride = (_, __) {};
+      // Stub fetchMessages so onSessionVisible doesn't hit the test
+      // interceptor and cause unhandled async errors.
+      sync.testFetchMessagesOverride = (_, __, ___) async => {
+            'messages': <dynamic>[],
+            'hasMore': false,
+          };
+      // Stub fetchMessages so onSessionVisible doesn't hit the fail
+      // interceptor and cause unhandled async errors.
+      sync.testFetchMessagesOverride = (_, __, ___) async => {
+            'messages': <dynamic>[],
+            'hasMore': false,
+          };
       sync.testSessions.clear();
       sync.testClearSessionSpawnedAt();
       sync.testGetSpawnEnvVarsOverride =
@@ -70,6 +82,7 @@ void main() {
     tearDown(() {
       ApiClient().dispose();
       messageOutbox.dispose();
+      sync.testFetchMessagesOverride = null;
       sync.testSocketConnectedOverride = null;
       sync.testSocketSendOverride = null;
       sync.testGetSpawnEnvVarsOverride = null;
@@ -204,6 +217,12 @@ void main() {
       sync.testIsInitialized = true;
       sync.testSocketConnectedOverride = true;
       sync.testSocketSendOverride = (_, __) {};
+      // Stub fetchMessages so onSessionVisible doesn't hit the test
+      // interceptor and cause unhandled async errors.
+      sync.testFetchMessagesOverride = (_, __, ___) async => {
+            'messages': <dynamic>[],
+            'hasMore': false,
+          };
       sync.testSessions.clear();
       sync.testClearSessionSpawnedAt();
       sync.testGetSpawnEnvVarsOverride =
@@ -230,6 +249,7 @@ void main() {
     tearDown(() {
       ApiClient().dispose();
       messageOutbox.dispose();
+      sync.testFetchMessagesOverride = null;
       sync.testSocketConnectedOverride = null;
       sync.testSocketSendOverride = null;
       sync.testGetSpawnEnvVarsOverride = null;
@@ -309,6 +329,12 @@ void main() {
       sync.testIsInitialized = true;
       sync.testSocketConnectedOverride = true;
       sync.testSocketSendOverride = (_, __) {};
+      // Stub fetchMessages so onSessionVisible doesn't hit the test
+      // interceptor and cause unhandled async errors.
+      sync.testFetchMessagesOverride = (_, __, ___) async => {
+            'messages': <dynamic>[],
+            'hasMore': false,
+          };
       sync.testSessions.clear();
       sync.testClearSessionSpawnedAt();
       sync.testGetSpawnEnvVarsOverride =
@@ -343,6 +369,7 @@ void main() {
     tearDown(() {
       ApiClient().dispose();
       messageOutbox.dispose();
+      sync.testFetchMessagesOverride = null;
       sync.testSocketConnectedOverride = null;
       sync.testSocketSendOverride = null;
       sync.testGetSpawnEnvVarsOverride = null;

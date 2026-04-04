@@ -119,6 +119,7 @@ what you have, you must use the options mode.
 
   // Core dependencies
   late Encryption encryption;
+  bool _encryptionInitialized = false;
   late String serverID;
   late String anonID;
   late AuthCredentials credentials;

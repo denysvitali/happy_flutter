@@ -205,7 +205,10 @@ extension SyncMessaging on Sync {
           // Notify UI so it stops the loading spinner. The session is
           // non-visible so further pagination is the responsibility of
           // onSessionVisible() when the user navigates back.
-          _notifySessionMessagesChanged(sessionId);
+          // Use UI-only notify to avoid persisting partial data to the
+          // MessageCache — a cleared cache (from gap recovery) is better
+          // than a cache with only one page of messages.
+          _notifySessionMessagesChangedUiOnly(sessionId);
           _notifyDataChanged();
           break;
         }
