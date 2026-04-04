@@ -11,9 +11,9 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/session_utils.dart';
+import 'widgets/session_info_widgets.dart';
 
 // Minimum CLI version required for full compatibility.
 const _minimumCliVersion = '0.10.0';
@@ -265,7 +265,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                _StatusChip(isActive: session.isOnline),
+                StatusChip(isActive: session.isOnline),
               ],
             ),
           ),
@@ -352,7 +352,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           ),
           child: Column(
             children: [
-              _InfoRow(
+              InfoRow(
                 icon: Icons.fingerprint,
                 label: l10n.sessionInfoLabelSessionId,
                 value: session.id.length > 16
@@ -366,7 +366,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 thickness: AppBorder.hairline,
                 indent: 52,
               ),
-              _InfoRow(
+              InfoRow(
                 icon: Icons.access_time,
                 label: l10n.sessionInfoLabelCreated,
                 value: _formatDate(session.createdAt),
@@ -376,7 +376,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 thickness: AppBorder.hairline,
                 indent: 52,
               ),
-              _InfoRow(
+              InfoRow(
                 icon: Icons.update,
                 label: l10n.sessionInfoLabelLastUpdated,
                 value: _formatDate(session.updatedAt),
@@ -386,7 +386,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 thickness: AppBorder.hairline,
                 indent: 52,
               ),
-              _InfoRow(
+              InfoRow(
                 icon: Icons.tag,
                 label: l10n.sessionInfoLabelSequence,
                 value: session.seq.toString(),
@@ -413,7 +413,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           child: Column(
             children: [
               if (meta?.machineId != null) ...[
-                _ActionRow(
+                ActionRow(
                   icon: Icons.dns_outlined,
                   label: l10n.sessionInfoActionViewMachine,
                   color: theme.colorScheme.primary,
@@ -428,7 +428,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   indent: 52,
                 ),
               if (isOnline)
-                _ActionRow(
+                ActionRow(
                   icon: Icons.archive_outlined,
                   label: l10n.sessionInfoActionArchive,
                   color: theme.colorScheme.error,
@@ -442,7 +442,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   indent: 52,
                 ),
               if (!session.active)
-                _ActionRow(
+                ActionRow(
                   icon: Icons.delete_outline,
                   label: l10n.sessionInfoActionDelete,
                   color: theme.colorScheme.error,
@@ -471,7 +471,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             ),
             child: Column(
               children: [
-                _InfoRow(
+                InfoRow(
                   icon: Icons.computer,
                   label: l10n.sessionInfoLabelHost,
                   value: meta.host,
@@ -482,7 +482,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     thickness: AppBorder.hairline,
                     indent: 52,
                   ),
-                  _InfoRow(
+                  InfoRow(
                     icon: Icons.folder_outlined,
                     label: l10n.sessionInfoLabelPath,
                     value: formatPathRelativeToHome(
@@ -497,7 +497,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     thickness: AppBorder.hairline,
                     indent: 52,
                   ),
-                  _InfoRow(
+                  InfoRow(
                     icon: Icons.dns_outlined,
                     label: l10n.sessionInfoLabelMachineId,
                     value: meta.machineId!,
@@ -511,7 +511,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     thickness: AppBorder.hairline,
                     indent: 52,
                   ),
-                  _InfoRow(
+                  InfoRow(
                     icon: Icons.memory,
                     label: l10n.sessionInfoLabelOs,
                     value: formatOSPlatform(meta.os),
@@ -523,7 +523,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     thickness: AppBorder.hairline,
                     indent: 52,
                   ),
-                  _InfoRow(
+                  InfoRow(
                     icon: isCliOutdated
                         ? Icons.warning_amber_outlined
                         : Icons.verified_outlined,
@@ -540,7 +540,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     thickness: AppBorder.hairline,
                     indent: 52,
                   ),
-                  _InfoRow(
+                  InfoRow(
                     icon: Icons.auto_awesome,
                     label: l10n.sessionInfoLabelAiProvider,
                     value: _formatFlavor(meta.flavor, l10n),
@@ -552,7 +552,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     thickness: AppBorder.hairline,
                     indent: 52,
                   ),
-                  _InfoRow(
+                  InfoRow(
                     icon: Icons.code_outlined,
                     label: l10n.sessionInfoLabelClaudeSessionId,
                     value: () {
@@ -570,7 +570,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     thickness: AppBorder.hairline,
                     indent: 52,
                   ),
-                  _InfoRow(
+                  InfoRow(
                     icon: Icons.terminal,
                     label: l10n.sessionInfoLabelProcessId,
                     value: meta.hostPid!.toString(),
@@ -582,7 +582,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     thickness: AppBorder.hairline,
                     indent: 52,
                   ),
-                  _InfoRow(
+                  InfoRow(
                     icon: Icons.home_outlined,
                     label: l10n.sessionInfoLabelHappyHome,
                     value: formatPathRelativeToHome(
@@ -596,7 +596,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   thickness: AppBorder.hairline,
                   indent: 52,
                 ),
-                _ActionRow(
+                ActionRow(
                   icon: Icons.copy_outlined,
                   label: l10n.sessionInfoActionCopyMetadata,
                   color: theme.colorScheme.primary,
@@ -630,7 +630,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             ),
             child: Column(
               children: [
-                _InfoRow(
+                InfoRow(
                   icon: Icons.person_outline,
                   label: l10n.sessionInfoLabelControlledByUser,
                   value: (session.agentState!.controlledByUser ?? false)
@@ -644,7 +644,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     thickness: AppBorder.hairline,
                     indent: 52,
                   ),
-                  _InfoRow(
+                  InfoRow(
                     icon: Icons.hourglass_empty_outlined,
                     label: l10n.sessionInfoLabelPendingRequests,
                     value:
@@ -673,7 +673,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           ),
           child: Column(
             children: [
-              _InfoRow(
+              InfoRow(
                 icon: Icons.lightbulb_outline,
                 label: l10n.sessionInfoLabelThinking,
                 value: session.thinking ? l10n.commonYes : l10n.commonNo,
@@ -688,7 +688,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   thickness: AppBorder.hairline,
                   indent: 52,
                 ),
-                _InfoRow(
+                InfoRow(
                   icon: Icons.timer_outlined,
                   label: l10n.sessionInfoLabelThinkingSince,
                   value: _formatDate(session.thinkingAt!),
@@ -743,185 +743,6 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
         const SizedBox(height: AppSpacing.xxxl),
       ],
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.isActive});
-
-  final bool isActive;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final activeColor = cs.primary;
-    final inactiveColor = cs.onSurfaceVariant;
-    final chipColor = isActive ? activeColor : inactiveColor;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: chipColor.withValues(alpha: AppOpacity.soft),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: AppSpacing.sm,
-            height: AppSpacing.sm,
-            decoration: BoxDecoration(
-              color: chipColor,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xsm),
-          Text(
-            isActive
-                ? AppLocalizations.of(context).sessionInfoActive
-                : AppLocalizations.of(context).sessionInfoInactive,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: AppFontSize.md,
-              fontWeight: FontWeight.w500,
-              color: chipColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.onTap,
-    this.iconColor,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final VoidCallback? onTap;
-  final Color? iconColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: iconColor ?? theme.colorScheme.primary,
-            ),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style: theme.textTheme.bodyMedium,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 2,
-                  ),
-                ],
-              ),
-            ),
-            if (onTap != null)
-              Icon(
-                Icons.copy,
-                size: 16,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A tappable action row used in Quick Actions and Copy Metadata.
-class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.icon,
-    required this.label,
-    required this.color,
-    this.onTap,
-    this.isLoading = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback? onTap;
-  final bool isLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            if (isLoading)
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: color,
-                ),
-              )
-            else
-              Icon(
-                Icons.chevron_right,
-                size: AppSpacing.xl,
-                color: color.withValues(
-                  alpha: AppOpacity.high,
-                ),
-              ),
-          ],
-        ),
-      ),
     );
   }
 }
