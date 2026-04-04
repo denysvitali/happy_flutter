@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/api_client.dart';
 import 'package:happy_flutter/core/encryption/crypto_box.dart';
 import 'package:happy_flutter/core/models/auth.dart';
+import 'package:happy_flutter/core/models/auth_models.dart';
 import 'package:happy_flutter/core/models/profile.dart';
 import 'package:happy_flutter/core/services/auth_service.dart';
 import 'package:happy_flutter/core/services/encryption_service.dart';
