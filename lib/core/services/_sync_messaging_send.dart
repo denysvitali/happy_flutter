@@ -489,6 +489,22 @@ extension SyncMessagingSend on Sync {
               'sendStatus': 'sent',
             },
           ]);
+        } else {
+          // Mark sent even without full server fields — matches
+          // the else-case in _completeSend.  Without this the
+          // optimistic placeholder stays stuck in "sending" state
+          // forever after the outbox removes the entry.
+          _updateMessageSendStatus(
+            entry.sessionId,
+            entry.localId,
+            'sent',
+          );
+          _notifySessionMessagesChanged(entry.sessionId);
+          logger.warning(
+            '[MessageOutbox] server ack missing id/seq/createdAt '
+            'session=${entry.sessionId} '
+            'localId=${entry.localId}',
+          );
         }
         if (_isSocketConnected()) {
           _socketSend('message', {

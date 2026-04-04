@@ -307,20 +307,33 @@ extension SyncMessaging on Sync {
         );
 
         // ── Decrypt + process (isolate for large batches) ──
-        // Pre-filter messages already decrypted and stored, so we only
-        // decrypt genuinely new ones during catch-up polling.
-        // Use a Set<String> for O(1) containment checks.
-        final existingIds = <String>{
-          for (final m
-              in _sessionMessages[sessionId] ??
-                  const <Map<String, dynamic>>[])
-            if (m['id'] is String) m['id'] as String,
-        };
-        final newMessages = existingIds.isEmpty
+        // Pre-filter messages already decrypted and stored, so we
+        // only decrypt genuinely new ones during catch-up polling.
+        //
+        // Build a map of id → encrypted content signature so we
+        // can detect when the server returns an updated version
+        // of a message we already have (same id, different
+        // content).  Previously we filtered by id alone, which
+        // silently dropped server-side updates.
+        final existingSignatures = <String, String?>{};
+        for (final m in _sessionMessages[sessionId] ??
+            const <Map<String, dynamic>>[]) {
+          final id = m['id'] as String?;
+          if (id != null) {
+            // Store the encrypted content blob ('c' field inside
+            // the content map) as a lightweight signature.
+            final content = m['content'];
+            final sig = content is Map ? content['c'] as String? : null;
+            existingSignatures[id] = sig;
+          }
+        }
+        final newMessages = existingSignatures.isEmpty
             ? messages
             : [
                 for (final m in messages)
-                  if (!existingIds.contains(m['id'])) m,
+                  if (!existingSignatures.containsKey(m['id']) ||
+                      _hasUpdatedContent(m, existingSignatures))
+                    m,
               ];
         final decryptStart = Stopwatch()..start();
         final processed = await sessionEncryption.decryptAndProcessMessages(
@@ -535,6 +548,25 @@ extension SyncMessaging on Sync {
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged();
     }
+  }
+
+  /// Returns `true` when the incoming wire message [m] has different
+  /// encrypted content than what is stored in [existingSignatures].
+  /// This detects server-side updates to messages we already have.
+  static bool _hasUpdatedContent(
+    Map<String, dynamic> m,
+    Map<String, String?> existingSignatures,
+  ) {
+    final id = m['id'] as String?;
+    if (id == null || !existingSignatures.containsKey(id)) return false;
+    final existingSig = existingSignatures[id];
+    final content = m['content'];
+    final incomingSig =
+        content is Map ? content['c'] as String? : null;
+    // If neither version has an encrypted blob, treat as unchanged
+    // to avoid redundant decryption of plaintext messages.
+    if (existingSig == null && incomingSig == null) return false;
+    return incomingSig != existingSig;
   }
 
   /// Fetch the page of messages that precedes what has already been loaded

@@ -10,14 +10,22 @@ extension SyncSocketEvents on Sync {
       ..onReconnected(() {
         logger.info('Socket reconnected');
         _invalidateAllSyncs();
-        // Only re-fetch messages for the currently visible session.
-        // All other sessions will be lazily refreshed when the user
-        // navigates to them via onSessionVisible(). Invalidating every
-        // messagesSync entry caused a thundering herd of concurrent
-        // fetchMessages calls on reconnect, blocking the main thread.
-        // IMPORTANT: Chain after sessionsSync invalidation so fetchMessages
-        // runs AFTER fetchSessions has updated serverLastSeq. Without this,
-        // fetchMessages may see stale serverLastSeq and skip via early exit.
+        // Re-fetch messages for the visible session immediately.
+        // For non-visible sessions that have messages in memory,
+        // mark them as having pending socket messages so
+        // onSessionVisible() triggers a server fetch when the user
+        // navigates to them.  Without this, messages received
+        // during the disconnect gap are permanently lost because
+        // no socket events were delivered.
+        for (final sessionId in _sessionMessages.keys) {
+          if (sessionId != _visibleSessionId) {
+            _sessionsWithPendingSocketMessages.add(sessionId);
+          }
+        }
+        // IMPORTANT: Chain after sessionsSync invalidation so
+        // fetchMessages runs AFTER fetchSessions has updated
+        // serverLastSeq.  Without this, fetchMessages may see
+        // stale serverLastSeq and skip via early exit.
         if (_visibleSessionId != null) {
           unawaited(sessionsSync.invalidateAndAwait().then((_) {
             if (_visibleSessionId != null) {
