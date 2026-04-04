@@ -8,6 +8,7 @@ export 'tool_status_indicator.dart';
 export 'tool_view.dart' show ToolViewMinimal;
 export 'tool_view.dart';
 export 'views/ask_user_question_view.dart';
+export 'views/ask_user_question_widgets.dart';
 export 'views/bash_view.dart';
 export 'views/codex_bash_view.dart';
 export 'views/codex_diff_view.dart';
