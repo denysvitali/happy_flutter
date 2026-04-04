@@ -42,6 +42,70 @@ class AuthService {
     return _sodium!;
   }
 
+  /// Refresh the authentication token.
+  ///
+  /// Calls POST /v1/auth/refresh with the current token to obtain a new token.
+  /// Updates the stored credentials with the new token.
+  ///
+  /// Returns the new token on success.
+  /// Throws [AuthForbiddenError] if the refresh token is invalid or expired
+  /// (user must re-authenticate).
+  /// Throws [AuthException] on other errors.
+  Future<String> refreshToken() async {
+    final credentials = await TokenStorage().getCredentials();
+    if (credentials == null) {
+      throw AuthException('No credentials available for token refresh');
+    }
+
+    try {
+      final response = await _apiClient.post(
+        '/v1/auth/refresh',
+        data: {
+          'token': credentials.token,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        final newToken = data['token'] as String;
+
+        // Update stored credentials with the new token
+        final newCredentials = AuthCredentials(
+          token: newToken,
+          secret: credentials.secret,
+        );
+        await TokenStorage().setCredentials(newCredentials);
+
+        // Update ApiClient with the new token
+        _apiClient.updateToken(newToken);
+
+        logger.info('Token refreshed successfully');
+        return newToken;
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        throw AuthForbiddenError(
+          'Refresh token is invalid or expired',
+          serverResponse: response.data?.toString(),
+        );
+      } else {
+        throw AuthException(
+          'Token refresh failed: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+        throw AuthForbiddenError(
+          'Refresh token is invalid or expired',
+          serverResponse: e.response?.data?.toString(),
+        );
+      }
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout) {
+        throw AuthException('Connection failed during token refresh');
+      }
+      throw AuthException('Token refresh request failed: ${e.message}');
+    }
+  }
+
   /// Start QR authentication.
   /// Returns the public key to display in QR code.
   Future<Uint8List> startQRAuth() async {

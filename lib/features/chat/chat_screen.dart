@@ -50,6 +50,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   StreamSubscription<void>? _dataSyncSubscription;
   StreamSubscription<String>? _messageSyncSubscription;
+  StreamSubscription<String>? _paginationErrorSubscription;
   bool _isSending = false;
   bool _isAborting = false;
   bool _isLoadingMessages = true;
@@ -241,6 +242,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _loadingSafetyTimer?.cancel();
     _dataSyncSubscription?.cancel();
     _messageSyncSubscription?.cancel();
+    _paginationErrorSubscription?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     _autoScrollNotifier.dispose();
@@ -268,6 +270,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
       }
     });
+
+    _paginationErrorSubscription = sync.onPaginationError
+        .where((id) => id == widget.sessionId)
+        .listen((_) {
+          if (mounted) {
+            // Defer until after the first frame so context is available.
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(context.l10n.chatFailedToLoadMessages),
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+            });
+          }
+        });
 
     if (!sync.isInitialized) {
       return;

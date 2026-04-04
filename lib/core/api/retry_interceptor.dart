@@ -2,7 +2,9 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 
+import '../models/auth.dart';
 import '../services/logger_service.dart' show logger;
+import '../services/token_refresh_manager.dart';
 
 /// Returns true for transient connection errors that are not actionable
 /// (e.g. Cronet aborting a request because the OS killed the connection
@@ -22,17 +24,19 @@ bool isTransientConnectionError(DioException error) {
       inner.contains('Software caused connection abort');
 }
 
-/// Retry interceptor for Dio with exponential backoff
+/// Retry interceptor for Dio with exponential backoff and token refresh.
 ///
 /// Retries transient failures:
 /// - 5xx server errors (500-599)
 /// - Network timeouts (connection, receive, send)
 /// - Connection errors (SocketException, HttpException)
+/// - 401 Unauthorized (triggers token refresh, then retries)
 ///
 /// Does NOT retry:
 /// - 4xx client errors (400-499) except 429 (rate limit)
-/// - 401/403 auth errors (handled by auth layer)
+/// - 403 Forbidden (requires re-authentication)
 /// - Cancellation errors
+/// - Token refresh requests themselves
 class RetryInterceptor extends Interceptor {
   RetryInterceptor({
     required Dio Function() dioGetter,
@@ -50,6 +54,9 @@ class RetryInterceptor extends Interceptor {
   final int _maxDelayMs;
   final Random _jitterRng = Random();
 
+  /// Path of the token refresh endpoint (to avoid infinite loops).
+  static const _refreshPath = '/v1/auth/refresh';
+
   @override
   void onError(
     DioException err,
@@ -60,8 +67,72 @@ class RetryInterceptor extends Interceptor {
       return handler.next(err);
     }
 
-    // Don't retry 4xx client errors except 429 (rate limit)
     final responseStatusCode = err.response?.statusCode;
+    final requestPath = err.requestOptions.path;
+
+    // Handle 401 Unauthorized: attempt token refresh then retry.
+    if (responseStatusCode == 401) {
+      // Don't attempt refresh on the refresh endpoint itself.
+      if (requestPath == _refreshPath) {
+        logger.warning(
+          'RetryInterceptor: 401 on refresh endpoint - '
+          'passing through (re-auth required)',
+        );
+        return handler.next(err);
+      }
+
+      // Don't retry if we've already attempted a token refresh for this
+      // request (prevents infinite loops).
+      final alreadyRefreshed =
+          err.requestOptions.extra['_refreshedToken'] as bool? ?? false;
+      if (alreadyRefreshed) {
+        logger.warning(
+          'RetryInterceptor: 401 after token refresh - '
+          're-authentication required',
+        );
+        return handler.next(err);
+      }
+
+      // Attempt token refresh.
+      logger.info(
+        'RetryInterceptor: 401 received - attempting token refresh for '
+        '${err.requestOptions.method} ${err.requestOptions.path}',
+      );
+
+      try {
+        final newToken = await tokenRefreshManager.refreshToken();
+
+        // Token refresh succeeded - update auth header and retry.
+        err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+        err.requestOptions.extra['_refreshedToken'] = true;
+
+        logger.info(
+          'RetryInterceptor: token refresh succeeded - retrying '
+          '${err.requestOptions.method} ${err.requestOptions.path}',
+        );
+
+        final response = await _dioGetter().fetch(err.requestOptions);
+        return handler.resolve(response);
+      } on AuthForbiddenError {
+        // Token refresh failed - credentials are invalid/expired.
+        // Pass the error through so the app can handle re-authentication.
+        logger.warning(
+          'RetryInterceptor: token refresh failed - '
+          're-authentication required',
+        );
+        return handler.next(err);
+      } catch (e) {
+        // Token refresh failed for other reasons (network, etc.).
+        // Pass the original 401 error through.
+        logger.warning(
+          'RetryInterceptor: token refresh threw $e - '
+          'passing through original 401',
+        );
+        return handler.next(err);
+      }
+    }
+
+    // Don't retry 4xx client errors except 429 (rate limit)
     if (responseStatusCode != null &&
         responseStatusCode >= 400 &&
         responseStatusCode < 500 &&
@@ -69,8 +140,8 @@ class RetryInterceptor extends Interceptor {
       return handler.next(err);
     }
 
-    // Don't retry auth errors (401, 403)
-    if (responseStatusCode == 401 || responseStatusCode == 403) {
+    // Don't retry auth errors (403)
+    if (responseStatusCode == 403) {
       return handler.next(err);
     }
 

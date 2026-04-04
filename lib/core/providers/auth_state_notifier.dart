@@ -12,6 +12,7 @@ import '../services/auth_service.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
+import '../services/token_refresh_manager.dart';
 
 final authStateNotifierProvider =
     NotifierProvider<AuthStateNotifier, AuthState>(() {
@@ -21,10 +22,32 @@ final authStateNotifierProvider =
 class AuthStateNotifier extends Notifier<AuthState> {
   final _authService = AuthService();
   String? _pendingDeepLink;
+  OnTokenRefreshFailed? _tokenRefreshFailedListener;
 
   @override
   AuthState build() {
+    // Register for token refresh failure notifications.
+    _tokenRefreshFailedListener = _handleTokenRefreshFailed;
+    tokenRefreshManager.onRefreshFailed(_tokenRefreshFailedListener!);
+
     return AuthState.unauthenticated;
+  }
+
+  void dispose() {
+    if (_tokenRefreshFailedListener != null) {
+      tokenRefreshManager.removeOnRefreshFailed(_tokenRefreshFailedListener!);
+    }
+  }
+
+  void _handleTokenRefreshFailed() {
+    logger.warning(
+      'AuthStateNotifier: token refresh failed - '
+      're-verifying credentials',
+    );
+    // Re-check authentication after a failed token refresh.
+    // This will attempt to verify the current token. If it fails
+    // (expected after refresh failure), the user will be signed out.
+    checkAuth();
   }
 
   Future<void> checkAuth() async {

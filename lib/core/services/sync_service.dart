@@ -270,6 +270,7 @@ what you have, you must use the options mode.
   // Change notification streams
   final _dataChangeController = StreamController<void>.broadcast();
   final _sessionMessageChangeController = StreamController<String>.broadcast();
+  final _paginationErrorController = StreamController<String>.broadcast();
   Timer? _dataChangeDebounceTimer;
   final Map<String, Timer> _sessionMessageDebounceTimers = {};
   /// Monotonic counter incremented on every data change. Providers compare
@@ -557,6 +558,11 @@ what you have, you must use the options mode.
   /// Stream that emits the sessionId when messages for that session change.
   Stream<String> get onSessionMessagesChanged =>
       _sessionMessageChangeController.stream;
+
+  /// Stream that emits the sessionId when older-message pagination fails.
+  /// ChatScreen listens to this to show an inline error or snackbar.
+  Stream<String> get onPaginationError =>
+      _paginationErrorController.stream;
 
   /// Returns true for transient network errors that are not actionable
   /// (e.g. DNS failure, timeout, Cronet aborting a connection because the

@@ -676,6 +676,7 @@ extension SyncMessaging on Sync {
       _notifyDataChanged();
     } catch (error, stack) {
       logger.error('Error fetching older messages', error, stack);
+      _paginationErrorController.add(sessionId);
     } finally {
       _loadingOlderMessages.remove(sessionId);
       _notifyDataChanged();
