@@ -9,6 +9,7 @@ import '../services/logger_service.dart' show logger;
 /// connection timeout, etc.) that are expected during brief
 /// connectivity loss on mobile.
 bool _isTransientSocketError(String error) {
+  final lower = error.toLowerCase();
   return error.contains('ERR_NAME_NOT_RESOLVED') ||
       error.contains('ERR_CONNECTION_TIMED_OUT') ||
       error.contains('ERR_CONNECTION_ABORTED') ||
@@ -20,7 +21,10 @@ bool _isTransientSocketError(String error) {
       error.contains('No address associated') ||
       error.contains('Connection closed') ||
       error.contains('Software caused connection abort') ||
-      error.contains('xhr poll error');
+      error.contains('xhr poll error') ||
+      // Socket.IO internal timeout (ACK timeout or ping timeout)
+      lower.contains('timeout') ||
+      lower.contains('socket.io error: timeout');
 }
 
 /// Represents a decoded Socket.io message
@@ -272,22 +276,26 @@ class SocketIoClient {
   }
 
   /// Waits for the socket to reach [ConnectionStatus.connected].
-  /// Returns immediately if already connected. Throws [StateError]
-  /// if the socket is null or [timeout] elapses.
-  Future<void> _waitForConnection({
+  /// Returns immediately if already connected. Returns normally
+  /// (with false) if socket is null or [timeout] elapses.
+  Future<bool> _waitForConnection({
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    if (_socket != null && _status == ConnectionStatus.connected) return;
+    if (_socket != null && _status == ConnectionStatus.connected) return true;
     if (_socket == null) {
-      throw StateError('WebSocket not connected');
+      return false;
     }
     // Socket exists but isn't connected yet (e.g. reconnecting after
     // app resume). Wait for it rather than failing immediately.
-    await statusStream
-        .firstWhere((s) => s == ConnectionStatus.connected)
-        .timeout(timeout, onTimeout: () {
-      throw StateError('WebSocket not connected');
-    });
+    try {
+      await statusStream
+          .firstWhere((s) => s == ConnectionStatus.connected)
+          .timeout(timeout);
+      return true;
+    } on TimeoutException {
+      logger.info('Socket.IO connection wait timeout');
+      return false;
+    }
   }
 
   /// Emit event and wait for acknowledgement
@@ -296,12 +304,23 @@ class SocketIoClient {
     dynamic data, {
     Duration timeout = const Duration(seconds: 30),
   }) async {
-    await _waitForConnection();
+    final connected = await _waitForConnection();
+    if (!connected) {
+      // Socket not connected — treat as transient failure
+      logger.info('Socket.IO emitWithAck skipped: not connected, event: $event');
+      return null;
+    }
     final completer = Completer<dynamic>();
     _socket!.emitWithAck(event, data, ack: (response) {
       if (!completer.isCompleted) completer.complete(response);
     });
-    return completer.future.timeout(timeout);
+    try {
+      return await completer.future.timeout(timeout);
+    } on TimeoutException {
+      // Treat ACK timeout as transient — Socket.IO will retry or reconnect
+      logger.info('Socket.IO ACK timeout for event: $event');
+      return null;
+    }
   }
 
   /// Register reconnection listener

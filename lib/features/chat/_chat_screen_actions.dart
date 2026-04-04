@@ -585,11 +585,19 @@ extension _ChatScreenActions on _ChatScreenState {
         st,
       );
       if (mounted) {
-        // Rollback: remove optimistic message on error
+        // Mark optimistic message as failed instead of removing it,
+        // so the user can see it and retry.
         setState(() {
-          _messages = _messages
-              .where((m) => m['id'] != optimisticMessage['id'])
-              .toList();
+          final idx = _messages.indexWhere(
+            (m) => m['id'] == optimisticMessage['id'],
+          );
+          if (idx != -1) {
+            _messages = [
+              ..._messages.sublist(0, idx),
+              {..._messages[idx], 'sendStatus': 'failed'},
+              ..._messages.sublist(idx + 1),
+            ];
+          }
           _controller.text = text;
           _isSending = false;
           _invalidateNeighborCache();

@@ -481,6 +481,19 @@ extension SyncSocketEvents on Sync {
       _sessionSpawnedAt.remove(sessionId);
       _autoRestoreInFlight.remove(sessionId);
       _pendingToolResults.remove(sessionId);
+      // Clean up per-session collections that were missed
+      _lastNoEmbedEventMs.remove(sessionId);
+      _sidechainRegroupTimers.remove(sessionId)?.cancel();
+      _sidechainRegroupFirstRequestMs.remove(sessionId);
+      _sessionMessageDebounceTimers.remove(sessionId)?.cancel();
+      _sessionUnreadCounts.remove(sessionId);
+      _sessionUnreadLastIncrementMs.remove(sessionId);
+      _lastEphemeralAt.remove(sessionId);
+      // Clean up pending inline message keys for this session to prevent
+      // unbounded growth of _pendingInlineMessageKeys.
+      _pendingInlineMessageKeys.removeWhere(
+        (key) => key.startsWith('$sessionId:'),
+      );
       if (isInitialized) {
         _sessionLastSeq.remove(sessionId);
         MMKVStorage().saveSessionLastSeq(

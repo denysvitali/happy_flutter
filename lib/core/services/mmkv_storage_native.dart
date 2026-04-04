@@ -628,7 +628,12 @@ class MMKVStorage {
     try {
       final list = jsonDecode(raw) as List<dynamic>;
       return list.cast<Map<String, dynamic>>();
-    } catch (_) {
+    } catch (e) {
+      // Log warning and clear corrupt cache so it rebuilds fresh
+      logger.warning(
+        '[MMKVStorage] Corrupt message cache for session $sessionId: $e',
+      );
+      clearSessionMessages(sessionId);
       return [];
     }
   }

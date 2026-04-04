@@ -198,13 +198,41 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void didUpdateWidget(ChatScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Session changed: reset state so the new session loads fresh.
+    // Session changed: reset all state so the new session loads fresh.
     if (oldWidget.sessionId != widget.sessionId) {
       _dataSyncSubscription?.cancel();
       _messageSyncSubscription?.cancel();
+      _loadingSafetyTimer?.cancel();
       _didStartInitialLoad = false;
       _lastDataChangeCounter = -1;
       _lastMessagesList = null;
+      // Reset UI state
+      _isSending = false;
+      _isAborting = false;
+      _isLoadingMessages = true;
+      _loadFailed = false;
+      _session = null;
+      _messages = const [];
+      _visibleCount = _pageSize;
+      _isLoadingMore = false;
+      _prevMessagesLength = 0;
+      _prevSeenLength = 0;
+      _initialLoadComplete = false;
+      _seenMessageIds.clear();
+      _cachedVisibleMessages = null;
+      _cachedVisibleSource = null;
+      _cachedMessagesLength = -1;
+      _cachedVisibleCount = -1;
+      _neighborCache.clear();
+      _neighborCacheSource = null;
+      _neighborCacheLength = -1;
+      _neighborCacheSourceHash = 0;
+      _controller.clear();
+      _permissionMode = PermissionMode.defaultMode;
+      _modelMode = ClaudeModel.defaultModel;
+      _rawModelModeString = null;
+      _selectedProfile = null;
+      _metadataJson = null;
     }
   }
 
@@ -487,19 +515,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     if (_visibleCount < _messages.length) {
       _isLoadingMore = true;
+      final targetCount =
+          (_visibleCount + _pageSize).clamp(0, _messages.length);
       setState(() {
-        _visibleCount =
-            (_visibleCount + _pageSize).clamp(0, _messages.length);
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _isLoadingMore = false;
+        _visibleCount = targetCount;
+        _isLoadingMore = false; // Reset synchronously since we didn't call sync
       });
       return;
     }
 
     if (sync.hasOlderMessages(widget.sessionId) &&
         !sync.isLoadingOlderMessages(widget.sessionId)) {
-      sync.fetchOlderMessages(widget.sessionId);
+      _isLoadingMore = true;
+      sync.fetchOlderMessages(widget.sessionId).whenComplete(() {
+        if (mounted) {
+          setState(() => _isLoadingMore = false);
+        }
+      });
     }
   }
 
