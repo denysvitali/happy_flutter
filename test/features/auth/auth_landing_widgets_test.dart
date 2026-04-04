@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/features/auth/widgets/auth_animated_widgets.dart';
 import 'package:happy_flutter/features/auth/widgets/auth_landing_widgets.dart';
 import 'package:happy_flutter/features/auth/widgets/qr_code_display.dart';
 
