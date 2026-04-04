@@ -33,7 +33,11 @@ class InvalidateSync {
   // Exponential backoff configuration
   static const int baseDelayMs = 1000;
   static const int maxDelayMs = 5000;
-  static const int maxRetries = 5;
+  // Reduced from 5 to 2: the Dio retry interceptor already handles 4
+  // retries at the HTTP layer, so 2 additional InvalidateSync retries
+  // (total 6) is sufficient.  Excessive retries prolong delivery delays
+  // and drain battery on mobile networks.
+  static const int maxRetries = 2;
 
   /// Whether the app is currently backgrounded. When true, all InvalidateSync
   /// instances skip running actions and cancel pending retry/cooldown timers.

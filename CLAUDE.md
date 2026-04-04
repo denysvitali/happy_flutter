@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Happy Flutter is a **reimplementation of happy's mobile app** (React Native → Flutter).
+Happy Flutter is **happy's mobile app**, built with Flutter.
 
 **Tech Stack:**
 - Flutter 3.38.7, Dart 3.10+
@@ -24,8 +24,6 @@ Happy Flutter is a **reimplementation of happy's mobile app** (React Native → 
 - i18n via Flutter's built-in localization (`flutter: generate: true`)
 
 **Environment:** This project uses [devenv](https://devenv.sh/) to pin Flutter. Run all commands via `devenv shell -- flutter <cmd>`.
-
-**Source of Truth:** See `ROADMAP.md` for feature parity tracking.
 
 ## Common Commands
 

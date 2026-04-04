@@ -20,8 +20,7 @@ import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/widgets/offline_banner.dart';
-import '../sessions/widgets/session_cards.dart'
-    show parseAvatarStyle;
+import '../sessions/widgets/session_cards.dart' show parseAvatarStyle;
 import 'chat_input.dart';
 import 'helpers/chat_dialogs.dart';
 import 'message_widget.dart';
@@ -33,6 +32,9 @@ import 'widgets/empty_chat_view.dart';
 import 'widgets/permission_mode_selector.dart';
 import 'widgets/retry_error_view.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
+
+part '_chat_screen_actions.dart';
+part '_chat_screen_builders.dart';
 
 /// Chat screen for a session
 class ChatScreen extends ConsumerStatefulWidget {
@@ -66,6 +68,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   PermissionMode _permissionMode = PermissionMode.defaultMode;
   ClaudeModel _modelMode = ClaudeModel.defaultModel;
+
   /// Raw model mode string from storage, used for non-Claude profiles.
   /// For Claude profiles, this matches _modelMode.modeString.
   /// For other profiles (GLM, MiniMax, etc.), this contains the actual
@@ -94,7 +97,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // Track when the actual messages list changes (not just rebuilds)
   List<Map<String, dynamic>>? _lastMessagesList;
 
-  // Pre-computed neighbor cache for message list items (replacing O(N) scans).
+  // Pre-computed neighbor cache for message list items (replacing O(N)
+  // scans).
   final Map<int, (Map<String, dynamic>?, Map<String, dynamic>?)>
       _neighborCache = {};
   List<Map<String, dynamic>?>? _neighborCacheSource;
@@ -108,8 +112,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return;
     }
 
-    // Compute a lightweight hash to detect content changes without O(N) scan
-    // We combine length + first/last item identity for a cheap but effective check
+    // Compute a lightweight hash to detect content changes without O(N) scan.
+    // We combine length + first/last item identity for a cheap but effective
+    // check.
     final newHash = items.length ^
         (items.isNotEmpty ? items.first.hashCode : 0) ^
         (items.isNotEmpty ? items.last.hashCode : 0);
@@ -131,7 +136,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (items[i] != null) nonNullIndices.add(i);
     }
 
-    // For each non-null index, find prev/next from the nonNullIndices list - O(N)
+    // For each non-null index, find prev/next from the nonNullIndices list
+    // - O(N)
     for (var k = 0; k < nonNullIndices.length; k++) {
       final i = nonNullIndices[k];
       final prev = k > 0 ? items[nonNullIndices[k - 1]] : null;
@@ -189,120 +195,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-
-  /// Batches three async storage reads into a single setState call
-  /// to avoid 3 separate rebuilds on screen open.
-  Future<void> _loadInitialSettings() async {
-    final storage = DraftStorage();
-    final sessionId = widget.sessionId;
-
-    // Fire all three reads in parallel.
-    final results = await Future.wait([
-      storage.getPermissionMode(sessionId),
-      storage.getModelMode(sessionId),
-      storage.getProfileId(sessionId),
-    ]);
-
-    if (!mounted) return;
-
-    final savedPermMode = results[0];
-    final savedModelMode = results[1];
-    final savedProfileId = results[2];
-
-    final session = sync.sessions[sessionId];
-
-    // Permission mode.
-    var permissionMode = PermissionMode.defaultMode;
-    if (savedPermMode != null) {
-      permissionMode =
-          PermissionModeExtension.fromString(savedPermMode) ??
-          PermissionMode.defaultMode;
-    } else if (session?.permissionMode != null) {
-      permissionMode =
-          PermissionModeExtension.fromString(session!.permissionMode!) ??
-          PermissionMode.defaultMode;
-      unawaited(
-        storage.savePermissionMode(
-          sessionId,
-          permissionMode.toModeString(),
-        ),
-      );
-    }
-
-    // Profile & settings (read once, used below for both model and profile).
-    final settings = ref.read(settingsNotifierProvider);
-
-    // First, determine the selected profile so we can use its defaultModelMode.
-    // Profile.
-    final seen = <String>{};
-    final deduped = <AIBackendProfile>[];
-    for (final p in [...settings.profiles, ...builtInProfiles]) {
-      if (seen.add(p.id)) deduped.add(p);
-    }
-
-    AIBackendProfile? selectedProfile;
-    final effectiveProfileId = savedProfileId ?? settings.lastUsedProfile;
-    if (effectiveProfileId != null) {
-      try {
-        selectedProfile =
-            deduped.firstWhere((p) => p.id == effectiveProfileId);
-      } catch (_) {
-        selectedProfile = null;
-      }
-    }
-
-    // Model mode.
-    final flavor = session?.metadata?.flavor;
-    String? rawModelModeString;
-    var modelMode = ClaudeModel.defaultModel;
-
-    // Priority: saved draft > session model > profile default
-    // > settings default
-    if (savedModelMode != null) {
-      rawModelModeString = savedModelMode;
-      modelMode = ClaudeModel.normalizeForFlavor(
-        ClaudeModel.fromString(savedModelMode),
-        flavor,
-      );
-    } else if (session?.modelMode != null) {
-      rawModelModeString = session!.modelMode;
-      modelMode = ClaudeModel.normalizeForFlavor(
-        ClaudeModel.fromString(session.modelMode),
-        flavor,
-      );
-    } else if (selectedProfile?.defaultModelMode != null) {
-      // Use the profile's default model mode
-      rawModelModeString = selectedProfile!.defaultModelMode;
-      modelMode = ClaudeModel.normalizeForFlavor(
-        ClaudeModel.fromString(selectedProfile.defaultModelMode),
-        flavor,
-      );
-    } else if (settings.lastUsedModelMode != null) {
-      // Fall back to the user's last-used model preference so new sessions
-      // inherit the model the user most recently picked.
-      rawModelModeString = settings.lastUsedModelMode;
-      modelMode = ClaudeModel.normalizeForFlavor(
-        ClaudeModel.fromString(settings.lastUsedModelMode),
-        flavor,
-      );
-    }
-
-    setState(() {
-      _permissionMode = permissionMode;
-      // Guard: only apply model/profile if the user hasn't already interacted
-      // with the model or profile pickers before this async load completed.
-      // _rawModelModeString starts null; once the user picks a model via
-      // _onModelModeChanged or a profile via _onProfileChanged, it becomes
-      // non-null. We must not overwrite their choice here.
-      if (_rawModelModeString == null) {
-        _modelMode = modelMode;
-        _rawModelModeString = rawModelModeString;
-      }
-      _availableProfiles = deduped;
-      _selectedProfile ??= selectedProfile;
-    });
-  }
-
   @override
   void didUpdateWidget(ChatScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -356,185 +248,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     await _doInitialLoad();
   }
 
-  Future<void> _doInitialLoad() async {
-    if (_didStartInitialLoad) return;
-    _didStartInitialLoad = true;
-    final sessionId = widget.sessionId;
-    final stopwatch = Stopwatch()..start();
-    var success = true;
-
-    // Start a Sentry transaction for the entire chat loading flow
-    final transaction = Sentry.startTransaction(
-      'chat.screen.load',
-      'ui.load',
-      bindToScope: true,
-    )..setData('sessionId', sessionId);
-
-    // Safety timer: if loading is still in progress after 15s,
-    // force-clear the spinner and report to Sentry.
-    _loadingSafetyTimer?.cancel();
-    _loadingSafetyTimer = Timer(
-      const Duration(seconds: 15),
-      () {
-        if (!mounted || !_isLoadingMessages) return;
-        logger.warning(
-          '[ChatScreen] Safety timeout: loading stuck '
-          'for 15s session=$sessionId '
-          'messages=${_messages.length}',
-        );
-        unawaited(Sentry.captureMessage(
-          'ChatScreen loading stuck for 15s',
-          level: SentryLevel.warning,
-          params: [sessionId],
-          hint: Hint.withMap({
-            'sessionId': sessionId,
-            'messageCount':
-                _messages.length.toString(),
-            'initialLoadComplete':
-                _initialLoadComplete.toString(),
-            'syncInitialized':
-                sync.isInitialized.toString(),
-            'hasMsgSync':
-                (sync.messagesSync[sessionId] != null)
-                    .toString(),
-            'syncMessages': sync
-                .messagesForSession(sessionId)
-                .length
-                .toString(),
-            'elapsedMs': stopwatch.elapsedMilliseconds,
-          }),
-        ));
-        // Finish the transaction as failed
-        transaction.setData('timeout', true);
-        unawaited(transaction.finish());
-        setState(() {
-          _isLoadingMessages = false;
-          _initialLoadComplete = true;
-          if (_messages.isEmpty) _loadFailed = true;
-        });
-      },
-    );
-
-    try {
-      final cacheSpan = transaction.startChild(
-        'chat.cache.check',
-        description: 'Check cached messages',
-      );
-      unawaited(
-        (cacheSpan..setData('cachedCount', _messages.length)).finish(),
-      );
-
-      unawaited(Sentry.addBreadcrumb(Breadcrumb(
-        message: 'ChatScreen._doInitialLoad started',
-        category: 'chat.load',
-        data: {
-          'sessionId': sessionId,
-          'hasCachedMessages': _messages.isNotEmpty,
-          'syncInitialized': sync.isInitialized,
-        },
-      )));
-
-      // Span for onSessionVisible
-      final visibleSpan = transaction.startChild(
-        'chat.sync.visible',
-        description: 'Mark session as visible',
-      );
-      sync.onSessionVisible(sessionId);
-      unawaited(visibleSpan.finish());
-
-      // Show cached messages immediately instead of
-      // waiting for the debounced stream notification
-      // (100ms). onSessionVisible() loads the MMKV cache
-      // synchronously so sync already has messages in
-      // memory at this point.
-      final refreshSpan = transaction.startChild(
-        'chat.sync.refresh',
-        description: 'Refresh from sync singleton',
-      );
-      _refreshFromSync();
-      unawaited(refreshSpan.finish());
-
-      // Span for awaiting message sync queue
-      final awaitSpan = transaction.startChild(
-        'chat.sync.await',
-        description: 'Await message sync queue',
-      );
-      try {
-        await sync.messagesSync[sessionId]
-            ?.awaitQueue()
-            .timeout(const Duration(seconds: 5));
-        awaitSpan.setData('timedOut', false);
-      } catch (e) {
-        success = false;
-        awaitSpan
-          ..setData('timedOut', true)
-          ..setData('error', e.toString());
-      }
-      unawaited(awaitSpan.finish());
-    } catch (error, stack) {
-      success = false;
-      logger.error(
-        '[ChatScreen] _doInitialLoad error '
-        'session=$sessionId',
-        error,
-        stack,
-      );
-      transaction.setData('error', error.toString());
-      unawaited(Sentry.captureException(
-        error,
-        stackTrace: stack,
-        hint: Hint.withMap({
-          'context': 'ChatScreen._doInitialLoad',
-          'sessionId': sessionId,
-        }),
-      ));
-    } finally {
-      _loadingSafetyTimer?.cancel();
-      _loadingSafetyTimer = null;
-    }
-
-    if (!mounted) {
-      await transaction.finish();
-      return;
-    }
-
-    unawaited(Sentry.addBreadcrumb(Breadcrumb(
-      message: 'ChatScreen._doInitialLoad completed',
-      category: 'chat.load',
-      data: {
-        'sessionId': sessionId,
-        'success': success,
-        'elapsedMs': stopwatch.elapsedMilliseconds,
-        'messageCount': _messages.length,
-        'syncMessages':
-            sync.messagesForSession(sessionId).length,
-      },
-    )));
-
-    _refreshFromSync(
-      markLoaded: true,
-      loadFailed: !success && _messages.isEmpty,
-    );
-
-    // Finish the transaction
-    transaction
-      ..setData('finalMessageCount', _messages.length)
-      ..setData('elapsedMs', stopwatch.elapsedMilliseconds);
-    await transaction.finish();
-  }
-
-  Future<void> _retry() async {
-    if (!mounted) return;
-    _loadingSafetyTimer?.cancel();
-    setState(() {
-      _loadFailed = false;
-      _isLoadingMessages = true;
-      _didStartInitialLoad = false;
-    });
-    await _doInitialLoad();
-  }
-
-  void _refreshFromSync({bool markLoaded = false, bool loadFailed = false}) {
+  void _refreshFromSync({
+    bool markLoaded = false,
+    bool loadFailed = false,
+  }) {
     final latestSession = sync.sessions[widget.sessionId];
     final latestMessages = sync.messagesForSession(widget.sessionId);
 
@@ -583,7 +300,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _lastMessagesList = latestMessages;
     }
 
-    final hadRequests = _session?.agentState?.requests?.isNotEmpty ?? false;
+    final hadRequests =
+        _session?.agentState?.requests?.isNotEmpty ?? false;
     final hasRequests =
         latestSession?.agentState?.requests?.isNotEmpty ?? false;
     final newPermission = !hadRequests && hasRequests;
@@ -625,7 +343,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (messagesChanged) {
         if (latestMessages.length > _prevMessagesLength) {
           final prepended = latestMessages.length - _prevMessagesLength;
-          if (_visibleCount >= _prevMessagesLength && _prevMessagesLength > 0) {
+          if (_visibleCount >= _prevMessagesLength &&
+              _prevMessagesLength > 0) {
             _visibleCount = (_visibleCount + prepended).clamp(
               0,
               latestMessages.length,
@@ -641,7 +360,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _markMessagesAsSeen(latestMessages, 0, latestMessages.length);
         } else if (latestMessages.isNotEmpty) {
           // Cached messages arrived from MMKV (via onSessionVisible) — dismiss
-          // the shimmer immediately instead of waiting for the HTTP round-trip.
+          // the shimmer immediately instead of waiting for the HTTP
+          // round-trip.
           _isLoadingMessages = false;
           if (!_initialLoadComplete) {
             // First time we see messages (from cache) — mark them as seen so
@@ -689,7 +409,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (role == 'assistant' && kind != 'tool-call') {
         final ttsOn = ref.read(settingsNotifierProvider).ttsEnabled;
         if (ttsOn) {
-          final text = (last['content'] ?? last['text'] ?? '').toString();
+          final text =
+              (last['content'] ?? last['text'] ?? '').toString();
           if (text.isNotEmpty) {
             unawaited(TtsService().speak(text));
           }
@@ -709,7 +430,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  /// Invalidates the neighbor cache. Call this when the messages list changes.
+  /// Invalidates the neighbor cache. Call when the messages list changes.
   void _invalidateNeighborCache() {
     _neighborCache.clear();
     _neighborCacheSource = null;
@@ -767,7 +488,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (_visibleCount < _messages.length) {
       _isLoadingMore = true;
       setState(() {
-        _visibleCount = (_visibleCount + _pageSize).clamp(0, _messages.length);
+        _visibleCount =
+            (_visibleCount + _pageSize).clamp(0, _messages.length);
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _isLoadingMore = false;
@@ -807,7 +529,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return l10n.chatOnline;
     }
 
-    final lastSeen = DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
+    final lastSeen =
+        DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
     final diff = DateTime.now().difference(lastSeen);
     if (diff.inMinutes < 1) return l10n.chatLastSeenJustNow;
     if (diff.inMinutes < 60) {
@@ -908,7 +631,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   AnimatedSwitcher(
                     duration: AppDuration.normal,
                     child: _isLoadingMessages
-                        ? const ChatLoadingShimmer(key: ValueKey('loading'))
+                        ? const ChatLoadingShimmer(
+                            key: ValueKey('loading'),
+                          )
                         : _messages.isEmpty
                         ? (_loadFailed
                               ? RetryErrorView(onRetry: _retry)
@@ -930,15 +655,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           child: IgnorePointer(
                             ignoring: autoScroll || _isLoadingMessages,
                             child: AnimatedOpacity(
-                              opacity: (!autoScroll && !_isLoadingMessages)
-                                  ? 1.0
-                                  : 0.0,
+                              opacity:
+                                  (!autoScroll && !_isLoadingMessages)
+                                      ? 1.0
+                                      : 0.0,
                               duration: AppDuration.normal,
                               curve: AppCurve.standard,
                               child: AnimatedScale(
-                                scale: (!autoScroll && !_isLoadingMessages)
-                                    ? 1.0
-                                    : 0.8,
+                                scale:
+                                    (!autoScroll && !_isLoadingMessages)
+                                        ? 1.0
+                                        : 0.8,
                                 duration: AppDuration.normal,
                                 curve: AppCurve.standard,
                                 child: Align(
@@ -979,8 +706,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               selectedProfile: _selectedProfile,
               availableProfiles: _availableProfiles,
               onProfileChanged: _onProfileChanged,
-              contextSize:
-                  sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
+              contextSize: sync.sessionUsage[widget.sessionId]?['contextSize']
+                  as int?,
               isSessionOnline: _session?.isPresenceOnline ?? false,
               isAgentThinking: _session?.thinking ?? false,
               onAbort: _abortSession,
@@ -992,503 +719,4 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
     );
   }
-
-  void _onPermissionModeChanged(PermissionMode mode) {
-    setState(() => _permissionMode = mode);
-    ref
-        .read(chatActionNotifierProvider.notifier)
-        .savePermissionMode(widget.sessionId, mode.toModeString());
-  }
-
-  void _onModelModeChanged(ClaudeModel model) {
-    final normalized = ClaudeModel.normalizeForFlavor(
-      model,
-      _session?.metadata?.flavor,
-    );
-    setState(() {
-      _modelMode = normalized;
-      _rawModelModeString = normalized.modeString;
-    });
-    ref
-        .read(chatActionNotifierProvider.notifier)
-        .saveModelMode(widget.sessionId, normalized.modeString);
-  }
-
-  void _onProfileChanged(AIBackendProfile? profile) {
-    // Use the profile's default model mode when switching providers.
-    // If no profile is selected, fall back to ClaudeModel.defaultModel.
-    final profileDefaultModelMode = profile?.defaultModelMode;
-    final newModel = profileDefaultModelMode != null
-        ? ClaudeModel.normalizeForFlavor(
-            ClaudeModel.fromString(profileDefaultModelMode),
-            _session?.metadata?.flavor,
-          )
-        : ClaudeModel.defaultModel;
-    final rawModelString = profileDefaultModelMode ?? newModel.modeString;
-    setState(() {
-      _selectedProfile = profile;
-      _modelMode = newModel;
-      _rawModelModeString = rawModelString;
-    });
-    ref
-        .read(chatActionNotifierProvider.notifier)
-        .saveProfile(widget.sessionId, profile?.id);
-    // Save the profile's defaultModelMode, not 'default'
-    ref
-        .read(chatActionNotifierProvider.notifier)
-        .saveModelMode(
-          widget.sessionId,
-          rawModelString,
-        );
-
-    // If the session is currently running, show a warning that the
-    // profile change will only take effect after the session is restarted.
-    final isRunning = _session?.isPresenceOnline ?? false;
-    if (isRunning && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Profile changed. Restart the session to apply '
-            'new environment variables.',
-          ),
-          action: SnackBarAction(
-            label: 'Restart',
-            textColor: Theme.of(context).colorScheme.onPrimary,
-            onPressed: () async {
-              try {
-                await sync.killSession(widget.sessionId);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Session restarted. Send a message to resume.',
-                      ),
-                      duration: Duration(seconds: 3),
-                    ),
-                  );
-                }
-                // Trigger a refresh to update the session state
-                _refreshFromSync();
-              } catch (e, st) {
-                logger.warning(
-                  '[ChatScreen] killSession failed: '
-                  'sessionId=${widget.sessionId} $e',
-                  e,
-                  st,
-                );
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to restart session: $e'),
-                      duration: const Duration(seconds: 3),
-                    ),
-                  );
-                }
-              }
-            },
-          ),
-          duration: const Duration(seconds: 5),
-        ),
-      );
-    }
-  }
-
-  static const _abortReason =
-      "The user doesn't want to proceed with this tool "
-      'use. The tool use was rejected (eg. if it was a '
-      'file edit, the new_string was NOT written to the '
-      'file). STOP what you are doing and wait for the '
-      'user to tell you how to proceed.';
-
-  Future<void> _abortSession() async {
-    if (_isAborting) return;
-    setState(() => _isAborting = true);
-    try {
-      await ref
-          .read(chatActionNotifierProvider.notifier)
-          .abortSession(widget.sessionId, reason: _abortReason);
-    } catch (e, st) {
-      if (mounted) {
-        logger.warning(
-          '[ChatScreen] _abortSession failed: '
-          'sessionId=${widget.sessionId} $e',
-          e,
-          st,
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not abort — this feature may not be '
-                'available on the server'),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isAborting = false);
-    }
-  }
-
-
-  Widget _buildMessageList() {
-    final totalCount = _messages.length;
-    final startIndex = (totalCount - _visibleCount).clamp(0, totalCount);
-
-    if (!identical(_messages, _cachedVisibleSource) ||
-        totalCount != _cachedMessagesLength ||
-        _visibleCount != _cachedVisibleCount) {
-      _cachedVisibleSource = _messages;
-      _cachedMessagesLength = totalCount;
-      _cachedVisibleCount = _visibleCount;
-      _cachedVisibleMessages = _messages.sublist(startIndex);
-    }
-    final visibleMessages = _cachedVisibleMessages!;
-
-    final hasLocalMore = startIndex > 0;
-
-    final allLocalVisible = _visibleCount >= totalCount;
-    final isLoadingFromServer =
-        allLocalVisible && sync.isLoadingOlderMessages(widget.sessionId);
-    final hasServerMore =
-        allLocalVisible && sync.hasOlderMessages(widget.sessionId);
-
-    final showHeader =
-        hasLocalMore ||
-        isLoadingFromServer ||
-        (!hasServerMore && allLocalVisible && totalCount > 0);
-
-    final metadataJson = _metadataJson;
-
-    final items = <Map<String, dynamic>?>[];
-    for (final msg in visibleMessages) {
-      // Sidechain (agent) messages should only appear inside
-      // the AgentConversationScreen, never in the main chat.
-      if (msg['isSidechain'] == true) continue;
-      items.add(msg);
-      final role = msg['role'] as String?;
-      final content = msg['content'] ?? msg['text'];
-      final text = content is String ? content : content?.toString() ?? '';
-      if (role == 'user' && text.trim() == '/clear') {
-        items.add(null);
-      }
-    }
-
-    final keyToListIndex = <String, int>{};
-    for (var i = 0; i < items.length; i++) {
-      final m = items[i];
-      if (m == null) continue;
-      final k = m['id'] as String? ?? m['toolUseId'] as String?;
-      if (k != null) {
-        keyToListIndex[k] = items.length - 1 - i;
-      }
-    }
-
-    // Only rebuild neighbor cache if the items list actually changed
-    // The _refreshFromSync method handles cache invalidation when messages
-    // change.
-    _rebuildNeighborCache(items);
-
-    return ListView.builder(
-      controller: _scrollController,
-      reverse: true,
-      padding: const EdgeInsets.only(
-        top: AppSpacing.xsm,
-        bottom: AppSpacing.xs,
-      ),
-      itemCount: items.length + (showHeader ? 1 : 0),
-      findChildIndexCallback: (key) {
-        if (key is! ValueKey<String>) return null;
-        return keyToListIndex[key.value];
-      },
-      itemBuilder: (context, index) {
-        final adjusted = index;
-        if (showHeader && adjusted == items.length) {
-          if (hasLocalMore || isLoadingFromServer) {
-            return Center(
-              key: ValueKey(
-                hasLocalMore ? 'header-local-more' : 'header-server-loading',
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.5,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurfaceVariant.withValues(
-                      alpha: AppOpacity.medium,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }
-
-          return const ConversationStartLabel();
-        }
-
-        final reversedIndex = items.length - 1 - adjusted;
-        final item = items[reversedIndex];
-
-        if (item == null) {
-          return const ClearedDivider();
-        }
-
-        final message = item;
-        final (prevMessage, nextMessage) =
-            _neighborCache[reversedIndex] ?? (null, null);
-
-        final currentRole = message['role'] as String?;
-        final nextRole = nextMessage?['role'] as String?;
-        final sameSender = nextRole == currentRole;
-        final isToolCall = message['kind'] == 'tool-call';
-        final nextIsToolCall = nextMessage?['kind'] == 'tool-call';
-        final bottomPad = (isToolCall && nextIsToolCall)
-            ? 0.0
-            : sameSender
-            ? AppSpacing.xs
-            : AppSpacing.md;
-
-        final prevRole = prevMessage?['role'] as String?;
-        final isFirstInGroup = nextRole != currentRole;
-        final isLastInGroup = prevRole != currentRole;
-
-        final messageKey =
-            message['id'] as String? ??
-            message['toolUseId'] as String? ??
-            'msg-$reversedIndex';
-        // Only pass the full messages list to tool-call items that need it
-        // (Task / Agent sub-conversation rendering). Regular text messages
-        // don't use it and passing _messages to every item causes every
-        // MessageWidget to see a changed prop on each new message arrival.
-        final toolName = isToolCall ? message['name'] as String? : null;
-        final needsMessages =
-            isToolCall &&
-            (toolName == 'Task' || toolName == 'Agent');
-        // Show streaming cursor on the last agent text message while thinking.
-        final isNewest = reversedIndex == items.length - 1;
-        final isStreaming =
-            isNewest &&
-            (_session?.thinking ?? false) &&
-            message['role'] == 'agent' &&
-            !isToolCall;
-        return RepaintBoundary(
-          key: ValueKey(messageKey),
-          child: Padding(
-            padding: EdgeInsets.only(bottom: bottomPad),
-            child: MessageWidget(
-              messageData: message,
-              isFromCurrentUser: message['role'] == 'user',
-              metadata: metadataJson,
-              messages: needsMessages ? _messages : null,
-              sessionId: widget.sessionId,
-              isSessionOnline:
-                  (_session?.isOnline ?? false) ||
-                  ((_session?.metadata?.machineId?.isNotEmpty ?? false) &&
-                      (_session?.metadata?.path?.isNotEmpty ?? false)),
-              onOptionPress: _onOptionPress,
-              onRetry: message['role'] == 'user' &&
-                      message['sendStatus'] == 'failed'
-                  ? () => _retryMessage(message)
-                  : null,
-              animate:
-                  _initialLoadComplete && !_seenMessageIds.contains(messageKey),
-              isFirstInGroup: isFirstInGroup,
-              isLastInGroup: isLastInGroup,
-              isStreaming: isStreaming,
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-
-  void _onSuggestionTap(String suggestion) {
-    _controller.text = suggestion;
-    _controller.selection = TextSelection.collapsed(
-      offset: suggestion.length,
-    );
-  }
-
-  Future<void> _onOptionPress(String option) async {
-    if (_isSending) return;
-    try {
-      final sentSessionId = await ref
-          .read(chatActionNotifierProvider.notifier)
-          .sendMessage(
-            widget.sessionId,
-            option,
-            displayText: option,
-            permissionMode: _permissionMode.toModeString(),
-            modelMode: _rawModelModeString ?? _modelMode.modeString,
-          );
-      if (_followRedirectedSession(sentSessionId)) {
-        return;
-      }
-      _refreshFromSync();
-    } catch (e, st) {
-      logger.warning(
-        '[ChatScreen] _onOptionPress failed: '
-        'sessionId=${widget.sessionId} $e',
-        e,
-        st,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _retryMessage(Map<String, dynamic> message) async {
-    final localId = message['localId'] as String? ?? message['id'] as String?;
-    if (localId == null) return;
-
-    try {
-      await sync.retryFailedMessage(widget.sessionId, localId);
-    } catch (e, st) {
-      logger.warning(
-        '[ChatScreen] _retryMessage failed: '
-        'sessionId=${widget.sessionId} localId=$localId $e',
-        e,
-        st,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to retry message: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _sendMessage() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty || _isSending) return;
-
-    unawaited(TtsService().stop());
-
-    if (text == '/clear') {
-      _controller.clear();
-      unawaited(DraftStorage().removeDraft(widget.sessionId));
-      _autoScrollNotifier.value = true;
-      setState(() {
-        _isSending = true;
-        _visibleCount = _pageSize;
-      });
-      try {
-        final sentSessionId = await ref
-            .read(chatActionNotifierProvider.notifier)
-            .sendMessage(
-              widget.sessionId,
-              text,
-              permissionMode: _permissionMode.toModeString(),
-              modelMode: _rawModelModeString ?? _modelMode.modeString,
-            );
-        if (_followRedirectedSession(sentSessionId)) {
-          return;
-        }
-        _refreshFromSync();
-        _scrollToBottom();
-      } catch (e, st) {
-        logger.warning(
-          '[ChatScreen] _sendMessage /clear failed: '
-          'sessionId=${widget.sessionId} $e',
-          e,
-          st,
-        );
-        if (mounted) {
-          setState(() {
-            _controller.text = text;
-            _isSending = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.chatFailedToClear(e.toString())),
-            ),
-          );
-        }
-      } finally {
-        if (mounted && _isSending) {
-          setState(() => _isSending = false);
-        }
-      }
-      return;
-    }
-
-    _autoScrollNotifier.value = true;
-
-    // ── Optimistic UI: Show message immediately ──
-    final optimisticMessage = <String, dynamic>{
-      'id': 'optimistic-${DateTime.now().millisecondsSinceEpoch}',
-      'role': 'user',
-      'content': text,
-      'text': text,
-      'createdAt': DateTime.now().millisecondsSinceEpoch,
-      'seq': -1, // Will be replaced by server
-      'sendStatus': 'sending', // Track for potential rollback
-    };
-    setState(() {
-      _messages = [..._messages, optimisticMessage];
-      _isSending = true;
-      _controller.clear();
-      _visibleCount = (_visibleCount + 1).clamp(0, _messages.length);
-      _invalidateNeighborCache();
-    });
-    _scrollToBottom();
-
-    unawaited(DraftStorage().removeDraft(widget.sessionId));
-
-    try {
-      final sentSessionId = await ref
-          .read(chatActionNotifierProvider.notifier)
-          .sendMessage(
-            widget.sessionId,
-            text,
-            displayText: text,
-            permissionMode: _permissionMode.toModeString(),
-            modelMode: _rawModelModeString ?? _modelMode.modeString,
-          );
-      if (_followRedirectedSession(sentSessionId)) {
-        return;
-      }
-      // Optimistic message will be replaced by real message via WebSocket
-      _refreshFromSync();
-    } catch (e, st) {
-      logger.warning(
-        '[ChatScreen] _sendMessage failed: '
-        'sessionId=${widget.sessionId} $e',
-        e,
-        st,
-      );
-      if (mounted) {
-        // Rollback: remove optimistic message on error
-        setState(() {
-          _messages = _messages
-              .where((m) => m['id'] != optimisticMessage['id'])
-              .toList();
-          _controller.text = text;
-          _isSending = false;
-          _invalidateNeighborCache();
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
-        );
-      }
-    } finally {
-      if (mounted && _isSending) {
-        setState(() => _isSending = false);
-      }
-    }
-  }
-
-  bool _followRedirectedSession(String sentSessionId) {
-    if (!mounted || sentSessionId == widget.sessionId) {
-      return false;
-    }
-    context.goNamed('chat', pathParameters: {'sessionId': sentSessionId});
-    return true;
-  }
-
 }

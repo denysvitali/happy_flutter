@@ -1,14 +1,12 @@
-# Feature Parity Roadmap
+# Roadmap
 
-This roadmap tracks the work needed to achieve full feature parity between **happy_flutter** (Flutter) and **happy** (React Native).
+This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-03-15
+**Last Updated**: 2026-04-04
 
 ## Project Context
 
 - **Flutter Version**: 3.38.7 (Dart 3.10+)
-- **Source of Truth**: `/../happy` (React Native implementation)
-- **Goal**: Match all features from the React Native app
 
 ---
 

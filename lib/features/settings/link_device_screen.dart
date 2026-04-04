@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
+import '../../core/models/auth_models.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/logger_service.dart';
