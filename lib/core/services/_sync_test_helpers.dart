@@ -118,6 +118,12 @@ extension SyncTestHelpers on Sync {
   bool testHasPendingSocketMessage(String sessionId) =>
       _sessionsWithPendingSocketMessages.contains(sessionId);
 
+  /// Test helper: check if a session has pending updates (session list
+  /// UI refresh needed).
+  @visibleForTesting
+  bool testHasPendingUpdate(String sessionId) =>
+      _sessionsWithPendingUpdates.contains(sessionId);
+
   /// Test helper: clear _sessionsWithPendingSocketMessages.
   @visibleForTesting
   void testClearSessionsWithPendingSocketMessages() =>

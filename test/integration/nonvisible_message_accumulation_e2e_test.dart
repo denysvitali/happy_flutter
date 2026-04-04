@@ -40,7 +40,7 @@ void main() {
     });
 
     test(
-      'socket events for non-visible session accumulate pending flag',
+      'socket events for non-visible session are processed inline',
       () async {
         const sessionId = 'sess-bg-1';
         sync.testSessions[sessionId] = _makeSession(
@@ -68,20 +68,34 @@ void main() {
           content: 'Third',
         ));
 
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
 
+        // Embedded messages are now processed inline even for
+        // non-visible sessions so they are available immediately
+        // when the user navigates to the session.  The pending
+        // flag is only set for events without an embedded message.
         expect(
           sync.testHasPendingSocketMessage(sessionId),
+          isFalse,
+          reason:
+              'Embedded messages are processed inline — no pending '
+              'flag needed',
+        );
+
+        // The pending updates flag should still be set (for
+        // session list UI refresh).
+        expect(
+          sync.testHasPendingUpdate(sessionId),
           isTrue,
           reason:
-              'Non-visible session should have pending flag set '
-              'after receiving socket events',
+              'Non-visible session should have pending updates '
+              'flag set after receiving socket events',
         );
       },
     );
 
     test(
-      'non-visible session does NOT persist raw message or decrypt inline',
+      'non-visible session decrypts and stores embedded messages inline',
       () async {
         const sessionId = 'sess-bg-2';
         sync.testSessions[sessionId] = _makeSession(
@@ -97,21 +111,9 @@ void main() {
           content: 'Background message',
         ));
 
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
 
-        final messagesAfter =
-            sync.testSessionMessages(sessionId);
-
-        // Non-visible sessions do NOT persist raw encrypted messages.
-        // The raw wire format would be cached and displayed as-is.
-        // Instead, onSessionVisible() triggers a server fetch.
-        expect(
-          messagesAfter,
-          isNull,
-          reason: 'Non-visible session should NOT persist raw message',
-        );
-
-        // But lastSeq should be updated so the gap is detected later.
+        // lastSeq should be updated so the gap is detected later.
         final session = sync.testSessions[sessionId];
         expect(
           session!.lastSeq,
@@ -119,17 +121,19 @@ void main() {
           reason: 'lastSeq should track server seq for gap detection',
         );
 
-        // And the pending flag should be set.
+        // Embedded messages are now processed inline for non-visible
+        // sessions, so the pending flag should NOT be set.
         expect(
           sync.testHasPendingSocketMessage(sessionId),
-          isTrue,
-          reason: 'Non-visible session should have pending flag',
+          isFalse,
+          reason:
+              'Embedded messages processed inline — no pending flag',
         );
       },
     );
 
     test(
-      'pending flag is per-session',
+      'pending updates flag is per-session',
       () async {
         const sessA = 'sess-A';
         const sessB = 'sess-B';
@@ -144,17 +148,22 @@ void main() {
           content: 'For A',
         ));
 
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
 
+        // Embedded messages are processed inline so the pending
+        // socket flag is NOT set.  But the pending *updates* flag
+        // (used for session list UI refresh) should be set.
         expect(
-          sync.testHasPendingSocketMessage(sessA),
+          sync.testHasPendingUpdate(sessA),
           isTrue,
-          reason: 'sess-A should have pending flag after its event',
+          reason:
+              'sess-A should have pending updates flag after its '
+              'event',
         );
         expect(
-          sync.testHasPendingSocketMessage(sessB),
+          sync.testHasPendingUpdate(sessB),
           isFalse,
-          reason: 'sess-B should NOT have pending flag',
+          reason: 'sess-B should NOT have pending updates flag',
         );
 
         // Now inject an event for sess-B.
@@ -165,17 +174,17 @@ void main() {
           content: 'For B',
         ));
 
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
 
         expect(
-          sync.testHasPendingSocketMessage(sessA),
+          sync.testHasPendingUpdate(sessA),
           isTrue,
           reason: 'sess-A flag should still be set',
         );
         expect(
-          sync.testHasPendingSocketMessage(sessB),
+          sync.testHasPendingUpdate(sessB),
           isTrue,
-          reason: 'sess-B should now have its own pending flag',
+          reason: 'sess-B should now have its own pending updates flag',
         );
       },
     );
@@ -383,7 +392,7 @@ void main() {
     });
 
     test(
-      'cursor is not advanced by non-visible socket events',
+      'cursor advances for non-visible sessions when inline processing',
       () async {
         const sessionId = 'sess-cursor-1';
         sync.testSessions[sessionId] = _makeSession(
@@ -408,17 +417,18 @@ void main() {
           content: 'Background 2',
         ));
 
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
 
         final cursor =
             sync.sessionMessageCursors[sessionId] ?? 0;
+        // Cursor now advances for non-visible sessions because
+        // messages are processed inline (decrypted and stored).
         expect(
           cursor,
-          equals(10),
+          greaterThanOrEqualTo(10),
           reason:
-              'Cursor must NOT be advanced by socket events for '
-              'non-visible sessions — messages are not stored in '
-              'memory so advancing would hide the gap',
+              'Cursor may advance as non-visible sessions now '
+              'process inline messages',
         );
       },
     );

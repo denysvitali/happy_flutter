@@ -218,23 +218,15 @@ extension SyncSocketEvents on Sync {
       }
       logger.info('New message received: $sessionId');
     } else {
-      // Non-visible session: mark dirty so onSessionVisible() triggers
-      // a fetch when the user navigates to it.
-      //
-      // Note: Do NOT persist raw encrypted messages here. The raw wire
-      // format (with {c: 'encrypted_b64'}) would be cached and displayed
-      // as-is if we saved it before decryption. _sessionsWithPendingSocket
-      // Messages already tracks that this session has pending messages,
-      // so onSessionVisible() will force a server fetch instead of
-      // restoring stale cache.
+      // Non-visible session: decrypt and store the embedded message
+      // inline so it is available immediately when the user navigates
+      // to the session.  Previously we discarded the message and only
+      // set a "pending" flag, relying on an HTTP fetch on navigation.
+      // This caused messages to appear missing until the fetch
+      // completed — or permanently if the fetch was interrupted.
       //
       // Update session.lastSeq so the delta-fetch path in fetchMessages
-      // can detect the gap (serverLastSeq > cursorSeq).  Do NOT advance
-      // _sessionLastSeq — the messages aren't stored in
-      // _sessionMessages, so the cursor must stay at its pre-navigation
-      // position.  Advancing the cursor would make cursor == server,
-      // hiding the gap and forcing a destructive full tail-refresh on
-      // every navigation.
+      // can detect any remaining gap.
       final msgSeq = embeddedMessage?['seq'] as int?;
       if (msgSeq != null) {
         final session = _sessions[sessionId];
@@ -243,6 +235,23 @@ extension SyncSocketEvents on Sync {
           _sessions[sessionId] = session.copyWith(lastSeq: msgSeq);
         }
       }
+
+      // Process the embedded message inline (decrypt + store) so it
+      // is immediately available when the user opens this session.
+      if (embeddedMessage != null) {
+        _inlineProcessor.enqueue(
+          sessionId,
+          () => _processInlineMessage(
+            sessionId,
+            embeddedMessage,
+          ),
+        );
+      } else {
+        // No embedded message — mark pending for HTTP fetch on
+        // navigation.
+        _sessionsWithPendingSocketMessages.add(sessionId);
+      }
+
       final isNew = _sessionsWithPendingUpdates.add(sessionId);
       if (isNew) {
         logger.info(
@@ -251,10 +260,6 @@ extension SyncSocketEvents on Sync {
           '— pendingUpdates added',
         );
       }
-      // Track that this session received socket messages while
-      // non-visible so onSessionVisible() knows to force a server fetch
-      // instead of restoring stale cache.
-      _sessionsWithPendingSocketMessages.add(sessionId);
       // Rate-limit unread increments: during rapid agent streaming,
       // most socket events are sidechain/meta messages that won't be
       // visible in the main chat. Increment at most once per interval

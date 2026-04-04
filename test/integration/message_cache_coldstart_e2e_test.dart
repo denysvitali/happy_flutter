@@ -350,7 +350,7 @@ void main() {
     );
 
     test(
-      'stale cache messages are replaced by tail refresh',
+      'stale cache messages are merged with tail refresh',
       () async {
         const sessionId = 'sess-stale-2';
         sync.testSessions[sessionId] = _makeSession(
@@ -391,11 +391,17 @@ void main() {
           reason: 'Tail-refresh message new-msg-302 should be present',
         );
 
-        // Stale messages should have been cleared by the gap recovery.
+        // Gap recovery now merges instead of clearing, so old
+        // messages are preserved alongside the new tail.  The
+        // 3000-message cap will eventually trim the oldest, but
+        // with only 7 total messages both old and new should be
+        // present.
         expect(
           ids.contains('old-msg-1'),
-          isFalse,
-          reason: 'Stale cache message old-msg-1 should be replaced',
+          isTrue,
+          reason:
+              'Gap recovery merges — old messages preserved '
+              'alongside new tail',
         );
       },
     );

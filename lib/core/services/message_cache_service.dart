@@ -14,8 +14,9 @@ class MessageCacheService {
   static final MessageCacheService _instance = MessageCacheService._();
 
   /// Maximum number of messages to cache per session.
-  /// Keep last ~200 messages which covers most conversation contexts.
-  static const int _maxCachedMessages = 200;
+  /// Matches the in-memory cap (3000) so cold starts don't lose
+  /// messages that were visible before the app was killed.
+  static const int _maxCachedMessages = 3000;
 
   /// Get cached messages for a session synchronously.
   ///

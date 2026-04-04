@@ -341,15 +341,12 @@ extension SyncSocket on Sync {
         _saveMsgsDebounceTimers.remove(sessionId);
         final msgs = _sessionMessages[sessionId];
         if (msgs != null) {
-          // Strip sidechain messages before persisting — if the deferred
-          // regroup timer hasn't fired yet, orphaned isSidechain entries
-          // can slip into the list.  Persisting them causes "invisible
-          // messages" on cold-start restore because ChatScreen filters
-          // them out in _buildMessageList.
-          final clean = msgs
-              .where((m) => m['isSidechain'] != true)
-              .toList();
-          MessageCacheService().saveMessages(sessionId, clean);
+          // Persist all messages including sidechain entries.  The
+          // sidechain grouper runs on restore
+          // (_restoreAllCachedMessages) so children are correctly
+          // re-parented.  Previously we stripped isSidechain messages
+          // here, which permanently lost them on cold-start.
+          MessageCacheService().saveMessages(sessionId, msgs);
         }
       },
     );
@@ -363,10 +360,7 @@ extension SyncSocket on Sync {
       entry.value.cancel();
       final msgs = _sessionMessages[entry.key];
       if (msgs != null) {
-        final clean = msgs
-            .where((m) => m['isSidechain'] != true)
-            .toList();
-        MessageCacheService().saveMessages(entry.key, clean);
+        MessageCacheService().saveMessages(entry.key, msgs);
       }
     }
     _saveMsgsDebounceTimers.clear();
@@ -508,34 +502,32 @@ extension SyncSocket on Sync {
       if (_sessionMessages.containsKey(sessionId)) continue;
       final cached = MessageCacheService().getMessages(sessionId);
       if (cached.isNotEmpty) {
-        // Strip orphaned sidechain messages that were persisted
-        // before the deferred regroup timer could clean them up.
-        final clean = cached.any((m) => m['isSidechain'] == true)
-            ? cached.where((m) => m['isSidechain'] != true).toList()
-            : cached;
-        if (clean.isNotEmpty) {
-          _sessionMessages[sessionId] = clean;
-          _sessionMessagesViewCache.remove(sessionId);
-          // Notify UI so ChatScreen refreshes with cached messages.
-          // Use UI-only notification — we just loaded these from MMKV,
-          // there is no reason to write them back immediately.
-          _notifySessionMessagesChangedUiOnly(sessionId);
+        _sessionMessages[sessionId] = cached;
+        _sessionMessagesViewCache.remove(sessionId);
 
-          // The MMKV cache only stores the most recent ~100 messages.
-          // _sessionFirstLoadedSeq may say 0 or null, telling
-          // hasOlderMessages() there is nothing older.  Recalculate
-          // from the lowest seq so the user can scroll up.
-          int? minSeq;
-          for (final m in clean) {
-            final seq = m['seq'] as int?;
-            if (seq != null && (minSeq == null || seq < minSeq)) {
-              minSeq = seq;
-            }
+        // Re-run the sidechain grouper so cached sidechain messages
+        // are correctly re-parented into their parent Task messages.
+        if (cached.any((m) => m['isSidechain'] == true)) {
+          _groupSidechainMessages(sessionId);
+        }
+
+        // Notify UI so ChatScreen refreshes with cached messages.
+        // Use UI-only notification — we just loaded these from MMKV,
+        // there is no reason to write them back immediately.
+        _notifySessionMessagesChangedUiOnly(sessionId);
+
+        // Recalculate the older-messages boundary from the lowest
+        // seq so the user can scroll up.
+        int? minSeq;
+        for (final m in cached) {
+          final seq = m['seq'] as int?;
+          if (seq != null && (minSeq == null || seq < minSeq)) {
+            minSeq = seq;
           }
-          if (minSeq != null && minSeq > 1) {
-            _sessionFirstLoadedSeq[sessionId] = minSeq;
-            firstLoadedChanged = true;
-          }
+        }
+        if (minSeq != null && minSeq > 1) {
+          _sessionFirstLoadedSeq[sessionId] = minSeq;
+          firstLoadedChanged = true;
         }
       }
     }

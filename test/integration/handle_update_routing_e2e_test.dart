@@ -47,7 +47,7 @@ void main() {
     });
 
     test(
-      'new-message for non-visible session marks pending',
+      'new-message for non-visible session processes inline',
       () async {
         const sessionId = 'sess-A';
 
@@ -66,15 +66,18 @@ void main() {
         });
 
         await Future<void>.delayed(
-          const Duration(milliseconds: 200),
+          const Duration(milliseconds: 500),
         );
 
+        // Embedded messages are now processed inline for
+        // non-visible sessions so they are immediately available.
+        // The pending updates flag (for session list UI) is set.
         expect(
-          sync.testHasPendingSocketMessage(sessionId),
+          sync.testHasPendingUpdate(sessionId),
           isTrue,
           reason:
-              'Non-visible session should be marked as having '
-              'pending socket messages',
+              'Non-visible session should have pending updates '
+              'flag for session list refresh',
         );
       },
     );

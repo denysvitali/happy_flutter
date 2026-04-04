@@ -567,25 +567,23 @@ extension SyncMessagingRpc on Sync {
         '(hasPendingSocket=$hasPendingSocketMessages)',
       );
       if (cached.isNotEmpty) {
-        // Strip orphaned sidechain messages (see
-        // _restoreAllCachedMessages).
-        final clean = cached.any((m) => m['isSidechain'] == true)
-            ? cached.where((m) => m['isSidechain'] != true).toList()
-            : cached;
-        if (clean.isNotEmpty) {
-          _sessionMessages[sessionId] = clean;
-          _sessionMessagesCache = null;
-          _sessionMessagesViewCache.remove(sessionId);
-          hasMessages = true;
-          // Notify UI immediately so it can render cached messages.
-          _notifySessionMessagesChanged(sessionId);
-          _notifyDataChanged();
-          // Recalculate the older-messages boundary from the cache
-          // so hasOlderMessages() returns the correct value even if
-          // _restoreAllCachedMessagesAsync hasn't run yet or the
-          // session grew since the persisted boundary was saved.
-          _ensureFirstLoadedSeq(sessionId);
+        _sessionMessages[sessionId] = cached;
+        _sessionMessagesCache = null;
+        _sessionMessagesViewCache.remove(sessionId);
+        hasMessages = true;
+        // Re-run the sidechain grouper so cached sidechain messages
+        // are correctly re-parented into their parent Task messages.
+        if (cached.any((m) => m['isSidechain'] == true)) {
+          _groupSidechainMessages(sessionId);
         }
+        // Notify UI immediately so it can render cached messages.
+        _notifySessionMessagesChanged(sessionId);
+        _notifyDataChanged();
+        // Recalculate the older-messages boundary from the cache
+        // so hasOlderMessages() returns the correct value even if
+        // _restoreAllCachedMessagesAsync hasn't run yet or the
+        // session grew since the persisted boundary was saved.
+        _ensureFirstLoadedSeq(sessionId);
       }
       // Only request a tail refresh when there are NO messages to show.
       // When cache was restored, the incremental delta path (afterSeq =

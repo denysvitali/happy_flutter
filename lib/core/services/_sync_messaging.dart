@@ -196,22 +196,13 @@ extension SyncMessaging on Sync {
 
       var page = 0;
       while (true) {
-        // ── Check visibility BEFORE network call ──
-        if (page > 0 && _visibleSessionId != sessionId) {
-          logger.info(
-            '[fetchMessages] $sessionId no longer visible '
-            'after page $page — aborting',
-          );
-          // Notify UI so it stops the loading spinner. The session is
-          // non-visible so further pagination is the responsibility of
-          // onSessionVisible() when the user navigates back.
-          // Use UI-only notify to avoid persisting partial data to the
-          // MessageCache — a cleared cache (from gap recovery) is better
-          // than a cache with only one page of messages.
-          _notifySessionMessagesChangedUiOnly(sessionId);
-          _notifyDataChanged();
-          break;
-        }
+        // ── Check visibility ──
+        // Continue fetching even when the session is no longer visible so
+        // messages are not lost.  The user may navigate back at any time
+        // and expects the full conversation to be there.  We skip only the
+        // per-page UI notification for non-visible sessions to avoid
+        // unnecessary repaints.
+        final isStillVisible = _visibleSessionId == sessionId;
 
         final fetchStart = Stopwatch()..start();
         final Response<dynamic> response;
@@ -370,18 +361,16 @@ extension SyncMessaging on Sync {
         await Future<void>.delayed(Duration.zero);
 
         // ── Upsert messages ──
-        // For gap recovery, clear stale in-memory messages right before
-        // the first successful upsert so we don't lose messages if the
-        // network request fails. We defer clearing until we know the fetch
-        // succeeded.
+        // Gap recovery: merge new tail-loaded messages into the existing
+        // list instead of clearing first.  The upsert deduplicates by ID
+        // and the 3000-message cap trims the oldest entries.  This
+        // preserves messages the user already sees while filling in the
+        // gap, avoiding permanent loss when pagination is interrupted.
         if (isGapRecovery && page == 0 && processed.messages.isNotEmpty) {
-          _sessionMessages.remove(sessionId);
-          _sessionMessagesCache = null;
-          _sessionMessagesViewCache.remove(sessionId);
-          MessageCacheService().clearMessages(sessionId);
           logger.info(
-            '[fetchMessages] $sessionId gap recovery: cleared stale messages '
-            'before upserting ${processed.messages.length} new ones',
+            '[fetchMessages] $sessionId gap recovery: '
+            'merging ${processed.messages.length} new messages '
+            '(existing=${_sessionMessages[sessionId]?.length ?? 0})',
           );
         }
         final upsertStart = Stopwatch()..start();
@@ -460,8 +449,10 @@ extension SyncMessaging on Sync {
         // with many messages where pagination + decryption exceeds
         // the 5s awaitQueue timeout in ChatScreen._doInitialLoad.
         if (processed.messages.isNotEmpty) {
-          _notifySessionMessagesChanged(sessionId);
-          _notifyDataChanged();
+          if (isStillVisible) {
+            _notifySessionMessagesChanged(sessionId);
+            _notifyDataChanged();
+          }
         }
 
         if (!hasMore) break;

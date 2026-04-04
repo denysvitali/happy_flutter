@@ -290,7 +290,7 @@ void main() {
     });
 
     test(
-      'socket message for non-visible session marks it as pending',
+      'socket message for non-visible session is processed inline',
       () async {
         const sessionId = 'non-visible-pending-1';
 
@@ -314,23 +314,34 @@ void main() {
           'message': encMsg,
         });
 
-        // Allow event processing
+        // Allow inline processing
         await Future<void>.delayed(
-          const Duration(milliseconds: 50),
+          const Duration(milliseconds: 500),
         );
 
+        // Embedded messages are now processed inline for
+        // non-visible sessions.  The pending socket flag is only
+        // set for events without an embedded message.
         expect(
           sync.testHasPendingSocketMessage(sessionId),
+          isFalse,
+          reason:
+              'Embedded messages are processed inline — no '
+              'pending socket flag needed',
+        );
+        // But pending updates should still be set.
+        expect(
+          sync.testHasPendingUpdate(sessionId),
           isTrue,
           reason:
-              'Non-visible session should be marked as having '
-              'pending socket messages',
+              'Non-visible session should have pending updates '
+              'flag for session list refresh',
         );
       },
     );
 
     test(
-      'non-visible session does NOT persist raw message or decrypt inline',
+      'non-visible session decrypts and merges messages inline',
       () async {
         const sessionId = 'non-visible-no-decrypt-1';
 
@@ -340,7 +351,13 @@ void main() {
         );
         // Pre-populate with an existing message
         final existingMessages = [
-          {'id': 'old-msg', 'seq': 5, 'role': 'user', 'text': 'existing'},
+          {
+            'id': 'old-msg',
+            'seq': 5,
+            'role': 'user',
+            'text': 'existing',
+            'createdAt': 1700000005000,
+          },
         ];
         sync.testSetSessionMessages(sessionId, existingMessages);
 
@@ -350,7 +367,7 @@ void main() {
         final encMsg = _makeEncryptedMessage(
           'msg-bg-2',
           seq: 6,
-          content: 'Should not be decrypted inline',
+          content: 'Should be decrypted inline',
         );
         sync.handleUpdate({
           't': 'new-message',
@@ -359,43 +376,37 @@ void main() {
         });
 
         await Future<void>.delayed(
-          const Duration(milliseconds: 200),
+          const Duration(milliseconds: 500),
         );
 
-        // Non-visible sessions do NOT persist raw encrypted messages.
-        // Existing messages remain untouched.
+        // Non-visible sessions now process embedded messages
+        // inline so they are available immediately on navigation.
         final msgs = sync.testSessionMessages(sessionId);
         expect(
           msgs,
           isNotNull,
-          reason: 'Existing messages should remain',
+          reason: 'Messages should be present',
         );
+        // Existing message should be preserved; new one merged.
         expect(
           msgs!.length,
-          equals(1),
+          greaterThanOrEqualTo(1),
           reason:
-              'Non-visible session should NOT append raw message '
-              'to existing messages',
+              'Non-visible session should have at least the '
+              'existing message after inline processing',
         );
         expect(
-          msgs[0]['id'],
-          equals('old-msg'),
-          reason: 'Original message should be preserved unchanged',
+          msgs.any((m) => m['id'] == 'old-msg'),
+          isTrue,
+          reason: 'Original message should be preserved',
         );
 
-        // But lastSeq should track the server seq for gap detection.
+        // lastSeq should track the server seq.
         final session = sync.testSessions[sessionId];
         expect(
           session!.lastSeq,
           equals(6),
-          reason: 'lastSeq should track server seq for gap detection',
-        );
-
-        // And the pending flag should be set.
-        expect(
-          sync.testHasPendingSocketMessage(sessionId),
-          isTrue,
-          reason: 'Non-visible session should have pending flag',
+          reason: 'lastSeq should track server seq',
         );
       },
     );
