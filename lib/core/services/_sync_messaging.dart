@@ -914,9 +914,13 @@ extension SyncMessaging on Sync {
         'error=${result.errorMessage ?? 'unknown'}',
       );
     } catch (error, stack) {
-      if (Sync._isTransientConnectionError(error)) {
+      if (Sync._isTransientConnectionError(error) ||
+          Sync._isRpcMethodNotAvailable(error)) {
+        final reason = Sync._isRpcMethodNotAvailable(error)
+            ? 'RPC unavailable'
+            : 'transient';
         logger.info(
-          '[permission] auto-restore failed (transient) '
+          '[permission] auto-restore failed ($reason) '
           'session=$sessionId: $error',
         );
       } else {

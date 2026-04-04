@@ -1087,6 +1087,16 @@ what you have, you must use the options mode.
         msg.contains('Software caused connection abort');
   }
 
+  /// Whether [error] indicates a machine/session RPC method that
+  /// the daemon does not support (e.g. older daemon version).
+  /// These are expected and should not be reported to Sentry.
+  static bool _isRpcMethodNotAvailable(Object error) {
+    if (error is! StateError) return false;
+    final msg = error.message;
+    return msg.contains('not available') ||
+        msg.contains('RPC method');
+  }
+
   bool _isSocketConnected() {
     return testSocketConnectedOverride ??
         socketIoClient.connectionStatus == ConnectionStatus.connected;

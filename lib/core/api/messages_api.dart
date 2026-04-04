@@ -28,7 +28,12 @@ class MessagesApi {
       );
     }
 
-    final data = response.data as Map<String, dynamic>;
+    final data = response.data;
+    if (data is! Map<String, dynamic>) {
+      throw const MessagesApiException(
+        'Invalid response data for fetchMessages',
+      );
+    }
     final messages = (data['messages'] as List<dynamic>? ?? [])
         .whereType<Map<String, dynamic>>()
         .toList();
@@ -72,10 +77,18 @@ class MessagesApi {
 
     if (serverMessages.isNotEmpty) {
       final serverMsg = serverMessages.first;
+      final id = serverMsg['id'];
+      final seq = serverMsg['seq'];
+      final createdAt = serverMsg['createdAt'];
+      if (id is! String || seq is! int || createdAt is! int) {
+        throw const MessagesApiException(
+          'Invalid message data returned from server',
+        );
+      }
       return SendMessageResponse(
-        id: serverMsg['id'] as String,
-        seq: serverMsg['seq'] as int,
-        createdAt: serverMsg['createdAt'] as int,
+        id: id,
+        seq: seq,
+        createdAt: createdAt,
         localId: serverMsg['localId'] as String?,
       );
     }
@@ -117,10 +130,18 @@ class MessagesApi {
         .toList();
 
     return serverMessages.map((serverMsg) {
+      final id = serverMsg['id'];
+      final seq = serverMsg['seq'];
+      final createdAt = serverMsg['createdAt'];
+      if (id is! String || seq is! int || createdAt is! int) {
+        throw const MessagesApiException(
+          'Invalid message data returned from server',
+        );
+      }
       return SendMessageResponse(
-        id: serverMsg['id'] as String,
-        seq: serverMsg['seq'] as int,
-        createdAt: serverMsg['createdAt'] as int,
+        id: id,
+        seq: seq,
+        createdAt: createdAt,
         localId: serverMsg['localId'] as String?,
       );
     }).toList();

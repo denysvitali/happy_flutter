@@ -173,7 +173,8 @@ void _processOutputContent({
           'uuid': toolUseUuid,
           'parentUuid': ?meta.parentUuid,
         });
-      } else if (type == 'web_search_tool_result' ||
+      } else if (type == 'tool_result' ||
+          type == 'web_search_tool_result' ||
           type == 'server_tool_result' ||
           type == 'mcp_tool_result' ||
           type == 'code_execution_tool_result') {
@@ -243,8 +244,30 @@ void _processOutputContent({
     return;
   }
 
+  // Handle top-level tool-result / tool-call-result envelopes.
+  // The server sometimes wraps tool results at the output level
+  // (same shape the ACP handler processes).
+  if (dataType == 'tool-result' || dataType == 'tool-call-result') {
+    final result = data['output'] ?? data['content'];
+    final callId = data['callId'] as String?;
+    if (callId != null && callId.isNotEmpty) {
+      toolResults.add({
+        'toolUseId': callId,
+        'result': result,
+        'isError':
+            data['isError'] == true || data['is_error'] == true,
+        'createdAt': createdAt,
+        if (meta.isSidechain) 'isSidechain': true,
+        'uuid': ?meta.uuid,
+        'parentUuid': ?meta.parentUuid,
+      });
+    }
+    return;
+  }
+
   // Unrecognized dataType -- log to help diagnose silent drops.
-  // Omit seq/id from the reason so GlitchTip groups by dataType, not per-message.
+  // Omit seq/id from the reason so GlitchTip groups by dataType,
+  // not per-message.
   droppedReasons?.add(
     'output dataType=$dataType not handled '
     '(keys=${data.keys.toList()})',

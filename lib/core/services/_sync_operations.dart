@@ -1088,16 +1088,21 @@ extension SyncOperations on Sync {
         sessionEncryption: restoredSessionEncryption,
       );
     } catch (error, stack) {
-      // Transient network errors during auto-restore are expected
-      // when the device is offline — log at info to avoid Sentry noise.
-      if (Sync._isTransientConnectionError(error)) {
+      // Transient network errors and unsupported RPC methods during
+      // auto-restore are expected — log at info to avoid Sentry noise.
+      if (Sync._isTransientConnectionError(error) ||
+          Sync._isRpcMethodNotAvailable(error)) {
+        final reason = Sync._isRpcMethodNotAvailable(error)
+            ? 'RPC unavailable'
+            : 'transient';
         logger.info(
-          '[sendMessage] auto-restore failed (transient) '
+          '[sendMessage] auto-restore failed ($reason) '
           'session=$sessionId: $error',
         );
       } else {
         logger.error(
-          '[sendMessage] auto-restore failed for session=$sessionId',
+          '[sendMessage] auto-restore failed for '
+          'session=$sessionId',
           error,
           stack,
         );

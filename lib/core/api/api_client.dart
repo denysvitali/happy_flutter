@@ -399,9 +399,11 @@ class ApiClient {
           // Downgrade transient connection errors (e.g. Cronet
           // aborting connections when the app is backgrounded)
           // to info so they don't create Sentry noise.
-          if (_isTransientConnectionError(error)) {
+          if (_isTransientConnectionError(error) ||
+              error.response?.statusCode == 404) {
             logger.info(
-              'Dio transient error: $errorMessage\n'
+              'Dio ${error.response?.statusCode == 404 ? '404' : 'transient'} '
+              'error: $errorMessage\n'
               '  Request: ${error.requestOptions.method} '
               '${error.requestOptions.uri}',
             );

@@ -120,7 +120,7 @@ lib/
 
 **Notable:** `AuthStateNotifier` acts as a coordinator — on auth changes it calls `loadFromSync()`/`clear()` on all other providers.
 
-**`_shared.dart`** contains an `unset` sentinel (`const Object()`) used in `copyWith` methods to distinguish "not provided" from `null`.
+**`_shared.dart`** files in feature directories contain an `unset` sentinel (`const Object()`) used in `copyWith` methods to distinguish "not provided" from `null`.
 
 **Immutable updates:** Always use spread copies: `{...state, id: value}`, `[...state.list, item]`
 
@@ -173,6 +173,8 @@ For non-URL data (e.g., `message-detail`), pass `Map<String, dynamic>` via `stat
 | `SocketIoClient` | Singleton | Socket.IO on `/v1/updates`, `['websocket']` only, reconnect 1–5s |
 | `AuthService` | Singleton | QR auth, Ed25519 signatures, NaCl box encryption. No separate `AuthApi` |
 | `LoggerService` | Singleton | 5000-entry circular `Queue`, ANSI color output in debug, Sentry forwarding |
+| `MessageCacheService` | Singleton | Caches last 200 messages per session in MMKV, debounced writes (500ms) |
+| `MessageOutbox` | Singleton | Persists failed sends to MMKV, exponential backoff retry (1s→30s, max 3 retries) |
 
 **Service/API duality is partial:** Some domains have both `XxxService` (production) and `XxxApi` (injectable for tests) — e.g., `KvService`/`KvApi`, `UsageService`/`UsageApi`. Others have only one or the other. `XxxApi` classes accept optional `ApiClient? client` for test injection.
 
@@ -291,7 +293,7 @@ Then commit the updated PNGs. Do not leave stale goldens — they will cause fal
 
 **Analysis:** `test/**/*.dart` excluded from analysis. CI runs `flutter analyze --no-fatal-infos --no-fatal-warnings` (only errors block build).
 
-**CI pipeline** (`ci.yml`): 4 jobs — `analyze`, `test`, `build-debug`, `build-release`. Flutter 3.38.7, Java 17, NDK 28.2.13676358. Caches pub-cache and Gradle. Release builds use obfuscation + split-debug-info, create GitHub Releases on `v*` tags.
+**CI pipeline** (`ci.yml`): 7 jobs — `analyze`, `test` (with `--coverage` → Codecov), `golden` (PRs only), `build-debug`, `build-release` (signed, obfuscated, GitHub Release on `v*` tags), `build-web` (main only), `deploy-web` (GitHub Pages). Flutter 3.38.7, Java 17, NDK 28.2.13676358. Caches pub-cache and Gradle.
 
 ## Dependency Overrides
 
