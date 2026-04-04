@@ -13,6 +13,7 @@ import '../../core/services/server_config.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import 'widgets/auth_animated_widgets.dart';
 import 'widgets/auth_landing_widgets.dart';
 import 'widgets/restore_key_dialog.dart';
 import 'widgets/server_url_dialog.dart';

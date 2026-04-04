@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/syntax_highlighter.dart';
+import 'package:happy_flutter/features/chat/syntax_tokenizer.dart';
 
 void main() {
   group('SyntaxTokenizer', () {
