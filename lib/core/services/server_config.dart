@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'logger_service.dart' show logger;
-import 'mmkv_storage.dart';
+import 'server_config_storage.dart';
 
 const String defaultServerUrl = 'https://api.cluster-fluster.com';
 const String _defaultServerUrl = defaultServerUrl;
