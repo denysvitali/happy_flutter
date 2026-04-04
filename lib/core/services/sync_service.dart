@@ -176,7 +176,7 @@ what you have, you must use the options mode.
   /// Queue provides O(1) FIFO eviction; Set provides O(1) lookup.
   final Set<String> _recentInlineMessageKeys = {};
   final Queue<String> _recentInlineMessageKeyOrder = Queue<String>();
-  static const int _maxRecentInlineKeys = 2000;
+  static const int _maxRecentInlineKeys = 10000;
 
   /// Tracks inline message keys that are currently being processed.
   /// Used to allow retry on processing failure: if a message fails

@@ -184,10 +184,15 @@ extension SyncSocketEvents on Sync {
     if (embeddedMessage != null) {
       final msgId = embeddedMessage['id'] as String?;
       final msgSeq = embeddedMessage['seq'];
-      final dedupKey = '$sessionId:$msgId:$msgSeq';
-      if (!_recentInlineMessageKeys.contains(dedupKey) &&
-          !_pendingInlineMessageKeys.add(dedupKey)) {
-        return; // already seen (committed or currently processing)
+      // Only dedup when both id and seq are present.  Null values
+      // produce a malformed key ("sessionId:null:null") that would
+      // cause unrelated messages to collide and be silently dropped.
+      if (msgId != null && msgSeq != null) {
+        final dedupKey = '$sessionId:$msgId:$msgSeq';
+        if (!_recentInlineMessageKeys.contains(dedupKey) &&
+            !_pendingInlineMessageKeys.add(dedupKey)) {
+          return; // already seen (committed or currently processing)
+        }
       }
     }
 
@@ -305,7 +310,11 @@ extension SyncSocketEvents on Sync {
   ) async {
     final msgId = wireMessage['id'] as String?;
     final msgSeq = wireMessage['seq'];
-    final dedupKey = '$sessionId:$msgId:$msgSeq';
+    // Null-safe dedup key — only meaningful when both fields are
+    // present (see guard in _handleNewMessage).
+    final dedupKey = (msgId != null && msgSeq != null)
+        ? '$sessionId:$msgId:$msgSeq'
+        : null;
 
     final sessionEncryption =
         encryption.getSessionEncryption(sessionId);
@@ -393,14 +402,16 @@ extension SyncSocketEvents on Sync {
 
       // Commit the dedup key: remove from _pendingInlineMessageKeys and
       // add to _recentInlineMessageKeys with FIFO eviction.
-      _pendingInlineMessageKeys.remove(dedupKey);
-      _recentInlineMessageKeys.add(dedupKey);
-      _recentInlineMessageKeyOrder.addLast(dedupKey);
-      while (_recentInlineMessageKeyOrder.length >
-          Sync._maxRecentInlineKeys) {
-        _recentInlineMessageKeys.remove(
-          _recentInlineMessageKeyOrder.removeFirst(),
-        );
+      if (dedupKey != null) {
+        _pendingInlineMessageKeys.remove(dedupKey);
+        _recentInlineMessageKeys.add(dedupKey);
+        _recentInlineMessageKeyOrder.addLast(dedupKey);
+        while (_recentInlineMessageKeyOrder.length >
+            Sync._maxRecentInlineKeys) {
+          _recentInlineMessageKeys.remove(
+            _recentInlineMessageKeyOrder.removeFirst(),
+          );
+        }
       }
 
       _notifySessionMessagesChanged(sessionId);
