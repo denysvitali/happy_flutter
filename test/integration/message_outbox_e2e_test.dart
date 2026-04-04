@@ -10,6 +10,7 @@ import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/message_outbox.dart';
+import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 
@@ -71,6 +72,9 @@ void main() {
       // sync's session-message state. Mirror what sync.create() does but
       // use a fast-failing deliver so retry timers fire quickly in tests.
       messageOutbox.dispose(); // reset any state from prior test
+      // Swap out the real MMKVStorage to avoid native MMKV init failures
+      // in CI where the native plugin is unavailable.
+      messageOutbox.testStorage = _FakeMMKVStorage();
       messageOutbox.configure(
         deliver: (_) async => false, // always fail → exhaust retries fast
         onStatusChanged: (sid, lid, status) {
@@ -699,5 +703,23 @@ class _FakeEncryptor implements Encryptor {
         return null;
       }
     }).toList();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Fake MMKV storage for CI (native plugin unavailable)
+// ---------------------------------------------------------------------------
+
+class _FakeMMKVStorage extends MMKVStorage {
+  _FakeMMKVStorage() : super.testConstructor();
+
+  String? _outboxData;
+
+  @override
+  Future<String?> getOutboxEntries() async => _outboxData;
+
+  @override
+  Future<void> saveOutboxEntries(String json) async {
+    _outboxData = json;
   }
 }

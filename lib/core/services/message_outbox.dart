@@ -110,7 +110,13 @@ class MessageOutbox {
   static const int _baseDelayMs = 1000;
   static const int _maxDelayMs = 30000;
 
-  final MMKVStorage _storage;
+  MMKVStorage _storage;
+
+  /// Override the storage backend for testing. Avoids MMKV
+  /// initialization failures in CI where the native plugin is
+  /// unavailable.
+  @visibleForTesting
+  set testStorage(MMKVStorage value) => _storage = value;
   final OutboxDeliverFn? _deliverOverride;
 
   OutboxDeliverFn? _deliver;
