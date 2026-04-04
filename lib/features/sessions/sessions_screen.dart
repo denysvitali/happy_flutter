@@ -16,6 +16,7 @@ import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
 import 'widgets/connection_status_badge.dart';
 import 'widgets/new_session_dialog.dart';
+import 'widgets/session_list_helpers.dart';
 import 'widgets/sessions_list_content.dart';
 
 /// Sessions list screen with date grouping and enhanced
