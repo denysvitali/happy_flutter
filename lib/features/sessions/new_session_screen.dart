@@ -151,6 +151,7 @@ class _NewSessionScreenState
                 displayText: initialMessage,
                 permissionMode: permissionMode,
                 modelMode: modelMode,
+                profileId: _selectedProfileId,
               ),
         );
       }

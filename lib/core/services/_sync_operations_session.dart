@@ -522,11 +522,16 @@ extension SyncSessionOperations on Sync {
   /// returns empty env vars and null profile to avoid using a wrong profile
   /// after profile switches.
   Future<({Map<String, String> envVars, AIBackendProfile? profile})>
-      _getSpawnEnvVarsForSession(String sessionId) async {
+      _getSpawnEnvVarsForSession(
+    String sessionId, {
+    String? profileIdOverride,
+  }) async {
     final override = testGetSpawnEnvVarsOverride;
     if (override != null) return override(sessionId);
-    // Get the profile ID that was saved for this specific session.
-    final profileId = await MMKVStorage().getSessionProfile(sessionId);
+    // Prefer the in-memory override (from sendMessage) over MMKV,
+    // which may not have flushed a recent debounced write yet.
+    final profileId = profileIdOverride ??
+        await MMKVStorage().getSessionProfile(sessionId);
     if (profileId != null) {
       final profile = _resolveProfile(profileId);
       if (profile != null) {
@@ -688,8 +693,12 @@ extension SyncSessionOperations on Sync {
     _autoRestoreInFlight.add(sessionId);
     try {
       // Resolve profile env vars for this session before spawning.
-      final spawnResult =
-          await _getSpawnEnvVarsForSession(sessionId);
+      // Pass profileId from the sendMessage caller so we don't rely
+      // on a debounced MMKV write that may not have flushed yet.
+      final spawnResult = await _getSpawnEnvVarsForSession(
+        sessionId,
+        profileIdOverride: profileId,
+      );
       final req = SpawnSessionRequest(
         type: 'spawn-in-directory',
         directory: path,

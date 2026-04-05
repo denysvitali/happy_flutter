@@ -61,6 +61,10 @@ extension _ChatScreenActions on _ChatScreenState {
             deduped.firstWhere((p) => p.id == effectiveProfileId);
       } catch (_) {
         selectedProfile = null;
+        logger.warning(
+          '[ChatScreen] saved profile "$effectiveProfileId" no longer '
+          'exists in settings; falling back to no profile',
+        );
       }
     }
 
@@ -320,66 +324,44 @@ extension _ChatScreenActions on _ChatScreenState {
         : ClaudeModel.defaultModel;
     final rawModelString =
         profileDefaultModelMode ?? newModel.modeString;
+
+    // Apply the profile's default permission mode (consistent with
+    // how NewSessionScreen applies it on session creation).
+    final profilePermMode = profile?.defaultPermissionMode;
+    final newPermissionMode = profilePermMode != null
+        ? (PermissionModeExtension.fromString(profilePermMode) ??
+            _permissionMode)
+        : _permissionMode;
+
     setState(() {
       _selectedProfile = profile;
       _modelMode = newModel;
       _rawModelModeString = rawModelString;
+      _permissionMode = newPermissionMode;
     });
-    ref
-        .read(chatActionNotifierProvider.notifier)
-        .saveProfile(widget.sessionId, profile?.id);
+    final notifier = ref.read(chatActionNotifierProvider.notifier);
+    notifier.saveProfile(widget.sessionId, profile?.id);
     // Save the profile's defaultModelMode, not 'default'
-    ref
-        .read(chatActionNotifierProvider.notifier)
-        .saveModelMode(widget.sessionId, rawModelString);
+    notifier.saveModelMode(widget.sessionId, rawModelString);
+    if (profilePermMode != null) {
+      notifier.savePermissionMode(
+        widget.sessionId,
+        newPermissionMode.toModeString(),
+      );
+    }
 
-    // If the session is currently running, show a warning that the
-    // profile change will only take effect after the session is restarted.
+    // The next sendMessage call will automatically detect the profile
+    // mismatch and kill+respawn the session with the new env vars.
+    // No manual restart required.
     final isRunning = _session?.isPresenceOnline ?? false;
     if (isRunning && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Profile changed. Restart the session to apply '
-            'new environment variables.',
+        const SnackBar(
+          content: Text(
+            'Profile changed. The session will restart '
+            'automatically on the next message.',
           ),
-          action: SnackBarAction(
-            label: 'Restart',
-            textColor: Theme.of(context).colorScheme.onPrimary,
-            onPressed: () async {
-              try {
-                await sync.killSession(widget.sessionId);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Session restarted. Send a message to resume.',
-                      ),
-                      duration: Duration(seconds: 3),
-                    ),
-                  );
-                }
-                // Trigger a refresh to update the session state
-                _refreshFromSync();
-              } catch (e, st) {
-                logger.warning(
-                  '[ChatScreen] killSession failed: '
-                  'sessionId=${widget.sessionId} $e',
-                  e,
-                  st,
-                );
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to restart session: $e'),
-                      duration: const Duration(seconds: 3),
-                    ),
-                  );
-                }
-              }
-            },
-          ),
-          duration: const Duration(seconds: 5),
+          duration: Duration(seconds: 3),
         ),
       );
     }
@@ -439,6 +421,7 @@ extension _ChatScreenActions on _ChatScreenState {
             displayText: option,
             permissionMode: _permissionMode.toModeString(),
             modelMode: _rawModelModeString ?? _modelMode.modeString,
+            profileId: _selectedProfile?.id,
           );
       if (_followRedirectedSession(sentSessionId)) {
         return;
@@ -505,6 +488,7 @@ extension _ChatScreenActions on _ChatScreenState {
               text,
               permissionMode: _permissionMode.toModeString(),
               modelMode: _rawModelModeString ?? _modelMode.modeString,
+              profileId: _selectedProfile?.id,
             );
         if (_followRedirectedSession(sentSessionId)) {
           return;
@@ -620,6 +604,23 @@ extension _ChatScreenActions on _ChatScreenState {
     if (!mounted || sentSessionId == widget.sessionId) {
       return false;
     }
+    // Migrate the current profile/permission/model config to the new
+    // session so the redirected ChatScreen inherits the user's choices
+    // instead of starting from defaults.
+    final storage = DraftStorage();
+    final profileId = _selectedProfile?.id;
+    if (profileId != null) {
+      unawaited(storage.saveProfileId(sentSessionId, profileId));
+    }
+    unawaited(
+      storage.savePermissionMode(
+        sentSessionId,
+        _permissionMode.toModeString(),
+      ),
+    );
+    final modelStr = _rawModelModeString ?? _modelMode.modeString;
+    unawaited(storage.saveModelMode(sentSessionId, modelStr));
+
     context.goNamed(
       'chat',
       pathParameters: {'sessionId': sentSessionId},
