@@ -116,9 +116,10 @@ extension SyncSessionOperations on Sync {
       }
       _sessionSpawnedAt[sessionId] =
           DateTime.now().millisecondsSinceEpoch;
+      _sessionSpawnedProfile[sessionId] = effectiveProfileId;
       logger.info(
         '[createSession] Registered session $sessionId '
-        'in _sessionSpawnedAt',
+        'in _sessionSpawnedAt (profile=$effectiveProfileId)',
       );
 
       // Force a full fetch (not delta) to ensure the newly created session
@@ -255,6 +256,7 @@ extension SyncSessionOperations on Sync {
           'after webhook timeout',
         );
         _sessionSpawnedAt[found.id] = found.createdAt;
+        _sessionSpawnedProfile[found.id] = effectiveProfileId;
         _notifyDataChanged();
         return found.id;
       }
@@ -550,6 +552,7 @@ extension SyncSessionOperations on Sync {
     required Session session,
     required SessionEncryption sessionEncryption,
     required String effectivePermissionMode,
+    String? profileId,
   }) async {
     final lifecycleState = session.metadata?.lifecycleState;
     final agentIsStartingOrRunning =
@@ -586,9 +589,18 @@ extension SyncSessionOperations on Sync {
         (isOnlineTrusted ||
             (agentIsStartingOrRunning && lifecycleRecent) ||
             recentlySpawned);
+
+    // Detect profile mismatch: if the user switched profiles since the
+    // session was spawned, kill the running daemon so it gets respawned
+    // with the correct env vars below.
+    final profileChanged = profileId != null &&
+        _sessionSpawnedProfile.containsKey(sessionId) &&
+        _sessionSpawnedProfile[sessionId] != profileId;
+
     logger.info(
       '[sendMessage] _resolveSendTargetSession '
       'session=$sessionId looksReady=$looksReady '
+      'profileChanged=$profileChanged '
       '(isOnline=${session.isOnline}, '
       'isOnlineTrusted=$isOnlineTrusted, '
       'lifecycleState=$lifecycleState, '
@@ -596,7 +608,31 @@ extension SyncSessionOperations on Sync {
       'recentlySpawned=$recentlySpawned, '
       'agentStateVersion=${session.agentStateVersion})',
     );
-    if (looksReady) {
+
+    if (looksReady && profileChanged) {
+      final machineId = session.metadata?.machineId;
+      if (machineId != null && machineId.isNotEmpty) {
+        logger.info(
+          '[sendMessage] profile changed for session=$sessionId '
+          '(${_sessionSpawnedProfile[sessionId]} -> $profileId); '
+          'killing session for respawn',
+        );
+        try {
+          await killSession(sessionId);
+          // Clear spawned-at so looksReady becomes false below and
+          // auto-restore picks up the new profile.
+          _sessionSpawnedAt.remove(sessionId);
+          _sessionSpawnedProfile.remove(sessionId);
+        } catch (e, st) {
+          logger.warning(
+            '[sendMessage] killSession failed during profile '
+            'switch for session=$sessionId: $e',
+            e,
+            st,
+          );
+        }
+      }
+    } else if (looksReady) {
       return (
         sessionId: sessionId,
         session: session,
@@ -702,6 +738,8 @@ extension SyncSessionOperations on Sync {
         seedSession: session,
         result: result,
       );
+      _sessionSpawnedProfile[restoredSessionId] =
+          spawnResult.profile?.id;
       if (restoredSessionId != sessionId) {
         logger.info(
           '[sendMessage] auto-restore redirected session '

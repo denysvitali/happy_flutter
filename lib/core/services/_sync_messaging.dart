@@ -269,6 +269,7 @@ extension SyncMessaging on Sync {
             _sessionsWithPendingUpdates.remove(sessionId);
             _sessionsWithPendingSocketMessages.remove(sessionId);
             _sessionSpawnedAt.remove(sessionId);
+            _sessionSpawnedProfile.remove(sessionId);
             _autoRestoreInFlight.remove(sessionId);
             _pendingToolResults.remove(sessionId);
             if (isInitialized) {

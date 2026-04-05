@@ -314,6 +314,9 @@ what you have, you must use the options mode.
   // sessionId → epoch-ms of last local spawn. Lets _resolveSendTargetSession
   // skip auto-restore while the daemon's lifecycle update propagates (< 5 s).
   final Map<String, int> _sessionSpawnedAt = {};
+  // sessionId → profileId used when spawning. Lets _resolveSendTargetSession
+  // detect profile changes and kill+respawn the session automatically.
+  final Map<String, String?> _sessionSpawnedProfile = {};
   // Track sessions currently undergoing auto-restore to prevent concurrent
   // RPCs.
   final Set<String> _autoRestoreInFlight = {};

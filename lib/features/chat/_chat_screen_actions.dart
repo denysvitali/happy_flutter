@@ -571,6 +571,7 @@ extension _ChatScreenActions on _ChatScreenState {
             displayText: text,
             permissionMode: _permissionMode.toModeString(),
             modelMode: _rawModelModeString ?? _modelMode.modeString,
+            profileId: _selectedProfile?.id,
           );
       if (_followRedirectedSession(sentSessionId)) {
         return;

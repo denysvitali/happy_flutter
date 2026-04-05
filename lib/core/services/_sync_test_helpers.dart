@@ -197,7 +197,24 @@ extension SyncTestHelpers on Sync {
 
   /// Test helper: clear all spawn timestamps.
   @visibleForTesting
-  void testClearSessionSpawnedAt() => _sessionSpawnedAt.clear();
+  void testClearSessionSpawnedAt() {
+    _sessionSpawnedAt.clear();
+    _sessionSpawnedProfile.clear();
+  }
+
+  /// Test helper: get _sessionSpawnedProfile map.
+  @visibleForTesting
+  Map<String, String?> get testSessionSpawnedProfile =>
+      _sessionSpawnedProfile;
+
+  /// Test helper: set the profile used when spawning a session.
+  @visibleForTesting
+  void testSetSessionSpawnedProfile(
+    String sessionId,
+    String? profileId,
+  ) {
+    _sessionSpawnedProfile[sessionId] = profileId;
+  }
 
   /// Test helper: record a recent ephemeral event for a session so
   /// that [_isSessionReady] trusts its 'online' presence.

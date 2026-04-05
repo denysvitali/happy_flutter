@@ -18,6 +18,7 @@ extension SyncMessagingSend on Sync {
     String? displayText,
     String? permissionMode,
     String? modelMode,
+    String? profileId,
   }) async {
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
@@ -86,6 +87,7 @@ extension SyncMessagingSend on Sync {
       session: session,
       sessionEncryption: sessionEncryption,
       effectivePermissionMode: effectivePermissionMode,
+      profileId: profileId,
     );
     final targetSessionId = sendTarget.sessionId;
     session = sendTarget.session;

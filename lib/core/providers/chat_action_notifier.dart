@@ -21,6 +21,7 @@ class ChatActionNotifier extends Notifier<void> {
     String? displayText,
     String? permissionMode,
     String? modelMode,
+    String? profileId,
   }) async {
     if (!sync.isInitialized) {
       throw StateError('Sync is not initialized');
@@ -31,6 +32,7 @@ class ChatActionNotifier extends Notifier<void> {
       displayText: displayText,
       permissionMode: permissionMode,
       modelMode: modelMode,
+      profileId: profileId,
     );
   }
 
