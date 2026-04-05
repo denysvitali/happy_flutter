@@ -611,6 +611,8 @@ extension _ChatScreenActions on _ChatScreenState {
     final profileId = _selectedProfile?.id;
     if (profileId != null) {
       unawaited(storage.saveProfileId(sentSessionId, profileId));
+    } else {
+      unawaited(storage.removeProfileId(sentSessionId));
     }
     unawaited(
       storage.savePermissionMode(

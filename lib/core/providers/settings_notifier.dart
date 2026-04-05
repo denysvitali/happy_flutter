@@ -53,8 +53,13 @@ class SettingsNotifier extends Notifier<Settings> {
   }
 
   Future<void> updateSetting<T>(String key, T value) async {
-    await _storage.updateSetting(key, value);
+    // Update provider state synchronously (before yielding to the event
+    // loop) so that other screens see the change immediately.  Without
+    // this, callers that use `unawaited(updateSetting(...))` would leave
+    // a window where `ref.read(settingsNotifierProvider)` still returns
+    // the old value — e.g. NewSessionScreen reading `lastUsedProfile`.
     state = _updateSetting(state, key, value);
+    await _storage.updateSetting(key, value);
 
     // Sync developer mode to logger so DevLogsScreen can capture all logs
     // even in release builds when developer mode is enabled.

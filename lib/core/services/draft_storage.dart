@@ -52,6 +52,11 @@ class DraftStorage {
     await _storage.saveSessionProfile(sessionId, profileId);
   }
 
+  /// Remove saved profile ID for a session
+  Future<void> removeProfileId(String sessionId) async {
+    await _storage.removeSessionProfile(sessionId);
+  }
+
   /// Clear all drafts for a session (including permission mode)
   Future<void> clearSessionData(String sessionId) async {
     await removeDraft(sessionId);

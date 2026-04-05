@@ -86,8 +86,13 @@ class ChatActionNotifier extends Notifier<void> {
 
   /// Save the profile selection and update settings.
   void saveProfile(String sessionId, String? profileId) {
+    final storage = DraftStorage();
     if (profileId != null) {
-      DraftStorage().saveProfileId(sessionId, profileId);
+      unawaited(storage.saveProfileId(sessionId, profileId));
+    } else {
+      // Explicitly clear the stale profile from MMKV so auto-restore
+      // doesn't pick up a leftover value when the user selects "None".
+      unawaited(storage.removeProfileId(sessionId));
     }
     // Update the Settings notifier state so PickProfileScreen
     // and other screens see the new selection immediately.
