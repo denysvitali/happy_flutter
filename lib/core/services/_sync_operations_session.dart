@@ -682,8 +682,12 @@ extension SyncSessionOperations on Sync {
     if (_autoRestoreInFlight.contains(sessionId)) {
       logger.info(
         '[sendMessage] auto-restore already in-flight for '
-        'session=$sessionId, skipping duplicate',
+        'session=$sessionId, awaiting result',
       );
+      final pendingCompleter = _autoRestoreCompleters[sessionId];
+      if (pendingCompleter != null) {
+        return pendingCompleter.future;
+      }
       return (
         sessionId: sessionId,
         session: session,
@@ -691,6 +695,14 @@ extension SyncSessionOperations on Sync {
       );
     }
     _autoRestoreInFlight.add(sessionId);
+    final completer = Completer<
+      ({
+        String sessionId,
+        Session session,
+        SessionEncryption sessionEncryption,
+      })
+    >();
+    _autoRestoreCompleters[sessionId] = completer;
     try {
       // Resolve profile env vars for this session before spawning.
       // Pass profileId from the sendMessage caller so we don't rely
@@ -721,11 +733,13 @@ extension SyncSessionOperations on Sync {
           'session=$sessionId type=${result.type ?? 'null'} '
           'error=${result.errorMessage ?? 'unknown'}',
         );
-        return (
+        final fallback = (
           sessionId: sessionId,
           session: session,
           sessionEncryption: sessionEncryption,
         );
+        completer.complete(fallback);
+        return fallback;
       }
 
       final restoredSessionId = result.sessionId;
@@ -734,11 +748,13 @@ extension SyncSessionOperations on Sync {
           '[sendMessage] auto-restore returned empty session id '
           'for requested=$sessionId',
         );
-        return (
+        final fallback = (
           sessionId: sessionId,
           session: session,
           sessionEncryption: sessionEncryption,
         );
+        completer.complete(fallback);
+        return fallback;
       }
 
       await _primeSessionFromSpawnResult(
@@ -802,18 +818,22 @@ extension SyncSessionOperations on Sync {
           '[sendMessage] auto-restore missing encryption for '
           'session=$restoredSessionId; using original session',
         );
-        return (
+        final fallback = (
           sessionId: sessionId,
           session: session,
           sessionEncryption: sessionEncryption,
         );
+        completer.complete(fallback);
+        return fallback;
       }
 
-      return (
+      final restored = (
         sessionId: restoredSessionId,
         session: restoredSession,
         sessionEncryption: restoredSessionEncryption,
       );
+      completer.complete(restored);
+      return restored;
     } catch (error, stack) {
       // Transient network errors and unsupported RPC methods during
       // auto-restore are expected — log at info to avoid Sentry noise.
@@ -834,13 +854,18 @@ extension SyncSessionOperations on Sync {
           stack,
         );
       }
-      return (
+      final fallback = (
         sessionId: sessionId,
         session: session,
         sessionEncryption: sessionEncryption,
       );
+      if (!completer.isCompleted) {
+        completer.complete(fallback);
+      }
+      return fallback;
     } finally {
       _autoRestoreInFlight.remove(sessionId);
+      _autoRestoreCompleters.remove(sessionId);
     }
   }
 }

@@ -317,9 +317,13 @@ what you have, you must use the options mode.
   // sessionId → profileId used when spawning. Lets _resolveSendTargetSession
   // detect profile changes and kill+respawn the session automatically.
   final Map<String, String?> _sessionSpawnedProfile = {};
-  // Track sessions currently undergoing auto-restore to prevent concurrent
-  // RPCs.
+  // Track sessions currently undergoing auto-restore. Concurrent sendMessage
+  // calls await the in-flight Completer instead of silently returning the
+  // stale offline session.
   final Set<String> _autoRestoreInFlight = {};
+  final Map<String, Completer<
+    ({String sessionId, Session session, SessionEncryption sessionEncryption})
+  >> _autoRestoreCompleters = {};
 
   // sessionId → epoch-ms of last ephemeral event (keep-alive or activity).
   // Used by _resolveSendTargetSession to avoid trusting stale 'online'

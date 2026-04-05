@@ -67,6 +67,8 @@ extension SyncMessagingSend on Sync {
         agentStateVersion: 0,
         thinking: false,
         presence: 'offline',
+        permissionMode: permissionMode,
+        modelMode: modelMode,
       );
       _sessions[sessionId] = session;
       _notifyDataChanged();
