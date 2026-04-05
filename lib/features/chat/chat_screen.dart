@@ -361,11 +361,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _metadataJson = latestSession?.metadata?.toJson();
       }
 
-      // Update model mode
-      _modelMode = ClaudeModel.normalizeForFlavor(
-        _modelMode,
-        latestSession?.metadata?.flavor,
-      );
+      // Re-normalize model only when the session's flavor actually changed
+      // to avoid overwriting the user's model selection on every sync event.
+      if (sessionChanged) {
+        _modelMode = ClaudeModel.normalizeForFlavor(
+          _modelMode,
+          latestSession?.metadata?.flavor,
+        );
+      }
 
       // Handle markLoaded unconditionally — the HTTP fetch completed even if
       // no messages changed (e.g. empty session or subagent session).

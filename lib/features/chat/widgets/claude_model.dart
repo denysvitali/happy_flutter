@@ -33,7 +33,8 @@ enum ClaudeModel {
   /// Returns the model options available for a session flavor.
   static List<ClaudeModel> availableForFlavor(String? flavor) {
     return switch (flavor) {
-      'claude' => ClaudeModel.values,
+      // null means the server hasn't set a flavor yet — default is 'claude'.
+      'claude' || null => ClaudeModel.values,
       _ => const [ClaudeModel.defaultModel],
     };
   }
