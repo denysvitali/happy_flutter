@@ -6,10 +6,6 @@ part of 'feed.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-FeedBody _$FeedBodyFromJson(Map<String, dynamic> json) => FeedBody();
-
-Map<String, dynamic> _$FeedBodyToJson(FeedBody instance) => <String, dynamic>{};
-
 _FeedItem _$FeedItemFromJson(Map<String, dynamic> json) => _FeedItem(
   id: json['id'] as String,
   body: _feedBodyFromJson(json['body']),
@@ -44,10 +40,11 @@ _FeedBody _$FeedBodyFromJson(Map<String, dynamic> json) => _FeedBody(
   text: json['text'] as String?,
 );
 
-Map<String, dynamic> _$FeedBodyToJson(_FeedBody instance) => <String, dynamic>{
+Map<String, dynamic> _$FeedBodyToJson(_FeedBody instance) =>
+    <String, dynamic>{
   'kind': instance.kind,
-  'uid': instance.uid,
-  'text': instance.text,
+  if (instance.uid != null) 'uid': instance.uid,
+  if (instance.text != null) 'text': instance.text,
 };
 
 _AppNotification _$AppNotificationFromJson(Map<String, dynamic> json) =>

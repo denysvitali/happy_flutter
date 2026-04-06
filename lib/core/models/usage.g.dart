@@ -6,12 +6,6 @@ part of 'usage.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-UsageQueryParams _$UsageQueryParamsFromJson(Map<String, dynamic> json) =>
-    UsageQueryParams();
-
-Map<String, dynamic> _$UsageQueryParamsToJson(UsageQueryParams instance) =>
-    <String, dynamic>{};
-
 _UsageDataPoint _$UsageDataPointFromJson(Map<String, dynamic> json) =>
     _UsageDataPoint(
       timestamp: json['timestamp'] == null ? 0 : _asUsageInt(json['timestamp']),
@@ -54,10 +48,11 @@ _UsageQueryParams _$UsageQueryParamsFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$UsageQueryParamsToJson(_UsageQueryParams instance) =>
     <String, dynamic>{
-      'sessionId': instance.sessionId,
-      'startTime': instance.startTime,
-      'endTime': instance.endTime,
-      'groupBy': _$UsageGroupByEnumMap[instance.groupBy],
+      if (instance.sessionId != null) 'sessionId': instance.sessionId,
+      if (instance.startTime != null) 'startTime': instance.startTime,
+      if (instance.endTime != null) 'endTime': instance.endTime,
+      if (instance.groupBy != null)
+        'groupBy': _$UsageGroupByEnumMap[instance.groupBy],
     };
 
 const _$UsageGroupByEnumMap = {

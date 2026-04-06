@@ -486,6 +486,41 @@ class MMKVStorage {
     });
   }
 
+  // ─── Generic key-value access ────────────────────────────────────────
+
+  /// Read a raw string for an arbitrary key.
+  String? getString(String key) => _prefs?.getString(key);
+
+  /// Write a raw string for an arbitrary key.
+  void setString(String key, String value) {
+    _getPrefs().then((prefs) {
+      prefs.setString(key, value);
+    }).catchError((Object e) {
+      logger.warning('WebStorage: failed to set "$key": $e');
+    });
+  }
+
+  /// Read a raw bool for an arbitrary key.
+  bool? getBool(String key) => _prefs?.getBool(key);
+
+  /// Write a raw bool for an arbitrary key.
+  void setBool(String key, bool value) {
+    _getPrefs().then((prefs) {
+      prefs.setBool(key, value);
+    }).catchError((Object e) {
+      logger.warning('WebStorage: failed to set bool "$key": $e');
+    });
+  }
+
+  /// Remove a single key.
+  void removeKey(String key) {
+    _getPrefs().then((prefs) {
+      prefs.remove(key);
+    }).catchError((Object e) {
+      logger.warning('WebStorage: failed to remove "$key": $e');
+    });
+  }
+
   // ─── Version tracking ─────────────────────────────────────────────
 
   /// Get the installed version (null if first install)

@@ -10,7 +10,7 @@ class SessionRanker {
   SessionRanker({
     GemmaService? gemmaService,
     bool gemmaEnabled = false,
-  })  : _gemma = gemmaService ?? const GemmaService(),
+  })  : _gemma = gemmaService ?? GemmaService(),
         _gemmaEnabled = gemmaEnabled;
 
   final GemmaService _gemma;

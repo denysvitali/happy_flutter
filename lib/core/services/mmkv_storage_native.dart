@@ -315,7 +315,9 @@ class MMKVStorage {
       }
     } catch (e) {
       logger.warning('MMKV: Initialization failed: $e');
-      rethrow;
+      // Mark initialized even on failure so callers don't retry;
+      // all operations guard on _mmkv being non-null.
+      _instance._initialized = true;
     }
   }
 
@@ -664,6 +666,25 @@ class MMKVStorage {
     await _ensureInitialized();
     _mmkv?.encodeString('outbox-entries', jsonStr);
   }
+
+  // ─── Generic key-value access ────────────────────────────────────
+
+  /// Read a raw string for an arbitrary key.
+  String? getString(String key) => _mmkv?.decodeString(key);
+
+  /// Write a raw string for an arbitrary key.
+  void setString(String key, String value) =>
+      _mmkv?.encodeString(key, value);
+
+  /// Read a raw bool for an arbitrary key.
+  bool? getBool(String key) => _mmkv?.decodeBool(key);
+
+  /// Write a raw bool for an arbitrary key.
+  void setBool(String key, bool value) =>
+      _mmkv?.encodeBool(key, value);
+
+  /// Remove a single key.
+  void removeKey(String key) => _mmkv?.removeValue(key);
 
   // ─── Version tracking ───────────────────────────────────────────
 

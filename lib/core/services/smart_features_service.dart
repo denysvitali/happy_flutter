@@ -1,9 +1,8 @@
 import 'dart:async';
 
-import 'package:mmkv/mmkv.dart';
-
 import '../ml/session_ranker.dart';
 import 'logger_service.dart' show logger;
+import 'mmkv_storage.dart';
 
 /// Service that manages smart features settings and Gemma initialization.
 /// Follows the same pattern as AutoArchiveService for MMKV-backed settings.
@@ -13,6 +12,8 @@ class SmartFeaturesService {
   static final SmartFeaturesService _instance = SmartFeaturesService._();
 
   static final SmartFeaturesService instance = SmartFeaturesService._instance;
+
+  final _storage = MMKVStorage();
 
   Timer? _debounceTimer;
 
@@ -24,15 +25,15 @@ class SmartFeaturesService {
 
   /// Whether smart features are enabled.
   bool get smartFeaturesEnabled =>
-      MMKV.defaultMMKV()?.decodeBool(_keySmartFeaturesEnabled) ?? false;
+      _storage.getBool(_keySmartFeaturesEnabled) ?? false;
 
   /// Whether semantic search is enabled.
   bool get semanticSearchEnabled =>
-      MMKV.defaultMMKV()?.decodeBool(_keySemanticSearchEnabled) ?? false;
+      _storage.getBool(_keySemanticSearchEnabled) ?? false;
 
   /// Whether auto-tags are enabled.
   bool get autoTagsEnabled =>
-      MMKV.defaultMMKV()?.decodeBool(_keyAutoTagsEnabled) ?? false;
+      _storage.getBool(_keyAutoTagsEnabled) ?? false;
 
   /// The session ranker instance.
   late final SessionRanker sessionRanker;
@@ -48,12 +49,15 @@ class SmartFeaturesService {
       gemmaEnabled: smartFeaturesEnabled,
     );
     await sessionRanker.initialize();
-    logger.info('SmartFeaturesService: initialized, Gemma available=${sessionRanker.isAvailable}');
+    logger.info(
+      'SmartFeaturesService: initialized, '
+      'Gemma available=${sessionRanker.isAvailable}',
+    );
   }
 
   /// Updates smart features enabled setting.
   Future<void> setSmartFeaturesEnabled(bool value) async {
-    MMKV.defaultMMKV()?.encodeBool(_keySmartFeaturesEnabled, value);
+    _storage.setBool(_keySmartFeaturesEnabled, value);
     _debounceTimer?.cancel();
     _debounceTimer = Timer(_debounceDuration, () {
       _onSettingChanged();
@@ -62,7 +66,7 @@ class SmartFeaturesService {
 
   /// Updates semantic search enabled setting.
   Future<void> setSemanticSearchEnabled(bool value) async {
-    MMKV.defaultMMKV()?.encodeBool(_keySemanticSearchEnabled, value);
+    _storage.setBool(_keySemanticSearchEnabled, value);
     _debounceTimer?.cancel();
     _debounceTimer = Timer(_debounceDuration, () {
       _onSettingChanged();
@@ -71,7 +75,7 @@ class SmartFeaturesService {
 
   /// Updates auto-tags enabled setting.
   Future<void> setAutoTagsEnabled(bool value) async {
-    MMKV.defaultMMKV()?.encodeBool(_keyAutoTagsEnabled, value);
+    _storage.setBool(_keyAutoTagsEnabled, value);
     _debounceTimer?.cancel();
     _debounceTimer = Timer(_debounceDuration, () {
       _onSettingChanged();
@@ -79,7 +83,6 @@ class SmartFeaturesService {
   }
 
   void _onSettingChanged() {
-    // Re-initialize ranker with new settings
     if (smartFeaturesEnabled) {
       sessionRanker = SessionRanker(gemmaEnabled: true);
       sessionRanker.initialize();

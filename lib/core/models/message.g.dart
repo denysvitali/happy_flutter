@@ -6,11 +6,6 @@ part of 'message.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-MessageMeta _$MessageMetaFromJson(Map<String, dynamic> json) => MessageMeta();
-
-Map<String, dynamic> _$MessageMetaToJson(MessageMeta instance) =>
-    <String, dynamic>{};
-
 _ApiMessage _$ApiMessageFromJson(Map<String, dynamic> json) => _ApiMessage(
   content: _contentFromJson(json['content']),
   id: json['id'] as String? ?? '',
@@ -98,13 +93,18 @@ _MessageMeta _$MessageMetaFromJson(Map<String, dynamic> json) => _MessageMeta(
 
 Map<String, dynamic> _$MessageMetaToJson(_MessageMeta instance) =>
     <String, dynamic>{
-      'sentFrom': instance.sentFrom,
-      'permissionMode': instance.permissionMode,
-      'model': instance.model,
-      'fallbackModel': instance.fallbackModel,
-      'customSystemPrompt': instance.customSystemPrompt,
-      'appendSystemPrompt': instance.appendSystemPrompt,
-      'allowedTools': instance.allowedTools,
-      'disallowedTools': instance.disallowedTools,
-      'displayText': instance.displayText,
+      if (instance.sentFrom != null) 'sentFrom': instance.sentFrom,
+      if (instance.permissionMode != null)
+        'permissionMode': instance.permissionMode,
+      if (instance.model != null) 'model': instance.model,
+      if (instance.fallbackModel != null)
+        'fallbackModel': instance.fallbackModel,
+      if (instance.customSystemPrompt != null)
+        'customSystemPrompt': instance.customSystemPrompt,
+      if (instance.appendSystemPrompt != null)
+        'appendSystemPrompt': instance.appendSystemPrompt,
+      if (instance.allowedTools != null) 'allowedTools': instance.allowedTools,
+      if (instance.disallowedTools != null)
+        'disallowedTools': instance.disallowedTools,
+      if (instance.displayText != null) 'displayText': instance.displayText,
     };

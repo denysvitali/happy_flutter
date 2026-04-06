@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:mmkv/mmkv.dart';
-
 import 'logger_service.dart' show logger;
 import 'mmkv_storage.dart';
 
@@ -17,6 +15,8 @@ class SessionFoldersStorage {
 
   static const String _key = 'session-folders';
 
+  final _storage = MMKVStorage();
+
   Map<String, String>? _cache;
   Timer? _persistTimer;
 
@@ -24,7 +24,7 @@ class SessionFoldersStorage {
 
   Map<String, String> _loadCache() {
     try {
-      final json = MMKV.defaultMMKV()?.decodeString(_key);
+      final json = _storage.getString(_key);
       if (json != null) {
         final decoded = jsonDecode(json) as Map<String, dynamic>;
         return decoded.map((k, v) => MapEntry(k, v as String));
@@ -43,7 +43,7 @@ class SessionFoldersStorage {
   void _persistNow() {
     final cache = _cache;
     if (cache != null) {
-      MMKV.defaultMMKV()?.encodeString(_key, jsonEncode(cache));
+      _storage.setString(_key, jsonEncode(cache));
     }
   }
 
@@ -77,7 +77,7 @@ class SessionFoldersStorage {
   Future<void> clearAll() async {
     _cache?.clear();
     _persistTimer?.cancel();
-    MMKV.defaultMMKV()?.removeValue(_key);
+    _storage.removeKey(_key);
   }
 
   /// Initializes the in-memory cache.

@@ -6,11 +6,6 @@ part of 'friend.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-AvatarRef _$AvatarRefFromJson(Map<String, dynamic> json) => AvatarRef();
-
-Map<String, dynamic> _$AvatarRefToJson(AvatarRef instance) =>
-    <String, dynamic>{};
-
 _AvatarRef _$AvatarRefFromJson(Map<String, dynamic> json) => _AvatarRef(
   path: json['path'] as String? ?? '',
   url: json['url'] as String? ?? '',
@@ -23,9 +18,9 @@ Map<String, dynamic> _$AvatarRefToJson(_AvatarRef instance) =>
     <String, dynamic>{
       'path': instance.path,
       'url': instance.url,
-      'width': instance.width,
-      'height': instance.height,
-      'thumbhash': instance.thumbhash,
+      if (instance.width != null) 'width': instance.width,
+      if (instance.height != null) 'height': instance.height,
+      if (instance.thumbhash != null) 'thumbhash': instance.thumbhash,
     };
 
 _UserProfile _$UserProfileFromJson(Map<String, dynamic> json) => _UserProfile(

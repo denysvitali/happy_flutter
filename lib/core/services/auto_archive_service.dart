@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:mmkv/mmkv.dart';
 
 import '../api/api_client.dart';
 import '../api/sessions_api.dart';
@@ -9,6 +8,7 @@ import '../models/local_settings.dart';
 import '../models/session.dart';
 import '../services/sync_service.dart';
 import 'logger_service.dart' show logger;
+import 'mmkv_storage.dart';
 import 'session_folders_storage.dart';
 import 'pinned_sessions_storage.dart';
 
@@ -26,14 +26,18 @@ class AutoArchiveService {
 
   static const _debounceDuration = Duration(milliseconds: 500);
 
-  /// Returns the current auto-archive settings from MMKV.
+  static const _settingsKey = 'auto-archive-settings';
+
+  final _storage = MMKVStorage();
+
+  /// Returns the current auto-archive settings from storage.
   AutoArchiveSettings _loadSettings() {
     try {
-      final json = MMKV.defaultMMKV()?.decodeString('auto-archive-settings');
-      if (json != null) {
+      final json = _storage.getString(_settingsKey);
+      if (json != null && json.isNotEmpty) {
         return AutoArchiveSettings.fromJson(
           Map<String, dynamic>.from(
-            (json.isEmpty ? {} : _parseJson(json)) as Map,
+            _parseJson(json) as Map,
           ),
         );
       }
@@ -44,10 +48,7 @@ class AutoArchiveService {
   }
 
   Map<String, dynamic> _parseJson(String json) {
-    // Simple JSON parser for the auto-archive settings
-    // Format: {"autoArchiveAfterDays":null,"autoArchiveIdleAfterDays":7,"autoArchiveOnAppClose":false}
     try {
-      // Use dart:convert manually since we're in a service
       return _parseJsonManual(json);
     } catch (_) {
       return {};
@@ -55,14 +56,12 @@ class AutoArchiveService {
   }
 
   Map<String, dynamic> _parseJsonManual(String json) {
-    // Very simple parser for the specific format
     final result = <String, dynamic>{};
     if (json.isEmpty || json == '{}') return result;
-    // Remove braces
+
     final content = json.trim();
     if (content.isEmpty || content == '{}') return result;
 
-    // Parse key:value pairs
     final regex = RegExp(r'"([^"]+)":\s*([^,}]+)');
     for (final match in regex.allMatches(content)) {
       final key = match.group(1)!;
@@ -80,7 +79,7 @@ class AutoArchiveService {
     return result;
   }
 
-  /// Saves auto-archive settings to MMKV.
+  /// Saves auto-archive settings to storage.
   Future<void> _saveSettings(AutoArchiveSettings settings) async {
     try {
       final map = {
@@ -90,13 +89,13 @@ class AutoArchiveService {
           'autoArchiveIdleAfterDays': settings.autoArchiveIdleAfterDays,
         'autoArchiveOnAppClose': settings.autoArchiveOnAppClose,
       };
-      MMKV.defaultMMKV()?.encodeString('auto-archive-settings', map.toString());
+      _storage.setString(_settingsKey, map.toString());
     } catch (e) {
       logger.warning('AutoArchiveService: Failed to save settings: $e');
     }
   }
 
-  /// Checks all sessions and archives ones matching the auto-archive criteria.
+  /// Checks all sessions and archives ones matching the criteria.
   ///
   /// Called from [AppLifecycleService] on resume, with 500ms debounce.
   Future<void> checkAndArchive() async {
@@ -120,7 +119,6 @@ class AutoArchiveService {
     if (sessions.isEmpty) return;
 
     final pinnedStorage = PinnedSessionsStorage.instance;
-    final foldersStorage = SessionFoldersStorage.instance;
     final pinned = pinnedStorage.getPinned();
     final nowMs = DateTime.now().millisecondsSinceEpoch;
 
@@ -135,7 +133,8 @@ class AutoArchiveService {
 
       // Check age-based archive
       if (settings.autoArchiveAfterDays != null) {
-        final ageDays = (nowMs - session.createdAt) ~/ (24 * 60 * 60 * 1000);
+        final ageDays =
+            (nowMs - session.createdAt) ~/ (24 * 60 * 60 * 1000);
         if (ageDays >= settings.autoArchiveAfterDays!) {
           toArchive.add(id);
           continue;
@@ -160,14 +159,17 @@ class AutoArchiveService {
 
     for (final id in toArchive) {
       try {
-        await SessionsApi(client: ApiClient()).setSessionArchived(id, true);
+        await SessionsApi(client: ApiClient()).setSessionArchived(
+          id,
+          true,
+        );
       } catch (e) {
         logger.warning('AutoArchiveService: failed to archive $id', e);
       }
     }
   }
 
-  /// Called when the app is closing - archives if autoArchiveOnAppClose is enabled.
+  /// Called when the app is closing - archives if enabled.
   Future<void> onAppClose() async {
     final settings = _loadSettings();
     if (!settings.autoArchiveOnAppClose) return;

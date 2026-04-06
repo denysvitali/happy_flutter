@@ -6,14 +6,6 @@ part of 'artifact.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-ArtifactUpdateRequest _$ArtifactUpdateRequestFromJson(
-  Map<String, dynamic> json,
-) => ArtifactUpdateRequest();
-
-Map<String, dynamic> _$ArtifactUpdateRequestToJson(
-  ArtifactUpdateRequest instance,
-) => <String, dynamic>{};
-
 _Artifact _$ArtifactFromJson(Map<String, dynamic> json) => _Artifact(
   id: _asRequiredString(json['id']),
   header: _asRequiredString(json['header']),
@@ -118,10 +110,12 @@ _ArtifactUpdateRequest _$ArtifactUpdateRequestFromJson(
 Map<String, dynamic> _$ArtifactUpdateRequestToJson(
   _ArtifactUpdateRequest instance,
 ) => <String, dynamic>{
-  'header': instance.header,
-  'expectedHeaderVersion': instance.expectedHeaderVersion,
-  'body': instance.body,
-  'expectedBodyVersion': instance.expectedBodyVersion,
+  if (instance.header != null) 'header': instance.header,
+  if (instance.expectedHeaderVersion != null)
+    'expectedHeaderVersion': instance.expectedHeaderVersion,
+  if (instance.body != null) 'body': instance.body,
+  if (instance.expectedBodyVersion != null)
+    'expectedBodyVersion': instance.expectedBodyVersion,
 };
 
 _ArtifactUpdateResponse _$ArtifactUpdateResponseFromJson(

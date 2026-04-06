@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:mmkv/mmkv.dart';
-
 import 'logger_service.dart' show logger;
+import 'mmkv_storage.dart';
 
 /// MMKV-backed storage for pinned session IDs.
 ///
@@ -16,17 +15,16 @@ class PinnedSessionsStorage {
 
   static const String _key = 'pinned-sessions';
 
-  MMKV? _mmkv;
+  final _storage = MMKVStorage();
+
   Set<String>? _cache;
   Timer? _persistTimer;
 
   static const _debounceDuration = Duration(milliseconds: 500);
 
-  MMKV? _getMMKV() => _mmkv ?? MMKV.defaultMMKV();
-
   Set<String> _loadCache() {
     try {
-      final json = _getMMKV()?.decodeString(_key);
+      final json = _storage.getString(_key);
       if (json != null) {
         final decoded = jsonDecode(json) as List<dynamic>;
         return decoded.whereType<String>().toSet();
@@ -45,7 +43,7 @@ class PinnedSessionsStorage {
   void _persistNow() {
     final cache = _cache;
     if (cache != null) {
-      _getMMKV()?.encodeString(_key, jsonEncode(cache.toList()));
+      _storage.setString(_key, jsonEncode(cache.toList()));
     }
   }
 
@@ -75,7 +73,7 @@ class PinnedSessionsStorage {
   Future<void> clearAll() async {
     _cache?.clear();
     _persistTimer?.cancel();
-    _getMMKV()?.removeValue(_key);
+    _storage.removeKey(_key);
   }
 
   /// Initializes the in-memory cache synchronously.
