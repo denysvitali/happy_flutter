@@ -1,8 +1,8 @@
 import 'dart:convert' show jsonDecode, jsonEncode;
-import 'dart:isolate';
 import 'dart:typed_data';
 
 import '../services/logger_service.dart' show logger;
+import '../services/message_processing_service.dart';
 import '../utils/wire_parsers.dart';
 
 import 'base64.dart';
@@ -271,22 +271,12 @@ class SessionEncryption {
       contentList.add(dm?.content);
     }
 
-    if (_decryptor is AES256Encryption && messages.length >= 20) {
-      return Isolate.run(() {
-        return processDecryptedMessages(
-          decryptedJsonList: contentList,
-          wireMessages: messages,
-          sessionId: sessionId,
-          wasEncrypted: wasEncryptedList,
-        );
-      });
-    }
-
-    return processDecryptedMessages(
+    return processDecryptedMessagesWithIsolation(
       decryptedJsonList: contentList,
       wireMessages: messages,
       sessionId: sessionId,
       wasEncrypted: wasEncryptedList,
+      useIsolate: _decryptor is AES256Encryption && messages.length >= 20,
     );
   }
 
