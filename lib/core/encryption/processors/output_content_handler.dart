@@ -35,7 +35,7 @@ void _processOutputContent({
   if (dataType == 'assistant') {
     final effectiveUuid = (meta.uuid != null && meta.uuid!.isNotEmpty)
         ? meta.uuid!
-        : id;
+        : id; // id is never null — always a wire id string
 
     final agentMsg = data['message'];
     if (agentMsg is! Map<String, dynamic>) {
