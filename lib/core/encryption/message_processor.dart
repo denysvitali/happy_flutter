@@ -5,6 +5,8 @@
 /// dependencies — only plain Dart map/list manipulation.
 library;
 
+import '../utils/wire_parsers.dart';
+
 // Content-type handlers extracted from the main file.
 part 'processors/user_message_handler.dart';
 part 'processors/output_content_handler.dart';

@@ -10,6 +10,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/wire_parsers.dart';
 import 'markdown/markdown.dart';
 import 'tools/tool_status_indicator.dart';
 import 'tools/tool_view.dart';
@@ -162,7 +163,7 @@ class _AgentConversationScreenState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
-    final input = _taskMsg?['input'] as Map<String, dynamic>?;
+    final input = WireParsers.asMap(_taskMsg?['input']);
     final description =
         input?['description'] as String? ??
         input?['prompt'] as String? ??
@@ -303,7 +304,7 @@ class _AgentConversationScreenState
       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: ToolView(
         tool: msg,
-        metadata: _taskMsg?['metadata'] as Map<String, dynamic>?,
+        metadata: WireParsers.asMap(_taskMsg?['metadata']),
         messages: sync.sessionMessages[widget.sessionId],
         sessionId: widget.sessionId,
         isSessionOnline: sync.sessions[widget.sessionId]?.presence == 'online',
@@ -324,7 +325,7 @@ class _AgentConversationScreenState
     Map<String, dynamic> msg, {
     Key? key,
   }) {
-    final input = msg['input'] as Map<String, dynamic>?;
+    final input = WireParsers.asMap(msg['input']);
     final description =
         input?['description'] as String? ??
         input?['prompt'] as String? ??
@@ -532,7 +533,7 @@ class _ErrorRow extends StatelessWidget {
   }
 
   void _showErrorSheet(BuildContext context) {
-    final debugData = msg['debugData'] as Map<String, dynamic>?;
+    final debugData = WireParsers.asMap(msg['debugData']);
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(

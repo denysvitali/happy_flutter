@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/wire_parsers.dart';
 import 'tools/json_viewer.dart';
 import 'tools/known_tools.dart';
 import 'tools/tool_status_indicator.dart';
@@ -105,9 +106,9 @@ class _ToolDetailView extends StatelessWidget {
     final theme = Theme.of(context);
     final toolName = data['name'] as String? ?? 'Unknown';
     final toolState = data['state'] as String? ?? 'pending';
-    final input = data['input'] as Map<String, dynamic>?;
+    final input = WireParsers.asMap(data['input']);
     final result = data['result'];
-    final permission = data['permission'] as Map<String, dynamic>?;
+    final permission = WireParsers.asMap(data['permission']);
     final messages = data['messages'] as List<dynamic>?;
 
     final knownTool = KnownTools.get(toolName);
@@ -202,7 +203,7 @@ class _ToolDetailView extends StatelessWidget {
               .where((m) => m['kind'] == 'tool-call')
               .map(
                 (m) => _ChildToolItem(
-                  tool: m['tool'] as Map<String, dynamic>? ?? m,
+                  tool: WireParsers.asMap(m['tool']) ?? m,
                   message: m,
                 ),
               ),
@@ -494,7 +495,7 @@ class _ToolDetailBottomSheet extends StatelessWidget {
     final theme = Theme.of(context);
     final toolName = tool['name'] as String? ?? 'Unknown';
     final state = tool['state'] as String? ?? 'pending';
-    final input = tool['input'] as Map<String, dynamic>?;
+    final input = WireParsers.asMap(tool['input']);
     final result = tool['result'];
 
     return Column(

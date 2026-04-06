@@ -1,3 +1,5 @@
+import '../utils/wire_parsers.dart';
+
 /// Sidechain message grouping logic.
 ///
 /// Groups sidechain messages (Task/Agent tool-call children) into
@@ -85,7 +87,7 @@ class SidechainGrouper {
         if (toolUseId != null && toolUseId.isNotEmpty) {
           uuidToTaskId[toolUseId] = taskId;
         }
-        final input = msg['input'] as Map<String, dynamic>?;
+        final input = WireParsers.asMap(msg['input']);
         final prompt = input?['prompt'] as String?;
         if (prompt != null && prompt.isNotEmpty) {
           promptToTaskId[prompt] = taskId;

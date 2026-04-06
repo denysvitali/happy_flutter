@@ -1,4 +1,5 @@
 import '../models/session.dart';
+import '../utils/wire_parsers.dart';
 
 /// Processes tool results and permission requests against
 /// message lists.
@@ -157,7 +158,7 @@ class ToolResultProcessor {
 
         final msg = result[idx];
         final existingPerm =
-            msg['permission'] as Map<String, dynamic>?;
+            WireParsers.asMap(msg['permission']);
         if (existingPerm == null) {
           ensureCopied();
           result[idx] = {
@@ -195,7 +196,7 @@ class ToolResultProcessor {
 
         final msg = result[idx];
         final existingPerm =
-            msg['permission'] as Map<String, dynamic>?;
+            WireParsers.asMap(msg['permission']);
         if (existingPerm != null &&
             existingPerm['status'] != 'pending' &&
             existingPerm['id'] != null) {
@@ -227,7 +228,7 @@ class ToolResultProcessor {
       final msg = result[i];
       if (msg['kind'] != 'tool-call') continue;
       final perm =
-          msg['permission'] as Map<String, dynamic>?;
+          WireParsers.asMap(msg['permission']);
       if (perm == null) continue;
       final status = perm['status'] as String?;
       if (status != 'pending') continue;

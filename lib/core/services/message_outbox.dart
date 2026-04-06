@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import '../utils/wire_parsers.dart';
 import 'logger_service.dart';
 import 'mmkv_storage.dart';
 
@@ -25,7 +26,7 @@ class OutboxEntry {
       sessionId: json['sessionId'] as String,
       text: json['text'] as String,
       encryptedContent: json['encryptedContent'] as String,
-      rawRecord: (json['rawRecord'] as Map<String, dynamic>?) ?? {},
+      rawRecord: WireParsers.asMap(json['rawRecord']) ?? {},
       queuedAt: json['queuedAt'] as int,
       retryCount: json['retryCount'] as int? ?? 0,
     );

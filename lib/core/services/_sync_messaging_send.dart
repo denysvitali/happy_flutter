@@ -292,7 +292,7 @@ extension SyncMessagingSend on Sync {
       );
 
       if (apiClient.isSuccess(response)) {
-        final data = response.data as Map<String, dynamic>?;
+        final data = WireParsers.asMap(response.data);
         final serverMessages = (data?['messages'] as List<dynamic>? ?? [])
             .whereType<Map<String, dynamic>>()
             .toList();
@@ -459,7 +459,7 @@ extension SyncMessagingSend on Sync {
         return false;
       }
 
-      final data = response.data as Map<String, dynamic>?;
+      final data = WireParsers.asMap(response.data);
       final serverMessages =
           (data?['messages'] as List<dynamic>? ?? [])
               .whereType<Map<String, dynamic>>()

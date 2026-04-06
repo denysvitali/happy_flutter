@@ -313,7 +313,7 @@ extension SyncMessagingRpc on Sync {
       for (var i = 0; i < updated.length; i++) {
         final msg = updated[i];
         if (msg['kind'] != 'tool-call') continue;
-        final perm = msg['permission'] as Map<String, dynamic>?;
+        final perm = WireParsers.asMap(msg['permission']);
         if (perm == null || perm['status'] != 'pending') continue;
         updated[i] = {
           ...msg,

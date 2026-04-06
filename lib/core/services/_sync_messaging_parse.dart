@@ -333,7 +333,7 @@ extension SyncMessagingParse on Sync {
       if (agentMsg is! Map<String, dynamic>) return ([], []);
 
       // Extract usage data for context window tracking
-      final usageData = agentMsg['usage'] as Map<String, dynamic>?;
+      final usageData = WireParsers.asMap(agentMsg['usage']);
       if (usageData != null) {
         _updateSessionUsage(sessionId, usageData, createdAt);
       }

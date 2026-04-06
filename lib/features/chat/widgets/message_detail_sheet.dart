@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/wire_parsers.dart';
 
 // ---------------------------------------------------------------------------
 // Message detail bottom sheet (tap on bot message)
@@ -19,11 +20,9 @@ void showMessageDetailSheet(
   final l10n = AppLocalizations.of(context);
 
   // meta may be directly on the message or inside the 'raw' decrypted record.
-  final raw = messageData['raw'] as Map<String, dynamic>?;
-  final meta = (messageData['meta'] as Map<String, dynamic>?)
-      ?? (raw?['meta'] is Map<String, dynamic>
-          ? raw!['meta'] as Map<String, dynamic>
-          : null);
+  final raw = WireParsers.asMap(messageData['raw']);
+  final meta = WireParsers.asMap(messageData['meta'])
+      ?? WireParsers.asMap(raw?['meta']);
   final model = meta?['model'] as String?
       ?? messageData['model'] as String?;
   final permissionMode = meta?['permissionMode'] as String?;

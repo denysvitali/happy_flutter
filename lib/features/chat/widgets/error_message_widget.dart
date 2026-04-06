@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/wire_parsers.dart';
 import 'message_detail_sheet.dart';
 
 /// Tappable error card that shows a detail sheet on tap.
@@ -92,7 +93,7 @@ class ErrorMessageWidget extends StatelessWidget {
     final seq = messageData['seq'] as int?;
     final createdAt = messageData['createdAt'] as int?;
     final debugData =
-        messageData['debugData'] as Map<String, dynamic>?;
+        WireParsers.asMap(messageData['debugData']);
 
     final timestamp = createdAt != null
         ? DateTime.fromMillisecondsSinceEpoch(createdAt).toString()

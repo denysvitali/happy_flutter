@@ -188,7 +188,7 @@ extension SyncSocketEvents on Sync {
     // the HTTP fallback can re-process the message without it being
     // incorrectly deduped as "already seen".
     final embeddedMessage =
-        data['message'] as Map<String, dynamic>?;
+        WireParsers.asMap(data['message']);
     if (embeddedMessage != null) {
       final msgId = embeddedMessage['id'] as String?;
       final msgSeq = embeddedMessage['seq'];

@@ -1,4 +1,5 @@
 import '../models/message.dart';
+import 'wire_parsers.dart';
 
 /// Extracts plain text from markdown by removing formatting
 String stripMarkdown(String text) {
@@ -280,7 +281,7 @@ String getMessagePreview(ApiMessage? message, {int maxLength = 50}) {
                 name: t['name'] as String,
                 state: t['state'] as String? ?? 'completed',
                 createdAt: 0,
-                input: t['arguments'] as Map<String, dynamic>?,
+                input: WireParsers.asMap(t['arguments']),
               ),
             )
             .toList();

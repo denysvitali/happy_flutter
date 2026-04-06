@@ -27,7 +27,7 @@ extension SyncOperations on Sync {
         );
 
         final updateData =
-            updateResponse.data as Map<String, dynamic>?;
+            WireParsers.asMap(updateResponse.data);
         final updateSuccess = updateData?['success'] == true;
         if (apiClient.isSuccess(updateResponse) && updateSuccess) {
           _settingsSnapshot = mergedSettings;
@@ -48,8 +48,11 @@ extension SyncOperations on Sync {
               _asInt(updateData?['currentVersion']) ?? 0;
           final serverSettingsMap =
               currentSettingsEncrypted != null
-                  ? await encryption.decryptRaw(currentSettingsEncrypted)
-                        as Map<String, dynamic>?
+                  ? WireParsers.asMap(
+                      await encryption.decryptRaw(
+                        currentSettingsEncrypted,
+                      ),
+                    )
                   : null;
           final serverSettings =
               Settings.fromJson(serverSettingsMap ?? {});
@@ -69,17 +72,17 @@ extension SyncOperations on Sync {
         final response = await apiClient.get('/v1/account/settings');
 
         if (apiClient.isSuccess(response)) {
-          final data = response.data as Map<String, dynamic>;
-          final encryptedSettings = data['settings'] as String?;
+          final data = WireParsers.asMap(response.data);
+          final encryptedSettings = data?['settings'] as String?;
 
           if (encryptedSettings != null) {
-            final decrypted =
-                await encryption.decryptRaw(encryptedSettings)
-                    as Map<String, dynamic>?;
+            final decrypted = WireParsers.asMap(
+                await encryption.decryptRaw(encryptedSettings),
+            );
             if (decrypted != null) {
               _settingsSnapshot = Settings.fromJson(decrypted);
               _settingsVersion =
-                  _asInt(data['settingsVersion']) ?? _settingsVersion;
+                  _asInt(data?['settingsVersion']) ?? _settingsVersion;
               _notifyDataChanged();
               // Persist to MMKV so the next cold start has fresh data.
               unawaited(
@@ -89,7 +92,7 @@ extension SyncOperations on Sync {
           } else {
             _settingsSnapshot = Settings();
             _settingsVersion =
-                _asInt(data['settingsVersion']) ?? _settingsVersion;
+                _asInt(data?['settingsVersion']) ?? _settingsVersion;
             _notifyDataChanged();
           }
         } else {
@@ -193,7 +196,7 @@ extension SyncOperations on Sync {
         return;
       }
 
-      final data = response.data as Map<String, dynamic>?;
+      final data = WireParsers.asMap(response.data);
       final updateUrl =
           data?['updateUrl'] as String? ??
               data?['update_url'] as String?;

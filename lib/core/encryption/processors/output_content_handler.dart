@@ -63,7 +63,7 @@ void _processOutputContent({
       return;
     }
 
-    final usageData = agentMsg['usage'] as Map<String, dynamic>?;
+    final usageData = WireParsers.asMap(agentMsg['usage']);
     if (usageData != null) {
       usageUpdates.add({
         'sessionId': sessionId,
