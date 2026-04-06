@@ -90,9 +90,21 @@ class _PermissionFooterState extends State<PermissionFooter> {
     try {
       await cb();
     } on Object catch (e) {
-      logger.warning('Permission action failed: $e');
+      final msg = e.toString();
+      // Expected race conditions when server resolves/expires the
+      // permission before the user acts — downgrade to info.
+      final isExpectedRace =
+          msg.contains('restarted') ||
+          msg.contains('expired') ||
+          msg.contains('no pending permission') ||
+          msg.contains('not available') ||
+          msg.contains('failed to resolve');
+      if (isExpectedRace) {
+        logger.info('Permission action skipped: $e');
+      } else {
+        logger.warning('Permission action failed: $e');
+      }
       if (mounted) {
-        final msg = e.toString();
         final l10n = AppLocalizations.of(context);
         final String label;
         if (msg.contains('restarted') ||

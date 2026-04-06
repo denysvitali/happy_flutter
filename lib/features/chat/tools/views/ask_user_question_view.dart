@@ -557,11 +557,24 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
         );
       }
     } catch (e, st) {
-      logger.warning(
-        'Failed to submit answer: $e',
-        e,
-        st,
-      );
+      final msg = e.toString();
+      // Expected race condition when server already resolved/expired
+      // the permission before the user answered.
+      final isExpectedRace =
+          msg.contains('no pending permission') ||
+          msg.contains('not available') ||
+          msg.contains('failed to resolve') ||
+          msg.contains('restarted') ||
+          msg.contains('expired');
+      if (isExpectedRace) {
+        logger.info('Submit answer skipped: $e');
+      } else {
+        logger.warning(
+          'Failed to submit answer: $e',
+          e,
+          st,
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);

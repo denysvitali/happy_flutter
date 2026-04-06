@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 
 import '../services/logger_service.dart' show logger;
+import '../utils/wire_parsers.dart';
 
 import 'base64.dart';
 import 'encryption_cache.dart';
@@ -336,7 +337,8 @@ class SessionEncryption {
       return null;
     }
 
-    final data = decrypted[0] as Map<String, dynamic>;
+    final data = WireParsers.asMap(decrypted[0]);
+    if (data == null) return null;
     _cache.setCachedMetadata(_sessionId, version, data);
     return data;
   }
@@ -369,7 +371,8 @@ class SessionEncryption {
       return {};
     }
 
-    final data = decrypted[0] as Map<String, dynamic>;
+    final data = WireParsers.asMap(decrypted[0]);
+    if (data == null) return {};
     _cache.setCachedAgentState(_sessionId, version, data);
     return data;
   }
