@@ -311,11 +311,6 @@ extension SyncMessagingParse on Sync {
     final data = nestedContent['data'];
     if (data is! Map<String, dynamic>) return ([], []);
 
-    // Skip meta and compact summary messages
-    if (data['isMeta'] == true || data['isCompactSummary'] == true) {
-      return ([], []);
-    }
-
     // Sidechain metadata for sub-agent grouping
     final isSidechain =
         data['isSidechain'] == true || data['is_sidechain'] == true;
@@ -325,6 +320,188 @@ extension SyncMessagingParse on Sync {
             as String?;
 
     final dataType = data['type'] as String?;
+
+    // Process actionable meta messages before skipping the rest.
+    if (data['isMeta'] == true || data['isCompactSummary'] == true) {
+      // System messages with subtypes that carry UI-relevant information.
+      if (dataType == 'system') {
+        final subtype = data['subtype'] as String?;
+
+        // Task lifecycle events are sidechain-linked by the CLI via
+        // tool_use_id. Forward them so the sidechain grouper can attach
+        // them as children of Agent/Task tool calls.
+        if (subtype == 'task_started' ||
+            subtype == 'task_progress' ||
+            subtype == 'task_notification') {
+          if (dataUuid == null || dataUuid.isEmpty) return ([], []);
+          final description = data['description'] as String?;
+          final summary = data['summary'] as String?;
+          final status = data['status'] as String?;
+          final label = description ?? summary ?? 'Task $subtype';
+
+          // task_notification with status 'completed' or 'failed' can
+          // carry a summary for display.
+          if (subtype == 'task_notification' &&
+              (status == 'completed' || status == 'failed')) {
+            return (
+              [
+                {
+                  'id': '${message.id}_tn',
+                  'seq': message.seq,
+                  'createdAt': createdAt,
+                  'role': 'agent',
+                  'kind': 'text',
+                  'content': summary ?? 'Task $status',
+                  if (isSidechain) 'isSidechain': true,
+                  'uuid': dataUuid,
+                  'parentUuid': ?dataParentUuid,
+                },
+              ],
+              [],
+            );
+          }
+
+          return (
+            [
+              {
+                'id': '${message.id}_te',
+                'seq': message.seq,
+                'createdAt': createdAt,
+                'role': 'agent',
+                'kind': 'agent-event',
+                'event': {'type': 'message', 'message': label},
+                if (isSidechain) 'isSidechain': true,
+                'uuid': dataUuid,
+                'parentUuid': ?dataParentUuid,
+              },
+            ],
+            [],
+          );
+        }
+
+        // session_state_changed → update session thinking/presence state.
+        if (subtype == 'session_state_changed') {
+          final state = data['state'] as String?;
+          if (state == 'idle') {
+            final current = _sessions[sessionId];
+            if (current != null) {
+              _sessions[sessionId] = current.copyWith(thinking: false);
+              _notifyDataChanged();
+            }
+          } else if (state == 'running') {
+            final current = _sessions[sessionId];
+            if (current != null) {
+              _sessions[sessionId] = current.copyWith(thinking: true);
+              _notifyDataChanged();
+            }
+          }
+          // Don't render a visible message.
+          return ([], []);
+        }
+
+        // api_retry → show "Retrying..." event in conversation.
+        if (subtype == 'api_retry') {
+          final attempt = data['attempt'];
+          final maxRetries = data['max_retries'];
+          final label = 'Retrying API request ($attempt/$maxRetries)...';
+          return (
+            [
+              {
+                'id': '${message.id}_ar',
+                'seq': message.seq,
+                'createdAt': createdAt,
+                'role': 'agent',
+                'kind': 'agent-event',
+                'event': {'type': 'message', 'message': label},
+                'raw': outerContent,
+              },
+            ],
+            [],
+          );
+        }
+
+        // compact_boundary → show compaction event.
+        if (subtype == 'compact_boundary') {
+          return (
+            [
+              {
+                'id': '${message.id}_cb',
+                'seq': message.seq,
+                'createdAt': createdAt,
+                'role': 'agent',
+                'kind': 'agent-event',
+                'event': {
+                  'type': 'message',
+                  'message': 'Context compacted',
+                },
+                'raw': outerContent,
+              },
+            ],
+            [],
+          );
+        }
+      }
+
+      // tool_progress events: show elapsed time as agent event in sidechain.
+      if (dataType == 'tool_progress') {
+        final toolName = data['tool_name'] as String? ?? 'tool';
+        final elapsed = data['elapsed_time_seconds'];
+        final elapsedStr = elapsed is num ? '${elapsed.toStringAsFixed(0)}s' : '';
+        final label = '$toolName running${elapsedStr.isNotEmpty ? ' ($elapsedStr)' : ''}...';
+        return (
+          [
+            {
+              'id': '${message.id}_tp',
+              'seq': message.seq,
+              'createdAt': createdAt,
+              'role': 'agent',
+              'kind': 'agent-event',
+              'event': {'type': 'message', 'message': label},
+              if (isSidechain) 'isSidechain': true,
+              'uuid': ?dataUuid,
+              'parentUuid': ?dataParentUuid,
+            },
+          ],
+          [],
+        );
+      }
+
+      // rate_limit_event → show rate limit warning as agent event.
+      if (dataType == 'rate_limit_event') {
+        final info = data['rate_limit_info'];
+        if (info is Map<String, dynamic>) {
+          final status = info['status'] as String?;
+          if (status == 'allowed_warning' || status == 'rejected') {
+            final label = status == 'rejected'
+                ? 'Rate limit reached — waiting for reset'
+                : 'Approaching rate limit';
+            return (
+              [
+                {
+                  'id': '${message.id}_rl',
+                  'seq': message.seq,
+                  'createdAt': createdAt,
+                  'role': 'agent',
+                  'kind': 'agent-event',
+                  'event': {'type': 'limit-reached', 'message': label},
+                  'raw': outerContent,
+                },
+              ],
+              [],
+            );
+          }
+        }
+        return ([], []);
+      }
+
+      // prompt_suggestion → internal hint, no visible message for now.
+      if (dataType == 'prompt_suggestion') {
+        return ([], []);
+      }
+
+      // Skip remaining meta/compact summary messages.
+      return ([], []);
+    }
 
     if (dataType == 'assistant') {
       if (dataUuid == null || dataUuid.isEmpty) return ([], []);
@@ -505,7 +682,77 @@ extension SyncMessagingParse on Sync {
       return ([], toolResults);
     }
 
-    // Skip system, result, summary messages
+    // Streamlined text: replaces full assistant message in streamlined mode.
+    if (dataType == 'streamlined_text') {
+      final text = data['text'] as String?;
+      if (text == null || text.isEmpty) return ([], []);
+      return (
+        [
+          {
+            'id': '${message.id}_sl',
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'text',
+            'content': text,
+            'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': ?dataUuid,
+            'parentUuid': ?dataParentUuid,
+          },
+        ],
+        [],
+      );
+    }
+
+    // Streamlined tool use summary: replaces tool_use blocks with a summary.
+    if (dataType == 'streamlined_tool_use_summary') {
+      final summary = data['tool_summary'] as String?;
+      if (summary == null || summary.isEmpty) return ([], []);
+      return (
+        [
+          {
+            'id': '${message.id}_sts',
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'text',
+            'content': '*$summary*',
+            'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': ?dataUuid,
+            'parentUuid': ?dataParentUuid,
+          },
+        ],
+        [],
+      );
+    }
+
+    // tool_use_summary: summary of completed tool operations.
+    if (dataType == 'tool_use_summary') {
+      final summary = data['summary'] as String?;
+      if (summary == null || summary.isEmpty) return ([], []);
+      return (
+        [
+          {
+            'id': '${message.id}_tus',
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'text',
+            'content': '*$summary*',
+            'raw': outerContent,
+            'uuid': ?dataUuid,
+            'parentUuid': ?dataParentUuid,
+          },
+        ],
+        [],
+      );
+    }
+
+    // Skip system, result, and other unrecognized messages
     return ([], []);
   }
 

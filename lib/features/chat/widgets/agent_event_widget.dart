@@ -44,7 +44,7 @@ class AgentEventWidget extends StatelessWidget {
       case 'message':
         return event['message'] as String?;
       case 'limit-reached':
-        return 'Usage limit reached';
+        return event['message'] as String? ?? 'Usage limit reached';
       default:
         return null;
     }
