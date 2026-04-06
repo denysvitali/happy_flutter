@@ -603,7 +603,12 @@ extension SyncMessagingParse on Sync {
     }
 
     // Handle top-level tool-result / tool-call-result envelopes.
-    if (dataType == 'tool-result' || dataType == 'tool-call-result') {
+    // Check both `type` and `dataType` since different server responses
+    // use different field names.
+    if (dataType == 'tool-result' ||
+        dataType == 'tool-call-result' ||
+        data['dataType'] == 'tool-result' ||
+        data['dataType'] == 'tool-call-result') {
       final result = data['output'] ?? data['content'];
       final callId = data['callId'] as String?;
       if (callId != null && callId.isNotEmpty) {
@@ -977,7 +982,10 @@ extension SyncMessagingParse on Sync {
       );
     }
 
-    if (dataType == 'tool-result' || dataType == 'tool-call-result') {
+    if (dataType == 'tool-result' ||
+        dataType == 'tool-call-result' ||
+        data['dataType'] == 'tool-result' ||
+        data['dataType'] == 'tool-call-result') {
       // Support both 'output' and 'content' fields for tool result
       final result = data['output'] ?? data['content'];
       return (

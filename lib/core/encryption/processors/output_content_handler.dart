@@ -251,7 +251,12 @@ void _processOutputContent({
   // Handle top-level tool-result / tool-call-result envelopes.
   // The server sometimes wraps tool results at the output level
   // (same shape the ACP handler processes).
-  if (dataType == 'tool-result' || dataType == 'tool-call-result') {
+  // Check both `data['type']` and `data['dataType']` since different
+  // server responses use different field names.
+  if (dataType == 'tool-result' ||
+      dataType == 'tool-call-result' ||
+      data['dataType'] == 'tool-result' ||
+      data['dataType'] == 'tool-call-result') {
     final result = data['output'] ?? data['content'];
     final callId = data['callId'] as String?;
     if (callId != null && callId.isNotEmpty) {

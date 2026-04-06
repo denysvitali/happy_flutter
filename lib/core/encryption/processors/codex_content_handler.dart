@@ -76,7 +76,10 @@ void _processCodexContent({
     return;
   }
 
-  if (dataType == 'tool-result' || dataType == 'tool-call-result') {
+  if (dataType == 'tool-result' ||
+      dataType == 'tool-call-result' ||
+      data['dataType'] == 'tool-result' ||
+      data['dataType'] == 'tool-call-result') {
     final result = data['output'] ?? data['content'];
     toolResults.add({
       'toolUseId': data['callId'],
