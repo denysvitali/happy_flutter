@@ -1,11 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_secure_storage/test/test_flutter_secure_storage_platform.dart';
+import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
 import 'package:happy_flutter/core/models/auth.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:riverpod/riverpod.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('AuthStateNotifier', () {
     late ProviderContainer container;
+
+    setUpAll(() {
+      FlutterSecureStoragePlatform.instance = TestFlutterSecureStoragePlatform(
+        <String, String>{},
+      );
+    });
 
     setUp(() {
       container = ProviderContainer();
@@ -24,7 +34,10 @@ void main() {
       final notifier = container.read(authStateNotifierProvider.notifier);
 
       // Initial state
-      expect(container.read(authStateNotifierProvider), AuthState.unauthenticated);
+      expect(
+        container.read(authStateNotifierProvider),
+        AuthState.unauthenticated,
+      );
 
       // Start authentication (will fail since no credentials, but state should
       // transition through authenticating)
@@ -41,7 +54,10 @@ void main() {
       // Test that we can manually verify state transitions by checking
       // the notifier builds correctly
       expect(notifier, isA<AuthStateNotifier>());
-      expect(container.read(authStateNotifierProvider), AuthState.unauthenticated);
+      expect(
+        container.read(authStateNotifierProvider),
+        AuthState.unauthenticated,
+      );
     });
 
     test('should maintain unauthenticated state when no credentials', () async {
