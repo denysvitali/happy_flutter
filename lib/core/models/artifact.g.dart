@@ -6,6 +6,14 @@ part of 'artifact.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+ArtifactUpdateRequest _$ArtifactUpdateRequestFromJson(
+  Map<String, dynamic> json,
+) => ArtifactUpdateRequest();
+
+Map<String, dynamic> _$ArtifactUpdateRequestToJson(
+  ArtifactUpdateRequest instance,
+) => <String, dynamic>{};
+
 _Artifact _$ArtifactFromJson(Map<String, dynamic> json) => _Artifact(
   id: _asRequiredString(json['id']),
   header: _asRequiredString(json['header']),

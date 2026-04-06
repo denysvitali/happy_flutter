@@ -35,6 +35,7 @@ abstract class FeedItem with _$FeedItem {
 /// Feed body content — discriminated union on [kind].
 ///
 /// Supported kinds: `'friend_request'`, `'friend_accepted'`, `'text'`.
+@JsonSerializable(includeIfNull: false)
 @freezed
 abstract class FeedBody with _$FeedBody {
   const factory FeedBody({
@@ -86,8 +87,7 @@ enum NotificationType {
   error,
   sessionUpdate,
   friendUpdate,
-  message,
-  ;
+  message;
 
   static NotificationType fromString(String value) {
     switch (value) {

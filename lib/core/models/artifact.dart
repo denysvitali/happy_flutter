@@ -12,9 +12,7 @@ int _asApiInt(dynamic value) {
   if (value is int) return value;
   if (value is double) return value.toInt();
   if (value is num) return value.toInt();
-  throw FormatException(
-    'Expected int, got ${value.runtimeType}',
-  );
+  throw FormatException('Expected int, got ${value.runtimeType}');
 }
 
 String _asRequiredString(dynamic value) {
@@ -75,9 +73,7 @@ abstract class ArtifactHeader with _$ArtifactHeader {
 /// Decrypted artifact body (matches React Native ArtifactBody interface)
 @freezed
 abstract class ArtifactBody with _$ArtifactBody {
-  const factory ArtifactBody({
-    String? body,
-  }) = _ArtifactBody;
+  const factory ArtifactBody({String? body}) = _ArtifactBody;
 
   factory ArtifactBody.fromJson(Map<String, dynamic> json) =>
       _$ArtifactBodyFromJson(json);
@@ -142,6 +138,7 @@ abstract class ArtifactCreateRequest with _$ArtifactCreateRequest {
 }
 
 /// Request to update an existing artifact
+@JsonSerializable(includeIfNull: false)
 @freezed
 abstract class ArtifactUpdateRequest with _$ArtifactUpdateRequest {
   const factory ArtifactUpdateRequest({

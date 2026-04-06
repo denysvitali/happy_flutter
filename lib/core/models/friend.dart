@@ -7,6 +7,7 @@ part 'friend.freezed.dart';
 part 'friend.g.dart';
 
 /// Avatar reference with path, url and optional dimensions.
+@JsonSerializable(includeIfNull: false)
 @freezed
 abstract class AvatarRef with _$AvatarRef {
   const factory AvatarRef({
@@ -27,8 +28,7 @@ enum RelationshipStatus {
   requested,
   pending,
   friend,
-  rejected,
-  ;
+  rejected;
 
   static RelationshipStatus fromString(String value) {
     switch (value) {
@@ -93,12 +93,10 @@ abstract class UserProfile with _$UserProfile {
       _$UserProfileFromJson(json);
 
   /// Full display name composed from first and optional last name.
-  String get displayName =>
-      firstName + (lastName != null ? ' $lastName' : '');
+  String get displayName => firstName + (lastName != null ? ' $lastName' : '');
 
   /// Convenience getter returning the display name (falls back to username).
-  String? get name =>
-      displayName.isNotEmpty ? displayName : username;
+  String? get name => displayName.isNotEmpty ? displayName : username;
 
   /// Backward-compatible getter returning the avatar URL if available.
   String? get avatarUrl => avatar?.url;

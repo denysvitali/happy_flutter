@@ -6,6 +6,11 @@ part of 'message.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+MessageMeta _$MessageMetaFromJson(Map<String, dynamic> json) => MessageMeta();
+
+Map<String, dynamic> _$MessageMetaToJson(MessageMeta instance) =>
+    <String, dynamic>{};
+
 _ApiMessage _$ApiMessageFromJson(Map<String, dynamic> json) => _ApiMessage(
   content: _contentFromJson(json['content']),
   id: json['id'] as String? ?? '',

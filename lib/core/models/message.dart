@@ -41,8 +41,7 @@ ApiMessageContent _contentFromJson(dynamic value) {
 @freezed
 abstract class ApiMessage with _$ApiMessage {
   const factory ApiMessage({
-    @JsonKey(fromJson: _contentFromJson)
-    required ApiMessageContent content,
+    @JsonKey(fromJson: _contentFromJson) required ApiMessageContent content,
     @Default('') String id,
     @JsonKey(fromJson: _asApiInt) @Default(0) int seq,
     String? localId,
@@ -120,6 +119,7 @@ abstract class Permission with _$Permission {
 }
 
 /// Message metadata
+@JsonSerializable(includeIfNull: false)
 @freezed
 abstract class MessageMeta with _$MessageMeta {
   const factory MessageMeta({

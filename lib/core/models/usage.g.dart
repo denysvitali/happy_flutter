@@ -6,6 +6,12 @@ part of 'usage.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+UsageQueryParams _$UsageQueryParamsFromJson(Map<String, dynamic> json) =>
+    UsageQueryParams();
+
+Map<String, dynamic> _$UsageQueryParamsToJson(UsageQueryParams instance) =>
+    <String, dynamic>{};
+
 _UsageDataPoint _$UsageDataPointFromJson(Map<String, dynamic> json) =>
     _UsageDataPoint(
       timestamp: json['timestamp'] == null ? 0 : _asUsageInt(json['timestamp']),

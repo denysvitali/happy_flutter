@@ -23,9 +23,7 @@ Map<String, int> _tokensFromJson(dynamic value) {
 
 Map<String, double> _costFromJson(dynamic value) {
   if (value is Map<String, dynamic>) {
-    return value.map(
-      (k, v) => MapEntry(k, v is num ? v.toDouble() : 0.0),
-    );
+    return value.map((k, v) => MapEntry(k, v is num ? v.toDouble() : 0.0));
   }
   return {};
 }
@@ -51,15 +49,15 @@ abstract class UsageDataPoint with _$UsageDataPoint {
 /// Response for usage query
 @freezed
 abstract class UsageResponse with _$UsageResponse {
-  const factory UsageResponse({
-    required List<UsageDataPoint> usage,
-  }) = _UsageResponse;
+  const factory UsageResponse({required List<UsageDataPoint> usage}) =
+      _UsageResponse;
 
   factory UsageResponse.fromJson(Map<String, dynamic> json) =>
       _$UsageResponseFromJson(json);
 }
 
 /// Usage query parameters
+@JsonSerializable(includeIfNull: false)
 @freezed
 abstract class UsageQueryParams with _$UsageQueryParams {
   const factory UsageQueryParams({
@@ -85,10 +83,7 @@ abstract class UsageQueryParams with _$UsageQueryParams {
 }
 
 /// Grouping option for usage data
-enum UsageGroupBy {
-  hour,
-  day,
-}
+enum UsageGroupBy { hour, day }
 
 /// Aggregated totals from usage data
 class UsageTotals {
@@ -116,8 +111,7 @@ class UsageTotals {
       // Sum costs
       for (final entry in dataPoint.cost.entries) {
         totalCost += entry.value;
-        costByModel[entry.key] =
-            (costByModel[entry.key] ?? 0.0) + entry.value;
+        costByModel[entry.key] = (costByModel[entry.key] ?? 0.0) + entry.value;
       }
     }
 
@@ -135,8 +129,4 @@ class UsageTotals {
 }
 
 /// Time period for quick usage queries
-enum UsagePeriod {
-  today,
-  sevenDays,
-  thirtyDays,
-}
+enum UsagePeriod { today, sevenDays, thirtyDays }
