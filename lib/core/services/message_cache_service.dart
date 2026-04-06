@@ -28,7 +28,7 @@ class MessageCacheService {
     final elapsedMs = stopwatch.elapsedMilliseconds;
 
     if (cached.isEmpty) {
-      logger.info('[MessageCache] Cache miss for session $sessionId');
+      logger.debug('[MessageCache] Cache miss for session $sessionId');
       Sentry.addBreadcrumb(Breadcrumb(
         message: 'MessageCache: cache miss',
         category: 'cache.messages',
@@ -40,7 +40,7 @@ class MessageCacheService {
       ));
       return [];
     }
-    logger.info(
+    logger.debug(
       '[MessageCache] Cache hit for session $sessionId: '
       '${cached.length} messages',
     );
@@ -69,7 +69,7 @@ class MessageCacheService {
     try {
       MMKVStorage().saveSessionMessages(sessionId, toSave);
       final elapsedMs = stopwatch.elapsedMilliseconds;
-      logger.info(
+      logger.debug(
         '[MessageCache] Saved ${toSave.length} messages for session $sessionId '
         '(truncated from ${messages.length})',
       );
@@ -107,7 +107,7 @@ class MessageCacheService {
   void clearMessages(String sessionId) {
     try {
       MMKVStorage().clearSessionMessages(sessionId);
-      logger.info('[MessageCache] Cleared cache for session $sessionId');
+      logger.debug('[MessageCache] Cleared cache for session $sessionId');
     } catch (e) {
       logger.warning('[MessageCache] Failed to clear cache for $sessionId: $e');
     }

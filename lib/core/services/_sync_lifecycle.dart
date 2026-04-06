@@ -101,6 +101,7 @@ extension SyncLifecycle on Sync {
     // retains stale messages with isSidechain == true that become invisible
     // on the next cold start.
     _flushPendingMessageSaves();
+    _flushSessionMessageNotifications();
     MMKVStorage().saveSessionLastSeq(
       Map.unmodifiable(_sessionLastSeq),
     );

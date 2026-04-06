@@ -195,7 +195,7 @@ extension SyncSocket on Sync {
           // Only invalidate if sync is still initialized to avoid
           // errors after logout/dispose
           if (!isInitialized) return;
-          logger.info(
+          logger.debug(
             'Invalidating deferred syncs '
             '(friends, feed, todos, artifacts, git status)',
           );
@@ -270,17 +270,35 @@ extension SyncSocket on Sync {
   /// Like [_notifySessionMessagesChanged] but only emits the UI
   /// stream event — does NOT schedule a cache save.  Use this when
   /// no messages actually changed (e.g. fetchMessages early-exit).
+  ///
+  /// Uses leading+trailing edge debounce: the first call in a quiet
+  /// window fires immediately (so new messages appear instantly), then
+  /// subsequent calls within 200ms are coalesced into a single trailing
+  /// emission.  This prevents the old cancel-and-restart pattern from
+  /// deferring the notification indefinitely during streaming.
   void _notifySessionMessagesChangedUiOnly(String sessionId) {
-    _sessionMessageDebounceTimers[sessionId]?.cancel();
-    _sessionMessageDebounceTimers[sessionId] = Timer(
-      const Duration(milliseconds: 200),
-      () {
+    final timer = _sessionMessageDebounceTimers[sessionId];
+    // If no timer is running, fire immediately (leading edge) and
+    // start a cooldown window.
+    if (timer == null || !timer.isActive) {
+      if (!_sessionMessageChangeController.isClosed) {
+        _sessionMessageChangeController.add(sessionId);
+      }
+      _sessionMessagePendingTrailing.remove(sessionId);
+      _sessionMessageDebounceTimers[sessionId] =
+          Timer(const Duration(milliseconds: 200), () {
         _sessionMessageDebounceTimers.remove(sessionId);
-        if (!_sessionMessageChangeController.isClosed) {
+        // Trailing edge: emit once more if calls arrived during
+        // the cooldown window.
+        if (_sessionMessagePendingTrailing.remove(sessionId) &&
+            !_sessionMessageChangeController.isClosed) {
           _sessionMessageChangeController.add(sessionId);
         }
-      },
-    );
+      });
+    } else {
+      // Timer is active — mark that a trailing emission is needed.
+      _sessionMessagePendingTrailing.add(sessionId);
+    }
   }
 
   /// Advance the message seq cursor for [sessionId] and keep
@@ -364,6 +382,20 @@ extension SyncSocket on Sync {
       }
     }
     _saveMsgsDebounceTimers.clear();
+  }
+
+  /// Immediately deliver any pending trailing-edge session message
+  /// notifications so the UI is up-to-date before backgrounding.
+  void _flushSessionMessageNotifications() {
+    if (_sessionMessageDebounceTimers.isEmpty) return;
+    for (final entry in _sessionMessageDebounceTimers.entries) {
+      entry.value.cancel();
+      if (_sessionMessagePendingTrailing.remove(entry.key) &&
+          !_sessionMessageChangeController.isClosed) {
+        _sessionMessageChangeController.add(entry.key);
+      }
+    }
+    _sessionMessageDebounceTimers.clear();
   }
 
   void _scheduleSaveSessionsCache() {

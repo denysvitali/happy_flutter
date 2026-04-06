@@ -347,7 +347,7 @@ extension SyncMessagingMerge on Sync {
     );
     if (!hasOrphans) return;
 
-    logger.info(
+    logger.debug(
       '[sidechain] running deferred re-group sweep '
       'for session=$sessionId',
     );
@@ -571,7 +571,7 @@ extension SyncMessagingMerge on Sync {
           : appended;
       if (sessionId == _visibleSessionId) {
         final afterCount = _sessionMessages[sessionId]?.length ?? 0;
-        logger.info(
+        logger.debug(
           '[messages] upsert session=$sessionId '
           'incoming=${messages.length} '
           'before=${existing.length} '
@@ -721,7 +721,7 @@ extension SyncMessagingMerge on Sync {
         : sorted;
     if (sessionId == _visibleSessionId && messages.isNotEmpty) {
       final afterCount = _sessionMessages[sessionId]?.length ?? 0;
-      logger.info(
+      logger.debug(
         '[messages] upsert session=$sessionId '
         'incoming=${messages.length} '
         'before=${existing.length} '

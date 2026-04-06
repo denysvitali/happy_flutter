@@ -275,6 +275,7 @@ what you have, you must use the options mode.
   final _paginationErrorController = StreamController<String>.broadcast();
   Timer? _dataChangeDebounceTimer;
   final Map<String, Timer> _sessionMessageDebounceTimers = {};
+  final Set<String> _sessionMessagePendingTrailing = {};
   /// Monotonic counter incremented on every data change. Providers compare
   /// this against their last-seen value to skip expensive equality checks
   /// when nothing has changed.

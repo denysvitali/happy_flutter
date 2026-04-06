@@ -168,7 +168,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _prevSeenLength = cached.length;
         _visibleCount = cached.length;
       });
-      logger.info(
+      logger.debug(
         '[ChatScreen] Loaded ${cached.length} cached messages for '
         'session ${widget.sessionId} '
         'visibleCount=$_visibleCount',
@@ -323,7 +323,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       messagesChanged = true;
     }
 
-    logger.info(
+    logger.debug(
       '[ChatScreen] _refreshFromSync '
       'session=${widget.sessionId} '
       'markLoaded=$markLoaded '

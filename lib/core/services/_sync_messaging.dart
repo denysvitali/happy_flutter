@@ -8,7 +8,7 @@ extension SyncMessaging on Sync {
   /// fetching only the most recent [Sync.initialLoad] messages.  Subsequent
   /// calls (incremental delta syncs) continue from [_sessionLastSeq] as before.
   Future<void> fetchMessages(String sessionId) async {
-    logger.info(
+    logger.debug(
       'Fetching messages for session: $sessionId',
     );
     final fetchStopwatch = Stopwatch()..start();
@@ -97,7 +97,7 @@ extension SyncMessaging on Sync {
           cursorSeq <= serverLastSeq &&
           (serverLastSeq - cursorSeq) > Sync.initialLoad;
 
-      logger.info(
+      logger.debug(
         '[fetchMessages] $sessionId '
         'isFirstLoad=$isFirstLoad '
         'forceTailRefresh=$forceTailRefresh '
@@ -121,7 +121,7 @@ extension SyncMessaging on Sync {
           serverLastSeq > 0 &&
           cursorSeq == serverLastSeq &&
           !hasGap) {
-        logger.info(
+        logger.debug(
           '[fetchMessages] $sessionId already caught up '
           '(cursor=$cursorSeq server=$serverLastSeq) '
           '— skipping',
@@ -164,13 +164,13 @@ extension SyncMessaging on Sync {
           afterSeq = _tailAfterSeqForSession(sessionId);
         }
         if (gapTooLarge) {
-          logger.info(
+          logger.debug(
             '[fetchMessages] $sessionId gap too large '
             '(cursor=$cursorSeq server=$serverLastSeq) — '
             'switching to tail-load afterSeq=$afterSeq',
           );
         } else if (forceTailRefresh && !isFirstLoad) {
-          logger.info(
+          logger.debug(
             '[fetchMessages] $sessionId forcing tail refresh '
             'afterSeq=$afterSeq',
           );
@@ -301,7 +301,7 @@ extension SyncMessaging on Sync {
             .toList();
         final hasMore = data['hasMore'] as bool? ?? false;
 
-        logger.info(
+        logger.debug(
           '[fetchMessages] $sessionId page=$page '
           'msgs=${messages.length} hasMore=$hasMore '
           'fetchMs=$fetchMs',
@@ -352,7 +352,7 @@ extension SyncMessaging on Sync {
         final eventCount = processed.messages
             .where((message) => message['kind'] == 'agent-event')
             .length;
-        logger.info(
+        logger.debug(
           '[fetchMessages] $sessionId page=$page '
           'fetched=${messages.length} skipped=$skippedCount '
           'decrypted=${newMessages.length} '
@@ -381,7 +381,7 @@ extension SyncMessaging on Sync {
         // preserves messages the user already sees while filling in the
         // gap, avoiding permanent loss when pagination is interrupted.
         if (isGapRecovery && page == 0 && processed.messages.isNotEmpty) {
-          logger.info(
+          logger.debug(
             '[fetchMessages] $sessionId gap recovery: '
             'merging ${processed.messages.length} new messages '
             '(existing=${_sessionMessages[sessionId]?.length ?? 0})',
@@ -450,7 +450,7 @@ extension SyncMessaging on Sync {
           }
         }
 
-        logger.info(
+        logger.debug(
           '[fetchMessages] $sessionId page=$page '
           'decryptMs=$decryptMs '
           'upsert=$upsertMs tool=$toolMs '
@@ -479,7 +479,7 @@ extension SyncMessaging on Sync {
         // messages use the inline socket path.
         const maxPages = 5; // 500 messages max per fetch cycle
         if (page >= maxPages) {
-          logger.info(
+          logger.debug(
             '[fetchMessages] $sessionId hit $maxPages page limit '
             '— stopping forward crawl at afterSeq=$afterSeq',
           );
@@ -620,7 +620,7 @@ extension SyncMessaging on Sync {
           .whereType<Map<String, dynamic>>()
           .toList();
 
-      logger.info(
+      logger.debug(
         '[fetchOlderMessages] $sessionId '
         'msgs=${messages.length}',
       );
@@ -630,7 +630,7 @@ extension SyncMessaging on Sync {
         sessionId,
       );
 
-      logger.info(
+      logger.debug(
         '[fetchOlderMessages] $sessionId '
         'processedMsgs=${processed.messages.length} '
         'toolResults=${processed.toolResults.length}',

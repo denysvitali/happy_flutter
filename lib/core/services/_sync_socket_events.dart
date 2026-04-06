@@ -229,7 +229,7 @@ extension SyncSocketEvents on Sync {
         _lastNoEmbedEventMs[sessionId] = nowMs;
         messagesSync[sessionId]?.invalidate();
       }
-      logger.info('New message received: $sessionId');
+      logger.debug('New message received: $sessionId');
     } else {
       // Non-visible session: decrypt and store the embedded message
       // inline so it is available immediately when the user navigates
@@ -267,7 +267,7 @@ extension SyncSocketEvents on Sync {
 
       final isNew = _sessionsWithPendingUpdates.add(sessionId);
       if (isNew) {
-        logger.info(
+        logger.debug(
           '[handleNewMessage] NON-VISIBLE session=$sessionId '
           'msgSeq=$msgSeq embedded=${embeddedMessage != null} '
           '— pendingUpdates added',
@@ -635,7 +635,7 @@ extension SyncSocketEvents on Sync {
     // window. The server broadcasts dozens of identical update-session
     // events per second during streaming (typing/tool state changes).
     if (_pendingUpdateSessionIds.add(sessionId)) {
-      logger.info('Session update received: $sessionId');
+      logger.debug('Session update received: $sessionId');
     }
   }
 }
