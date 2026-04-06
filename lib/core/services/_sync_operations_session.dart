@@ -622,12 +622,14 @@ extension SyncSessionOperations on Sync {
           '(${_sessionSpawnedProfile[sessionId]} -> $profileId); '
           'killing session for respawn',
         );
+        // Clear spawned data BEFORE killSession so that if kill fails,
+        // looksReady becomes false on the next sendMessage call and
+        // auto-restore picks up the new profile instead of re-using the
+        // old one.
+        _sessionSpawnedAt.remove(sessionId);
+        _sessionSpawnedProfile.remove(sessionId);
         try {
           await killSession(sessionId);
-          // Clear spawned-at so looksReady becomes false below and
-          // auto-restore picks up the new profile.
-          _sessionSpawnedAt.remove(sessionId);
-          _sessionSpawnedProfile.remove(sessionId);
         } catch (e, st) {
           logger.warning(
             '[sendMessage] killSession failed during profile '
