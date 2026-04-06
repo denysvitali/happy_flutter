@@ -38,3 +38,6 @@
 -dontwarn com.google.android.play.core.splitcompat.**
 -dontwarn com.google.android.play.core.splitinstall.**
 -dontwarn com.google.android.play.core.tasks.**
+
+# TensorFlow Lite GPU delegate (referenced by tflite_flutter plugin)
+-dontwarn org.tensorflow.lite.gpu.**
