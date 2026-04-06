@@ -1317,7 +1317,7 @@ void main() {
     });
 
     test(
-      'createSession → sendMessage → session comes online → message sent',
+      'createSession → sendMessage waits for real readiness before sending',
       () async {
         final sessionId = 'e2e-delayed-online';
 
@@ -1339,9 +1339,20 @@ void main() {
         sync.testFetchSingleSessionOverride = (_) async => null;
         interceptor.respondWith(sessionId);
 
-        // Session is offline but recentlySpawned so it's considered ready
+        // Session is offline. A recent spawn should keep the existing target
+        // session, but must not count as actual readiness on its own.
         expect(sync.sessions[sessionId]!.presence, 'offline');
         expect(sync.testSessionSpawnedAt.containsKey(sessionId), isTrue);
+
+        Future<void>.delayed(const Duration(milliseconds: 50), () {
+          sync.testSessions[sessionId] = _makeSession(
+            sessionId,
+            presence: 'online',
+            machineId: 'machine-1',
+            path: '/home/user/project',
+          );
+          sync.testNotifyDataChanged();
+        });
 
         final sentId = await sync.sendMessage(sessionId, 'First message');
         expect(
@@ -1351,6 +1362,45 @@ void main() {
         );
 
         await sync.lastCompleteSendFuture;
+
+        final updatedMsgs = sync.testSessionMessages(sessionId)!;
+        final sentMsg =
+            updatedMsgs.firstWhere((m) => m['content'] == 'First message');
+        expect(sentMsg['sendStatus'], 'sent');
+      },
+    );
+
+    test(
+      'createSession → sendMessage marks failed when fresh session '
+      'never becomes ready',
+      () async {
+        final sessionId = 'e2e-startup-timeout';
+
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        };
+
+        await sync.createSession(
+          machineId: 'machine-1',
+          path: '/home/user/project',
+        );
+
+        sync.testFetchSingleSessionOverride = (_) async => null;
+
+        final sentId = await sync.sendMessage(sessionId, 'Will fail');
+        expect(sentId, sessionId);
+
+        await sync.lastCompleteSendFuture;
+
+        final updatedMsgs = sync.testSessionMessages(sessionId)!;
+        final failedMsg =
+            updatedMsgs.firstWhere((m) => m['content'] == 'Will fail');
+        expect(failedMsg['sendStatus'], 'failed');
+        expect(interceptor.requests, isEmpty);
       },
     );
 
@@ -1777,6 +1827,7 @@ class _FakeEncryptor implements Encryptor {
 
 class _CapturingApiInterceptor extends Interceptor {
   String? _respondForSessionId;
+  final List<RequestOptions> requests = <RequestOptions>[];
 
   void respondWith(String sessionId) {
     _respondForSessionId = sessionId;
@@ -1784,6 +1835,7 @@ class _CapturingApiInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    requests.add(options);
     final sessionId = _respondForSessionId;
     if (sessionId != null &&
         options.path.contains('/v3/sessions/') &&

@@ -1,5 +1,15 @@
 part of 'sync_service.dart';
 
+class _AgentStartupTimeout implements Exception {
+  const _AgentStartupTimeout(this.sessionId);
+
+  final String sessionId;
+
+  @override
+  String toString() =>
+      'StateError: Agent did not become ready for session $sessionId';
+}
+
 extension SyncMessagingSend on Sync {
   /// Send message to session.
   ///
@@ -250,6 +260,9 @@ extension SyncMessagingSend on Sync {
         ),
       );
       if (!ready) {
+        if (recentlySpawned) {
+          throw _AgentStartupTimeout(targetSessionId);
+        }
         logger.info(
           '[sendMessage] agent not ready for '
           '$targetSessionId, sending anyway',
@@ -408,7 +421,10 @@ extension SyncMessagingSend on Sync {
       logger.error('[sendMessage] error sending', e, stack);
       transaction.setData('error', e.toString());
       await transaction.finish(status: const SpanStatus.internalError());
-      if (!sent) {
+      if (!sent && e is _AgentStartupTimeout) {
+        _updateMessageSendStatus(targetSessionId, localId, 'failed');
+        _notifySessionMessagesChanged(targetSessionId);
+      } else if (!sent) {
         // Queue in the outbox for automatic retry with backoff.
         final entry = OutboxEntry(
           localId: localId,

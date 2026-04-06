@@ -688,9 +688,7 @@ PY
     final isOnlineTrusted = session.isOnline && recentEphemeral;
     final looksReady =
         !isArchived &&
-        (isOnlineTrusted ||
-            (agentIsStartingOrRunning && lifecycleRecent) ||
-            recentlySpawned);
+        (isOnlineTrusted || (agentIsStartingOrRunning && lifecycleRecent));
 
     // Detect profile mismatch: if the user switched profiles since the
     // session was spawned, kill the running daemon so it gets respawned
@@ -737,7 +735,7 @@ PY
           );
         }
       }
-    } else if (looksReady) {
+    } else if (looksReady || recentlySpawned) {
       return (
         sessionId: sessionId,
         session: session,
