@@ -10,6 +10,7 @@ import '../../core/models/feed.dart';
 import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/services/social_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
@@ -40,18 +41,15 @@ class _InboxFriendsData {
 
   @override
   int get hashCode => Object.hash(
-        Object.hashAll(friendList),
-        Object.hashAll(incomingRequests),
-        Object.hashAll(requested),
-      );
+    Object.hashAll(friendList),
+    Object.hashAll(incomingRequests),
+    Object.hashAll(requested),
+  );
 }
 
 /// Selector value for feed data used in inbox.
 class _InboxFeedData {
-  _InboxFeedData({
-    required this.items,
-    required this.unreadCount,
-  });
+  _InboxFeedData({required this.items, required this.unreadCount});
 
   final List<FeedItem> items;
   final int unreadCount;
@@ -84,7 +82,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
   void initState() {
     super.initState();
     Future<void>.microtask(_refresh);
-    subscribeToDataChanged(ref, () {
+    subscribeToDomains({SyncDomain.friends, SyncDomain.feed}, () {
       ref.read(friendsNotifierProvider.notifier).loadFromSync();
       ref.read(feedNotifierProvider.notifier).loadFromSync();
     });
@@ -128,9 +126,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(
-        content: Text(context.l10n.friendsActionFailed),
-      ));
+      ).showSnackBar(SnackBar(content: Text(context.l10n.friendsActionFailed)));
     } finally {
       if (mounted) {
         setState(() => _busyIds.remove(itemId));
@@ -141,21 +137,21 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
   @override
   Widget build(BuildContext context) {
     final friendsData = ref.watch(
-      friendsNotifierProvider.select((state) => _InboxFriendsData(
-            friendList: state.friendList,
-            incomingRequests: state.incomingRequests,
-            requested: state.friends
-                .where(
-                  (f) => f.status == RelationshipStatus.requested,
-                )
-                .toList(growable: false),
-          )),
+      friendsNotifierProvider.select(
+        (state) => _InboxFriendsData(
+          friendList: state.friendList,
+          incomingRequests: state.incomingRequests,
+          requested: state.friends
+              .where((f) => f.status == RelationshipStatus.requested)
+              .toList(growable: false),
+        ),
+      ),
     );
     final feedData = ref.watch(
-      feedNotifierProvider.select((state) => _InboxFeedData(
-            items: state.items,
-            unreadCount: state.unreadCount,
-          )),
+      feedNotifierProvider.select(
+        (state) =>
+            _InboxFeedData(items: state.items, unreadCount: state.unreadCount),
+      ),
     );
     final friends = friendsData.friendList;
     final incoming = friendsData.incomingRequests;
@@ -204,27 +200,19 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
     if (feedItems.isNotEmpty) {
       items
         ..add(const InboxItemDescriptor.spacer())
-        ..add(const InboxItemDescriptor.sectionHeader(
-          titleKey: 'feed',
-        ));
+        ..add(const InboxItemDescriptor.sectionHeader(titleKey: 'feed'));
       for (final item in feedItems) {
-        items.add(
-          InboxItemDescriptor.feed(feedItem: item),
-        );
+        items.add(InboxItemDescriptor.feed(feedItem: item));
       }
     }
 
     if (incoming.isNotEmpty) {
       items
         ..add(const InboxItemDescriptor.spacer())
-        ..add(const InboxItemDescriptor.sectionHeader(
-          titleKey: 'incoming',
-        ));
+        ..add(const InboxItemDescriptor.sectionHeader(titleKey: 'incoming'));
       for (final request in incoming) {
         items.add(
-          InboxItemDescriptor.incomingRequest(
-            incomingRequest: request,
-          ),
+          InboxItemDescriptor.incomingRequest(incomingRequest: request),
         );
       }
     }
@@ -232,40 +220,25 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
     if (requested.isNotEmpty) {
       items
         ..add(const InboxItemDescriptor.spacer())
-        ..add(const InboxItemDescriptor.sectionHeader(
-          titleKey: 'requested',
-        ));
+        ..add(const InboxItemDescriptor.sectionHeader(titleKey: 'requested'));
       for (final friend in requested) {
-        items.add(
-          InboxItemDescriptor.sentRequest(
-            userProfile: friend,
-          ),
-        );
+        items.add(InboxItemDescriptor.sentRequest(userProfile: friend));
       }
     }
 
     if (friends.isNotEmpty) {
       items
         ..add(const InboxItemDescriptor.spacer())
-        ..add(const InboxItemDescriptor.sectionHeader(
-          titleKey: 'friends',
-        ));
+        ..add(const InboxItemDescriptor.sectionHeader(titleKey: 'friends'));
       for (final friend in friends) {
-        items.add(
-          InboxItemDescriptor.friend(
-            userProfile: friend,
-          ),
-        );
+        items.add(InboxItemDescriptor.friend(userProfile: friend));
       }
     }
 
     return items;
   }
 
-  Widget _buildItem(
-    BuildContext context,
-    InboxItemDescriptor desc,
-  ) {
+  Widget _buildItem(BuildContext context, InboxItemDescriptor desc) {
     final l10n = context.l10n;
 
     switch (desc.type) {
@@ -292,15 +265,10 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
           item: item,
           l10n: l10n,
           onTap: () {
-            ref
-                .read(feedNotifierProvider.notifier)
-                .markAsRead(item.id);
+            ref.read(feedNotifierProvider.notifier).markAsRead(item.id);
             final sid = item.sessionId;
             if (sid != null) {
-              context.pushNamed(
-                'chat',
-                pathParameters: {'sessionId': sid},
-              );
+              context.pushNamed('chat', pathParameters: {'sessionId': sid});
             }
           },
         );
@@ -308,23 +276,17 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
       case InboxItemType.incomingRequest:
         final request = desc.incomingRequest!;
         return FriendRequestCard(
-          key: ValueKey(
-            'incoming_${request.fromUserId}',
-          ),
+          key: ValueKey('incoming_${request.fromUserId}'),
           request: request,
           disabled: _isItemBusy(request.fromUserId),
           onAccept: () => _runFriendAction(
             request.fromUserId,
-            () => _socialService.addFriend(
-              request.fromUserId,
-            ),
+            () => _socialService.addFriend(request.fromUserId),
             l10n.friendsRequestAccepted,
           ),
           onReject: () => _runFriendAction(
             request.fromUserId,
-            () => _socialService.removeFriend(
-              request.fromUserId,
-            ),
+            () => _socialService.removeFriend(request.fromUserId),
             l10n.friendsRequestRejected,
           ),
         );
@@ -342,9 +304,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
                 ? null
                 : () => _runFriendAction(
                     friend.id,
-                    () => _socialService.removeFriend(
-                      friend.id,
-                    ),
+                    () => _socialService.removeFriend(friend.id),
                     l10n.inboxRequestCanceled,
                   ),
             child: Text(l10n.commonCancel),
@@ -363,9 +323,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
           trailing: IconButton(
             onPressed: _isItemBusy(friend.id)
                 ? null
-                : () => _showRemoveFriendDialog(
-                    friend,
-                  ),
+                : () => _showRemoveFriendDialog(friend),
             icon: Icon(
               Icons.person_remove_outlined,
               color: Theme.of(context).colorScheme.error,

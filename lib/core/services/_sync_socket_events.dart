@@ -27,11 +27,13 @@ extension SyncSocketEvents on Sync {
         // serverLastSeq.  Without this, fetchMessages may see
         // stale serverLastSeq and skip via early exit.
         if (_visibleSessionId != null) {
-          unawaited(sessionsSync.invalidateAndAwait().then((_) {
-            if (_visibleSessionId != null) {
-              messagesSync[_visibleSessionId]?.invalidate();
-            }
-          }));
+          unawaited(
+            sessionsSync.invalidateAndAwait().then((_) {
+              if (_visibleSessionId != null) {
+                messagesSync[_visibleSessionId]?.invalidate();
+              }
+            }),
+          );
         }
       })
       ..onStatusChange((status) {
@@ -41,10 +43,7 @@ extension SyncSocketEvents on Sync {
 
   /// Handle incoming updates
   Future<void> handleUpdate(dynamic data) async {
-    final payload = _normalizeSocketPayload(
-      data,
-      handlerName: 'handleUpdate',
-    );
+    final payload = _normalizeSocketPayload(data, handlerName: 'handleUpdate');
     if (payload == null) {
       return;
     }
@@ -57,18 +56,22 @@ extension SyncSocketEvents on Sync {
       // new-message arrives at 10-50/sec during AI responses — recording
       // each one floods Sentry's ring buffer and wastes allocations.
       if (update.type != 'new-message') {
-        unawaited(Sentry.addBreadcrumb(Breadcrumb(
-          message: 'sync update: ${update.type}',
-          category: 'sync.update',
-          level: SentryLevel.info,
-          data: <String, dynamic>{
-            'type': update.type,
-            if (update.data['sid'] is String)
-              'sessionId': update.data['sid'] as String,
-            if (update.data['id'] is String)
-              'entityId': update.data['id'] as String,
-          },
-        )));
+        unawaited(
+          Sentry.addBreadcrumb(
+            Breadcrumb(
+              message: 'sync update: ${update.type}',
+              category: 'sync.update',
+              level: SentryLevel.info,
+              data: <String, dynamic>{
+                'type': update.type,
+                if (update.data['sid'] is String)
+                  'sessionId': update.data['sid'] as String,
+                if (update.data['id'] is String)
+                  'entityId': update.data['id'] as String,
+              },
+            ),
+          ),
+        );
       }
 
       switch (update.type) {
@@ -157,8 +160,7 @@ extension SyncSocketEvents on Sync {
 
   /// Handle new message update
   void _handleNewMessage(Map<String, dynamic> data) {
-    final sessionId =
-        data['sid'] as String? ?? data['id'] as String?;
+    final sessionId = data['sid'] as String? ?? data['id'] as String?;
     // Do NOT invalidate sessionsSync here — message events fire on every
     // streaming token and would cause dozens of sessions re-fetches per
     // response. Sessions are updated by _handleUpdateSession (session-level
@@ -187,8 +189,7 @@ extension SyncSocketEvents on Sync {
     // retry on failure: if processing throws, the key stays pending so
     // the HTTP fallback can re-process the message without it being
     // incorrectly deduped as "already seen".
-    final embeddedMessage =
-        WireParsers.asMap(data['message']);
+    final embeddedMessage = WireParsers.asMap(data['message']);
     if (embeddedMessage != null) {
       final msgId = embeddedMessage['id'] as String?;
       final msgSeq = embeddedMessage['seq'];
@@ -213,10 +214,7 @@ extension SyncSocketEvents on Sync {
         // orphaned outside their parent Task.
         _inlineProcessor.enqueue(
           sessionId,
-          () => _processInlineMessage(
-            sessionId,
-            embeddedMessage,
-          ),
+          () => _processInlineMessage(sessionId, embeddedMessage),
         );
       } else {
         // Visible session with no embedded message — HTTP fetch.
@@ -243,8 +241,7 @@ extension SyncSocketEvents on Sync {
       final msgSeq = embeddedMessage?['seq'] as int?;
       if (msgSeq != null) {
         final session = _sessions[sessionId];
-        if (session != null &&
-            (session.lastSeq ?? 0) < msgSeq) {
+        if (session != null && (session.lastSeq ?? 0) < msgSeq) {
           _sessions[sessionId] = session.copyWith(lastSeq: msgSeq);
         }
       }
@@ -254,10 +251,7 @@ extension SyncSocketEvents on Sync {
       if (embeddedMessage != null) {
         _inlineProcessor.enqueue(
           sessionId,
-          () => _processInlineMessage(
-            sessionId,
-            embeddedMessage,
-          ),
+          () => _processInlineMessage(sessionId, embeddedMessage),
         );
       } else {
         // No embedded message — mark pending for HTTP fetch on
@@ -278,13 +272,11 @@ extension SyncSocketEvents on Sync {
       // visible in the main chat. Increment at most once per interval
       // to keep the badge count proportional to actual new content.
       final nowMs = DateTime.now().millisecondsSinceEpoch;
-      final lastIncrMs =
-          _sessionUnreadLastIncrementMs[sessionId] ?? 0;
+      final lastIncrMs = _sessionUnreadLastIncrementMs[sessionId] ?? 0;
       final current = _sessionUnreadCounts[sessionId] ?? 0;
       final int newUnread;
       if (current < Sync._maxUnreadCount &&
-          nowMs - lastIncrMs >=
-              Sync._unreadIncrementMinIntervalMs) {
+          nowMs - lastIncrMs >= Sync._unreadIncrementMinIntervalMs) {
         newUnread = current + 1;
         _sessionUnreadCounts[sessionId] = newUnread;
         _sessionUnreadLastIncrementMs[sessionId] = nowMs;
@@ -292,18 +284,20 @@ extension SyncSocketEvents on Sync {
         newUnread = current;
       }
 
-      Sentry.addBreadcrumb(Breadcrumb(
-        message: 'Background message received',
-        category: 'chat.background',
-        level: SentryLevel.info,
-        data: <String, dynamic>{
-          'sessionId': sessionId,
-          'msgSeq': msgSeq,
-          'unreadCount': newUnread,
-          'hasEmbedded': embeddedMessage != null,
-          'isFirstPending': isNew,
-        },
-      ));
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'Background message received',
+          category: 'chat.background',
+          level: SentryLevel.info,
+          data: <String, dynamic>{
+            'sessionId': sessionId,
+            'msgSeq': msgSeq,
+            'unreadCount': newUnread,
+            'hasEmbedded': embeddedMessage != null,
+            'isFirstPending': isNew,
+          },
+        ),
+      );
     }
   }
 
@@ -324,8 +318,7 @@ extension SyncSocketEvents on Sync {
         ? '$sessionId:$msgId:$msgSeq'
         : null;
 
-    final sessionEncryption =
-        encryption.getSessionEncryption(sessionId);
+    final sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
       // Leave key in _pendingInlineMessageKeys so retry can re-enter
       // inline path once encryption is initialized.
@@ -335,13 +328,11 @@ extension SyncSocketEvents on Sync {
     }
 
     try {
-      final processed =
-          await sessionEncryption.decryptAndProcessMessages([
+      final processed = await sessionEncryption.decryptAndProcessMessages([
         wireMessage,
       ], sessionId);
 
-      if (processed.messages.isEmpty &&
-          processed.toolResults.isEmpty) {
+      if (processed.messages.isEmpty && processed.toolResults.isEmpty) {
         // Nothing displayable from inline processing.  Do NOT advance
         // the seq cursor here — doing so causes the fallback HTTP fetch
         // (below) to be skipped by fetchMessages' "already caught up"
@@ -349,9 +340,7 @@ extension SyncSocketEvents on Sync {
         // unchanged lets the fetch retrieve the message from the server.
         if (processed.droppedReasons.isNotEmpty) {
           for (final reason in processed.droppedReasons) {
-            logger.warning(
-              '[inline] dropped: $reason',
-            );
+            logger.warning('[inline] dropped: $reason');
           }
         }
         messagesSync[sessionId]?.invalidate();
@@ -396,9 +385,7 @@ extension SyncSocketEvents on Sync {
       // The full grouper is O(4n) where n <= 3000 (the message cap),
       // which completes in ~1-2ms — negligible for inline processing.
       final hasSidechain = processed.messages.any(
-        (m) =>
-            m['isSidechain'] == true ||
-            m['kind'] == 'sidechain-root',
+        (m) => m['isSidechain'] == true || m['kind'] == 'sidechain-root',
       );
       if (hasSidechain) {
         _groupSidechainMessages(sessionId);
@@ -423,7 +410,7 @@ extension SyncSocketEvents on Sync {
       }
 
       _notifySessionMessagesChanged(sessionId);
-      _notifyDataChanged();
+      _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
       // Remove the completed Future from the queue so new messages can
       // start fresh processing without chaining onto a resolved Future.
       // The queue entry is also removed on error (below) for symmetry.
@@ -446,8 +433,7 @@ extension SyncSocketEvents on Sync {
 
   /// Handle new session update
   void _handleNewSession(Map<String, dynamic> data) {
-    final sessionId =
-        data['id'] as String? ?? data['sid'] as String?;
+    final sessionId = data['id'] as String? ?? data['sid'] as String?;
     logger.info('New session received: $sessionId');
     if (sessionId != null && sessionId.isNotEmpty) {
       _pendingNewSessionIds.add(sessionId);
@@ -497,9 +483,7 @@ extension SyncSocketEvents on Sync {
       );
       if (isInitialized) {
         _sessionLastSeq.remove(sessionId);
-        MMKVStorage().saveSessionLastSeq(
-          Map.unmodifiable(_sessionLastSeq),
-        );
+        MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
         _sessionFirstLoadedSeq.remove(sessionId);
         MMKVStorage().saveSessionFirstLoadedSeq(
           Map.unmodifiable(_sessionFirstLoadedSeq),
@@ -536,9 +520,7 @@ extension SyncSocketEvents on Sync {
     if (code == 'session-invalid') {
       final sid = payload['sid'] as String?;
       if (sid != null) {
-        logger.info(
-          'Received session-invalid for $sid — removing local state',
-        );
+        logger.info('Received session-invalid for $sid — removing local state');
         _handleDeleteSession({'sid': sid});
       }
     }
@@ -563,10 +545,8 @@ extension SyncSocketEvents on Sync {
     } else {
       _optimisticallyArchivedSessions.remove(sessionId);
     }
-    _notifyDataChanged();
-    logger.info(
-      'Session archive event: $sessionId archived=$archived',
-    );
+    _notifyDataChanged({SyncDomain.sessions});
+    logger.info('Session archive event: $sessionId archived=$archived');
   }
 
   /// Handle session update
@@ -594,15 +574,15 @@ extension SyncSocketEvents on Sync {
       final activeAt = data['activeAt'] is int
           ? data['activeAt'] as int
           : data['activeAt'] is double
-              ? (data['activeAt'] as double).toInt()
-              : null;
+          ? (data['activeAt'] as double).toInt()
+          : null;
       final title = data['title'] as String?;
       final thinking = data['thinking'] as bool?;
       final thinkingAt = data['thinkingAt'] is int
           ? data['thinkingAt'] as int
           : data['thinkingAt'] is double
-              ? (data['thinkingAt'] as double).toInt()
-              : null;
+          ? (data['thinkingAt'] as double).toInt()
+          : null;
       final archived = data['archived'] as bool?;
 
       // Only update if at least one unencrypted field is present.
@@ -621,7 +601,7 @@ extension SyncSocketEvents on Sync {
           thinkingAt: thinkingAt,
           archived: archived ?? session.archived,
         );
-        _notifyDataChanged();
+        _notifyDataChanged({SyncDomain.sessions});
       }
     }
 

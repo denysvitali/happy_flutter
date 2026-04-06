@@ -39,9 +39,10 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
   void initState() {
     super.initState();
     Future<void>.microtask(() async {
+      ref.read(machinesNotifierProvider.notifier).loadFromSync();
       await ref.read(machinesNotifierProvider.notifier).refreshFromSync();
     });
-    subscribeToDataChanged(ref, () {
+    subscribeToDomains([SyncDomain.machines], () {
       ref.read(machinesNotifierProvider.notifier).loadFromSync();
     });
   }
@@ -128,9 +129,8 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final machines = ref.watch(machinesNotifierProvider);
+    final machine = ref.watch(machineByIdProvider(widget.machineId));
     final sessions = ref.watch(sessionsNotifierProvider);
-    final machine = machines[widget.machineId];
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
@@ -250,17 +250,13 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
               children: [
                 _GroupedRow(
                   icon: Icons.circle_outlined,
-                  iconColor: isOnline
-                      ? AppColors.success
-                      : cs.onSurfaceVariant,
+                  iconColor: isOnline ? AppColors.success : cs.onSurfaceVariant,
                   label: context.l10n.machineStatus,
                   value: isOnline
                       ? context.l10n.machineRunning
                       : context.l10n.machineStopped,
                   trailing: AppStatusDot(
-                    color: isOnline
-                        ? AppColors.success
-                        : cs.onSurfaceVariant,
+                    color: isOnline ? AppColors.success : cs.onSurfaceVariant,
                     size: 8,
                     pulse: isOnline,
                   ),
@@ -312,16 +308,9 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
             const SizedBox(height: AppSpacing.xxxl),
             Center(
               child: TextButton.icon(
-                onPressed: () => _confirmDelete(
-                  context,
-                  widget.machineId,
-                  machineName,
-                ),
-                icon: Icon(
-                  Icons.delete_outline,
-                  size: 18,
-                  color: cs.error,
-                ),
+                onPressed: () =>
+                    _confirmDelete(context, widget.machineId, machineName),
+                icon: Icon(Icons.delete_outline, size: 18, color: cs.error),
                 label: Text(
                   context.l10n.machineRemoveMachine,
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -329,9 +318,7 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                style: TextButton.styleFrom(
-                  foregroundColor: cs.error,
-                ),
+                style: TextButton.styleFrom(foregroundColor: cs.error),
               ),
             ),
           ],
@@ -402,10 +389,7 @@ class _StatusBanner extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _GroupedList extends StatelessWidget {
-  const _GroupedList({
-    required this.children,
-    this.hasIcons = false,
-  });
+  const _GroupedList({required this.children, this.hasIcons = false});
 
   final List<Widget> children;
   final bool hasIcons;
@@ -427,8 +411,7 @@ class _GroupedList extends StatelessWidget {
               Divider(
                 height: 1,
                 indent: indent,
-                color: cs.outlineVariant
-                    .withValues(alpha: 0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
           ],
         ],
@@ -466,9 +449,7 @@ class _GroupedRow extends StatelessWidget {
     final cs = theme.colorScheme;
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(
-        minHeight: AppTouchTarget.min,
-      ),
+      constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
@@ -477,10 +458,7 @@ class _GroupedRow extends StatelessWidget {
         child: Row(
           children: [
             if (icon != null) ...[
-              SettingsIconContainer(
-                icon: icon!,
-                color: iconColor,
-              ),
+              SettingsIconContainer(icon: icon!, color: iconColor),
               const SizedBox(width: AppSpacing.md),
             ],
             if (label.isNotEmpty)
@@ -493,8 +471,7 @@ class _GroupedRow extends StatelessWidget {
                   ),
                 ),
               ),
-            if (label.isNotEmpty)
-              const SizedBox(width: AppSpacing.md),
+            if (label.isNotEmpty) const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
                 value,

@@ -25,17 +25,13 @@ extension SyncDataMachines on Sync {
       final session = _sessions[sessionId];
       if (session == null) return;
 
-      _lastEphemeralAt[sessionId] =
-          DateTime.now().millisecondsSinceEpoch;
+      _lastEphemeralAt[sessionId] = DateTime.now().millisecondsSinceEpoch;
 
-      final nextThinking = keepThinking
-          ? session.thinking
-          : thinking ?? false;
+      final nextThinking = keepThinking ? session.thinking : thinking ?? false;
       final nextThinkingAt = keepThinking
           ? session.thinkingAt
           : (nextThinking
-                ? (activeAt ??
-                    DateTime.now().millisecondsSinceEpoch)
+                ? (activeAt ?? DateTime.now().millisecondsSinceEpoch)
                 : null);
 
       _sessions[sessionId] = session.copyWith(
@@ -43,7 +39,7 @@ extension SyncDataMachines on Sync {
         thinkingAt: nextThinkingAt,
         presence: 'online',
       );
-      _notifyDataChanged();
+      _notifyDataChanged({SyncDomain.sessions});
 
       _presenceTimers[sessionId]?.cancel();
       _presenceTimers[sessionId] = Timer(const Duration(seconds: 60), () {
@@ -54,7 +50,7 @@ extension SyncDataMachines on Sync {
             presence: 'offline',
             thinking: false,
           );
-          _notifyDataChanged();
+          _notifyDataChanged({SyncDomain.sessions});
         }
       });
     }
@@ -85,7 +81,7 @@ extension SyncDataMachines on Sync {
             thinking: false,
             thinkingAt: null,
           );
-          _notifyDataChanged();
+          _notifyDataChanged({SyncDomain.sessions});
         }
       }
       return;
@@ -112,15 +108,14 @@ extension SyncDataMachines on Sync {
         final eventActiveAt = payload['activeAt'] is int
             ? payload['activeAt'] as int
             : payload['activeAt'] is double
-                ? (payload['activeAt'] as double).toInt()
-                : null;
+            ? (payload['activeAt'] as double).toInt()
+            : null;
         final active = payload['active'] as bool?;
         // If the server says the machine is active but omits activeAt,
         // use the current time so the client-side 120 s window stays
         // fresh.
         final now = DateTime.now().millisecondsSinceEpoch;
-        final activeAt =
-            eventActiveAt ?? ((active ?? false) ? now : null);
+        final activeAt = eventActiveAt ?? ((active ?? false) ? now : null);
         logger.debug(
           '[machine-activity] machineId=$machineId '
           'active=$active activeAt=$activeAt '
@@ -131,7 +126,7 @@ extension SyncDataMachines on Sync {
             active: active ?? machine.active,
             activeAt: activeAt ?? machine.activeAt,
           );
-          _notifyDataChanged();
+          _notifyDataChanged({SyncDomain.machines});
         }
       }
       return;
@@ -143,8 +138,7 @@ extension SyncDataMachines on Sync {
     // caused a thundering herd of fetchMessages calls (one per active
     // typing/tool event x every session the user had previously
     // opened), blocking the main thread.
-    if (sessionId == _visibleSessionId &&
-        messagesSync.containsKey(sessionId)) {
+    if (sessionId == _visibleSessionId && messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId]?.invalidate();
     }
   }
@@ -180,14 +174,11 @@ extension SyncDataMachines on Sync {
         final machineKeys = <String, Uint8List?>{};
 
         // Collect machines with their encryption keys.
-        final machineDecryptTasks = <({
-          String machineId,
-          String dataEncryptionKey,
-        })>[];
+        final machineDecryptTasks =
+            <({String machineId, String dataEncryptionKey})>[];
         for (final machine in data) {
           final machineId = machine['id'] as String;
-          final dataEncryptionKey =
-              machine['dataEncryptionKey'] as String?;
+          final dataEncryptionKey = machine['dataEncryptionKey'] as String?;
 
           if (dataEncryptionKey != null) {
             machineDecryptTasks.add((
@@ -206,13 +197,13 @@ extension SyncDataMachines on Sync {
               (t) => encryption
                   .decryptEncryptionKey(t.dataEncryptionKey)
                   .catchError((Object e) {
-                logger.info(
-                  '[Encryption] DEK decryption threw for machine '
-                  '${t.machineId}: $e '
-                  '-- falling back to legacy encryption.',
-                );
-                return null;
-              }),
+                    logger.info(
+                      '[Encryption] DEK decryption threw for machine '
+                      '${t.machineId}: $e '
+                      '-- falling back to legacy encryption.',
+                    );
+                    return null;
+                  }),
             ),
           );
 
@@ -259,8 +250,7 @@ extension SyncDataMachines on Sync {
               secretKey: dataKey ?? legacyKey,
               isAes: dataKey != null,
               encryptedMetadata: encMeta,
-              metadataVersion:
-                  _asSessionInt(machine['metadataVersion']) ?? 0,
+              metadataVersion: _asSessionInt(machine['metadataVersion']) ?? 0,
               encryptedDaemonState: encDs,
               daemonStateVersion:
                   _asSessionInt(machine['daemonStateVersion']) ?? 0,
@@ -269,8 +259,9 @@ extension SyncDataMachines on Sync {
         }
 
         // Decrypt all machine payloads (AES in background isolate).
-        final machineIsolateResults =
-            await _decryptMachinesInIsolate(machineIsolateItems);
+        final machineIsolateResults = await _decryptMachinesInIsolate(
+          machineIsolateItems,
+        );
         final machineResultById = {
           for (final r in machineIsolateResults) r.id: r,
         };
@@ -290,8 +281,7 @@ extension SyncDataMachines on Sync {
           // When active is true but activeAt is older than 60 s, treat
           // it as now.
           final isActive = machine['active'] as bool? ?? false;
-          final serverActiveAt =
-              _asSessionInt(machine['activeAt']);
+          final serverActiveAt = _asSessionInt(machine['activeAt']);
           int activeAt;
           if (isActive) {
             final fallback = serverActiveAt ?? now;
@@ -311,8 +301,7 @@ extension SyncDataMachines on Sync {
               metadata: result.metadata != null
                   ? MachineMetadata.fromJson(result.metadata!)
                   : null,
-              metadataVersion:
-                  _asSessionInt(machine['metadataVersion']) ?? 0,
+              metadataVersion: _asSessionInt(machine['metadataVersion']) ?? 0,
               daemonState: result.daemonState,
               daemonStateVersion:
                   _asSessionInt(machine['daemonStateVersion']) ?? 0,
@@ -334,18 +323,14 @@ extension SyncDataMachines on Sync {
         _machines
           ..clear()
           ..addEntries(
-            decryptedMachines.map(
-              (machine) => MapEntry(machine.id, machine),
-            ),
+            decryptedMachines.map((machine) => MapEntry(machine.id, machine)),
           );
         logger.info(
           'Fetched and decrypted ${decryptedMachines.length} machines',
         );
-        _notifyDataChanged();
+        _notifyDataChanged({SyncDomain.machines});
       } else {
-        logger.warning(
-          'Failed to fetch machines: ${response.statusCode}',
-        );
+        logger.warning('Failed to fetch machines: ${response.statusCode}');
       }
     } catch (error, stack) {
       logger.error('Error fetching machines', error, stack);

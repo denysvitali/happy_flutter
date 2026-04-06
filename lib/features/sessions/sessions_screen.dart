@@ -47,13 +47,19 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     _activeTab = _parseTab(widget.initialTab);
     _selectionNotifier.addListener(_onSelectionChanged);
     Future<void>.microtask(() async {
-      await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
-    });
-    subscribeToDataChanged(ref, () {
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       ref.read(machinesNotifierProvider.notifier).loadFromSync();
       ref.read(todoStateNotifierProvider.notifier).loadFromSync();
+      await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
     });
+    subscribeToDomains(
+      {SyncDomain.sessions, SyncDomain.machines, SyncDomain.todos},
+      () {
+        ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+        ref.read(machinesNotifierProvider.notifier).loadFromSync();
+        ref.read(todoStateNotifierProvider.notifier).loadFromSync();
+      },
+    );
   }
 
   void _onSelectionChanged() {

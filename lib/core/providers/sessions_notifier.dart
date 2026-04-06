@@ -42,7 +42,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
-    final counter = sync.dataChangeCounter;
+    final counter = sync.domainChangeCounter(SyncDomain.sessions);
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.sessions;

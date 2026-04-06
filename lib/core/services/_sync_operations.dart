@@ -26,8 +26,7 @@ extension SyncOperations on Sync {
           },
         );
 
-        final updateData =
-            WireParsers.asMap(updateResponse.data);
+        final updateData = WireParsers.asMap(updateResponse.data);
         final updateSuccess = updateData?['success'] == true;
         if (apiClient.isSuccess(updateResponse) && updateSuccess) {
           _settingsSnapshot = mergedSettings;
@@ -39,29 +38,24 @@ extension SyncOperations on Sync {
             _settingsVersion = newVersion;
           }
           postedSuccessfully = true;
-          _notifyDataChanged();
+          _notifyDataChanged({SyncDomain.settings});
           unawaited(MMKVStorage().saveSettings(_settingsSnapshot));
         } else if (updateData?['error'] == 'version-mismatch') {
           final currentSettingsEncrypted =
               updateData?['currentSettings'] as String?;
-          final currentVersion =
-              _asInt(updateData?['currentVersion']) ?? 0;
-          final serverSettingsMap =
-              currentSettingsEncrypted != null
-                  ? WireParsers.asMap(
-                      await encryption.decryptRaw(
-                        currentSettingsEncrypted,
-                      ),
-                    )
-                  : null;
-          final serverSettings =
-              Settings.fromJson(serverSettingsMap ?? {});
+          final currentVersion = _asInt(updateData?['currentVersion']) ?? 0;
+          final serverSettingsMap = currentSettingsEncrypted != null
+              ? WireParsers.asMap(
+                  await encryption.decryptRaw(currentSettingsEncrypted),
+                )
+              : null;
+          final serverSettings = Settings.fromJson(serverSettingsMap ?? {});
           _settingsSnapshot = Settings.fromJson({
             ...serverSettings.toJson(),
             ...pendingSettings,
           });
           _settingsVersion = currentVersion;
-          _notifyDataChanged();
+          _notifyDataChanged({SyncDomain.settings});
         }
       }
 
@@ -77,38 +71,30 @@ extension SyncOperations on Sync {
 
           if (encryptedSettings != null) {
             final decrypted = WireParsers.asMap(
-                await encryption.decryptRaw(encryptedSettings),
+              await encryption.decryptRaw(encryptedSettings),
             );
             if (decrypted != null) {
               _settingsSnapshot = Settings.fromJson(decrypted);
               _settingsVersion =
                   _asInt(data?['settingsVersion']) ?? _settingsVersion;
-              _notifyDataChanged();
+              _notifyDataChanged({SyncDomain.settings});
               // Persist to MMKV so the next cold start has fresh data.
-              unawaited(
-                MMKVStorage().saveSettings(_settingsSnapshot),
-              );
+              unawaited(MMKVStorage().saveSettings(_settingsSnapshot));
             }
           } else {
             _settingsSnapshot = Settings();
             _settingsVersion =
                 _asInt(data?['settingsVersion']) ?? _settingsVersion;
-            _notifyDataChanged();
+            _notifyDataChanged({SyncDomain.settings});
           }
         } else {
-          logger.warning(
-            'Failed to fetch settings: ${response.statusCode}',
-          );
+          logger.warning('Failed to fetch settings: ${response.statusCode}');
         }
       }
     } on DioException {
       rethrow;
     } catch (error, stack) {
-      logger.error(
-        'Error syncing settings',
-        error,
-        stack,
-      );
+      logger.error('Error syncing settings', error, stack);
     }
   }
 
@@ -142,18 +128,12 @@ extension SyncOperations on Sync {
           );
         }
       } else {
-        logger.warning(
-          'Failed to fetch profile: ${response.statusCode}',
-        );
+        logger.warning('Failed to fetch profile: ${response.statusCode}');
       }
     } on DioException {
       rethrow;
     } catch (error, stack) {
-      logger.error(
-        'Error fetching profile',
-        error,
-        stack,
-      );
+      logger.error('Error fetching profile', error, stack);
     }
   }
 
@@ -198,22 +178,15 @@ extension SyncOperations on Sync {
 
       final data = WireParsers.asMap(response.data);
       final updateUrl =
-          data?['updateUrl'] as String? ??
-              data?['update_url'] as String?;
+          data?['updateUrl'] as String? ?? data?['update_url'] as String?;
       _nativeUpdateUrl = updateUrl != null && updateUrl.isNotEmpty
           ? updateUrl
           : null;
     } catch (error, stack) {
       if (Sync._isTransientConnectionError(error)) {
-        logger.info(
-          'Native update fetch aborted (transient): $error',
-        );
+        logger.info('Native update fetch aborted (transient): $error');
       } else {
-        logger.error(
-          'Failed to fetch native update',
-          error,
-          stack,
-        );
+        logger.error('Failed to fetch native update', error, stack);
       }
       _nativeUpdateUrl = null;
     }
@@ -228,15 +201,12 @@ extension SyncOperations on Sync {
 
     try {
       if (Firebase.apps.isEmpty) {
-        logger.info(
-          'Skipping push token sync: Firebase is not initialized',
-        );
+        logger.info('Skipping push token sync: Firebase is not initialized');
         return;
       }
 
       final messaging = FirebaseMessaging.instance;
-      var notificationSettings =
-          await messaging.getNotificationSettings();
+      var notificationSettings = await messaging.getNotificationSettings();
       if (notificationSettings.authorizationStatus ==
           AuthorizationStatus.notDetermined) {
         notificationSettings = await messaging.requestPermission();
@@ -284,7 +254,7 @@ extension SyncOperations on Sync {
   /// by server replication lag.
   void markSessionArchived(String sessionId) {
     _optimisticallyArchivedSessions.add(sessionId);
-    _notifyDataChanged();
+    _notifyDataChanged({SyncDomain.sessions});
   }
 
   /// Mark a session as optimistically unarchived.
@@ -294,7 +264,7 @@ extension SyncOperations on Sync {
   /// list.
   void markSessionUnarchived(String sessionId) {
     _optimisticallyArchivedSessions.remove(sessionId);
-    _notifyDataChanged();
+    _notifyDataChanged({SyncDomain.sessions});
   }
 
   /// Returns whether a session is optimistically archived.
@@ -334,11 +304,7 @@ extension SyncOperations on Sync {
       _handleDeleteSession(<String, dynamic>{'sid': sessionId});
       return true;
     } catch (error, stack) {
-      logger.error(
-        'Failed to delete session $sessionId',
-        error,
-        stack,
-      );
+      logger.error('Failed to delete session $sessionId', error, stack);
       return false;
     }
   }

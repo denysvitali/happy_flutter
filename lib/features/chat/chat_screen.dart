@@ -61,8 +61,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _lastDataChangeCounter = -1;
   int _prevMessagesLength = 0;
   int _prevSeenLength = 0;
-  late final ValueNotifier<bool> _autoScrollNotifier =
-      ValueNotifier<bool>(true);
+  late final ValueNotifier<bool> _autoScrollNotifier = ValueNotifier<bool>(
+    true,
+  );
   bool get _autoScroll => _autoScrollNotifier.value;
   set _autoScroll(bool value) => _autoScrollNotifier.value = value;
   static const double _autoScrollThreshold = 100;
@@ -101,7 +102,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // Pre-computed neighbor cache for message list items (replacing O(N)
   // scans).
   final Map<int, (Map<String, dynamic>?, Map<String, dynamic>?)>
-      _neighborCache = {};
+  _neighborCache = {};
   List<Map<String, dynamic>?>? _neighborCacheSource;
   int _neighborCacheLength = -1;
   int _neighborCacheSourceHash = 0;
@@ -116,7 +117,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // Compute a lightweight hash to detect content changes without O(N) scan.
     // We combine length + first/last item identity for a cheap but effective
     // check.
-    final newHash = items.length ^
+    final newHash =
+        items.length ^
         (items.isNotEmpty ? items.first.hashCode : 0) ^
         (items.isNotEmpty ? items.last.hashCode : 0);
 
@@ -173,15 +175,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         'session ${widget.sessionId} '
         'visibleCount=$_visibleCount',
       );
-      Sentry.addBreadcrumb(Breadcrumb(
-        message: 'ChatScreen: initState cache hit',
-        category: 'chat.load',
-        data: {
-          'sessionId': widget.sessionId,
-          'cachedCount': cached.length,
-          'visibleCount': _visibleCount,
-        },
-      ));
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'ChatScreen: initState cache hit',
+          category: 'chat.load',
+          data: {
+            'sessionId': widget.sessionId,
+            'cachedCount': cached.length,
+            'visibleCount': _visibleCount,
+          },
+        ),
+      );
     }
 
     _initializeSyncBackedChat();
@@ -256,20 +260,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .listen((_) {
           if (mounted) _refreshFromSync();
         });
-    _dataSyncSubscription = sync.onDataChanged.listen((_) {
-      if (!mounted) return;
-      final counter = sync.dataChangeCounter;
-      if (counter == _lastDataChangeCounter) return;
-      _lastDataChangeCounter = counter;
-      if (!_didStartInitialLoad && sync.isInitialized) {
-        _doInitialLoad();
-      } else {
-        final latest = sync.sessions[widget.sessionId];
-        if (latest != _session) {
-          _refreshFromSync();
-        }
-      }
-    });
+    _dataSyncSubscription = sync.onDomainChanged
+        .where((domain) => domain == SyncDomain.sessions)
+        .listen((_) {
+          if (!mounted) return;
+          final counter = sync.domainChangeCounter(SyncDomain.sessions);
+          if (counter == _lastDataChangeCounter) return;
+          _lastDataChangeCounter = counter;
+          if (!_didStartInitialLoad && sync.isInitialized) {
+            _doInitialLoad();
+          } else {
+            final latest = sync.sessions[widget.sessionId];
+            if (latest != _session) {
+              _refreshFromSync();
+            }
+          }
+        });
 
     _paginationErrorSubscription = sync.onPaginationError
         .where((id) => id == widget.sessionId)
@@ -295,10 +301,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     await _doInitialLoad();
   }
 
-  void _refreshFromSync({
-    bool markLoaded = false,
-    bool loadFailed = false,
-  }) {
+  void _refreshFromSync({bool markLoaded = false, bool loadFailed = false}) {
     final latestSession = sync.sessions[widget.sessionId];
     final latestMessages = sync.messagesForSession(widget.sessionId);
 
@@ -317,9 +320,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // but our local list is empty. This catches edge cases where the
     // view cache was cleared (e.g. gapTooLarge tail refresh) and the
     // UI got updated with an empty list before the HTTP fetch completed.
-    if (!messagesChanged &&
-        latestMessages.isNotEmpty &&
-        _messages.isEmpty) {
+    if (!messagesChanged && latestMessages.isNotEmpty && _messages.isEmpty) {
       messagesChanged = true;
     }
 
@@ -347,8 +348,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _lastMessagesList = latestMessages;
     }
 
-    final hadRequests =
-        _session?.agentState?.requests?.isNotEmpty ?? false;
+    final hadRequests = _session?.agentState?.requests?.isNotEmpty ?? false;
     final hasRequests =
         latestSession?.agentState?.requests?.isNotEmpty ?? false;
     final newPermission = !hadRequests && hasRequests;
@@ -393,8 +393,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (messagesChanged) {
         if (latestMessages.length > _prevMessagesLength) {
           final prepended = latestMessages.length - _prevMessagesLength;
-          if (_visibleCount >= _prevMessagesLength &&
-              _prevMessagesLength > 0) {
+          if (_visibleCount >= _prevMessagesLength && _prevMessagesLength > 0) {
             _visibleCount = (_visibleCount + prepended).clamp(
               0,
               latestMessages.length,
@@ -459,8 +458,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (role == 'assistant' && kind != 'tool-call') {
         final ttsOn = ref.read(settingsNotifierProvider).ttsEnabled;
         if (ttsOn) {
-          final text =
-              (last['content'] ?? last['text'] ?? '').toString();
+          final text = (last['content'] ?? last['text'] ?? '').toString();
           if (text.isNotEmpty) {
             unawaited(TtsService().speak(text));
           }
@@ -537,8 +535,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     if (_visibleCount < _messages.length) {
       _isLoadingMore = true;
-      final targetCount =
-          (_visibleCount + _pageSize).clamp(0, _messages.length);
+      final targetCount = (_visibleCount + _pageSize).clamp(
+        0,
+        _messages.length,
+      );
       setState(() {
         _visibleCount = targetCount;
         _isLoadingMore = false; // Reset synchronously since we didn't call sync
@@ -583,8 +583,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return l10n.chatOnline;
     }
 
-    final lastSeen =
-        DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
+    final lastSeen = DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
     final diff = DateTime.now().difference(lastSeen);
     if (diff.inMinutes < 1) return l10n.chatLastSeenJustNow;
     if (diff.inMinutes < 60) {
@@ -622,9 +621,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // Use select() so this build only re-runs when the specific settings
     // fields actually change, not on any settings mutation.
     final avatarStyle = ref.watch(
-      settingsNotifierProvider.select(
-        (s) => parseAvatarStyle(s.avatarStyle),
-      ),
+      settingsNotifierProvider.select((s) => parseAvatarStyle(s.avatarStyle)),
     );
     final enterToSend = ref.watch(
       settingsNotifierProvider.select((s) => s.agentInputEnterToSend),
@@ -664,9 +661,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             HapticFeedback.lightImpact();
             context.pushNamed(
               'session-info',
-              pathParameters: {
-                'sessionId': widget.sessionId,
-              },
+              pathParameters: {'sessionId': widget.sessionId},
             );
           },
           onMenuTap: () => showSessionMenu(
@@ -685,9 +680,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   AnimatedSwitcher(
                     duration: AppDuration.normal,
                     child: _isLoadingMessages
-                        ? const ChatLoadingShimmer(
-                            key: ValueKey('loading'),
-                          )
+                        ? const ChatLoadingShimmer(key: ValueKey('loading'))
                         : _messages.isEmpty
                         ? (_loadFailed
                               ? RetryErrorView(onRetry: _retry)
@@ -709,17 +702,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           child: IgnorePointer(
                             ignoring: autoScroll || _isLoadingMessages,
                             child: AnimatedOpacity(
-                              opacity:
-                                  (!autoScroll && !_isLoadingMessages)
-                                      ? 1.0
-                                      : 0.0,
+                              opacity: (!autoScroll && !_isLoadingMessages)
+                                  ? 1.0
+                                  : 0.0,
                               duration: AppDuration.normal,
                               curve: AppCurve.standard,
                               child: AnimatedScale(
-                                scale:
-                                    (!autoScroll && !_isLoadingMessages)
-                                        ? 1.0
-                                        : 0.8,
+                                scale: (!autoScroll && !_isLoadingMessages)
+                                    ? 1.0
+                                    : 0.8,
                                 duration: AppDuration.normal,
                                 curve: AppCurve.standard,
                                 child: Align(
@@ -760,8 +751,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               selectedProfile: _selectedProfile,
               availableProfiles: _availableProfiles,
               onProfileChanged: _onProfileChanged,
-              contextSize: sync.sessionUsage[widget.sessionId]?['contextSize']
-                  as int?,
+              contextSize:
+                  sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
               isSessionOnline: _session?.isPresenceOnline ?? false,
               isAgentThinking: _session?.thinking ?? false,
               onAbort: _abortSession,

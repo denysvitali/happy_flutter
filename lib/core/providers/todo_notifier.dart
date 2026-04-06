@@ -13,7 +13,7 @@ class TodoStateNotifier extends Notifier<TodoListState> {
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
-    final counter = sync.dataChangeCounter;
+    final counter = sync.domainChangeCounter(SyncDomain.todos);
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.todoLists;
@@ -147,15 +147,15 @@ class TodoListState {
   List<TodoItem>? _allTodosCache;
 
   TodoListState copyWith({Map<String?, TodoList>? lists}) {
-    return TodoListState(lists: lists ?? this.lists)
-      .._allTodosCache = null;
+    return TodoListState(lists: lists ?? this.lists).._allTodosCache = null;
   }
 
   TodoList? getGlobalList() => lists[null];
 
   List<TodoItem> get allTodos {
-    return _allTodosCache ??=
-        lists.values.expand((list) => list.items).toList();
+    return _allTodosCache ??= lists.values
+        .expand((list) => list.items)
+        .toList();
   }
 
   int get totalCount => allTodos.length;

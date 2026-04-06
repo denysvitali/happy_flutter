@@ -21,13 +21,19 @@ class SettingsNotifier extends Notifier<Settings> {
     logger.setDeveloperMode(settings.developerModeEnabled);
   }
 
+  Future<void> loadLocalSettings() async {
+    final settings = await _storage.getLocalSettings();
+    state = settings;
+    logger.setDeveloperMode(settings.developerModeEnabled);
+  }
+
   void clear() {
     state = Settings();
   }
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
-    final counter = sync.dataChangeCounter;
+    final counter = sync.domainChangeCounter(SyncDomain.settings);
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.settingsSnapshot;

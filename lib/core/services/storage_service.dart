@@ -112,6 +112,18 @@ class SettingsStorage {
     return _cloneSettings(settings);
   }
 
+  /// Get settings from MMKV only, without hydrating API keys from secure
+  /// storage. Useful on startup when only local UI settings are needed.
+  Future<Settings> getLocalSettings() async {
+    final settings = await _storage.getSettings();
+    if (!_migrationChecked) {
+      await _performMigrationIfNeeded(settings);
+      _migrationChecked = true;
+    }
+    _cacheSettings(settings);
+    return _cloneSettings(settings);
+  }
+
   /// Check if migration is needed and perform it
   Future<void> _performMigrationIfNeeded(Settings settings) async {
     // Check if there are API keys in the settings (old format)

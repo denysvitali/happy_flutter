@@ -12,7 +12,7 @@ class ProfileNotifier extends Notifier<Profile?> {
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
-    final counter = sync.dataChangeCounter;
+    final counter = sync.domainChangeCounter(SyncDomain.profile);
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.profile;

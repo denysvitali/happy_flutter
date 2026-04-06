@@ -18,8 +18,7 @@ class PickPathScreen extends ConsumerStatefulWidget {
   final String? machineId;
 
   @override
-  ConsumerState<PickPathScreen> createState() =>
-      _PickPathScreenState();
+  ConsumerState<PickPathScreen> createState() => _PickPathScreenState();
 }
 
 class _PickPathScreenState extends ConsumerState<PickPathScreen> {
@@ -43,31 +42,15 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final machines = ref.watch(machinesNotifierProvider);
-    final sessions = ref.watch(sessionsNotifierProvider);
 
     final machine = widget.machineId != null
         ? machines[widget.machineId]
         : null;
     final homeDir = machine?.metadata?.homeDir;
 
-    // Compute recent paths for this machine from sessions
-    final recentPaths = <String>[];
-    if (widget.machineId != null) {
-      final seen = <String>{};
-      final sorted = sessions.values.toList()
-        ..sort(
-          (a, b) => b.updatedAt.compareTo(a.updatedAt),
-        );
-      for (final session in sorted) {
-        if (session.metadata?.machineId == widget.machineId) {
-          final p = session.metadata?.path;
-          if (p != null && p.isNotEmpty && !seen.contains(p)) {
-            seen.add(p);
-            recentPaths.add(p);
-          }
-        }
-      }
-    }
+    final recentPaths = widget.machineId == null
+        ? const <String>[]
+        : ref.watch(recentPathsForMachineProvider(widget.machineId!));
 
     // Suggested paths when no recent history
     final suggestedPaths = homeDir != null
@@ -98,9 +81,7 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
                   fontWeight: FontWeight.w600,
                   color: hasText
                       ? cs.primary
-                      : cs.onSurface.withValues(
-                          alpha: AppOpacity.medium,
-                        ),
+                      : cs.onSurface.withValues(alpha: AppOpacity.medium),
                 ),
               ),
             ),
@@ -109,8 +90,7 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
       ),
       body: ListView(
         padding: AppScreenPadding.standard,
-        keyboardDismissBehavior:
-            ScrollViewKeyboardDismissBehavior.onDrag,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         children: [
           // ── Path text input ───────────────────────────────────────
           AppCard(
@@ -129,17 +109,14 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
                 border: InputBorder.none,
                 prefixIcon: Icon(
                   Icons.folder_outlined,
-                  color: hasText
-                      ? cs.primary
-                      : cs.onSurfaceVariant,
+                  color: hasText ? cs.primary : cs.onSurfaceVariant,
                 ),
                 suffixIcon: hasText
                     ? IconButton(
                         icon: const Icon(Icons.clear_rounded),
                         iconSize: 18,
                         color: cs.onSurfaceVariant,
-                        onPressed: () =>
-                            setState(() => _controller.clear()),
+                        onPressed: () => setState(() => _controller.clear()),
                       )
                     : null,
               ),
@@ -160,18 +137,14 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
                   for (int i = 0; i < recentPaths.length; i++) ...[
                     _PathTile(
                       path: recentPaths[i],
-                      selected: _controller.text.trim() ==
-                          recentPaths[i],
+                      selected: _controller.text.trim() == recentPaths[i],
                       isFirst: i == 0,
                       isLast: i == recentPaths.length - 1,
                       onTap: () {
                         setState(() {
                           _controller.text = recentPaths[i];
-                          _controller.selection =
-                              TextSelection.fromPosition(
-                            TextPosition(
-                              offset: _controller.text.length,
-                            ),
+                          _controller.selection = TextSelection.fromPosition(
+                            TextPosition(offset: _controller.text.length),
                           );
                         });
                       },
@@ -190,31 +163,24 @@ class _PickPathScreenState extends ConsumerState<PickPathScreen> {
           ],
 
           // ── Suggested paths ───────────────────────────────────────
-          if (recentPaths.isEmpty &&
-              suggestedPaths.isNotEmpty) ...[
+          if (recentPaths.isEmpty && suggestedPaths.isNotEmpty) ...[
             AppSectionHeader(title: l10n.pickSuggestedPaths),
             const SizedBox(height: AppSpacing.xs),
             AppCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
-                  for (int i = 0;
-                      i < suggestedPaths.length;
-                      i++) ...[
+                  for (int i = 0; i < suggestedPaths.length; i++) ...[
                     _PathTile(
                       path: suggestedPaths[i],
-                      selected: _controller.text.trim() ==
-                          suggestedPaths[i],
+                      selected: _controller.text.trim() == suggestedPaths[i],
                       isFirst: i == 0,
                       isLast: i == suggestedPaths.length - 1,
                       onTap: () {
                         setState(() {
                           _controller.text = suggestedPaths[i];
-                          _controller.selection =
-                              TextSelection.fromPosition(
-                            TextPosition(
-                              offset: _controller.text.length,
-                            ),
+                          _controller.selection = TextSelection.fromPosition(
+                            TextPosition(offset: _controller.text.length),
                           );
                         });
                       },
@@ -275,12 +241,8 @@ class _PathTile extends StatelessWidget {
 
     // Round only the corners that are at the card edge.
     final borderRadius = BorderRadius.vertical(
-      top: isFirst
-          ? const Radius.circular(AppRadius.lg)
-          : Radius.zero,
-      bottom: isLast
-          ? const Radius.circular(AppRadius.lg)
-          : Radius.zero,
+      top: isFirst ? const Radius.circular(AppRadius.lg) : Radius.zero,
+      bottom: isLast ? const Radius.circular(AppRadius.lg) : Radius.zero,
     );
 
     return AppTappable(
@@ -299,12 +261,8 @@ class _PathTile extends StatelessWidget {
         child: Row(
           children: [
             SettingsIconContainer(
-              icon: selected
-                  ? Icons.folder_rounded
-                  : Icons.folder_outlined,
-              color: selected
-                  ? cs.primary
-                  : cs.onSurfaceVariant,
+              icon: selected ? Icons.folder_rounded : Icons.folder_outlined,
+              color: selected ? cs.primary : cs.onSurfaceVariant,
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -320,18 +278,13 @@ class _PathTile extends StatelessWidget {
             ),
             if (selected) ...[
               const SizedBox(width: AppSpacing.sm),
-              Icon(
-                Icons.check_circle_rounded,
-                size: 18,
-                color: cs.primary,
-              ),
+              Icon(Icons.check_circle_rounded, size: 18, color: cs.primary),
             ] else ...[
               const SizedBox(width: AppSpacing.sm),
               Icon(
                 Icons.chevron_right,
                 size: 18,
-                color: cs.onSurface
-                    .withValues(alpha: AppOpacity.medium),
+                color: cs.onSurface.withValues(alpha: AppOpacity.medium),
               ),
             ],
           ],

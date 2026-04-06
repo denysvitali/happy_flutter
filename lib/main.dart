@@ -16,6 +16,7 @@ import 'core/encryption/sodium_singleton.dart';
 import 'core/i18n/app_localizations.dart';
 import 'core/providers/app_providers.dart';
 import 'core/routing/app_router.dart';
+import 'core/services/frame_metrics_service.dart';
 import 'core/services/logger_service.dart';
 import 'core/services/network_monitor_service.dart';
 import 'core/services/notification_service.dart';
@@ -69,7 +70,8 @@ Future<void> _runApp() async {
   // decoded network images (avatars, etc.).  The default is 1000 images /
   // 100 MB — tighten both so the cache stays manageable on low-end devices.
   PaintingBinding.instance.imageCache
-    ..maximumSize = 150       // max decoded images
+    ..maximumSize =
+        150 // max decoded images
     ..maximumSizeBytes = 30 * 1024 * 1024; // 30 MB
 
   // All fonts are bundled in google_fonts/ — disable network fetching so
@@ -78,9 +80,7 @@ Future<void> _runApp() async {
 
   // Register background FCM handler before any Firebase calls.
   if (!kIsWeb) {
-    FirebaseMessaging.onBackgroundMessage(
-      firebaseMessagingBackgroundHandler,
-    );
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
 
   // Start all independent startup work concurrently.
@@ -92,6 +92,8 @@ Future<void> _runApp() async {
   // they provide zero value before the user sees the first screen.
   WidgetsBinding.instance.addPostFrameCallback((_) {
     unawaited(_deferredInit());
+    // Start tracking janky frames for Sentry/GlitchTip visibility.
+    FrameMetricsService.instance.attach();
   });
 
   // Await essentials: storage + network (server URL is needed for network).
@@ -131,8 +133,8 @@ Future<void> _deferredInit() async {
   // Android user certificates — JNI calls + ASN.1 parsing.
   if (!kIsWeb && isAndroid) {
     try {
-      final certs =
-          await FlutterUserCertificatesAndroid().getUserCertificates();
+      final certs = await FlutterUserCertificatesAndroid()
+          .getUserCertificates();
       for (final derBytes in (certs ?? {}).values) {
         final pem = _derToPem(derBytes);
         SecurityContext.defaultContext.setTrustedCertificatesBytes(pem);
@@ -183,11 +185,7 @@ Future<String?> _getInitialDeepLink() async {
 }
 
 class HappyApp extends ConsumerStatefulWidget {
-  const HappyApp({
-    super.key,
-    this.initialDeepLink,
-    this.changelogInfo,
-  });
+  const HappyApp({super.key, this.initialDeepLink, this.changelogInfo});
 
   final String? initialDeepLink;
   final ({String? fromVersion, String toVersion})? changelogInfo;
@@ -210,6 +208,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
   // background/foreground cycle.
   int _lifecycleCycleCount = 0;
   DateTime? _lastLifecycleCycleAt;
+
   /// Warn if full paused↔resumed cycles exceed this many per minute.
   static const int _lifecycleCyclingWarningThreshold = 6;
 
@@ -237,10 +236,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
       if (!mounted) return;
       _router.pushNamed(
         'changelog',
-        extra: {
-          'fromVersion': info.fromVersion,
-          'toVersion': info.toVersion,
-        },
+        extra: {'fromVersion': info.fromVersion, 'toVersion': info.toVersion},
       );
       // Only show once.
       _changelogInfo = null;
@@ -268,8 +264,9 @@ class _HappyAppState extends ConsumerState<HappyApp>
   }
 
   Future<void> _initializeTheme() async {
-    // Load settings and apply the theme
-    await ref.read(settingsNotifierProvider.notifier).loadSettings();
+    // Load only MMKV-backed settings here so first paint does not block on
+    // secure-storage API key hydration.
+    await ref.read(settingsNotifierProvider.notifier).loadLocalSettings();
     _applyThemeFromSettings();
   }
 
@@ -305,8 +302,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
       _lifecycleCycleCount++;
       final now = DateTime.now();
       if (_lastLifecycleCycleAt != null) {
-        final elapsed =
-            now.difference(_lastLifecycleCycleAt!).inSeconds;
+        final elapsed = now.difference(_lastLifecycleCycleAt!).inSeconds;
         if (elapsed < 60) {
           if (_lifecycleCycleCount > _lifecycleCyclingWarningThreshold) {
             // Log locally for dev logs — not worth a Sentry event
@@ -373,8 +369,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
                   themeMode: _getThemeMode(themeMode),
                   localizationsDelegates:
                       AppLocalizations.localizationsDelegates,
-                  supportedLocales:
-                      AppLocalizations.supportedLocales,
+                  supportedLocales: AppLocalizations.supportedLocales,
                   routerConfig: _router,
                 ),
                 // Command palette overlay
@@ -394,5 +389,4 @@ class _HappyAppState extends ConsumerState<HappyApp>
       AppThemeMode.adaptive => ThemeMode.system,
     };
   }
-
 }

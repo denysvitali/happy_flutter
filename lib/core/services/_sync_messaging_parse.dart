@@ -153,7 +153,7 @@ extension SyncMessagingParse on Sync {
                 presence: 'offline',
                 thinking: false,
               );
-              _notifyDataChanged();
+              _notifyDataChanged({SyncDomain.sessions});
             }
           }
         }
@@ -386,13 +386,13 @@ extension SyncMessagingParse on Sync {
             final current = _sessions[sessionId];
             if (current != null) {
               _sessions[sessionId] = current.copyWith(thinking: false);
-              _notifyDataChanged();
+              _notifyDataChanged({SyncDomain.sessions});
             }
           } else if (state == 'running') {
             final current = _sessions[sessionId];
             if (current != null) {
               _sessions[sessionId] = current.copyWith(thinking: true);
-              _notifyDataChanged();
+              _notifyDataChanged({SyncDomain.sessions});
             }
           }
           // Don't render a visible message.
@@ -430,10 +430,7 @@ extension SyncMessagingParse on Sync {
                 'createdAt': createdAt,
                 'role': 'agent',
                 'kind': 'agent-event',
-                'event': {
-                  'type': 'message',
-                  'message': 'Context compacted',
-                },
+                'event': {'type': 'message', 'message': 'Context compacted'},
                 'raw': outerContent,
               },
             ],
@@ -446,8 +443,11 @@ extension SyncMessagingParse on Sync {
       if (dataType == 'tool_progress') {
         final toolName = data['tool_name'] as String? ?? 'tool';
         final elapsed = data['elapsed_time_seconds'];
-        final elapsedStr = elapsed is num ? '${elapsed.toStringAsFixed(0)}s' : '';
-        final label = '$toolName running${elapsedStr.isNotEmpty ? ' ($elapsedStr)' : ''}...';
+        final elapsedStr = elapsed is num
+            ? '${elapsed.toStringAsFixed(0)}s'
+            : '';
+        final label =
+            '$toolName running${elapsedStr.isNotEmpty ? ' ($elapsedStr)' : ''}...';
         return (
           [
             {
@@ -569,8 +569,7 @@ extension SyncMessagingParse on Sync {
             'role': 'agent',
             'kind': 'tool-call',
             'name': c['name'] ?? c['server_name'] ?? type,
-            'input': WireParsers.asMap(c['input'])
-                ?? <String, dynamic>{},
+            'input': WireParsers.asMap(c['input']) ?? <String, dynamic>{},
             'toolUseId': c['id'],
             'state': 'running',
             'content': c,
@@ -618,8 +617,7 @@ extension SyncMessagingParse on Sync {
             {
               'toolUseId': callId,
               'result': result,
-              'isError':
-                  data['isError'] == true || data['is_error'] == true,
+              'isError': data['isError'] == true || data['is_error'] == true,
               'createdAt': createdAt,
               if (isSidechain) 'isSidechain': true,
               'uuid': ?dataUuid,
@@ -643,8 +641,8 @@ extension SyncMessagingParse on Sync {
         final promptText = msgContent is String
             ? msgContent
             : (msgContent is List
-                ? _extractTextFromContentBlocks(msgContent)
-                : null);
+                  ? _extractTextFromContentBlocks(msgContent)
+                  : null);
         if (promptText != null && promptText.isNotEmpty) {
           return (
             [
@@ -818,8 +816,7 @@ extension SyncMessagingParse on Sync {
     // Sidechain metadata for sub-agent grouping
     final isSidechain =
         data['isSidechain'] == true || data['is_sidechain'] == true;
-    final uuid =
-        (data['uuid'] ?? data['id']) as String?;
+    final uuid = (data['uuid'] ?? data['id']) as String?;
     final parentUuid =
         (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])
             as String?;
@@ -856,8 +853,7 @@ extension SyncMessagingParse on Sync {
             'role': 'agent',
             'kind': 'tool-call',
             'name': data['name'],
-            'input': WireParsers.asMap(data['input'])
-                ?? <String, dynamic>{},
+            'input': WireParsers.asMap(data['input']) ?? <String, dynamic>{},
             'toolUseId': data['callId'],
             'state': 'running',
             'content': data,
@@ -907,8 +903,7 @@ extension SyncMessagingParse on Sync {
     // Sidechain metadata for sub-agent grouping
     final isSidechain =
         data['isSidechain'] == true || data['is_sidechain'] == true;
-    final uuid =
-        (data['uuid'] ?? data['id']) as String?;
+    final uuid = (data['uuid'] ?? data['id']) as String?;
     final parentUuid =
         (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])
             as String?;
@@ -967,8 +962,7 @@ extension SyncMessagingParse on Sync {
             'role': 'agent',
             'kind': 'tool-call',
             'name': data['name'],
-            'input': WireParsers.asMap(data['input'])
-                ?? <String, dynamic>{},
+            'input': WireParsers.asMap(data['input']) ?? <String, dynamic>{},
             'toolUseId': data['callId'],
             'state': 'running',
             'content': data,

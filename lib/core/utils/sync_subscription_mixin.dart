@@ -32,7 +32,9 @@ import '../services/sync_service.dart';
 mixin SyncSubscriptionMixin<T extends ConsumerStatefulWidget>
     on ConsumerState<T> {
   StreamSubscription<void>? _syncSubscription;
+  StreamSubscription<SyncDomain>? _domainSubscription;
   int _lastDataChangeCounter = -1;
+  final Map<SyncDomain, int> _lastDomainCounters = {};
 
   /// Subscribe to [sync.onDataChanged] with deduplication.
   ///
@@ -41,10 +43,7 @@ mixin SyncSubscriptionMixin<T extends ConsumerStatefulWidget>
   /// (prevents duplicate work).
   ///
   /// Call this in [initState] after your initial data fetch.
-  void subscribeToDataChanged(
-    WidgetRef ref,
-    VoidCallback onDataChanged,
-  ) {
+  void subscribeToDataChanged(WidgetRef ref, VoidCallback onDataChanged) {
     _syncSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
       final counter = sync.dataChangeCounter;
@@ -52,6 +51,24 @@ mixin SyncSubscriptionMixin<T extends ConsumerStatefulWidget>
       _lastDataChangeCounter = counter;
       onDataChanged();
     });
+  }
+
+  /// Subscribe to one or more sync domains, skipping duplicate work when
+  /// the per-domain counter has not changed.
+  void subscribeToDomains(
+    Iterable<SyncDomain> domains,
+    VoidCallback onDataChanged,
+  ) {
+    final watchedDomains = domains.toSet();
+    _domainSubscription = sync.onDomainChanged
+        .where(watchedDomains.contains)
+        .listen((domain) {
+          if (!mounted) return;
+          final counter = sync.domainChangeCounter(domain);
+          if (_lastDomainCounters[domain] == counter) return;
+          _lastDomainCounters[domain] = counter;
+          onDataChanged();
+        });
   }
 
   /// Subscribe to [sync.onSessionMessagesChanged] for a specific session.
@@ -67,9 +84,9 @@ mixin SyncSubscriptionMixin<T extends ConsumerStatefulWidget>
     String sessionId,
     void Function() onMessagesChanged,
   ) {
-    return sync.onSessionMessagesChanged
-        .where((id) => id == sessionId)
-        .listen((_) {
+    return sync.onSessionMessagesChanged.where((id) => id == sessionId).listen((
+      _,
+    ) {
       if (!mounted) return;
       onMessagesChanged();
     });
@@ -78,6 +95,7 @@ mixin SyncSubscriptionMixin<T extends ConsumerStatefulWidget>
   @override
   void dispose() {
     _syncSubscription?.cancel();
+    _domainSubscription?.cancel();
     super.dispose();
   }
 }

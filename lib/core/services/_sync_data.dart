@@ -41,10 +41,8 @@ extension SyncData on Sync {
       final sessionKeys = <String, Uint8List?>{};
 
       // Collect valid sessions with their encryption keys.
-      final sessionDecryptTasks = <({
-        String sessionId,
-        String dataEncryptionKey,
-      })>[];
+      final sessionDecryptTasks =
+          <({String sessionId, String dataEncryptionKey})>[];
       for (final session in allSessions) {
         if (session is! Map<String, dynamic>) {
           logger.warning(
@@ -54,8 +52,7 @@ extension SyncData on Sync {
           continue;
         }
 
-        final sessionId =
-            WireParsers.parseString(session['id']);
+        final sessionId = WireParsers.parseString(session['id']);
         if (sessionId == null || sessionId.isEmpty) {
           logger.warning(
             'Skipping session with missing/empty ID',
@@ -87,13 +84,13 @@ extension SyncData on Sync {
             (t) => encryption
                 .decryptEncryptionKey(t.dataEncryptionKey)
                 .catchError((Object e) {
-              logger.info(
-                '[Encryption] DEK decryption threw for session '
-                '${t.sessionId}: $e '
-                '-- falling back to legacy encryption.',
-              );
-              return null;
-            }),
+                  logger.info(
+                    '[Encryption] DEK decryption threw for session '
+                    '${t.sessionId}: $e '
+                    '-- falling back to legacy encryption.',
+                  );
+                  return null;
+                }),
           ),
         );
 
@@ -132,8 +129,7 @@ extension SyncData on Sync {
           continue;
         }
 
-        final sessionId =
-            WireParsers.parseString(session['id']);
+        final sessionId = WireParsers.parseString(session['id']);
         if (sessionId == null || sessionId.isEmpty) {
           logger.warning(
             'Skipping session with missing/empty ID',
@@ -141,8 +137,7 @@ extension SyncData on Sync {
           );
           continue;
         }
-        final sessionEncryption =
-            encryption.getSessionEncryption(sessionId);
+        final sessionEncryption = encryption.getSessionEncryption(sessionId);
 
         // Always add the session, even if encryption isn't available.
         // This prevents the "Session not loaded" bug where sessions
@@ -162,8 +157,7 @@ extension SyncData on Sync {
           final updatedAt =
               _asSessionInt(session['updatedAt']) ??
               DateTime.now().millisecondsSinceEpoch;
-          final active =
-              _asSessionBool(session['active']) ?? false;
+          final active = _asSessionBool(session['active']) ?? false;
           final activeAt =
               _asSessionInt(session['activeAt']) ??
               DateTime.now().millisecondsSinceEpoch;
@@ -187,24 +181,17 @@ extension SyncData on Sync {
                 WireParsers.parseString(session['metadata']) ?? '',
               );
             } catch (e) {
-              logger.warning(
-                'Failed to decrypt session metadata',
-                e,
-              );
+              logger.warning('Failed to decrypt session metadata', e);
             }
 
             // Decrypt agent state
             try {
-              agentState =
-                  await sessionEncryption.decryptAgentState(
+              agentState = await sessionEncryption.decryptAgentState(
                 agentStateVersion,
                 WireParsers.parseString(session['agentState']),
               );
             } catch (e) {
-              logger.warning(
-                'Failed to decrypt session agentState',
-                e,
-              );
+              logger.warning('Failed to decrypt session agentState', e);
             }
           }
 
@@ -253,8 +240,7 @@ extension SyncData on Sync {
             // to 'offline'; only real-time WebSocket activity events
             // should promote a session to 'online'. For delta
             // fetches, preserve the existing presence if known.
-            presence:
-                _sessions[sessionId]?.presence ?? 'offline',
+            presence: _sessions[sessionId]?.presence ?? 'offline',
             lastSeq: lastSeq,
           );
 
@@ -262,10 +248,7 @@ extension SyncData on Sync {
         } catch (error) {
           // Log error in ALL builds (not just debug) so we can detect
           // malformed session data in production
-          logger.error(
-            'Failed to process session $sessionId',
-            error,
-          );
+          logger.error('Failed to process session $sessionId', error);
         }
       }
 
@@ -314,8 +297,7 @@ extension SyncData on Sync {
         final staleTimerIds = <String>[];
         for (final entry in _presenceTimers.entries) {
           final newSession = newSessions[entry.key];
-          if (newSession == null ||
-              newSession.presence != 'online') {
+          if (newSession == null || newSession.presence != 'online') {
             entry.value.cancel();
             staleTimerIds.add(entry.key);
           }
@@ -355,23 +337,18 @@ extension SyncData on Sync {
       // countdown is maintained -- this prevents dead sessions from
       // getting a fresh 60 s window after every fetch.
       for (final s in decryptedSessions) {
-        if (s.presence == 'online' &&
-            !_presenceTimers.containsKey(s.id)) {
-          _presenceTimers[s.id] = Timer(
-            const Duration(seconds: 60),
-            () {
-              _presenceTimers.remove(s.id);
-              final current = _sessions[s.id];
-              if (current != null &&
-                  current.presence == 'online') {
-                _sessions[s.id] = current.copyWith(
-                  presence: 'offline',
-                  thinking: false,
-                );
-                _notifyDataChanged();
-              }
-            },
-          );
+        if (s.presence == 'online' && !_presenceTimers.containsKey(s.id)) {
+          _presenceTimers[s.id] = Timer(const Duration(seconds: 60), () {
+            _presenceTimers.remove(s.id);
+            final current = _sessions[s.id];
+            if (current != null && current.presence == 'online') {
+              _sessions[s.id] = current.copyWith(
+                presence: 'offline',
+                thinking: false,
+              );
+              _notifyDataChanged({SyncDomain.sessions});
+            }
+          });
         }
       }
 
@@ -388,12 +365,10 @@ extension SyncData on Sync {
       // Fire local notifications for any new permission requests.
       _checkForNewPermissionRequests(decryptedSessions);
 
-      logger.info(
-        'Fetched and decrypted ${decryptedSessions.length} sessions',
-      );
+      logger.info('Fetched and decrypted ${decryptedSessions.length} sessions');
       _lastSessionsFetchedAt = fetchStartMs;
       _scheduleSaveSessionsCache();
-      _notifyDataChanged();
+      _notifyDataChanged({SyncDomain.sessions});
     } on DioException {
       rethrow;
     } catch (error, stack) {
@@ -411,8 +386,9 @@ extension SyncData on Sync {
     if (override != null) return override(sessionId);
     try {
       final apiClient = ApiClient();
-      final raw = await SessionsApi(client: apiClient)
-          .fetchSessionById(sessionId);
+      final raw = await SessionsApi(
+        client: apiClient,
+      ).fetchSessionById(sessionId);
       if (raw == null) return null;
 
       // Initialize encryption for this session.
@@ -423,8 +399,7 @@ extension SyncData on Sync {
       if (dataEncryptionKey != null) {
         _sessionEncryptedDataKeys[sessionId] = dataEncryptionKey;
         try {
-          sessionKey = await encryption
-              .decryptEncryptionKey(dataEncryptionKey);
+          sessionKey = await encryption.decryptEncryptionKey(dataEncryptionKey);
           if (sessionKey != null) {
             _sessionDataKeys[sessionId] = sessionKey;
           }
@@ -439,14 +414,11 @@ extension SyncData on Sync {
       }
       await encryption.initializeSessions({sessionId: sessionKey});
 
-      final sessionEncryption =
-          encryption.getSessionEncryption(sessionId);
+      final sessionEncryption = encryption.getSessionEncryption(sessionId);
 
       // Decrypt metadata and agent state.
-      final metadataVersion =
-          _asSessionInt(raw['metadataVersion']) ?? 0;
-      final agentStateVersion =
-          _asSessionInt(raw['agentStateVersion']) ?? 0;
+      final metadataVersion = _asSessionInt(raw['metadataVersion']) ?? 0;
+      final agentStateVersion = _asSessionInt(raw['agentStateVersion']) ?? 0;
 
       Map<String, dynamic>? metadata;
       Map<String, dynamic>? agentState;
@@ -457,22 +429,15 @@ extension SyncData on Sync {
             WireParsers.parseString(raw['metadata']) ?? '',
           );
         } catch (e) {
-          logger.warning(
-            'fetchSingleSession: decrypt metadata failed',
-            e,
-          );
+          logger.warning('fetchSingleSession: decrypt metadata failed', e);
         }
         try {
-          agentState =
-              await sessionEncryption.decryptAgentState(
+          agentState = await sessionEncryption.decryptAgentState(
             agentStateVersion,
             WireParsers.parseString(raw['agentState']),
           );
         } catch (e) {
-          logger.warning(
-            'fetchSingleSession: decrypt agentState failed',
-            e,
-          );
+          logger.warning('fetchSingleSession: decrypt agentState failed', e);
         }
       }
 
@@ -505,21 +470,23 @@ extension SyncData on Sync {
       final session = Session(
         id: sessionId,
         seq: _asSessionInt(raw['seq']) ?? 0,
-        createdAt: _asSessionInt(raw['createdAt']) ??
+        createdAt:
+            _asSessionInt(raw['createdAt']) ??
             DateTime.now().millisecondsSinceEpoch,
-        updatedAt: _asSessionInt(raw['updatedAt']) ??
+        updatedAt:
+            _asSessionInt(raw['updatedAt']) ??
             DateTime.now().millisecondsSinceEpoch,
         active: _asSessionBool(raw['active']) ?? false,
         archived: _asSessionBool(raw['archived']) ?? false,
-        activeAt: _asSessionInt(raw['activeAt']) ??
+        activeAt:
+            _asSessionInt(raw['activeAt']) ??
             DateTime.now().millisecondsSinceEpoch,
         metadata: parsedMetadata,
         metadataVersion: metadataVersion,
         agentState: parsedAgentState,
         agentStateVersion: agentStateVersion,
         thinking: false,
-        presence:
-            _sessions[sessionId]?.presence ?? 'offline',
+        presence: _sessions[sessionId]?.presence ?? 'offline',
         lastSeq: max(
           _asSessionInt(raw['lastSeq']) ?? 0,
           _sessions[sessionId]?.lastSeq ?? 0,
@@ -527,15 +494,11 @@ extension SyncData on Sync {
       );
 
       _sessions[sessionId] = session;
-      _notifyDataChanged();
+      _notifyDataChanged({SyncDomain.sessions});
       _scheduleSaveSessionsCache();
       return session;
     } catch (error, stack) {
-      logger.error(
-        'fetchSingleSession failed for $sessionId',
-        error,
-        stack,
-      );
+      logger.error('fetchSingleSession failed for $sessionId', error, stack);
       return null;
     }
   }

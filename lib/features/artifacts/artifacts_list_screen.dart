@@ -8,6 +8,7 @@ import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
@@ -21,8 +22,7 @@ class ArtifactsListScreen extends ConsumerStatefulWidget {
       _ArtifactsListScreenState();
 }
 
-class _ArtifactsListScreenState
-    extends ConsumerState<ArtifactsListScreen>
+class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
     with SyncSubscriptionMixin {
   bool _isLoading = true;
   String _searchQuery = '';
@@ -33,15 +33,12 @@ class _ArtifactsListScreenState
   void initState() {
     super.initState();
     Future<void>.microtask(() async {
-      await ref
-          .read(artifactsNotifierProvider.notifier)
-          .refreshFromSync();
+      ref.read(artifactsNotifierProvider.notifier).loadFromSync();
+      await ref.read(artifactsNotifierProvider.notifier).refreshFromSync();
       if (mounted) setState(() => _isLoading = false);
     });
-    subscribeToDataChanged(ref, () {
-      ref
-          .read(artifactsNotifierProvider.notifier)
-          .loadFromSync();
+    subscribeToDomains([SyncDomain.artifacts], () {
+      ref.read(artifactsNotifierProvider.notifier).loadFromSync();
     });
   }
 
@@ -53,9 +50,7 @@ class _ArtifactsListScreenState
   }
 
   Future<void> _handleRefresh() async {
-    await ref
-        .read(artifactsNotifierProvider.notifier)
-        .refreshFromSync();
+    await ref.read(artifactsNotifierProvider.notifier).refreshFromSync();
   }
 
   List<DecryptedArtifact> _filterAndSort(
@@ -86,8 +81,8 @@ class _ArtifactsListScreenState
       body: _isLoading
           ? const _ArtifactsLoadingShimmer()
           : !hasArtifacts
-              ? _buildEmptyState(l10n)
-              : _buildBody(l10n, filtered, artifacts.length),
+          ? _buildEmptyState(l10n)
+          : _buildBody(l10n, filtered, artifacts.length),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/artifacts/new'),
         tooltip: l10n.commonCreate,
@@ -150,26 +145,19 @@ class _ArtifactsListScreenState
                   : null,
               filled: true,
               fillColor: cs.surfaceContainerLow,
-              contentPadding:
-                  const EdgeInsets.symmetric(
+              contentPadding: const EdgeInsets.symmetric(
                 vertical: AppSpacing.sm,
               ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  AppRadius.pill,
-                ),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
                 borderSide: BorderSide.none,
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  AppRadius.pill,
-                ),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  AppRadius.pill,
-                ),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
                 borderSide: BorderSide(
                   color: cs.primary,
                   width: AppBorder.thin,
@@ -192,12 +180,9 @@ class _ArtifactsListScreenState
               _searchQuery.isNotEmpty
                   ? l10n.artifactsCount(filtered.length)
                   : l10n.artifactsCount(totalCount),
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: cs.onSurfaceVariant),
             ),
           ),
         ),
@@ -212,8 +197,7 @@ class _ArtifactsListScreenState
               : RefreshIndicator(
                   onRefresh: _handleRefresh,
                   child: ListView.builder(
-                    physics:
-                        const AlwaysScrollableScrollPhysics(),
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(
                       AppSpacing.lg,
                       AppSpacing.xs,
@@ -226,12 +210,8 @@ class _ArtifactsListScreenState
                       final artifact = filtered[index];
                       return Padding(
                         key: ValueKey(artifact.id),
-                        padding: const EdgeInsets.only(
-                          bottom: AppSpacing.sm,
-                        ),
-                        child: _ArtifactListCard(
-                          artifact: artifact,
-                        ),
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: _ArtifactListCard(artifact: artifact),
                       );
                     },
                   ),
@@ -260,15 +240,9 @@ class _ArtifactsListScreenState
     return (icon: Icons.lock_outlined, color: cs.error);
   }
   if (hasSessions) {
-    return (
-      icon: Icons.chat_bubble_outline,
-      color: AppColors.iosBlue,
-    );
+    return (icon: Icons.chat_bubble_outline, color: AppColors.iosBlue);
   }
-  return (
-    icon: Icons.description_outlined,
-    color: cs.primary,
-  );
+  return (icon: Icons.description_outlined, color: cs.primary);
 }
 
 // ── Card ────────────────────────────────────────────────────────
@@ -289,8 +263,8 @@ class _ArtifactListCard extends StatelessWidget {
         : _shortId(artifact.id);
 
     final isDraft = artifact.draft ?? false;
-    final hasSessions = artifact.sessions != null &&
-        artifact.sessions!.isNotEmpty;
+    final hasSessions =
+        artifact.sessions != null && artifact.sessions!.isNotEmpty;
     final sessionCount = artifact.sessions?.length ?? 0;
 
     return AppCard(
@@ -298,14 +272,10 @@ class _ArtifactListCard extends StatelessWidget {
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
       ),
-      onTap: () =>
-          context.push('/artifacts/${artifact.id}'),
+      onTap: () => context.push('/artifacts/${artifact.id}'),
       child: Row(
         children: [
-          SettingsIconContainer(
-            icon: indicator.icon,
-            color: indicator.color,
-          ),
+          SettingsIconContainer(icon: indicator.icon, color: indicator.color),
           const SizedBox(width: AppSpacing.md),
           // Title + metadata column.
           Expanded(
@@ -318,8 +288,7 @@ class _ArtifactListCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         title,
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           height: AppLineHeight.tight,
                         ),
@@ -347,27 +316,19 @@ class _ArtifactListCard extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      _relativeDate(
-                        context, artifact.updatedAt,
-                      ),
-                      style:
-                          theme.textTheme.bodySmall?.copyWith(
+                      _relativeDate(context, artifact.updatedAt),
+                      style: theme.textTheme.bodySmall?.copyWith(
                         color: cs.onSurfaceVariant,
                         height: AppLineHeight.tight,
                       ),
                     ),
                     if (hasSessions) ...[
                       const SizedBox(width: AppSpacing.md),
-                      Icon(
-                        Icons.link,
-                        size: 13,
-                        color: cs.onSurfaceVariant,
-                      ),
+                      Icon(Icons.link, size: 13, color: cs.onSurfaceVariant),
                       const SizedBox(width: AppSpacing.xs),
                       Text(
                         '$sessionCount',
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: cs.onSurfaceVariant,
                           height: AppLineHeight.tight,
                         ),
@@ -382,9 +343,7 @@ class _ArtifactListCard extends StatelessWidget {
           Icon(
             Icons.chevron_right,
             size: AppSpacing.xl,
-            color: cs.onSurface.withValues(
-              alpha: AppOpacity.medium,
-            ),
+            color: cs.onSurface.withValues(alpha: AppOpacity.medium),
           ),
         ],
       ),
@@ -397,10 +356,7 @@ class _ArtifactListCard extends StatelessWidget {
   }
 
   /// Format timestamp as relative date string.
-  static String _relativeDate(
-    BuildContext context,
-    int millis,
-  ) {
+  static String _relativeDate(BuildContext context, int millis) {
     final l10n = AppLocalizations.of(context);
     final now = DateTime.now();
     final date = DateTime.fromMillisecondsSinceEpoch(millis);
@@ -450,10 +406,10 @@ class _TypeBadge extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-              fontSize: AppFontSize.xxs,
-            ),
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: AppFontSize.xxs,
+        ),
       ),
     );
   }
@@ -479,9 +435,7 @@ class _ArtifactsLoadingShimmer extends StatelessWidget {
         itemCount: 5,
         itemBuilder: (context, index) {
           return Padding(
-            padding: const EdgeInsets.only(
-              bottom: AppSpacing.sm,
-            ),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.lg,
@@ -489,13 +443,9 @@ class _ArtifactsLoadingShimmer extends StatelessWidget {
               ),
               decoration: BoxDecoration(
                 color: cs.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(
-                  AppRadius.lg,
-                ),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
                 border: Border.all(
-                  color: cs.outlineVariant.withValues(
-                    alpha: AppOpacity.medium,
-                  ),
+                  color: cs.outlineVariant.withValues(alpha: AppOpacity.medium),
                 ),
               ),
               child: Row(
@@ -505,40 +455,29 @@ class _ArtifactsLoadingShimmer extends StatelessWidget {
                     height: 36,
                     decoration: BoxDecoration(
                       color: color,
-                      borderRadius: BorderRadius.circular(
-                        AppRadius.sm,
-                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
                           height: 14,
                           width: 120 + (index * 20.0) % 60,
                           decoration: BoxDecoration(
                             color: color,
-                            borderRadius:
-                                BorderRadius.circular(
-                              AppRadius.xs,
-                            ),
+                            borderRadius: BorderRadius.circular(AppRadius.xs),
                           ),
                         ),
-                        const SizedBox(
-                          height: AppSpacing.xsm,
-                        ),
+                        const SizedBox(height: AppSpacing.xsm),
                         Container(
                           height: 12,
                           width: 80,
                           decoration: BoxDecoration(
                             color: color,
-                            borderRadius:
-                                BorderRadius.circular(
-                              AppRadius.xs,
-                            ),
+                            borderRadius: BorderRadius.circular(AppRadius.xs),
                           ),
                         ),
                       ],

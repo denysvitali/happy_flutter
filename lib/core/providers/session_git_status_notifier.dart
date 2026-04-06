@@ -3,6 +3,7 @@ import 'package:riverpod/riverpod.dart';
 import '../models/machine.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
+
 class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
   int _lastDataChangeCounter = -1;
 
@@ -11,7 +12,7 @@ class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
-    final counter = sync.dataChangeCounter;
+    final counter = sync.domainChangeCounter(SyncDomain.gitStatus);
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.sessionGitStatus;

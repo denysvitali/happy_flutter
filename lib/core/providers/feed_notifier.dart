@@ -13,7 +13,7 @@ class FeedNotifier extends Notifier<FeedState> {
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
-    final counter = sync.dataChangeCounter;
+    final counter = sync.domainChangeCounter(SyncDomain.feed);
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.feedItems;
@@ -62,18 +62,18 @@ class FeedState {
     List<AppNotification>? notifications,
   }) {
     return FeedState(
-      items: items ?? this.items,
-      notifications: notifications ?? this.notifications,
-    )
+        items: items ?? this.items,
+        notifications: notifications ?? this.notifications,
+      )
       .._unreadCountCache = null
       .._unreadNotificationsCache = null;
   }
 
   int get unreadCount =>
       _unreadCountCache ??= items.where((i) => !i.read).length;
-  int get unreadNotifications =>
-      _unreadNotificationsCache ??=
-          notifications.where((n) => !n.dismissed && !n.read).length;
+  int get unreadNotifications => _unreadNotificationsCache ??= notifications
+      .where((n) => !n.dismissed && !n.read)
+      .length;
 }
 
 final feedNotifierProvider = NotifierProvider<FeedNotifier, FeedState>(() {

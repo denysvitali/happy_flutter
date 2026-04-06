@@ -42,12 +42,17 @@ extension SyncMessagingRpc on Sync {
   ) async {
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
-      unawaited(Sentry.addBreadcrumb(Breadcrumb(
-        message: 'fetchMessages: encryption null, '
-            'awaiting sessions',
-        category: 'sync.messages',
-        data: {'sessionId': sessionId},
-      )));
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message:
+                'fetchMessages: encryption null, '
+                'awaiting sessions',
+            category: 'sync.messages',
+            data: {'sessionId': sessionId},
+          ),
+        ),
+      );
       // Encryption may not be initialized yet — wait for pending fetch.
       await sessionsSync.invalidateAndAwait();
       sessionEncryption = encryption.getSessionEncryption(sessionId);
@@ -177,8 +182,7 @@ extension SyncMessagingRpc on Sync {
 
     try {
       // Resolve profile env vars for this session before spawning.
-      final spawnResult =
-          await _getSpawnEnvVarsForSession(sessionId);
+      final spawnResult = await _getSpawnEnvVarsForSession(sessionId);
       final req = SpawnSessionRequest(
         type: 'spawn-in-directory',
         directory: path,
@@ -234,9 +238,7 @@ extension SyncMessagingRpc on Sync {
   ///
   /// Called after [fetchSessions] merges updated sessions and
   /// after inline socket updates apply new agent state.
-  void _checkForNewPermissionRequests(
-    Iterable<Session> sessions,
-  ) {
+  void _checkForNewPermissionRequests(Iterable<Session> sessions) {
     for (final session in sessions) {
       // Don't notify for the session the user is viewing — they
       // can see the permission footer already.
@@ -250,16 +252,14 @@ extension SyncMessagingRpc on Sync {
         if (_notifiedPermissionIds.contains(permId)) continue;
         // Evict oldest entries when the cap is reached to bound memory.
         if (_notifiedPermissionIds.length >= Sync._maxNotifiedPermissionIds) {
-          _notifiedPermissionIds
-              .remove(_notifiedPermissionIds.first);
+          _notifiedPermissionIds.remove(_notifiedPermissionIds.first);
         }
         _notifiedPermissionIds.add(permId);
 
         final request = entry.value;
         Map<String, dynamic>? toolInput;
         if (request.arguments is Map) {
-          toolInput =
-              Map<String, dynamic>.from(request.arguments as Map);
+          toolInput = Map<String, dynamic>.from(request.arguments as Map);
         }
 
         final sessionName =
@@ -293,8 +293,7 @@ extension SyncMessagingRpc on Sync {
       for (final permId in session.agentState!.requests!.keys) {
         _notifiedPermissionIds.remove(permId);
         unawaited(
-          NotificationService.instance
-              .cancelPermissionNotification(permId),
+          NotificationService.instance.cancelPermissionNotification(permId),
         );
       }
       _sessions[sessionId] = session.copyWith(
@@ -329,7 +328,7 @@ extension SyncMessagingRpc on Sync {
       }
     }
     if (hadRequests || messages != null) {
-      _notifyDataChanged();
+      _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
     }
   }
 
@@ -514,9 +513,7 @@ extension SyncMessagingRpc on Sync {
     // string changes while the session keeps running with the old profile's
     // env vars (API keys, base URLs).
     if (!_sessionSpawnedProfile.containsKey(sessionId)) {
-      MMKVStorage()
-          .getSessionProfile(sessionId)
-          .then((storedProfileId) {
+      MMKVStorage().getSessionProfile(sessionId).then((storedProfileId) {
         if (!_sessionSpawnedProfile.containsKey(sessionId)) {
           _sessionSpawnedProfile[sessionId] = storedProfileId;
         }
@@ -527,31 +524,28 @@ extension SyncMessagingRpc on Sync {
     // Each InvalidateSync holds Timers, a Completer, and closures that
     // capture the Sync singleton — unbounded growth for 500+ sessions.
     _evictStaleMessagesSync();
-    Sentry.addBreadcrumb(Breadcrumb(
-      message: 'onSessionVisible',
-      category: 'sync.messages',
-      data: {
-        'sessionId': sessionId,
-        'hasPending':
-            _sessionsWithPendingSocketMessages
-                .contains(sessionId),
-        'hasMessagesInMemory':
-            _sessionMessages[sessionId]
-                    ?.isNotEmpty ??
-                false,
-        'cursorSeq':
-            _sessionLastSeq[sessionId] ?? 0,
-        'serverLastSeq':
-            _sessions[sessionId]?.lastSeq ?? 0,
-      },
-    ));
+    Sentry.addBreadcrumb(
+      Breadcrumb(
+        message: 'onSessionVisible',
+        category: 'sync.messages',
+        data: {
+          'sessionId': sessionId,
+          'hasPending': _sessionsWithPendingSocketMessages.contains(sessionId),
+          'hasMessagesInMemory':
+              _sessionMessages[sessionId]?.isNotEmpty ?? false,
+          'cursorSeq': _sessionLastSeq[sessionId] ?? 0,
+          'serverLastSeq': _sessions[sessionId]?.lastSeq ?? 0,
+        },
+      ),
+    );
 
     // If this session received socket messages while non-visible, we MUST
     // fetch from the server to get those messages.  Socket messages are NOT
     // stored in _sessionMessages for non-visible sessions (only the seq
     // cursor is advanced), so the cache may be stale even if it has data.
-    final hasPendingSocketMessages =
-        _sessionsWithPendingSocketMessages.remove(sessionId);
+    final hasPendingSocketMessages = _sessionsWithPendingSocketMessages.remove(
+      sessionId,
+    );
 
     // Only tail-refresh when we have no messages in memory for this session
     // (first open or after restart).  When messages are already loaded the
@@ -594,7 +588,7 @@ extension SyncMessagingRpc on Sync {
         }
         // Notify UI immediately so it can render cached messages.
         _notifySessionMessagesChanged(sessionId);
-        _notifyDataChanged();
+        _notifyDataChanged({SyncDomain.messages});
         // Recalculate the older-messages boundary from the cache
         // so hasOlderMessages() returns the correct value even if
         // _restoreAllCachedMessagesAsync hasn't run yet or the
@@ -670,8 +664,7 @@ extension SyncMessagingRpc on Sync {
   int _tailAfterSeqForSession(String sessionId) {
     return _cursorManager.tailAfterSeq(
       sessionId,
-      serverLastSeq:
-          _sessions[sessionId]?.lastSeq ?? 0,
+      serverLastSeq: _sessions[sessionId]?.lastSeq ?? 0,
       initialLoad: Sync.initialLoad,
     );
   }

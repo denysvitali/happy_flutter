@@ -250,7 +250,7 @@ extension SyncSessionOperations on Sync {
         );
         _sessionSpawnedAt[found.id] = found.createdAt;
         _sessionSpawnedProfile[found.id] = effectiveProfileId;
-        _notifyDataChanged();
+        _notifyDataChanged({SyncDomain.sessions});
         return found.id;
       }
 
@@ -907,7 +907,7 @@ PY
           presence: 'offline',
         );
         _sessions[restoredSessionId] = restoredSession;
-        _notifyDataChanged();
+        _notifyDataChanged({SyncDomain.sessions});
       }
 
       var restoredSessionEncryption = encryption.getSessionEncryption(

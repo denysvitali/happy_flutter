@@ -3,6 +3,7 @@ export 'auth_state_notifier.dart';
 export 'chat_action_notifier.dart';
 export 'connection_notifier.dart';
 export 'current_session_notifier.dart';
+export 'derived_view_providers.dart';
 export 'feed_notifier.dart';
 export 'friends_notifier.dart';
 export 'machines_notifier.dart';

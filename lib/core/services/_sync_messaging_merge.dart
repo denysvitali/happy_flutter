@@ -120,8 +120,7 @@ extension SyncMessagingMerge on Sync {
     }
 
     if (eventType == 'text') {
-      final text =
-          (eventMap['text'] ?? eventMap['message'])?.toString() ?? '';
+      final text = (eventMap['text'] ?? eventMap['message'])?.toString() ?? '';
       if (eventRole == MessageRole.agent) {
         final thinking = eventMap['thinking'] == true;
         return (
@@ -191,9 +190,7 @@ extension SyncMessagingMerge on Sync {
       final args = eventMap['args'] ?? eventMap['input'];
       final input = WireParsers.asMap(args) ?? <String, dynamic>{};
       final callId =
-          (eventMap['call'] ??
-                  eventMap['callId'] ??
-                  eventMap['toolUseId'])
+          (eventMap['call'] ?? eventMap['callId'] ?? eventMap['toolUseId'])
               as String?;
       return (
         [
@@ -205,8 +202,7 @@ extension SyncMessagingMerge on Sync {
             'role': 'agent',
             'kind': 'tool-call',
             'name':
-                (eventMap['name'] ?? eventMap['tool'])?.toString() ??
-                'unknown',
+                (eventMap['name'] ?? eventMap['tool'])?.toString() ?? 'unknown',
             'input': input,
             'toolUseId': callId ?? envelopeId,
             'state': 'running',
@@ -223,9 +219,7 @@ extension SyncMessagingMerge on Sync {
 
     if (eventType == 'tool-call-end') {
       final callId =
-          (eventMap['call'] ??
-                  eventMap['callId'] ??
-                  eventMap['toolUseId'])
+          (eventMap['call'] ?? eventMap['callId'] ?? eventMap['toolUseId'])
               as String?;
       if (callId == null || callId.isEmpty) return ([], []);
       return (
@@ -234,12 +228,9 @@ extension SyncMessagingMerge on Sync {
           {
             'toolUseId': callId,
             'result':
-                eventMap['result'] ??
-                eventMap['output'] ??
-                eventMap['content'],
+                eventMap['result'] ?? eventMap['output'] ?? eventMap['content'],
             'isError':
-                eventMap['isError'] == true ||
-                eventMap['is_error'] == true,
+                eventMap['isError'] == true || eventMap['is_error'] == true,
             'createdAt': eventCreatedAt,
             if (isSidechain) 'isSidechain': true,
             if (uuid.isNotEmpty) 'uuid': uuid,
@@ -342,9 +333,7 @@ extension SyncMessagingMerge on Sync {
     // Only run if there are still ungrouped sidechain messages
     // sitting in the main list (a normal message list has no
     // isSidechain entries after successful grouping).
-    final hasOrphans = messages.any(
-      (m) => m['isSidechain'] == true,
-    );
+    final hasOrphans = messages.any((m) => m['isSidechain'] == true);
     if (!hasOrphans) return;
 
     logger.debug(
@@ -353,15 +342,12 @@ extension SyncMessagingMerge on Sync {
     );
     _groupSidechainMessages(sessionId);
     _notifySessionMessagesChanged(sessionId);
-    _notifyDataChanged();
+    _notifyDataChanged({SyncDomain.messages});
   }
 
   /// Delegates to [SidechainGrouper] and updates session message
   /// state when grouping modifies the list.
-  void _groupSidechainMessages(
-    String sessionId, {
-    Set<String>? changedIds,
-  }) {
+  void _groupSidechainMessages(String sessionId, {Set<String>? changedIds}) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return;
 
@@ -372,8 +358,7 @@ extension SyncMessagingMerge on Sync {
 
     if (result == null) return;
 
-    if (result.hasOrphans &&
-        !identical(result.messages, messages)) {
+    if (result.hasOrphans && !identical(result.messages, messages)) {
       _scheduleSidechainRegroup(sessionId);
     } else if (result.hasOrphans) {
       _scheduleSidechainRegroup(sessionId);
@@ -398,14 +383,11 @@ extension SyncMessagingMerge on Sync {
     if (existing.isEmpty) {
       // Queue tool results that arrived before their tool-call message.
       // They will be applied when the tool-call message arrives.
-      _pendingToolResults
-          .putIfAbsent(sessionId, () => [])
-          .addAll(toolResults);
+      _pendingToolResults.putIfAbsent(sessionId, () => []).addAll(toolResults);
       return;
     }
 
-    final (updated, changed) =
-        _toolResultProcessor.applyToolResults(
+    final (updated, changed) = _toolResultProcessor.applyToolResults(
       existing,
       toolResults,
     );
@@ -429,8 +411,7 @@ extension SyncMessagingMerge on Sync {
     final existing = _sessionMessages[sessionId];
     if (existing == null || existing.isEmpty) return;
 
-    final result =
-        _toolResultProcessor.applyPermissionRequests(
+    final result = _toolResultProcessor.applyPermissionRequests(
       existing,
       agentState,
       _notifiedPermissionIds,
@@ -440,8 +421,7 @@ extension SyncMessagingMerge on Sync {
     for (final permId in result.resolvedPermIds) {
       _notifiedPermissionIds.remove(permId);
       unawaited(
-        NotificationService.instance
-            .cancelPermissionNotification(permId),
+        NotificationService.instance.cancelPermissionNotification(permId),
       );
     }
 
@@ -509,8 +489,7 @@ extension SyncMessagingMerge on Sync {
     // to a recently-appended message without scanning the full list.
     // For true id collisions deeper in the list, the full merge path
     // handles them correctly (at O(n) cost, but those are rare).
-    final tailStart =
-        existing.length > 20 ? existing.length - 20 : 0;
+    final tailStart = existing.length > 20 ? existing.length - 20 : 0;
     final recentIds = <String>{};
     for (var i = tailStart; i < existing.length; i++) {
       final id = existing[i]['id'] as String?;
@@ -618,8 +597,7 @@ extension SyncMessagingMerge on Sync {
       // prompts) share localId with their parent Task/Agent tool-call
       // but must NOT remove the parent — they are separate messages.
       final isSidechainMsg =
-          message['isSidechain'] == true ||
-          message['kind'] == 'sidechain-root';
+          message['isSidechain'] == true || message['kind'] == 'sidechain-root';
       if (hasLocalId && localId != messageId && !isSidechainMsg) {
         merged.remove(localId);
       }
@@ -664,15 +642,13 @@ extension SyncMessagingMerge on Sync {
       // already removed from the flat list can never be re-grouped.
       final existing = merged[messageId];
       if (existing != null) {
-        final existingChildren =
-            existing['children'] as List<dynamic>?;
+        final existingChildren = existing['children'] as List<dynamic>?;
         if (existingChildren != null &&
             existingChildren.isNotEmpty &&
             message['children'] == null) {
           message['children'] = existingChildren;
         }
-        final existingRoots =
-            existing['_sidechainRootUuids'] as List<dynamic>?;
+        final existingRoots = existing['_sidechainRootUuids'] as List<dynamic>?;
         if (existingRoots != null &&
             existingRoots.isNotEmpty &&
             message['_sidechainRootUuids'] == null) {

@@ -61,18 +61,18 @@ extension SyncSessions on Sync {
       final activeAt = data['activeAt'] is int
           ? data['activeAt'] as int
           : data['activeAt'] is double
-              ? (data['activeAt'] as double).toInt()
-              : null;
+          ? (data['activeAt'] as double).toInt()
+          : null;
       final updatedAt = data['updatedAt'] is int
           ? data['updatedAt'] as int
           : data['updatedAt'] is double
-              ? (data['updatedAt'] as double).toInt()
-              : null;
+          ? (data['updatedAt'] as double).toInt()
+          : null;
       final seq = data['seq'] is int
           ? data['seq'] as int
           : data['seq'] is double
-              ? (data['seq'] as double).toInt()
-              : null;
+          ? (data['seq'] as double).toInt()
+          : null;
 
       if (active != null || activeAt != null) {
         _machines[machineId] = machine.copyWith(
@@ -81,7 +81,7 @@ extension SyncSessions on Sync {
           updatedAt: updatedAt ?? machine.updatedAt,
           seq: seq ?? machine.seq,
         );
-        _notifyDataChanged();
+        _notifyDataChanged({SyncDomain.machines});
       }
     }
 
@@ -110,27 +110,46 @@ extension SyncSessions on Sync {
   /// Handle relationship update
   void _handleRelationshipUpdated(Map<String, dynamic> data) {
     logger.info('Relationship update received');
-    friendsSync.invalidate();
-    friendRequestsSync.invalidate();
-    feedSync.invalidate();
+    // Debounce: relationship events can fire in bursts. Schedule a
+    // single batched refresh instead of invalidating each sync immediately.
+    _scheduleSocialSyncsRefresh();
+  }
+
+  /// Debounced invalidation of social/secondary syncs.
+  void _scheduleSocialSyncsRefresh() {
+    _socialSyncsDebounceTimer?.cancel();
+    _socialSyncsDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _socialSyncsDebounceTimer = null;
+      friendsSync.invalidate();
+      friendRequestsSync.invalidate();
+      feedSync.invalidate();
+    });
   }
 
   /// Handle new artifact update
   void _handleNewArtifact(Map<String, dynamic> data) {
     logger.info('New artifact received');
-    artifactsSync.invalidate();
+    _scheduleArtifactsSyncRefresh();
   }
 
   /// Handle artifact update
   void _handleUpdateArtifact(Map<String, dynamic> data) {
     logger.info('Artifact update received');
-    artifactsSync.invalidate();
+    _scheduleArtifactsSyncRefresh();
   }
 
   /// Handle artifact deletion
   void _handleDeleteArtifact(Map<String, dynamic> data) {
     logger.info('Artifact deletion received');
-    artifactsSync.invalidate();
+    _scheduleArtifactsSyncRefresh();
+  }
+
+  void _scheduleArtifactsSyncRefresh() {
+    _artifactsSyncDebounceTimer?.cancel();
+    _artifactsSyncDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _artifactsSyncDebounceTimer = null;
+      artifactsSync.invalidate();
+    });
   }
 
   /// Handle new feed post

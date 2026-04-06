@@ -3,6 +3,7 @@ import 'package:riverpod/riverpod.dart';
 import '../models/machine.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
+
 class MachinesNotifier extends Notifier<Map<String, Machine>> {
   int _lastDataChangeCounter = -1;
 
@@ -11,7 +12,7 @@ class MachinesNotifier extends Notifier<Map<String, Machine>> {
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
-    final counter = sync.dataChangeCounter;
+    final counter = sync.domainChangeCounter(SyncDomain.machines);
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.machines;

@@ -8,9 +8,7 @@ extension SyncDataSocial on Sync {
       final api = ApiClient();
       final response = await api.get('/v1/friends');
       if (!api.isSuccess(response)) {
-        logger.warning(
-          'Failed to fetch friends: ${response.statusCode}',
-        );
+        logger.warning('Failed to fetch friends: ${response.statusCode}');
         return;
       }
 
@@ -37,6 +35,7 @@ extension SyncDataSocial on Sync {
       _friendRequests
         ..clear()
         ..addAll(_deriveFriendRequests(parsedFriends));
+      _notifyDataChanged({SyncDomain.friends});
 
       logger.info(
         'Fetched friends: ${_friends.length}, '
@@ -45,11 +44,7 @@ extension SyncDataSocial on Sync {
     } on DioException {
       rethrow;
     } catch (error, stack) {
-      logger.error(
-        'Failed to fetch friends',
-        error,
-        stack,
-      );
+      logger.error('Failed to fetch friends', error, stack);
     }
   }
 
@@ -69,15 +64,12 @@ extension SyncDataSocial on Sync {
         queryParameters: <String, dynamic>{'limit': 50},
       );
       if (!api.isSuccess(response)) {
-        logger.warning(
-          'Failed to fetch feed: ${response.statusCode}',
-        );
+        logger.warning('Failed to fetch feed: ${response.statusCode}');
         return;
       }
 
       final data = response.data;
-      final rawItems =
-          (data is Map<String, dynamic>) ? data['items'] : data;
+      final rawItems = (data is Map<String, dynamic>) ? data['items'] : data;
       if (rawItems is! List) {
         _feedItems.clear();
         return;
@@ -93,6 +85,7 @@ extension SyncDataSocial on Sync {
       _feedItems
         ..clear()
         ..addAll(parsed);
+      _notifyDataChanged({SyncDomain.feed});
       logger.info('Fetched feed items: ${_feedItems.length}');
     } on DioException {
       rethrow;
@@ -111,8 +104,7 @@ extension SyncDataSocial on Sync {
       final results = await Future.wait(
         items.map((item) async {
           try {
-            final decrypted =
-                await encryption.decryptRaw(item.value);
+            final decrypted = await encryption.decryptRaw(item.value);
             if (decrypted is Map<String, dynamic>) {
               return MapEntry(item.key, decrypted);
             }
@@ -132,11 +124,11 @@ extension SyncDataSocial on Sync {
         }
       }
 
-      final parsedTodoLists =
-          parseTodoListsFromDecryptedKv(decryptedByKey);
+      final parsedTodoLists = parseTodoListsFromDecryptedKv(decryptedByKey);
       _todoLists
         ..clear()
         ..addAll(parsedTodoLists);
+      _notifyDataChanged({SyncDomain.todos});
 
       final totalItems = parsedTodoLists.values
           .expand((list) => list.items)
@@ -182,13 +174,11 @@ extension SyncDataSocial on Sync {
 
         final rawCompleted = value['completedOrder'];
         if (rawCompleted is List) {
-          doneOrder =
-              rawCompleted.whereType<String>().toList();
+          doneOrder = rawCompleted.whereType<String>().toList();
         } else {
           final rawDone = value['doneOrder'];
           if (rawDone is List) {
-            doneOrder =
-                rawDone.whereType<String>().toList();
+            doneOrder = rawDone.whereType<String>().toList();
           }
         }
         continue;
@@ -211,8 +201,7 @@ extension SyncDataSocial on Sync {
       todosById[todoId] = mapped;
     }
 
-    undoneOrder =
-        undoneOrder.where(todosById.containsKey).toList();
+    undoneOrder = undoneOrder.where(todosById.containsKey).toList();
     doneOrder = doneOrder.where(todosById.containsKey).toList();
 
     final orderedIds = <String>{...undoneOrder, ...doneOrder};
@@ -242,9 +231,7 @@ extension SyncDataSocial on Sync {
 
       final sessionId = item.sessionId;
       if (sessionId != null && sessionId.isNotEmpty) {
-        grouped
-            .putIfAbsent(sessionId, () => <TodoItem>[])
-            .add(item);
+        grouped.putIfAbsent(sessionId, () => <TodoItem>[]).add(item);
       }
     }
 
@@ -327,9 +314,7 @@ extension SyncDataSocial on Sync {
   }
 
   UserProfile _mapFriendProfile(Map<String, dynamic> raw) {
-    final id = (raw['id'] as String?) ??
-        (raw['uid'] as String?) ??
-        'unknown';
+    final id = (raw['id'] as String?) ?? (raw['uid'] as String?) ?? 'unknown';
     final firstName = (raw['firstName'] as String?) ?? '';
     final lastName = raw['lastName'] as String?;
     final username = (raw['username'] as String?) ?? '';
@@ -346,20 +331,13 @@ extension SyncDataSocial on Sync {
       username: username,
       avatar: avatar,
       bio: raw['bio'] as String?,
-      status: RelationshipStatus.fromString(
-        raw['status'] as String? ?? 'none',
-      ),
+      status: RelationshipStatus.fromString(raw['status'] as String? ?? 'none'),
     );
   }
 
-  List<FriendRequest> _deriveFriendRequests(
-    List<UserProfile> profiles,
-  ) {
+  List<FriendRequest> _deriveFriendRequests(List<UserProfile> profiles) {
     return profiles
-        .where(
-          (profile) =>
-              profile.status == RelationshipStatus.pending,
-        )
+        .where((profile) => profile.status == RelationshipStatus.pending)
         .map(
           (profile) => FriendRequest(
             id: 'friend-request-${profile.id}',
@@ -381,8 +359,8 @@ extension SyncDataSocial on Sync {
 
   FeedItem _mapFeedItem(Map<String, dynamic> raw) {
     final id = (raw['id'] as String?) ?? '';
-    final createdAt = _asInt(raw['createdAt']) ??
-        DateTime.now().millisecondsSinceEpoch;
+    final createdAt =
+        _asInt(raw['createdAt']) ?? DateTime.now().millisecondsSinceEpoch;
     final bodyRaw = raw['body'];
     final bodyMap = bodyRaw is Map<String, dynamic>
         ? bodyRaw

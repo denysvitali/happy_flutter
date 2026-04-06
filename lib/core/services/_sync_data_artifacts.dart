@@ -8,9 +8,7 @@ extension SyncDataArtifacts on Sync {
       final api = ApiClient();
       final response = await api.get('/v1/artifacts');
       if (!api.isSuccess(response)) {
-        logger.warning(
-          'Failed to fetch artifacts: ${response.statusCode}',
-        );
+        logger.warning('Failed to fetch artifacts: ${response.statusCode}');
         return;
       }
 
@@ -25,23 +23,19 @@ extension SyncDataArtifacts on Sync {
 
       // Phase 1: Decrypt artifact data keys on the main thread.
       // CryptoBox.decrypt is fast (single NaCl call per artifact).
-      final keyedArtifacts =
-          <({Artifact artifact, Uint8List key})>[];
+      final keyedArtifacts = <({Artifact artifact, Uint8List key})>[];
       final decryptedArtifacts = <DecryptedArtifact>[];
       for (final raw in rawArtifacts) {
         await Future<void>.delayed(Duration.zero); // yield to event queue
         if (raw is! Map<String, dynamic>) continue;
         try {
           final artifact = Artifact.fromJson(raw);
-          final decryptedKey =
-              await encryption.decryptEncryptionKey(
+          final decryptedKey = await encryption.decryptEncryptionKey(
             artifact.dataEncryptionKey,
           );
           if (decryptedKey != null) {
             _artifactDataKeys[artifact.id] = decryptedKey;
-            keyedArtifacts.add(
-              (artifact: artifact, key: decryptedKey),
-            );
+            keyedArtifacts.add((artifact: artifact, key: decryptedKey));
           } else {
             decryptedArtifacts.add(
               DecryptedArtifact(
@@ -69,10 +63,7 @@ extension SyncDataArtifacts on Sync {
             Encoding.base64,
           );
           final encBody = e.artifact.body != null
-              ? Base64Utils.decode(
-                  e.artifact.body!,
-                  Encoding.base64,
-                )
+              ? Base64Utils.decode(e.artifact.body!, Encoding.base64)
               : null;
           return _ArtifactIsolateItem(
             id: e.artifact.id,
@@ -82,8 +73,9 @@ extension SyncDataArtifacts on Sync {
           );
         }).toList();
 
-        final artifactIsolateResults =
-            await _decryptArtifactsInIsolate(artifactIsolateItems);
+        final artifactIsolateResults = await _decryptArtifactsInIsolate(
+          artifactIsolateItems,
+        );
         final artifactResultById = {
           for (final r in artifactIsolateResults) r.id: r,
         };
@@ -116,29 +108,22 @@ extension SyncDataArtifacts on Sync {
       _artifacts
         ..clear()
         ..addAll(decryptedArtifacts);
+      _notifyDataChanged({SyncDomain.artifacts});
       logger.info('Fetched artifacts: ${_artifacts.length}');
     } on DioException {
       rethrow;
     } catch (error, stack) {
-      logger.error(
-        'Failed to fetch artifacts',
-        error,
-        stack,
-      );
+      logger.error('Failed to fetch artifacts', error, stack);
     }
   }
 
   /// Fetch a single artifact with full body decrypted.
-  Future<DecryptedArtifact?> fetchArtifactWithBody(
-    String id,
-  ) async {
+  Future<DecryptedArtifact?> fetchArtifactWithBody(String id) async {
     try {
       final api = ApiClient();
       final response = await api.get('/v1/artifacts/$id');
       if (!api.isSuccess(response)) {
-        logger.warning(
-          'Failed to fetch artifact: ${response.statusCode}',
-        );
+        logger.warning('Failed to fetch artifact: ${response.statusCode}');
         return null;
       }
       final raw = response.data;
@@ -146,15 +131,11 @@ extension SyncDataArtifacts on Sync {
       final artifact = Artifact.fromJson(raw);
       final decryptedKey =
           _artifactDataKeys[artifact.id] ??
-          await encryption.decryptEncryptionKey(
-            artifact.dataEncryptionKey,
-          );
+          await encryption.decryptEncryptionKey(artifact.dataEncryptionKey);
       if (decryptedKey == null) return null;
       _artifactDataKeys[artifact.id] = decryptedKey;
       final artifactEncryption = ArtifactEncryption(decryptedKey);
-      final header = await artifactEncryption.decryptHeader(
-        artifact.header,
-      );
+      final header = await artifactEncryption.decryptHeader(artifact.header);
       final body = artifact.body != null
           ? await artifactEncryption.decryptBody(artifact.body!)
           : null;
@@ -180,17 +161,14 @@ extension SyncDataArtifacts on Sync {
   Future<String> createArtifact(String? title, String? body) async {
     final dek = ArtifactEncryption.generateDataEncryptionKey();
     final artifactEncryption = ArtifactEncryption(dek);
-    final encryptedDek =
-        await encryption.encryptEncryptionKey(dek);
-    final encryptedDekB64 = Base64Utils.encode(
-      encryptedDek,
-      Encoding.base64,
-    );
-    final encryptedHeader =
-        await artifactEncryption.encryptHeader({'title': title});
-    final encryptedBody = await artifactEncryption.encryptBody(
-      {'body': body ?? ''},
-    );
+    final encryptedDek = await encryption.encryptEncryptionKey(dek);
+    final encryptedDekB64 = Base64Utils.encode(encryptedDek, Encoding.base64);
+    final encryptedHeader = await artifactEncryption.encryptHeader({
+      'title': title,
+    });
+    final encryptedBody = await artifactEncryption.encryptBody({
+      'body': body ?? '',
+    });
     final artifactId = encryption.generateId();
     final request = ArtifactCreateRequest(
       id: artifactId,
@@ -199,14 +177,9 @@ extension SyncDataArtifacts on Sync {
       dataEncryptionKey: encryptedDekB64,
     );
     final api = ApiClient();
-    final response = await api.post(
-      '/v1/artifacts',
-      data: request.toJson(),
-    );
+    final response = await api.post('/v1/artifacts', data: request.toJson());
     if (!api.isSuccess(response)) {
-      throw StateError(
-        'Failed to create artifact: ${response.statusCode}',
-      );
+      throw StateError('Failed to create artifact: ${response.statusCode}');
     }
     _artifactDataKeys[artifactId] = dek;
     artifactsSync.invalidate();
@@ -214,28 +187,22 @@ extension SyncDataArtifacts on Sync {
   }
 
   /// Update an existing artifact's title and/or body.
-  Future<void> updateArtifact(
-    String id,
-    String? title,
-    String? body,
-  ) async {
+  Future<void> updateArtifact(String id, String? title, String? body) async {
     final dek = _artifactDataKeys[id];
     if (dek == null) {
-      throw StateError(
-        'No decryption key found for artifact $id',
-      );
+      throw StateError('No decryption key found for artifact $id');
     }
     final artifactEncryption = ArtifactEncryption(dek);
     final existing = _artifacts.firstWhere(
       (a) => a.id == id,
-      orElse: () =>
-          throw StateError('Artifact $id not found in cache'),
+      orElse: () => throw StateError('Artifact $id not found in cache'),
     );
-    final encryptedHeader =
-        await artifactEncryption.encryptHeader({'title': title});
-    final encryptedBody = await artifactEncryption.encryptBody(
-      {'body': body ?? ''},
-    );
+    final encryptedHeader = await artifactEncryption.encryptHeader({
+      'title': title,
+    });
+    final encryptedBody = await artifactEncryption.encryptBody({
+      'body': body ?? '',
+    });
     final request = ArtifactUpdateRequest(
       header: encryptedHeader,
       expectedHeaderVersion: existing.headerVersion,
@@ -248,9 +215,7 @@ extension SyncDataArtifacts on Sync {
       data: request.toJson(),
     );
     if (!api.isSuccess(response)) {
-      throw StateError(
-        'Failed to update artifact: ${response.statusCode}',
-      );
+      throw StateError('Failed to update artifact: ${response.statusCode}');
     }
     artifactsSync.invalidate();
   }
@@ -260,12 +225,10 @@ extension SyncDataArtifacts on Sync {
     final api = ApiClient();
     final response = await api.delete('/v1/artifacts/$id');
     if (!api.isSuccess(response)) {
-      throw StateError(
-        'Failed to delete artifact: ${response.statusCode}',
-      );
+      throw StateError('Failed to delete artifact: ${response.statusCode}');
     }
     _artifactDataKeys.remove(id);
     _artifacts.removeWhere((a) => a.id == id);
-    _notifyDataChanged();
+    _notifyDataChanged({SyncDomain.artifacts});
   }
 }

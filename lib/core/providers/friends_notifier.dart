@@ -13,7 +13,7 @@ class FriendsNotifier extends Notifier<FriendsState> {
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
-    final counter = sync.dataChangeCounter;
+    final counter = sync.domainChangeCounter(SyncDomain.friends);
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final nextFriends = sync.friends;
@@ -147,10 +147,11 @@ class FriendsState {
     List<FriendRequest>? pendingRequests,
   }) {
     return FriendsState(
-      friends: friends ?? this.friends,
-      pendingRequests: pendingRequests ?? this.pendingRequests,
-    ).._friendList = null
-    .._incomingRequests = null;
+        friends: friends ?? this.friends,
+        pendingRequests: pendingRequests ?? this.pendingRequests,
+      )
+      .._friendList = null
+      .._incomingRequests = null;
   }
 
   List<UserProfile> get friendList => _friendList ??= friends

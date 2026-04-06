@@ -47,6 +47,11 @@ extension SyncLifecycle on Sync {
     }
 
     _dataChangeDebounceTimer?.cancel();
+    for (final timer in _domainChangeDebounceTimers.values) {
+      timer.cancel();
+    }
+    _domainChangeDebounceTimers.clear();
+    _domainChangePendingTrailing.clear();
     for (final timer in _sessionMessageDebounceTimers.values) {
       timer.cancel();
     }
@@ -58,6 +63,8 @@ extension SyncLifecycle on Sync {
     _sidechainRegroupFirstRequestMs.clear();
     _inlineProcessor.clear();
     _sessionsRefreshDebounceTimer?.cancel();
+    _socialSyncsDebounceTimer?.cancel();
+    _artifactsSyncDebounceTimer?.cancel();
     _saveSeqDebounceTimer?.cancel();
     _saveSessionsCacheDebounceTimer?.cancel();
     for (final timer in _postSendCatchUpTimers.values) {
@@ -102,9 +109,7 @@ extension SyncLifecycle on Sync {
     // on the next cold start.
     _flushPendingMessageSaves();
     _flushSessionMessageNotifications();
-    MMKVStorage().saveSessionLastSeq(
-      Map.unmodifiable(_sessionLastSeq),
-    );
+    MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     _persistSessionsCache();
     socketIoClient.disconnect();
   }
@@ -167,8 +172,7 @@ extension SyncLifecycle on Sync {
         // Short suspends (screen-off, quick app-switch) keep the delta
         // cursor so we avoid re-fetching all sessions.
         final suspendDuration = _suspendedAtMs != null
-            ? DateTime.now().millisecondsSinceEpoch -
-                _suspendedAtMs!
+            ? DateTime.now().millisecondsSinceEpoch - _suspendedAtMs!
             : 0;
         final needsFullFetch = suspendDuration > 5 * 60 * 1000;
         _invalidateAllSyncs(
@@ -179,8 +183,7 @@ extension SyncLifecycle on Sync {
         // Invalidate sessions that had pending socket messages
         // before suspend.
         if (_sessionsWithPendingSocketMessages.isNotEmpty) {
-          final pendingSessionIds =
-              _sessionsWithPendingSocketMessages.toList();
+          final pendingSessionIds = _sessionsWithPendingSocketMessages.toList();
           for (final sessionId in pendingSessionIds) {
             _sessionsNeedingTailRefresh.add(sessionId);
           }
@@ -211,8 +214,7 @@ extension SyncLifecycle on Sync {
           unawaited(
             sessionsSync.invalidateAndAwait().then((_) {
               if (_visibleSessionId != null) {
-                messagesSync[_visibleSessionId]
-                    ?.invalidate();
+                messagesSync[_visibleSessionId]?.invalidate();
               }
             }),
           );
@@ -224,6 +226,8 @@ extension SyncLifecycle on Sync {
   /// Shutdown sync engine and clear volatile state.
   Future<void> shutdown() async {
     _sessionsRefreshDebounceTimer?.cancel();
+    _socialSyncsDebounceTimer?.cancel();
+    _artifactsSyncDebounceTimer?.cancel();
     _saveSessionsCacheDebounceTimer?.cancel();
     for (final timer in _postSendCatchUpTimers.values) {
       timer.cancel();
@@ -245,6 +249,11 @@ extension SyncLifecycle on Sync {
 
     _dataChangeDebounceTimer?.cancel();
     _dataChangeDebounceTimer = null;
+    for (final timer in _domainChangeDebounceTimers.values) {
+      timer.cancel();
+    }
+    _domainChangeDebounceTimers.clear();
+    _domainChangePendingTrailing.clear();
     for (final timer in _sessionMessageDebounceTimers.values) {
       timer.cancel();
     }
@@ -258,9 +267,7 @@ extension SyncLifecycle on Sync {
     // Flush any pending seq write before shutdown so cursors aren't lost.
     _saveSeqDebounceTimer?.cancel();
     _saveSeqDebounceTimer = null;
-    MMKVStorage().saveSessionLastSeq(
-      Map.unmodifiable(_sessionLastSeq),
-    );
+    MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     _persistSessionsCache();
 
     // Do NOT close these broadcast controllers — the Sync singleton is

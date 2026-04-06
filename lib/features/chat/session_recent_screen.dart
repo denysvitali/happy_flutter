@@ -21,11 +21,7 @@ class SessionRecentScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    // Watch the sessions map directly — select() with a new List
-    // always returns != on reference equality, defeating the purpose.
-    final sessions = ref.watch(sessionsNotifierProvider);
-    final sessionList = sessions.values.toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final sessionIds = ref.watch(recentSessionIdsProvider);
     final showFlavorIcons = ref.watch(
       settingsNotifierProvider.select((s) => s.showFlavorIcons),
     );
@@ -36,25 +32,22 @@ class SessionRecentScreen extends ConsumerWidget {
     String localizeDateGroup(DateGroup group) {
       return switch (group) {
         DateGroup.today => l10n.dateGroupToday,
-        DateGroup.yesterday =>
-          l10n.dateGroupYesterday,
-        DateGroup.thisWeek =>
-          l10n.dateGroupThisWeek,
-        DateGroup.thisMonth =>
-          l10n.dateGroupThisMonth,
+        DateGroup.yesterday => l10n.dateGroupYesterday,
+        DateGroup.thisWeek => l10n.dateGroupThisWeek,
+        DateGroup.thisMonth => l10n.dateGroupThisMonth,
         DateGroup.older => l10n.dateGroupOlder,
       };
     }
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.sessionsRecentTitle)),
-      body: sessionList.isEmpty
+      body: sessionIds.isEmpty
           ? const _EmptyRecentView()
           : RefreshIndicator(
               onRefresh: () =>
                   ref.read(sessionsNotifierProvider.notifier).refreshFromSync(),
               child: _SessionRecentList(
-                sessionList: sessionList,
+                sessionIds: sessionIds,
                 localizeDateGroup: localizeDateGroup,
                 showFlavorIcons: showFlavorIcons,
                 avatarStyle: avatarStyle,
@@ -83,24 +76,28 @@ AvatarStyle? _parseAvatarStyle(String? style) {
 
 class _SessionRecentList extends StatelessWidget {
   const _SessionRecentList({
-    required this.sessionList,
+    required this.sessionIds,
     required this.localizeDateGroup,
     required this.showFlavorIcons,
     this.avatarStyle,
   });
 
-  final List<Session> sessionList;
+  final List<String> sessionIds;
   final String Function(DateGroup) localizeDateGroup;
   final bool showFlavorIcons;
   final AvatarStyle? avatarStyle;
 
   @override
   Widget build(BuildContext context) {
+    final ref = ProviderScope.containerOf(context);
+    final sessionList = sessionIds
+        .map((id) => ref.read(sessionByIdProvider(id)))
+        .whereType<Session>()
+        .toList(growable: false);
     final groupedItems = groupSessionsByDate(
       sessionList,
       localize: localizeDateGroup,
-      getLastMessageTimestamp:
-          sync.getLastMessageTimestamp,
+      getLastMessageTimestamp: sync.getLastMessageTimestamp,
     );
 
     return ListView.builder(
@@ -138,9 +135,7 @@ class _SessionRecentList extends StatelessWidget {
 
     return Padding(
       key: ValueKey(session.id),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       child: SessionCard(
         session: session,
         onTap: () => context.push('/chat/${session.id}'),
@@ -149,12 +144,9 @@ class _SessionRecentList extends StatelessWidget {
         isSingle: isSingle,
         showFlavorIcon: showFlavorIcons,
         avatarStyle: avatarStyle,
-        lastMessageTimestamp:
-            sync.getLastMessageTimestamp(session.id),
-        lastMessagePreview:
-            sync.getLastMessagePreview(session.id),
-        lastMessageRole:
-            sync.getLastMessageRole(session.id),
+        lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
+        lastMessagePreview: sync.getLastMessagePreview(session.id),
+        lastMessageRole: sync.getLastMessageRole(session.id),
       ),
     );
   }

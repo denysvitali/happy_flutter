@@ -33,7 +33,7 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
 
   void loadFromSync() {
     if (!sync.isInitialized) return;
-    final counter = sync.dataChangeCounter;
+    final counter = sync.domainChangeCounter(SyncDomain.artifacts);
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.artifacts;

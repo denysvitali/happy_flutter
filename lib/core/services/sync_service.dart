@@ -70,6 +70,19 @@ part '_sync_lifecycle.dart';
 part '_sync_isolate_helpers.dart';
 part '_sync_test_helpers.dart';
 
+enum SyncDomain {
+  sessions,
+  messages,
+  machines,
+  settings,
+  profile,
+  friends,
+  feed,
+  todos,
+  artifacts,
+  gitStatus,
+}
+
 // Global singleton instance
 class Sync {
   factory Sync() => _instance;
@@ -127,10 +140,8 @@ what you have, you must use the options mode.
   late AuthCredentials credentials;
   final EncryptionCache encryptionCache = EncryptionCache();
   final SidechainGrouper _sidechainGrouper = SidechainGrouper();
-  final ToolResultProcessor _toolResultProcessor =
-      ToolResultProcessor();
-  final MessageCursorManager _cursorManager =
-      MessageCursorManager();
+  final ToolResultProcessor _toolResultProcessor = ToolResultProcessor();
+  final MessageCursorManager _cursorManager = MessageCursorManager();
 
   // Data key storage
   final Map<String, Uint8List> _sessionDataKeys = {};
@@ -143,10 +154,8 @@ what you have, you must use the options mode.
   final Map<String, InvalidateSync> messagesSync = {};
   // _sessionLastSeq and _sessionFirstLoadedSeq are managed
   // by _cursorManager. Aliases kept for internal access.
-  Map<String, int> get _sessionLastSeq =>
-      _cursorManager.lastSeq;
-  Map<String, int> get _sessionFirstLoadedSeq =>
-      _cursorManager.firstLoadedSeq;
+  Map<String, int> get _sessionLastSeq => _cursorManager.lastSeq;
+  Map<String, int> get _sessionFirstLoadedSeq => _cursorManager.firstLoadedSeq;
 
   /// The session the user is currently viewing.  Updated by
   /// [onSessionVisible].  Used by [fetchMessages] to bail out
@@ -197,8 +206,7 @@ what you have, you must use the options mode.
   final Map<String, int> _lastNoEmbedEventMs = {};
 
   /// Per-session serial queue for inline message processing.
-  final InlineMessageProcessor _inlineProcessor =
-      InlineMessageProcessor();
+  final InlineMessageProcessor _inlineProcessor = InlineMessageProcessor();
 
   /// Timer for deferred sidechain re-grouping.  After each inline
   /// sidechain message is processed, we schedule a short delayed
@@ -206,6 +214,7 @@ what you have, you must use the options mode.
   /// chain gaps (e.g. a message arrived before its parent was
   /// processed on a previous run).
   final Map<String, Timer> _sidechainRegroupTimers = {};
+
   /// Epoch-ms when the first regroup was requested for a session during
   /// the current burst. Used to enforce a maximum delay — without this,
   /// rapid streaming keeps cancelling the debounce timer and the sweep
@@ -251,17 +260,22 @@ what you have, you must use the options mode.
   bool _forceFullFetchNext = false;
   int? _lastInvalidateAllSyncsAtMs;
   int? _suspendedAtMs;
+
   /// Timestamp of last resume() call for debouncing rapid pause/resume cycles.
   int? _lastResumeAtMs;
+
   /// Minimum interval between resume() calls — prevents socket reconnect
   /// loops
   /// when the app cycles between paused and resumed states repeatedly.
   static const int _resumeDebounceWindowMs = 2000;
+
   /// Delay before firing network invalidations on resume. Cancelled by
   /// suspend() so that rapid foreground/background cycling does not produce
   /// wasted HTTP requests that the OS aborts mid-flight.
   Timer? _deferredResumeInvalidationTimer;
   Timer? _sessionsRefreshDebounceTimer;
+  Timer? _socialSyncsDebounceTimer;
+  Timer? _artifactsSyncDebounceTimer;
   final Set<String> _pendingNewSessionIds = <String>{};
   final Map<String, Machine> _machines = <String, Machine>{};
   // Timers that drop presence back to 'offline' if no activity arrives.
@@ -271,15 +285,22 @@ what you have, you must use the options mode.
 
   // Change notification streams
   final _dataChangeController = StreamController<void>.broadcast();
+  final _domainChangeController = StreamController<SyncDomain>.broadcast();
   final _sessionMessageChangeController = StreamController<String>.broadcast();
   final _paginationErrorController = StreamController<String>.broadcast();
   Timer? _dataChangeDebounceTimer;
+  final Map<SyncDomain, Timer> _domainChangeDebounceTimers = {};
   final Map<String, Timer> _sessionMessageDebounceTimers = {};
   final Set<String> _sessionMessagePendingTrailing = {};
+  final Set<SyncDomain> _domainChangePendingTrailing = {};
+
   /// Monotonic counter incremented on every data change. Providers compare
   /// this against their last-seen value to skip expensive equality checks
   /// when nothing has changed.
   int _dataChangeCounter = 0;
+  final Map<SyncDomain, int> _domainChangeCounters = {
+    for (final domain in SyncDomain.values) domain: 0,
+  };
   Timer? _saveSeqDebounceTimer;
   Timer? _saveSessionsCacheDebounceTimer;
   final Map<String, Timer> _saveMsgsDebounceTimers = {};
@@ -324,9 +345,13 @@ what you have, you must use the options mode.
   // calls await the in-flight Completer instead of silently returning the
   // stale offline session.
   final Set<String> _autoRestoreInFlight = {};
-  final Map<String, Completer<
-    ({String sessionId, Session session, SessionEncryption sessionEncryption})
-  >> _autoRestoreCompleters = {};
+  final Map<
+    String,
+    Completer<
+      ({String sessionId, Session session, SessionEncryption sessionEncryption})
+    >
+  >
+  _autoRestoreCompleters = {};
   // Tracks the profileIdOverride used by each in-flight auto-restore.
   // Used to detect when concurrent sendMessage calls with different
   // profileIds should NOT share the same in-flight auto-restore.
@@ -387,7 +412,8 @@ what you have, you must use the options mode.
     String sessionId,
     int afterSeq,
     int limit,
-  )? testFetchMessagesOverride;
+  )?
+  testFetchMessagesOverride;
 
   /// Overrides the HTTP fetch path in [fetchOlderMessages] for
   /// integration tests.
@@ -396,7 +422,8 @@ what you have, you must use the options mode.
     String sessionId,
     int afterSeq,
     int limit,
-  )? testFetchOlderMessagesOverride;
+  )?
+  testFetchOlderMessagesOverride;
 
   /// Override _typedMachineRPC for testing createSession and
   /// auto-restore without a real socket connection.
@@ -405,19 +432,21 @@ what you have, you must use the options mode.
     String machineId,
     String method,
     Map<String, dynamic> params,
-  )? testMachineRPCOverride;
+  )?
+  testMachineRPCOverride;
 
   /// Override fetchSingleSession for testing sendMessage encryption
   /// recovery without a real API call.
   @visibleForTesting
-  Future<Session?> Function(String sessionId)?
-      testFetchSingleSessionOverride;
+  Future<Session?> Function(String sessionId)? testFetchSingleSessionOverride;
 
   /// Override _getSpawnEnvVarsForSession to avoid MMKV dependency in
   /// tests that exercise auto-restore / createSession.
   @visibleForTesting
-  Future<({Map<String, String> envVars, AIBackendProfile? profile})>
-      Function(String sessionId)? testGetSpawnEnvVarsOverride;
+  Future<({Map<String, String> envVars, AIBackendProfile? profile})> Function(
+    String sessionId,
+  )?
+  testGetSpawnEnvVarsOverride;
 
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
   Profile? get profile => _profile;
@@ -480,8 +509,7 @@ what you have, you must use the options mode.
       // Skip thinking blocks — they are collapsed in the UI and
       // don't represent the final assistant response.
       if (msg['isThinking'] == true) continue;
-      final text =
-          (msg['content'] ?? msg['text']) as String?;
+      final text = (msg['content'] ?? msg['text']) as String?;
       if (text != null && text.trim().isNotEmpty) {
         return _cleanPreviewText(text.trim());
       }
@@ -502,8 +530,7 @@ what you have, you must use the options mode.
       final kind = msg['kind'] as String?;
       if (kind == 'tool-call' || kind == 'agent-event') continue;
       if (msg['isThinking'] == true) continue;
-      final text =
-          (msg['content'] ?? msg['text']) as String?;
+      final text = (msg['content'] ?? msg['text']) as String?;
       if (text != null && text.trim().isNotEmpty) return role;
     }
     return null;
@@ -559,15 +586,21 @@ what you have, you must use the options mode.
       _loadingOlderMessages.contains(sessionId);
 
   /// Returns the unread message count for [sessionId].
-  int getUnreadCount(String sessionId) =>
-      _sessionUnreadCounts[sessionId] ?? 0;
+  int getUnreadCount(String sessionId) => _sessionUnreadCounts[sessionId] ?? 0;
 
   /// Stream that emits when session/machine/general data changes.
   Stream<void> get onDataChanged => _dataChangeController.stream;
 
+  /// Stream that emits the specific domain that changed.
+  Stream<SyncDomain> get onDomainChanged => _domainChangeController.stream;
+
   /// Monotonic counter incremented on every data change notification.
   /// Providers compare this to skip expensive equality checks.
   int get dataChangeCounter => _dataChangeCounter;
+
+  /// Monotonic counter for a specific domain.
+  int domainChangeCounter(SyncDomain domain) =>
+      _domainChangeCounters[domain] ?? 0;
 
   /// Stream that emits the sessionId when messages for that session change.
   Stream<String> get onSessionMessagesChanged =>
@@ -575,8 +608,7 @@ what you have, you must use the options mode.
 
   /// Stream that emits the sessionId when older-message pagination fails.
   /// ChatScreen listens to this to show an inline error or snackbar.
-  Stream<String> get onPaginationError =>
-      _paginationErrorController.stream;
+  Stream<String> get onPaginationError => _paginationErrorController.stream;
 
   /// Returns true for transient network errors that are not actionable
   /// (e.g. DNS failure, timeout, Cronet aborting a connection because the
@@ -602,8 +634,7 @@ what you have, you must use the options mode.
   static bool _isRpcMethodNotAvailable(Object error) {
     if (error is! StateError) return false;
     final msg = error.message;
-    return msg.contains('not available') ||
-        msg.contains('RPC method');
+    return msg.contains('not available') || msg.contains('RPC method');
   }
 
   bool _isSocketConnected() {
@@ -612,7 +643,7 @@ what you have, you must use the options mode.
   }
 
   /// Invalidate all sync managers
-  static const int _invalidateAllSyncsCooldownMs = 5000;
+  static const int _invalidateAllSyncsCooldownMs = 10000;
 
   /// Phases for selective sync invalidation to prevent thundering herd
   static const _criticalSyncPhase = 0;
@@ -624,8 +655,7 @@ what you have, you must use the options mode.
   /// Cached per-session JSON + object reference from the last persist.
   /// On each persist, only sessions whose object reference differs from
   /// the cached one are re-serialized via `toJson()`.
-  final Map<String, (Session, Map<String, dynamic>)>
-      _sessionJsonCache = {};
+  final Map<String, (Session, Map<String, dynamic>)> _sessionJsonCache = {};
 
   static const Duration _sessionsRefreshDebounce = Duration(milliseconds: 250);
 
@@ -634,8 +664,7 @@ what you have, you must use the options mode.
   /// in quick succession (e.g. during streaming).
   static const Duration _messagesSyncMinInterval = Duration(milliseconds: 500);
 
-  static const Duration _machinesRefreshDebounce =
-      Duration(milliseconds: 250);
+  static const Duration _machinesRefreshDebounce = Duration(milliseconds: 250);
 
   Timer? _machinesRefreshDebounceTimer;
   final Set<String> _pendingUpdateMachineIds = {};

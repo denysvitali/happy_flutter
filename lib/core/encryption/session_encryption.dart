@@ -1,6 +1,6 @@
 import 'dart:convert' show jsonDecode, jsonEncode;
+import 'dart:isolate';
 import 'dart:typed_data';
-
 
 import '../services/logger_service.dart' show logger;
 import '../utils/wire_parsers.dart';
@@ -79,7 +79,6 @@ String _messageContentSignature(dynamic contentRaw) {
   }
   return 'raw:${contentRaw?.hashCode ?? 0}';
 }
-
 
 /// Session-specific encryption management
 class SessionEncryption {
@@ -254,8 +253,8 @@ class SessionEncryption {
       } else if (contentRaw is String && contentRaw.isNotEmpty) {
         try {
           final decoded = jsonDecode(contentRaw);
-          isEncrypted = decoded is Map<String, dynamic> &&
-              decoded['t'] == 'encrypted';
+          isEncrypted =
+              decoded is Map<String, dynamic> && decoded['t'] == 'encrypted';
           if (!isEncrypted && decoded is String) {
             isEncrypted = true; // bare base64 string
           }
@@ -270,6 +269,17 @@ class SessionEncryption {
     final contentList = <dynamic>[];
     for (final dm in decryptedList) {
       contentList.add(dm?.content);
+    }
+
+    if (_decryptor is AES256Encryption && messages.length >= 20) {
+      return Isolate.run(() {
+        return processDecryptedMessages(
+          decryptedJsonList: contentList,
+          wireMessages: messages,
+          sessionId: sessionId,
+          wasEncrypted: wasEncryptedList,
+        );
+      });
     }
 
     return processDecryptedMessages(

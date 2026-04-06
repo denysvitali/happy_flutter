@@ -71,7 +71,7 @@ extension SyncMessagingSend on Sync {
         modelMode: modelMode,
       );
       _sessions[sessionId] = session;
-      _notifyDataChanged();
+      _notifyDataChanged({SyncDomain.sessions});
     }
 
     final requestedPermissionMode = permissionMode;
@@ -146,16 +146,13 @@ extension SyncMessagingSend on Sync {
     );
 
     // Start a Sentry transaction covering the entire send flow.
-    final sendTransaction = Sentry.startTransaction(
-      'chat.sendMessage',
-      'task',
-      bindToScope: false,
-    )
-      ..setData('sessionId', targetSessionId)
-      ..setData('localId', localId)
-      ..setData('textLength', text.length)
-      ..setData('permissionMode', wirePermissionMode)
-      ..setData('model', model ?? 'default');
+    final sendTransaction =
+        Sentry.startTransaction('chat.sendMessage', 'task', bindToScope: false)
+          ..setData('sessionId', targetSessionId)
+          ..setData('localId', localId)
+          ..setData('textLength', text.length)
+          ..setData('permissionMode', wirePermissionMode)
+          ..setData('model', model ?? 'default');
 
     // Ensure catch-up polling is active for this session. Without this,
     // if sendMessage() is called before onSessionVisible() (e.g. from the
@@ -245,11 +242,13 @@ extension SyncMessagingSend on Sync {
       waitSpan
         ..setData('ready', ready)
         ..setData('recentlySpawned', recentlySpawned);
-      unawaited(waitSpan.finish(
-        status: ready
-            ? const SpanStatus.ok()
-            : const SpanStatus.deadlineExceeded(),
-      ));
+      unawaited(
+        waitSpan.finish(
+          status: ready
+              ? const SpanStatus.ok()
+              : const SpanStatus.deadlineExceeded(),
+        ),
+      );
       if (!ready) {
         logger.info(
           '[sendMessage] agent not ready for '
@@ -265,8 +264,7 @@ extension SyncMessagingSend on Sync {
       );
       final postSpan = transaction.startChild(
         'http.client',
-        description:
-            'POST /v3/sessions/$targetSessionId/messages',
+        description: 'POST /v3/sessions/$targetSessionId/messages',
       );
       final response = await apiClient.post(
         '/v3/sessions/$targetSessionId/messages',
@@ -277,13 +275,13 @@ extension SyncMessagingSend on Sync {
         },
       );
       postSpan.setData('statusCode', response.statusCode ?? 0);
-      unawaited(postSpan.finish(
-        status: apiClient.isSuccess(response)
-            ? const SpanStatus.ok()
-            : SpanStatus.fromHttpStatusCode(
-                response.statusCode ?? 500,
-              ),
-      ));
+      unawaited(
+        postSpan.finish(
+          status: apiClient.isSuccess(response)
+              ? const SpanStatus.ok()
+              : SpanStatus.fromHttpStatusCode(response.statusCode ?? 500),
+        ),
+      );
       logger.info(
         '[sendMessage] POST '
         '/v3/sessions/$targetSessionId/messages '
@@ -442,10 +440,7 @@ extension SyncMessagingSend on Sync {
         '/v3/sessions/${entry.sessionId}/messages',
         data: {
           'messages': [
-            {
-              'content': entry.encryptedContent,
-              'localId': entry.localId,
-            },
+            {'content': entry.encryptedContent, 'localId': entry.localId},
           ],
         },
       );
@@ -460,10 +455,9 @@ extension SyncMessagingSend on Sync {
       }
 
       final data = WireParsers.asMap(response.data);
-      final serverMessages =
-          (data?['messages'] as List<dynamic>? ?? [])
-              .whereType<Map<String, dynamic>>()
-              .toList();
+      final serverMessages = (data?['messages'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
 
       Map<String, dynamic>? ackedMsg;
       for (final msg in serverMessages) {
@@ -477,9 +471,7 @@ extension SyncMessagingSend on Sync {
         final serverId = ackedMsg['id'] as String?;
         final serverSeq = _asInt(ackedMsg['seq']);
         final serverCreatedAt = _asInt(ackedMsg['createdAt']);
-        if (serverId != null &&
-            serverSeq != null &&
-            serverCreatedAt != null) {
+        if (serverId != null && serverSeq != null && serverCreatedAt != null) {
           _upsertSessionMessages(entry.sessionId, [
             {
               'id': serverId,
@@ -498,11 +490,7 @@ extension SyncMessagingSend on Sync {
           // the else-case in _completeSend.  Without this the
           // optimistic placeholder stays stuck in "sending" state
           // forever after the outbox removes the entry.
-          _updateMessageSendStatus(
-            entry.sessionId,
-            entry.localId,
-            'sent',
-          );
+          _updateMessageSendStatus(entry.sessionId, entry.localId, 'sent');
           _notifySessionMessagesChanged(entry.sessionId);
           logger.warning(
             '[MessageOutbox] server ack missing id/seq/createdAt '
@@ -518,10 +506,7 @@ extension SyncMessagingSend on Sync {
           });
         }
         if (messagesSync.containsKey(entry.sessionId)) {
-          _startPostSendCatchUp(
-            entry.sessionId,
-            stopAfterSeq: serverSeq ?? 0,
-          );
+          _startPostSendCatchUp(entry.sessionId, stopAfterSeq: serverSeq ?? 0);
         }
         logger.info(
           '[MessageOutbox] delivered localId=${entry.localId} '
@@ -579,15 +564,10 @@ extension SyncMessagingSend on Sync {
   /// Re-queues the message in the outbox with reset retry count.
   /// The message must have a 'raw' field containing the original
   /// unencrypted message record.
-  Future<void> retryFailedMessage(
-    String sessionId,
-    String localId,
-  ) async {
+  Future<void> retryFailedMessage(String sessionId, String localId) async {
     final msgs = _sessionMessages[sessionId];
     if (msgs == null) {
-      logger.warning(
-        '[retryFailedMessage] session not found: $sessionId',
-      );
+      logger.warning('[retryFailedMessage] session not found: $sessionId');
       return;
     }
 
@@ -617,8 +597,10 @@ extension SyncMessagingSend on Sync {
       return;
     }
 
-    final text = failedMessage['text'] as String? ??
-        failedMessage['content'] as String? ?? '';
+    final text =
+        failedMessage['text'] as String? ??
+        failedMessage['content'] as String? ??
+        '';
 
     // Get session encryption
     var sessionEncryption = encryption.getSessionEncryption(sessionId);

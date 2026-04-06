@@ -8,9 +8,7 @@ extension SyncMessaging on Sync {
   /// fetching only the most recent [Sync.initialLoad] messages.  Subsequent
   /// calls (incremental delta syncs) continue from [_sessionLastSeq] as before.
   Future<void> fetchMessages(String sessionId) async {
-    logger.debug(
-      'Fetching messages for session: $sessionId',
-    );
+    logger.debug('Fetching messages for session: $sessionId');
     final fetchStopwatch = Stopwatch()..start();
 
     // Start a Sentry span for this fetch operation
@@ -20,19 +18,23 @@ extension SyncMessaging on Sync {
     );
     fetchSpan?.setData('sessionId', sessionId);
 
-    var sessionEncryption =
-        encryption.getSessionEncryption(sessionId);
+    var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
       final encSpan = fetchSpan?.startChild(
         'sync.encryption.init',
         description: 'Wait for session encryption',
       );
-      unawaited(Sentry.addBreadcrumb(Breadcrumb(
-        message: 'fetchMessages: encryption null, '
-            'awaiting sessions',
-        category: 'sync.messages',
-        data: {'sessionId': sessionId},
-      )));
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message:
+                'fetchMessages: encryption null, '
+                'awaiting sessions',
+            category: 'sync.messages',
+            data: {'sessionId': sessionId},
+          ),
+        ),
+      );
       // Encryption may not be initialized yet — wait for pending fetch.
       await sessionsSync.invalidateAndAwait();
       sessionEncryption = encryption.getSessionEncryption(sessionId);
@@ -52,22 +54,25 @@ extension SyncMessaging on Sync {
         fetchSpan?.setData('encryptionInitFailed', true);
         fetchSpan?.setData('elapsedMs', fetchStopwatch.elapsedMilliseconds);
         if (fetchSpan != null) unawaited(fetchSpan.finish());
-        unawaited(Sentry.addBreadcrumb(Breadcrumb(
-          message: 'fetchMessages: encryption still '
-              'null after 2 attempts',
-          category: 'sync.messages',
-          level: SentryLevel.warning,
-          data: {
-            'sessionId': sessionId,
-            'sessionExists':
-                _sessions.containsKey(sessionId),
-            'elapsedMs':
-                fetchStopwatch.elapsedMilliseconds,
-          },
-        )));
+        unawaited(
+          Sentry.addBreadcrumb(
+            Breadcrumb(
+              message:
+                  'fetchMessages: encryption still '
+                  'null after 2 attempts',
+              category: 'sync.messages',
+              level: SentryLevel.warning,
+              data: {
+                'sessionId': sessionId,
+                'sessionExists': _sessions.containsKey(sessionId),
+                'elapsedMs': fetchStopwatch.elapsedMilliseconds,
+              },
+            ),
+          ),
+        );
         // Notify UI so the loading spinner clears.
         _notifySessionMessagesChanged(sessionId);
-        _notifyDataChanged();
+        _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
         return;
       }
     }
@@ -114,7 +119,9 @@ extension SyncMessaging on Sync {
       // We guard with !hasGap so we don't skip when cursor > serverLastSeq —
       // that indicates socket events may have outpaced the server and we
       // should fetch to ensure no messages were missed.
-      final hasGap = serverLastSeq > 0 && cursorSeq <= serverLastSeq &&
+      final hasGap =
+          serverLastSeq > 0 &&
+          cursorSeq <= serverLastSeq &&
           (serverLastSeq - cursorSeq) > Sync.initialLoad;
       if (!isFirstLoad &&
           cursorSeq > 0 &&
@@ -228,22 +235,23 @@ extension SyncMessaging on Sync {
 
         if (!apiClient.isSuccess(response)) {
           final statusCode = response.statusCode;
-          logger.warning(
-            'Failed to fetch messages: $statusCode',
+          logger.warning('Failed to fetch messages: $statusCode');
+          unawaited(
+            Sentry.addBreadcrumb(
+              Breadcrumb(
+                message: 'fetchMessages: HTTP error',
+                category: 'sync.messages',
+                level: SentryLevel.warning,
+                data: {
+                  'sessionId': sessionId,
+                  'statusCode': statusCode,
+                  'afterSeq': afterSeq,
+                  'page': page,
+                  'elapsedMs': fetchStopwatch.elapsedMilliseconds,
+                },
+              ),
+            ),
           );
-          unawaited(Sentry.addBreadcrumb(Breadcrumb(
-            message: 'fetchMessages: HTTP error',
-            category: 'sync.messages',
-            level: SentryLevel.warning,
-            data: {
-              'sessionId': sessionId,
-              'statusCode': statusCode,
-              'afterSeq': afterSeq,
-              'page': page,
-              'elapsedMs':
-                  fetchStopwatch.elapsedMilliseconds,
-            },
-          )));
           // 404 means the session doesn't exist on the server. Clean up
           // the local session and stop retries to prevent repeated 404s.
           if (statusCode == 404) {
@@ -291,7 +299,7 @@ extension SyncMessaging on Sync {
             // and can show an error/empty state instead of spinning forever.
             _notifySessionMessagesChanged(sessionId);
           }
-          _notifyDataChanged();
+          _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
           break;
         }
 
@@ -317,8 +325,8 @@ extension SyncMessaging on Sync {
         // content).  Previously we filtered by id alone, which
         // silently dropped server-side updates.
         final existingSignatures = <String, String?>{};
-        for (final m in _sessionMessages[sessionId] ??
-            const <Map<String, dynamic>>[]) {
+        for (final m
+            in _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[]) {
           final id = m['id'] as String?;
           if (id != null) {
             // Store the encrypted content blob ('c' field inside
@@ -365,9 +373,7 @@ extension SyncMessaging on Sync {
         );
         if (processed.droppedReasons.isNotEmpty) {
           for (final reason in processed.droppedReasons) {
-            logger.warning(
-              '[fetchMessages] dropped: $reason',
-            );
+            logger.warning('[fetchMessages] dropped: $reason');
           }
         }
 
@@ -387,17 +393,14 @@ extension SyncMessaging on Sync {
             '(existing=${_sessionMessages[sessionId]?.length ?? 0})',
           );
         }
-        final upsertStart = Stopwatch()..start();
         if (processed.messages.isNotEmpty) {
           _upsertSessionMessages(sessionId, processed.messages);
         }
-        final upsertMs = upsertStart.elapsedMilliseconds;
 
         // ── Yield ──
         await Future<void>.delayed(Duration.zero);
 
         // ── Apply tool results + usage ──
-        final toolStart = Stopwatch()..start();
         if (processed.toolResults.isNotEmpty) {
           _applyToolResults(sessionId, processed.toolResults);
         }
@@ -413,24 +416,9 @@ extension SyncMessaging on Sync {
             u['timestamp'] as int,
           );
         }
-        final toolMs = toolStart.elapsedMilliseconds;
 
-        // ── Yield ──
-        await Future<void>.delayed(Duration.zero);
-
-        // ── Group sidechain messages ──
-        final groupStart = Stopwatch()..start();
-        _groupSidechainMessages(sessionId);
-        final groupMs = groupStart.elapsedMilliseconds;
-
-        // ── Yield ──
-        await Future<void>.delayed(Duration.zero);
-
-        // ── Apply permission requests ──
-        final permStart = Stopwatch()..start();
+        // ── Apply permission requests (per-page, cheap) ──
         _applyPermissionRequests(sessionId);
-        final permMs = permStart.elapsedMilliseconds;
-
 
         if (processed.maxSeq > afterSeq) {
           afterSeq = processed.maxSeq;
@@ -444,17 +432,14 @@ extension SyncMessaging on Sync {
           // All raw messages were silently dropped by the processor.
           // Log the reasons so unrecognized formats are discoverable.
           for (final reason in processed.droppedReasons) {
-            logger.warning(
-              '[fetchMessages] dropped: $reason',
-            );
+            logger.warning('[fetchMessages] dropped: $reason');
           }
         }
 
         logger.debug(
           '[fetchMessages] $sessionId page=$page '
           'decryptMs=$decryptMs '
-          'upsert=$upsertMs tool=$toolMs '
-          'group=$groupMs perm=$permMs',
+          'upsert=${processed.messages.isNotEmpty}',
         );
 
         // Notify the UI after each page so the chat screen can
@@ -465,7 +450,7 @@ extension SyncMessaging on Sync {
         if (processed.messages.isNotEmpty) {
           if (isStillVisible) {
             _notifySessionMessagesChanged(sessionId);
-            _notifyDataChanged();
+            _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
           }
         }
 
@@ -493,8 +478,11 @@ extension SyncMessaging on Sync {
       }
       // Final notification in case some pages had no messages
       // (notification already fired per-page for non-empty pages).
+      // Run sidechain grouping once after all pages are loaded —
+      // previously this ran per-page doing O(4n) work each time.
+      _groupSidechainMessages(sessionId);
       _notifySessionMessagesChanged(sessionId);
-      _notifyDataChanged();
+      _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
       // Finish the fetch span successfully
       fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
       if (fetchSpan != null) unawaited(fetchSpan.finish());
@@ -503,51 +491,53 @@ extension SyncMessaging on Sync {
       fetchSpan?.setData('dioExceptionType', e.type.name);
       fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
       if (fetchSpan != null) unawaited(fetchSpan.finish());
-      unawaited(Sentry.addBreadcrumb(Breadcrumb(
-        message: 'fetchMessages: DioException',
-        category: 'sync.messages',
-        level: SentryLevel.error,
-        data: {
-          'sessionId': sessionId,
-          'type': e.type.name,
-          'statusCode': e.response?.statusCode,
-          'elapsedMs':
-              fetchStopwatch.elapsedMilliseconds,
-        },
-      )));
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'fetchMessages: DioException',
+            category: 'sync.messages',
+            level: SentryLevel.error,
+            data: {
+              'sessionId': sessionId,
+              'type': e.type.name,
+              'statusCode': e.response?.statusCode,
+              'elapsedMs': fetchStopwatch.elapsedMilliseconds,
+            },
+          ),
+        ),
+      );
       // Network error (e.g., connection lost). The InvalidateSync retry
       // mechanism will handle retries, but we must notify the UI now so
       // it doesn't spin forever while waiting for awaitQueue(). When
       // retries exhaust, the Completer completes with error and the chat
       // screen's timeout will handle it.
       _notifySessionMessagesChanged(sessionId);
-      _notifyDataChanged();
+      _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
       rethrow;
     } catch (error, stack) {
       fetchSpan?.status = SpanStatus.internalError();
       fetchSpan?.setData('error', error.toString());
       fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
       if (fetchSpan != null) unawaited(fetchSpan.finish());
-      unawaited(Sentry.addBreadcrumb(Breadcrumb(
-        message: 'fetchMessages: unexpected error',
-        category: 'sync.messages',
-        level: SentryLevel.error,
-        data: {
-          'sessionId': sessionId,
-          'error': error.toString(),
-          'elapsedMs':
-              fetchStopwatch.elapsedMilliseconds,
-        },
-      )));
-      logger.error(
-        'Error fetching messages',
-        error,
-        stack,
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'fetchMessages: unexpected error',
+            category: 'sync.messages',
+            level: SentryLevel.error,
+            data: {
+              'sessionId': sessionId,
+              'error': error.toString(),
+              'elapsedMs': fetchStopwatch.elapsedMilliseconds,
+            },
+          ),
+        ),
       );
+      logger.error('Error fetching messages', error, stack);
       // Notify listeners so the UI can handle the error state rather than
       // remaining in a stale loading state.
       _notifySessionMessagesChanged(sessionId);
-      _notifyDataChanged();
+      _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
     }
   }
 
@@ -562,8 +552,7 @@ extension SyncMessaging on Sync {
     if (id == null || !existingSignatures.containsKey(id)) return false;
     final existingSig = existingSignatures[id];
     final content = m['content'];
-    final incomingSig =
-        content is Map ? content['c'] as String? : null;
+    final incomingSig = content is Map ? content['c'] as String? : null;
     // If neither version has an encrypted blob, treat as unchanged
     // to avoid redundant decryption of plaintext messages.
     if (existingSig == null && incomingSig == null) return false;
@@ -582,7 +571,7 @@ extension SyncMessaging on Sync {
     if (sessionEncryption == null) return;
 
     _loadingOlderMessages.add(sessionId);
-    _notifyDataChanged();
+    _notifyDataChanged({SyncDomain.messages});
 
     try {
       const pageSize = 100;
@@ -637,9 +626,7 @@ extension SyncMessaging on Sync {
       );
       if (processed.droppedReasons.isNotEmpty) {
         for (final reason in processed.droppedReasons) {
-          logger.warning(
-            '[fetchOlderMessages] $sessionId dropped: $reason',
-          );
+          logger.warning('[fetchOlderMessages] $sessionId dropped: $reason');
         }
       }
 
@@ -674,13 +661,13 @@ extension SyncMessaging on Sync {
       );
 
       _notifySessionMessagesChanged(sessionId);
-      _notifyDataChanged();
+      _notifyDataChanged({SyncDomain.messages});
     } catch (error, stack) {
       logger.error('Error fetching older messages', error, stack);
       _paginationErrorController.add(sessionId);
     } finally {
       _loadingOlderMessages.remove(sessionId);
-      _notifyDataChanged();
+      _notifyDataChanged({SyncDomain.messages});
     }
   }
 

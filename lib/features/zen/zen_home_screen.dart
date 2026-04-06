@@ -9,6 +9,7 @@ import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
@@ -56,12 +57,11 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
   void initState() {
     super.initState();
     Future<void>.microtask(() async {
-      await ref
-          .read(todoStateNotifierProvider.notifier)
-          .refreshFromSync();
+      ref.read(todoStateNotifierProvider.notifier).loadFromSync();
+      await ref.read(todoStateNotifierProvider.notifier).refreshFromSync();
       if (mounted) setState(() => _isLoading = false);
     });
-    subscribeToDataChanged(ref, () {
+    subscribeToDomains([SyncDomain.todos], () {
       ref.read(todoStateNotifierProvider.notifier).loadFromSync();
     });
   }
@@ -69,11 +69,13 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
   @override
   Widget build(BuildContext context) {
     final todoData = ref.watch(
-      todoStateNotifierProvider.select((state) => _ZenTodoData(
-            allTodos: state.allTodos,
-            totalCount: state.totalCount,
-            completedCount: state.completedCount,
-          )),
+      todoStateNotifierProvider.select(
+        (state) => _ZenTodoData(
+          allTodos: state.allTodos,
+          totalCount: state.totalCount,
+          completedCount: state.completedCount,
+        ),
+      ),
     );
     final allTodos = todoData.allTodos;
     final totalCount = todoData.totalCount;
@@ -82,8 +84,7 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
     final activeTodos = allTodos
         .where(
           (t) =>
-              t.status == TodoState.pending ||
-              t.status == TodoState.inProgress,
+              t.status == TodoState.pending || t.status == TodoState.inProgress,
         )
         .toList(growable: false);
 
@@ -98,10 +99,7 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
             Text(context.l10n.zenTitle),
             if (totalCount > 0) ...[
               const SizedBox(width: AppSpacing.sm),
-              _TaskCountBadge(
-                completed: completedCount,
-                total: totalCount,
-              ),
+              _TaskCountBadge(completed: completedCount, total: totalCount),
             ],
           ],
         ),
@@ -109,27 +107,27 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
       body: _isLoading
           ? const _ZenLoadingShimmer()
           : allTodos.isEmpty
-              ? AppEmptyState(
-                  icon: Icons.check_circle_outline,
-                  title: context.l10n.zenEmptyTitle,
-                  subtitle: context.l10n.zenEmptySubtitle,
-                  action: FilledButton.icon(
-                    onPressed: () => context.push('/zen/new'),
-                    icon: const Icon(Icons.add),
-                    label: Text(context.l10n.zenNewTask),
-                  ),
-                )
-              : _TodoSectionsList(
-                  activeTodos: activeTodos,
-                  completedTodos: completedTodos,
-                  onOpen: (item) => context.push(
-                    '/zen/view',
-                    extra: {
-                      'todoId': item.id,
-                      'sessionId': item.sessionId ?? 'global',
-                    },
-                  ),
-                ),
+          ? AppEmptyState(
+              icon: Icons.check_circle_outline,
+              title: context.l10n.zenEmptyTitle,
+              subtitle: context.l10n.zenEmptySubtitle,
+              action: FilledButton.icon(
+                onPressed: () => context.push('/zen/new'),
+                icon: const Icon(Icons.add),
+                label: Text(context.l10n.zenNewTask),
+              ),
+            )
+          : _TodoSectionsList(
+              activeTodos: activeTodos,
+              completedTodos: completedTodos,
+              onOpen: (item) => context.push(
+                '/zen/view',
+                extra: {
+                  'todoId': item.id,
+                  'sessionId': item.sessionId ?? 'global',
+                },
+              ),
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/zen/new'),
         tooltip: context.l10n.zenNewTask,
@@ -140,10 +138,7 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
 }
 
 class _TaskCountBadge extends StatelessWidget {
-  const _TaskCountBadge({
-    required this.completed,
-    required this.total,
-  });
+  const _TaskCountBadge({required this.completed, required this.total});
 
   final int completed;
   final int total;
@@ -201,10 +196,8 @@ class _TodoItemCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  decoration:
-                      isDone ? TextDecoration.lineThrough : null,
-                  decorationColor:
-                      theme.colorScheme.onSurface,
+                  decoration: isDone ? TextDecoration.lineThrough : null,
+                  decorationColor: theme.colorScheme.onSurface,
                   color: isDone
                       ? theme.colorScheme.onSurfaceVariant
                       : theme.colorScheme.onSurface,
@@ -230,11 +223,7 @@ class _StatusIcon extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     switch (status) {
       case TodoState.completed:
-        return Icon(
-          Icons.check_circle,
-          color: cs.primary,
-          size: AppSpacing.xl,
-        );
+        return Icon(Icons.check_circle, color: cs.primary, size: AppSpacing.xl);
       case TodoState.canceled:
         return Icon(
           Icons.cancel_outlined,
@@ -242,11 +231,7 @@ class _StatusIcon extends StatelessWidget {
           size: AppSpacing.xl,
         );
       case TodoState.inProgress:
-        return Icon(
-          Icons.timelapse,
-          color: cs.tertiary,
-          size: AppSpacing.xl,
-        );
+        return Icon(Icons.timelapse, color: cs.tertiary, size: AppSpacing.xl);
       case TodoState.pending:
         return Icon(
           Icons.radio_button_unchecked,
@@ -306,29 +291,19 @@ class _TodoSectionsList extends StatelessWidget {
         if (activeTodos.isNotEmpty) ...[
           AppSectionHeader(
             title: context.l10n.zenSectionActive,
-            padding: const EdgeInsets.only(
-              bottom: AppSpacing.sm,
-            ),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           ),
           for (final item in activeTodos)
-            _TodoItemCard(
-              item: item,
-              onTap: () => onOpen(item),
-            ),
+            _TodoItemCard(item: item, onTap: () => onOpen(item)),
         ],
         if (completedTodos.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.lg),
           AppSectionHeader(
             title: context.l10n.zenSectionCompleted,
-            padding: const EdgeInsets.only(
-              bottom: AppSpacing.sm,
-            ),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           ),
           for (final item in completedTodos)
-            _TodoItemCard(
-              item: item,
-              onTap: () => onOpen(item),
-            ),
+            _TodoItemCard(item: item, onTap: () => onOpen(item)),
         ],
       ],
     );
@@ -351,20 +326,15 @@ class _ZenLoadingShimmer extends StatelessWidget {
           Container(
             height: 14,
             width: 80,
-            margin: const EdgeInsets.only(
-              bottom: AppSpacing.sm,
-            ),
+            margin: const EdgeInsets.only(bottom: AppSpacing.sm),
             decoration: BoxDecoration(
               color: color,
-              borderRadius:
-                  BorderRadius.circular(AppRadius.xs),
+              borderRadius: BorderRadius.circular(AppRadius.xs),
             ),
           ),
           for (int i = 0; i < 4; i++)
             Padding(
-              padding: const EdgeInsets.only(
-                bottom: AppSpacing.sm,
-              ),
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
               child: AppCard(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,
@@ -387,10 +357,7 @@ class _ZenLoadingShimmer extends StatelessWidget {
                         width: 140 + (i * 25.0) % 80,
                         decoration: BoxDecoration(
                           color: color,
-                          borderRadius:
-                              BorderRadius.circular(
-                            AppRadius.xs,
-                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.xs),
                         ),
                       ),
                     ),
@@ -400,10 +367,7 @@ class _ZenLoadingShimmer extends StatelessWidget {
                       height: 18,
                       decoration: BoxDecoration(
                         color: color,
-                        borderRadius:
-                            BorderRadius.circular(
-                          AppRadius.pill,
-                        ),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
                       ),
                     ),
                   ],

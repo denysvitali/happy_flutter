@@ -86,24 +86,32 @@ extension SyncSocket on Sync {
     purchasesSync = InvalidateSync(syncPurchases, name: 'syncPurchases');
     machinesSync = InvalidateSync(fetchMachines, name: 'fetchMachines');
     pushTokenSync = InvalidateSync(syncPushToken, name: 'syncPushToken');
-    nativeUpdateSync =
-        InvalidateSync(fetchNativeUpdate, name: 'fetchNativeUpdate');
-    artifactsSync =
-        InvalidateSync(fetchArtifactsList, name: 'fetchArtifactsList');
+    nativeUpdateSync = InvalidateSync(
+      fetchNativeUpdate,
+      name: 'fetchNativeUpdate',
+    );
+    artifactsSync = InvalidateSync(
+      fetchArtifactsList,
+      name: 'fetchArtifactsList',
+    );
     friendsSync = InvalidateSync(fetchFriends, name: 'fetchFriends');
-    friendRequestsSync =
-        InvalidateSync(fetchFriendRequests, name: 'fetchFriendRequests');
+    friendRequestsSync = InvalidateSync(
+      fetchFriendRequests,
+      name: 'fetchFriendRequests',
+    );
     feedSync = InvalidateSync(fetchFeed, name: 'fetchFeed');
     todosSync = InvalidateSync(fetchTodos, name: 'fetchTodos');
-    sessionGitStatusSync =
-        InvalidateSync(_fetchSessionGitStatus, name: 'fetchSessionGitStatus');
+    sessionGitStatusSync = InvalidateSync(
+      _fetchSessionGitStatus,
+      name: 'fetchSessionGitStatus',
+    );
 
     // Mark initialized early so that provider loadFromSync() can serve
     // cached sessions and messages immediately, before network syncs
     // complete.  Screens subscribing to onDataChanged will pick up the
     // cached snapshot within the debounce window (~100ms).
     isInitialized = true;
-    _notifyDataChanged();
+    _notifyDataChanged(SyncDomain.values.toSet());
 
     // Setup socket connection
     final serverUrl = getServerUrl();
@@ -189,24 +197,21 @@ extension SyncSocket on Sync {
     // These are non-critical and can be loaded lazily when accessed
     if (phase == null || phase == Sync._deferredSyncPhase) {
       _deferredSyncsTimer?.cancel();
-      _deferredSyncsTimer = Timer(
-        const Duration(milliseconds: 2500),
-        () {
-          // Only invalidate if sync is still initialized to avoid
-          // errors after logout/dispose
-          if (!isInitialized) return;
-          logger.debug(
-            'Invalidating deferred syncs '
-            '(friends, feed, todos, artifacts, git status)',
-          );
-          friendsSync.invalidate();
-          friendRequestsSync.invalidate();
-          feedSync.invalidate();
-          todosSync.invalidate();
-          artifactsSync.invalidate();
-          sessionGitStatusSync.invalidate();
-        },
-      );
+      _deferredSyncsTimer = Timer(const Duration(milliseconds: 2500), () {
+        // Only invalidate if sync is still initialized to avoid
+        // errors after logout/dispose
+        if (!isInitialized) return;
+        logger.debug(
+          'Invalidating deferred syncs '
+          '(friends, feed, todos, artifacts, git status)',
+        );
+        friendsSync.invalidate();
+        friendRequestsSync.invalidate();
+        feedSync.invalidate();
+        todosSync.invalidate();
+        artifactsSync.invalidate();
+        sessionGitStatusSync.invalidate();
+      });
     }
   }
 
@@ -222,8 +227,30 @@ extension SyncSocket on Sync {
   /// into a single trailing emission.  This prevents the old
   /// cancel-and-restart pattern from deferring the emission
   /// indefinitely during sustained streaming (events every 20-50ms).
-  void _notifyDataChanged() {
+  void _notifyDataChanged([Set<SyncDomain>? domains]) {
     _dataChangeCounter++;
+    final effectiveDomains = domains ?? SyncDomain.values.toSet();
+    for (final domain in effectiveDomains) {
+      _domainChangeCounters[domain] = (_domainChangeCounters[domain] ?? 0) + 1;
+      final existingTimer = _domainChangeDebounceTimers[domain];
+      if (existingTimer == null || !existingTimer.isActive) {
+        if (!_domainChangeController.isClosed) {
+          _domainChangeController.add(domain);
+        }
+        _domainChangePendingTrailing.remove(domain);
+        _domainChangeDebounceTimers[domain] = Timer(
+          const Duration(milliseconds: 250),
+          () {
+            if (_domainChangePendingTrailing.remove(domain) &&
+                !_domainChangeController.isClosed) {
+              _domainChangeController.add(domain);
+            }
+          },
+        );
+      } else {
+        _domainChangePendingTrailing.add(domain);
+      }
+    }
     // If no timer is running, fire immediately (leading edge) and
     // start a cooldown window.
     if (_dataChangeDebounceTimer == null ||
@@ -232,12 +259,10 @@ extension SyncSocket on Sync {
         _dataChangeController.add(null);
       }
       _dataChangePendingTrailing = false;
-      _dataChangeDebounceTimer =
-          Timer(const Duration(milliseconds: 250), () {
+      _dataChangeDebounceTimer = Timer(const Duration(milliseconds: 250), () {
         // Trailing edge: emit once more if calls arrived during
         // the cooldown window.
-        if (_dataChangePendingTrailing &&
-            !_dataChangeController.isClosed) {
+        if (_dataChangePendingTrailing && !_dataChangeController.isClosed) {
           _dataChangeController.add(null);
         }
         _dataChangePendingTrailing = false;
@@ -250,9 +275,17 @@ extension SyncSocket on Sync {
 
   /// Immediately emit data change notification, bypassing debounce.
   /// Use sparingly when listeners need to be notified synchronously.
-  void _flushDataChanged() {
+  void _flushDataChanged([Set<SyncDomain>? domains]) {
     _dataChangeDebounceTimer?.cancel();
     _dataChangeCounter++;
+    final effectiveDomains = domains ?? SyncDomain.values.toSet();
+    for (final domain in effectiveDomains) {
+      _domainChangeDebounceTimers[domain]?.cancel();
+      _domainChangeCounters[domain] = (_domainChangeCounters[domain] ?? 0) + 1;
+      if (!_domainChangeController.isClosed) {
+        _domainChangeController.add(domain);
+      }
+    }
     if (!_dataChangeController.isClosed) {
       _dataChangeController.add(null);
     }
@@ -285,16 +318,18 @@ extension SyncSocket on Sync {
         _sessionMessageChangeController.add(sessionId);
       }
       _sessionMessagePendingTrailing.remove(sessionId);
-      _sessionMessageDebounceTimers[sessionId] =
-          Timer(const Duration(milliseconds: 200), () {
-        _sessionMessageDebounceTimers.remove(sessionId);
-        // Trailing edge: emit once more if calls arrived during
-        // the cooldown window.
-        if (_sessionMessagePendingTrailing.remove(sessionId) &&
-            !_sessionMessageChangeController.isClosed) {
-          _sessionMessageChangeController.add(sessionId);
-        }
-      });
+      _sessionMessageDebounceTimers[sessionId] = Timer(
+        const Duration(milliseconds: 200),
+        () {
+          _sessionMessageDebounceTimers.remove(sessionId);
+          // Trailing edge: emit once more if calls arrived during
+          // the cooldown window.
+          if (_sessionMessagePendingTrailing.remove(sessionId) &&
+              !_sessionMessageChangeController.isClosed) {
+            _sessionMessageChangeController.add(sessionId);
+          }
+        },
+      );
     } else {
       // Timer is active — mark that a trailing emission is needed.
       _sessionMessagePendingTrailing.add(sessionId);
@@ -307,10 +342,7 @@ extension SyncSocket on Sync {
   /// the actual cursor because inline socket messages advance it
   /// faster than [fetchSessions] runs).
   void _advanceSeqCursor(String sessionId, int newSeq) {
-    if (!_cursorManager.advanceSeqCursor(
-      sessionId,
-      newSeq,
-    )) {
+    if (!_cursorManager.advanceSeqCursor(sessionId, newSeq)) {
       return;
     }
     _scheduleSaveSeq();
@@ -320,10 +352,8 @@ extension SyncSocket on Sync {
     // authoritative cursor, not the stale value from the
     // last fetchSessions response.
     final session = _sessions[sessionId];
-    if (session != null &&
-        (session.lastSeq ?? 0) < newSeq) {
-      _sessions[sessionId] =
-          session.copyWith(lastSeq: newSeq);
+    if (session != null && (session.lastSeq ?? 0) < newSeq) {
+      _sessions[sessionId] = session.copyWith(lastSeq: newSeq);
     }
   }
 
@@ -449,9 +479,7 @@ extension SyncSocket on Sync {
         }
         if (entries.isNotEmpty) {
           final decrypted = await Future.wait(
-            entries.map(
-              (e) => encryption.decryptEncryptionKey(e.$2),
-            ),
+            entries.map((e) => encryption.decryptEncryptionKey(e.$2)),
           );
           for (var i = 0; i < decrypted.length; i++) {
             final dk = decrypted[i];
@@ -497,22 +525,16 @@ extension SyncSocket on Sync {
     for (final entry in _sessions.entries) {
       final cached = _sessionJsonCache[entry.key];
       if (cached == null || !identical(cached.$1, entry.value)) {
-        _sessionJsonCache[entry.key] =
-            (entry.value, entry.value.toJson());
+        _sessionJsonCache[entry.key] = (entry.value, entry.value.toJson());
       }
     }
     // Remove stale entries for deleted sessions.
-    _sessionJsonCache.removeWhere(
-      (id, _) => !_sessions.containsKey(id),
-    );
+    _sessionJsonCache.removeWhere((id, _) => !_sessions.containsKey(id));
 
     MMKVStorage().saveSessionsCache({
       'lastFetchedAt': _lastSessionsFetchedAt,
-      'sessions': [
-        for (final e in _sessionJsonCache.values) e.$2,
-      ],
-      'encryptedDataKeys':
-          Map<String, String>.from(_sessionEncryptedDataKeys),
+      'sessions': [for (final e in _sessionJsonCache.values) e.$2],
+      'encryptedDataKeys': Map<String, String>.from(_sessionEncryptedDataKeys),
     });
   }
 
@@ -525,6 +547,8 @@ extension SyncSocket on Sync {
   /// session cache before per-session message caches are warm.  Messages
   /// are loaded lazily when the user opens a chat.
   Future<void> _restoreAllCachedMessagesAsync() async {
+    await Future<void>.delayed(Duration.zero);
+    if (!isInitialized) return;
     _restoreAllCachedMessages();
   }
 
@@ -627,6 +651,6 @@ extension SyncSocket on Sync {
       modelMode: seedSession.modelMode,
     );
     _scheduleSaveSessionsCache();
-    _notifyDataChanged();
+    _notifyDataChanged({SyncDomain.sessions});
   }
 }
