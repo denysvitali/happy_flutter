@@ -240,6 +240,7 @@ extension SyncData on Sync {
             updatedAt: updatedAt,
             active: active,
             activeAt: activeAt,
+            archived: _asSessionBool(session['archived']) ?? false,
             metadata: parsedMetadata,
             metadataVersion: metadataVersion,
             agentState: parsedAgentState,
@@ -509,6 +510,7 @@ extension SyncData on Sync {
         updatedAt: _asSessionInt(raw['updatedAt']) ??
             DateTime.now().millisecondsSinceEpoch,
         active: _asSessionBool(raw['active']) ?? false,
+        archived: _asSessionBool(raw['archived']) ?? false,
         activeAt: _asSessionInt(raw['activeAt']) ??
             DateTime.now().millisecondsSinceEpoch,
         metadata: parsedMetadata,
