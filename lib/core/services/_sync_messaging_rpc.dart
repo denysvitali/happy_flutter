@@ -507,6 +507,22 @@ extension SyncMessagingRpc on Sync {
     // new messages can enter the inline fast path immediately.
     _inlineProcessor.clearSession(sessionId);
 
+    // Populate _sessionSpawnedProfile from MMKV so that profile switches
+    // are detected in _resolveSendTargetSession.  Without this, pre-existing
+    // sessions (loaded from server, not spawned in this app instance) are
+    // not tracked and profile changes are silently ignored — only the model
+    // string changes while the session keeps running with the old profile's
+    // env vars (API keys, base URLs).
+    if (!_sessionSpawnedProfile.containsKey(sessionId)) {
+      MMKVStorage()
+          .getSessionProfile(sessionId)
+          .then((storedProfileId) {
+        if (!_sessionSpawnedProfile.containsKey(sessionId)) {
+          _sessionSpawnedProfile[sessionId] = storedProfileId;
+        }
+      });
+    }
+
     // Evict stale messagesSync entries that haven't been used in 5 minutes.
     // Each InvalidateSync holds Timers, a Completer, and closures that
     // capture the Sync singleton — unbounded growth for 500+ sessions.
@@ -545,7 +561,7 @@ extension SyncMessagingRpc on Sync {
         _sessionMessages.containsKey(sessionId) &&
         (_sessionMessages[sessionId]?.isNotEmpty ?? false);
 
-    logger.info(
+    logger.debug(
       '[onSessionVisible] sessionId=$sessionId '
       'hasPendingSocketMessages=$hasPendingSocketMessages '
       'hasMessagesInMemory=$hasMessages '
@@ -561,7 +577,7 @@ extension SyncMessagingRpc on Sync {
       // of a loading spinner for 5-15s while the server fetch runs.
       // The incremental delta fetch will fill in any missing messages.
       final cached = MessageCacheService().getMessages(sessionId);
-      logger.info(
+      logger.debug(
         '[onSessionVisible] cacheRestore: ${cached.length} '
         'cached messages '
         '(hasPendingSocket=$hasPendingSocketMessages)',
@@ -593,7 +609,7 @@ extension SyncMessagingRpc on Sync {
       // them with the cache.
       if (!hasMessages) {
         _requestTailRefresh(sessionId);
-        logger.info(
+        logger.debug(
           '[onSessionVisible] tailRefresh requested '
           '(hasMessages=$hasMessages '
           'hasPendingSocket=$hasPendingSocketMessages)',
@@ -608,7 +624,7 @@ extension SyncMessagingRpc on Sync {
       final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
       final hadPendingUpdates = _sessionsWithPendingUpdates.remove(sessionId);
 
-      logger.info(
+      logger.debug(
         '[onSessionVisible] hasMessages path: cursorSeq=$cursorSeq '
         'serverLastSeq=$serverLastSeq hadPendingUpdates=$hadPendingUpdates',
       );
@@ -617,7 +633,7 @@ extension SyncMessagingRpc on Sync {
       if (cursorSeq > 0 && serverLastSeq > cursorSeq) {
         // Server has messages we haven't seen. Let fetchMessages handle it
         // via the normal incremental delta path (or gapTooLarge tail-load).
-        logger.info(
+        logger.debug(
           '[onSessionVisible] gap detected: '
           'server($serverLastSeq) > cursor($cursorSeq) — will fetch delta',
         );
@@ -630,7 +646,7 @@ extension SyncMessagingRpc on Sync {
         // would unnecessarily wipe and re-download messages.
         if (cursorSeq <= 0 || serverLastSeq <= 0) {
           _requestTailRefresh(sessionId);
-          logger.info(
+          logger.debug(
             '[onSessionVisible] tailRefresh '
             '(pending updates, invalid cursor)',
           );
