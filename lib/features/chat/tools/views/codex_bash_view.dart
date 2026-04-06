@@ -151,17 +151,12 @@ class CodexBashView extends StatelessWidget {
     dynamic result,
     String state,
   ) {
-    final stdout = state == 'completed' && result != null
-        ? _getStdout(result)
+    final stdout = result != null ? _getStdout(result) : null;
+    final stderr = result != null ? _getStderr(result) : null;
+    final exitCode = result != null ? _getExitCode(result) : null;
+    final error = state == 'error' && result != null
+        ? (_getErrorText(result) ?? result.toString())
         : null;
-    final stderr = state == 'completed' && result != null
-        ? _getStderr(result)
-        : null;
-    final exitCode = state == 'completed' && result != null
-        ? _getExitCode(result)
-        : null;
-    final error =
-        state == 'error' && result != null ? result.toString() : null;
 
     return ToolSectionView(
       child: _CodexCommandView(
@@ -186,6 +181,18 @@ class CodexBashView extends StatelessWidget {
   String? _getStderr(dynamic result) {
     if (result is Map<String, dynamic>) {
       return result['stderr'] as String?;
+    }
+    return null;
+  }
+
+  String? _getErrorText(dynamic result) {
+    if (result is String) return result;
+    if (result is Map<String, dynamic>) {
+      return (result['stderr'] ??
+              result['stdout'] ??
+              result['output'] ??
+              result['summary'])
+          as String?;
     }
     return null;
   }
